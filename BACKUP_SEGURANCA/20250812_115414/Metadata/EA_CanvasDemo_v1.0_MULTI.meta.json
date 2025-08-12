@@ -1,0 +1,39 @@
+{
+  "arquivo": "EA_CanvasDemo_v1.0_MULTI.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Misc",
+  "mercado_alvo": "MULTI",
+  "timeframe_recomendado": "ANY",
+  "versao": "1.0",
+  "autor": "mutiiriallan.forex@gmail.com",
+  "descricao": "EA de demonstração de funcionalidades Canvas para desenho gráfico",
+  "funcoes_principais": [
+    "OnInit",
+    "OnDeinit",
+    "OnTick",
+    "CreateBitmapLabel",
+    "PixelSet",
+    "TextOut",
+    "Line",
+    "Rectangle"
+  ],
+  "parametros_expostos": [],
+  "indicadores_utilizados": [],
+  "pares_suportados": ["MULTI"],
+  "timeframes_suportados": ["ANY"],
+  "ftmo_score": 0,
+  "codigo_qualidade_score": 8,
+  "riscos_detectados": [
+    "Não é EA de trading",
+    "Apenas demonstração",
+    "Sem funcionalidade de trading"
+  ],
+  "ajustes_necessarios_ftmo": [
+    "Não aplicável - não é EA de trading"
+  ],
+  "tags": ["#EA", "#Demo", "#Canvas", "#Graphics", "#Nao_Trading"],
+  "caminho_completo": "CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/Misc/EA_CanvasDemo_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "status": "Classificado"
+}

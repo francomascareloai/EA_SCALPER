@@ -1,0 +1,1527 @@
+//@version=5
+VERSION                   = 'v22-Supertrend'// 2024.4.16
+strategy(
+  'ALGOX',
+  shorttitle              = 'OS ALGO ' + VERSION,
+  overlay                 = true,
+  pyramiding              = 0,
+  default_qty_type        = strategy.percent_of_equity,
+  default_qty_value       = 50,
+  initial_capital         = 5000,
+  commission_type         = strategy.commission.percent,
+  commission_value        = 0.02,
+  max_bars_back           = 500
+  )
+// FUNCTIONS
+
+// * Type trading
+GS_group = "████ General Settings ████"
+
+allow_longs = input.bool(true, 'Allow Longs', group = GS_group)
+allow_shorts = input.bool(true, 'Allow Shorts', group = GS_group)
+
+allow_ltf = input.bool(false, 'Use Lower Timeframe for Ealry Signals', group = GS_group)
+allow_htf = input.bool(false, 'Use Higher Timeframe for Ealry Signals', group = GS_group)
+allow_tfm = input.bool(true, 'Use Timeframe Multiplier for Ealry Signals (Repaint Signals)', group = GS_group)
+_lookahead = allow_tfm //input.bool(false, "USE Repaint Signals", group = GS_group)
+allow_nrps = input.bool(true, 'Show Non Repaint Signals', group = GS_group)
+
+TPSType = input.string('Trailing',   'What TPS should be taken : ', options = ['ATR', 'Trailing'])
+sensitivity = input.string("Medium", "Signal Sensitivity", ["Low", "Medium", "High"])
+
+//lookahead = input.bool(false, 'Use Hekinashi?', group = GS_group)
+tfmult = 18 //input.int(18, "Input Timeframe Multiplier", group = GS_group)
+
+f_resInMinutes() => 
+    _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1. / 60. :
+      timeframe.isminutes ? 1.       :
+      timeframe.isdaily   ? 1440.    :
+      timeframe.isweekly  ? 10080.   :
+      timeframe.ismonthly ? 43800.   : na)
+stratRes = str.tostring(f_resInMinutes()*tfmult)
+
+fixedf_tfInMinutes() => 
+    _tfInMinutes = (
+      timeframe.period == '1' ? '3' :
+      timeframe.period == '3' ? '5' :
+      timeframe.period == '5' ? '10' :
+      timeframe.period == '10' ? '15' :
+      timeframe.period == '15' ? '30' :
+      timeframe.period == '30' ? '60' :
+      timeframe.period == '60' ? '240' : '480')
+my_time = fixedf_tfInMinutes()
+
+ltf_tfInMinutes() => 
+    _tfInMinutes = (
+      timeframe.period == '1' ? '1' :
+      timeframe.period == '3' ? '1' :
+      timeframe.period == '5' ? '3' :
+      timeframe.period == '10' ? '5' :
+      timeframe.period == '15' ? '10' :
+      timeframe.period == '30' ? '15' :
+      timeframe.period == '60' ? '30' : '60')
+ltf_my_time = allow_ltf ? ltf_tfInMinutes() : allow_htf ? my_time : allow_tfm ? stratRes : ''
+
+get_atrthreshold() => 
+    _tfInMinutes = (
+      timeframe.period == '1' ? 1 :
+      timeframe.period == '3' ? 1 :
+      timeframe.period == '5' ? 1 :
+      timeframe.period == '10' ? 1 :
+      timeframe.period == '15' ? 0.5 : 0)
+ATRAlertThreshold = allow_tfm ? 0 : get_atrthreshold()
+
+get_htf(_src, _tf, _actualla) =>
+    request.security(symbol=ticker.heikinashi(syminfo.tickerid), timeframe=_tf, expression=_src[barstate.isconfirmed ? 0 : 1], lookahead = _actualla ? barmerge.lookahead_on : na)
+
+heikinashi_close = request.security(symbol=ticker.heikinashi(syminfo.tickerid), timeframe=ltf_my_time, expression=close[barstate.isconfirmed ? 0 : 1], lookahead = _lookahead ? barmerge.lookahead_on : na)
+heikinashi_open = request.security(symbol=ticker.heikinashi(syminfo.tickerid), timeframe=ltf_my_time, expression=open[barstate.isconfirmed ? 0 : 1], lookahead = _lookahead ? barmerge.lookahead_on : na)
+heikinashi_high = request.security(symbol=ticker.heikinashi(syminfo.tickerid), timeframe=ltf_my_time, expression=high[barstate.isconfirmed ? 0 : 1], lookahead = _lookahead ? barmerge.lookahead_on : na)
+heikinashi_low = request.security(symbol=ticker.heikinashi(syminfo.tickerid), timeframe=ltf_my_time, expression=low[barstate.isconfirmed ? 0 : 1], lookahead = _lookahead ? barmerge.lookahead_on : na)
+heikinashi_hl2 = request.security(symbol=ticker.heikinashi(syminfo.tickerid), timeframe=ltf_my_time, expression=hl2[barstate.isconfirmed ? 0 : 1], lookahead = _lookahead ? barmerge.lookahead_on : na)
+
+allow_carryforward = input.bool(false, 'Disable CarryForward of Positions', group = GS_group)
+
+length = 14 //input(14, "RSI Length") 
+source = heikinashi_close //input(close, "RSI Source")
+
+rsiValue = ta.rsi(source, length)
+
+oversoldLevel = 30 //input.int(30, "Oversold Level") 
+overboughtLevel = 70 //input.int(70, "Overbought Level")
+OSRSI = rsiValue <= oversoldLevel
+OBRSI = rsiValue >= overboughtLevel
+plotshape(OSRSI, title = "rsi", style =shape.cross, location = location.belowbar, color = color.red)
+plotshape(OBRSI, title = "rsi", style =shape.cross, location = location.abovebar, color = color.lime)
+
+// Define the number of bars to wait for confirmation
+//confirmation_bars = input.int(3, "Delay for Entry Signal", group = GS_group) // Adjust this value as needed
+
+enableFilter = input(true,  "Enable Backtesting Range Filtering", group = GS_group)
+fromDate     = input.time(timestamp("01 Jan 2023 00:00 +0000"), "Start Date", group = GS_group)
+toDate       = timestamp("31 Dec 2099 00:00 +0300") //input.time(timestamp("31 Dec 2099 00:00 +0300"), "End Date")
+
+tradeDateIsAllowed = not enableFilter or (time >= fromDate and time <= toDate)
+
+RO_group = "████ Indicator Plots ████"
+
+//@version=5
+//indicator(title='[RS]ATR Stop Bands', shorttitle='ATR.SB', overlay=true)
+ATRGRID = input.bool(true, title = "ATR Bands", group=RO_group, inline='Switch1')
+cumulative_averaging = true //input(true)
+atr_length = 140 //input(140)
+atr_1 = ta.atr(atr_length)
+cum_1 = ta.cum(atr_1)
+atr_2 = ta.atr(atr_length)
+atr = cumulative_averaging ? cum_1 / (bar_index + 1) : atr_2
+base_deviation = atr * input(2.618)
+aditional_deviation = atr * 0.618
+ma_length = 1 //input(1)
+show_trend_signals = true //input(false)
+f_atr_stop(_deviation, _length) =>
+    _stop = heikinashi_close
+    _stop := nz(_stop[1], heikinashi_close)
+    if heikinashi_close > _stop
+        _stop := math.max(_stop, heikinashi_close - _deviation)
+        _stop
+    if heikinashi_close < _stop
+        _stop := math.min(_stop, heikinashi_close + _deviation)
+        _stop
+    _return = ta.ema(_stop, _length)
+    _return
+
+
+stop = f_atr_stop(base_deviation, ma_length)
+
+plot(stop, title='Mid ATR', color=color.new(color.white, 0))
+
+up_1 = stop + base_deviation + aditional_deviation * 0
+up_2 = stop + base_deviation + aditional_deviation * 0.5
+up_3 = stop + base_deviation + aditional_deviation * 1
+
+do_1 = stop - base_deviation - aditional_deviation * 0
+do_2 = stop - base_deviation - aditional_deviation * 0.5
+do_3 = stop - base_deviation - aditional_deviation * 1
+
+
+up1 = plot(series=ATRGRID ? up_1 : na, title='+1', color=color.new(color.green, 0))
+up2 = plot(series=ATRGRID ? up_2 : na, title='+2', color=color.new(color.lime, 0))
+up3 = plot(series=ATRGRID ? up_3 : na, title='+3', color=color.new(color.gray, 0))
+dn1 = plot(series=ATRGRID ? do_1 : na, title='-1', color=color.new(color.maroon, 0))
+dn2 = plot(series=ATRGRID ? do_2 : na, title='-2', color=color.new(color.red, 0))
+dn3 = plot(series=ATRGRID ? do_3 : na, title='-3', color=color.new(color.gray, 0))
+
+fill(up1, up3, color.new(color.green, 80))
+fill(dn1, dn3, color.new(color.red, 80))
+
+// Display the probabilities in a table
+//text01_ = str.tostring(timeframe.multiplier * intRes, '####')
+
+//t = timenow + math.round(ta.change(time) * 25)
+//var label lab01 = na
+//label.delete(lab01)
+//lab01 := label.new(t, close, text=text01_, style=label.style_label_left, yloc=yloc.price, xloc=xloc.bar_time, textalign=text.align_left, textcolor=color.white)
+
+/////////////////////////////////////////////////////////////// © BackQuant ///////////////////////////////////////////////////////////////
+//#region ———— <constant_declarations> {
+//<my colors>
+C_GREEN         =                   #006400    //Green
+C_GREENLIGHT    =                   #388e3c    //Green Light
+C_RED           =                   #8B0000    //Red
+C_REDLIGHT      =                   #b71c1c    //Red Light
+//#endregion }
+
+// inputs //
+//{
+//showSignal = input.bool  (true, "SuperTrends", group=RO_group, inline='Switch1')
+trailType = input.string('unmodified', 'Trailtype', options=['modified', 'unmodified'])
+ATRPeriod = input(55, 'ATR Period')
+ATRFactor = _lookahead ? 0.1 : input.float(3, 'ATR Factor', step=0.1)
+//ATRAlertThreshold = input.float(1, 'ATR Alert Threshold', step=0.1)
+
+showCurrentReversalLevel = true //input(true, 'Show Current Bar Reversal Levels (Horizontal Line')
+offsetLabels = true //input(title='Offset Labels', defval=true)
+showReversalLevel = true //input(true, 'Plot Historical Reversal Levels')
+
+//Inputs
+//res1Start = input(title='------------Primary Resolution Settings----------', defval=false)
+res1 = ltf_my_time //input.timeframe(title='Resolution 1', defval='')
+fibLevel1 = 50.0 //input(title='Fibonacci Level 1', defval=50.0)
+fibLevel2 = 61.8 //input(title='Fibonacci Level 2', defval=61.8)
+fibLevel3 = 78.6 //input(title='Fibonacci Level 3', defval=78.6)
+
+plotTransp = showReversalLevel ? 50 : 100
+plotCurrentTransp = showCurrentReversalLevel ? 50 : 100
+supportColor = color.new(color.lime, plotTransp)
+resistanceColor = color.new(color.red, plotTransp)
+currentSupportColor = color.new(color.lime, plotCurrentTransp)
+currentResistanceColor = color.new(color.red, plotCurrentTransp)
+
+
+//}
+
+//////// FUNCTIONS //////////////
+//{
+// Wilders ma //
+Wild_ma(_src, _malength) =>
+    _wild = 0.0
+    _wild := nz(_wild[1]) + (_src - nz(_wild[1])) / _malength
+    _wild
+
+// RoundToTickUp() rounds the given value up to the next tick,
+// using the tick size of the chart's instrument.
+RoundToTick(value) =>
+    math.floor(value / syminfo.mintick) * syminfo.mintick
+
+/////////// TRUE RANGE CALCULATIONS /////////////////
+trueRanges(_r, _la) =>
+    norm_o = get_htf(open, _r, _la) //heikinashi_open //request.security(syminfo.tickerid, res, open)
+    norm_h = get_htf(high, _r, _la) //heikinashi_high //request.security(syminfo.tickerid, res, high)
+    norm_l = get_htf(low, _r, _la) //heikinashi_low //request.security(syminfo.tickerid, res, low)
+    norm_c = get_htf(close, _r, _la) //heikinashi_close //request.security(syminfo.tickerid, res, close)
+    HiLo = request.security(syminfo.tickerid, _r, math.min(norm_h - norm_l, 1.5 * nz(ta.sma(norm_h - norm_l, ATRPeriod))))
+//    HiLo = min(norm_h - norm_l, 1.5 * nz(sma((norm_h - norm_l), ATRPeriod)))
+    HRef = request.security(syminfo.tickerid, _r, norm_l <= norm_h[1] ? norm_h - norm_c[1] : norm_h - norm_c[1] - 0.5 * (norm_l - norm_h[1]))
+    LRef = request.security(syminfo.tickerid, _r, norm_h >= norm_l[1] ? norm_c[1] - norm_l : norm_c[1] - norm_l - 0.5 * (norm_l[1] - norm_h))
+    trueRange = request.security(syminfo.tickerid, _r, trailType == 'modified' ? math.max(HiLo, HRef, LRef) : math.max(norm_h - norm_l, math.abs(norm_h - norm_c[1]), math.abs(norm_l - norm_c[1])))
+//}
+
+
+/////////// TRADE LOGIC ////////////////////////
+//{
+custom_ST(_r, _la, _mult) =>
+    norm_o = get_htf(open, _r, _la) //heikinashi_open //request.security(syminfo.tickerid, res, open)
+    norm_h = get_htf(high, _r, _la) //heikinashi_high //request.security(syminfo.tickerid, res, high)
+    norm_l = get_htf(low, _r, _la) //heikinashi_low //request.security(syminfo.tickerid, res, low)
+    norm_c = get_htf(close, _r, _la) //heikinashi_close //request.security(syminfo.tickerid, res, close)
+    HiLo = request.security(syminfo.tickerid, _r, math.min(norm_h - norm_l, 1.5 * nz(ta.sma(norm_h - norm_l, ATRPeriod))))
+//    HiLo = min(norm_h - norm_l, 1.5 * nz(sma((norm_h - norm_l), ATRPeriod)))
+    HRef = request.security(syminfo.tickerid, _r, norm_l <= norm_h[1] ? norm_h - norm_c[1] : norm_h - norm_c[1] - 0.5 * (norm_l - norm_h[1]))
+    LRef = request.security(syminfo.tickerid, _r, norm_h >= norm_l[1] ? norm_c[1] - norm_l : norm_c[1] - norm_l - 0.5 * (norm_l[1] - norm_h))
+    trueRange = request.security(syminfo.tickerid, _r, trailType == 'modified' ? math.max(HiLo, HRef, LRef) : math.max(norm_h - norm_l, math.abs(norm_h - norm_c[1]), math.abs(norm_l - norm_c[1])))
+
+    loss = (_la ? ATRFactor : _mult) * request.security(syminfo.tickerid, _r, Wild_ma(trueRange, ATRPeriod)[barstate.isconfirmed ? 0 : 1])
+
+    Up = norm_c - loss
+    Dn = norm_c + loss
+
+
+    atrValue = Wild_ma(trueRange, ATRPeriod)
+    trueRangeRatio = trueRange / atrValue[1]
+
+    TrendUp = Up
+    TrendDown = Dn
+    Trend = 1
+
+    var float trail = na
+
+    TrendUp := norm_c[1] > TrendUp[1] ? math.max(Up, TrendUp[1]) : Up
+    TrendDown := norm_c[1] < TrendDown[1] ? math.min(Dn, TrendDown[1]) : Dn
+
+    Trend := norm_c > TrendDown[1] ? 1 : norm_c < TrendUp[1] ? -1 : nz(Trend[1], 1)
+    trail := Trend == 1 ? TrendUp : TrendDown
+    trail := RoundToTick(trail)
+    //trail := Trend == na ? trail[1] :
+    //     Trend == 1 ? TrendUp : TrendDown
+
+
+    ex = 0.0
+    ex := ta.crossover(Trend, 0) ? norm_h : ta.crossunder(Trend, 0) ? norm_l : Trend == 1 ? math.max(ex[1], norm_h) : Trend == -1 ? math.min(ex[1], norm_l) : ex[1]
+
+    fib1Level = fibLevel1
+    fib2Level = fibLevel2
+    fib3Level = fibLevel3
+
+    f1 = RoundToTick(ex + (trail - ex) * fib1Level / 100)
+    f2 = RoundToTick(ex + (trail - ex) * fib2Level / 100)
+    f3 = RoundToTick(ex + (trail - ex) * fib3Level / 100)
+
+    [trail, Trend, ex, f1, f2, f3, trueRangeRatio]
+
+//{
+[trail1, Trend1, ex1, f1_1, f2_1, f3_1, atrRatio1] = custom_ST(res1, _lookahead, ATRFactor)
+[trail2, Trend2, ex2, f1_2, f2_2, f3_2, atrRatio2] = custom_ST('', false, 3)
+//[trail3, Trend3, ex3, f1_3, f2_3, f3_3, atrRatio3] = trueRanges('', false)
+
+rb = Trend1 == 1 and Trend1[1] == -1
+rs = Trend1 == -1 and Trend1[1] == 1
+
+nrb = Trend2 == 1 and Trend2[1] == -1
+nrs = Trend2 == -1 and Trend2[1] == 1
+
+plotshape(rb, style=shape.triangleup, location=location.belowbar, size = size.normal, color=color.rgb(170, 170, 170, 0), size=size.tiny, title="Repaint Buy")
+plotshape(rs, style=shape.triangledown, location=location.abovebar, size = size.normal, color=color.rgb(170, 170, 170), size=size.tiny, title="Repaint Sell")
+
+plotshape(allow_nrps ? nrb : na, style=shape.triangleup, location=location.belowbar, size = size.small, color=color.rgb(170, 170, 170, 0), size=size.tiny, title="Non Repaint Buy")
+plotshape(allow_nrps ? nrs : na, style=shape.triangledown, location=location.abovebar, size = size.small, color=color.rgb(170, 170, 170), size=size.tiny, title="Non Repaint Sell")
+
+//t1 = plot(showSignal ? trail1 : na, 'Reversal Res 1', style=plot.style_line, color=Trend1 == 1 ? supportColor : Trend1 == -1 ? resistanceColor : na)
+//t2 = plot(trail2, 'Reversal Res 2', style=plot.style_line, color=Trend2 == 1 ? supportColor : Trend2 == -1 ? resistanceColor : na)
+
+//fillhl2 = plot(showSignal ? hl2 : na, 'Highlighter', style=plot.style_line, display = display.none)
+
+//t1_fib1 = plot(showSignal ? f1_1 : na, title='f1_1', color=color.new(color.black, 100))
+//t1_fib2 = plot(showSignal ? f2_1 : na, title='f2_1', color=color.new(color.black, 100))
+//t1_fib3 = plot(showSignal ? f3_1 : na, title='f3_1', color=color.new(color.black, 100))
+
+//t2_fib1 = plot(f1_2, title='f1_2', color=color.new(color.black, 100))
+//t2_fib2 = plot(f2_2, title='f2_2', color=color.new(color.black, 100))
+//t2_fib3 = plot(f3_2, title='f3_2', color=color.new(color.black, 100))
+
+
+//Color Logic
+l1Color = Trend1 == 1 ? currentSupportColor : Trend1 == -1 ? currentResistanceColor : na
+l2Color = Trend2 == 1 ? currentSupportColor : Trend2 == -1 ? currentResistanceColor : na
+
+//Paint Reversal Clouds
+fib1Color = color.new(l1Color, 90)
+//fill(t1, t1_fib1, fib1Color)
+//fill(t1, t1_fib2, fib1Color)
+//fill(t1, t1_fib3, fib1Color)
+     
+useRSIfilter1 = input.bool(true, "Use RSI Entry Filter-1 (RSI and EMA)", group = GS_group)
+useEMAfilter2 = input.bool(true, "Use EMA Filter (Hekinashi Close 20 EMA)", group = GS_group)
+rsisensitivity = input.int(1, title="RSI Sensitivity", minval=1, maxval=10, group = GS_group)
+
+rsivalue = ta.rsi(heikinashi_close, 14)
+rsima = ta.ema(rsivalue, 21)
+
+rsibth1 = useRSIfilter1 ? ta.crossover(rsivalue, rsima) : true //or ta.crossover(rsivalue, rsi_buy_level) 
+rsisth1 = useRSIfilter1 ? ta.crossunder(rsivalue, rsima) : true //or ta.crossunder(rsivalue, rsi_sell_level)
+
+STUp = Trend1 == 1 and Trend1[1] == -1
+STDn = Trend1 == -1 and Trend1[1] == 1
+
+BEMAfilter = useEMAfilter2 ? ta.crossover(heikinashi_close, ta.ema(heikinashi_close, 21)) : true
+SEMAfilter = useEMAfilter2 ? ta.crossunder(heikinashi_close, ta.ema(heikinashi_close, 21)) : true
+
+buySignal = STUp and rsibth1 and BEMAfilter
+sellSignal = STDn and rsisth1 and SEMAfilter
+
+var bool FinalLongCondition = false
+var bool FinalShortCondition = false
+FinalLongCondition := buySignal
+FinalShortCondition := sellSignal
+
+// Change bar color based on strategy entry and close
+barcolor(Trend1 == 1 ? color.rgb(102, 255, 0) : Trend1 == -1 ? color.rgb(255, 0, 0) : color.gray)
+
+colorsr = 'DARK'
+bullcolorr = colorsr == 'DARK' ?  color.rgb(0, 255, 8) : #00DBFF
+bearcolorr = colorsr == 'DARK' ?  color.rgb(255, 0, 0) : #E91E63
+
+rsiLengthInput = 14 //input.int(14, minval=1, title="Exhaustion Strength ", group="Money Moves [Trend Exhaustion]")
+rsiSourceInput = close //input.source(close, "Source", group="Money Moves [Trend Exhaustion]")
+maTypeInput = ta.sma(close, 14)
+up66 = ta.rma(math.max(ta.change(rsiSourceInput), 0), rsiLengthInput)
+down = ta.rma(-math.min(ta.change(rsiSourceInput), 0), rsiLengthInput)
+
+rsi66 = down == 0 ? 100 : up66 == 0 ? 0 : 100 - (100 / (1 + up66 / down))
+long1 = ta.crossover(rsi66, 30)
+long2 = ta.crossover(rsi66, 20)
+long3 = ta.crossover(rsi66, 15)
+//long4 = ta.crossover(rsi66, 10)
+
+// SHORT
+short1 = ta.crossunder(rsi66, 70)
+short2 = ta.crossunder(rsi66, 80)
+short3 = ta.crossunder(rsi66, 85)
+
+usersiexit = input.bool(true, "Use RSI Exit Filter", group = GS_group)
+rsibuyexit = usersiexit ? long2 or long3 : na
+rsisellexit = usersiexit ? short2 or short3 : na
+
+if TPSType == "Trailing" and tradeDateIsAllowed
+    strategy.close("Sell", when = buySignal or rsibuyexit, comment = "Book Short", alert_message = "Book Short")
+    strategy.entry("Buy", strategy.long, alert_message = "Buy", when=buySignal and allow_longs)
+    strategy.close("Buy", when = sellSignal or rsisellexit, comment = "Book Long", alert_message = "Book Long")
+    strategy.entry("Sell", strategy.short, alert_message = "Sell", when=sellSignal and allow_shorts)
+//    strategy.entry("Buy More", strategy.long, alert_message = "Buy More", when=longCondition2 and allow_longs and not lookahead)
+//    strategy.entry("Sell More", strategy.short, alert_message = "Sell More", when=shortCondition2 and allow_shorts and not lookahead)
+
+//if condition_OB
+//    strategy.close("Buy", when = condition_OB, comment = "Book Long", alert_message = "Book Long")
+//    strategy.close("Buy More", when = condition_OB, comment = "Book Long", alert_message = "Book More Long")
+//if condition_OS
+//    strategy.close("Sell", when = condition_OS, comment = "Book Short", alert_message = "Book Short")
+//    strategy.close("Sell More", when = condition_OS, comment = "Book Short", alert_message = "Book More Short")
+
+isEndOfDay() =>
+// Compare the time of the current bar and the next bar
+    not na(time[1]) and (year(timenow) != year(time[1]) or month(timenow) != month(time[1]) or dayofmonth(timenow) != dayofmonth(time[1]))
+// Close all positions at the end of the day
+
+if allow_carryforward and isEndOfDay()
+    strategy.close_all(comment="End of Day Close")
+
+//Truncate Function
+truncate(number, decimals) =>
+    factor = math.pow(10, decimals)
+    int(number * factor) / factor
+
+//plot(whichonetouse ? rc : wlarc, color=color.lime, linewidth = 2)
+//plot(whichonetouse ? ro : wlaro, color=color.red, linewidth = 2)
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TraderHalai
+// This script was born out of my quest to be able to display strategy back test statistics on charts to allow for easier backtesting on devices that do not natively support backtest engine (such as mobile phones, when I am backtesting from away from my computer). There are already a few good ones on TradingView, but most / many are too complicated for my needs.
+//
+//Found an excellent display backtest engine by 'The Art of Trading'. This script is a snippet of his hard work, with some very minor tweaks and changes. Much respect to the original author.
+//
+//Full credit to the original author of this script. It can be found here: https://www.tradingview.com/script/t776tkZv-Hammers-Stars-Strategy/?offer_id=10&aff_id=15271
+//
+// This script can be copied and airlifted onto existing strategy scripts of your own, and integrates out of the box without implementation of additional functions. I've also added Max Runup, Average Win and Average Loss per trade to the orignal script.
+//
+//Will look to add in more performance metrics in future, as I further develop this script.
+//
+//Feel free to use this display panel in your scripts and strategies.
+
+//Thanks and enjoy! :)
+//@version=5
+//strategy("Strategy BackTest Display Statistics - TraderHalai", overlay=true, default_qty_value= 5, default_qty_type = strategy.percent_of_equity, initial_capital=10000,  commission_type=strategy.commission.percent, commission_value=0.1)
+
+//DEMO basic strategy - Use your own strategy here -  Jaws Mean Reversion from my profile used here
+//source = input(title = "Source", defval = close)
+    
+///////////////////////////// --- BEGIN TESTER CODE --- ////////////////////////
+// COPY below into your strategy to enable display
+////////////////////////////////////////////////////////////////////////////////
+
+
+// Declare performance tracking variables
+drawTester = input.bool(false, "Strategy Performance", group='Dashboards', inline="Show Dashboards")
+var balance = strategy.initial_capital
+var drawdown = 0.0
+var maxDrawdown = 0.0
+var maxBalance = 0.0
+var totalWins = 0
+var totalLoss = 0
+
+// Prepare stats table
+var table testTable = table.new(position.top_right, 5, 2, border_width=1)
+f_fillCell(_table, _column, _row, _title, _value, _bgcolor, _txtcolor) =>
+    _cellText = _title + "\n" + _value
+    table.cell(_table, _column, _row, _cellText, bgcolor=_bgcolor, text_color=_txtcolor)
+    
+// Custom function to truncate (cut) excess decimal places
+//truncate(_number, _decimalPlaces) =>
+//    _factor = math.pow(10, _decimalPlaces)
+//    int(_number * _factor) / _factor
+    
+// Draw stats table
+var bgcolor = color.new(color.black,0)
+if drawTester and tradeDateIsAllowed
+    if barstate.islastconfirmedhistory
+        // Update table
+        dollarReturn = strategy.netprofit
+        f_fillCell(testTable, 0, 0, "Total Trades:", str.tostring(strategy.closedtrades), bgcolor, color.white)
+        f_fillCell(testTable, 0, 1, "Win Rate:", str.tostring(truncate((strategy.wintrades/strategy.closedtrades)*100,2)) + "%", bgcolor, color.white)
+        f_fillCell(testTable, 1, 0, "Starting:", "$" + str.tostring(strategy.initial_capital), bgcolor, color.white)
+        f_fillCell(testTable, 1, 1, "Ending:", "$" + str.tostring(truncate(strategy.initial_capital + strategy.netprofit,2)), bgcolor, color.white)
+        f_fillCell(testTable, 2, 0, "Avg Win:", "$"+ str.tostring(truncate(strategy.grossprofit / strategy.wintrades, 2)), bgcolor, color.white)
+        f_fillCell(testTable, 2, 1, "Avg Loss:", "$"+ str.tostring(truncate(strategy.grossloss / strategy.losstrades, 2)), bgcolor, color.white)
+        f_fillCell(testTable, 3, 0, "Profit Factor:", str.tostring(truncate(strategy.grossprofit / strategy.grossloss,2)), strategy.grossprofit > strategy.grossloss ? color.green : color.red, color.white)
+        f_fillCell(testTable, 3, 1, "Max Runup:",  str.tostring(truncate(strategy.max_runup, 2 )), bgcolor, color.white)
+        f_fillCell(testTable, 4, 0, "Return:", (dollarReturn > 0 ? "+" : "") + str.tostring(truncate((dollarReturn / strategy.initial_capital)*100,2)) + "%", dollarReturn > 0 ? color.green : color.red, color.white)
+        f_fillCell(testTable, 4, 1, "Max DD:", str.tostring(truncate((strategy.max_drawdown / strategy.equity) * 100 ,2)) + "%", color.red, color.white)
+// --- END TESTER CODE --- ///////////////
+
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © niceGear68734
+
+//@version=5
+//strategy("Table to filter trades per day",  overlay=true, use_bar_magnifier = true, initial_capital = 5000, calc_on_every_tick = true, calc_on_order_fills = true, commission_type = strategy.commission.cash_per_contract)
+
+//~ ___________________________________________________________________________
+//~ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//~ !!!!!!!!!!!!!!!_________________  START  _________________!!!!!!!!!!!!!!!!!
+i_showweeklyPerformance = input.bool(false, 'Weekly Performance', group='Dashboards', inline="Show Dashboards")
+//__________________________   User Inputs  ___________________________________
+var const string g_table    = "Table Settings"
+i_table_pos                 = "Top Left" //input.string(defval = "Top Left", title = "Position", options = ["Bottom Right","Bottom Left", "Top Right", "Top Left"], group = g_table, inline = "1", tooltip = "It sets the location of the table")
+i_text_size                 = "Normal" //input.string(defval = "Normal", title = "Set the size of text", options = ["Small", "Normal", "Large"], tooltip = "This option is used to change the size of the text in the table")
+var const string g_general  = "General Settings"
+i_check_open_close          = "Opened" //input.string("Opened", "Check when the trade :", ["Opened", "Closed"], group = g_general, tooltip = "This parameter defines what to check for. If opened is selected, the results will show the trades that opened on that day. If closed is selected, the results will show the trades that closed on that day")
+i_timezone                  = "Exchange" //input.string("Exchange", title = "Set the Timezone", options = ["Exchange","UTC-10","UTC-9","UTC-8","UTC-7","UTC-6","UTC-5","UTC-4","UTC-3","UTC-2","UTC-1","UTC","UTC+1","UTC+2","UTC+3","UTC+4","UTC+5","UTC+6","UTC+7","UTC+8","UTC+9","UTC+10", "UTC+11","UTC+12","UTC+13","UTC+13:45"], group = g_general, tooltip = "You can use this setting whenever you want to change the time that the trade has closed/opened")
+
+//~_____________________________  Switches  ___________________________________
+table_pos = switch i_table_pos
+    "Bottom Right"  => position.bottom_right
+    "Bottom Left"   => position.bottom_left
+    "Top Right"     => position.top_right
+    "Top Left"      => position.top_left
+
+timezone_setting = i_timezone == "Exchange" ? syminfo.timezone : i_timezone
+
+text_size = switch i_text_size
+    "Small"         => size.small
+    "Normal"        => size.normal
+    "Large"         => size.large
+
+//__________________________   Array Declaration  _____________________________
+var string[] t_column_names          = array.from( "", "Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat")  // Columns header names
+var string[] t_row_names             = array.from("", "Total Trades", "Loss", "Win", "Win Rate" )  // Rows header names
+var t_column_size                    = array.size(t_column_names)
+var t_row_size                       = array.size(t_row_names)
+var string[] a_closed_trades         = array.new_string()  // Save the total number of trades
+var string[]   a_loss_trades         = array.new_string()  // Save the number of losing trades
+var string[]   a_win_trades          = array.new_string()  // Save the number of winning trades 
+var _a_day_week                      = array.new_int()  // Save the day of the week to split data
+
+// __________________________  Custom Functions  ________________________________
+//~ create a counter so that it gives a number to strategy.closed_trades.entry_time(counter)
+var trade_number = -1
+if strategy.closedtrades > strategy.closedtrades[1]
+    trade_number += 1
+
+f_strategy_closedtrades_hour() =>
+    switch 
+        i_check_open_close =="Closed" => dayofweek(strategy.closedtrades.exit_time(trade_number), timezone_setting)
+        i_check_open_close =="Opened"  => dayofweek(strategy.closedtrades.entry_time(trade_number), timezone_setting)
+
+f_data(_i) =>
+    var _closed_trades          = 0
+    var _loss_trades            = 0
+    var _win_trades             = 0
+    var _txt_closed_trades      = "" 
+    var _txt_loss_trades        = ""
+    var _txt_win_trades         = ""
+
+
+    if strategy.closedtrades > strategy.closedtrades[1] and f_strategy_closedtrades_hour() == _i
+        _closed_trades += 1
+        _txt_closed_trades := str.tostring(_closed_trades)
+    if strategy.losstrades > strategy.losstrades[1]     and f_strategy_closedtrades_hour() == _i
+        _loss_trades += 1
+        _txt_loss_trades := str.tostring(_loss_trades)        
+    if strategy.wintrades > strategy.wintrades[1]       and f_strategy_closedtrades_hour() == _i
+        _win_trades += 1
+        _txt_win_trades := str.tostring(_win_trades) 
+    [_txt_closed_trades, _txt_loss_trades, _txt_win_trades]                                                       
+
+
+//__________________________
+var string[] array1 = array.new_string(5)
+var string[] array2 = array.new_string(5)
+var string[] array3 = array.new_string(5)
+var string[] array4 = array.new_string(5)
+var string[] array5 = array.new_string(5)
+var string[] array6 = array.new_string(5)
+var string[] array7 = array.new_string(5)
+
+
+f_pass_data_to_array(_i, _array) =>
+    [cl, loss, win] = f_data(_i)
+    array.set(_array,1 , cl)
+    array.set(_array,2,loss)
+    array.set(_array,3,win)
+    if cl != "" 
+        array.set(_array,4,str.tostring(str.tonumber(win) / str.tonumber(cl) * 100 , "##") + " %")
+    if cl != "" and win == ""
+        array.set(_array,4,"0 %")
+
+
+for i = 1 to 7 
+    switch
+        i == 1 => f_pass_data_to_array(i,array1)
+        i == 2 => f_pass_data_to_array(i,array2)
+        i == 3 => f_pass_data_to_array(i,array3)
+        i == 4 => f_pass_data_to_array(i,array4)
+        i == 5 => f_pass_data_to_array(i,array5)
+        i == 6 => f_pass_data_to_array(i,array6)
+        i == 7 => f_pass_data_to_array(i,array7)
+
+f_retrieve_data_to_table(_i, _j) =>
+    switch
+        _i == 1 => array.get(array1, _j)
+        _i == 2 => array.get(array2, _j)
+        _i == 3 => array.get(array3, _j)
+        _i == 4 => array.get(array4, _j)
+        _i == 5 => array.get(array5, _j)
+        _i == 6 => array.get(array6, _j)
+        _i == 7 => array.get(array7, _j)
+
+
+
+
+
+//~ ___________________________  Create Table  ________________________________
+create_table(_col, _row, _txt) =>
+    var table _tbl = table.new(position = table_pos, columns = t_column_size , rows = t_row_size, border_width=1)
+    color _color = _row == 0 or _col == 0 ? color.rgb(3, 62, 106) : color.rgb(2, 81, 155)
+    table.cell(_tbl, _col, _row, _txt, bgcolor = _color, text_color = color.white, text_size = text_size)
+
+
+
+
+//~___________________________  Fill With Data  _______________________________
+if barstate.islastconfirmedhistory and i_showweeklyPerformance and tradeDateIsAllowed
+    for i = 0 to t_column_size - 1 by 1
+        for j = 0 to t_row_size - 1 by 1
+            _txt = "" 
+            if i >= 0 and j == 0
+                _txt := array.get(t_column_names, i)
+            if j >= 0 and i == 0
+                _txt := array.get(t_row_names, j)
+            if  i >= 1 and j >= 1 and j <= 5
+                _txt :=  f_retrieve_data_to_table( i , j)
+            create_table(i ,j , _txt)
+
+
+//~ ___________________________  Notice  ______________________________________
+if timeframe.in_seconds() > timeframe.in_seconds("D")
+    x = table.new(position.middle_center,1,1,color.aqua)
+    table.cell_set_text(x,0,0,"Please select lower timeframes (Daily or lower)")
+
+//~ !!!!!!!!!!!!!!!_________________  STOP  _________________!!!!!!!!!!!!!!!!!!
+//~ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//~ ___________________________________________________________________________
+
+
+// Global Dashboard Variables
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+// Dashboard Table Text Size
+i_tableTextSize = "Normal" //input.string(title="Dashboard Size", defval="Normal", options=["Auto",  "Huge",  "Large", "Normal", "Small", "Tiny"], group="Dashboards")
+table_text_size(s) =>
+    switch s
+        "Auto"   => size.auto   
+        "Huge"   => size.huge   
+        "Large"  => size.large  
+        "Normal" => size.normal 
+        "Small"  => size.small
+        => size.tiny
+tableTextSize = table_text_size(i_tableTextSize)
+
+// Monthly Table Performance Dashboard By @QuantNomad
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+i_showMonthlyPerformance = input.bool(false, 'Monthly Performance', group='Dashboards', inline="Show Dashboards")
+i_monthlyReturnPercision = 2
+
+if i_showMonthlyPerformance and tradeDateIsAllowed
+    new_month = month(time) != month(time[1])
+    new_year  = year(time)  != year(time[1])
+    
+    eq = strategy.equity
+    
+    bar_pnl = eq / eq[1] - 1
+    
+    cur_month_pnl = 0.0
+    cur_year_pnl  = 0.0
+    
+    // Current Monthly P&L
+    cur_month_pnl := new_month ? 0.0 : 
+                     (1 + cur_month_pnl[1]) * (1 + bar_pnl) - 1 
+    
+    // Current Yearly P&L
+    cur_year_pnl := new_year ? 0.0 : 
+                     (1 + cur_year_pnl[1]) * (1 + bar_pnl) - 1  
+    
+    // Arrays to store Yearly and Monthly P&Ls
+    var month_pnl  = array.new_float(0)
+    var month_time = array.new_int(0)
+    
+    var year_pnl  = array.new_float(0)
+    var year_time = array.new_int(0)
+    
+    last_computed = false
+    
+    if (not na(cur_month_pnl[1]) and (new_month or barstate.islastconfirmedhistory))
+        if (last_computed[1])
+            array.pop(month_pnl)
+            array.pop(month_time)
+            
+        array.push(month_pnl , cur_month_pnl[1])
+        array.push(month_time, time[1])
+    
+    if (not na(cur_year_pnl[1]) and (new_year or barstate.islastconfirmedhistory))
+        if (last_computed[1])
+            array.pop(year_pnl)
+            array.pop(year_time)
+            
+        array.push(year_pnl , cur_year_pnl[1])
+        array.push(year_time, time[1])
+    
+    last_computed := barstate.islastconfirmedhistory ? true : nz(last_computed[1])
+    
+    // Monthly P&L Table    
+    var monthly_table = table(na)
+    
+    if (barstate.islastconfirmedhistory)
+        monthly_table := table.new(position.bottom_right, columns = 14, rows = array.size(year_pnl) + 1, border_width = 1)
+    
+        table.cell(monthly_table, 0,  0, "",     bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 1,  0, "Jan",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 2,  0, "Feb",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 3,  0, "Mar",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 4,  0, "Apr",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 5,  0, "May",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 6,  0, "Jun",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 7,  0, "Jul",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 8,  0, "Aug",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 9,  0, "Sep",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 10, 0, "Oct",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 11, 0, "Nov",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 12, 0, "Dec",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 13, 0, "Year", bgcolor = #999999, text_size=tableTextSize)
+    
+        for yi = 0 to array.size(year_pnl) - 1
+            table.cell(monthly_table, 0,  yi + 1, str.tostring(year(array.get(year_time, yi))), bgcolor = #cccccc, text_size=tableTextSize)
+            
+            y_color = array.get(year_pnl, yi) > 0 ? color.new(color.teal, transp = 40) : color.new(color.gray, transp = 40)
+            table.cell(monthly_table, 13, yi + 1, str.tostring(math.round(array.get(year_pnl, yi) * 100, i_monthlyReturnPercision)), bgcolor = y_color, text_color=color.new(color.white, 0),text_size=tableTextSize)
+            
+        for mi = 0 to array.size(month_time) - 1
+            m_row   = year(array.get(month_time, mi))  - year(array.get(year_time, 0)) + 1
+            m_col   = month(array.get(month_time, mi)) 
+            m_color = array.get(month_pnl, mi) > 0 ? color.new(color.teal, transp = 40) : color.new(color.maroon, transp = 40)
+            
+            table.cell(monthly_table, m_col, m_row, str.tostring(math.round(array.get(month_pnl, mi) * 100, i_monthlyReturnPercision)), bgcolor = m_color, text_color=color.new(color.white, 0), text_size=tableTextSize)
+
+// Input to toggle EMA Cloud 
+//showcloud = input.bool(false, title="Plot EMA?", group='EMA & ATR', inline="Show EMA's & ATR")
+// Define EMA lengths
+//ema1_length = 21 //input(21, title="EMA 1 Length")
+//ema2_length = 48 //input(48, title="EMA 2 Length")
+//ema3_length = 89 //input(89, title="EMA 3 Length")
+//ema4_length = 200 //input(200, title="EMA 4 Length")
+
+// Calculate EMAs
+//ema1 = request.security(syminfo.tickerid, my_time, ta.ema(heikinashi_close, ema1_length))
+//ema2 = request.security(syminfo.tickerid, my_time, ta.ema(heikinashi_close, ema2_length))
+//ema3 = request.security(syminfo.tickerid, my_time, ta.ema(heikinashi_close, ema3_length))
+//ema4 = request.security(syminfo.tickerid, my_time, ta.ema(heikinashi_close, ema4_length))
+
+// Plot EMAs
+//ema1_plot=plot(showcloud ? ema1 : na, color=color.blue, title="EMA 1")
+//ema2_plot=plot(showcloud ? ema2 : na, color=color.red, title="EMA 2")
+//ema3_plot=plot(showcloud ? ema3 : na, color=color.green, title="EMA 3")
+//ema4_plot=plot(showcloud ? ema4 : na, color=color.orange, title="EMA 4")
+//hl2plot = plot(hl2, color=color.purple, title="HL2", display = display.none)
+
+// Plot EMA Clouds
+//fill(hl2plot, ema1_plot, color=heikinashi_close > ema1 ? color.new(color.lime, 80) : color.new(color.red, 80), title="EMA HL2-21 Fill")
+//fill(ema1_plot, ema2_plot, color=color.rgb(0, 0, 255, 90), title="EMA Cloud 1")
+//fill(ema2_plot, ema3_plot, color=color.rgb(255, 0, 0, 90), title="EMA Cloud 2")
+//fill(ema3_plot, ema4_plot, color=color.rgb(0, 255, 0, 90), title="EMA Cloud 3")
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © hanabil
+
+//@version=5
+//indicator("Smarter SnR", overlay=true, max_bars_back=5000, max_labels_count=500, max_lines_count=500)
+
+// General Function
+f_barssince(_cond, _count) =>
+    _barssince = bar_index - ta.valuewhen(_cond, bar_index, _count)
+    _barssince
+
+barssince(_cond, _count) => int(math.max(1, nz(f_barssince(_cond, _count))))
+f_vw(cond, expr, count) => ta.valuewhen(cond, expr, count)
+
+tostring(x, y)=> x + str.tostring(y)
+
+var int dec = str.length(str.tostring(syminfo.mintick))-2
+
+gr3         = 'Support and Ressistance'
+lineExtendI = 'None' //input.string('None', 'Line Extend', ['None', 'Left', 'Right', 'Both'], group=gr3)
+lineExtend  = 'None' //lineExtendI=='None'? extend.none : lineExtendI=='Left'? extend.left : lineExtendI=='Both'? extend.both : extend.right
+supTextCol  = color.red //input.color(color.red, 'Text', group=gr3 , inline='1')
+resTextCol  = color.blue //input.color(color.blue, 'Text', group=gr3 , inline='2')
+
+//-------------------------
+// Input Zigzag
+gr1         = 'General'
+showTL      = input(false, 'TrendLine', group=gr1)
+
+//------------------------------------
+// Trendlines
+gr5         = 'Trendlines'
+showPriceTl = showTL //input(true, 'Show Price', group=gr5)
+newestTL    = showTL //input(true, 'Show Newest', group=gr5)
+newestBreak = showTL //input(true, 'Show Newest Break Only', group=gr5)
+period      = input(20, 'Trendline Period', group=gr5)
+srcI        = 'Shadow' //input.string('Shadow', 'Source', ['Close Body', 'Shadow'], group=gr5)
+srcL        = srcI=='Shadow'? low  : close
+srcH        = srcI=='Shadow'? high : close
+lStyleI     = 'Dashed' //input.string('Dashed', 'Line Style', ['Solid', 'Dashed', 'Dotted'], group=gr5, inline='2')
+y2_mult     = 1 //input(1, title='Trendline Length', group=gr5, inline='2')
+lStyle      = lStyleI=='Solid'? line.style_solid : lStyleI=='Dashed'? line.style_dashed : line.style_dotted
+lWidth      = 1 //input(1, 'Line Width', group=gr5, inline='1')
+lColor      = color.white //input.color(color.white, '', group=gr5, inline='1')
+
+phFound     = ta.pivothigh(srcH, period, period)
+plFound     = ta.pivotlow (srcL, period, period)
+
+phVal       = ta.valuewhen(phFound, srcH[period], 0)
+plVal       = ta.valuewhen(plFound, srcL[period], 0)
+phVal1      = ta.valuewhen(phFound, srcH[period], 1)
+plVal1      = ta.valuewhen(plFound, srcL[period], 1)
+
+a_bar_time  = time - time[1]
+noneCol     = color.new(color.red, 100)
+
+fGetPriceTl(slope_, x2_, y2_) =>
+    current_price  = y2_ + (slope_/(x2_ - time))
+    current_price
+
+fTst(x, y)=> x + str.tostring(y)
+
+f_trendline(cond_, y1Val_, x1Bar_, y2Val_, x2Bar_, color_, tlPriceText, textCol) =>
+    
+    x1      = ta.valuewhen(cond_, time[x1Bar_], 0)
+    x2      = ta.valuewhen(cond_, time[x2Bar_], 0)
+    y1      = ta.valuewhen(cond_, y1Val_, 0)
+    y2      = ta.valuewhen(cond_, y2Val_, 0)
+    slope_  = ta.valuewhen(cond_, (y2-y1)/(x2-x1), 0)
+
+    currentPrice    = truncate(y2 + (time-x2)*slope_, 2) 
+    var label tlPrice     = na
+    
+    if close and newestTL
+        a_trendline = line.new (x1, y1, time,  currentPrice, xloc.bar_time, color=lColor, style=lStyle, width=lWidth)
+        line.delete (a_trendline[1])
+        
+        a_trendline
+    
+    newY2   = x2 + (y2_mult * a_bar_time * 25)
+    
+    if cond_ and not newestTL
+        a_trendline = line.new(x1, y1, newY2,  currentPrice, xloc.bar_time, color=lColor, style=lStyle, width=lWidth)
+        a_trendline
+    if showPriceTl
+        tlPrice     := label.new(bar_index+10, currentPrice, fTst(tlPriceText, currentPrice), color=noneCol, style=label.style_label_left, textcolor=textCol)
+        label.delete(tlPrice[1])
+
+    currentPrice
+
+newUp   = phFound and phVal<phVal1 and showTL
+newLo   = plFound and plVal>plVal1 and showTL
+upperTl = f_trendline(newUp, phVal1, f_barssince(phFound,1)+period, phVal, f_barssince(phFound,0)+period, 
+             color.black, 'Upper -> ', resTextCol)
+lowerTl = f_trendline(newLo, plVal1, f_barssince(plFound,1)+period, plVal, f_barssince(plFound,0)+period, 
+             color.black, 'Lower -> ', supTextCol)
+
+highestSince    = ta.highest(srcH, barssince(phFound and phVal<phVal1 and showTL,0))
+lowestSince     = ta.lowest (srcL, barssince(plFound and plVal>plVal1 and showTL,0))
+breakUpper      = srcH[1]<upperTl[1] and srcH>upperTl
+breakLower      = srcL[1]>lowerTl[1] and srcL<lowerTl
+
+var label bu    = na
+var label bl    = na
+
+//plotchar(breakUpper and close ? low : na, title="Buy", color=color.green, location=location.belowbar, char = '🡹', size=size.tiny)
+//plotchar(breakLower and close ? high : na, title="Sell", color=color.red, location=location.abovebar, char = '🢃', size=size.tiny)
+
+if breakUpper and close
+    bu  := label.new(bar_index, low , '🡹', color=resTextCol, style=label.style_label_up)
+    if newestBreak
+        label.delete(bu[1])
+if breakLower and close
+    bl  := label.new(bar_index, high, '🢃', color=supTextCol, style=label.style_label_down)
+    if newestBreak
+        label.delete(bl[1])
+
+colors = input.string(title='Color Scheme', defval='DARK', options=['DARK', 'LIGHT'] , group = "Color Scheme")
+bullcolor = colors == 'DARK' ? #00DBFF : color.rgb(0, 255, 8) 
+bearcolor = colors == 'DARK' ? #E91E63 : color.rgb(255, 0, 0)
+
+
+ShowTEX = true //input.bool(true, "Show Trend Exhaustion Points", group=RO_group, inline='Switch1')
+TE1 = true //input(true, 'TE - 1' , group="Money Moves [Trend Exhaustion]" , inline = "TEX")
+TE2 = true //input(true, 'TE - 2' , group="Money Moves [Trend Exhaustion]" , inline = "TEX")
+TE3 = true //input(true, 'TE - 3' , group="Money Moves [Trend Exhaustion]" , inline = "TEX")
+//TE4 = input(true, 'TE - 4' , group="Money Moves [Trend Exhaustion]" , inline = "TEX")
+
+//rsiLengthInput = input.int(14, minval=1, title="Exhaustion Strength ", group="Money Moves [Trend Exhaustion]")
+//rsiSourceInput = close //input.source(close, "Source", group="Money Moves [Trend Exhaustion]")
+//maTypeInput = ta.sma(close, 14)
+//up66 = ta.rma(math.max(ta.change(rsiSourceInput), 0), rsiLengthInput)
+//down = ta.rma(-math.min(ta.change(rsiSourceInput), 0), rsiLengthInput)
+//rsi66 = down == 0 ? 100 : up66 == 0 ? 0 : 100 - (100 / (1 + up66 / down))
+rsiMA = maTypeInput
+
+//long1 = ta.crossover(rsi66, 30)
+//long2 = ta.crossover(rsi66, 20)
+//long3 = ta.crossover(rsi66, 15)
+//long4 = ta.crossover(rsi66, 10)
+
+// SHORT
+//short1 = ta.crossunder(rsi66, 70)
+//short2 = ta.crossunder(rsi66, 80)
+//short3 = ta.crossunder(rsi66, 85)
+//short4 = ta.crossunder(rsi66, 90)
+
+// LONG
+//plotshape(long1 and ShowTEX and TE1, "GO LONG 1", style=shape.circle, location=location.belowbar,size=size.small, color = color.new(bullcolor , 60) , text="1" , textcolor = bullcolor , editable = false)
+//plotshape(long2 and ShowTEX and TE2, "GO LONG 2", style=shape.circle, location=location.belowbar,size=size.small, color = color.new(bullcolor , 50), text="2" , textcolor = bullcolor , editable = false)
+//plotshape(long3 and ShowTEX and TE3, "GO LONG 3", style=shape.circle, location=location.belowbar,size=size.small, color = color.new(bullcolor , 10), text="3", textcolor = bullcolor , editable = false)
+//plotshape(long4 and ShowTEX, "GO LONG 4", style=shape.circle, location=location.belowbar,size=size.tiny, color=color.gray, text="4")
+
+// SHORT
+//plotshape(short1 and ShowTEX and TE1, "GO SHORT 1", style=shape.circle, location=location.abovebar,size=size.small,  color = color.new(bearcolor , 60) , text="1" , textcolor = bearcolor , editable = false)
+//plotshape(short2 and ShowTEX and TE2, "GO SHORT 2", style=shape.circle, location=location.abovebar,size=size.small,  color = color.new(bearcolor , 50) , text="2" , textcolor = bearcolor , editable = false)
+//plotshape(short3 and ShowTEX and TE3, "GO SHORT 3", style=shape.circle, location=location.abovebar,size=size.small,  color = color.new(bearcolor , 10) , text="3" , textcolor = bearcolor , editable = false)
+//plotshape(short4 and ShowTEX, "GO SHORT 4", style=shape.circle, location=location.abovebar,size=size.tiny, color=color.gray, text="4")
+
+
+alertcondition(long1 or short1 , 'Trend Exhausted - 1', 'Trend Exhausted | Strength - 1 ')
+alertcondition(long2 or short2 , 'Trend Exhausted - 2', 'Trend Exhausted | Strength - 2 ')
+alertcondition(long3 or short3 , 'Trend Exhausted - 3', 'Trend Exhausted | Strength - 3 ')
+
+
+// Take Profit Script
+// Peak Profit Script
+//import protradingart/pta_plot/6 as pp 
+//pp.peakprofit(bull and ma01 > ma02 and dif > filter, bear and ma02 > ma01 and dif > filter)
+
+//<triggers>
+var bool lxTrigger    = false
+var bool sxTrigger    = false
+var bool leTrigger    = false
+var bool seTrigger    = false
+leTrigger    := FinalLongCondition
+seTrigger    := FinalShortCondition
+
+// === /ALERT conditions.
+buy = leTrigger //ta.crossover(closeSeriesAlt, openSeriesAlt)
+sell = seTrigger //ta.crossunder(closeSeriesAlt, openSeriesAlt)
+
+varip wasLong = false
+varip wasShort = false
+
+if barstate.isconfirmed
+    wasLong := false
+else 
+    if buy
+        wasLong := true
+
+
+if barstate.isconfirmed
+    wasShort := false
+else 
+    if sell
+        wasShort := true
+
+//plotshape(wasLong, color = color.yellow)
+//plotshape(wasShort, color = color.yellow)
+
+//plotshape(almaRibbon ? buy : na,  title = "Buy",  text = 'Buy',  style = shape.labelup,   location = location.belowbar, color= #39ff14, textcolor = #FFFFFF, size = size.tiny)
+//plotshape(almaRibbon ? sell : na, title = "Exit", text = 'Exit', style = shape.labeldown, location = location.abovebar, color= #ff1100, textcolor = #FFFFFF, size = size.tiny)
+
+// === STRATEGY ===
+i_alert_txt_entry_long = "Short Exit" //input.text_area(defval = "Short Exit", title = "Long Entry Message", group = "Alerts")
+i_alert_txt_exit_long = "Long Exit" //input.text_area(defval = "Long Exit", title = "Long Exit Message", group = "Alerts")
+i_alert_txt_entry_short = "Go Short" //input.text_area(defval = "Go Short", title = "Short Entry Message", group = "Alerts")
+i_alert_txt_exit_short = "Go Long" //input.text_area(defval = "Go Long", title = "Short Exit Message", group = "Alerts")
+// Entries and Exits with TP/SL
+
+// Alerts
+//alertcondition(buy_entry, title="Buy Signal", message="Buy Signal")
+//alertcondition(sel_entry, title="Sell Signal", message="Sell Signal")
+
+G_RISK       = '■ ' + 'Risk Management'
+//#region ———— <↓↓↓ G_RISK ↓↓↓> {
+get_atrtmultfactor() => 
+    _tfInMinutes = (
+      timeframe.period == '1' ? 2.5 :
+      timeframe.period == '3' ? 2.5 :
+      timeframe.period == '5' ? 2.5 :
+      timeframe.period == '10' ? 2.5 :
+      timeframe.period == '15' ? 1.5 : 1.5)
+ATRmult = get_atrtmultfactor()
+
+//ATR SL Settings
+atrLength = 20 //input.int(20, minval=1, title='ATR Length')
+profitFactor = 2.5 //input(2.5, title='Take Profit Factor')
+stopFactor = 1 //input(1.0, title='Stop Loss Factor')
+
+// Calculate ATR
+tpatrValue = ta.atr(atrLength)
+
+// Calculate take profit and stop loss levels for buy signals
+takeProfit1_buy = 1 * profitFactor * tpatrValue //close + profitFactor * atrValue
+takeProfit2_buy = 2 * profitFactor * tpatrValue //close + 2 * profitFactor * atrValue
+takeProfit3_buy = 3 * profitFactor * tpatrValue //close + 3 * profitFactor * atrValue
+stopLoss_buy = close - (1.5 * profitFactor * tpatrValue) //stopFactor * tpatrValue
+
+// Calculate take profit and stop loss levels for sell signals
+takeProfit1_sell = 1 * profitFactor * tpatrValue //close - profitFactor * atrValue
+takeProfit2_sell = 2 * profitFactor * tpatrValue //close - 2 * profitFactor * atrValue
+takeProfit3_sell = 3 * profitFactor * tpatrValue //close - 3 * profitFactor * atrValue
+stopLoss_sell = close + (1.5 * profitFactor * tpatrValue) //stopFactor * tpatrValue
+
+// ——————————— <constant_declarations>
+//Tooltip
+T_LVL        = '(%) Exit Level'
+T_QTY        = '(%) Adjust trade exit volume'
+T_MSG        = 'Paste JSON message for your bot'
+//Webhook Message
+O_LEMSG      = 'Long Entry'
+O_LXMSGSL    = 'Long SL'
+O_LXMSGTP1   = 'Long TP1'
+O_LXMSGTP2   = 'Long TP2'
+O_LXMSGTP3   = 'Long TP3'
+O_LXMSG      = 'Long Exit'
+O_SEMSG      = 'Short Entry'
+O_SXMSGSL    = 'Short SL'
+O_SXMSGA     = 'Short TP1'
+O_SXMSGB     = 'Short TP2'
+O_SXMSGC     = 'Short TP3'
+O_SXMSGX     = 'Short Exit'
+
+// on whole pips) for forex currency pairs.
+pip_size = syminfo.mintick * (syminfo.type == "forex" ? 10 : 1)
+
+// On the last historical bar, show the instrument's pip size
+//if barstate.islastconfirmedhistory
+//    label.new(x=bar_index + 2, y=close, style=label.style_label_left,
+//         color=color.navy, textcolor=color.white, size=size.large, 
+//         text=syminfo.ticker + "'s pip size is:\n" + 
+//             str.tostring(pip_size))
+// ——————————— <input>          |           |                               |                        Line length guide |
+i_lxLvlTP1   = leTrigger ? takeProfit1_buy : seTrigger ? takeProfit1_sell : na //input.float     (1,         'Level TP1'                     , group = G_RISK,     tooltip =                   T_LVL)
+i_lxQtyTP1   = 50 //input.float (50,        'Qty   TP1'                     , group = G_RISK,     tooltip =                   T_QTY)
+i_lxLvlTP2   = leTrigger ? takeProfit2_buy : seTrigger ? takeProfit2_sell : na //input.float     (1.5,       'Level TP2'                     , group = G_RISK,     tooltip =                   T_LVL)
+i_lxQtyTP2   = 30 //input.float (30,        'Qty   TP2'                     , group = G_RISK,     tooltip =                   T_QTY)
+i_lxLvlTP3   = leTrigger ? takeProfit3_buy : seTrigger ? takeProfit3_sell : na //input.float     (2,         'Level TP3'                     , group = G_RISK,     tooltip =                   T_LVL)
+i_lxQtyTP3   = 20 //input.float (20,        'Qty   TP3'                     , group = G_RISK,     tooltip =                   T_QTY)
+i_lxLvlSL    = leTrigger ? takeProfit1_buy : seTrigger ? takeProfit1_sell : na //input.float     (0.5,       'Stop Loss'                     , group = G_RISK,     tooltip =                   T_LVL)
+
+i_sxLvlTP1   = i_lxLvlTP1
+i_sxQtyTP1   = i_lxQtyTP1
+i_sxLvlTP2   = i_lxLvlTP2
+i_sxQtyTP2   = i_lxQtyTP2
+i_sxLvlTP3   = i_lxLvlTP3
+i_sxQtyTP3   = i_lxQtyTP3
+i_sxLvlSL    = i_lxLvlSL
+
+G_MSG        = '■ ' + 'Webhook Message'
+i_leMsg      = O_LEMSG //input.string     (O_LEMSG   ,'Long Entry'                   , group = G_MSG, tooltip = T_MSG)
+i_lxMsgSL    = O_LXMSGSL //input.string     (O_LXMSGSL ,'Long SL'                      , group = G_MSG, tooltip = T_MSG)
+i_lxMsgTP1   = O_LXMSGTP1 //input.string     (O_LXMSGTP1,'Long TP1'                     , group = G_MSG, tooltip = T_MSG)
+i_lxMsgTP2   = O_LXMSGTP2 //input.string     (O_LXMSGTP2,'Long TP2'                     , group = G_MSG, tooltip = T_MSG)
+i_lxMsgTP3   = O_LXMSGTP3 //input.string     (O_LXMSGTP3,'Long TP3'                     , group = G_MSG, tooltip = T_MSG)
+i_lxMsg      = O_LXMSG //input.string     (O_LXMSG   ,'Long Exit'                    , group = G_MSG, tooltip = T_MSG)
+i_seMsg      = O_SEMSG //input.string     (O_SEMSG   ,'Short Entry'                  , group = G_MSG, tooltip = T_MSG)
+i_sxMsgSL    = O_SXMSGSL //input.string     (O_SXMSGSL ,'Short SL'                     , group = G_MSG, tooltip = T_MSG)
+i_sxMsgTP1   = O_SXMSGA //input.string     (O_SXMSGA  ,'Short TP1'                    , group = G_MSG, tooltip = T_MSG)
+i_sxMsgTP2   = O_SXMSGB //input.string     (O_SXMSGB  ,'Short TP2'                    , group = G_MSG, tooltip = T_MSG)
+i_sxMsgTP3   = O_SXMSGC //input.string     (O_SXMSGC  ,'Short TP3'                    , group = G_MSG, tooltip = T_MSG)
+i_sxMsg      = O_SXMSGX //input.string     (O_SXMSGX  ,'Short Exit'                   , group = G_MSG, tooltip = T_MSG)
+i_src        = close //heikinashi_close
+
+G_DISPLAY    = 'Display'
+//<display>
+i_alertOn    = true //input.bool       (true,      'Alert Labels On/Off'          , group = G_DISPLAY)
+i_barColOn   = true //input.bool       (true,      'Bar Color On/Off'             , group = G_DISPLAY)
+
+// ——————————— <function_declarations>
+// @function        Calculate the Take Profit line, and the crossover or crossunder
+f_tp(_condition, _conditionValue, _leTrigger, _seTrigger, _src, _lxLvlTP, _sxLvlTP)=>
+    var float _tpLine = 0.0
+    _topLvl     = _src + _lxLvlTP //TPSType == "Fixed %" ? _src + (_src * (_lxLvlTP / 100)) : _src + _lxLvlTP
+    _botLvl     = _src - _lxLvlTP //TPSType == "Fixed %" ? _src - (_src * (_sxLvlTP / 100)) : _src - _sxLvlTP
+    _tpLine    := _condition[1] !=  _conditionValue and _leTrigger ? _topLvl :
+                  _condition[1] != -_conditionValue and _seTrigger ? _botLvl :
+                  nz(_tpLine[1])
+    [_tpLine]
+
+// @function        Similar to "ta.crossover" or "ta.crossunder"
+f_cross(_scr1, _scr2, _over)=>
+    _cross   = _over ? _scr1 > _scr2 and _scr1[1] < _scr2[1] :
+                       _scr1 < _scr2 and _scr1[1] > _scr2[1]
+
+// ——————————— <calculations>
+//<set initial values>
+var float condition = 0.0
+var float slLine    = 0.0
+var float entryLine = 0.0
+
+//<entry & exit orders>
+entryLine   := leTrigger and condition[1] <=  0.0 ? i_src :
+               seTrigger and condition[1] >=  0.0 ? i_src : nz(entryLine[1])
+//<SL>
+slTopLvl    = i_src + i_lxLvlSL
+slBotLvl    = i_src - i_lxLvlSL
+slLine     := condition[1] <=  0.0 and leTrigger ? slBotLvl :
+              condition[1] >=  0.0 and seTrigger ? slTopLvl : nz(slLine[1])
+slLong      = f_cross(low,  slLine, false)
+slShort     = f_cross(high, slLine, true )
+//<TP1, TP2 & TP3>
+[tp3Line]    = f_tp(condition, 1.2,leTrigger, seTrigger, i_src, i_lxLvlTP3, i_sxLvlTP3)
+[tp2Line]    = f_tp(condition, 1.1,leTrigger, seTrigger, i_src, i_lxLvlTP2, i_sxLvlTP2)
+[tp1Line]    = f_tp(condition, 1.0,leTrigger, seTrigger, i_src, i_lxLvlTP1, i_sxLvlTP1)
+tp3Long      = f_cross(high, tp3Line, true )
+tp3Short     = f_cross(low,  tp3Line, false)
+tp2Long      = f_cross(high, tp2Line, true )
+tp2Short     = f_cross(low,  tp2Line, false)
+tp1Long      = f_cross(high, tp1Line, true )
+tp1Short     = f_cross(low,  tp1Line, false)
+
+switch
+    leTrigger and condition[1] <=  0.0 => condition :=  1.0
+    seTrigger and condition[1] >=  0.0 => condition := -1.0
+    tp3Long   and condition[1] ==  1.2 => condition :=  1.3
+    tp3Short  and condition[1] == -1.2 => condition := -1.3
+    tp2Long   and condition[1] ==  1.1 => condition :=  1.2
+    tp2Short  and condition[1] == -1.1 => condition := -1.2
+    tp1Long   and condition[1] ==  1.0 => condition :=  1.1
+    tp1Short  and condition[1] == -1.0 => condition := -1.1
+    slLong    and condition[1] >=  1.0 => condition :=  0.0
+    slShort   and condition[1] <= -1.0 => condition :=  0.0
+    lxTrigger and condition[1] >=  1.0 => condition :=  0.0
+    sxTrigger and condition[1] <= -1.0 => condition :=  0.0
+
+longE        = leTrigger and condition[1] <=  0.0 and condition ==  1.0 and allow_longs
+shortE       = seTrigger and condition[1] >=  0.0 and condition == -1.0 and allow_shorts
+longX        = lxTrigger and condition[1] >=  1.0 and condition ==  0.0 and allow_longs
+shortX       = sxTrigger and condition[1] <= -1.0 and condition ==  0.0 and allow_shorts
+longSL       = slLong    and condition[1] >=  1.0 and condition ==  0.0 and allow_longs
+shortSL      = slShort   and condition[1] <= -1.0 and condition ==  0.0 and allow_shorts
+longTP3      = tp3Long   and condition[1] ==  1.2 and condition ==  1.3 and allow_longs
+shortTP3     = tp3Short  and condition[1] == -1.2 and condition == -1.3 and allow_shorts
+longTP2      = tp2Long   and condition[1] ==  1.1 and condition ==  1.2 and allow_longs
+shortTP2     = tp2Short  and condition[1] == -1.1 and condition == -1.2 and allow_shorts
+longTP1      = tp1Long   and condition[1] ==  1.0 and condition ==  1.1 and allow_longs
+shortTP1     = tp1Short  and condition[1] == -1.0 and condition == -1.1 and allow_shorts
+
+
+// ——————————— <strategy_calls> {
+//<long orders>
+if strategy.position_size <= 0 and longE and TPSType == "ATR" and tradeDateIsAllowed and allow_longs
+    strategy.entry(      'Long',      strategy.long,      alert_message    = i_leMsg,      comment          = 'LE')
+if strategy.position_size > 0 and condition ==  1.0 and TPSType == "ATR" and tradeDateIsAllowed and allow_longs
+    strategy.exit(      id               = 'LXTP1',      from_entry       = 'Long',      qty_percent      = i_lxQtyTP1,      limit            = tp1Line,      stop             = slLine,      comment_profit   = 'LXTP1',      comment_loss     = 'SL',      alert_profit     = i_lxMsgTP1,      alert_loss       = i_lxMsgSL)
+if strategy.position_size > 0 and condition ==  1.1 and TPSType == "ATR" and tradeDateIsAllowed and allow_longs
+    strategy.exit(      id               = 'LXTP2',      from_entry       = 'Long',      qty_percent      = i_lxQtyTP2,      limit            = tp2Line,      stop             = slLine,      comment_profit   = 'LXTP2',      comment_loss     = 'SL',      alert_profit     = i_lxMsgTP2,      alert_loss       = i_lxMsgSL)
+if strategy.position_size > 0 and condition ==  1.2 and TPSType == "ATR" and tradeDateIsAllowed and allow_longs
+    strategy.exit(      id               = 'LXTP3',      from_entry       = 'Long',      qty_percent      = i_lxQtyTP3,      limit            = tp3Line,      stop             = slLine,      comment_profit   = 'LXTP3',      comment_loss     = 'SL',      alert_profit     = i_lxMsgTP3,      alert_loss       = i_lxMsgSL)
+if longX and tradeDateIsAllowed and allow_longs
+    strategy.close(      'Long',      alert_message    = i_lxMsg,      comment          = 'LX')
+
+//<short orders>
+if strategy.position_size >= 0 and shortE and TPSType == "ATR" and tradeDateIsAllowed and allow_shorts
+    strategy.entry(      'Short',      strategy.short,      alert_message    = i_leMsg,      comment          = 'SE')
+if strategy.position_size < 0 and condition == -1.0 and TPSType == "ATR" and tradeDateIsAllowed and allow_shorts
+    strategy.exit(      id               = 'SXTP1',      from_entry       = 'Short',      qty_percent      = i_sxQtyTP1,      limit            = tp1Line,      stop             = slLine,      comment_profit   = 'SXTP1',      comment_loss     = 'SL',      alert_profit     = i_sxMsgTP1,      alert_loss       = i_sxMsgSL)
+if strategy.position_size < 0 and condition == -1.1 and TPSType == "ATR" and tradeDateIsAllowed and allow_shorts
+    strategy.exit(      id               = 'SXTP2',      from_entry       = 'Short',      qty_percent      = i_sxQtyTP2,      limit            = tp2Line,      stop             = slLine,      comment_profit   = 'SXTP2',      comment_loss     = 'SL',      alert_profit     = i_sxMsgTP2,      alert_loss       = i_sxMsgSL)
+if strategy.position_size < 0 and condition == -1.2 and TPSType == "ATR" and tradeDateIsAllowed and allow_shorts
+    strategy.exit(      id               = 'SXTP3',      from_entry       = 'Short',      qty_percent      = i_sxQtyTP3,      limit            = tp3Line,      stop             = slLine,      comment_profit   = 'SXTP3',      comment_loss     = 'SL',      alert_profit     = i_sxMsgTP3,      alert_loss       = i_sxMsgSL)
+if shortX and tradeDateIsAllowed and allow_shorts
+    strategy.close(      'Short',      alert_message    = i_sxMsg,      comment          = 'SX')
+
+displayTPS = input.bool(false, "Show Historical TPS", group=RO_group, inline='Switch1')
+// ——————————— <visuals>
+c_tp         = leTrigger or seTrigger ? na :
+               condition == 0.0       ? na : color.green
+c_entry      = leTrigger or seTrigger ? na :
+               condition == 0.0       ? na : color.blue
+c_sl         = leTrigger or seTrigger ? na :
+               condition == 0.0       ? na : color.red
+
+p_tp1Line    = plot (  displayTPS ? condition ==  1.0 or  condition == -1.0  ?   tp1Line : na : na,  title      = "TP Line 1",  color      = c_tp,  linewidth  = 1,  style      = plot.style_linebr)
+p_tp2Line    = plot (  displayTPS ? condition ==  1.0 or  condition == -1.0 or   condition ==  1.1 or  condition == -1.1  ? tp2Line : na : na,  title      = "TP Line 2",  color      = c_tp,  linewidth  = 1,  style      = plot.style_linebr)
+p_tp3Line    = plot (  displayTPS ? condition ==  1.0 or  condition == -1.0 or   condition ==  1.1 or  condition == -1.1 or  condition ==  1.2 or  condition == -1.2  ? tp3Line : na : na,  title      = "TP Line 3",  color      = c_tp,  linewidth  = 1,  style      = plot.style_linebr)
+p_entryLine  = plot (  displayTPS ? condition >=  1.0 or  condition <= -1.0  ?   entryLine : na : na,  title      = "Entry Line",  color      = c_entry,  linewidth  = 1,  style      = plot.style_linebr)
+p_slLine     = plot (  displayTPS ? condition ==  1.0 or  condition == -1.0 or   condition ==  1.1 or  condition == -1.1 or  condition ==  1.2 or  condition == -1.2  ? slLine : na : na,  title      = "SL Line",  color      = c_sl,  linewidth  = 1,  style      = plot.style_linebr)
+
+//fill(  p_tp3Line, p_entryLine,  color      = leTrigger or seTrigger ? na :color.new(color.green, 90))
+fill(  p_entryLine, p_slLine,  color      = leTrigger or seTrigger ? na :color.new(color.red, 90))
+
+//<alerts labels>
+plotshape(  displayTPS ? allow_longs ? longE : na : na,  title      = 'Long',  text       = 'Long',  textcolor  = color.white,  color      = color.green,  style      = shape.labelup,  size       = size.tiny,  location   = location.belowbar)
+plotshape(  displayTPS ? allow_shorts ? shortE : na : na,  title      = 'Short',  text       = 'Short',  textcolor  = color.white,  color      = color.red,  style      = shape.labeldown,  size       = size.tiny,  location   = location.abovebar)
+plotshape(  displayTPS ? (longX or shortX) ? heikinashi_close : na : na,  title      = 'Close',  text       = 'Close',  textcolor  = color.white,  color      = color.gray,  style      = shape.labelup,  size       = size.tiny,  location   = location.absolute)
+l_tp         = displayTPS ? (longTP1 or shortTP1) ? heikinashi_close : na : na
+
+plotshape(  displayTPS ? l_tp : na,  title      = "TP1 Cross",  text       = "TP1",  textcolor  = color.white,  color      = color.olive,  style      = shape.labelup,  size       = size.tiny,  location   = location.absolute)
+plotshape(  displayTPS ? (longTP2 or shortTP2) ? heikinashi_close : na : na,  title      = "TP2 Cross",  text       = "TP2",  textcolor  = color.white,  color      = color.olive,  style      = shape.labelup,  size       = size.tiny,  location   = location.absolute)
+plotshape(  displayTPS ? (longTP3 or shortTP3) ? heikinashi_close : na : na,  title      = "TP3 Cross",  text       = "TP3",  textcolor  = color.white,  color      = color.olive,  style      = shape.labelup,  size       = size.tiny,  location   = location.absolute)
+plotshape(  displayTPS ? (longSL or shortSL) ? heikinashi_close : na : na,  title      = "SL Cross",  text       = "SL",  textcolor  = color.white,  color      = color.maroon,  style      = shape.labelup,  size       = size.tiny,  location   = location.absolute)
+
+//<debug>
+//plot(  na,  title      = "─── <debug> ───",  editable   = false,  display    = display.data_window)
+//plot(  condition,  title      = "condition",  editable   = false,  display    = display.data_window)
+//plot(  strategy.position_size * 100,  title      = ".position_size",  editable   = false,  display    = display.data_window)
+//#endregion }
+// ——————————— <↑↑↑ G_RISK ↑↑↑>
+
+//#region ———— <↓↓↓ G_SCRIPT02 ↓↓↓> {
+// @function        Queues a new element in an array and de-queues its first element.
+f_qDq(_array, _val) =>
+    array.push(_array, _val)
+    _return = array.shift(_array)
+    _return
+
+var line[]  a_slLine     = array.new_line(1)
+var line[]  a_entryLine  = array.new_line(1)
+var line[]  a_tp3Line    = array.new_line(1)
+var line[]  a_tp2Line    = array.new_line(1)
+var line[]  a_tp1Line    = array.new_line(1)
+var label[] a_slLabel    = array.new_label(1)
+var label[] a_tp3label   = array.new_label(1)
+var label[] a_tp2label   = array.new_label(1)
+var label[] a_tp1label   = array.new_label(1)
+var label[] a_entryLabel = array.new_label(1)
+
+newEntry     = longE or shortE
+entryIndex   = 1
+entryIndex   := newEntry ? bar_index : nz(entryIndex[1])
+lasTrade     = bar_index >= entryIndex
+l_right      = 10
+
+line.delete(  f_qDq(a_slLine,  line.new(   entryIndex,   slLine,   last_bar_index + l_right,   slLine,   style = line.style_solid,   color = c_sl))) 
+line.delete(  f_qDq(a_entryLine,  line.new(   entryIndex,   entryLine,   last_bar_index + l_right,   entryLine,   style = line.style_solid,   color = color.blue)))
+line.delete(  f_qDq(a_tp3Line,  line.new(   entryIndex,   tp3Line,   last_bar_index + l_right,   tp3Line,   style = line.style_solid,   color = c_tp)))
+line.delete(  f_qDq(a_tp2Line,  line.new(   entryIndex,   tp2Line,   last_bar_index + l_right,   tp2Line,   style = line.style_solid,   color = c_tp)))
+line.delete(  f_qDq(a_tp1Line,  line.new(   entryIndex,   tp1Line,   last_bar_index + l_right,   tp1Line,   style = line.style_solid,   color = c_tp)))
+label.delete(  f_qDq(a_slLabel,  label.new(   last_bar_index + l_right,   slLine,   'SL: ' + str.tostring(slLine, '##.###'),   style = label.style_label_left,   textcolor  = color.white,   color = c_sl)))
+label.delete(  f_qDq(a_entryLabel,  label.new(   last_bar_index + l_right,   entryLine,   'Entry: ' + str.tostring(entryLine, '##.###'),   style = label.style_label_left,   textcolor  = color.white,   color = color.blue)))
+label.delete(  f_qDq(a_tp3label,  label.new(   last_bar_index + l_right,   tp3Line,   'TP3: ' + str.tostring(tp3Line, '##.###') + " - Target Pips : - " + str.tostring(longE ? tp3Line - entryLine : entryLine - tp3Line, "#.##"),   style = label.style_label_left,   textcolor  = color.white,   color = c_tp)))
+label.delete(  f_qDq(a_tp2label,  label.new(   last_bar_index + l_right,   tp2Line,   'TP2: ' + str.tostring(tp2Line, '##.###'),   style = label.style_label_left,   textcolor  = color.white,   color = c_tp)))
+label.delete(  f_qDq(a_tp1label,  label.new(   last_bar_index + l_right,   tp1Line,   'TP1: ' + str.tostring(tp1Line, '##.###'),   style = label.style_label_left,   textcolor  = color.white,   color = c_tp)))
+
+//#endregion }
+// ——————————— <↑↑↑ G_SCRIPT02 ↑↑↑>
+
+// Input for Moving Average Type
+showMARibbob = input.bool  (true, "MA Ribbon", group=RO_group, inline='Switch1')
+showMABG = input.bool  (false, "MA Back Ground", group=RO_group, inline='Switch1')
+ma_type = input.string("EMA", title="Moving Average Type", options=["EMA", "SMA", "WMA", "HMA", "VWMA"])
+
+// Moving Average Periods
+ma_length5 = 5
+ma_length6 = 6
+ma_length7 = 7
+ma_length8 = 8
+ma_length9 = 9
+ma_length10 = 10
+ma_length11 = 11
+ma_length12 = 12
+ma_length13 = 13
+ma_length14 = 14
+ma_length15 = 15
+ma_length16 = 16
+ma_length17 = 17
+ma_length18 = 18
+ma_length19 = 19
+ma_length20 = 20
+ma_length21 = 21
+ma_length22 = 22
+ma_length23 = 23
+ma_length24 = 24
+ma_length25 = 25
+ma_length26 = 26
+ma_length27 = 27
+ma_length28 = 28
+ma_length29 = 29
+ma_length30 = 30
+ma_length31 = 31
+ma_length32 = 32
+ma_length33 = 33
+ma_length34 = 34
+ma_length35 = 35
+ma_length36 = 36
+ma_length37 = 37
+ma_length38 = 38
+ma_length39 = 39
+ma_length40 = 40
+ma_length41 = 41
+ma_length42 = 42
+ma_length43 = 43
+ma_length44 = 44
+ma_length45 = 45
+ma_length46 = 46
+ma_length47 = 47
+ma_length48 = 48
+ma_length49 = 49
+ma_length50 = 50
+ma_length51 = 51
+ma_length52 = 52
+ma_length53 = 53
+ma_length54 = 54
+ma_length55 = 55
+
+// Calculate the moving averages
+ma5 = ma_type == "EMA" ? ta.ema(close, ma_length5) : ma_type == "SMA" ? ta.sma(close, ma_length5) : ma_type == "WMA" ? ta.wma(close, ma_length5) : ma_type == "HMA" ? ta.hma(close, ma_length5) : ma_type == "VWMA" ? ta.vwma(close, ma_length5) : na
+ma6 = ma_type == "EMA" ? ta.ema(close, ma_length6) : ma_type == "SMA" ? ta.sma(close, ma_length6) : ma_type == "WMA" ? ta.wma(close, ma_length6) : ma_type == "HMA" ? ta.hma(close, ma_length6) : ma_type == "VWMA" ? ta.vwma(close, ma_length6) : na
+ma7 = ma_type == "EMA" ? ta.ema(close, ma_length7) : ma_type == "SMA" ? ta.sma(close, ma_length7) : ma_type == "WMA" ? ta.wma(close, ma_length7) : ma_type == "HMA" ? ta.hma(close, ma_length7) : ma_type == "VWMA" ? ta.vwma(close, ma_length7) : na
+ma8 = ma_type == "EMA" ? ta.ema(close, ma_length8) : ma_type == "SMA" ? ta.sma(close, ma_length8) : ma_type == "WMA" ? ta.wma(close, ma_length8) : ma_type == "HMA" ? ta.hma(close, ma_length8) : ma_type == "VWMA" ? ta.vwma(close, ma_length8) : na
+ma9 = ma_type == "EMA" ? ta.ema(close, ma_length9) : ma_type == "SMA" ? ta.sma(close, ma_length9) : ma_type == "WMA" ? ta.wma(close, ma_length9) : ma_type == "HMA" ? ta.hma(close, ma_length9) : ma_type == "VWMA" ? ta.vwma(close, ma_length9) : na
+ma10 = ma_type == "EMA" ? ta.ema(close, ma_length10) : ma_type == "SMA" ? ta.sma(close, ma_length10) : ma_type == "WMA" ? ta.wma(close, ma_length10) : ma_type == "HMA" ? ta.hma(close, ma_length10) : ma_type == "VWMA" ? ta.vwma(close, ma_length10) : na
+ma11 = ma_type == "EMA" ? ta.ema(close, ma_length11) : ma_type == "SMA" ? ta.sma(close, ma_length11) : ma_type == "WMA" ? ta.wma(close, ma_length11) : ma_type == "HMA" ? ta.hma(close, ma_length11) : ma_type == "VWMA" ? ta.vwma(close, ma_length11) : na
+ma12 = ma_type == "EMA" ? ta.ema(close, ma_length12) : ma_type == "SMA" ? ta.sma(close, ma_length12) : ma_type == "WMA" ? ta.wma(close, ma_length12) : ma_type == "HMA" ? ta.hma(close, ma_length12) : ma_type == "VWMA" ? ta.vwma(close, ma_length12) : na
+ma13 = ma_type == "EMA" ? ta.ema(close, ma_length13) : ma_type == "SMA" ? ta.sma(close, ma_length13) : ma_type == "WMA" ? ta.wma(close, ma_length13) : ma_type == "HMA" ? ta.hma(close, ma_length13) : ma_type == "VWMA" ? ta.vwma(close, ma_length13) : na
+ma14 = ma_type == "EMA" ? ta.ema(close, ma_length14) : ma_type == "SMA" ? ta.sma(close, ma_length14) : ma_type == "WMA" ? ta.wma(close, ma_length14) : ma_type == "HMA" ? ta.hma(close, ma_length14) : ma_type == "VWMA" ? ta.vwma(close, ma_length14) : na
+ma15 = ma_type == "EMA" ? ta.ema(close, ma_length15) : ma_type == "SMA" ? ta.sma(close, ma_length15) : ma_type == "WMA" ? ta.wma(close, ma_length15) : ma_type == "HMA" ? ta.hma(close, ma_length15) : ma_type == "VWMA" ? ta.vwma(close, ma_length15) : na
+ma16 = ma_type == "EMA" ? ta.ema(close, ma_length16) : ma_type == "SMA" ? ta.sma(close, ma_length16) : ma_type == "WMA" ? ta.wma(close, ma_length16) : ma_type == "HMA" ? ta.hma(close, ma_length16) : ma_type == "VWMA" ? ta.vwma(close, ma_length16) : na
+ma17 = ma_type == "EMA" ? ta.ema(close, ma_length17) : ma_type == "SMA" ? ta.sma(close, ma_length17) : ma_type == "WMA" ? ta.wma(close, ma_length17) : ma_type == "HMA" ? ta.hma(close, ma_length17) : ma_type == "VWMA" ? ta.vwma(close, ma_length17) : na
+ma18 = ma_type == "EMA" ? ta.ema(close, ma_length18) : ma_type == "SMA" ? ta.sma(close, ma_length18) : ma_type == "WMA" ? ta.wma(close, ma_length18) : ma_type == "HMA" ? ta.hma(close, ma_length18) : ma_type == "VWMA" ? ta.vwma(close, ma_length18) : na
+ma19 = ma_type == "EMA" ? ta.ema(close, ma_length19) : ma_type == "SMA" ? ta.sma(close, ma_length19) : ma_type == "WMA" ? ta.wma(close, ma_length19) : ma_type == "HMA" ? ta.hma(close, ma_length19) : ma_type == "VWMA" ? ta.vwma(close, ma_length19) : na
+ma20 = ma_type == "EMA" ? ta.ema(close, ma_length20) : ma_type == "SMA" ? ta.sma(close, ma_length20) : ma_type == "WMA" ? ta.wma(close, ma_length20) : ma_type == "HMA" ? ta.hma(close, ma_length20) : ma_type == "VWMA" ? ta.vwma(close, ma_length20) : na
+ma21 = ma_type == "EMA" ? ta.ema(close, ma_length21) : ma_type == "SMA" ? ta.sma(close, ma_length21) : ma_type == "WMA" ? ta.wma(close, ma_length21) : ma_type == "HMA" ? ta.hma(close, ma_length21) : ma_type == "VWMA" ? ta.vwma(close, ma_length21) : na
+ma22 = ma_type == "EMA" ? ta.ema(close, ma_length22) : ma_type == "SMA" ? ta.sma(close, ma_length22) : ma_type == "WMA" ? ta.wma(close, ma_length22) : ma_type == "HMA" ? ta.hma(close, ma_length22) : ma_type == "VWMA" ? ta.vwma(close, ma_length22) : na
+ma23 = ma_type == "EMA" ? ta.ema(close, ma_length23) : ma_type == "SMA" ? ta.sma(close, ma_length23) : ma_type == "WMA" ? ta.wma(close, ma_length23) : ma_type == "HMA" ? ta.hma(close, ma_length23) : ma_type == "VWMA" ? ta.vwma(close, ma_length23) : na
+ma24 = ma_type == "EMA" ? ta.ema(close, ma_length24) : ma_type == "SMA" ? ta.sma(close, ma_length24) : ma_type == "WMA" ? ta.wma(close, ma_length24) : ma_type == "HMA" ? ta.hma(close, ma_length24) : ma_type == "VWMA" ? ta.vwma(close, ma_length24) : na
+ma25 = ma_type == "EMA" ? ta.ema(close, ma_length25) : ma_type == "SMA" ? ta.sma(close, ma_length25) : ma_type == "WMA" ? ta.wma(close, ma_length25) : ma_type == "HMA" ? ta.hma(close, ma_length25) : ma_type == "VWMA" ? ta.vwma(close, ma_length25) : na
+ma26 = ma_type == "EMA" ? ta.ema(close, ma_length26) : ma_type == "SMA" ? ta.sma(close, ma_length26) : ma_type == "WMA" ? ta.wma(close, ma_length26) : ma_type == "HMA" ? ta.hma(close, ma_length26) : ma_type == "VWMA" ? ta.vwma(close, ma_length26) : na
+ma27 = ma_type == "EMA" ? ta.ema(close, ma_length27) : ma_type == "SMA" ? ta.sma(close, ma_length27) : ma_type == "WMA" ? ta.wma(close, ma_length27) : ma_type == "HMA" ? ta.hma(close, ma_length27) : ma_type == "VWMA" ? ta.vwma(close, ma_length27) : na
+ma28 = ma_type == "EMA" ? ta.ema(close, ma_length28) : ma_type == "SMA" ? ta.sma(close, ma_length28) : ma_type == "WMA" ? ta.wma(close, ma_length28) : ma_type == "HMA" ? ta.hma(close, ma_length28) : ma_type == "VWMA" ? ta.vwma(close, ma_length28) : na
+ma29 = ma_type == "EMA" ? ta.ema(close, ma_length29) : ma_type == "SMA" ? ta.sma(close, ma_length29) : ma_type == "WMA" ? ta.wma(close, ma_length29) : ma_type == "HMA" ? ta.hma(close, ma_length29) : ma_type == "VWMA" ? ta.vwma(close, ma_length29) : na
+ma30 = ma_type == "EMA" ? ta.ema(close, ma_length30) : ma_type == "SMA" ? ta.sma(close, ma_length30) : ma_type == "WMA" ? ta.wma(close, ma_length30) : ma_type == "HMA" ? ta.hma(close, ma_length30) : ma_type == "VWMA" ? ta.vwma(close, ma_length30) : na
+ma31 = ma_type == "EMA" ? ta.ema(close, ma_length31) : ma_type == "SMA" ? ta.sma(close, ma_length31) : ma_type == "WMA" ? ta.wma(close, ma_length31) : ma_type == "HMA" ? ta.hma(close, ma_length31) : ma_type == "VWMA" ? ta.vwma(close, ma_length31) : na
+ma32 = ma_type == "EMA" ? ta.ema(close, ma_length32) : ma_type == "SMA" ? ta.sma(close, ma_length32) : ma_type == "WMA" ? ta.wma(close, ma_length32) : ma_type == "HMA" ? ta.hma(close, ma_length32) : ma_type == "VWMA" ? ta.vwma(close, ma_length32) : na
+ma33 = ma_type == "EMA" ? ta.ema(close, ma_length33) : ma_type == "SMA" ? ta.sma(close, ma_length33) : ma_type == "WMA" ? ta.wma(close, ma_length33) : ma_type == "HMA" ? ta.hma(close, ma_length33) : ma_type == "VWMA" ? ta.vwma(close, ma_length33) : na
+ma34 = ma_type == "EMA" ? ta.ema(close, ma_length34) : ma_type == "SMA" ? ta.sma(close, ma_length34) : ma_type == "WMA" ? ta.wma(close, ma_length34) : ma_type == "HMA" ? ta.hma(close, ma_length34) : ma_type == "VWMA" ? ta.vwma(close, ma_length34) : na
+ma35 = ma_type == "EMA" ? ta.ema(close, ma_length35) : ma_type == "SMA" ? ta.sma(close, ma_length35) : ma_type == "WMA" ? ta.wma(close, ma_length35) : ma_type == "HMA" ? ta.hma(close, ma_length35) : ma_type == "VWMA" ? ta.vwma(close, ma_length35) : na
+ma36 = ma_type == "EMA" ? ta.ema(close, ma_length36) : ma_type == "SMA" ? ta.sma(close, ma_length36) : ma_type == "WMA" ? ta.wma(close, ma_length36) : ma_type == "HMA" ? ta.hma(close, ma_length36) : ma_type == "VWMA" ? ta.vwma(close, ma_length36) : na
+ma37 = ma_type == "EMA" ? ta.ema(close, ma_length37) : ma_type == "SMA" ? ta.sma(close, ma_length37) : ma_type == "WMA" ? ta.wma(close, ma_length37) : ma_type == "HMA" ? ta.hma(close, ma_length37) : ma_type == "VWMA" ? ta.vwma(close, ma_length37) : na
+ma38 = ma_type == "EMA" ? ta.ema(close, ma_length38) : ma_type == "SMA" ? ta.sma(close, ma_length38) : ma_type == "WMA" ? ta.wma(close, ma_length38) : ma_type == "HMA" ? ta.hma(close, ma_length38) : ma_type == "VWMA" ? ta.vwma(close, ma_length38) : na
+ma39 = ma_type == "EMA" ? ta.ema(close, ma_length39) : ma_type == "SMA" ? ta.sma(close, ma_length39) : ma_type == "WMA" ? ta.wma(close, ma_length39) : ma_type == "HMA" ? ta.hma(close, ma_length39) : ma_type == "VWMA" ? ta.vwma(close, ma_length39) : na
+ma40 = ma_type == "EMA" ? ta.ema(close, ma_length40) : ma_type == "SMA" ? ta.sma(close, ma_length40) : ma_type == "WMA" ? ta.wma(close, ma_length40) : ma_type == "HMA" ? ta.hma(close, ma_length40) : ma_type == "VWMA" ? ta.vwma(close, ma_length40) : na
+ma41 = ma_type == "EMA" ? ta.ema(close, ma_length41) : ma_type == "SMA" ? ta.sma(close, ma_length41) : ma_type == "WMA" ? ta.wma(close, ma_length41) : ma_type == "HMA" ? ta.hma(close, ma_length41) : ma_type == "VWMA" ? ta.vwma(close, ma_length41) : na
+ma42 = ma_type == "EMA" ? ta.ema(close, ma_length42) : ma_type == "SMA" ? ta.sma(close, ma_length42) : ma_type == "WMA" ? ta.wma(close, ma_length42) : ma_type == "HMA" ? ta.hma(close, ma_length42) : ma_type == "VWMA" ? ta.vwma(close, ma_length42) : na
+ma43 = ma_type == "EMA" ? ta.ema(close, ma_length43) : ma_type == "SMA" ? ta.sma(close, ma_length43) : ma_type == "WMA" ? ta.wma(close, ma_length43) : ma_type == "HMA" ? ta.hma(close, ma_length43) : ma_type == "VWMA" ? ta.vwma(close, ma_length43) : na
+ma44 = ma_type == "EMA" ? ta.ema(close, ma_length44) : ma_type == "SMA" ? ta.sma(close, ma_length44) : ma_type == "WMA" ? ta.wma(close, ma_length44) : ma_type == "HMA" ? ta.hma(close, ma_length44) : ma_type == "VWMA" ? ta.vwma(close, ma_length44) : na
+ma45 = ma_type == "EMA" ? ta.ema(close, ma_length45) : ma_type == "SMA" ? ta.sma(close, ma_length45) : ma_type == "WMA" ? ta.wma(close, ma_length45) : ma_type == "HMA" ? ta.hma(close, ma_length45) : ma_type == "VWMA" ? ta.vwma(close, ma_length45) : na
+ma46 = ma_type == "EMA" ? ta.ema(close, ma_length46) : ma_type == "SMA" ? ta.sma(close, ma_length46) : ma_type == "WMA" ? ta.wma(close, ma_length46) : ma_type == "HMA" ? ta.hma(close, ma_length46) : ma_type == "VWMA" ? ta.vwma(close, ma_length46) : na
+ma47 = ma_type == "EMA" ? ta.ema(close, ma_length47) : ma_type == "SMA" ? ta.sma(close, ma_length47) : ma_type == "WMA" ? ta.wma(close, ma_length47) : ma_type == "HMA" ? ta.hma(close, ma_length47) : ma_type == "VWMA" ? ta.vwma(close, ma_length47) : na
+ma48 = ma_type == "EMA" ? ta.ema(close, ma_length48) : ma_type == "SMA" ? ta.sma(close, ma_length48) : ma_type == "WMA" ? ta.wma(close, ma_length48) : ma_type == "HMA" ? ta.hma(close, ma_length48) : ma_type == "VWMA" ? ta.vwma(close, ma_length48) : na
+ma49 = ma_type == "EMA" ? ta.ema(close, ma_length49) : ma_type == "SMA" ? ta.sma(close, ma_length49) : ma_type == "WMA" ? ta.wma(close, ma_length49) : ma_type == "HMA" ? ta.hma(close, ma_length49) : ma_type == "VWMA" ? ta.vwma(close, ma_length49) : na
+ma50 = ma_type == "EMA" ? ta.ema(close, ma_length50) : ma_type == "SMA" ? ta.sma(close, ma_length50) : ma_type == "WMA" ? ta.wma(close, ma_length50) : ma_type == "HMA" ? ta.hma(close, ma_length50) : ma_type == "VWMA" ? ta.vwma(close, ma_length50) : na
+ma51 = ma_type == "EMA" ? ta.ema(close, ma_length51) : ma_type == "SMA" ? ta.sma(close, ma_length51) : ma_type == "WMA" ? ta.wma(close, ma_length51) : ma_type == "HMA" ? ta.hma(close, ma_length51) : ma_type == "VWMA" ? ta.vwma(close, ma_length51) : na
+ma52 = ma_type == "EMA" ? ta.ema(close, ma_length52) : ma_type == "SMA" ? ta.sma(close, ma_length52) : ma_type == "WMA" ? ta.wma(close, ma_length52) : ma_type == "HMA" ? ta.hma(close, ma_length52) : ma_type == "VWMA" ? ta.vwma(close, ma_length52) : na
+ma53 = ma_type == "EMA" ? ta.ema(close, ma_length53) : ma_type == "SMA" ? ta.sma(close, ma_length53) : ma_type == "WMA" ? ta.wma(close, ma_length53) : ma_type == "HMA" ? ta.hma(close, ma_length53) : ma_type == "VWMA" ? ta.vwma(close, ma_length53) : na
+ma54 = ma_type == "EMA" ? ta.ema(close, ma_length54) : ma_type == "SMA" ? ta.sma(close, ma_length54) : ma_type == "WMA" ? ta.wma(close, ma_length54) : ma_type == "HMA" ? ta.hma(close, ma_length54) : ma_type == "VWMA" ? ta.vwma(close, ma_length54) : na
+ma55 = ma_type == "EMA" ? ta.ema(close, ma_length55) : ma_type == "SMA" ? ta.sma(close, ma_length55) : ma_type == "WMA" ? ta.wma(close, ma_length55) : ma_type == "HMA" ? ta.hma(close, ma_length55) : ma_type == "VWMA" ? ta.vwma(close, ma_length55) : na
+
+// Plot Moving Averages
+p5 = plot(showMARibbob ? ma5 : na, title="5th Moving Average", color=color.rgb(156, 39, 176, 50), style=plot.style_line, linewidth = 3)
+//plot(ma6, title="6th Moving Average", color=color.rgb(156, 39, 176, 80), style=plot.style_line)
+p7 = plot(showMARibbob ? ma7 : na, title="7th Moving Average", color=color.rgb(156, 39, 176, 80), style=plot.style_line)
+p8 = plot(showMARibbob ? ma8 : na, title="8th Moving Average", color=color.rgb(33, 150, 243, 50), style=plot.style_line, linewidth = 2)
+//plot(ma9, title="9th Moving Average", color=color.rgb(33, 150, 243, 80), style=plot.style_line)
+//plot(ma10, title="10th Moving Average", color=color.rgb(33, 150, 243, 80), style=plot.style_line)
+//plot(ma11, title="11th Moving Average", color=color.rgb(33, 150, 243, 80), style=plot.style_line)
+p12 = plot(showMARibbob ? ma12 : na, title="12th Moving Average", color=color.rgb(33, 150, 243, 80), style=plot.style_line)
+p13 = plot(showMARibbob ? ma13 : na, title="13th Moving Average", color=color.rgb(0, 137, 123, 50), style=plot.style_line, linewidth = 2)
+//plot(ma14, title="14th Moving Average", color=color.rgb(0, 137, 123, 80), style=plot.style_line)
+//plot(ma15, title="15th Moving Average", color=color.rgb(0, 137, 123, 80), style=plot.style_line)
+//plot(ma16, title="16th Moving Average", color=color.rgb(0, 137, 123, 80), style=plot.style_line)
+//plot(ma17, title="17th Moving Average", color=color.rgb(0, 137, 123, 80), style=plot.style_line)
+//plot(ma18, title="18th Moving Average", color=color.rgb(0, 137, 123, 80), style=plot.style_line)
+//plot(ma19, title="19th Moving Average", color=color.rgb(0, 137, 123, 80), style=plot.style_line)
+p20 = plot(showMARibbob ? ma20 : na, title="20th Moving Average", color=color.rgb(0, 137, 123, 80), style=plot.style_line)
+p21 = plot(showMARibbob ? ma21 : na, title="21st Moving Average", color=color.rgb(255, 235, 59, 50), style=plot.style_line, linewidth = 2)
+//plot(ma22, title="22nd Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma23, title="23rd Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma24, title="24th Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma25, title="25th Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma26, title="26th Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma27, title="27th Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma28, title="28th Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma29, title="29th Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma30, title="30th Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma31, title="31st Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+//plot(ma32, title="32nd Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+p33 = plot(showMARibbob ? ma33 : na, title="33rd Moving Average", color=color.rgb(255, 235, 59, 80), style=plot.style_line)
+p34 = plot(showMARibbob ? ma34 : na, title="34th Moving Average", color=color.rgb(255, 152, 80, 50), style=plot.style_line, linewidth = 2)
+//plot(ma35, title="35th Moving Average", color=color.rgb(255, 152, 80, 800), style=plot.style_line)
+//plot(ma36, title="36th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma37, title="37th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma38, title="38th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma39, title="39th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma40, title="40th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma41, title="41st Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma42, title="42nd Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma43, title="43rd Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma44, title="44th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma45, title="45th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma46, title="46th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma47, title="47th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma48, title="48th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma49, title="49th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma50, title="50th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma51, title="51st Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma52, title="52nd Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+//plot(ma53, title="53rd Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+p54 = plot(showMARibbob ? ma54 : na, title="54th Moving Average", color=color.rgb(255, 152, 80, 80), style=plot.style_line)
+p55 = plot(showMARibbob ? ma55 : na, title="55th Moving Average", color=color.rgb(255, 82, 82, 50), style=plot.style_line, linewidth = 3)
+
+fill(p5, p7, color=color.rgb(156, 39, 176, 90))
+fill(p8, p12, color=color.rgb(33, 150, 243, 90))
+fill(p13, p20, color=color.rgb(0, 137, 123, 90))
+fill(p21, p33, color=color.rgb(255, 235, 59, 70))
+fill(p34, p54, color=color.rgb(255, 152, 80, 90))
+
+trend_down1 = ma5 < ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 > ma55[1]
+trend_down2 = ma5 < ma5[1] and ma8 < ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 > ma55[1]
+trend_down3 = ma5 < ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 > ma55[1]
+trend_down4 = ma5 < ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 > ma34[1] and ma55 > ma55[1]
+trend_down5 = ma5 < ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 > ma55[1]
+trend_down6 = ma5 < ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 < ma55[1]
+
+trend_up1 = ma5 > ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 < ma55[1]
+trend_up2 = ma5 > ma5[1] and ma8 > ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 < ma55[1]
+trend_up3 = ma5 > ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 < ma55[1]
+trend_up4 = ma5 > ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 < ma34[1] and ma55 < ma55[1]
+trend_up5 = ma5 > ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 < ma55[1]
+trend_up6 = ma5 > ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 > ma55[1]
+
+trend_down = (ma5 < ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 < ma55[1]) and not (ma5 < ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 < ma55[1])[1]
+trend_up = (ma5 > ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 > ma55[1]) and not (ma5 > ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 > ma55[1])[1]
+
+crossover = (ma5 < ma5[1] and ma8 < ma8[1] and ma13 < ma13[1] and ma21 < ma21[1] and ma34 < ma34[1] and ma55 < ma55[1])
+crossunder = (ma5 > ma5[1] and ma8 > ma8[1] and ma13 > ma13[1] and ma21 > ma21[1] and ma34 > ma34[1] and ma55 > ma55[1])
+
+crossover_area = (crossover and ma5 < ma8 and ma8 < ma13 and ma13 < ma21 and ma21 < ma34 and ma34 < ma55)
+crossunder_area = (crossunder and ma5 > ma8 and ma8 > ma13 and ma13 > ma21 and ma21 > ma34 and ma34 > ma55)
+
+indicator_negative = crossover_area and trend_down
+indicator_positive = crossunder_area and trend_up
+
+bgcolor(showMABG and crossover ? color.rgb(160, 80, 100, 90) : na, title="Weak CrossOver Area BG")
+bgcolor(showMABG and crossunder ? color.rgb(80, 160, 130, 90) : na, title="Weak CrossUnder Area BG")
+
+bgcolor(showMABG and crossover_area ? color.rgb(160, 80, 100, 90) : na, title="Strong CrossOver Area BG")
+bgcolor(showMABG and crossunder_area ? color.rgb(80, 160, 130, 90) : na, title="Strong CrossUnder Area BG")
+
+bgcolor(showMABG and indicator_negative ? color.rgb(160, 80, 100, 85) : na, title="Sell Indicator BG")
+bgcolor(showMABG and indicator_positive ? color.rgb(80, 160, 130, 85) : na, title="Buy Indicator BG")
+
+// Create an alert when the condition is true
+alertcondition(trend_down, title="Super Trend Down", message="All MAs are in freefall!")
+alertcondition(trend_up, title="Super Trend Up", message="All MAs are on the rise!")
+alertcondition(indicator_negative, title="Mega Trend Down", message="All MAs are align correctly in freefall!")
+alertcondition(indicator_positive, title="Mega Trend Up", message="All MAs are align correctly on the rise!")
+
+//
+//RSI Table
+//TABLE INPUTS
+showRSI = input.bool  (true, "RSI Table", group=RO_group, inline='Switch1')
+PosTable = "Bottom Center" //input.string(title="Position", defval="Bottom Center", options=["Top Right", "Middle Right", "Bottom Right", "Top Center", "Middle Center", "Bottom Center", "Top Left", "Middle Left", "Bottom Left"], group="Position & Size", inline="01")
+SizTable = "Normal" //input.string(title="Size", defval="Normal", options=["Auto", "Huge", "Large", "Normal", "Small", "Tiny"], group="Position & Size", inline="01")
+
+Pos1Table=PosTable == "Bottom Left" ? position.top_right : PosTable == "Middle Right" ? position.middle_right : PosTable == "Bottom Right" ? position.bottom_right : PosTable == "Top Center" ? position.top_center : PosTable == "Middle Center" ? position.middle_center : PosTable == "Bottom Center" ? position.bottom_center : PosTable == "Top Left" ? position.top_left : PosTable == "Middle Left" ? position.middle_left : position.bottom_left
+Siz1Table = SizTable == "Auto" ? size.auto : SizTable == "Huge" ? size.huge : SizTable == "Large" ? size.large : SizTable == "Normal" ? size.normal : SizTable == "Small" ? size.small : size.tiny
+RSITable = table.new(Pos1Table, 7, 2, bgcolor=#000000, frame_color=#4F4F4F, frame_width=4, border_color=#696969, border_width=1)
+
+//RSI INPUTS
+len101 = 14 //input.int(14, minval=1, title="Length ? ?", inline="001", group="rsi inputs")
+src_101 = heikinashi_close //input.source(close, "Source ? ?", inline="002", group="rsi inputs")
+
+//VALUE OVERSOLD AND OVERBOUGHT RSI
+limitH = 60 //input.int(60, "O.B", 0, 100, inline="001", group="rsi inputs")
+limitL = 40 //input.int(40, "O.S", 0, 100, inline="002", group="rsi inputs")
+
+//SELECTION OF TIMEFRAMES IN THE TABLES#
+rsitf1 = "1" //input.timeframe("1",  "TF 1", inline="1", group="select timeframe")
+rsitf2 = "5" //input.timeframe("5",  "TF 2", inline="3", group="select timeframe")
+rsitf3 = "15" //input.timeframe("15", "TF 3", inline="5", group="select timeframe")
+rsitf4 = "60" //input.timeframe("60", "TF 4", inline="1", group="select timeframe")
+rsitf5 = "240" //input.timeframe("240","TF 5", inline="3", group="select timeframe")
+rsitf6 = "1D" //input.timeframe("1D", "TF 6", inline="5", group="select timeframe")
+
+RSITF1  = request.security(syminfo.tickerid, rsitf1, ta.rsi(close, len101))
+RSITF5  = request.security(syminfo.tickerid, rsitf2, ta.rsi(close, len101))
+RSITF15 = request.security(syminfo.tickerid, rsitf3, ta.rsi(close, len101))
+RSITF60 = request.security(syminfo.tickerid, rsitf4, ta.rsi(close, len101))
+RSITF4H = request.security(syminfo.tickerid, rsitf5, ta.rsi(close, len101))
+RSITF1D = request.security(syminfo.tickerid, rsitf6, ta.rsi(close, len101))
+//PLOT RSI VALUES ABOUT THE CELLS
+
+tfTxt(x)=>
+    //adds abbreviation next to timeframe value
+    out = x
+    if not str.contains(x, "S") and not str.contains(x, "M") and 
+       not str.contains(x, "W") and not str.contains(x, "D")
+        if str.tonumber(x)%60 == 0
+            out := str.tostring(str.tonumber(x)/60)+"H"
+        else
+            out := x + "m"
+    out
+
+f_fillCellText(_table, _column, _row, _value, _timeframe) =>
+
+    //Default colors in table
+    cell_color = #000000
+    cell_txt   = #00000000
+        
+    //function to change cell and text colors based on O.B/O.S values
+    if _value <= limitL
+        cell_color := #8B0000
+        cell_txt := #FF8C00
+    else if _value >= limitH
+        cell_color := #006400
+        cell_txt := #00FF00
+
+    else
+        cell_color := #1C1C1C
+        cell_txt := #DCDCDC
+    //
+
+    _cellText = str.tostring(_value, '#.##') + '\n' + _timeframe
+                                                                                                                                                               
+    table.cell(RSITable, _column, _row, _cellText, bgcolor=color.new(cell_color, 40), text_color=cell_txt, text_size = Siz1Table)
+    table.cell(RSITable, 0, 0, "Time", text_color=#FFD700, bgcolor=#000000, text_size=size.small)
+    table.cell(RSITable, 0, 1, "RSI ("+str.tostring(len101)+")", text_color=#FFD700, bgcolor=#000000, text_size=Siz1Table)
+
+    table.cell(RSITable, 1, 0, tfTxt(rsitf1), text_color=#FFFFFF, text_size =Siz1Table)
+    table.cell(RSITable, 2, 0, tfTxt(rsitf2), text_color=#FFFFFF, text_size =Siz1Table)
+    table.cell(RSITable, 3, 0, tfTxt(rsitf3), text_color=#FFFFFF, text_size =Siz1Table)
+    table.cell(RSITable, 4, 0, tfTxt(rsitf4), text_color=#FFFFFF, text_size =Siz1Table)
+    table.cell(RSITable, 5, 0, tfTxt(rsitf5), text_color=#FFFFFF, text_size =Siz1Table)
+    table.cell(RSITable, 6, 0, tfTxt(rsitf6), text_color=#FFFFFF, text_size =Siz1Table)
+
+if barstate.islast and showRSI
+    f_fillCellText(RSITable, 1, 1, RSITF1,  "")
+    f_fillCellText(RSITable, 2, 1, RSITF5,  "")
+    f_fillCellText(RSITable, 3, 1, RSITF15, "")
+    f_fillCellText(RSITable, 4, 1, RSITF60, "")
+    f_fillCellText(RSITable, 5, 1, RSITF4H, "")
+    f_fillCellText(RSITable, 6, 1, RSITF1D, "")
+
+//

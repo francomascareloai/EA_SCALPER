@@ -1,0 +1,35 @@
+//
+// @author LazyBear
+//
+// If you use this code in its original/modified form, do drop me a note. 
+//
+
+study(title = "Volume Flow Indicator [LazyBear]", shorttitle="VFI_LB")
+
+length = input(130, title="VFI length")
+coef = input(0.2)
+vcoef = input(2.5, title="Max. vol. cutoff")
+signalLength=input(5)
+smoothVFI=input(false, type=bool)
+
+ma(x,y) => smoothVFI ? sma(x,y) : x
+
+typical=hlc3
+inter = log( typical ) - log( typical[1] )
+vinter = stdev(inter, 30 )
+cutoff = coef * vinter * close
+vave = sma( volume, length )[1]
+vmax = vave * vcoef
+vc = iff(volume < vmax, volume, vmax) //min( volume, vmax )
+mf = typical - typical[1]
+vcp = iff( mf > cutoff, vc, iff ( mf < -cutoff, -vc, 0 ) )
+
+vfi = ma(sum( vcp , length )/vave, 3)
+vfima=ema( vfi, signalLength )
+d=vfi-vfima
+
+plot(0, color=gray, style=3)
+showHisto=input(false, type=bool)
+plot(showHisto ? d : na, style=histogram, color=gray, linewidth=3, transp=50)
+plot( vfima , title="EMA of vfi", color=orange)
+plot( vfi, title="vfi", color=green,linewidth=2)

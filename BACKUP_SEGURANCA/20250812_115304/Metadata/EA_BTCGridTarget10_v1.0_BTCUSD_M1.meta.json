@@ -1,0 +1,49 @@
+{
+  "arquivo": "BTC_M1_Target10_EA.mq5",
+  "nome_padronizado": "EA_BTCGridTarget10_v1.0_BTCUSD_M1",
+  "tipo": "EA",
+  "categoria": "Grid_Martingale",
+  "estrategia": "Grid_Martingale",
+  "mercado": "BTCUSD",
+  "timeframe": "M1",
+  "descricao": "EA de Grid Martingale para BTCUSD M1 com meta de lucro de $10. Abre posições buy e sell simultâneas, adiciona ao grid com multiplicador de lote e fecha todas ao atingir o target.",
+  "funcoes_principais": [
+    "OnTick",
+    "GetProfitUSD",
+    "CountMyPositions",
+    "CloseAll",
+    "ResetCycle"
+  ],
+  "parametros_expostos": [
+    "ProfitTargetUSD (10)",
+    "BaseLot (0.01)",
+    "LotMultiplier (1.3)",
+    "MaxPositions (10)",
+    "GridStepPoints (200)"
+  ],
+  "ftmo_score": 2,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Estratégia Martingale (alto risco)",
+    "Sem Stop Loss",
+    "Multiplicação de lotes (1.3x)",
+    "Posições simultâneas buy/sell",
+    "Sem controle de drawdown",
+    "Sem daily loss limit",
+    "Timeframe M1 (alta frequência)"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Remover estratégia Martingale",
+    "Implementar Stop Loss obrigatório",
+    "Limitar risco máximo a 1% por trade",
+    "Adicionar daily loss limit",
+    "Implementar controle de drawdown",
+    "Considerar timeframes maiores",
+    "Evitar hedging simultâneo"
+  ],
+  "tags": ["#EA", "#Grid_Martingale", "#BTCUSD", "#M1", "#Nao_FTMO", "#Alto_Risco", "#Target_Based"],
+  "caminho_origem": "All_MQ5/BTC_M1_Target10_EA.mq5",
+  "caminho_final": "EAs/Grid_Martingale/EA_BTCGridTarget10_v1.0_BTCUSD_M1.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "EA com estratégia de alto risco incompatível com regras FTMO. Arquivo com codificação de caracteres corrompida."
+}

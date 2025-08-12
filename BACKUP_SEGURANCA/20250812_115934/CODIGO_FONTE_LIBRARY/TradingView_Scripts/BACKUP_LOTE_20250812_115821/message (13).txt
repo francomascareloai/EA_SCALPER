@@ -1,0 +1,149 @@
+//@version=3
+// Copyright (c) 2019-present, Alex Orekhov (everget)
+// Jurik RSX script may be freely distributed under the MIT license.
+study("Jurik RSX", shorttitle="RSX")
+
+length = input(title="Length", type=integer, defval=14)
+src = input(title="Source", type=source, defval=hlc3)
+obLevel = input(title="OB Level", type=integer, defval=70)
+osLevel = input(title="OS Level", type=integer, defval=30)
+highlightBreakouts = input(title="Highlight Overbought/Oversold Breakouts ?", type=bool, defval=true)
+
+f8 = 100 * src
+f10 = nz(f8[1])
+v8 = f8 - f10
+
+f18 = 3 / (length + 2)
+f20 = 1 - f18
+
+f28 = 0.0
+f28 := f20 * nz(f28[1]) + f18 * v8
+
+f30 = 0.0
+f30 := f18 * f28 + f20 * nz(f30[1])
+vC = f28 * 1.5 - f30 * 0.5
+
+f38 = 0.0
+f38 := f20 * nz(f38[1]) + f18 * vC
+
+f40 = 0.0
+f40 := f18 * f38 + f20 * nz(f40[1])
+v10 = f38 * 1.5 - f40 * 0.5
+
+f48 = 0.0
+f48 := f20 * nz(f48[1]) + f18 * v10
+
+f50 = 0.0
+f50 := f18 * f48 + f20 * nz(f50[1])
+v14 = f48 * 1.5 - f50 * 0.5
+
+f58 = 0.0
+f58 := f20 * nz(f58[1]) + f18 * abs(v8)
+
+f60 = 0.0
+f60 := f18 * f58 + f20 * nz(f60[1])
+v18 = f58 * 1.5 - f60 * 0.5
+
+f68 = 0.0
+f68 := f20 * nz(f68[1]) + f18 * v18
+
+f70 = 0.0
+f70 := f18 * f68 + f20 * nz(f70[1])
+v1C = f68 * 1.5 - f70 * 0.5
+
+f78 = 0.0
+f78 := f20 * nz(f78[1]) + f18 * v1C
+
+f80 = 0.0
+f80 := f18 * f78 + f20 * nz(f80[1])
+v20 = f78 * 1.5 - f80 * 0.5
+
+f88_ = 0.0
+f90_ = 0.0
+
+f88 = 0.0
+f90_ := nz(f90_[1]) == 0 ? 1 : nz(f88[1]) <= nz(f90_[1]) ? nz(f88[1]) + 1 : nz(f90_[1]) + 1
+f88 := nz(f90_[1]) == 0 and (length - 1 >= 5) ? length - 1 : 5
+
+f0 = f88 >= f90_ and f8 != f10 ? 1 : 0
+f90 = f88 == f90_ and f0 == 0 ? 0 : f90_
+
+v4_ = f88 < f90 and v20 > 0 ? (v14 / v20 + 1) * 50 : 50
+rsx = v4_ > 100 ? 100 : v4_ < 0 ? 0 : v4_
+
+rsxColor = rsx > obLevel ? #0ebb23 : rsx < osLevel ? #ff0000 : #512DA8
+plot(rsx, title="RSX", linewidth=2, color=rsxColor, transp=0)
+
+transparent = color(white, 100)
+
+maxLevelPlot = hline(100, title="Max Level", linestyle=dotted, color=transparent)
+obLevelPlot = hline(obLevel, title="Overbought Level", linestyle=dotted)
+hline(50, title="Middle Level", linestyle=dotted)
+osLevelPlot = hline(osLevel, title="Oversold Level", linestyle=dotted)
+minLevelPlot = hline(0, title="Min Level", linestyle=dotted, color=transparent)
+
+fill(obLevelPlot, osLevelPlot, color=purple, transp=95)
+
+obFillColor = rsx > obLevel and highlightBreakouts ? green : transparent
+osFillColor = rsx < osLevel and highlightBreakouts ? red : transparent
+
+fill(maxLevelPlot, obLevelPlot, color=obFillColor, transp=90)
+fill(minLevelPlot, osLevelPlot, color=osFillColor, transp=90)
+
+piv = input(false,"Hide pivots?")
+shrt = input(false,"Shorter labels?")
+xbars = input(90, "Div lookback period (bars)?", integer, minval=1)
+hb = abs(highestbars(rsx, xbars)) // Finds bar with highest value in last X bars
+lb = abs(lowestbars(rsx, xbars)) // Finds bar with lowest value in last X bars
+max = na
+max_rsi = na
+min = na
+min_rsi = na
+pivoth = na
+pivotl = na
+divbear = na
+divbull = na
+
+// If bar with lowest / highest is current bar, use it's value
+max := hb == 0 ? close : na(max[1]) ? close : max[1]
+max_rsi := hb == 0 ? rsx : na(max_rsi[1]) ? rsx : max_rsi[1]
+min := lb == 0 ? close : na(min[1]) ? close : min[1]
+min_rsi := lb == 0 ? rsx : na(min_rsi[1]) ? rsx : min_rsi[1]
+
+// Compare high of current bar being examined with previous bar's high
+// If curr bar high is higher than the max bar high in the lookback window range
+if close > max // we have a new high
+    max := close // change variable "max" to use current bar's high value
+if rsx > max_rsi // we have a new high
+    max_rsi := rsx // change variable "max_rsi" to use current bar's RSI value
+if close < min // we have a new low
+    min := close // change variable "min" to use current bar's low value
+if rsx < min_rsi // we have a new low
+    min_rsi := rsx // change variable "min_rsi" to use current bar's RSI value
+
+// Finds pivot point with at least 2 right candles with lower value
+pivoth := (max_rsi == max_rsi[2]) and (max_rsi[2] != max_rsi[3]) ? true : na
+pivotl := (min_rsi == min_rsi[2]) and (min_rsi[2] != min_rsi[3]) ? true : na
+
+// Detects divergences between price and indicator with 1 candle delay so it filters out repeating divergences
+if (max[1] > max[2]) and (rsx[1] < max_rsi) and (rsx <= rsx[1])
+    divbear := true
+if (min[1] < min[2]) and (rsx[1] > min_rsi) and (rsx >= rsx[1])
+    divbull := true
+
+// Alerts
+alertcondition(divbear, title='Bear div', message='Bear div')
+alertcondition(divbull, title='Bull div', message='Bull div')
+
+// Plots divergences and pivots with offest
+// Longer labels
+plotshape(shrt ? na : divbear ? rsx[1] + 1 : na, location=location.absolute, style=shape.labeldown, color=red, size=size.tiny, text="Bear", textcolor=white, transp=0, offset=-1)
+plotshape(shrt ? na : divbull ? rsx[1] - 1 : na, location=location.absolute, style=shape.labelup, color=green, size=size.tiny, text="Bull", textcolor=white, transp=0, offset=-1)
+plotshape(piv ? na : shrt ? na : pivoth ? max_rsi + 1 : na, location=location.absolute, style=shape.labeldown, color=blue, size=size.tiny, text="Pivot", textcolor=white, transp=0, offset=-2)
+plotshape(piv ? na : shrt ? na : pivotl ? min_rsi - 1 : na, location=location.absolute, style=shape.labelup, color=blue, size=size.tiny, text="Pivot", textcolor=white, transp=0, offset=-2)
+
+// Shorter labels
+plotshape(shrt ? (divbear ? rsx[1] + 3 : na) : na, location=location.absolute, style=shape.triangledown, color=red, size=size.tiny, transp=0, offset=-1)
+plotshape(shrt ? (divbull ? rsx[1] - 3 : na) : na, location=location.absolute, style=shape.triangleup, color=green, size=size.tiny, transp=0, offset=-1)
+plotshape(piv ? na : shrt ? (pivoth ? max_rsi + 3 : na) : na, location=location.absolute, style=shape.triangledown, color=blue, size=size.tiny, transp=0, offset=-2)
+plotshape(piv ? na : shrt ? (pivotl ? min_rsi - 3 : na) : na, location=location.absolute, style=shape.triangleup, color=blue, size=size.tiny, transp=0, offset=-2)

@@ -1,0 +1,33 @@
+//@version=6
+indicator('SMOKEBASED Style Indicator with Arrows', overlay = true)
+
+// Moving Averages for trend detection
+fastEMA = ta.ema(close, 9)
+slowEMA = ta.ema(close, 21)
+
+// RSI for momentum confirmation
+rsiValue = ta.rsi(close, 14)
+
+// Support & Resistance levels
+support = ta.lowest(low, 50)
+resistance = ta.highest(high, 50)
+
+// Buy/Sell Signals
+bullishSignal = ta.crossover(fastEMA, slowEMA) and rsiValue > 50
+bearishSignal = ta.crossunder(fastEMA, slowEMA) and rsiValue < 50
+
+// Plot EMAs
+plot(fastEMA, color = color.blue, title = 'Fast EMA (9)')
+plot(slowEMA, color = color.red, title = 'Slow EMA (21)')
+
+// Plot Support/Resistance
+plot(support, color = color.green, title = 'Support Level')
+plot(resistance, color = color.red, title = 'Resistance Level')
+
+// Buy/Sell Arrows
+plotshape(series = bullishSignal, location = location.belowbar, color = color.green, style = shape.labelup, title = 'BUY', size = size.small, text = '🡅')
+plotshape(series = bearishSignal, location = location.abovebar, color = color.red, style = shape.labeldown, title = 'SELL', size = size.small, text = '🡇')
+
+// Alert Conditions
+alertcondition(bullishSignal, title = 'BUY Signal', message = 'GoldTraderMO: BUY Signal!')
+alertcondition(bearishSignal, title = 'SELL Signal', message = 'GoldTraderMO: SELL Signal!')

@@ -1,0 +1,87 @@
+{
+  "file_info": {
+    "original_name": "10PIPS.mq4",
+    "new_name": "EA_10PIPS_v1.0_MULTI.mq4",
+    "file_type": "EA",
+    "language": "MQL4",
+    "size_kb": 25,
+    "creation_date": "2024-01-15",
+    "last_modified": "2024-01-15"
+  },
+  "classification": {
+    "category": "Expert Advisor",
+    "strategy_type": "Scalping",
+    "trading_style": "Fractal Breakout",
+    "complexity_level": "Advanced",
+    "market_focus": "Multi-Symbol",
+    "timeframe": "M1-M15"
+  },
+  "technical_analysis": {
+    "indicators_used": [
+      "Fractals",
+      "Moving Averages (MA)",
+      "MACD Signal",
+      "Price Action"
+    ],
+    "entry_conditions": "Fractal breakout with MA and MACD confirmation",
+    "exit_conditions": "Take Profit, Stop Loss, Trailing Stop",
+    "risk_management": "Risk percentage with lot calculation and break-even"
+  },
+  "ftmo_compliance": {
+    "ftmo_ready": true,
+    "compliance_score": 4,
+    "risk_per_trade": "2% (configurable)",
+    "max_drawdown": "Controlled by risk management",
+    "stop_loss": true,
+    "take_profit": true,
+    "martingale": false,
+    "grid_trading": false,
+    "session_filter": false,
+    "issues": [
+      "Risk percentage slightly high (2% vs recommended 1%)",
+      "No session time filter"
+    ]
+  },
+  "parameters": {
+    "break_even": "Enabled with configurable trigger",
+    "when_to_move_be": "10 pips",
+    "pips_to_move_sl": "5 pips",
+    "lots": "0.01 (configurable)",
+    "maximum_risk": "0.02 (2%)",
+    "decrease_factor": "3",
+    "trailing_stop": "40 pips",
+    "stop_loss": "20 pips",
+    "take_profit": "50 pips",
+    "magic_number": "1234"
+  },
+  "performance": {
+    "backtest_period": "Not available",
+    "win_rate": "Not available",
+    "profit_factor": "Not available",
+    "max_drawdown": "Not available",
+    "sharpe_ratio": "Not available"
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Multi_Symbol",
+    "#Fractals",
+    "#Breakout",
+    "#Risk_Management",
+    "#Break_Even",
+    "#Trailing_Stop",
+    "#MQL4",
+    "#FTMO_Ready"
+  ],
+  "status": {
+    "review_status": "Classified",
+    "testing_status": "Not tested",
+    "approval_status": "Approved for FTMO with risk adjustment",
+    "notes": "Reduce risk to 1% and add session filter for full FTMO compliance"
+  },
+  "file_paths": {
+    "source_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/All_MQ4/10PIPS.mq4",
+    "target_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/EAs/Scalping/EA_10PIPS_v1.0_MULTI.mq4",
+    "metadata_path": "CODIGO_FONTE_LIBRARY/Metadata/EA_10PIPS_v1.0_MULTI.meta.json"
+  }
+}

@@ -1,0 +1,283 @@
+
+//@version=5
+indicator("!<*Скальпер разворотов*>!", overlay = true)
+show_historical = input.bool(defval = true, title = "Показать исторические линии на графике?")                                         
+show_as = input.bool(defval = false, title = "Показывать исторические линии как точки, а не как линии?") ? plot.style_cross : plot.style_linebr 
+
+extend_lines = input.bool(                                                                                                      
+ defval = false,                                                                                                                
+ title = 'Расширить линии на графике?',                                                                                           
+ tooltip = 'Установка этого флажка расширит текущие линии на графике в обоих направлениях.',                                      
+ group = 'Настройки линии'                                                                                                        
+ ) ? extend.both : extend.none                                                                                                   
+use_low_bullish = input.bool(                                                                                                   
+ defval = true,                                                                                                                
+ title = 'Используйте минимум для линии поддержки бычьего разворота?',                                                                          
+ tooltip = 'По умолчанию линией поддержки является закрытие свечи, эта настройка меняет ее на минимум свечи (фитиль)',     
+ group = 'Настройки линии'                                                                                                        
+ ) ? low : close                                                                                                                
+use_high_bearish = input.bool(                                                                                                  
+ defval = true,                                                                                                                
+ title = 'Используйте максимум для медвежьей линии сопротивления разворота?',                                                                      
+ tooltip = 'По умолчанию линия сопротивления — это закрытие свечи, эта настройка меняет ее на максимум свечи (фитиль)', 
+ group = 'Настройки линии'                                                                                                        
+ ) ? high : close                                                                                                               
+
+showpricelabel = input.bool(true, title='Показать ценник', group = 'Ценник')                                              
+only_bearish = input.bool(                                                                                                      
+ defval = false,                                                                                                                
+ title = ' Показывать на графике только медвежьи метки',                                                                                  
+ tooltip = 'установка этого флажка скроет бычий разворот и отобразит только медвежий разворот',                                      
+ group = 'Настройки метки сигнала'                                                                                                
+ )                                                                                                                               
+only_bullish = input.bool(                                                                                                      
+ defval = false,                                                                                                                
+ title = ' Показывать на графике только бычьи метки',                                                                                  
+ tooltip = 'установка этого флажка скроет медвежий разворот и отобразит только бычьи развороты',                                      
+ group = 'Настройки метки сигнала'                                                                                                
+ )                                                                                                                              
+                                                      
+bullish_direction = close >= open[1] 
+bearish_direction = close <= open[1] 
+green_bar = open < close 
+red_bar = open > close 
+strong_bullish_direction = bullish_direction and green_bar 
+strong_bearish_direction = bearish_direction and red_bar 
+nuetral_bar = not strong_bearish_direction and not strong_bullish_direction 
+
+var line line_price = na 
+var label label_price = na                                                                                                     
+line_forward = input.int(8, title = 'ЦЕНА Линия Положительное смещение Длина',                                                               
+ group = 'Ценник') 
+line_back = input.int(-200, title = ' PRICE Line Отрицательная длина смещения',                                                       
+ group = 'Ценник')                    
+label_offset = input.int(8, title = "ЦЕНА Смещение",                                                                             
+ group = 'Ценник') 
+is_bar_index = bar_index >= 0
+if is_bar_index and showpricelabel
+    line.delete(line_price[0])                                                                                                  
+    label.delete(label_price[0])                                                                                                
+    price=close 
+    line_price:=line.new(                                                                                                       
+     bar_index +line_forward,                                                                                                   
+     close,                                                                                                                     
+     bar_index +line_back,                                                                                                      
+     close,                                                                                                                     
+     color                                                                                                                      
+     = strong_bullish_direction ? #00e676                                                                   
+     : strong_bearish_direction ? #ff5252                                                                            
+     : nuetral_bar ? #ff9800                                                                               
+     : na,                                                                                                                      
+     width=2,                                                                                                                   
+     style=line.style_dotted                                                                                                    
+     )                                                                                                                          
+    label_price:=label.new(                                                                                                     
+     bar_index +label_offset,                                                                                                   
+     close,                                                                                                                     
+     text="$" + str.tostring(price),                                                                                            
+     color=na,                                                                                                                  
+     textcolor                                                                                                                  
+     = strong_bullish_direction ? #00e676                                                                    
+     : strong_bearish_direction ? #ff5252                                                                     
+     : nuetral_bar ? #ff9800                                                                               
+     : na,                                                                                                                      
+     size=size.large                                                                                                            
+     )                                                                                                                          
+ 
+price = close                                                                                                                                       
+bullish_break =                                                                                                                 
+ price > high[1]                                                                                                                
+ and price > high[2]                                                                                                            
+ and price > high[3]                                                                                                            
+ and price > high[4]                                                                                                            
+ and price > high[5]                                                                                                            
+ and price > high[6]                                                                                                            
+ and price > high[7]                                                                                                            
+ and price > high[8]                                                                                                            
+ and price > high[9]                                                                                                                            
+ and price > high[10]                                                                                                           
+ and price > high[11]                                                                                                           
+ and price > high[12]                                                                                                           
+ and price > high[13]                                                                                                           
+ and price > high[14]                                                                                                           
+
+confirmed_bullish_ = bullish_break[1] and not bullish_break                                                                        
+bullish_value = ta.valuewhen(confirmed_bullish_, high, 0)                                                                      
+plot(show_historical ? bullish_value : na, style=show_as, color = ta.change(bullish_break) ? na : #ff5252)                  
+last_bull = ta.barssince(bullish_break)                                                                                             
+bearish_break =                                                                                                                  
+ price < low[1]                                                                                                                 
+ and price < low[2]                                                                                                            
+ and price < low[3]                                                                                                             
+ and price < low[4]                                                                                                             
+ and price < low[5]                                                                                                             
+ and price < low[6]                                                                                                             
+ and price < low[7]                                                                                                             
+ and price < low[8]                                                                                                             
+ and price < low[9]                                                                                                            
+ and price < low[10]                                                                                                           
+ and price < low[11]                                                                                                           
+ and price < low[11]                                                                                                           
+ and price < low[12]                                                                                                           
+ and price < low[13]                                                                                                            
+ and price < low[14]                                                                                                           
+
+confirmed_bearish_ = bearish_break[1] and not bearish_break                                                                    
+bearish_value = ta.valuewhen(confirmed_bearish_, low, 0)                                                                               
+plot(show_historical ? bearish_value : na, style=show_as, color = ta.change(bearish_break) ? na : #4caf50)                
+
+last_bear = ta.barssince(bearish_break)                                                                                              
+
+use_rsi_confirmation = input.bool(                                                                                             
+ defval = true,                                                                                                                
+ title = 'Используйте сигналы RSI для подтверждения разворотов?',                                                                               
+ tooltip = 'Установка этого флажка потребует, чтобы индикатор использовал настройки RSI до срабатывания сигнала.',                   
+ group = 'НАСТРОЙКИ RSI')                                                                                                        
+showrsi = input.bool(                                                                                                           
+ defval = true,                                                                                                               
+ title = 'Постройте сигналы RSI на графике',                                                                                           
+ group='НАСТРОЙКИ RSI')                                                                                                         
+showoverbtrsi = input.bool(                                                                                                   
+ defval = true,                                                                                                                 
+ title = 'Показать сигналы перекупленности RSI',                                                                                       
+ group='НАСТРОЙКИ RSI')                                                                                                         
+showoversldrsi = input.bool(                                                                                                   
+ defval = true,                                                                                                                
+ title = 'Показать сигналы перепроданности RSI',                                                                                          
+ group='НАСТРОЙКИ RSI')                                                                                                                                                                                                                                        
+rsiSource = input(                                                                                                              
+ title = 'Источник RSI',                                                                                                          
+ defval = close,                                                                                                                
+ group ='НАСТРОЙКИ RSI')                                                                                                                                                                    
+LenofRSI = input(                                                                                                               
+ title = 'Длина RSI',                                                                                                         
+ defval = 6,                                                                                                                   
+ group='НАСТРОЙКИ RSI')                                                                                                                                                                     
+rsiOverbought = input(                                                                                                          
+ title = 'Уровень перекупленности RSI',                                                                                                
+ defval=85,                                                                                                                    
+ group='НАСТРОЙКИ RSI')                                                                                                                                                
+rsiOversold = input(                                                                                                           
+ title = 'Уровень перепроданности RSI',                                                                                                  
+ defval = 15,                                                                                                                  
+ group='НАСТРОЙКИ RSI')                                                                                                            
+                                                                                                              
+rsiValue = ta.rsi(rsiSource, LenofRSI)                                                                                                                                                                                                     
+rsiisoverbt = rsiValue >= rsiOverbought                                                                                                                                                                                                    
+rsiisoversld = rsiValue <= rsiOversold                                                                                         
+
+bullish_divergence = ta.crossover(rsiValue, ta.lowest(rsiValue, 50)) and ta.crossover(price, ta.lowest(price, 50))              
+bearish_divergence = ta.crossunder(rsiValue, ta.highest(rsiValue, 50)) and ta.crossunder(price, ta.highest(price, 50))                                                                                                               
+
+plotshape(showrsi and showoverbtrsi and not only_bullish?                                                                       
+ rsiisoverbt : na,                                                                                                           
+ title='RSI перекуплен',                                                                                                       
+ display=display.all,                                                                                                           
+ location=location.abovebar,                                                                                                    
+ color=#ffeb3b,                                                                                            
+ style=shape.triangledown, size=size.tiny,                                                                                     
+ text='OB',                                                                                                                     
+ textcolor=#ffeb3b)                                                                                        
+plotshape(showrsi and showoversldrsi and not only_bearish?                                                                     
+ rsiisoversld : na,                                                                                                             
+ title='RSI перепродан',                                                                                                         
+ display=display.all,                                                                                                           
+ location=location.belowbar,                                                                                                   
+ color=#ffeb3b,                                                                                            
+ style=shape.triangleup,                                                                                                        
+ size=size.tiny,                                                                                                             
+ text='OS',                                                                                                                    
+ textcolor=#ffeb3b)                                                                                        
+
+bearish_signal_rsi = (rsiisoversld[1] and not rsiisoversld and bullish_divergence)                                                                   
+bearish_signal = (bearish_break[1] and not bearish_break)                                                                       
+bullish_signal_rsi = (rsiisoverbt[1] and not rsiisoverbt and bearish_divergence)                                               
+bullish_signal = (bullish_break[1] and not bullish_break)                                                                       
+
+var label bullishlabel = na                                                                                                     
+if barstate.isconfirmed and bullish_signal and not only_bullish
+    bullishlabel := label.new(                                                                                                 
+     bar_index,                                                                                                                
+     y=0,                                                                                                                       
+     yloc=yloc.abovebar,                                                                                                      
+     style= label.style_triangledown,                                                                                           
+     size = size.normal,                                                                                                        
+     color = #ff5252,                                                                                         
+     text = "Потенциальный \n медвежий \n разворот",                                                                                 
+     textcolor = #ff5252                                                                                      
+     )                                                                                                                          
+    label.delete(bullishlabel[1])                                                                                              
+
+var line bullishline = na                                                                                                      
+if barstate.isconfirmed and bullish_break                                                                                       
+    bullishline := line.new(                                                                                                   
+     x1=bar_index,                                                                                                             
+     y1=use_high_bearish,                                                                                                       
+     x2=bar_index+30,                                                                                                         
+     y2=use_high_bearish,                                                                                                     
+     color = #ff5252,                                                                                         
+     extend = extend_lines                                                                                                    
+     )                                                                                                                         
+    line.delete(bullishline[1])                                                                                               
+
+var label bearishlabel = na                                                                                                   
+if barstate.isconfirmed and bearish_signal and not only_bearish
+    bearishlabel := label.new(                                                                                                
+     bar_index,                                                                                                               
+     y=0,                                                                                                                    
+     yloc=yloc.belowbar,                                                                                                       
+     style= label.style_triangleup,                                                                                          
+     size = size.normal,                                                                                                     
+     color = #4caf50,                                                                                   
+     text = "Потенциальный \n бычий \n разворот",                                                                             
+     textcolor = #4caf50                                                                                   
+     )                                                                                                                         
+    label.delete(bearishlabel[1])                                                                                               
+
+var line bearishline = na                                                                                                      
+if barstate.isconfirmed and bearish_break                                                                                    
+    bearishline := line.new(                                                                                                  
+     bar_index,                                                                                                                
+     use_low_bullish,                                                                                                          
+     bar_index+30,                                                                                                            
+     use_low_bullish,                                                                                                          
+     color = #4caf50,                                                                                     
+     extend = extend_lines                                                                                                    
+     )                                                                                                                         
+    line.delete(bearishline[1])                                                                                               
+
+Sell_Signal = bullish_signal                                                                                                                                                                                          
+Buy_Signal = bearish_signal                                                                                                   
+bull_function() => Buy_Signal                                                                                                 
+bear_function() => Sell_Signal                                                                                                
+custom_signal() => (bull_function() or bear_function())                                                                        
+
+show_sell_signals = input.bool(                                                                                                 
+ defval = true,                                                                                                                 
+ title = 'Показать короткие записи на графике?'                                                                                         
+ )                                                                                                                              
+show_buy_signals = input.bool(                                                                                                  
+ defval = true,                                                                                                                 
+ title = "Показывать длинные записи на графике?"                                                                                          
+ )                                                                                                                              
+plotshape(                                                                                                                      
+ showrsi and show_sell_signals and not only_bullish ? Sell_Signal : na,                                                         
+ title='RSI перекуплен',                                                                                                          
+ display=display.all,                                                                                                           
+ location=location.abovebar,                                                                                                    
+ color=#ff5252,                                                                                               
+ style=shape.triangledown,                                                                                                      
+ size=size.tiny, text='O-B',                                                                                                    
+ textcolor=#ffeb3b                                                                                         
+ )                                                                                                                              
+plotshape(                                                                                                                      
+ showrsi and show_buy_signals and not only_bearish ? Buy_Signal : na,                                                           
+ title = 'RSI перепродан',                                                                                                        
+ display = display.all,                                                                                                         
+ location = location.belowbar,                                                                                                  
+ color = #00e676,                                                                                             
+ style = shape.triangleup,                                                                                                       
+ size = size.tiny,                                                                                                              
+ text = 'O-S',                                                                                                                  
+ textcolor = #ffeb3b                                                                                       
+ )                                                                                                                                                                                                                                    

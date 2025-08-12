@@ -1,0 +1,38 @@
+//@version=5
+indicator("WT CROSS BIST SCAN", overlay=true)
+
+// USER SETTINGS
+channel_len = input.int(10, "Channel Length", minval=1)
+avg_len = input.int(14, "Average Length", minval=1)
+ob2 = input.int(58, "Over Bought 2")
+os2 = input.int(-50, "Over Sold 2")
+
+// WAVETREND CALCULATION
+ap = hlc3  
+esa = ta.ema(ap, channel_len)
+d = ta.ema(math.abs(ap - esa), channel_len)
+ci = (ap - esa) / (0.015 * d)
+tci = ta.ema(ci, avg_len)
+
+// SIGNAL CONDITIONS
+wt_cross_up = ta.crossover(ci, tci) and ci < os2
+wt_cross_down = ta.crossunder(ci, tci) and ci > ob2
+
+// DISABLE FILTERS FOR TESTING
+vol_ok = true
+trend_ok = true
+
+// FIXED PLOTSHAPE (NO TURKISH CHARACTERS)
+plotshape(series=wt_cross_up and vol_ok and trend_ok, 
+         title="BUY", 
+         style=shape.triangleup, 
+         location=location.belowbar, 
+         color=color.green, 
+         size=size.small)
+
+plotshape(series=wt_cross_down, 
+         title="SELL", 
+         style=shape.triangledown, 
+         location=location.abovebar, 
+         color=color.red, 
+         size=size.small) 

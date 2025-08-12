@@ -1,0 +1,182 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ChartPrime
+
+//@version=5
+indicator("Future Trend Channel [ChartPrime]", overlay = true, max_lines_count = 500)
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙐𝙎𝙀𝙍 𝙄𝙉𝙋𝙐𝙏𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+int   length = input.int(100, "Trend Length")
+float multi  = input.float(3, "Channel Width", step = 0.1)
+int   extend = input.int(50, "Index of future price")
+color color_up = input.color(#16d897, "Up", inline = "Colors")
+color color_dn = input.color(#da853f, "Dn", inline = "Colors")
+
+float atr    = ta.highest(ta.atr(200), 100)
+
+// UDT ------------------------------>>
+type channel 
+    line line_mid1 = na
+    line line_mid2 = na
+    line line_top1 = na
+    line line_top2 = na
+    line line_low1 = na
+    line line_low2 = na
+
+var c = channel.new(line(na), line(na), line(na), line(na), line(na), line(na))
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙄𝙉𝘿𝙄𝘾𝘼𝙏𝙊𝙍 𝘾𝘼𝙇𝘾𝙐𝙇𝘼𝙏𝙄𝙊𝙉𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+future_price(x1,x2,y1,y2,index)=>
+    float slope = (y2-y1)/(x2-x1) 
+
+    float future_price = y1 + slope * (index - x1)
+
+    style = switch
+        y1 > y2 =>label.style_label_lower_left
+        =>label.style_label_upper_left
+
+    label.new(index, future_price, 
+                 text  = str.tostring(future_price, "Future Price: \n #.#"),
+                 color = color.new(chart.fg_color, 80),
+                 textcolor = chart.fg_color, 
+                 style     = style)
+
+trend(length)=>
+    var trend = bool(na)
+    float sma = ta.sma(close, length)
+    float upper = sma + atr
+    float lower = sma - atr
+
+    bool signal_up = ta.crossover(close, upper)
+    bool signal_dn = ta.crossunder(close, lower)
+
+    if signal_up
+        trend := true
+    if signal_dn
+        trend := false
+
+    trend
+
+bool trend = trend(length)
+
+remove_lines(trend)=>
+    if trend and not trend[1]
+        c.line_mid2 := line(na)
+        c.line_top2 := line(na)
+        c.line_low2 := line(na)
+
+    if not trend and trend[1]
+        c.line_mid1 := line(na)
+        c.line_top1 := line(na)
+        c.line_low1 := line(na)
+
+color_lines(line_m, line_t, line_l, color, label)=>
+    var color_lines = color
+
+    if color == color_up ? line_m.get_y1() <= line_m.get_y2() : line_m.get_y1() >= line_m.get_y2()
+        color_lines := color
+        line_m.set_color(color_lines)
+        line_l.set_color(color_lines)
+        line_t.set_color(color_lines)
+
+        line_m.set_style(line.style_solid)
+        line_t.set_style(line.style_solid)
+        line_l.set_style(line.style_solid)
+        label.set_color(label, color_lines)  
+
+    if  color == color_up ? line_m.get_y1() >= line_m.get_y2() : line_m.get_y1() <= line_m.get_y2()
+        color_lines := chart.fg_color
+        line_m.set_color(color_lines)
+        line_t.set_color(color_lines)
+        line_l.set_color(color_lines)
+
+        line_m.set_style(line.style_dashed)
+        line_t.set_style(line.style_dashed)
+        line_l.set_style(line.style_dashed)
+        label.set_color(label, color.new(color_lines, 100))
+
+    label.set_size(label, size.tiny)
+
+    linefill.new(line_l, line_t, color.new(color_lines, 90))
+
+draw_channel(trend)=>
+    var label_up = label(na)
+    var label_dn = label(na)
+    var label_m = label(na)
+
+    series float src = hl2
+    series float low_src = src - atr * multi
+    series float high_src = src + atr * multi
+
+    // -> New Lines
+    if trend and not trend[1]
+        label_up := label.new(bar_index, low_src, style = label.style_diamond)
+        c.line_mid1 := line.new(bar_index, src, bar_index, src)
+        c.line_top1 := line.new(bar_index, high_src, bar_index, high_src)
+        c.line_low1 := line.new(bar_index, low_src, bar_index, low_src)
+
+        c.line_mid2.set_xy2(bar_index, src)
+        c.line_top2.set_xy2(bar_index, high_src)
+        c.line_low2.set_xy2(bar_index, low_src)
+
+    if not trend and trend[1]
+        label_dn := label.new(bar_index, high_src, style = label.style_diamond)
+        c.line_mid2 := line.new(bar_index, src, bar_index+2, src)
+        c.line_top2 := line.new(bar_index, high_src, bar_index, high_src)
+        c.line_low2 := line.new(bar_index, low_src, bar_index, low_src)
+
+        c.line_mid1.set_xy2(bar_index, src)
+        c.line_top1.set_xy2(bar_index, high_src)
+        c.line_low1.set_xy2(bar_index, low_src)
+
+    // Extend
+    if trend
+        label.delete(label_m)
+        c.line_mid2.set_extend(extend.none)
+        c.line_top2.set_extend(extend.none)     
+        c.line_low2.set_extend(extend.none)   
+
+        c.line_mid1.set_extend(extend.right)
+        c.line_top1.set_extend(extend.right)     
+        c.line_low1.set_extend(extend.right)   
+
+        c.line_mid1.set_xy2(bar_index, ta.sma(src, 20))
+        c.line_top1.set_xy2(bar_index, ta.sma(high_src, 20))
+        c.line_low1.set_xy2(bar_index, ta.sma(low_src, 20))
+
+        label_m := future_price(c.line_mid1.get_x1(), c.line_mid1.get_x2(), c.line_mid1.get_y1(), c.line_mid1.get_y2(), bar_index+extend)
+
+    
+
+    if not trend
+        label.delete(label_m)
+        c.line_mid1.set_extend(extend.none)
+        c.line_top1.set_extend(extend.none)     
+        c.line_low1.set_extend(extend.none)   
+
+        c.line_mid2.set_extend(extend.right)
+        c.line_top2.set_extend(extend.right)     
+        c.line_low2.set_extend(extend.right)   
+
+        c.line_mid2.set_xy2(bar_index, ta.sma(src, 20))
+        c.line_top2.set_xy2(bar_index, ta.sma(high_src, 20))
+        c.line_low2.set_xy2(bar_index, ta.sma(low_src, 20))
+
+        label_m := future_price(c.line_mid2.get_x1(), c.line_mid2.get_x2(), c.line_mid2.get_y1(), c.line_mid2.get_y2(), bar_index+extend)
+
+
+    color_lines(c.line_mid1, c.line_top1, c.line_low1, color_up, label_up)
+    color_lines(c.line_mid2, c.line_top2, c.line_low2, color_dn, label_dn)
+
+    remove_lines(trend)
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙑𝙄𝙎𝙐𝘼𝙇𝙄𝙕𝘼𝙏𝙄𝙊𝙉
+// --------------------------------------------------------------------------------------------------------------------{
+draw_channel(trend)
+// --------------------------------------------------------------------------------------------------------------------}

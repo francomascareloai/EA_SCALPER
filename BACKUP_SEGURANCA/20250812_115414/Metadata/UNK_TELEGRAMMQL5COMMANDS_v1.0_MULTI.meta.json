@@ -1,0 +1,31 @@
+{
+  "id": "c24e849b92379d20",
+  "arquivo": "TELEGRAM_MQL5_COMMANDS_PART5.mq5",
+  "hash": "c24e849b92379d20",
+  "tipo": "Unknown",
+  "linguagem": "MQL5",
+  "estrategia": "Custom",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 20,
+  "riscos_detectados": [
+    "No Stop Loss detected",
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 40,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

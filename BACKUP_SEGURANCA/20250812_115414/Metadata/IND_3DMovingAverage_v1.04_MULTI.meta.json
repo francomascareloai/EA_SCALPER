@@ -1,0 +1,32 @@
+{
+  "id": "IND_3DMovingAverage_v1.04_MULTI",
+  "nome_original": "3D .mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Custom",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.04",
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "caminho": "CODIGO_FONTE_LIBRARY/MQL5_Source/Indicators/Custom/IND_3DMovingAverage_v1.04_MULTI.mq5",
+  "descricao": "Indicador 3D com cálculos de seno e cosseno para visualização tridimensional",
+  "funcoes_principais": [
+    "OnInit",
+    "OnCalculate"
+  ],
+  "parametros_expostos": [],
+  "ftmo_score": 7,
+  "ftmo_ready": true,
+  "riscos_detectados": [],
+  "qualidade_codigo": 6,
+  "ajustes_ftmo_sugeridos": [],
+  "tags": [
+    "#Indicator",
+    "#Custom",
+    "#3D",
+    "#Visualization",
+    "#MULTI",
+    "#FTMO_Ready"
+  ]
+}

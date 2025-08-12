@@ -1,0 +1,27 @@
+//@version=6
+indicator('SFI OSC', shorttitle = 'SFI OSC', overlay = false)
+
+smaPeriod = input.int(title = 'S Period', defval = 15, minval = 1)
+tiiPeriod = input.int(title = 'RSI Period', defval = 3, minval = 1)
+src = input(title = 'Source', defval = close)
+
+sma = ta.sma(src, smaPeriod)
+
+positiveSum = 0.0
+negativeSum = 0.0
+
+for i = 0 to tiiPeriod - 1 by 1
+    positiveSum := positiveSum + (nz(src[i]) > nz(sma[i]) ? nz(src[i]) - nz(sma[i]) : 0.0)
+    negativeSum := negativeSum + (nz(src[i]) < nz(sma[i]) ? nz(sma[i]) - nz(src[i]) : 0.0)
+
+tii = 100 * positiveSum / (positiveSum + negativeSum)
+
+upperBand = hline(title = 'Upper Band', price = 80, linestyle = hline.style_dotted, color = color.gray)
+middleBand = hline(title = 'Middle Band', price = 50, linestyle = hline.style_dashed, color = color.gray)
+lowerBand = hline(title = 'Lower Band', price = 20, linestyle = hline.style_dotted, color = color.gray)
+
+tiiColor = tii > 80 ? #0ebb23 : tii < 20 ? #ff0000 : #f2bd38
+
+// Plot histogram for column-style visualization
+
+plot(tii, style = plot.style_columns, color = tiiColor, title = "SFI OSC Histogram")

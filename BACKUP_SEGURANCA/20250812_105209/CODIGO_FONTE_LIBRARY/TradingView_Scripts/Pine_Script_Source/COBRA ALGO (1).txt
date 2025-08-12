@@ -1,0 +1,52 @@
+//@version=5 
+indicator(title = "COBRA ALGO", shorttitle="COBRA ALGO", overlay=true)
+
+len=input(14,"Heiken Range",group= "Heiken MA")
+emLength = input(2,"Heiken Smooth",group= "Heiken MA")
+atrPeriod = input(2, "ATR Length",group="SuperTrend")
+factor = input.float(2.0, "Factor", step = 0.01,group="SuperTrend")
+
+openn=ta.ema(open,len)
+closee=ta.ema(close,len)
+highh=ta.ema(high,len)
+loww=ta.ema(low,len)
+kclose = (openn+highh+loww+closee)/4
+var float kopen = 0
+kopen := na(kopen[1]) ? (openn + closee)/2 : (kopen[1] + kclose[1]) / 2
+khigh = math.max (highh, math.max(kopen,kclose))
+klow = math.min (loww, math.min(kopen,kclose))
+
+lineVal = klow + ((khigh - klow) / 2)
+
+col=kopen>kclose ? #ff0057 : #00dbff
+heikenLine = ta.ema(lineVal,emLength)
+plot(heikenLine,color=col,linewidth=3 )
+
+/////////////////////////////////////////////////////
+
+[supertrend, direction] = ta.supertrend(factor, atrPeriod)
+
+bodyMiddle = plot((open + close) / 2, display=display.none)
+upTrend = plot(direction < 0 ? supertrend : na, "Up Trend", color = color.green, style=plot.style_linebr)
+downTrend = plot(direction < 0? na : supertrend, "Down Trend", color = color.red, style=plot.style_linebr)
+
+fill(bodyMiddle, upTrend, color.new(#00dbff, 90), fillgaps=false)
+fill(bodyMiddle, downTrend, color.new(#ff0057, 90), fillgaps=false)
+
+heikenLong = kopen<kclose
+heikenShort = kopen>kclose
+superLong = direction < 0
+superShort = direction > 0
+
+var pos = 0
+
+longSig = heikenLong and superLong
+shortSig = heikenShort and superShort
+
+if longSig and not longSig[1] and not pos != 1
+    pos := 1
+if shortSig and not shortSig[1] and pos != -1
+    pos := -1
+
+plotshape(pos == -1 and pos != pos[1], location=location.abovebar, style=shape.labeldown, color=#ff0057, size=size.tiny, text="Sell", textcolor=color.white, transp=0)
+plotshape(pos == 1 and pos != pos[1], location=location.belowbar, style=shape.labelup, color=#00dbff, size=size.tiny, text="Buy", textcolor=color.white, transp=0)

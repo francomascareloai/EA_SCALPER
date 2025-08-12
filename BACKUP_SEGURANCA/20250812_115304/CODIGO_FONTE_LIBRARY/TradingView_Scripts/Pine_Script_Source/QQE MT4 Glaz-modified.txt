@@ -1,0 +1,140 @@
+
+//@version=5
+indicator('<<QQE MT4 Glaz-modified by JustUncleL>>', shorttitle='QQE', overlay=false)
+
+RSI_Period = input(14, title='RSI Length')
+SF = input(5, title='RSI Smoothing')
+QQE = input(4.238, title='Fast QQE Factor')
+ThreshHold = input(10, title='Thresh-hold')
+//
+sQQEx = input(false, title='Show Smooth RSI, QQE Signal crosses')
+sQQEz = input(false, title='Show Smooth RSI Zero crosses')
+sQQEc = input(false, title='Show Smooth RSI Thresh Hold Channel Exits')
+ma_type = input.string(title='MA Type', defval='EMA', options=['ALMA', 'EMA', 'DEMA', 'TEMA', 'WMA', 'VWMA', 'SMA', 'SMMA', 'HMA', 'LSMA', 'PEMA'])
+lsma_offset = input.int(defval=0, title='* Least Squares (LSMA) Only - Offset Value', minval=0)
+alma_offset = input.float(defval=0.85, title='* Arnaud Legoux (ALMA) Only - Offset Value', minval=0, step=0.01)
+alma_sigma = input.int(defval=6, title='* Arnaud Legoux (ALMA) Only - Sigma Value', minval=0)
+inpDrawBars = input(true, title='color bars?')
+
+ma(type, src, len) =>
+    float result = na
+    if type == 'SMA'  // Simple
+        result := ta.sma(src, len)
+        result
+    if type == 'EMA'  // Exponential
+        result := ta.ema(src, len)
+        result
+    if type == 'DEMA'  // Double Exponential
+        e = ta.ema(src, len)
+        result := 2 * e - ta.ema(e, len)
+        result
+    if type == 'TEMA'  // Triple Exponential
+        e = ta.ema(src, len)
+        result := 3 * (e - ta.ema(e, len)) + ta.ema(ta.ema(e, len), len)
+        result
+    if type == 'WMA'  // Weighted
+        result := ta.wma(src, len)
+        result
+    if type == 'VWMA'  // Volume Weighted
+        result := ta.vwma(src, len)
+        result
+    if type == 'SMMA'  // Smoothed
+        w = ta.wma(src, len)
+        sma_result = na(w[1]) ? na : (w[1] * (len - 1) + src) / len
+        result := sma_result
+        result
+    if type == 'HMA'  // Hull
+        result := ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))
+        result
+    if type == 'LSMA'  // Least Squares
+        result := ta.linreg(src, len, lsma_offset)
+        result
+    if type == 'ALMA'  // Arnaud Legoux
+        result := ta.alma(src, len, alma_offset, alma_sigma)
+        result
+    if type == 'PEMA'
+        ema1 = ta.ema(src, len)
+        ema2 = ta.ema(ema1, len)
+        ema3 = ta.ema(ema2, len)
+        ema4 = ta.ema(ema3, len)
+        ema5 = ta.ema(ema4, len)
+        ema6 = ta.ema(ema5, len)
+        ema7 = ta.ema(ema6, len)
+        ema8 = ta.ema(ema7, len)
+        pema = 8 * ema1 - 28 * ema2 + 56 * ema3 - 70 * ema4 + 56 * ema5 - 28 * ema6 + 8 * ema7 - ema8
+        result := pema
+        result
+    result
+
+src = input(close, title='RSI Source')
+
+//
+Wilders_Period = RSI_Period * 2 - 1
+
+Rsi = ta.rsi(src, RSI_Period)
+RsiMa = ma(ma_type, Rsi, SF)
+AtrRsi = math.abs(RsiMa[1] - RsiMa)
+MaAtrRsi = ma(ma_type, AtrRsi, Wilders_Period)
+dar = ma(ma_type, MaAtrRsi, Wilders_Period) * QQE
+
+longband = 0.0
+shortband = 0.0
+trend = 0
+
+DeltaFastAtrRsi = dar
+RSIndex = RsiMa
+newshortband = RSIndex + DeltaFastAtrRsi
+newlongband = RSIndex - DeltaFastAtrRsi
+longband := RSIndex[1] > longband[1] and RSIndex > longband[1] ? math.max(longband[1], newlongband) : newlongband
+shortband := RSIndex[1] < shortband[1] and RSIndex < shortband[1] ? math.min(shortband[1], newshortband) : newshortband
+cross_1 = ta.cross(longband[1], RSIndex)
+trend := ta.cross(RSIndex, shortband[1]) ? 1 : cross_1 ? -1 : nz(trend[1], 1)
+FastAtrRsiTL = trend == 1 ? longband : shortband
+
+// Find all the QQE Crosses
+QQExlong = 0
+QQExlong := nz(QQExlong[1])
+QQExshort = 0
+QQExshort := nz(QQExshort[1])
+QQExlong := sQQEx and FastAtrRsiTL < RSIndex ? QQExlong + 1 : 0
+QQExshort := sQQEx and FastAtrRsiTL > RSIndex ? QQExshort + 1 : 0
+// Zero cross
+QQEzlong = 0
+QQEzlong := nz(QQEzlong[1])
+QQEzshort = 0
+QQEzshort := nz(QQEzshort[1])
+QQEzlong := sQQEz and RSIndex >= 50 ? QQEzlong + 1 : 0
+QQEzshort := sQQEz and RSIndex < 50 ? QQEzshort + 1 : 0
+
+// Thresh Hold channel Crosses give the BUY/SELL alerts.
+QQEclong = 0
+QQEclong := nz(QQEclong[1])
+QQEcshort = 0
+QQEcshort := nz(QQEcshort[1])
+QQEclong := sQQEc and RSIndex > 50 + ThreshHold ? QQEclong + 1 : 0
+QQEcshort := sQQEc and RSIndex < 50 - ThreshHold ? QQEcshort + 1 : 0
+
+// QQE exit from Thresh Hold Channel
+plotshape(sQQEc and QQEclong == 1 ? RsiMa - 50 : na, title='QQE XC Over Channel', style=shape.diamond, location=location.absolute, color=color.new(color.olive, 0), size=size.small, offset=0)
+plotshape(sQQEc and QQEcshort == 1 ? RsiMa - 50 : na, title='QQE XC Under Channel', style=shape.diamond, location=location.absolute, color=color.new(color.red, 0), size=size.small, offset=0)
+// QQE crosses
+plotshape(sQQEx and QQExlong == 1 ? FastAtrRsiTL[1] - 50 : na, title='QQE XQ Cross Over', style=shape.circle, location=location.absolute, color=color.new(color.lime, 0), size=size.small, offset=-1)
+plotshape(sQQEx and QQExshort == 1 ? FastAtrRsiTL[1] - 50 : na, title='QQE XQ Cross Under', style=shape.circle, location=location.absolute, color=color.new(color.blue, 0), size=size.small, offset=-1)
+// Signal crosses zero line
+plotshape(sQQEz and QQEzlong == 1 ? RsiMa - 50 : na, title='QQE XZ Zero Cross Over', style=shape.square, location=location.absolute, color=color.new(color.aqua, 0), size=size.small, offset=0)
+plotshape(sQQEz and QQEzshort == 1 ? RsiMa - 50 : na, title='QQE XZ Zero Cross Under', style=shape.square, location=location.absolute, color=color.new(color.fuchsia, 0), size=size.small, offset=0)
+
+hcolor = RsiMa - 50 > ThreshHold ? color.new(color.green, 80) : RsiMa - 50 < 0 - ThreshHold ? color.new(color.red, 80) : color.new(color.orange, 80)
+plot(FastAtrRsiTL - 50, color=color.new(color.blue, 0), linewidth=2)
+p1 = plot(RsiMa - 50, color=color.new(color.orange, 0), linewidth=2)
+plot(RsiMa - 50, color=hcolor, style=plot.style_columns)
+
+hZero = hline(0, color=color.black, linestyle=hline.style_dashed, linewidth=1)
+hUpper = hline(ThreshHold, color=color.green, linestyle=hline.style_dashed, linewidth=2)
+hLower = hline(0 - ThreshHold, color=color.red, linestyle=hline.style_dashed, linewidth=2)
+fill(hUpper, hLower, color=color.new(color.gray, 80))
+
+//EOF
+bgc = RsiMa - 50 > ThreshHold ? color.green : RsiMa - 50 < 0 - ThreshHold ? color.red : color.orange
+barcolor(inpDrawBars ? bgc : na)
+

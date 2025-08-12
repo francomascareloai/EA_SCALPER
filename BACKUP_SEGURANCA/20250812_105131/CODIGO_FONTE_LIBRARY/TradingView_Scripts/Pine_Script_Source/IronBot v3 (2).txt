@@ -1,0 +1,522 @@
+﻿//@version=6
+indicator(title = 'IronBot v3', shorttitle = 'IronBot v3', overlay = true, max_lines_count = 500, max_labels_count = 500, max_bars_back = 1)
+// ————— Constants
+type Settings
+    int     firstTrade
+	int     analysisWindow = 0
+    float   fibHigh = 0
+    float   fibLow = 0
+	float   initialCapital = 0
+	float   leverage = 0
+    bool    breakEvenEnabled = false
+	float   slRatio = 0
+	float   tp1Ratio = 0
+	float   tp1ProfitRatio = 0
+	float   tp2Ratio = 0
+	float   tp2ProfitRatio = 0
+	float   tp3Ratio = 0
+	float   tp3ProfitRatio = 0
+	float   tp4Ratio = 0
+	float   tp4ProfitRatio = 0
+    
+    // Visuals
+    bool    showTPSL = true
+    bool    showPanel = true
+
+    float   countryTax = 0
+    float   exchangeFees = 0
+
+    // Global variables
+    float   accountBalance = 0.0
+    float   accumulatedProfit = 0.0
+    int     totalTrades = 0
+    int     successfulTrades = 0
+    int     failedTrades = 0
+    int     consecutiveLosses = 0
+    int     lossesInARow = 0
+    int     consecutiveWins = 0
+    int     winsInARow = 0
+    float   totalExchangeFees = 0.0
+
+
+type TradeSession
+    // Global configuration
+	int     startBarIndex = 0
+	string  tradeDirection
+	float   entryLevel
+	bool    hasHitEntry = false
+	float   positionRemaining = 100
+	bool    isClosed = false
+    bool    forceClosed = false
+	float   closeLevel = 0
+	bool    breakEvenAllowed = false
+	float   profit = 0
+	line    entryLine
+    float   capital
+
+    // Lines and Labels
+    line    entryMarkerLine = na
+    label   entryMarkerLabel = na
+    line    closeMarkerLine = na
+    label   signalLabel = na
+
+    // TP1 configuration
+    float   tp1Level
+	bool    tp1Triggered = false
+    line    tp1Line = na
+    label   tp1Label = na
+
+    // TP2 configuration
+	float   tp2Level
+	bool    tp2Triggered = false
+    line    tp2Line = na
+    label   tp2Label = na
+
+    // TP3 configuration
+	float   tp3Level
+	bool    tp3Triggered = false
+    line    tp3Line = na
+    label   tp3Label = na
+
+    // TP4 configuration
+	float   tp4Level
+	bool    tp4Triggered = false
+    line    tp4Line = na
+    label   tp4Label = na
+
+    // SL configuration
+	float   slLevel
+	bool    slTriggered = false
+	float   breakEvenLevel
+    line    stopLossMarkerLine = na
+    label   stopLossMarkerLabel = na
+
+var TradeSession        currentSession = na
+var bool                isBullishTrendStarted = false
+var bool                isBearishTrendStarted = false
+var bool                hasTrendChanged = false
+var bool                isBullishTrend = false
+var bool                isBearishTrend = false
+var bool                canBuy = false
+var bool                canSell = false
+
+// ————— Inputs
+
+string  ownerInput                  = input.string(title = 'Owner', defval = '', tooltip = 'Owner name of the bot')
+int     analysisWindowInput         = input.int(title = 'Analysis window', step = 1, defval = 44, tooltip = 'Specifies the number of historical candles to analyze.\nThis influences the calculation of key levels such as highs and lows, which are critical for determining Fibonacci retracement levels.')
+float   fibHighInput                = input.float(title = 'Fibonacci high sensibility', defval = 23.6, options = [23.6, 38.2], tooltip = 'Specifies the level of Fibonnaci where the trend must go up.')
+float   fibLowInput                 = input.float(title = 'Fibonacci low sensibility', defval = 78.6, options = [61.8, 78.6], tooltip = 'Specifies the level of Fibonnaci where the trend must go down.')
+int     firstTradeInput             = input.time(defval = timestamp('1 September 2024'), title = 'First trade', tooltip = 'Defines the start date for generating trading signals.')
+
+// Trades Configuration
+bool    showTPSLInput               = input.bool(defval = true, title = 'Display TP/SL', group = 'TRADES', inline = 'Display', tooltip = 'Enables or disables the visualization of take-profit and stop-loss levels on the chart.')
+float   leverageInput               = input.float(title = 'Leverage', step = 1, defval = 15, group = 'TRADES', tooltip = 'Defines the leverage applied to trades for risk and position size calculations.')
+float   initialCapitalInput         = input.float(title = 'Initial Capital', defval = 100, step = 100, group = 'TRADES', tooltip = 'Specifies the starting capital, which is used for calculating position sizes and profits.')
+float   exchangeFeeInput            = input.float(title = 'Exchange Fees %', step = 5, defval = 8, group = 'TRADES', tooltip = 'Sets the percentage of fees applied by the exchange, which is factored into profit calculations.')
+float   countryTaxInput             = input.float(title = 'Country tax %', step = 5, defval = 33, group = 'TRADES', tooltip = 'Allows users to define applicable taxes, which are subtracted from net profits.')
+
+// Stop-Loss Configuration
+bool    breakEvenEnabledInput       = input.bool(title = 'Break Even', defval = true, group = 'STOP_LOSS', tooltip = 'When enabled, the stop-loss level adjusts dynamically as take-profit levels are reached.\n- TP1 reached: BE = entry price\n- TP2 reached: BE = TP1\n- TP3 reached: BE = TP2\n- TP4 reached: Trade closed')
+float   slRatioInput                = input.float(title = 'Stop Loss %', step = 0.1, defval = 0.8, group = 'STOP_LOSS', tooltip = 'Defines the percentage distance from the entry price to the stop-loss level.')
+
+// Take-Profit Settings
+float   tp1RatioInput               = input.float(title = 'TP 1', step = 0.05, defval = 0.65, minval = 0, group = 'TAKE_PROFITS', inline = 'TP1', tooltip = 'Specify the price levels for each take-profit target as a percentage of the entry price.')
+float   tp1ProfitRatioInput         = input.float(title = 'Profit %', step = 5, defval = 60, group = 'TAKE_PROFITS', inline = 'TP1', tooltip = 'Allocate a percentage of the position size to each take-profit level.')
+float   tp2RatioInput               = input.float(title = 'TP 2', step = 0.05, defval = 1.1, minval = 0, group = 'TAKE_PROFITS', inline = 'TP2')
+float   tp2ProfitRatioInput         = input.float(title = 'Profit %', step = 5, defval = 40, group = 'TAKE_PROFITS', inline = 'TP2')
+float   tp3RatioInput               = input.float(title = 'TP 3', step = 0.05, defval = 1.1, minval = 0, group = 'TAKE_PROFITS', inline = 'TP3')
+float   tp3ProfitRatioInput         = input.float(title = 'Profit %', step = 5, defval = 0, group = 'TAKE_PROFITS', inline = 'TP3')
+float   tp4RatioInput               = input.float(title = 'TP 4', step = 0.05, defval = 1.1, minval = 0, group = 'TAKE_PROFITS', inline = 'TP4')
+float   tp4ProfitRatioInput         = input.float(title = 'Profit %', step = 5, defval = 0, group = 'TAKE_PROFITS', inline = 'TP4')
+
+// Information Panel Options
+bool    showPanelInput              = input.bool(defval = true, title = 'Show Panel', group = 'PANELS')
+
+// ————— Function declarations
+
+// @function Rounds a number up to a specified number of decimal places.
+// @param number (float) The value to be rounded up.
+// @param decimals (int) The number of decimal places to round to.
+// @returns (float) The number rounded up to the specified decimal places.
+roundUp(number, decimals) =>
+    factor = math.pow(10, decimals)
+    math.ceil(number * factor) / factor
+
+// @function Calculates the risk-to-reward ratio for a trade.
+// @param entryLevel (float) - The entry price level of the trade.
+// @param slLevel (float) - The stop-loss price level of the trade.
+// @param tpLevel (float) - The take-profit price level of the trade.
+// @returns (float) - The calculated risk-to-reward ratio.
+riskToReward(float entryLevel, float slLevel, float tpLevel) =>
+   entryLevel > slLevel ? (tpLevel - entryLevel) / (entryLevel - slLevel) : (entryLevel - tpLevel) / (slLevel - entryLevel)
+
+// @function Evaluates the progress of a trade, updating session details and calculating profit.
+// @param settings (Settings) - Configuration settings including profit ratios, stop-loss ratio, leverage, and break-even settings.
+// @param session (TradeSession) - The current trade session, containing entry, stop-loss, take-profit levels, and other trade states.
+// @returns void - Updates the trade session and calculates cumulative profit.
+evaluateTradeProgress(Settings settings, TradeSession session) =>
+    float profit = 0.0
+
+    // Handle Entry
+    if not session.hasHitEntry and (session.tradeDirection == 'LONG' ? low <= session.entryLevel : high >= session.entryLevel)
+        session.startBarIndex := bar_index
+        session.hasHitEntry := true
+
+    // Handle Take Profits
+    tpLevel = session.tp1Level
+    if not session.tp1Triggered and (session.tradeDirection == 'LONG' ? high >= tpLevel : low <= tpLevel) and session.hasHitEntry
+        session.tp1Triggered := true
+        session.positionRemaining -= settings.tp1ProfitRatio
+        profit += riskToReward(session.entryLevel, session.slLevel, tpLevel) * settings.tp1ProfitRatio / 100 * settings.leverage
+        if settings.breakEvenEnabled
+            session.breakEvenAllowed := true
+            session.breakEvenLevel := session.entryLevel
+
+    tpLevel := session.tp2Level
+    if not session.tp2Triggered and (session.tradeDirection == 'LONG' ? high >= tpLevel : low <= tpLevel) and session.hasHitEntry
+        session.tp2Triggered := true
+        session.positionRemaining -= settings.tp2ProfitRatio
+        profit += riskToReward(session.entryLevel, session.slLevel, tpLevel) * settings.tp2ProfitRatio / 100 * settings.leverage
+        if settings.breakEvenEnabled
+            session.breakEvenAllowed := true
+            session.breakEvenLevel := session.tp1Level
+
+    tpLevel := session.tp3Level
+    if not session.tp3Triggered and (session.tradeDirection == 'LONG' ? high >= tpLevel : low <= tpLevel) and session.hasHitEntry
+        session.tp3Triggered := true
+        session.positionRemaining -= settings.tp3ProfitRatio
+        profit += riskToReward(session.entryLevel, session.slLevel, tpLevel) * settings.tp3ProfitRatio / 100 * settings.leverage
+        if settings.breakEvenEnabled
+            session.breakEvenAllowed := true
+            session.breakEvenLevel := session.tp2Level
+
+    tpLevel := session.tp4Level
+    if not session.tp4Triggered and (session.tradeDirection == 'LONG' ? high >= tpLevel : low <= tpLevel) and session.hasHitEntry
+        session.tp4Triggered := true
+        session.positionRemaining -= settings.tp4ProfitRatio
+        profit += riskToReward(session.entryLevel, session.slLevel, tpLevel) * settings.tp4ProfitRatio / 100 * settings.leverage
+        session.isClosed := true
+
+    // Handle Break Even
+    if session.breakEvenAllowed and (session.tradeDirection == 'LONG' ? low <= session.breakEvenLevel : high >= session.breakEvenLevel) and bar_index != session.startBarIndex
+        session.isClosed := true
+
+    // Handle Stop Loss
+    if not session.slTriggered and session.hasHitEntry and (session.tradeDirection == 'LONG' ? low <= session.slLevel : high >= session.slLevel) and bar_index != session.startBarIndex
+        session.slTriggered := true
+        session.isClosed := true
+        profit += settings.slRatio * -settings.leverage * session.positionRemaining
+
+    session.profit += profit
+
+// @function Terminates the trade by force closing it and calculating final profit.
+// @param settings (Settings) - Configuration settings including leverage and other trade parameters.
+// @param session (TradeSession) - The current trade session to be terminated.
+// @returns void - Updates the session state and calculates the final profit.
+terminateTrade(Settings settings, TradeSession session) =>
+    session.forceClosed := true
+
+    if not session.slTriggered
+        // Close the trade and calculate profit
+        session.closeLevel := close
+        session.isClosed := true
+        session.profit += riskToReward(session.entryLevel, session.slLevel, session.closeLevel) * session.positionRemaining / 100 * settings.leverage
+
+// @function Updates the position of a line on the chart.
+// @param lineHandle (line) - The handle of the line to update.
+// @param startBar (int) - The starting bar index for the line.
+// @param level (float) - The price level where the line should be drawn.
+// @returns void - Updates the line's start and end coordinates.
+updateLine(lineHandle, int startBar, float level) =>
+    line.set_xy1(lineHandle, startBar, level)
+    line.set_xy2(lineHandle, bar_index + 1, level)
+
+// @function Updates the trade visuals on the chart, including labels and lines for entry, stop-loss, and take-profit levels.
+// @param settings (Settings) - Configuration settings, if any visuals depend on specific settings.
+// @param session (TradeSession) - The current trade session containing levels, labels, and lines to be updated.
+// @returns void - Updates the chart with the current state of the trade.
+updateTradeVisuals(Settings settings, TradeSession session) =>
+    var offsetDisplay = 1
+    label.set_x(session.entryMarkerLabel, bar_index + offsetDisplay)
+    label.set_text(session.entryMarkerLabel, (session.tradeDirection == 'LONG' ? '🔰' : '🔰') + str.tostring(session.entryLevel))
+
+    label.set_x(session.stopLossMarkerLabel, bar_index + offsetDisplay)
+    label.set_text(session.stopLossMarkerLabel, '⛔' + str.tostring(session.slLevel))
+
+    label.set_x(session.tp1Label, bar_index + offsetDisplay)
+    label.set_text(session.tp1Label, session.tp1Triggered ? '✅' : str.tostring((1)) + '️⃣' + str.tostring(session.tp1Level))
+    if settings.tp2ProfitRatio > 0
+        label.set_x(session.tp2Label, bar_index + offsetDisplay)
+        label.set_text(session.tp2Label, session.tp2Triggered ? '✅' : str.tostring((2)) + '️⃣' + str.tostring(session.tp2Level))
+    if settings.tp3ProfitRatio > 0
+        label.set_x(session.tp3Label, bar_index + offsetDisplay)
+        label.set_text(session.tp3Label, session.tp3Triggered ? '✅' : str.tostring((3)) + '️⃣' + str.tostring(session.tp3Level))
+    if settings.tp4ProfitRatio > 0
+        label.set_x(session.tp4Label, bar_index + offsetDisplay)
+        label.set_text(session.tp4Label, session.tp4Triggered ? '✅' : str.tostring((4)) + '️⃣' + str.tostring(session.tp4Level))
+
+    // Update lines
+    updateLine(session.entryMarkerLine, session.startBarIndex, session.entryLevel)
+    updateLine(session.stopLossMarkerLine, session.startBarIndex, session.slLevel)
+
+    updateLine(session.tp1Line, session.startBarIndex,session.tp1Level)
+    updateLine(session.tp2Line, session.startBarIndex,session.tp2Level)
+    updateLine(session.tp3Line, session.startBarIndex,session.tp3Level)
+    updateLine(session.tp4Line, session.startBarIndex,session.tp4Level)
+
+// @function Updates the signal label to display the trade's profit percentage and color-code it based on profitability.
+// @param settings (Settings) - Configuration settings, if any influence the label update (currently unused).
+// @param session (TradeSession) - The current trade session containing profit details and the signal label.
+// @returns void - Updates the position, text, and color of the signal label.
+signalLabelUpdate(Settings settings, TradeSession session) =>
+    label.set_x(session.signalLabel, int(math.avg(bar_index, session.startBarIndex)))
+    string sign = session.profit >= 0 ? '+' : '-'
+    label.set_text(session.signalLabel, sign + str.tostring(math.abs(session.profit), '#.##') + '%')
+    label.set_color(session.signalLabel, session.profit >= 0 ? color.green : color.red)
+
+// @function Updates the fill areas between lines on the chart to visualize trade progress, profits, and losses.
+// @param settings (Settings) - Configuration settings (currently unused in this function).
+// @param session (TradeSession) - The current trade session containing line handles and state flags.
+// @returns void - Creates or updates line fills based on the trade's state.
+updateFillPositions(Settings settings, TradeSession session) =>
+    if session.tp1Triggered
+        linefill.new(session.entryMarkerLine, session.tp1Line, color = color.new(color.green, 85))
+    if session.tp2Triggered
+        linefill.new(session.tp1Line, session.tp2Line, color = color.new(color.green, 85))
+    if session.tp3Triggered
+        linefill.new(session.tp2Line, session.tp3Line, color = color.new(color.green, 85))
+    if session.tp4Triggered
+        linefill.new(session.tp3Line, session.tp4Line, color = color.new(color.green, 85))
+    if session.slTriggered
+        linefill.new(session.stopLossMarkerLine, session.entryMarkerLine, color = color.new(color.red, 85))
+    if session.forceClosed and session.profit < 0
+        closeLine = line.new(x1 = session.startBarIndex, y1 = session.closeLevel, x2 = bar_index, y2 = session.closeLevel, color = color.white, style = line.style_dotted, width = 2)
+        linefill.new(closeLine, session.entryMarkerLine, color = color.new(color.red, 85))
+
+// @function Finalizes the trade by calculating profits, updating account stats, and cleaning up visual elements.
+// @param settings (Settings) - Configuration settings including account balance, fees, and statistics.
+// @param session (TradeSession) - The current trade session to be finalized.
+// @returns void - Updates settings, deletes labels, and records trade statistics.
+finalizeTrade(Settings settings, TradeSession session) =>
+    float profitAmount = session.profit / 100 * session.capital
+    float fees = profitAmount * settings.exchangeFees
+    if fees < 0
+        fees := fees * -1
+    settings.accumulatedProfit += session.profit
+    settings.totalExchangeFees += fees
+    settings.accountBalance += profitAmount
+
+    // Clean previous Labels
+    label.delete(session.entryMarkerLabel)
+    label.delete(session.stopLossMarkerLabel)
+    label.delete(session.tp1Label)
+    label.delete(session.tp2Label)
+    label.delete(session.tp3Label)
+    label.delete(session.tp4Label)
+
+    // Update stats
+    settings.totalTrades += 1
+    if session.profit > 0
+        settings.successfulTrades += 1
+        settings.winsInARow += 1
+        settings.lossesInARow := 0
+        settings.consecutiveWins := settings.winsInARow > settings.consecutiveWins ? settings.winsInARow : settings.consecutiveWins
+    else
+        settings.failedTrades += 1
+        settings.lossesInARow += 1
+        settings.winsInARow := 0
+        settings.consecutiveLosses := settings.lossesInARow > settings.consecutiveLosses ? settings.lossesInARow : settings.consecutiveLosses
+
+// @function Generates visual elements for a trade, including lines and labels for entry, stop-loss, and take-profit levels.
+// @param settings (Settings) - Configuration settings (currently unused in this function).
+// @param session (TradeSession) - The current trade session containing levels and visual elements to be generated.
+// @returns void - Creates and assigns labels and lines for trade visualization.
+generateTradeVisuals(Settings settings, TradeSession session) =>
+    // Trade entry label
+    session.signalLabel := label.new(session.startBarIndex, session.tradeDirection == 'LONG' ? session.tp4Level * 1.005 : session.tp4Level * 0.995, style = label.style_label_center, textcolor = color.white, size = size.small)
+
+    // Entry Line and Label
+    session.entryMarkerLine := line.new(x1 = session.startBarIndex, y1 = session.entryLevel, x2 = bar_index + 1, y2 = session.entryLevel, color = color.gray, style = line.style_solid, width = 2)
+    session.entryMarkerLabel := label.new(bar_index, session.entryLevel, str.tostring(session.entryLevel), style = label.style_label_left, color = color.rgb(255, 255, 255, 100), textcolor = color.gray)
+
+    // Stop-Loss Line and Label
+    session.stopLossMarkerLine := line.new(x1 = session.startBarIndex, y1 = session.slLevel, x2 = bar_index + 1, y2 = session.slLevel, color = color.red, style = line.style_dotted, width = 2)
+    session.stopLossMarkerLabel := label.new(bar_index, session.slLevel, str.tostring(session.slLevel), style = label.style_label_left, color = color.rgb(255, 255, 255, 100), textcolor = color.red)
+
+    // Take-Profit Lines and Labels
+    tpLevel = session.tp1Level
+    session.tp1Line := line.new(x1 = session.startBarIndex, y1 = tpLevel, x2 = bar_index + 1, y2 = tpLevel, color = color.green, style = line.style_dotted, width = 2)
+    session.tp1Label := label.new(session.startBarIndex, tpLevel, str.tostring(tpLevel), style = label.style_label_left, color = color.rgb(255, 255, 255, 100), textcolor = color.green)
+    if settings.tp2ProfitRatio > 0
+        tpLevel := session.tp2Level
+        session.tp2Line := line.new(x1 = session.startBarIndex, y1 = tpLevel, x2 = bar_index + 1, y2 = tpLevel, color = color.green, style = line.style_dotted, width = 2)
+        session.tp2Label := label.new(session.startBarIndex, tpLevel, str.tostring(tpLevel), style = label.style_label_left, color = color.rgb(255, 255, 255, 100), textcolor = color.green)
+    if settings.tp3ProfitRatio > 0
+        tpLevel := session.tp3Level
+        session.tp3Line := line.new(x1 = session.startBarIndex, y1 = tpLevel, x2 = bar_index + 1, y2 = tpLevel, color = color.green, style = line.style_dotted, width = 2)
+        session.tp3Label := label.new(session.startBarIndex, tpLevel, str.tostring(tpLevel), style = label.style_label_left, color = color.rgb(255, 255, 255, 100), textcolor = color.green)
+    if settings.tp4ProfitRatio > 0
+        tpLevel := session.tp4Level
+        session.tp4Line := line.new(x1 = session.startBarIndex, y1 = tpLevel, x2 = bar_index + 1, y2 = tpLevel, color = color.green, style = line.style_dotted, width = 2)
+        session.tp4Label := label.new(session.startBarIndex, tpLevel, str.tostring(tpLevel), style = label.style_label_left, color = color.rgb(255, 255, 255, 100), textcolor = color.green)
+
+// @function Initializes a new trade session with the specified direction, configuring entry, stop-loss, and take-profit levels.
+// @param settings (Settings) - The configuration settings including SL/TP ratios, initial capital, and visual options.
+// @param tradeDirection (string) - The direction of the trade ('LONG' or 'SHORT').
+// @returns (TradeSession) - A newly initialized trade session with all required parameters set.
+initializeTradeSession(Settings settings, string tradeDirection) =>
+    TradeSession newSession = TradeSession.new()
+
+    // Set trade direction and leverage
+    newSession.tradeDirection := tradeDirection
+
+    // Configure entry level
+    newSession.entryLevel := close
+    newSession.hasHitEntry := true
+
+    // Configure stop-loss
+    newSession.slLevel := tradeDirection == 'LONG' ? math.round_to_mintick(newSession.entryLevel * (1 - settings.slRatio)) : math.round_to_mintick(newSession.entryLevel * (1 + settings.slRatio))
+
+    // Configure take-profits
+    newSession.tp1Level := tradeDirection == 'LONG' ? math.round_to_mintick(newSession.entryLevel * (1 + settings.tp1Ratio)) : math.round_to_mintick(newSession.entryLevel * (1 - settings.tp1Ratio))
+    newSession.tp2Level := tradeDirection == 'LONG' ? math.round_to_mintick(newSession.entryLevel * (1 + settings.tp2Ratio)) : math.round_to_mintick(newSession.entryLevel * (1 - settings.tp2Ratio))
+    newSession.tp3Level := tradeDirection == 'LONG' ? math.round_to_mintick(newSession.entryLevel * (1 + settings.tp3Ratio)) : math.round_to_mintick(newSession.entryLevel * (1 - settings.tp3Ratio))
+    newSession.tp4Level := tradeDirection == 'LONG' ? math.round_to_mintick(newSession.entryLevel * (1 + settings.tp4Ratio)) : math.round_to_mintick(newSession.entryLevel * (1 - settings.tp4Ratio))
+
+    // Configure break-even
+    newSession.breakEvenLevel := newSession.entryLevel // Initial BE at entry price
+
+    // Additional session details
+    newSession.startBarIndex := bar_index
+    newSession.positionRemaining := 100.0
+    newSession.capital := settings.initialCapital
+
+    // Generate trade visuals (optional)
+    if settings.showTPSL
+        generateTradeVisuals(settings, newSession)
+
+    // Return the initialized session
+    newSession
+
+// ————— Calculations
+varip Settings settings = Settings.new(firstTradeInput, analysisWindowInput, fibHighInput / 100, fibLowInput / 100, initialCapitalInput, leverageInput, breakEvenEnabledInput, slRatioInput / 100, tp1RatioInput / 100, tp1ProfitRatioInput, tp2RatioInput / 100, tp2ProfitRatioInput, tp3RatioInput / 100, tp3ProfitRatioInput, tp4RatioInput / 100, tp4ProfitRatioInput, showTPSLInput, showPanelInput, countryTaxInput / 100, exchangeFeeInput / 100, initialCapitalInput)
+
+// Defining trend
+float highestHigh = ta.highest(high, int(settings.analysisWindow))
+float lowestLow = ta.lowest(low, int(settings.analysisWindow))
+float priceRange = highestHigh - lowestLow
+float fibHighLevel = highestHigh - priceRange * settings.fibHigh
+float trendLine = highestHigh - priceRange * 0.5
+float fibLowLevel = highestHigh - priceRange * settings.fibLow
+
+// Determine Long and Short Conditions
+if time >= settings.firstTrade
+    canBuy := close >= trendLine and close >= fibHighLevel and not isBullishTrend
+    canSell := close <= trendLine and close <= fibLowLevel and not isBearishTrend
+
+if canBuy
+    isBullishTrend := true
+    isBearishTrend := false
+    isBullishTrendStarted := isBullishTrendStarted ? false : true
+else if canSell
+    isBearishTrend := true
+    isBullishTrend := false
+    isBearishTrendStarted := isBearishTrendStarted ? false : true
+else
+    hasTrendChanged := false
+    canBuy := false
+    canSell := false
+    isBearishTrendStarted := false
+    isBullishTrendStarted := false
+
+hasTrendChanged := isBearishTrendStarted or isBullishTrendStarted
+
+// Plot Trend Indicators
+plotshape(isBullishTrend and isBullishTrendStarted ? trendLine : na, title = 'Long Signal', style = shape.triangleup, location = location.belowbar, color = color.green, size = size.small)
+plotshape(isBearishTrend and isBearishTrendStarted ? trendLine : na, title = 'Short Signal', style = shape.triangledown, location = location.abovebar, color = color.red, size = size.small)
+plot(fibHighLevel, color = color.yellow, linewidth = 1)
+plot(trendLine, color = isBullishTrend[1] ? color.green : color.red, linewidth = 2)
+plot(fibLowLevel, color = color.yellow, linewidth = 1)
+
+if not na(currentSession)
+    // Evaluate Trade Progress
+    evaluateTradeProgress(settings, currentSession)
+    // Handle Trend Change and Trade Closure
+    if hasTrendChanged and not currentSession.isClosed
+        terminateTrade(settings, currentSession)
+
+    // Update Visual Elements
+    if not currentSession.isClosed
+        updateTradeVisuals(settings, currentSession)
+
+    // Update Signal Label
+    signalLabelUpdate(settings, currentSession)
+
+    // Handle Fill Visualization
+    if settings.showTPSL
+        updateFillPositions(settings, currentSession)
+
+    // Handle Closed Trade Logic
+    if currentSession.isClosed
+        finalizeTrade(settings, currentSession)
+        currentSession := na // Reset the session
+
+if canBuy or canSell and na(currentSession)
+    // Initialize New Trade Session
+    currentSession := initializeTradeSession(settings, canBuy ? 'LONG' : 'SHORT')
+
+
+// ————— Visuals
+int transparencyTPEntrySL = 30
+color colorTP = color.new(color.green, transparencyTPEntrySL)
+color colorEntry = color.rgb(120, 123, 134, transparencyTPEntrySL)
+color colorSL = color.new(color.red, transparencyTPEntrySL)
+
+// Draw panel
+var table panelTable = na
+if settings.showPanel
+    float countryTaxPrice = (settings.accountBalance - settings.initialCapital - settings.totalExchangeFees) * settings.countryTax
+    if countryTaxPrice < 0
+        countryTaxPrice := 0
+    panelTable := table.new(position.top_right, 3, 11, border_color = color.green, border_width = 0)
+
+    // Header
+    table.cell(panelTable, 0, 0, 'IronBot V3 Overview', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 3, text_size = size.normal)
+    table.cell(panelTable, 1, 0, '', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 3, text_size = size.normal)
+    table.merge_cells(panelTable, 0, 0, 1, 0)
+
+    table.cell(panelTable, 0, 1, '══════════════════════════════', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 2, text_size = size.normal)
+    table.cell(panelTable, 1, 1, '', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 2, text_size = size.normal)
+    table.merge_cells(panelTable, 0, 1, 1, 1)
+
+    // Data Rows
+    table.cell(panelTable, 0, 2, 'First trade:', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, text_halign = text.align_left)
+    table.cell(panelTable, 1, 2,  str.format('{0,date,long}', settings.firstTrade), bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green)
+
+    table.cell(panelTable, 0, 3, 'WR: ' + str.tostring(settings.successfulTrades / (settings.successfulTrades + settings.totalTrades - settings.successfulTrades) * 100, '##,##') + '%' + ' | TT: ' + str.tostring(settings.totalTrades) + ' | WS: ' + str.tostring(settings.consecutiveWins) + ' | LS: ' + str.tostring(settings.consecutiveLosses), bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 7, text_size = size.normal, text_valign = text.align_bottom)
+    table.cell(panelTable, 1, 3, '', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 3, text_size = size.normal)
+    table.merge_cells(panelTable, 0, 3, 1, 3)
+
+    table.cell(panelTable, 0, 4, 'Initial Capital:', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, text_halign = text.align_left)
+    table.cell(panelTable, 1, 4, str.tostring(settings.initialCapital, '##.##'), bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green)
+
+    table.cell(panelTable, 0, 5, 'Account Balance:', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, text_halign = text.align_left)
+    table.cell(panelTable, 1, 5, str.tostring(settings.accountBalance, '##.##'), bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green)
+
+    table.cell(panelTable, 0, 6, 'Total Fees:', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, text_halign = text.align_left)
+    table.cell(panelTable, 1, 6, str.tostring(settings.totalExchangeFees, '##.##'), bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green)
+
+    table.cell(panelTable, 0, 7, 'Country Tax:', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, text_halign = text.align_left)
+    table.cell(panelTable, 1, 7, str.tostring(countryTaxPrice, '##.##'), bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green)
+
+    table.cell(panelTable, 0, 8, 'Total Profit:', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, text_halign = text.align_left)
+    table.cell(panelTable, 1, 8, str.tostring(settings.accumulatedProfit, '#.##') + '%', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green)
+
+    table.cell(panelTable, 0, 9, '══════════════════════════════', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 5, text_size = size.normal)
+    table.cell(panelTable, 1, 9, '', bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green, width = 6, height = 3, text_size = size.normal)
+    table.merge_cells(panelTable, 0, 9, 1, 9)
+    // Footer
+    table.cell(panelTable, 0, 10, '💰 Net Balance: ' +  str.tostring(settings.accountBalance - settings.totalExchangeFees - countryTaxPrice, '##.##') + ' 💰', bgcolor = color.rgb(0, 0, 0, 150), text_color = color.green, width = 6, height = 3, text_size = size.normal, text_halign = text.align_center)
+    table.cell(panelTable, 1, 10, '', width = 6, height = 3, bgcolor = color.rgb(0, 0, 0, 87), text_color = color.green)
+    table.merge_cells(panelTable, 0, 10, 1, 10)
+

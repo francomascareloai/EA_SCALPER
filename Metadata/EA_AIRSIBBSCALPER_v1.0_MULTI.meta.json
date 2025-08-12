@@ -1,0 +1,32 @@
+{
+  "id": "06b2d31b2c93d1bd",
+  "arquivo": "AI RSI BB SCALPER.mq5",
+  "hash": "06b2d31b2c93d1bd",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "M5",
+    "H1"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 20,
+  "riscos_detectados": [
+    "Martingale/Grid detected",
+    "No Stop Loss detected"
+  ],
+  "qualidade_codigo_score": 40,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

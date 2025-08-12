@@ -1,0 +1,345 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join us https://t.me/simpleforextools
+
+//@version=6
+indicator(title = "Trading Toolkit & Nadaraya-Watson Envelope", shorttitle = "Trading Toolkit & Nadaraya-Watson Envelope", overlay = false, max_boxes_count = 500, max_bars_back = 500, max_lines_count = 500, max_labels_count = 500)
+
+// ############### Trading Toolkit [BigBeluga] ###############
+
+// ＩＮＰＵＴＳ ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+// S/R
+bool  show_sr = input.bool(true, "", group = "Trading Toolkit: Support & Resistance", inline = "sr") 
+int   len     = input.int(30, "Support/Resistance", group = "Trading Toolkit: Support & Resistance", inline = "sr")
+color bul_col = input.color(color.rgb(0, 230, 119, 70), "", inline = "sr")
+color ber_col = input.color(color.rgb(255, 82, 82, 70), "", inline = "sr")
+
+// RSI
+int  length   = input.int(24, "RSI", group = "Rsi", inline = "lvl")
+int  overs    = input.int(30, "OS/OB", group = "Rsi", inline = "lvl")
+int  overb    = input.int(70, "", group = "Rsi", inline = "lvl")
+bool show_div = input.bool(true, "", inline = "div"), div_len = input.int(10, "Divergence", inline = "div")
+color bull_col = input.color(color.rgb(0, 230, 211, 20), "", inline = "div")
+color bear_col = input.color(color.rgb(255, 82, 82, 20), "", inline = "div")
+
+// Correction
+bool  show_cor = input.bool(false, "", group = "correction", inline = "cor"), correction = input.int(5, "Correction %", group = "correction", inline = "cor")
+color corr_col = input.color(#2195f32d, "", group = "correction", inline = "cor")
+
+color m_col     = chart.fg_color
+color noneColor = color.new(color.white, 100)
+
+
+series float rsi = ta.rsi(close, length)
+
+// Divergence
+int lookbackRight = div_len
+int lookbackLeft = div_len
+int rangeUpper = 60
+int rangeLower = 5
+// }
+
+
+// ＣＡＬＣＵＬＡＴＩＯＮＳ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+_inRange(bool cond) =>
+    bars = ta.barssince(cond)
+    rangeLower <= bars and bars <= rangeUpper
+
+
+rsi_divergence()=>
+
+    plFound = false
+    phFound = false
+
+    bullCond = false
+    bearCond = false
+
+    rsiLBR = rsi[lookbackRight]
+
+    pl_p = ta.pivotlow(low, lookbackLeft, lookbackRight)
+    ph_p = ta.pivothigh(high, lookbackLeft, lookbackRight)
+
+    //------------------------------------------------------------------------------
+    // Regular Bullish
+    // rsi: Higher Low
+    inrangepl = _inRange(plFound[1])
+    inrangeph = _inRange(phFound[1])
+
+    pl = ta.pivotlow(rsi, lookbackLeft, lookbackRight)
+    plFound := not na(pl)    
+    rsiHL = rsiLBR > ta.valuewhen(plFound, rsiLBR, 1) and inrangepl
+    // Price: Lower Low
+    lowLBR = low[lookbackRight]
+    priceLL = lowLBR < ta.valuewhen(plFound, lowLBR, 1)
+    bullCond := priceLL and rsiHL and plFound
+
+    //------------------------------------------------------------------------------
+    // Regular Bearish
+    // rsi: Lower High
+    ph = ta.pivothigh(rsi, lookbackLeft, lookbackRight)
+    phFound := not na(ph)
+    rsiLH = rsiLBR < ta.valuewhen(phFound, rsiLBR, 1) and inrangeph
+    // Price: Higher High
+    highLBR = high[lookbackRight]
+    priceHH = highLBR > ta.valuewhen(phFound, highLBR, 1)
+    bearCond := priceHH and rsiLH and phFound
+
+    [pl_p, ph_p, bearCond, bullCond, plFound, phFound, rsiLBR]
+
+
+correction(correction)=>
+    var boxes = array.new<box>()
+    roc = ta.roc(close, 15)
+    var roc_indx = int(na)
+    var roc_src = float(na)
+
+    if ta.cross(roc, 0)
+        roc_indx := bar_index
+        roc_src  := high
+
+    if ta.crossunder(roc, -correction) 
+        boxes.push(box.new(roc_indx, roc_src, bar_index+1, low, na, 0, bgcolor = corr_col, force_overlay = true))
+
+    if boxes.size() > 1
+        for i = 0 to boxes.size() - 1
+            box_id = boxes.get(i)
+            indx = i < boxes.size() - 1 ? i+1 : 0 
+            box_id_1 = boxes.get(indx)
+
+            if box_id.get_left() == box_id_1.get_left()
+                box.delete(box_id_1) 
+                //boxes.set(indx, box(na))
+
+            if box_id.get_right() - box_id.get_left() >= 10
+                box.delete(box_id) 
+
+norm_candle_size()=>
+    ((high-low) / ta.stdev(high-low, 200))
+
+
+draw_levels()=>
+
+    PH  = ta.pivothigh(len,len)
+    PL  = ta.pivotlow(len, len)
+    Atr = ta.atr(200)* 0.3
+
+    candle_size = norm_candle_size()
+
+    big_candle = candle_size[len] > 1
+    style      = candle_size[len] > 1.5 ? line.style_solid : line.style_dashed
+
+    var lines = array.new<line>()
+    var boxes = array.new<box>()
+
+    if big_candle
+        if not na(PH)
+            lines.push(line.new(bar_index-len, PH, bar_index, PH, extend = extend.right, style = style, color = m_col, force_overlay = true))
+            boxes.push(box.new(bar_index-len, PH + Atr, bar_index+5, PH - Atr, na, 0, bgcolor = ber_col, force_overlay = true))
+        if not na(PL)
+            lines.push(line.new(bar_index-len, PL, bar_index, PL, extend = extend.right, style = style, color = m_col, force_overlay = true))
+            boxes.push(box.new(bar_index-len, PL + Atr, bar_index+5, PL - Atr, na, 0, bgcolor = bul_col, force_overlay = true))
+
+    for line_id in lines
+        level  = line_id.get_y1()
+        box_id = boxes.get(lines.indexof(line_id))
+        box_id.set_right(bar_index+10)    
+
+        if high[1] > level and high < level 
+            box.set_lefttop(box_id, bar_index, level+Atr)
+            box.set_rightbottom(box_id, bar_index+5, level-Atr)
+            box.set_bgcolor(box_id, ber_col)
+
+        if low[1] < level and low > level 
+            box.set_lefttop(box_id, bar_index, level+Atr)
+            box.set_rightbottom(box_id, bar_index+5, level-Atr)
+            box.set_bgcolor(box_id, bul_col)
+
+    if array.size(lines) > 0    
+        if array.size(lines) > 6
+            line.delete(array.shift(lines))
+            box.delete(array.shift(boxes))
+// }
+
+
+// ＰＬＯＴ ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+if show_sr
+    draw_levels()
+
+if show_cor
+    correction(correction)
+
+[pl_p, ph_p, bearCond, bullCond, plFound, phFound, rsiLBR] = rsi_divergence()
+
+// Divergence Plot
+pr = plot(rsi, color = m_col)
+p7 = plot(overb, display = display.none, editable = false)
+p3 = plot(overs, display = display.none, editable = false)
+
+h2 = hline(overs, "Oversold", color = m_col)
+h1 = hline(overb, "OverBought", color = m_col)
+hline(50, color = color.new(m_col, 50))
+
+fill(h1, h2, color.new(m_col, 85))
+fill(p3, pr, overs, 20, na, rsi < overs ? color.red : na)
+fill(p7, pr, overb, 85, na, rsi > overb ? color.lime : na)
+
+displ_div = show_div ? display.pane : display.none
+plot(
+     plFound ? rsiLBR : na,
+     offset=-lookbackRight,
+     title="Regular Bullish",
+     linewidth=2,
+     color=(bullCond ? bull_col : noneColor),
+     display = displ_div
+     )
+
+plot(
+     phFound ? rsiLBR : na,
+     offset=-lookbackRight,
+     title="Regular Bearish",
+     linewidth=2,
+     color=(bearCond ? bear_col : noneColor),
+     display = displ_div
+     )
+
+plot(
+     plFound ? low[lookbackRight] : na,
+     offset=-lookbackRight,
+     title="Regular Bullish",
+     linewidth=1,
+     color=(bullCond ? bull_col : noneColor),
+     display = displ_div, force_overlay = true
+     )
+
+plot(
+     phFound ? high[lookbackRight] : na,
+     offset=-lookbackRight,
+     title="Regular Bearish",
+     linewidth=1,
+     color=(bearCond ? bear_col : noneColor),
+     display = displ_div, force_overlay = true
+     )
+// }
+
+
+// ############### Nadaraya-Watson Envelope [LuxAlgo] ###############
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+h = input.float(8., 'Bandwidth', minval = 0, group = 'Nadaraya-Watson Envelope')
+mult = input.float(3., minval = 0, group = 'Nadaraya-Watson Envelope')
+src = input(close, 'Source', group = 'Nadaraya-Watson Envelope')
+
+repaint = input(true, 'Repainting Smoothing', tooltip = 'Repainting is an effect where the indicators historical output is subject to change over time. Disabling repainting will cause the indicator to output the endpoints of the calculations')
+
+//Style
+upCss = input.color(color.teal, 'Colors', inline = 'inline1', group = 'Style')
+dnCss = input.color(color.red, '', inline = 'inline1', group = 'Style')
+
+//-----------------------------------------------------------------------------}
+//Functions
+//-----------------------------------------------------------------------------{
+//Gaussian window
+gauss(x, h) =>
+    math.exp(-(math.pow(x, 2) / (h * h * 2)))
+
+//-----------------------------------------------------------------------------}
+//Append lines
+//-----------------------------------------------------------------------------{
+n = bar_index
+
+var ln = array.new_line(0)
+
+if barstate.isfirst and repaint
+    for i = 0 to 499 by 1
+        array.push(ln, line.new(na, na, na, na))
+
+//-----------------------------------------------------------------------------}
+//End point method
+//-----------------------------------------------------------------------------{
+var coefs = array.new_float(0)
+var den = 0.
+
+if barstate.isfirst and not repaint
+    for i = 0 to 499 by 1
+        w = gauss(i, h)
+        coefs.push(w)
+
+    den := coefs.sum()
+    den
+
+out = 0.
+if not repaint
+    for i = 0 to 499 by 1
+        out := out + src[i] * coefs.get(i)
+        out
+out := out / den
+mae = ta.sma(math.abs(src - out), 499) * mult
+
+upper = out + mae
+lower = out - mae
+
+//-----------------------------------------------------------------------------}
+//Compute and display NWE
+//-----------------------------------------------------------------------------{
+float y2 = na
+float y1 = na
+
+nwe = array.new<float>(0)
+if barstate.islast and repaint
+    sae = 0.
+    //Compute and set NWE point 
+    for i = 0 to math.min(499, n - 1) by 1
+        sum = 0.
+        sumw = 0.
+        //Compute weighted mean 
+        for j = 0 to math.min(499, n - 1) by 1
+            w = gauss(i - j, h)
+            sum := sum + src[j] * w
+            sumw := sumw + w
+            sumw
+
+        y2 := sum / sumw
+        sae := sae + math.abs(src[i] - y2)
+        nwe.push(y2)
+
+    sae := sae / math.min(499, n - 1) * mult
+    for i = 0 to math.min(499, n - 1) by 1
+        if i % 2 == 0
+            line.new(n - i + 1, y1 + sae, n - i, nwe.get(i) + sae, color = upCss, force_overlay = true)
+            line.new(n - i + 1, y1 - sae, n - i, nwe.get(i) - sae, color = dnCss, force_overlay = true)
+
+        if src[i] > nwe.get(i) + sae and src[i + 1] < nwe.get(i) + sae
+            label.new(n - i, src[i], '▼', color = color(na), style = label.style_label_down, textcolor = dnCss, textalign = text.align_center, force_overlay = true)
+        if src[i] < nwe.get(i) - sae and src[i + 1] > nwe.get(i) - sae
+            label.new(n - i, src[i], '▲', color = color(na), style = label.style_label_up, textcolor = upCss, textalign = text.align_center, force_overlay = true)
+
+        y1 := nwe.get(i)
+        y1
+
+//-----------------------------------------------------------------------------}
+//Dashboard
+//-----------------------------------------------------------------------------{
+var tb = table.new(position.top_right, 1, 1, bgcolor = #1e222d, border_color = #373a46, border_width = 1, frame_color = #373a46, frame_width = 1, force_overlay = true)
+
+if repaint
+    tb.cell(0, 0, 'Repainting Mode Enabled', text_color = color.white, text_size = size.small)
+
+//-----------------------------------------------------------------------------}
+//Plot
+//-----------------------------------------------------------------------------}
+plot(repaint ? na : out + mae, 'Upper', upCss, force_overlay = true)
+plot(repaint ? na : out - mae, 'Lower', dnCss, force_overlay = true)
+
+//Crossing Arrows
+plotshape(ta.crossunder(close, out - mae) ? low : na, 'Crossunder', shape.labelup, location.absolute, color(na), 0, text = '▲', textcolor = upCss, size = size.tiny, force_overlay = true)
+plotshape(ta.crossover(close, out + mae) ? high : na, 'Crossover', shape.labeldown, location.absolute, color(na), 0, text = '▼', textcolor = dnCss, size = size.tiny, force_overlay = true)
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

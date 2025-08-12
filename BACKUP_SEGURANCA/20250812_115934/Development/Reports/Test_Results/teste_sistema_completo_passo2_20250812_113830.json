@@ -1,0 +1,33 @@
+{
+  "start_time": "2025-08-12 11:38:25.143518",
+  "tests_executed": [
+    {
+      "name": "test_classificador_lote",
+      "passed": false,
+      "execution_time": 0.00029969215393066406
+    },
+    {
+      "name": "test_monitor_tempo_real",
+      "passed": true,
+      "execution_time": 3.0062105655670166
+    },
+    {
+      "name": "test_gerador_relatorios",
+      "passed": true,
+      "execution_time": 0.004363536834716797
+    },
+    {
+      "name": "test_integracao_completa",
+      "passed": true,
+      "execution_time": 2.61156964302063
+    }
+  ],
+  "tests_passed": 3,
+  "tests_failed": 1,
+  "errors": [],
+  "performance_metrics": {},
+  "end_time": "2025-08-12 11:38:30.768173",
+  "total_duration": 5.624655,
+  "final_status": "SUCCESS",
+  "success_rate": 75.0
+}

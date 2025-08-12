@@ -1,0 +1,123 @@
+//          https://t.me/PineScript2
+//          https://t.me/PinescriptGP
+//          Join Us in Telegram Code/Archive/Community
+//@version=6
+indicator('Bank Nifty Option Buying', overlay = true)
+// Hardcoded values (removing input menu)
+bankNifty = 'BANKNIFTY' // Symbol for Bank Nifty
+emaShortLen = 9         // Short EMA Length
+emaLongLen = 21         // Long EMA Length
+rsiPeriod = 14          // RSI Period
+rsiOverbought = 70      // RSI Overbought Level
+rsiOversold = 30        // RSI Oversold Level
+macdShort = 12          // MACD Short Length
+macdLong = 26           // MACD Long Length
+macdSignal = 9          // MACD Signal Length
+showSupportResistance = false // Whether to show support & resistance levels
+// Fetch Bank Nifty data
+[highBN, lowBN, closeBN] = request.security(bankNifty, timeframe.period, [high, low, close])
+// Calculate EMA for trend
+emaShort = ta.ema(closeBN, emaShortLen)
+emaLong = ta.ema(closeBN, emaLongLen)
+// Calculate RSI for momentum
+rsi = ta.rsi(closeBN, rsiPeriod)
+// MACD for trend and momentum
+[macdLine, signalLine, _] = ta.macd(closeBN, macdShort, macdLong, macdSignal)
+// Support & Resistance (Pivot Points)
+pivotHigh = ta.pivothigh(highBN, 5, 5)
+pivotLow = ta.pivotlow(lowBN, 5, 5)
+resistance = ta.valuewhen(bool(pivotHigh), highBN, 0)
+support = ta.valuewhen(bool(pivotLow), lowBN, 0)
+// Entry conditions
+callBuy = ta.crossover(closeBN, resistance) and emaShort > emaLong and rsi > 50 and macdLine > signalLine
+putBuy = ta.crossunder(closeBN, support) and emaShort < emaLong and rsi < 50 and macdLine < signalLine
+// Conditional plotting of support and resistance
+plot(showSupportResistance ? resistance : na, 'Resistance', color = color.red, linewidth = 2, style = plot.style_line)
+plot(showSupportResistance ? support : na, 'Support', color = color.green, linewidth = 2, style = plot.style_line)
+var isBuy = false
+var isSell = false
+callBuy := not isBuy and callBuy 
+putBuy := not isSell and putBuy
+if callBuy
+    isBuy := true
+    isSell := false
+if putBuy
+    isBuy := false
+    isSell := true
+// Signals
+plotshape(callBuy, title = 'Call Buy Signal', location = location.belowbar, color = color.green, style = shape.labelup, text = 'CALL')
+plotshape(putBuy, title = 'Put Buy Signal', location = location.abovebar, color = color.red, style = shape.labeldown, text = 'PUT')
+// Alerts
+alertcondition(callBuy, title = 'Call Buy Alert', message = 'Buy Call Option')
+alertcondition(putBuy, title = 'Put Buy Alert', message = 'Buy Put Option')
+///////////
+///////////
+// Signal conditions
+longCond = callBuy
+shortCond = putBuy
+// Determine ATM strike price (nearest 100-point increment)
+atmStrike = math.round(close / 100) * 100
+// Retrieve option premiums using request.security()
+// Example symbol for Bank Nifty options (adjust with the correct symbol for your expiration and strike)
+callOptionSymbol = "NSE:BANKNIFTY250130C49100"  // Replace with actual option symbol
+putOptionSymbol = "NSE:BANKNIFTY250130P49100"   // Replace with actual option symbol
+// Use request.security to get the historical price of the options
+callPremium = request.security(callOptionSymbol, "5", close)  // 5-minute chart for call option premium
+putPremium = request.security(putOptionSymbol, "5", close)    // 5-minute chart for put option premium
+// Format premiums to 2 decimal places
+callPremiumFormatted = str.format("{0,number,0.00}", callPremium)
+putPremiumFormatted = str.format("{0,number,0.00}", putPremium)
+// Calculate stoploss and target levels based on option premium
+callStoploss = math.ceil(callPremium * 0.82 / 0.05) * 0.05  // 0.82% stoploss rounded to nearest 0.05
+putStoploss = math.ceil(putPremium * 0.82 / 0.05) * 0.05    // 0.82% stoploss rounded to nearest 0.05
+// Targets for Call Option (percentage-based)
+callTarget1 = math.ceil(callPremium * 1.18 / 0.05) * 0.05    // 118% target rounded to nearest 0.05
+callTarget2 = math.ceil(callPremium * 1.36 / 0.05) * 0.05    // 136% target rounded to nearest 0.05
+callTarget3 = math.ceil(callPremium * 1.54 / 0.05) * 0.05    // 154% target rounded to nearest 0.05
+callTarget4 = math.ceil(callPremium * 1.72 / 0.05) * 0.05    // 172% target rounded to nearest 0.05
+callTarget5 = math.ceil(callPremium * 1.90 / 0.05) * 0.05    // 190% target rounded to nearest 0.05
+// Targets for Put Option (percentage-based)
+putTarget1 = math.ceil(putPremium * 1.18 / 0.05) * 0.05      // 118% target rounded to nearest 0.05
+putTarget2 = math.ceil(putPremium * 1.36 / 0.05) * 0.05      // 136% target rounded to nearest 0.05
+putTarget3 = math.ceil(putPremium * 1.54 / 0.05) * 0.05      // 154% target rounded to nearest 0.05
+putTarget4 = math.ceil(putPremium * 1.72 / 0.05) * 0.05      // 172% target rounded to nearest 0.05
+putTarget5 = math.ceil(putPremium * 1.90 / 0.05) * 0.05      // 190% target rounded to nearest 0.05
+// Format premiums and targets to 2 decimal places
+callStoplossFormatted = str.format("{0,number,0.00}", callStoploss)
+putStoplossFormatted = str.format("{0,number,0.00}", putStoploss)
+callTarget1Formatted = str.format("{0,number,0.00}", callTarget1)
+callTarget2Formatted = str.format("{0,number,0.00}", callTarget2)
+callTarget3Formatted = str.format("{0,number,0.00}", callTarget3)
+callTarget4Formatted = str.format("{0,number,0.00}", callTarget4)
+callTarget5Formatted = str.format("{0,number,0.00}", callTarget5)
+putTarget1Formatted = str.format("{0,number,0.00}", putTarget1)
+putTarget2Formatted = str.format("{0,number,0.00}", putTarget2)
+putTarget3Formatted = str.format("{0,number,0.00}", putTarget3)
+putTarget4Formatted = str.format("{0,number,0.00}", putTarget4)
+putTarget5Formatted = str.format("{0,number,0.00}", putTarget5)
+// Signal time in 12-hour format with AM/PM
+signalHour = hour(time)
+signalMinute = minute(time)
+signalAMPM = signalHour >= 12 ? "PM" : "AM"
+signalHour12 = signalHour % 12
+signalHour12 := signalHour12 == 0 ? 12 : signalHour12
+signalTimeFormatted = str.format("{0}:{1} {2}", str.tostring(signalHour12), str.tostring(signalMinute, "00"), signalAMPM)
+// Background and bar colors
+// bgcolor(s9ema > s18ema ? color.new(color.green, 92) : s9ema < s18ema ? color.new(color.red, 92) : na)
+// barcolor(s9ema > s18ema ? color.new(color.green, 0) : s9ema < s18ema ? color.new(color.red, 0) : na)
+// Plot buy and sell shapes
+// plotshape(series = longCond, title = 'BUY', style = shape.triangleup, location = location.belowbar, color = color.new(color.green, 0), textcolor = color.new(color.green, 0), text = 'BUY', size = size.small)
+// plotshape(series = shortCond, title = 'SELL', style = shape.triangledown, location = location.abovebar, color = color.new(color.red, 0), textcolor = color.new(color.red, 0), text = 'SELL', size = size.small)
+// Add ATM option labels with premiums, stoploss, targets, and signal time
+if (longCond)
+    label.new(bar_index, hl2*0.98 + 40, 
+              "ATM " + str.tostring(atmStrike) + " CE: " + callPremiumFormatted + "\nSL: " + callStoplossFormatted + 
+              "\nT1: " + callTarget1Formatted + "\nT2: " + callTarget2Formatted + "\nT3: " + callTarget3Formatted + 
+              "\nT4: " + callTarget4Formatted + "\nT5: " + callTarget5Formatted + "\nTime: " + signalTimeFormatted, 
+              style=label.style_label_up, color=color.new(color.green, 0), textcolor=color.white, textalign=text.align_left)
+if (shortCond)
+    label.new(bar_index, hl2*1.02 - 40, 
+              "ATM " + str.tostring(atmStrike) + " PE: " + putPremiumFormatted + "\nSL: " + putStoplossFormatted + 
+              "\nT1: " + putTarget1Formatted + "\nT2: " + putTarget2Formatted + "\nT3: " + putTarget3Formatted + 
+              "\nT4: " + putTarget4Formatted + "\nT5: " + putTarget5Formatted + "\nTime: " + signalTimeFormatted, 
+              style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, textalign=text.align_left)

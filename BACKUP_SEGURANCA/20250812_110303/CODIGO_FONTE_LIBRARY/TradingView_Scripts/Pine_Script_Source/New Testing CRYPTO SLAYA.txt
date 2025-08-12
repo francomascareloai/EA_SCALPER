@@ -1,0 +1,2176 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator("New Testing CRYPTO SLAYA", overlay=true, max_labels_count = 500, max_lines_count = 500, max_boxes_count=500, max_bars_back = 5000)
+ 
+ 
+// Inputs
+ 
+gr_Basic_Settings = "⭐Basic Settings⭐"
+Strategy_Select = input.string("Confirmation", title = "Strategy Selector", options = ["None", "Confirmation", "RE Beta", "MS Beta", "SRT Beta" ], group = gr_Basic_Settings, tooltip = "-None: No Strategies will display on the chart \n-Lune - Confirmation: Used to help you confirm your trades and trend direction.\n-RE Beta: This is a simple strategy used primarily for day trades and scalping.\n-MS Beta: This strategy helps you trade momentum, Also primarily used for day trading and scalping.\n-SRT Beta: This is an advanced trading strategy, that helps you with swing trades.")
+Sensitivity = input.int(4, title = "Strategy Sensivity", group =gr_Basic_Settings)
+Rigor = input.int(5, title = "Strategy Rigor", group =gr_Basic_Settings)
+ 
+//Use_Color_Pallet = input.bool(defval = true, title = "Color Theme:      ", inline = "Color Theme", group = gr_Basic_Settings )
+Select_Color_Pallet = input.string(defval = "None", title = "Color Theme:", options = ["None", "Default", "Bright", "Lune", "Ice"], inline = "Color Theme", group = gr_Basic_Settings)
+Trade_Bar_Color = input.bool(false, title = "Color Candles based on Trade", group = gr_Basic_Settings)
+ 
+ 
+ 
+//==============================================================================
+//COLOR THEMES
+//==============================================================================
+ 
+ 
+// array.set(Light_Pallet, 0, color.new(#FF2937, 0)) 
+// array.set(Light_Pallet, 1, color.new(#FF8629, 0))
+// array.set(Light_Pallet, 2, color.new(#FFB629, 0))
+// array.set(Light_Pallet, 3, color.new(#5BFF29, 0))
+// array.set(Light_Pallet, 4, color.new(#29F8FF, 0))
+// array.set(Light_Pallet, 5, color.new(#B029FF, 0))
+// array.set(Light_Pallet, 6, color.new(#FF29B8, 0))
+ 
+//Light theme
+ 
+Light_Pallet = array.new_color(7, na)
+ 
+array.set(Light_Pallet, 0, color.new(#5BFF29, 0))
+array.set(Light_Pallet, 1, color.new(#affc41, 0))
+array.set(Light_Pallet, 2, color.new(#FF2937, 0))
+array.set(Light_Pallet, 3, color.new(#FF8629, 0))
+array.set(Light_Pallet, 4, color.new(#B029FF, 0))
+array.set(Light_Pallet, 5, color.new(#FF29B8, 0))
+array.set(Light_Pallet, 6, color.new(#29F8FF, 0))
+ 
+Default_Pallet = array.new_color(7, na)
+ 
+array.set(Default_Pallet, 0, color.new(#22c829, 0))
+array.set(Default_Pallet, 1, color.new(#22c829, 0))
+array.set(Default_Pallet, 2, color.new(#d31d1d, 0))
+array.set(Default_Pallet, 3, color.new(#d31d1d, 0))
+array.set(Default_Pallet, 4, color.new(color.purple, 0))
+array.set(Default_Pallet, 5, color.new(color.maroon, 0))
+array.set(Default_Pallet, 6, color.new(color.blue, 0))
+ 
+ 
+Lune_Pallet = array.new_color(7, na)
+ 
+array.set(Lune_Pallet, 0, color.new(color.green, 0))
+array.set(Lune_Pallet, 1, color.new(color.green, 0))
+array.set(Lune_Pallet, 2, color.new(color.red, 0))
+array.set(Lune_Pallet, 3, color.new(color.red, 0))
+array.set(Lune_Pallet, 4, color.new(#05e1b9, 0))
+array.set(Lune_Pallet, 5, color.new(#14b0e7, 0))
+array.set(Lune_Pallet, 6, color.new(#C4AD83, 0))
+ 
+ 
+Ice_Pallet = array.new_color(7, na)
+ 
+array.set(Ice_Pallet, 0, color.new(#007BBA, 0))
+array.set(Ice_Pallet, 1, color.new(#0194fe, 0))
+array.set(Ice_Pallet, 2, color.new(#F1F2F6, 0))
+array.set(Ice_Pallet, 3, color.new(#B2B0B0, 0))
+array.set(Ice_Pallet, 4, color.new(#00A9E2, 0))
+array.set(Ice_Pallet, 5, color.new(#EBEBEB, 0))
+array.set(Ice_Pallet, 6, color.new(#FF8600, 0))
+ 
+ 
+NA_Palett = array.new_color(7, na)
+ 
+array.set(NA_Palett, 0, color.new(color.green, 0))
+array.set(NA_Palett, 1, color.new(color.green, 0))
+array.set(NA_Palett, 2, color.new(color.red, 0))
+array.set(NA_Palett, 3, color.new(color.red, 0))
+array.set(NA_Palett, 4, color.new(color.purple, 0))
+array.set(NA_Palett, 5, color.new(color.maroon, 0))
+array.set(NA_Palett, 6, color.new(color.blue, 0))
+ 
+ 
+// Pallet Input
+ 
+ 
+// Pallet Switch
+Color_Pallet = switch Select_Color_Pallet
+    "Bright" => Light_Pallet
+    "Default" => Default_Pallet
+    "Lune" => Lune_Pallet
+    "Ice" => Ice_Pallet
+    "None" => NA_Palett
+ 
+// Color Assign
+color_1 = array.get(Color_Pallet, 0) // Buy - Primary
+color_2 = array.get(Color_Pallet, 1) // Buy - Secondary
+color_3 = array.get(Color_Pallet, 2) // Sell - Primary 
+color_4 = array.get(Color_Pallet, 3) // Sell - Secondary
+color_5 = array.get(Color_Pallet, 4) // Supporting 1 
+color_6 = array.get(Color_Pallet, 5) // Supporting 2
+color_7 = array.get(Color_Pallet, 6) // Neutral 
+ 
+ 
+// Features
+ 
+gr_Features = "📋Features📋"
+Plot_SSL = false
+Plot_MAs = input.bool( defval = false, title = "Plot EK Clouds          ", group = gr_Features, inline = "Features 3")
+Plot_Revs = input.bool( defval = false, title = "Plot Reversal Bands", group = gr_Features, inline = "Features 3")
+Plot_Vol_Pro = input.bool(false, title = "Plot Vray                    ", group = gr_Features, inline = "Features 1")
+//Plot_Divergence = input.bool(defval = false, title = "Plot Divergence", group = gr_Features, inline = "Features 1") 
+Plot_Engulf = input.bool(false, title = "Plot Engulfing Signals   ", group = gr_Features, inline = "Features 1")
+//plot_SR = input.bool(defval = false, title = "Plot Support/Resistance Zones", group =gr_Features, inline = "Features 2") 
+plot_Lune = input.bool(defval = false, title = "Plot Lune-Confirmation", group =gr_Features, inline = "Features 4") 
+Reverse_signals = input.bool(false, title = "Plot Reversal Signals", group = gr_Features, inline = "Features 4")
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+// Advanced settings
+GR_Adv_Settings = "Advanced Settings"
+//Plot_Targets = input.string("On", title = "Plot Trades Targets (TP/SL Lines)", options = ["On","Off"] group = GR_Adv_Settings)
+ 
+Dashboard_Loc_1 = input.string("Bottom", title = "Dashboard Location:", options = ["Bottom", "Middle", "Top", "None"], group = GR_Adv_Settings, inline = "Dashboard")
+Dashboard_Loc_2 = input.string("Right", title = "-", options = ["Right", "Center", "Left", "None"], group = GR_Adv_Settings, inline = "Dashboard" )
+ 
+Stats_Loc_1 = input.string("Bottom", title = "Statistics Location:  ", options = ["Bottom", "Middle", "Top", "None"], group = GR_Adv_Settings, inline = "Dashboard")
+Stats_Loc_2 = input.string("Left", title = "-", options = ["Right", "Center", "Left", "None"], group = GR_Adv_Settings, inline = "Dashboard" )
+ 
+ 
+var string Dashboard_Position = na
+if Dashboard_Loc_1 == "Bottom" and Dashboard_Loc_2 == "Right"
+    Dashboard_Position := position.bottom_right
+else if Dashboard_Loc_1 == "Middle" and Dashboard_Loc_2 == "Right"
+    Dashboard_Position := position.middle_right
+else if Dashboard_Loc_1 == "Top" and Dashboard_Loc_2 == "Right"
+    Dashboard_Position := position.top_right
+else if Dashboard_Loc_1 == "Bottom" and Dashboard_Loc_2 == "Center"
+    Dashboard_Position := position.bottom_center
+else if Dashboard_Loc_1 == "Middle" and Dashboard_Loc_2 == "Center"
+    Dashboard_Position := position.middle_center
+else if Dashboard_Loc_1 == "Top" and Dashboard_Loc_2 == "Center"
+    Dashboard_Position := position.top_center
+else if Dashboard_Loc_1 == "Bottom" and Dashboard_Loc_2 == "Left"
+    Dashboard_Position := position.bottom_left
+else if Dashboard_Loc_1 == "Middle" and Dashboard_Loc_2 == "Left"
+    Dashboard_Position := position.middle_left
+else if Dashboard_Loc_1 == "Top" and Dashboard_Loc_2 == "Left"
+    Dashboard_Position := position.top_left
+else if Dashboard_Loc_1 == "None" or Dashboard_Loc_2 == "None"
+    Dashboard_Position := position.top_left
+ 
+var string Stats_Position = na
+if Stats_Loc_1 == "Bottom" and Stats_Loc_2 == "Right"
+    Stats_Position := position.bottom_right
+else if Stats_Loc_1 == "Middle" and Stats_Loc_2 == "Right"
+    Stats_Position := position.middle_right
+else if Stats_Loc_1 == "Top" and Stats_Loc_2 == "Right"
+    Stats_Position := position.top_right
+else if Stats_Loc_1 == "Bottom" and Stats_Loc_2 == "Center"
+    Stats_Position := position.bottom_center
+else if Stats_Loc_1 == "Middle" and Stats_Loc_2 == "Center"
+    Stats_Position := position.middle_center
+else if Stats_Loc_1 == "Top" and Stats_Loc_2 == "Center"
+    Stats_Position := position.top_center
+else if Stats_Loc_1 == "Bottom" and Stats_Loc_2 == "Left"
+    Stats_Position := position.bottom_left
+else if Stats_Loc_1 == "Middle" and Stats_Loc_2 == "Left"
+    Stats_Position := position.middle_left
+else if Stats_Loc_1 == "Top" and Stats_Loc_2 == "Left"
+    Stats_Position := position.top_left
+else if Stats_Loc_1 == "None" or Stats_Loc_2 == "None"
+    Stats_Position := position.top_left
+ 
+ 
+// Variables
+ 
+var bool InLong = false
+var bool InShort = false
+ 
+var bool InLong_Sig = false
+var bool InShort_Sig = false
+var bool InTrade = false
+var float Entry_level = na
+var float nLoss = na
+var float nProfit_1 = na
+var float short_stop_level = na
+var float long_stop_level = na
+ 
+var float long_profit_level_1 = na
+var float long_profit_level_2 = na
+var float long_profit_level_3 = na
+ 
+ 
+var float short_profit_level_1 = na
+var float short_profit_level_2 = na
+var float short_profit_level_3 = na
+ 
+var Bars_In_Trade = 0
+ 
+var Long_Trades = 0
+var Short_Trades = 0
+ 
+var SL_Exit = 0
+var TP_1 = 0
+var TP_2 = 0
+var TP_3 = 0
+ 
+ 
+//=============================================================================
+// INDICATOR 1 - Entry Trigger
+//=============================================================================
+//Moving Average
+gr_MA = "📈Moving Average Settings📈"
+// ---- User Settings ----
+Timeframe   = ''
+Repaint     = false
+MA_T1       = "Ehlers Kaufman"
+MA_S1_Input = close
+MA_L1       = Sensitivity
+MA_T2       = "Ehlers Kaufman"
+MA_S2_Input = close
+MA_L2       = Rigor
+MA_S1       = request.security(syminfo.tickerid, Timeframe, MA_S1_Input[Repaint ? 0 : barstate.isrealtime ? 1 : 0])[Repaint ? 0 : barstate.isrealtime ? 0 : 1]
+MA_S2       = request.security(syminfo.tickerid, Timeframe, MA_S2_Input[Repaint ? 0 : barstate.isrealtime ? 1 : 0])[Repaint ? 0 : barstate.isrealtime ? 0 : 1]
+ 
+// ---- Moving Averages ----
+MA_1 = switch MA_T1
+    "Simple"                => ta.sma(MA_S1,MA_L1)
+    "Exponential"           => ta.ema(MA_S1,MA_L1)
+    "Double Exponential"    => 2 * ta.ema(MA_S1, MA_L1) - ta.ema(ta.ema(MA_S1, MA_L1),  MA_L1)
+    "Triple Exponential"    => 3 * (ta.ema(MA_S1, MA_L1) - ta.ema(ta.ema(MA_S1, MA_L1), MA_L1)) + ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1)
+    "Quadruple Exponential" => 5 * ta.ema(MA_S1,MA_L1) - 10 * ta.ema(ta.ema(MA_S1, MA_L1), MA_L1) + 10 * ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1) - 5 * ta.ema(ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1), MA_L1) + ta.ema(ta.ema(ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1), MA_L1), MA_L1)
+    "Weighted"              => ta.wma(MA_S1,MA_L1)
+    "Volume-weighted"       => ta.vwma(MA_S1,MA_L1)
+    "Hull"                  => ta.hma(MA_S1,MA_L1)
+    "Symmetrical"           => ta.swma(MA_S1)
+    "Arnaud Legoux"         => ta.alma(MA_S1, MA_L1, 0.85, 6)
+    "Least Squares"         => ta.linreg(MA_S1, MA_L1, 0)
+    "Relative Strength"     => ta.rma(MA_S1,MA_L1)
+    "Welles Wilder"         =>
+        Wilder_MA1 = .0
+        Wilder_MA1 := 1 / MA_L1 * MA_S1 + (1 - 1 / MA_L1) * nz(Wilder_MA1[1])
+    "Triangular"            => ta.sma(ta.sma(MA_S1,MA_L1),MA_L1)
+    "Ehlers Kaufman"        =>
+        KA_D1 = .0
+        for int i = 0 to 80 - 1 by 1
+            KA_D1 += math.abs(nz(MA_S1[i]) - nz(MA_S1[i + 1]))
+        KA_EF1 = KA_D1 != 0 ? math.min(math.abs(MA_S1 - nz(MA_S1[80 - 1])) / KA_D1, 1) : 0
+        KAMA1 = .0
+        KAMA1 := (math.pow((0.6667 * KA_EF1) + 0.0645, 2) * MA_S1) + ((1 - math.pow((0.6667 * KA_EF1) + 0.0645, 2)) * nz(KAMA1[1]))
+ 
+MA_2 = switch MA_T2
+    "Simple"                => ta.sma(MA_S2,MA_L2)
+    "Exponential"           => ta.ema(MA_S2,MA_L2)
+    "Double Exponential"    => 2 * ta.ema(MA_S2, MA_L2) - ta.ema(ta.ema(MA_S2, MA_L2),  MA_L2)
+    "Triple Exponential"    => 3 * (ta.ema(MA_S2, MA_L2) - ta.ema(ta.ema(MA_S2, MA_L2), MA_L2)) + ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2)
+    "Quadruple Exponential" => 5 * ta.ema(MA_S2,MA_L2) - 10 * ta.ema(ta.ema(MA_S2, MA_L2), MA_L2) + 10 * ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2) - 5 * ta.ema(ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2), MA_L2) + ta.ema(ta.ema(ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2), MA_L2), MA_L2)
+    "Weighted"              => ta.wma(MA_S2,MA_L2)
+    "Volume-weighted"       => ta.vwma(MA_S2,MA_L2)
+    "Hull"                  => ta.hma(MA_S2,MA_L2)
+    "Symmetrical"           => ta.swma(MA_S2)
+    "Arnaud Legoux"         => ta.alma(MA_S2, MA_L2, 0.85, 6)
+    "Least Squares"         => ta.linreg(MA_S2, MA_L2, 0)
+    "Relative Strength"     => ta.rma(MA_S2,MA_L2)
+    "Welles Wilder"         =>
+        Wilder_MA2 = .0
+        Wilder_MA2 := 1 / MA_L2 * MA_S2 + (1 - 1 / MA_L2) * nz(Wilder_MA2[1])
+    "Triangular"            => ta.sma(ta.sma(MA_S2,MA_L2),MA_L2)
+    "Ehlers Kaufman"        =>
+        KA_D2 = .0
+        for int i = 0 to 135 - 1 by 1
+            KA_D2 += math.abs(nz(MA_S2[i]) - nz(MA_S2[i + 1]))
+        KA_EF2 = KA_D2 != 0 ? math.min(math.abs(MA_S2 - nz(MA_S2[135 - 1])) / KA_D2, 1) : 0
+        KAMA2 = .0
+        KAMA2 := (math.pow((0.6667 * KA_EF2) + 0.0645, 2) * MA_S2) + ((1 - math.pow((0.6667 * KA_EF2) + 0.0645, 2)) * nz(KAMA2[1]))
+ 
+ 
+ 
+ 
+MA_Color = Plot_MAs ? MA_1 > MA_2 ? color.new(color_1, 80) : color.new(color_3, 80) : na
+P1 = plot(Plot_MAs ? MA_1 : na, title="Fast MA", color=MA_Color)
+P2 = plot(Plot_MAs ? MA_2 : na, title="Slow MA", color=MA_Color)
+ 
+fill(P1, P2, color = MA_Color)
+ 
+ 
+//Long and Short Orders (Confirmation Conditions)
+// Ind_1_L = ta.crossover(MA_1, MA_2)  
+// Ind_1_S = ta.crossunder(MA_1, MA_2)
+ 
+// Ind_1_L_Exit = ta.crossunder(MA_1, MA_2)
+// Ind_1_S_Exit = ta.crossover(MA_1, MA_2)
+ 
+//==============================================================================
+ 
+//=============================================================================
+// INDICATOR 2 - Filter
+//=============================================================================
+ 
+gr_Vol_Pro = "📈Vray📈"
+ 
+ 
+lookbackLength_1m  = 500
+numRows_1m         = 250
+lookbackLength_5m  = 400
+numRows_5m         = 250
+lookbackLength_15m = 350
+numRows_15m        = 250
+lookbackLength_30m = 300
+numRows_30m        = 250
+lookbackLength_1h  = 250
+numRows_1h         = 250
+lookbackLength_1d  = 150
+numRows_1d         = 250
+lookbackLength_1w  = 100
+numRows_1w         = 250
+lookbackLength_fallback   = 200
+numRows_fallback          = 250
+ 
+PoCThickness = 2
+PoCColor     = color_7
+lowVolColor  = color.new(color.aqua, 65)
+highVolColor = color.new(color.white, 100)
+gradientMult = 6
+ 
+//-----------------------------------------------------------------------------------------
+ 
+isNewPeriod = ta.change(time('D'))
+ 
+var float _chartTfInMinutes = timeframe.multiplier * (timeframe.isseconds ? 1. / 60 : timeframe.isminutes ? 1. : timeframe.isdaily ? 60. * 24 : timeframe.isweekly ? 60. * 24 * 7 : timeframe.ismonthly ? 60. * 24 * 30.4375 : na)
+ 
+lookbackLength = _chartTfInMinutes < 5 ? lookbackLength_1m :
+  _chartTfInMinutes < 15 ? lookbackLength_5m :
+  _chartTfInMinutes < 30 ? lookbackLength_15m :
+  _chartTfInMinutes < 60 ? lookbackLength_30m :
+  _chartTfInMinutes < 120 ? lookbackLength_1h :
+  _chartTfInMinutes < 10080 ? lookbackLength_1d :
+  _chartTfInMinutes == 10080 ? lookbackLength_1w : lookbackLength_fallback
+ 
+numRows = _chartTfInMinutes < 5 ? numRows_1m :
+  _chartTfInMinutes < 15 ? numRows_5m :
+  _chartTfInMinutes < 30 ? numRows_15m :
+  _chartTfInMinutes < 60 ? numRows_30m :
+  _chartTfInMinutes < 120 ? numRows_1h :
+  _chartTfInMinutes < 10080 ? numRows_1d :
+  _chartTfInMinutes == 10080 ? numRows_1w : numRows_fallback
+ 
+//Below is a modified version of the code written by LuxAlgo for https://www.tradingview.com/script/5MggSfGG-Volume-Profile-LUX/
+var rowsBoxes = array.new_box()
+if barstate.isfirst
+    for i = 0 to numRows - 1 by 1
+        array.push(rowsBoxes, box.new(na, na, na, na))
+var pocLine = line.new(na, na, na, na, width=2)
+ 
+highest = ta.highest(lookbackLength)
+lowest  = ta.lowest(lookbackLength)
+priceRange = (highest-lowest)/numRows
+ 
+line poc = na
+box rowBox = na
+levels = array.new_float(0)
+sumVol = array.new_float(0)
+ 
+if barstate.islast and Plot_Vol_Pro
+    for i = 0 to numRows by 1
+        array.push(levels, lowest + i / numRows * (highest - lowest))
+    for j = 0 to numRows - 1 by 1
+        sum = 0.
+        for k = 0 to lookbackLength - 1 by 1
+            sum := high[k] > array.get(levels, j) and low[k] < array.get(levels, j + 1) ? sum + volume[k] : sum
+        array.push(sumVol, sum)
+    for j = 0 to numRows - 1 by 1
+        mult = math.pow(array.get(sumVol, j) / array.max(sumVol),gradientMult)
+        rowBox := array.get(rowsBoxes, j)
+        volumeLevel = array.get(levels, j)
+ 
+        box.set_lefttop(rowBox, bar_index - lookbackLength, volumeLevel-(priceRange/2))
+        box.set_rightbottom(rowBox, bar_index, volumeLevel + (priceRange/2))
+        box.set_bgcolor(rowBox, color.from_gradient(mult * 99, 0, 100, highVolColor, lowVolColor))
+        box.set_border_width(rowBox, 0)
+ 
+        if mult == 1
+            avg = math.avg(volumeLevel, array.get(levels, j + 1))
+            line.set_xy1(pocLine, bar_index - lookbackLength + 1, avg)
+            line.set_xy2(pocLine, bar_index, avg)
+            line.set_color(pocLine, PoCColor)
+            line.set_style(pocLine, line.style_dashed)
+            line.set_width(pocLine, PoCThickness)
+ 
+ 
+// Ind_2_L = direction < 0
+// Ind_2_S = direction > 0
+//==============================================================================
+ 
+//=============================================================================
+//=============================================================================
+//=============================================================================
+//=============================================================================
+ 
+// //=============================================================================
+// // INDICATOR 3 - 
+// //=============================================================================
+// //Divergence Indicator
+// gr_Div = "🏷️Divergence Settings🏷️"
+ 
+// prd_Div = input.int(defval=15, title='Pivot Period', minval=1, maxval=50, group = gr_Div)
+// source = 'Close'
+// searchdiv = input.string(defval='Regular', title='Divergence Type', options=['Regular', 'Hidden', 'Regular/Hidden'], group = gr_Div)
+// showindis = 'Don\'t Show'
+// showlimit = input.int(3, title='Minimum Number of Divergence', minval=1, maxval=11, group = gr_Div)
+// maxpp = 10
+// maxbars = 100
+// shownum = true
+// showlast = false
+// dontconfirm = false
+// showlines = false
+// showpivot = false
+// calcmacd = true
+// calcmacda = true
+// calcrsi = true
+// calcstoc = true
+// calccci = true
+// calcmom = true
+// calcobv = true
+// calcvwmacd = true
+// calccmf = true
+// calcmfi = true
+// calcext = false
+// externalindi = close
+// pos_reg_div_col = color.new(color_1, 60)
+// neg_reg_div_col = color.new(color_3, 60)
+// pos_hid_div_col = color.new(color_2, 60)
+// neg_hid_div_col = color.new(color_4, 60)
+// pos_div_text_col = color.white
+// neg_div_text_col = color.white
+// reg_div_l_style_ = 'Solid'
+// hid_div_l_style_ = 'Dashed'
+// reg_div_l_width = 2
+// hid_div_l_width = 1
+// //showmas = input.bool(defval=false, title='Show MAs 50 & 200', inline='ma12', group = gr_Div)''
+// cma1col = color_5
+// cma2col = color_6
+ 
+// // set line styles
+// var reg_div_l_style = reg_div_l_style_ == 'Solid' ? line.style_solid : reg_div_l_style_ == 'Dashed' ? line.style_dashed : line.style_dotted
+// var hid_div_l_style = hid_div_l_style_ == 'Solid' ? line.style_solid : hid_div_l_style_ == 'Dashed' ? line.style_dashed : line.style_dotted
+ 
+ 
+// // get indicators
+// rsi = ta.rsi(close, 14)  // RSI
+// [macd, signal, deltamacd] = ta.macd(close, 12, 26, 9)  // MACD
+// moment = ta.mom(close, 10)  // Momentum
+// cci = ta.cci(close, 10)  // CCI
+// Obv = ta.obv  // OBV
+// stk = ta.sma(ta.stoch(close, high, low, 14), 3)  // Stoch
+// maFast = ta.vwma(close, 12)  // volume weighted macd
+// maSlow = ta.vwma(close, 26)
+// vwmacd = maFast - maSlow
+// Cmfm = (close - low - (high - close)) / (high - low)  // Chaikin money flow
+// Cmfv = Cmfm * volume
+// cmf = ta.sma(Cmfv, 21) / ta.sma(volume, 21)
+// Mfi = ta.mfi(close, 14)  // Moneyt Flow Index
+ 
+// // keep indicators names and colors in arrays
+// var indicators_name = array.new_string(11)
+// var div_colors = array.new_color(4)
+// if barstate.isfirst
+//     // names
+//     array.set(indicators_name, 0, showindis == 'Full' ? 'MACD' : 'M')
+//     array.set(indicators_name, 1, showindis == 'Full' ? 'Hist' : 'H')
+//     array.set(indicators_name, 2, showindis == 'Full' ? 'RSI' : 'E')
+//     array.set(indicators_name, 3, showindis == 'Full' ? 'Stoch' : 'S')
+//     array.set(indicators_name, 4, showindis == 'Full' ? 'CCI' : 'C')
+//     array.set(indicators_name, 5, showindis == 'Full' ? 'MOM' : 'M')
+//     array.set(indicators_name, 6, showindis == 'Full' ? 'OBV' : 'O')
+//     array.set(indicators_name, 7, showindis == 'Full' ? 'VWMACD' : 'V')
+//     array.set(indicators_name, 8, showindis == 'Full' ? 'CMF' : 'C')
+//     array.set(indicators_name, 9, showindis == 'Full' ? 'MFI' : 'M')
+//     array.set(indicators_name, 10, showindis == 'Full' ? 'Extrn' : 'X')
+//     //colors
+//     array.set(div_colors, 0, pos_reg_div_col)
+//     array.set(div_colors, 1, neg_reg_div_col)
+//     array.set(div_colors, 2, pos_hid_div_col)
+//     array.set(div_colors, 3, neg_hid_div_col)
+ 
+// // Check if we get new Pivot High Or Pivot Low
+// float ph = ta.pivothigh(source == 'Close' ? close : high, prd_Div, prd_Div)
+// float pl = ta.pivotlow(source == 'Close' ? close : low, prd_Div, prd_Div)
+ 
+// // keep values and positions of Pivot Highs/Lows in the arrays
+// var int maxarraysize = 20
+// var ph_positions = array.new_int(maxarraysize, 0)
+// var pl_positions = array.new_int(maxarraysize, 0)
+// var ph_vals = array.new_float(maxarraysize, 0.)
+// var pl_vals = array.new_float(maxarraysize, 0.)
+ 
+// // add PHs to the array
+// if ph
+//     array.unshift(ph_positions, bar_index)
+//     array.unshift(ph_vals, ph)
+//     if array.size(ph_positions) > maxarraysize
+//         array.pop(ph_positions)
+//         array.pop(ph_vals)
+ 
+// // add PLs to the array
+// if pl
+//     array.unshift(pl_positions, bar_index)
+//     array.unshift(pl_vals, pl)
+//     if array.size(pl_positions) > maxarraysize
+//         array.pop(pl_positions)
+//         array.pop(pl_vals)
+ 
+// // functions to check Regular Divergences and Hidden Divergences
+ 
+// // function to check positive regular or negative hidden divergence
+// // cond == 1 => positive_regular, cond == 2=> negative_hidden
+// positive_regular_positive_hidden_divergence(src, cond) =>
+//     divlen = 0
+//     prsc = source == 'Close' ? close : low
+//     // if indicators higher than last value and close price is higher than las close 
+//     if dontconfirm or src > src[1] or close > close[1]
+//         startpoint = dontconfirm ? 0 : 1  // don't check last candle
+//         // we search last 15 PPs
+//         for x = 0 to maxpp - 1 by 1
+//             len = bar_index - array.get(pl_positions, x) + prd_Div
+//             // if we reach non valued array element or arrived 101. or previous bars then we don't search more
+//             if array.get(pl_positions, x) == 0 or len > maxbars
+//                 break
+//             if len > 5 and (cond == 1 and src[startpoint] > src[len] and prsc[startpoint] < nz(array.get(pl_vals, x)) or cond == 2 and src[startpoint] < src[len] and prsc[startpoint] > nz(array.get(pl_vals, x)))
+//                 slope1 = (src[startpoint] - src[len]) / (len - startpoint)
+//                 virtual_line1 = src[startpoint] - slope1
+//                 slope2 = (close[startpoint] - close[len]) / (len - startpoint)
+//                 virtual_line2 = close[startpoint] - slope2
+//                 arrived = true
+//                 for y = 1 + startpoint to len - 1 by 1
+//                     if src[y] < virtual_line1 or nz(close[y]) < virtual_line2
+//                         arrived := false
+//                         break
+//                     virtual_line1 -= slope1
+//                     virtual_line2 -= slope2
+//                     virtual_line2
+ 
+//                 if arrived
+//                     divlen := len
+//                     break
+//     divlen
+ 
+// // function to check negative regular or positive hidden divergence
+// // cond == 1 => negative_regular, cond == 2=> positive_hidden
+// negative_regular_negative_hidden_divergence(src, cond) =>
+//     divlen = 0
+//     prsc = source == 'Close' ? close : high
+//     // if indicators higher than last value and close price is higher than las close 
+//     if dontconfirm or src < src[1] or close < close[1]
+//         startpoint = dontconfirm ? 0 : 1  // don't check last candle
+//         // we search last 15 PPs
+//         for x = 0 to maxpp - 1 by 1
+//             len = bar_index - array.get(ph_positions, x) + prd_Div
+//             // if we reach non valued array element or arrived 101. or previous bars then we don't search more
+//             if array.get(ph_positions, x) == 0 or len > maxbars
+//                 break
+//             if len > 5 and (cond == 1 and src[startpoint] < src[len] and prsc[startpoint] > nz(array.get(ph_vals, x)) or cond == 2 and src[startpoint] > src[len] and prsc[startpoint] < nz(array.get(ph_vals, x)))
+//                 slope1 = (src[startpoint] - src[len]) / (len - startpoint)
+//                 virtual_line1 = src[startpoint] - slope1
+//                 slope2 = (close[startpoint] - nz(close[len])) / (len - startpoint)
+//                 virtual_line2 = close[startpoint] - slope2
+//                 arrived = true
+//                 for y = 1 + startpoint to len - 1 by 1
+//                     if src[y] > virtual_line1 or nz(close[y]) > virtual_line2
+//                         arrived := false
+//                         break
+//                     virtual_line1 -= slope1
+//                     virtual_line2 -= slope2
+//                     virtual_line2
+ 
+//                 if arrived
+//                     divlen := len
+//                     break
+//     divlen
+ 
+// // calculate 4 types of divergence if enabled in the options and return divergences in an array
+// calculate_divs(cond, indicator_1) =>
+//     divs = array.new_int(4, 0)
+//     array.set(divs, 0, cond and (searchdiv == 'Regular' or searchdiv == 'Regular/Hidden') ? positive_regular_positive_hidden_divergence(indicator_1, 1) : 0)
+//     array.set(divs, 1, cond and (searchdiv == 'Regular' or searchdiv == 'Regular/Hidden') ? negative_regular_negative_hidden_divergence(indicator_1, 1) : 0)
+//     array.set(divs, 2, cond and (searchdiv == 'Hidden' or searchdiv == 'Regular/Hidden') ? positive_regular_positive_hidden_divergence(indicator_1, 2) : 0)
+//     array.set(divs, 3, cond and (searchdiv == 'Hidden' or searchdiv == 'Regular/Hidden') ? negative_regular_negative_hidden_divergence(indicator_1, 2) : 0)
+//     divs
+ 
+// // array to keep all divergences
+// var all_divergences = array.new_int(44)  // 11 indicators * 4 divergence = 44 elements
+// // set related array elements
+// array_set_divs(div_pointer, index) =>
+//     for x = 0 to 3 by 1
+//         array.set(all_divergences, index * 4 + x, array.get(div_pointer, x))
+ 
+// // set divergences array 
+// array_set_divs(calculate_divs(calcmacd, macd), 0)
+// array_set_divs(calculate_divs(calcmacda, deltamacd), 1)
+// array_set_divs(calculate_divs(calcrsi, rsi), 2)
+// array_set_divs(calculate_divs(calcstoc, stk), 3)
+// array_set_divs(calculate_divs(calccci, cci), 4)
+// array_set_divs(calculate_divs(calcmom, moment), 5)
+// array_set_divs(calculate_divs(calcobv, Obv), 6)
+// array_set_divs(calculate_divs(calcvwmacd, vwmacd), 7)
+// array_set_divs(calculate_divs(calccmf, cmf), 8)
+// array_set_divs(calculate_divs(calcmfi, Mfi), 9)
+// array_set_divs(calculate_divs(calcext, externalindi), 10)
+ 
+// // check minimum number of divergence, if less than showlimit then delete all divergence
+// total_div = 0
+// for x = 0 to array.size(all_divergences) - 1 by 1
+//     total_div += math.round(math.sign(array.get(all_divergences, x)))
+//     total_div
+ 
+// if total_div < showlimit
+//     array.fill(all_divergences, 0)
+ 
+// // keep line in an array
+// var pos_div_lines = array.new_line(0)
+// var neg_div_lines = array.new_line(0)
+// var pos_div_labels = array.new_label(0)
+// var neg_div_labels = array.new_label(0)
+ 
+// // remove old lines and labels if showlast option is enabled
+// delete_old_pos_div_lines() =>
+//     if array.size(pos_div_lines) > 0
+//         for j = 0 to array.size(pos_div_lines) - 1 by 1
+//             line.delete(array.get(pos_div_lines, j))
+//         array.clear(pos_div_lines)
+ 
+// delete_old_neg_div_lines() =>
+//     if array.size(neg_div_lines) > 0
+//         for j = 0 to array.size(neg_div_lines) - 1 by 1
+//             line.delete(array.get(neg_div_lines, j))
+//         array.clear(neg_div_lines)
+ 
+// delete_old_pos_div_labels() =>
+//     if array.size(pos_div_labels) > 0
+//         for j = 0 to array.size(pos_div_labels) - 1 by 1
+//             label.delete(array.get(pos_div_labels, j))
+//         array.clear(pos_div_labels)
+ 
+// delete_old_neg_div_labels() =>
+//     if array.size(neg_div_labels) > 0
+//         for j = 0 to array.size(neg_div_labels) - 1 by 1
+//             label.delete(array.get(neg_div_labels, j))
+//         array.clear(neg_div_labels)
+ 
+// // delete last creted lines and labels until we met new PH/PV 
+// delete_last_pos_div_lines_label(n) =>
+//     if n > 0 and array.size(pos_div_lines) >= n
+//         asz = array.size(pos_div_lines)
+//         for j = 1 to n by 1
+//             line.delete(array.get(pos_div_lines, asz - j))
+//             array.pop(pos_div_lines)
+//         if array.size(pos_div_labels) > 0
+//             label.delete(array.get(pos_div_labels, array.size(pos_div_labels) - 1))
+//             array.pop(pos_div_labels)
+ 
+// delete_last_neg_div_lines_label(n) =>
+//     if n > 0 and array.size(neg_div_lines) >= n
+//         asz = array.size(neg_div_lines)
+//         for j = 1 to n by 1
+//             line.delete(array.get(neg_div_lines, asz - j))
+//             array.pop(neg_div_lines)
+//         if array.size(neg_div_labels) > 0
+//             label.delete(array.get(neg_div_labels, array.size(neg_div_labels) - 1))
+//             array.pop(neg_div_labels)
+ 
+// // variables for Alerts
+// pos_reg_div_detected = false
+// neg_reg_div_detected = false
+// pos_hid_div_detected = false
+// neg_hid_div_detected = false
+ 
+// // to remove lines/labels until we met new // PH/PL
+// var last_pos_div_lines = 0
+// var last_neg_div_lines = 0
+// var remove_last_pos_divs = false
+// var remove_last_neg_divs = false
+// if pl
+//     remove_last_pos_divs := false
+//     last_pos_div_lines := 0
+//     last_pos_div_lines
+// if ph
+//     remove_last_neg_divs := false
+//     last_neg_div_lines := 0
+//     last_neg_div_lines
+ 
+// // draw divergences lines and labels
+// divergence_text_top = ''
+// divergence_text_bottom = ''
+// distances = array.new_int(0)
+// dnumdiv_top = 0
+// dnumdiv_bottom = 0
+// top_label_col = color.white
+// bottom_label_col = color.white
+// old_pos_divs_can_be_removed = true
+// old_neg_divs_can_be_removed = true
+// startpoint = dontconfirm ? 0 : 1  // used for don't confirm option
+ 
+// for x = 0 to 10 by 1
+//     div_type = -1
+//     for y = 0 to 3 by 1
+//         if array.get(all_divergences, x * 4 + y) > 0  // any divergence?
+//             div_type := y
+//             if y % 2 == 1
+//                 dnumdiv_top += 1
+//                 top_label_col := array.get(div_colors, y)
+//                 top_label_col
+//             if y % 2 == 0
+//                 dnumdiv_bottom += 1
+//                 bottom_label_col := array.get(div_colors, y)
+//                 bottom_label_col
+//             if not array.includes(distances, array.get(all_divergences, x * 4 + y))  // line not exist ?
+//                 array.push(distances, array.get(all_divergences, x * 4 + y))
+//                 new_line = showlines ? line.new(x1=bar_index - array.get(all_divergences, x * 4 + y), y1=source == 'Close' ? close[array.get(all_divergences, x * 4 + y)] : y % 2 == 0 ? low[array.get(all_divergences, x * 4 + y)] : high[array.get(all_divergences, x * 4 + y)], x2=bar_index - startpoint, y2=source == 'Close' ? close[startpoint] : y % 2 == 0 ? low[startpoint] : high[startpoint], color=array.get(div_colors, y), style=y < 2 ? reg_div_l_style : hid_div_l_style, width=y < 2 ? reg_div_l_width : hid_div_l_width) : na
+//                 if y % 2 == 0
+//                     if old_pos_divs_can_be_removed
+//                         old_pos_divs_can_be_removed := false
+//                         if not showlast and remove_last_pos_divs
+//                             delete_last_pos_div_lines_label(last_pos_div_lines)
+//                             last_pos_div_lines := 0
+//                             last_pos_div_lines
+//                         if showlast
+//                             delete_old_pos_div_lines()
+//                     array.push(pos_div_lines, new_line)
+//                     last_pos_div_lines += 1
+//                     remove_last_pos_divs := true
+//                     remove_last_pos_divs
+ 
+//                 if y % 2 == 1
+//                     if old_neg_divs_can_be_removed
+//                         old_neg_divs_can_be_removed := false
+//                         if not showlast and remove_last_neg_divs
+//                             delete_last_neg_div_lines_label(last_neg_div_lines)
+//                             last_neg_div_lines := 0
+//                             last_neg_div_lines
+//                         if showlast
+//                             delete_old_neg_div_lines()
+//                     array.push(neg_div_lines, new_line)
+//                     last_neg_div_lines += 1
+//                     remove_last_neg_divs := true
+//                     remove_last_neg_divs
+ 
+//             // set variables for alerts
+//             if y == 0
+//                 pos_reg_div_detected := true
+//                 pos_reg_div_detected
+//             if y == 1
+//                 neg_reg_div_detected := true
+//                 neg_reg_div_detected
+//             if y == 2
+//                 pos_hid_div_detected := true
+//                 pos_hid_div_detected
+//             if y == 3
+//                 neg_hid_div_detected := true
+//                 neg_hid_div_detected
+//     // get text for labels
+//     if div_type >= 0
+//         divergence_text_top += (div_type % 2 == 1 ? showindis != 'Don\'t Show' ? array.get(indicators_name, x) + '\n' : '' : '')
+//         divergence_text_bottom += (div_type % 2 == 0 ? showindis != 'Don\'t Show' ? array.get(indicators_name, x) + '\n' : '' : '')
+//         divergence_text_bottom
+ 
+ 
+// // draw labels
+// if showindis != 'Don\'t Show' or shownum and Plot_Divergence
+//     if shownum and dnumdiv_top > 0
+//         divergence_text_top += str.tostring(dnumdiv_top)
+//         divergence_text_top
+//     if shownum and dnumdiv_bottom > 0
+//         divergence_text_bottom += str.tostring(dnumdiv_bottom)
+//         divergence_text_bottom
+//     if divergence_text_top != ''
+//         if showlast
+//             delete_old_neg_div_labels()
+//         array.push(neg_div_labels, label.new(x=bar_index, y=math.max(high, high[1]), text=divergence_text_top, color=top_label_col, textcolor=neg_div_text_col, style=label.style_label_down))
+ 
+//     if divergence_text_bottom != ''
+//         if showlast
+//             delete_old_pos_div_labels()
+//         array.push(pos_div_labels, label.new(x=bar_index, y=math.min(low, low[1]), text=divergence_text_bottom, color=bottom_label_col, textcolor=pos_div_text_col, style=label.style_label_up))
+ 
+ 
+// alertcondition(pos_reg_div_detected, title='Positive Regular Divergence Detected', message='Positive Regular Divergence Detected')
+// alertcondition(neg_reg_div_detected, title='Negative Regular Divergence Detected', message='Negative Regular Divergence Detected')
+// alertcondition(pos_hid_div_detected, title='Positive Hidden Divergence Detected', message='Positive Hidden Divergence Detected')
+// alertcondition(neg_hid_div_detected, title='Negative Hidden Divergence Detected', message='Negative Hidden Divergence Detected')
+ 
+// alertcondition(pos_reg_div_detected or pos_hid_div_detected, title='Positive Divergence Detected', message='Positive Divergence Detected')
+// alertcondition(neg_reg_div_detected or neg_hid_div_detected, title='Negative Divergence Detected', message='Negative Divergence Detected')
+ 
+//=============================================================================
+//=============================================================================
+//=============================================================================
+//=============================================================================
+ 
+ 
+// //Long and Short Orders (Confirmation Conditions)
+// Ind_3_L = Adx_Filter ? ADX_Entry ? true : false : true
+// Ind_3_S = Adx_Filter ? ADX_Entry ? true : false : true
+//==============================================================================
+ 
+//=============================================================================
+// INDICATOR 4 - 
+//=============================================================================
+//RSI
+ 
+gr_RSI = "📊RSI Settings📊"
+ 
+rsiLengthInput = 14
+rsiSourceInput = close
+ 
+up = ta.rma(math.max(ta.change(rsiSourceInput), 0), rsiLengthInput)
+down = ta.rma(-math.min(ta.change(rsiSourceInput), 0), rsiLengthInput)
+rsi_Ind = down == 0 ? 100 : up == 0 ? 0 : 100 - (100 / (1 + up / down))
+ 
+// plot(rsi, "RSI", color=#7E57C2)
+// plot(rsiMA, "RSI-based MA", color=color.yellow)
+// rsiUpperBand = hline(70, "RSI Upper Band", color=#787B86)
+// hline(50, "RSI Middle Band", color=color.new(#787B86, 50))
+// rsiLowerBand = hline(30, "RSI Lower Band", color=#787B86)
+// fill(rsiUpperBand, rsiLowerBand, color=color.rgb(126, 87, 194, 90), title="RSI Background Fill")
+// bbUpperBand = plot(isBB ? rsiMA + ta.stdev(rsi, maLengthInput) * bbMultInput : na, title = "Upper Bollinger Band", color=color.green)
+// bbLowerBand = plot(isBB ? rsiMA - ta.stdev(rsi, maLengthInput) * bbMultInput : na, title = "Lower Bollinger Band", color=color.green)
+// fill(bbUpperBand, bbLowerBand, color= isBB ? color.new(color.green, 90) : na, title="Bollinger Bands Background Fill")
+ 
+ 
+Ind_4_L = true
+Ind_4_S = true
+//==============================================================================
+ 
+//==============================================================================
+//INDICATOR 5 - 
+//==============================================================================
+//Engulfing /Bull/Bear
+ 
+ 
+label_color_bullish = color_2
+label_color_bearish = color_4
+ 
+ 
+// Calculations
+C_Len = 14 // ta.ema depth for bodyAvg
+C_ShadowPercent = 5.0 // size of shadows
+C_ShadowEqualsPercent = 100.0
+C_DojiBodyPercent = 5.0
+C_Factor = 2.0 // shows the number of times the shadow dominates the candlestick body
+ 
+C_BodyHi = math.max(close, open)
+C_BodyLo = math.min(close, open)
+C_Body = C_BodyHi - C_BodyLo
+C_BodyAvg = ta.ema(C_Body, C_Len)
+C_SmallBody = C_Body < C_BodyAvg
+C_LongBody = C_Body > C_BodyAvg
+C_UpShadow = high - C_BodyHi
+C_DnShadow = C_BodyLo - low
+C_HasUpShadow = C_UpShadow > C_ShadowPercent / 100 * C_Body
+C_HasDnShadow = C_DnShadow > C_ShadowPercent / 100 * C_Body
+C_WhiteBody = open < close
+C_BlackBody = open > close
+C_Range = high-low
+C_IsInsideBar = C_BodyHi[1] > C_BodyHi and C_BodyLo[1] < C_BodyLo
+C_BodyMiddle = C_Body / 2 + C_BodyLo
+C_ShadowEquals = C_UpShadow == C_DnShadow or (math.abs(C_UpShadow - C_DnShadow) / C_DnShadow * 100) < C_ShadowEqualsPercent and (math.abs(C_DnShadow - C_UpShadow) / C_UpShadow * 100) < C_ShadowEqualsPercent
+C_IsDojiBody = C_Range > 0 and C_Body <= C_Range * C_DojiBodyPercent / 100
+C_Doji = C_IsDojiBody and C_ShadowEquals
+ 
+patternLabelPosLow = low - (ta.atr(30) * 0.6)
+patternLabelPosHigh = high + (ta.atr(30) * 0.6)
+ 
+ 
+// Inputs
+ 
+//Calculations
+C_EngulfingBullishNumberOfCandles = 2
+C_EngulfingBullish = C_WhiteBody and C_LongBody and C_BlackBody[1] and C_SmallBody[1] and close >= open[1] and open <= close[1] and ( close > open[1] or open < close[1] ) 
+C_EngulfingBearishNumberOfCandles = 2
+C_EngulfingBearish = C_BlackBody and C_LongBody and C_WhiteBody[1] and C_SmallBody[1] and close <= open[1] and open >= close[1] and ( close < open[1] or open > close[1] ) 
+ 
+//Plot
+plotshape(C_EngulfingBullish and Plot_Engulf ? close : na, title = "Bullish Engulf", style = shape.triangleup, location = location.belowbar, size = size.tiny, color = label_color_bullish)
+plotshape(C_EngulfingBearish and Plot_Engulf ? close : na, title = "Bearish Engulf", style = shape.triangledown, location = location.abovebar, size = size.tiny, color = label_color_bearish)
+ 
+ 
+//Long and Short Orders (Confirmation Conditions)
+Ind_5_L = true
+Ind_5_S = true
+//==============================================================================
+ 
+ 
+// //==============================================================================
+// //INDICATOR 6 - 
+// //==============================================================================
+ 
+// gr_S_R = "🟩Sup/Res Settings🟥"
+ 
+// prd = 10
+// ppsrc = "High/Low"
+// ChannelW = 5
+// minstrength = 2
+// maxnumsr = 4 - 1
+// loopback = 290
+// res_col = color.new(color_3, 60)
+// sup_col = color.new(color_1, 60)
+// inch_col = color.new(color_7, 60)
+// showpp = false
+// showsrbroken = false
+// showthema1en = false
+// showthema1len = 50
+// showthema1type = "SMA"
+// showthema2en = false
+// showthema2len = 200
+// showthema2type = "SMA"
+ 
+// ma1 = showthema1en ? showthema1type == 'SMA' ? ta.sma(close, showthema1len) : ta.ema(close, showthema1len) : na
+// ma2 = showthema2en ? showthema2type == 'SMA' ? ta.sma(close, showthema2len) : ta.ema(close, showthema2len) : na
+ 
+ 
+// // get Pivot High/low
+// float src1 = ppsrc == 'High/Low' ? high : math.max(close, open)
+// float src2 = ppsrc == 'High/Low' ? low : math.min(close, open)
+// float ph_S_R = ta.pivothigh(src1, prd, prd)
+// float pl_S_R = ta.pivotlow(src2, prd, prd)
+ 
+// //calculate maximum S/R channel width
+// prdhighest = ta.highest(300)
+// prdlowest = ta.lowest(300)
+// cwidth = (prdhighest - prdlowest) * ChannelW / 100
+ 
+// // get/keep Pivot levels
+// var pivotvals = array.new_float(0)
+// var pivotlocs = array.new_float(0)
+// if ph_S_R or pl_S_R
+//     array.unshift(pivotvals, ph_S_R ? ph_S_R : pl_S_R)
+//     array.unshift(pivotlocs, bar_index)
+//     for x = array.size(pivotvals) - 1 to 0 by 1
+//         if bar_index - array.get(pivotlocs, x) > loopback  // remove old pivot points
+//             array.pop(pivotvals)
+//             array.pop(pivotlocs)
+//             continue
+//         break
+ 
+// //find/create SR channel of a pivot point
+// get_sr_vals(ind) =>
+//     float lo = array.get(pivotvals, ind)
+//     float hi = lo
+//     int numpp = 0
+//     for y = 0 to array.size(pivotvals) - 1 by 1
+//         float cpp = array.get(pivotvals, y)
+//         float wdth = cpp <= hi ? hi - cpp : cpp - lo
+//         if wdth <= cwidth  // fits the max channel width?
+//             if cpp <= hi
+//                 lo := math.min(lo, cpp)
+//                 lo
+//             else
+//                 hi := math.max(hi, cpp)
+//                 hi
+ 
+//             numpp += 20  // each pivot point added as 20
+//             numpp
+//     [hi, lo, numpp]
+ 
+// // keep old SR channels and calculate/sort new channels if we met new pivot point
+// var suportresistance = array.new_float(20, 0)  // min/max levels
+// changeit(x, y) =>
+//     tmp = array.get(suportresistance, y * 2)
+//     array.set(suportresistance, y * 2, array.get(suportresistance, x * 2))
+//     array.set(suportresistance, x * 2, tmp)
+//     tmp := array.get(suportresistance, y * 2 + 1)
+//     array.set(suportresistance, y * 2 + 1, array.get(suportresistance, x * 2 + 1))
+//     array.set(suportresistance, x * 2 + 1, tmp)
+ 
+// if ph_S_R or pl_S_R
+//     supres = array.new_float(0)  // number of pivot, strength, min/max levels
+//     stren = array.new_float(10, 0)
+//     // get levels and strengs
+//     for x = 0 to array.size(pivotvals) - 1 by 1
+//         [hi, lo, strength] = get_sr_vals(x)
+//         array.push(supres, strength)
+//         array.push(supres, hi)
+//         array.push(supres, lo)
+ 
+//     // add each HL to strengh
+//     for x = 0 to array.size(pivotvals) - 1 by 1
+//         h = array.get(supres, x * 3 + 1)
+//         l = array.get(supres, x * 3 + 2)
+//         s = 0
+//         for y = 0 to loopback by 1
+//             if high[y] <= h and high[y] >= l or low[y] <= h and low[y] >= l
+//                 s += 1
+//                 s
+//         array.set(supres, x * 3, array.get(supres, x * 3) + s)
+ 
+//     //reset SR levels
+//     array.fill(suportresistance, 0)
+//     // get strongest SRs
+//     src = 0
+//     for x = 0 to array.size(pivotvals) - 1 by 1
+//         stv = -1.  // value
+//         stl = -1  // location
+//         for y = 0 to array.size(pivotvals) - 1 by 1
+//             if array.get(supres, y * 3) > stv and array.get(supres, y * 3) >= minstrength * 20
+//                 stv := array.get(supres, y * 3)
+//                 stl := y
+//                 stl
+//         if stl >= 0
+//             //get sr level
+//             hh = array.get(supres, stl * 3 + 1)
+//             ll = array.get(supres, stl * 3 + 2)
+//             array.set(suportresistance, src * 2, hh)
+//             array.set(suportresistance, src * 2 + 1, ll)
+//             array.set(stren, src, array.get(supres, stl * 3))
+ 
+//             // make included pivot points' strength zero 
+//             for y = 0 to array.size(pivotvals) - 1 by 1
+//                 if array.get(supres, y * 3 + 1) <= hh and array.get(supres, y * 3 + 1) >= ll or array.get(supres, y * 3 + 2) <= hh and array.get(supres, y * 3 + 2) >= ll
+//                     array.set(supres, y * 3, -1)
+ 
+//             src += 1
+//             if src >= 10
+//                 break
+ 
+//     for x = 0 to 8 by 1
+//         for y = x + 1 to 9 by 1
+//             if array.get(stren, y) > array.get(stren, x)
+//                 tmp = array.get(stren, y)
+//                 array.set(stren, y, array.get(stren, x))
+//                 changeit(x, y)
+ 
+ 
+// get_level(ind) =>
+//     float ret = na
+//     if ind < array.size(suportresistance)
+//         if array.get(suportresistance, ind) != 0
+//             ret := array.get(suportresistance, ind)
+//             ret
+//     ret
+ 
+// get_color(ind) =>
+//     color ret = na
+//     if ind < array.size(suportresistance)
+//         if array.get(suportresistance, ind) != 0
+//             ret := array.get(suportresistance, ind) > close and array.get(suportresistance, ind + 1) > close ? res_col : array.get(suportresistance, ind) < close and array.get(suportresistance, ind + 1) < close ? sup_col : inch_col
+//             ret
+//     ret
+ 
+// var srchannels = array.new_box(10)
+// for x = 0 to math.min(9, maxnumsr) by 1
+//     box.delete(array.get(srchannels, x))
+//     srcol = get_color(x * 2)
+//     if not na(srcol)  and plot_SR
+//         array.set(srchannels, x, box.new(left=bar_index, top=get_level(x * 2), right=bar_index + 1, bottom=get_level(x * 2 + 1), border_color=srcol, border_width=1, extend=extend.both, bgcolor=srcol))
+ 
+// resistancebroken = false
+// supportbroken = false
+ 
+// // check if it's not in a channel
+// not_in_a_channel = true
+// for x = 0 to math.min(9, maxnumsr) by 1
+//     if close <= array.get(suportresistance, x * 2) and close >= array.get(suportresistance, x * 2 + 1)
+//         not_in_a_channel := false
+//         not_in_a_channel
+ 
+// // if price is not in a channel then check broken ones
+// if not_in_a_channel
+//     for x = 0 to math.min(9, maxnumsr) by 1
+//         if close[1] <= array.get(suportresistance, x * 2) and close > array.get(suportresistance, x * 2)
+//             resistancebroken := true
+//             resistancebroken
+//         if close[1] >= array.get(suportresistance, x * 2 + 1) and close < array.get(suportresistance, x * 2 + 1)
+//             supportbroken := true
+//             supportbroken
+ 
+// // alertcondition(resistancebroken, title='Resistance Broken', message='Resistance Broken')
+// // alertcondition(supportbroken, title='Support Broken', message='Support Broken')
+// plotshape(showsrbroken and resistancebroken, style=shape.triangleup, location=location.belowbar, color=color.new(color_2, 0), size=size.tiny)
+// plotshape(showsrbroken and supportbroken, style=shape.triangledown, location=location.abovebar, color=color.new(color_4, 0), size=size.tiny)
+ 
+ 
+ 
+//Long and Short Orders (Confirmation Conditions)
+Ind_6_L = true
+Ind_6_S = true
+//==============================================================================
+ 
+ 
+ 
+//==============================================================================
+//INDICATOR 7 
+//==============================================================================
+//Momentum Squeeze
+ 
+gr_MOM = "📊Momentum Squeeze📊"
+MOM_length = 20
+MOM_mult = 2.0
+MOM_lengthKC = 20
+MOM_multKC = 1.5
+ 
+useTrueRange = true
+ 
+// Calculate BB
+MOM_source = close
+basis = ta.sma(MOM_source, MOM_length)
+dev = MOM_multKC * ta.stdev(MOM_source, MOM_length)
+upperBB = basis + dev
+lowerBB = basis - dev
+ 
+// Calculate KC
+ma = ta.sma(MOM_source, MOM_lengthKC)
+range_1 = useTrueRange ? ta.tr : high - low
+rangema = ta.sma(range_1, MOM_lengthKC)
+upperKC = ma + rangema * MOM_multKC
+lowerKC = ma - rangema * MOM_multKC
+ 
+sqzOn = lowerBB > lowerKC and upperBB < upperKC
+sqzOff = lowerBB < lowerKC and upperBB > upperKC
+noSqz = sqzOn == false and sqzOff == false
+ 
+ 
+val = ta.linreg(MOM_source - math.avg(math.avg(ta.highest(high, MOM_lengthKC), ta.lowest(low, MOM_lengthKC)), ta.sma(close, MOM_lengthKC)), MOM_lengthKC, 0)
+ 
+iff_1 = val > nz(val[1]) ? color.lime : color.green
+iff_2 = val < nz(val[1]) ? color.red : color.maroon
+bcolor = val > 0 ? iff_1 : iff_2
+scolor = noSqz ? color.blue : sqzOn ? color.black : color.gray
+// plot(val, color=bcolor, style=plot.style_histogram, linewidth=4)
+// plot(0, color=scolor, style=plot.style_cross, linewidth=2)
+ 
+MOM_Signal_Long = scolor == color.gray and scolor[1] != color.gray and val > 0
+MOM_Signal_Short = scolor == color.gray and scolor[1] != color.gray and val < 0
+ 
+ 
+ 
+//==============================================================================
+//INDICATOR 8
+//==============================================================================
+//Market Volitility
+ 
+length = 20
+smoothing = "RMA"
+length_2 = 200
+ 
+ma_function(source, length) =>
+	switch smoothing
+		"RMA" => ta.rma(source, length)
+		"SMA" => ta.sma(source, length)
+		"EMA" => ta.ema(source, length)
+		=> ta.wma(source, length)
+ATR_Fast = ma_function(ta.tr(true), length)
+ 
+ATR_Slow = ma_function(ta.tr(true), length_2)
+ 
+Volitility = ATR_Fast > ATR_Slow ? "High" : "Low"
+Vol_Color = Volitility == "High" ? color_5 : color_6
+ 
+ 
+//=============================================================================
+// INDICATOR 9 - SSL
+//=============================================================================
+gr_SSL = "📈SSL Channel - Settings📈"
+ 
+SSL_len = 10
+SSL_smaHigh = ta.sma(high, SSL_len)
+SSL_smaLow = ta.sma(low, SSL_len)
+Hlv = int(na)
+Hlv := close > SSL_smaHigh ? 1 : close < SSL_smaLow ? -1 : Hlv[1]
+sslDown = Hlv < 0 ? SSL_smaHigh : SSL_smaLow
+sslUp = Hlv < 0 ? SSL_smaLow : SSL_smaHigh
+ 
+SSL_Color = sslUp > sslDown ? color_5 : color_6
+ 
+plot(Plot_SSL ? sslDown : na, linewidth=2, color=SSL_Color)
+plot(Plot_SSL ? sslUp : na, linewidth=2, color=SSL_Color)    
+ 
+ 
+//=============================================================================
+// INDICATOR 10 - TDFI
+//============================================================================
+ 
+gr_TDFI = "📊Trend Direction Force Index - Settings📊"
+ 
+trendPeriod = 20
+maType = 'JMA' //input.string(title='MA Type', defval='JMA', options=['DEMA', 'EMA', 'HMA', 'JMA', 'LSMA', 'PWMA', 'SMMA', 'SMA', 'SSF2', 'SWMA', 'TEMA', 'TMA', 'VWMA', 'WMA', 'ZLEMA'])
+maPeriod = 8
+triggerUp = 0.05 //input(title='TriggerUp', defval=0.05, group = gr_TDFI)
+triggerDown = -0.05 //input(title='TriggerDown', defval=-0.05, group = gr_TDFI)
+// showZeroCrosses = input(title='Show zero cross signals', defval=true)
+// showLineCrosses = input(title='Show level cross signals', defval=false)
+ 
+PI = 2 * math.asin(1)
+mma = ta.ema(close, trendPeriod)
+smma = ta.ema(mma, trendPeriod)
+ 
+impetmma = ta.change(mma)
+impetsmma = ta.change(smma)
+divma = math.abs(mma - smma) / syminfo.mintick
+averimpet = math.avg(impetmma, impetsmma) / (2 * syminfo.mintick)
+ 
+tdfRaw = divma * math.pow(averimpet, 3)
+tdfAbsRaw = math.abs(tdfRaw)
+ 
+for i = 1 to 3 * trendPeriod - 1 by 1
+    cand = math.abs(nz(tdfRaw[i]))
+    tdfAbsRaw := cand > tdfAbsRaw ? cand : tdfAbsRaw
+    tdfAbsRaw
+ 
+ratio = tdfRaw / tdfAbsRaw
+smooth = float(na)
+ 
+// JMA
+ 
+_jma(src, length) =>
+    alpha = 0.45 * (length - 1) / (0.45 * (length - 1) + 2)
+    out = 0.0
+    e0 = 0.0
+    e0 := (1 - alpha) * src + alpha * nz(e0[1])
+    e1 = 0.0
+    e1 := (1 - alpha) * (src - e0) + alpha * nz(e1[1])
+    e2 = 0.0
+    e2 := math.pow(1 - alpha, 2) * (e0 + e1 - nz(out[1])) + math.pow(alpha, 2) * nz(e2[1])
+    out := e2 + nz(out[1])
+    out
+ 
+_jma__1 = _jma(ratio, maPeriod)
+smooth := maType == 'JMA' ? _jma__1 : smooth
+ 
+//------------------------------------------------------------------------------
+ 
+tdf = tdfAbsRaw > 0 ? math.max(math.min(na(smooth) ? ratio : smooth, 1), -1) : 0.0
+ 
+ 
+//=============================================================================
+// INDICATOR 11 - Trend Confidence
+//============================================================================
+ 
+ 
+// CCI 
+ 
+TM_Long = ta.cci(close, 5) > 0
+TM_Short = ta.cci(close, 5) < 0
+ 
+ 
+ 
+//color1 = ta.cci(close, 5) >= 0 ? #0022FC : #FC0400
+//plot(MagicTrend, color=color1, linewidth=3)
+ 
+ 
+// ADX
+lenadx = 14
+lensig = 14
+limadx = 18
+ 
+ 
+ADX_up = ta.change(high)
+ADX_down = -ta.change(low)
+trur = ta.rma(ta.tr, lenadx)
+plus = fixnan(100 * ta.rma(ADX_up > ADX_down and ADX_up > 0 ? ADX_up : 0, lenadx) / trur)
+minus = fixnan(100 * ta.rma(ADX_down > ADX_up and ADX_down > 0 ? ADX_down : 0, lenadx) / trur)
+sum = plus + minus
+adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
+ 
+macol = adx > limadx and plus > minus ? color.lime : adx > limadx and plus < minus ? color.red : color.black
+ 
+ADX_Long = adx > limadx and plus > minus
+ADX_Short = adx > limadx and plus < minus
+ 
+ 
+//Acumulation/Distribution
+ACC_Dist = ta.sma(ta.accdist, 21)
+ 
+ACC_Long = ta.accdist > ACC_Dist
+ACC_Short = ta.accdist < ACC_Dist
+ 
+ 
+// MFI
+ 
+ 
+MFI = ta.mfi(close , 14)
+MFI_SMA = ta.sma (MFI, 9)
+ 
+MFI_Long = MFI > MFI_SMA
+MFI_Short = MFI < MFI_SMA
+ 
+// Momentum Linear Regression
+ 
+mom = ta.mom(close, 10)
+lrmom = ta.linreg(mom, 14, 0)
+ 
+MOML_Long = lrmom > lrmom[1]
+MOML_Short = lrmom < lrmom[1]
+ 
+ 
+//=============================================================================
+// INDICATOR 12 - Reversal Zones
+//============================================================================
+ 
+gr_Reversal = "◀️Reversal Zone Setings◀️"
+ 
+// Bollinger Bands Inputs
+bb_use_ema = 'EMA'
+ 
+bb_length = 70
+bb_source = close
+bb_mult = 2
+bb_mult_inc = 0.75
+// Breakout Indicator Inputs
+break_mult = 5
+breakhigh_source = high
+breaklow_source = low
+ 
+ema_1 = ta.ema(bb_source, bb_length)
+sma_1 = ta.sma(bb_source, bb_length)
+bb_basis = bb_use_ema == "EMA" ? ema_1 : sma_1
+ 
+// Deviation
+// * I'm sure there's a way I could write some of this cleaner, but meh.
+Rev_dev = ta.stdev(bb_source, bb_length)
+bb_dev_inner = bb_mult * Rev_dev
+bb_dev_mid = (bb_mult + bb_mult_inc) * Rev_dev
+bb_dev_outer = (bb_mult + bb_mult_inc * 2) * Rev_dev
+break_dev = break_mult * Rev_dev
+ 
+// Upper bands
+inner_high = bb_basis + bb_dev_inner
+mid_high = bb_basis + bb_dev_mid
+outer_high = bb_basis + bb_dev_outer
+// Lower Bands
+inner_low = bb_basis - bb_dev_inner
+mid_low = bb_basis - bb_dev_mid
+outer_low = bb_basis - bb_dev_outer
+ 
+// Breakout Deviation
+break_high = bb_basis + break_dev
+break_low = bb_basis - break_dev
+ 
+// plot basis
+//plot(bb_basis, title='Basis Line', color=color.new(color.navy, 50))
+ 
+// plot and fill upper bands
+ubi = plot(Plot_Revs ? inner_high : na, title='Upper Band Inner', color=color.new(color_3, 90))
+ubm = plot(Plot_Revs ? mid_high : na, title='Upper Band Middle', color=color.new(color_3, 85))
+ubo = plot(Plot_Revs ? outer_high : na, title='Upper Band Outer', color=color.new(color_3, 80))
+fill(ubi, ubm, title='Upper Bands Inner Fill', color=color.new(color_3, 90))
+fill(ubm, ubo, title='Upper Bands Outer Fill', color=color.new(color_4, 80))
+ 
+// plot and fill lower bands
+lbi = plot(Plot_Revs ? inner_low : na, title='Lower Band Inner', color=color.new(color_1, 90))
+lbm = plot(Plot_Revs ? mid_low : na, title='Lower Band Middle', color=color.new(color_1, 85))
+lbo = plot(Plot_Revs ? outer_low : na, title='Lower Band Outer', color=color.new(color_1, 80))
+fill(lbi, lbm, title='Lower Bands Inner Fill', color=color.new(color_1, 90))
+fill(lbm, lbo, title='Lower Bands Outer Fill', color=color.new(color_2, 80))
+ 
+// center channel fill
+//fill(ubi, lbi, title='Center Channel Fill', color=color.new(color.silver, 100))
+ 
+// plot breakouts
+plotshape(Reverse_signals ? breakhigh_source >= break_high : na, title='High Breakout', style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.new(color_3, 0))
+plotshape(Reverse_signals ? breaklow_source <= break_low : na, title='Low Breakout', style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.new(color_1, 0))
+ 
+ 
+//=============================================================================
+// INDICATOR 12 - Kama/Vidya
+//============================================================================
+ 
+//Vidya
+Vid_length = Rigor //input.int(title='Lune-Conf Length', defval=14, group = "Lune Confirmation Settings")
+highlightMovements = true
+ 
+ 
+// Chande Momentum Oscillator
+getCMO(src, length) =>
+    Vid_mom = ta.change(src)
+    upSum = math.sum(math.max(Vid_mom, 0), length)
+    downSum = math.sum(-math.min(Vid_mom, 0), length)
+    out = (upSum - downSum) / (upSum + downSum)
+    out
+ 
+cmo = math.abs(getCMO(close, Vid_length))
+ 
+Vidya_alpha = 2 / (Vid_length + 1)
+ 
+vidya = 0.0
+vidya := close * Vidya_alpha * cmo + nz(vidya[1]) * (1 - Vidya_alpha * cmo)
+ 
+vidyaColor = highlightMovements ? vidya > vidya[1] ? color_1 : color_3 : color_7
+plot(plot_Lune ? vidya : na, title='Plot', linewidth=2, color=vidyaColor, transp=0)
+ 
+ 
+ 
+ 
+Kama_length = Sensitivity
+fastLength = 2.0
+slowLength = 10.0
+//src = input(title='Source', defval=close)
+highlight = true
+awaitBarConfirmation = true
+ 
+kama_mom = math.abs(ta.change(close, Kama_length))
+volatility = math.sum(math.abs(ta.change(close)), Kama_length)
+ 
+// Efficiency Ratio
+er = volatility != 0 ? kama_mom / volatility : 0
+ 
+fastAlpha = 2 / (fastLength + 1)
+slowAlpha = 2 / (slowLength + 1)
+ 
+alpha = math.pow(er * (fastAlpha - slowAlpha) + slowAlpha, 2)
+ 
+kama = 0.0
+kama := alpha * close + (1 - alpha) * nz(kama[1], close)
+ 
+await = awaitBarConfirmation ? barstate.isconfirmed : true
+ 
+maColor = highlight ? kama > kama[1] and await ? color_1 : color_3 : color_7
+plot(plot_Lune ? kama : na, title='Plot', linewidth=2, color=maColor, transp=0)
+ 
+// alertCond = maColor != maColor[1]
+// alertcondition(alertCond, title='Color Change', message='KAMA has changed its color!')
+ 
+ 
+//==============================================================================
+//Variables
+//==============================================================================
+ 
+// var InLong = false
+// var InShort = false
+// var InTrade = false
+ 
+ 
+// // Lines
+// line Entry = na
+ 
+// line TP1 = na
+// line TP2 = na
+// line TP3 = na
+// // line TP4 = na
+// // line TP5 = na
+// // line TP6 = na
+ 
+// label lbEntry = na
+// label lb1 = na
+// label lb2 = na
+// label lb3 = na
+// // label lb4 = na
+// // label lb5 = na
+// // label lb6 = na
+ 
+// line SL1 = na
+// label SLB1 = na
+ 
+ 
+ 
+ 
+ 
+//==============================================================================
+//ENTRY CONDITIONS - Logic
+//==============================================================================
+ 
+gr_Exit = "💵Take Profit/Stop Loss Settings💵"
+ 
+Target_Exit = input.string("Percent (%)", title = "Exit Target Method   ", options = ["Percent (%)", "ATR", "Chandelier", "Off"], group = gr_Exit, tooltip = "Percent (%): Targets based on Percent of closing price at trade open\nATR: Target based on value of Average True Range (more suitable for variable Timeframes)\nOff: Disables Take Profit/Stop Loss Settings.")
+ 
+ 
+ 
+ 
+TP_Level_1 = input.float(defval = 0.5, title = "TP Level 1/2/3", step = 0.1, group = gr_Exit, inline = "TP", tooltip = "Percent Target or Multiple of ATR\nEX: 3 = 3% or 3x ATR depending on Target Method Configuration") * 0.01
+TP_Level_2 = input.float(defval = 1, title = "/", step = 0.1, group = gr_Exit, inline = "TP") * 0.01
+TP_Level_3 = input.float(defval = 1.5, title = "/", step = 0.1, group = gr_Exit, inline = "TP") * 0.01
+// TP_Level_4 = input.float(defval = 4, title = "TP Level 4/5/6 (%)", step = 0.1, group = gr_Exit, inline = "TP2") * 0.01
+// TP_Level_5 = input.float(defval = 5, title = "/", step = 0.1, group = gr_Exit, inline = "TP2") * 0.01
+// TP_Level_6 = input.float(defval = 6, title = "/", step = 0.1, group = gr_Exit, inline = "TP2") * 0.01
+ 
+ 
+SL_Level_1 = input.float(defval = 1.5, title = "Stop Loss", step = 0.1, group = gr_Exit) * 0.01
+ 
+ 
+ATR_Exit = ta.atr(21)
+// var Entry_level = float(0.0)
+ 
+// //Calculate stop loss and take profit distance (in price)
+// var float nLoss   = 0.0
+// var float nProfit_1   = 0.0
+// var float nProfit_2   = 0.0
+// var float nProfit_3   = 0.0
+// // var float nProfit_4   = 0.0
+// // var float nProfit_5   = 0.0
+// // var float nProfit_6   = 0.0
+ 
+ 
+ 
+// //Find long take profit and stop loss levels
+// var long_stop_level     = float(0.0) //set float
+// var long_profit_level_1 = float(0.0)
+// var long_profit_level_2 = float(0.0)
+// var long_profit_level_3 = float(0.0)
+// // var long_profit_level_4 = float(0.0)
+// // var long_profit_level_5 = float(0.0)
+// // var long_profit_level_6 = float(0.0)
+ 
+// //Find short take profit and stop loss levels
+// var short_stop_level     = float(0.0) //set float
+// var short_profit_level_1 = float(0.0)
+// var short_profit_level_2 = float(0.0)
+// var short_profit_level_3 = float(0.0)
+// // var short_profit_level_4 = float(0.0)
+// // var short_profit_level_5 = float(0.0)
+// // var short_profit_level_6 = float(0.0)
+ 
+ 
+ 
+ 
+ 
+//==============================================================================
+//===============              Strategies              =========================
+//==============================================================================
+gr_Trade_MGT = "💻Trade Managmeent💻"
+//Strategy_Select = input.string("None", title = "Strategy Selector", options = ["None", "Moving Average Cross", "RE Beta", "MS Beta", "SRT Beta" ], group = gr_Trade_MGT, tooltip = "-None: No Strategies will display on the chart \n-Moving Average Cross: Trade will occur when the two Moving Averages Cross in the direction of the Faster Moving average.\n-RSI/Engulfing: Trade will occur when RSI is inline with Trend and an Engulfing Candle occurs.\n-Momentum Squeeze: Trade will occur when Momentum shifts from Low to High in the direction of the trend.\n-SSL/RSI/TDFI: Trade will occur when the SSL/RSI/TDFI Indicators are all in confluence.")
+//Plot_Targets = input.bool(true, title = "Plot Trade Targets (TP/SL Lines)", group = gr_Trade_MGT)
+ 
+ 
+//==============================================================================
+//ENTRY CONDITIONS - Submit Orders
+//==============================================================================
+ 
+ 
+// // Long and Short Trigger Conditions
+// Live_TP_SL_Lines = input.bool(true, "Show Live TP/SL Lines", group = gr_Trade_MGT)
+// Past_TP_SL_Lines = input.bool(true, "Show Historic TP/SL Lines", group = gr_Trade_MGT)
+// TP_SL_Labels = input.bool(true, "Show TP/SL Labels", group = gr_Trade_MGT)
+ 
+ 
+ShortSignals = input(true,"Include Short Trades", group=gr_Trade_MGT)
+LongSignals = input(true,"Include Long Trades", group=gr_Trade_MGT)
+ 
+ 
+ 
+//==============================================================================
+//Strategy - 1 - Lune Confirmation
+//==============================================================================
+ 
+ 
+// Strategy_1_long  = InTrade == false and dateRange() and  Ind_1_L and LongSignals  //and Ind_2_L and Ind_3_L and Ind_4_L and Ind_5_L and Ind_6_L 
+// Strategy_1_short = InTrade == false and dateRange() and  Ind_1_S and ShortSignals //and Ind_2_S and Ind_3_S and Ind_4_S and Ind_5_S and Ind_6_S 
+ 
+//==============================================================================
+//Strategy - 2- RSI/Engulfing
+//==============================================================================
+ 
+Strategy_2_long  = InTrade == false and MA_1 > MA_2 and rsi_Ind > 50 and C_EngulfingBullish and LongSignals  //and Ind_2_L and Ind_3_L and Ind_4_L and Ind_5_L and Ind_6_L 
+Strategy_2_short = InTrade == false and MA_1 < MA_2 and rsi_Ind < 50 and C_EngulfingBearish and ShortSignals //and Ind_2_S and Ind_3_S and Ind_4_S and Ind_5_S and Ind_6_S 
+ 
+Strategy_2_long_Sig  = MA_1 > MA_2 and rsi_Ind > 50 and C_EngulfingBullish  //and Ind_2_L and Ind_3_L and Ind_4_L and Ind_5_L and Ind_6_L 
+Strategy_2_short_Sig = MA_1 < MA_2 and rsi_Ind < 50 and C_EngulfingBearish  //and Ind_2_S and Ind_3_S and Ind_4_S and Ind_5_S and Ind_6_S 
+ 
+ 
+//==============================================================================
+//Strategy - 3- Momentum Squeeze
+//==============================================================================
+ 
+Strategy_3_long  = InTrade == false and MA_1 > MA_2 and LongSignals and MOM_Signal_Long and LongSignals   //and Ind_2_L and Ind_3_L and Ind_4_L and Ind_5_L and Ind_6_L 
+Strategy_3_short = InTrade == false and MA_1 < MA_2 and ShortSignals and MOM_Signal_Short and ShortSignals //and Ind_2_S and Ind_3_S and Ind_4_S and Ind_5_S and Ind_6_S 
+ 
+Strategy_3_long_Sig  = MA_1 > MA_2 and LongSignals and MOM_Signal_Long 
+Strategy_3_short_Sig = MA_1 < MA_2 and ShortSignals and MOM_Signal_Short 
+ 
+//==============================================================================
+//Strategy - 4- SSL/RSI/TDFI
+//==============================================================================
+ 
+Strategy_4_long  = InTrade == false and sslDown < sslUp and tdf > triggerUp and ta.crossover(rsi_Ind, 65) and LongSignals  //and Ind_2_L and Ind_3_L and Ind_4_L and Ind_5_L and Ind_6_L 
+Strategy_4_short = InTrade == false and sslDown > sslUp and tdf < triggerDown and ta.crossunder(rsi_Ind, 35) and ShortSignals //and Ind_2_S and Ind_3_S and Ind_4_S and Ind_5_S and Ind_6_S 
+ 
+Strategy_4_long_Sig  = sslDown < sslUp and tdf > triggerUp and ta.crossover(rsi_Ind, 65) 
+Strategy_4_short_Sig = sslDown > sslUp and tdf < triggerDown and ta.crossunder(rsi_Ind, 35) 
+ 
+ 
+// //==============================================================================
+// //Strategy - 5- Lune-Confirmation
+// //==============================================================================
+ 
+Strategy_5_long  = InTrade == false and ta.crossover(kama,vidya) and LongSignals  //and Ind_2_L and Ind_3_L and Ind_4_L and Ind_5_L and Ind_6_L 
+Strategy_5_short = InTrade == false and ta.crossunder(kama,vidya) and  ShortSignals //and Ind_2_S and Ind_3_S and Ind_4_S and Ind_5_S and Ind_6_S 
+ 
+Strategy_5_long_Sig  = ta.crossover(kama,vidya) 
+Strategy_5_short_Sig = ta.crossunder(kama,vidya)
+ 
+//==============================================================================
+//Strategy Switch
+//==============================================================================
+ 
+Long_Signal = switch Strategy_Select
+    //"Advanced EK Cloud"     => Strategy_1_long
+    "RE Beta"         => Strategy_2_long
+    "MS Beta"      => Strategy_3_long
+    "SRT Beta"          => Strategy_4_long
+    "Confirmation"          => Strategy_5_long
+ 
+ 
+Short_Signal = switch Strategy_Select
+    //"Advanced EK Cloud"     => Strategy_1_short
+    "RE Beta"         => Strategy_2_short
+    "MS Beta"      => Strategy_3_short    
+    "SRT Beta"          => Strategy_4_short
+    "Confirmation"   => Strategy_5_short
+ 
+Long_Signal_Entry = switch Strategy_Select
+    //"Advanced EK Cloud"     => Strategy_1_long
+    "RE Beta"         => Strategy_2_long_Sig
+    "MS Beta"      => Strategy_3_long_Sig
+    "SRT Beta"          => Strategy_4_long_Sig
+    "Confirmation"   => Strategy_5_long_Sig
+ 
+ 
+Short_Signal_Entry = switch Strategy_Select
+    //"Advanced EK Cloud"     => Strategy_1_short
+    "RE Beta"         => Strategy_2_short_Sig
+    "MS Beta"      => Strategy_3_short_Sig   
+    "SRT Beta"          => Strategy_4_short_Sig
+    "Confirmation"   => Strategy_5_short_Sig
+ 
+ 
+ 
+ //==============================================================================
+//Entry Conditions
+//==============================================================================   
+entry_long  = Target_Exit != "Off" ? Long_Signal : Long_Signal_Entry
+entry_short = Target_Exit != "Off" ? Short_Signal : Short_Signal_Entry
+ 
+// entry_long_Signal  = Long_Signal_Entry
+// entry_short_Signal = Short_Signal_Entry 
+ 
+ 
+ 
+// Set Arrays
+ 
+var TP_Levels = array.new_float(3,na)
+var SL_Levels = array.new_float(1,na)
+var Entry_Levels = array.new_float(1,na)
+ 
+ 
+var Array_Lines = array.new_line(4,na)
+var Array_Lables = array.new_label(4,na)
+var Array_Lines_Old = array.new_line(10,na)
+var Array_Labels_Old = array.new_label(1,na)
+ 
+var float Entry_ATR = na
+ 
+if InTrade
+    Bars_In_Trade += 1
+else if entry_long or entry_short
+    Bars_In_Trade := 0
+ 
+Long_Signal_Strength = 0
+Short_Signal_Strength = 0 
+ 
+if entry_long
+    if TM_Long 
+        Long_Signal_Strength += 1
+    if ADX_Long
+        Long_Signal_Strength += 1
+    if ACC_Long
+        Long_Signal_Strength += 1
+    if MFI_Long
+        Long_Signal_Strength += 1
+    if MOML_Long
+        Long_Signal_Strength += 1
+ 
+if entry_short
+    if TM_Short 
+        Short_Signal_Strength += 1
+    if ADX_Short
+        Short_Signal_Strength += 1
+    if ACC_Short
+        Short_Signal_Strength += 1
+    if MFI_Short
+        Short_Signal_Strength += 1
+    if MOML_Short
+        Short_Signal_Strength += 1
+//Plot Buy/Sell Signals on chart
+ 
+enter_Long_Text = "Buy\n" + str.tostring(Long_Signal_Strength)
+enter_Short_Text = "Sell\n" + str.tostring(Short_Signal_Strength)
+ 
+ 
+if entry_long
+    label.new(bar_index, low - (100 * syminfo.mintick), yloc = yloc.belowbar, text = enter_Long_Text, color = #ffffff, textcolor = color.black, style = label.style_label_up)
+    InLong_Sig := true
+    InShort_Sig := false
+ 
+if entry_short
+    label.new(bar_index, high + (100 * syminfo.mintick), yloc = yloc.abovebar, text = enter_Short_Text, color = #00def6, textcolor = color.black, style = label.style_label_down)
+    InLong_Sig := false
+    InShort_Sig := true
+// plotshape(entry_long, color=color_1, style=shape.arrowup,   location = location.belowbar, text=enter_Long_Text, textcolor = color_1)
+// plotshape(entry_short, color=color_3, style=shape.arrowdown, location = location.abovebar, text=enter_Short_Text, textcolor = color_3)
+ 
+ 
+//Submit long and short orders based on entry conditions
+alertcondition(Target_Exit != "Off" ? entry_long and InTrade == false : entry_long, "Strategy Entry Long", " Strategy Entry Long")
+alertcondition(Target_Exit != "Off" ? entry_short and InTrade == false : entry_short, "Strategy Entry Short", " Strategy Entry Short")
+if(entry_long and InTrade == false)
+ 
+    Long_Trades += 1
+    Entry_level := close
+    Entry_ATR := ATR_Exit
+    InTrade     := true
+    nLoss       := Entry_level * SL_Level_1
+    nProfit_1   := Entry_level * TP_Level_1
+    InLong      := true
+ 
+    if Target_Exit == "Percent (%)"
+        long_stop_level     := math.min(Entry_level - nLoss, low - syminfo.mintick)
+        long_profit_level_1 := math.max(Entry_level + (Entry_level * TP_Level_1), high + syminfo.mintick)
+        long_profit_level_2 := Entry_level + (Entry_level * TP_Level_2)
+        long_profit_level_3 := Entry_level + (Entry_level * TP_Level_3)
+ 
+    else
+        long_stop_level     := math.min(Entry_level - (ATR_Exit * (SL_Level_1 * 100)), low - syminfo.mintick)
+        long_profit_level_1 := math.max(Entry_level + Entry_ATR * (TP_Level_1 * 100), high + syminfo.mintick)
+        long_profit_level_2 := Entry_level + (Entry_ATR * (TP_Level_2 * 100))
+        long_profit_level_3 := Entry_level + (Entry_ATR * (TP_Level_3 * 100))   
+ 
+    array.push(TP_Levels, long_profit_level_1)
+    array.push(TP_Levels, long_profit_level_2)
+    array.push(TP_Levels, long_profit_level_3)
+ 
+    array.push(SL_Levels, long_stop_level)
+    array.push(Entry_Levels, Entry_level)
+ 
+ 
+else if entry_short and InTrade == false
+    Short_Trades += 1
+    Entry_level := close
+    Entry_ATR := ATR_Exit
+    InTrade     := true
+    nLoss       := Entry_level * SL_Level_1
+    nProfit_1   := Entry_level * TP_Level_1
+    InShort      := true
+ 
+    if Target_Exit == "Percent (%)"
+        short_stop_level     := math.max(Entry_level + nLoss, high + syminfo.mintick)
+        short_profit_level_1 := math.min(Entry_level - (Entry_level * TP_Level_1), low - syminfo.mintick)
+        short_profit_level_2 := Entry_level - (Entry_level * TP_Level_2)
+        short_profit_level_3 := Entry_level - (Entry_level * TP_Level_3)
+    else
+        short_stop_level     := math.max(Entry_level + (ATR_Exit * (SL_Level_1 * 100)), high + syminfo.mintick)
+        short_profit_level_1 := math.min(Entry_level - Entry_ATR * (TP_Level_1 * 100), low - syminfo.mintick)
+        short_profit_level_2 := Entry_level - (Entry_ATR * (TP_Level_2 * 100))
+        short_profit_level_3 := Entry_level - (Entry_ATR * (TP_Level_3 * 100))
+ 
+    array.push(TP_Levels, short_profit_level_1)
+    array.push(TP_Levels, short_profit_level_2)
+    array.push(TP_Levels, short_profit_level_3)
+ 
+    array.push(SL_Levels, short_stop_level)
+    array.push(Entry_Levels, Entry_level)
+ 
+ 
+ 
+ 
+// Trail_SL_Long = close[1] - Entry_level > nLoss
+// Trail_SL_Short = Entry_level - close[1] > nLoss
+ 
+ 
+// if InTrade == true and Target_Exit == "Chandelier"
+//     if Trail_SL_Long
+//         long_stop_level     := math.min(close[1] - (ATR_Exit * (SL_Level_1 * 100)), low - syminfo.mintick)
+//         array.push(SL_Levels, long_stop_level)
+ 
+//     else if Trail_SL_Short
+//         short_stop_level     := math.max(close[1] + (ATR_Exit * (SL_Level_1 * 100)), high + syminfo.mintick)
+//         array.push(SL_Levels, short_stop_level)
+ 
+ 
+// Trailing_Condition = InTrade == true and Target_Exit == "Chandelier"
+ 
+// plot(Trailing_Condition ? short_stop_level : na, "Trailing Stoploss", linewidth = 2 , color = color.red)
+ 
+ 
+if (barstate.isrealtime or barstate.islast) and InTrade == true
+ 
+    if InLong == true and Target_Exit != "Off"
+ 
+        for [index, value] in TP_Levels
+            array.push(Array_Lines, line.new(bar_index[Bars_In_Trade], value, bar_index + 14, value, color = #00def6, width = 2))
+            array.push(Array_Lables, label.new(bar_index + 14, value, "Take Profit: " + str.tostring(math.round_to_mintick(value)), color = #00def6, textcolor = color.black, style = label.style_label_left))
+ 
+ 
+        for [index, value] in SL_Levels
+            array.push(Array_Lines, line.new(bar_index[Bars_In_Trade], value, bar_index + 14, value, color = #ff0015, width = 2))
+            array.push(Array_Lables, label.new(bar_index + 14, value, "Stop Loss: " + str.tostring(math.round_to_mintick(value)), color = #ff0015, textcolor = color.black, style = label.style_label_left))
+ 
+        for [index, value] in Entry_Levels
+            array.push(Array_Lines, line.new(bar_index[Bars_In_Trade], value, bar_index + 14, value, color = #ffffff, width = 2))
+            array.push(Array_Lables, label.new(bar_index + 14, value, "Entry Level: " + str.tostring(math.round_to_mintick(value)), color = #ffffff, textcolor = color.black, style = label.style_label_left))
+ 
+ 
+    else if InShort == true and Target_Exit != "Off"
+ 
+        for [index, value] in TP_Levels
+            array.push(Array_Lines, line.new(bar_index[Bars_In_Trade], value, bar_index + 14, value, color = #00def6, width = 2))
+            array.push(Array_Lables, label.new(bar_index + 14, value, "Take Profit: " + str.tostring(math.round_to_mintick(value)), color = #00def6, textcolor = color.black, style = label.style_label_left))
+ 
+ 
+        for [index, value] in SL_Levels
+            array.push(Array_Lines, line.new(bar_index[Bars_In_Trade], value, bar_index + 14, value, color = #ff0015, width = 2))
+            array.push(Array_Lables, label.new(bar_index + 14, value, "Stop Loss: " + str.tostring(math.round_to_mintick(value)), color = #ff0015, textcolor = color.black, style = label.style_label_left))
+ 
+        for [index, value] in Entry_Levels
+            array.push(Array_Lines, line.new(bar_index[Bars_In_Trade], value, bar_index + 14, value, color = #ffffff, width = 2))
+            array.push(Array_Lables, label.new(bar_index + 14, value, "Entry Level: " + str.tostring(math.round_to_mintick(value)), color = #ffffff, textcolor = color.black, style = label.style_label_left))
+ 
+ 
+ 
+ 
+ 
+ 
+while array.size(Array_Lines) > 5
+    Line = array.shift(Array_Lines)
+    line.delete(Line)
+while array.size(Array_Lables) > 5
+    Label = array.shift(Array_Lables)
+    label.delete(Label)
+ 
+ 
+while array.size(TP_Levels) > 3
+    array.remove(TP_Levels, 0)
+while array.size(SL_Levels) > 1
+    array.remove(SL_Levels, 0)
+while array.size(Entry_Levels) > 1
+    array.remove(Entry_Levels, 0)
+ 
+ 
+// while array.size(Array_Lines_Old) > 500
+//     Line = array.shift(Array_Lines_Old)
+//     line.delete(Line)
+// while array.size(Array_Labels_Old) > 500
+//     Label = array.shift(Array_Labels_Old)
+//     label.delete(Label)
+ 
+ 
+//==============================================================================
+//Exit Conditions
+//==============================================================================
+ 
+Exit_Long = InLong and (ta.crossunder(low, long_stop_level)) //or Ind_1_L_Exit or Ind_2_S)
+Exit_Short = InShort and (ta.crossover(high, short_stop_level)) //or Ind_1_S_Exit or Ind_2_L)
+ 
+TP_1_Long = InLong and ta.crossover(high, long_profit_level_1)
+TP_2_Long = InLong and ta.crossover(high, long_profit_level_2)
+TP_3_Long = InLong and ta.crossover(high, long_profit_level_3)
+// TP_4_Long = InLong and ta.crossover(high, long_profit_level_4)
+// TP_5_Long = InLong and ta.crossover(high, long_profit_level_5)
+// TP_6_Long = InLong and ta.crossover(high, long_profit_level_6)
+ 
+var int TP_Long_Condition  = 0
+var int TP_Short_Condition = 0
+ 
+TP_1_Short = InShort and ta.crossunder(low, short_profit_level_1)
+TP_2_Short = InShort and ta.crossunder(low, short_profit_level_2)
+TP_3_Short = InShort and ta.crossunder(low, short_profit_level_3)
+// TP_4_Short = InShort and ta.crossunder(low, short_profit_level_4)
+// TP_5_Short = InShort and ta.crossunder(low, short_profit_level_5)
+// TP_6_Short = InShort and ta.crossunder(low, short_profit_level_6)
+ 
+if TP_1_Long and TP_Long_Condition == 0 and not entry_long 
+    if Target_Exit != "Off"
+        array.push(Array_Labels_Old, label.new(bar_index, high, text = "TP 1", color = #00def6, style = label.style_label_down))
+    TP_Long_Condition := 1 
+    TP_1 += 1
+    alert("Long TP 1", alert.freq_once_per_bar)
+if (TP_2_Long and TP_Long_Condition == 1)
+    if Target_Exit != "Off"
+        lb = array.pop(Array_Labels_Old)
+        label.delete(lb)
+        array.push(Array_Labels_Old, label.new(bar_index, high, text = "TP 2", color = #00def6, style = label.style_label_down))
+    TP_Long_Condition := 2
+    TP_2 += 1
+    alert("Long TP 2", alert.freq_once_per_bar)    
+if (TP_3_Long and TP_Long_Condition == 2)
+    if Target_Exit != "Off"
+        lb = array.pop(Array_Labels_Old)
+        label.delete(lb)
+        array.push(Array_Labels_Old, label.new(bar_index, high, text = "TP 3", color = #00def6, style = label.style_label_down))
+ 
+        for [index, value] in TP_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #00def6, width = 1, style = line.style_dotted))
+ 
+        for [index, value] in SL_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ff0015, width = 1, style = line.style_dotted))
+ 
+        for [index, value] in Entry_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ffffff, width = 1, style = line.style_dotted))
+    TP_Long_Condition := 3
+    TP_3 += 1
+    alert("Long TP 3", alert.freq_once_per_bar)
+ 
+ 
+    InLong      := false
+    InTrade     := false
+    Entry_level := na
+    nLoss       := na
+    nProfit_1   := na
+    long_stop_level   := na
+    long_profit_level_1 := na
+    long_profit_level_2 := na
+    long_profit_level_3 := na
+    TP_Long_Condition := 0   
+    Entry_ATR := na
+ 
+ 
+if (TP_1_Short and TP_Short_Condition == 0) 
+    // if entry_short and InTrade == true
+    //     runtime.error("Target Levels Too Small")
+    if Target_Exit != "Off"
+        array.push(Array_Labels_Old, label.new(bar_index, low, text = "TP 1", color = #00def6, style = label.style_label_up))
+    TP_Short_Condition := 1
+    TP_1 += 1
+    alert("Short TP 1", alert.freq_once_per_bar)
+if (TP_2_Short and TP_Short_Condition == 1)
+    if Target_Exit != "Off"
+        lb = array.pop(Array_Labels_Old)
+        label.delete(lb)
+        array.push(Array_Labels_Old, label.new(bar_index, low, text = "TP 2", color = #00def6, style = label.style_label_up))
+    TP_Short_Condition := 2
+    TP_2 += 1
+    alert("Short TP 2", alert.freq_once_per_bar)
+if (TP_3_Short and TP_Short_Condition == 2)
+    if Target_Exit != "Off"
+        lb = array.pop(Array_Labels_Old)
+        label.delete(lb)
+        array.push(Array_Labels_Old, label.new(bar_index, low, text = "TP 3", color = #00def6, style = label.style_label_up))
+ 
+        for [index, value] in TP_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #00def6, width = 1, style = line.style_dotted))
+ 
+        for [index, value] in SL_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ff0015, width = 1, style = line.style_dotted))
+ 
+        for [index, value] in Entry_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ffffff, width = 1, style = line.style_dotted))
+ 
+    TP_Short_Condition := 3
+    TP_3 += 1
+    alert("Short TP 3", alert.freq_once_per_bar)
+ 
+    InShort     := false
+    InTrade     := false
+    Entry_level := na
+    nLoss       := na
+    nProfit_1   := na
+    short_stop_level   := na
+    short_profit_level_1 := na
+    short_profit_level_2 := na
+    short_profit_level_3 := na
+    TP_Short_Condition := 0 
+    Entry_ATR := na
+ 
+ 
+ 
+if InTrade == true and (Exit_Long)
+    if Target_Exit != "Off"
+        if TP_Long_Condition == 0
+            array.push(Array_Labels_Old, label.new(bar_index, low, text = "SL", color = #ff0015, style = label.style_label_up))
+ 
+        for [index, value] in TP_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #00def6, width = 1, style = line.style_dotted))
+ 
+        for [index, value] in SL_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ff0015 , width = 1, style = line.style_dotted))
+ 
+        for [index, value] in Entry_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ffffff, width = 1, style = line.style_dotted))
+ 
+    InLong := false
+    InTrade := false
+    Entry_level := na
+    nLoss := na
+    nProfit_1 := na
+    long_profit_level_1 := na
+    long_profit_level_2 := na
+    long_stop_level := na
+    TP_Long_Condition := 0
+    Entry_ATR := na
+    SL_Exit += 1
+ 
+else if InTrade == true and (Exit_Short) 
+    if Target_Exit != "Off"
+        if TP_Short_Condition == 0
+            array.push(Array_Labels_Old, label.new(bar_index, high, text = "SL", color = #ff0015, style = label.style_label_down))
+ 
+        for [index, value] in TP_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #00def6, width = 1, style = line.style_dotted))
+ 
+        for [index, value] in SL_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ff0015, width = 1, style = line.style_dotted))
+ 
+        for [index, value] in Entry_Levels
+            array.push(Array_Lines_Old, line.new(bar_index[Bars_In_Trade], value, bar_index, value, color = #ffffff, width = 1, style = line.style_dotted))
+ 
+    InShort := false
+    InTrade := false
+    Entry_level := na
+    nLoss := na
+    nProfit_1 := na
+    short_profit_level_1 := na
+    short_profit_level_2 := na
+    short_stop_level := na
+    TP_Short_Condition := 0 
+    Entry_ATR := na
+    SL_Exit += 1
+ 
+// if not Plot_Targets
+//     array.clear(Array_Lines_Old)
+//     array.clear(Array_Labels_Old)
+//     array.clear(Array_Lines)
+//     array.clear(Array_Lables)
+ 
+ 
+//=============================================================================
+// BAR COLOR
+//=============================================================================
+Green = close > open
+ 
+Candle_Colors  = Select_Color_Pallet == "None" ? na :
+                 InLong_Sig and Target_Exit == "Off" and Trade_Bar_Color ? color_2 : InShort_Sig and Target_Exit == "Off" and Trade_Bar_Color ? color_4 :
+                 Trade_Bar_Color and InLong ? color_2 : 
+                 Trade_Bar_Color and InShort ? color_4 : 
+                 (not InLong and not InShort) or not Trade_Bar_Color ? Green ? color_1 : 
+                 color_3 : na
+ 
+ 
+//plotcandle(open, high, low, close, "Candles" , color = Candle_Colors, wickcolor = Candle_Colors, bordercolor = Candle_Colors)
+barcolor(Candle_Colors)
+ 
+// Dashboard
+ 
+// Entries
+Current_Strategy = Strategy_Select
+Current_Signal = if Target_Exit == "Off"
+    InLong_Sig ? "In Long Trade" : InShort_Sig ? "In Short Trade" : "Not In Trade"
+else
+    InTrade and InLong ? "In Long Trade" : InTrade and InShort ? "In Short Trade" : "Not In Trade"
+Signal_Color = Current_Signal == "In Long Trade" ? color.white : Current_Signal == "In Short Trade" ? color.aqua : color.gray
+ 
+Market_Trend = MA_1 > MA_2 ? "Up-Trend" : "Down-Trend"
+Market_Trend_Color = Market_Trend == "Up-Trend" ? color.white : color.aqua
+ 
+Market_Volitility = Volitility
+ 
+ 
+Total_Trades = Long_Trades + Short_Trades
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+//Table
+ 
+Dashboard = table.new(position = Dashboard_Position, columns = 2, rows = 2)
+ 
+Stats = table.new(position= Stats_Position, columns = 3, rows = 5)
+ 
+// var Long_Trades = 0
+// var Short_Trades = 0
+ 
+// var SL_Exit = 0
+// var TP_1 = 0
+// var TP_2 = 0
+// var TP_3 = 0
+ 
+ 
+Loss_perc = math.round((Total_Trades - TP_1) / Total_Trades *100, 2)
+TP1_Perc = math.round((TP_1) / Total_Trades *100, 2)
+TP2_Perc = math.round((TP_2) / Total_Trades *100, 2)
+TP3_Perc = math.round((TP_3) / Total_Trades *100, 2)
+ 
+ 
+ 
+// Profitability Calculator
+ 
+ 
+BE_Rate = math.round(((SL_Level_1) / (TP_Level_1 + SL_Level_1)) * 100, 2)
+ 
+ 
+ 
+Profitability = TP1_Perc >BE_Rate 
+ 
+Profitability_Text = Profitability ? "🟢 Profitable! 🟢" : "🟠 Moderate 🟠"
+ 
+ 
+ 
+ 
+if barstate.islast and (Dashboard_Loc_1 != "None" or Dashboard_Loc_2 != "None")
+    table.cell(Dashboard, 0, 0, "Current Strategy:\n" + str.tostring(Current_Strategy), text_color = color.white)
+    table.cell(Dashboard, 1, 0, "Current Signal:\n" + str.tostring(Current_Signal), text_color = color.white)
+    table.cell(Dashboard, 0, 1, "Market Trend:\n" + str.tostring(Market_Trend), text_color = color.white)
+    table.cell(Dashboard, 1, 1, "Market Volitility:\n" + str.tostring(Market_Volitility), text_color = color.white)
+ 
+ 
+if Strategy_Select != "None" and Target_Exit != "Off" and barstate.islast and (Stats_Loc_1 != "None" or Stats_Loc_1 != "None")
+    table.cell(Stats, 0, 0, "TRADE STATISTICS" , text_color = color.new(color.white, 0))
+    table.merge_cells(Stats, 0,0,2,0)
+    table.cell(Stats, 0, 1, "Total Trades:\n" + str.tostring(Total_Trades), text_color = color.white)
+    table.cell(Stats, 1, 1, "Long Trades:\n" + str.tostring(Long_Trades), text_color = color.white)
+    table.cell(Stats, 2, 1, "Short Trades:\n" + str.tostring(Short_Trades), text_color = color.aqua)
+    table.cell(Stats, 1, 3, "Loss:\n" + str.tostring(Loss_perc) + "%", text_color = color.aqua)
+    table.cell(Stats, 0, 2, "TP-1:\n" + str.tostring(TP1_Perc) + "%", text_color = color.white)
+    table.cell(Stats, 1, 2, "TP-2:\n" + str.tostring(TP2_Perc) + "%", text_color = color.white)
+    table.cell(Stats, 2, 2, "TP-3:\n" + str.tostring(TP3_Perc) + "%", text_color = color.white)
+    table.cell(Stats, 0, 4, "Strategy Quality:\n" + Profitability_Text + " (" + str.tostring(BE_Rate) + "% BE)", text_color = Profitability ? color.white : color.new(#f7630c, 0) )
+    table.merge_cells(Stats, 0,4,2,4)
+ 
+ 
+ 
+ 
+
+// Alert Conditions
+ 
+//alertcondition(entry_long, "Long Entry", message = "{{ticker}} Long\nLeverage: Cross 1x\nEntry:" )
+//alertcondition(entry_short, "Short Entry", message = "Test")
+alertcondition(Exit_Long, "Long Exit", "Long Exit Alert")
+alertcondition(Exit_Short, "Short Exit", "Short Exit Alert")
+// alertcondition(TP_1_Short and TP_Short_Condition == 0, "TP1 Short", " Short Take Profit 1")
+// alertcondition(TP_2_Short and TP_Short_Condition == 1, "TP2 Short", " Short Take Profit 2")
+// alertcondition(TP_3_Short and TP_Short_Condition == 2, "TP3 Short", " Short Take Profit 3")
+// alertcondition(TP_4_Short and TP_Short_Condition == 3, "TP4 Short", " Short Take Profit 4")
+// alertcondition(TP_5_Short and TP_Short_Condition == 4, "TP5 Short", " Short Take Profit 5")
+// alertcondition(TP_6_Short and TP_Short_Condition == 5, "TP6 Short", " Short Take Profit 6")
+ 
+// alertcondition(TP_1_Long and TP_Long_Condition == 0, "TP1 Long", " Long Take Profit 1")
+// alertcondition(TP_2_Long and TP_Long_Condition == 1, "TP2 Long", " Long Take Profit 2")
+// alertcondition(TP_3_Long and TP_Long_Condition == 2, "TP3 Long", " Long Take Profit 3")
+// alertcondition(TP_4_Long and TP_Long_Condition == 3, "TP4 Long", " Long Take Profit 4")
+// alertcondition(TP_5_Long and TP_Long_Condition == 4, "TP5 Long", " Long Take Profit 5")
+// alertcondition(TP_6_Long and TP_Long_Condition == 5, "TP6 Long", " Long Take Profit 6")
+ 
+All_Long_TP_Cond = (TP_1_Long and TP_Long_Condition == 0) or 
+ (TP_2_Long and TP_Long_Condition == 1) or 
+ (TP_3_Long and TP_Long_Condition == 2) //or 
+//  (TP_4_Long and TP_Long_Condition == 3) or 
+//  (TP_5_Long and TP_Long_Condition == 4) or 
+//  (TP_6_Long and TP_Long_Condition == 5)
+ 
+All_Short_TP_Cond = (TP_1_Short and TP_Short_Condition == 0) or 
+ (TP_2_Short and TP_Short_Condition == 1) or 
+ (TP_3_Short and TP_Short_Condition == 2) //or 
+//  (TP_4_Short and TP_Short_Condition == 3) or 
+//  (TP_5_Short and TP_Short_Condition == 4) or 
+//  (TP_6_Short and TP_Short_Condition == 5)
+ 
+alertcondition(All_Short_TP_Cond, "ALL TP Short", " Short Take Profit Alert")
+alertcondition(All_Long_TP_Cond, "ALL TP Long", " Long Take Profit Alert")
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

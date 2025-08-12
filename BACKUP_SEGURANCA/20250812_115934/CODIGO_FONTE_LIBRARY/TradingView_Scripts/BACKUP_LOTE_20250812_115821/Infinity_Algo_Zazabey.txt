@@ -1,0 +1,102 @@
+﻿//@version=5
+
+indicator('Nas Infinity Algo [ZZ Algo]', overlay=true, format=format.price, precision=2)
+
+
+
+Periods = 40
+
+src = hl2
+
+Multiplier = input.float(title='Sensitivity', step=0.1, defval=7.2)
+
+changeATR = true
+
+showsignals = input(title='Show Buy/Sell Signals ?', defval=true)
+
+highlighting = input(title='Highlighter On/Off ?', defval=false)
+
+atr2 = ta.sma(ta.tr, Periods)
+
+atr = changeATR ? ta.atr(Periods) : atr2
+
+up = src - Multiplier * atr
+
+up1 = nz(up[1], up)
+
+up := close[1] > up1 ? math.max(up, up1) : up
+
+dn = src + Multiplier * atr
+
+dn1 = nz(dn[1], dn)
+
+dn := close[1] < dn1 ? math.min(dn, dn1) : dn
+
+trend = 1
+
+trend := nz(trend[1], trend)
+
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+
+upPlot = plot(trend == 1 ? up : na, title='Up Trend', style=plot.style_linebr, linewidth=2, color=highlighting == true ? #4caf50 : #ffffff00)
+
+buySignal = trend == 1 and trend[1] == -1
+
+plotshape(buySignal and showsignals ? up : na, title='Buy', text='Buy', location=location.absolute, style=shape.labelup, size=size.normal, color=#4caf50, textcolor=color.new(color.white, 0))
+
+dnPlot = plot(trend == 1 ? na : dn, title='Down Trend', style=plot.style_linebr, linewidth=2, color= highlighting == true ? #ff5252 : #ffffff00)
+
+sellSignal = trend == -1 and trend[1] == 1
+
+plotshape(sellSignal and showsignals ? dn : na, title='Sell', text='Sell', location=location.absolute, style=shape.labeldown, size=size.normal, color=color.new(color.red, 0), textcolor=color.new(color.white, 0))
+
+mPlot = plot(ohlc4, title='', style=plot.style_circles, linewidth=0)
+
+longFillColor = highlighting ? trend == 1 ? #4caf4f0b : #ffffff00 : #ffffff00
+
+shortFillColor = highlighting ? trend == -1 ? #ff52520e : #ffffff00 : #ffffff00
+
+fill(mPlot, upPlot, title='UpTrend Highligter', color=longFillColor, transp=91)
+
+fill(mPlot, dnPlot, title='DownTrend Highligter', color=shortFillColor, transp=90)
+
+alertcondition(buySignal, title='SuperTrend Buy', message='SuperTrend Buy!')
+
+alertcondition(sellSignal, title='SuperTrend Sell', message='SuperTrend Sell!')
+
+changeCond = trend != trend[1]
+
+alertcondition(changeCond, title='SuperTrend Direction Change', message='SuperTrend has changed direction!')
+
+
+
+// Peak Profit
+
+import protradingart/pta_plot/6 as pp 
+
+
+
+pp.peakprofit(buySignal, sellSignal)
+
+
+
+// Bar Colors
+
+var color barColor = na
+
+if (sellSignal)
+
+    barColor := color.red
+
+else if (buySignal)
+
+    barColor := color.green
+
+else
+
+    barColor := barColor[1]
+
+
+
+barcolor(barColor)
+

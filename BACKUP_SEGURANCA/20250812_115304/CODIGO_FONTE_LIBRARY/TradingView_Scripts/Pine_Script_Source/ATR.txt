@@ -1,0 +1,319 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © LuxAlgo
+
+//@version=5
+indicator("Targets For Overlay Indicators [LuxAlgo]", shorttitle = "LuxAlgo - Targets For Overlay Indicators", overlay = true, max_lines_count = 500, max_labels_count = 500)
+//-----------------------------------------------------------------------------}
+//Target 1
+//-----------------------------------------------------------------------------{
+source = input.source(close)
+showLabels = input(true, 'Show Target Labels')
+candleColoring = input(true, 'Candle Coloring')
+
+//Crossover Target
+enableTarget1 = input(true, 'Show Crossover Target'
+  , group     = 'Crossover Source')
+
+isLong1       = input(true, 'Above Price Target'
+  , inline    = 'enable'
+  , group     = 'Crossover Source')
+
+//Target 1 Logic
+waitTarget1   = input(false, 'Wait Until Reached'
+  , group     = 'Crossover Source')
+
+newTarget1    = input(false, 'New Target When Reached'
+  , group     = 'Crossover Source')
+
+useWicks1     = input(true, 'Evaluate Wicks'
+  , group     = 'Crossover Source')
+
+distTarget1   = input.float(3, 'Target Distance From Price'
+  , inline    = 'dist1'
+  , group     = 'Crossover Source')
+
+distOptions1  = input.string('ATR', ''
+  , options   = ['Currencies', '%', 'ATR', 'Ticks']
+  , inline    = 'dist1'
+  , group     = 'Crossover Source')
+
+target1Css    = input(#089981, 'Target Color '
+  , inline    = 'style'
+  , group     = 'Crossover Source')
+
+target1Style  = input.string('- - -', '    Levels Style'
+  , options   = ['──','- - -','· · ·']
+  , inline    = 'style'
+  , group     = 'Crossover Source')
+
+//-----------------------------------------------------------------------------}
+//Target 2
+//-----------------------------------------------------------------------------{
+//Crossunder Target
+enableTarget2 = input(true, 'Show Crossunder Target'
+  , group     = 'Crossunder Source')
+
+isLong2       = input(false, 'Above Price Target'
+  , inline    = 'enable'
+  , group     = 'Crossunder Source')
+
+//Target 1 Logic
+waitTarget2   = input(false, 'Wait Until Reached'
+  , group     = 'Crossunder Source')
+
+newTarget2    = input(false, 'New Target When Reached'
+  , group     = 'Crossunder Source')
+
+useWicks2     = input(true, 'Evaluate Wicks'
+  , group     = 'Crossunder Source')
+
+distTarget2   = input.float(3, 'Target Distance From Price'
+  , inline    = 'dist1'
+  , group     = 'Crossunder Source')
+
+distOptions2  = input.string('ATR', ''
+  , options   = ['Currencies', '%', 'ATR', 'Ticks']
+  , inline    = 'dist1'
+  , group     = 'Crossunder Source')
+
+target2Css    = input(#f23645, 'Target Color '
+  , inline    = 'style'
+  , group     = 'Crossunder Source')
+
+target2Style  = input.string('- - -', '    Levels Style'
+  , options   = ['──','- - -','· · ·']
+  , inline    = 'style'
+  , group     = 'Crossunder Source')
+
+//-----------------------------------------------------------------------------}
+//Dashboard
+//-----------------------------------------------------------------------------{
+showDash      = input.bool     (    true      , 'Show Dashboard'                                                     , group = 'Dashboard')
+dashLoc       = input.string   (  'Top Right' , 'Location'  , options = ['Top Right', 'Bottom Right', 'Bottom Left'] , group = 'Dashboard')
+textSize      = input.string   (   'Normal'   , 'Size'      , options =          ['Tiny', 'Small', 'Normal']         , group = 'Dashboard')
+
+//-----------------------------------------------------------------------------}
+//UDT
+//-----------------------------------------------------------------------------{
+type lshape
+    line v
+    line h
+
+type target
+    float  value
+    int    loc
+    bool   reached
+    bool   islong
+    bool   active
+    lshape lines
+    label  lbl
+
+//-----------------------------------------------------------------------------}
+//Functions
+//-----------------------------------------------------------------------------{
+n = bar_index
+
+method set_target(target id, css, lstyle)=>
+    style = switch lstyle
+        '- - -' => line.style_dashed
+        '· · ·' => line.style_dotted
+        =>         line.style_solid
+    
+    id.lines := lshape.new(line.new(n, close, n, id.value, color = css, style = style),
+      line.new(n, id.value, n, id.value, color = css, style = style))
+
+method delete(target id)=>
+    id.lines.v.delete()
+    id.lines.h.delete()
+
+//-----------------------------------------------------------------------------}
+//Set crossover target
+//-----------------------------------------------------------------------------{
+var color css            = na
+bool      isNewTarget1   = false
+bool      isTgReached1   = false
+
+var int countTargets1   = 0
+var int countTgReached1 = 0
+
+var target1_object      = target.new(reached = true, active = false)
+
+target1_condition = ta.crossover(close, source)
+
+//Distance
+dist1 = switch distOptions1
+    'Currencies' => distTarget1
+    '%' => close + distTarget1 / 100 * close
+    'ATR' => nz(ta.atr(50)) * distTarget1
+    'Ticks' => syminfo.mintick * distTarget1
+
+if target1_object.active and target1_object.reached == false
+    target1_object.lines.h.set_x2(n)
+    target1_object.lbl.set_x(n)
+
+if (isLong1 ? (useWicks1 ? high : close) > target1_object.value : (useWicks1 ? low : close) < target1_object.value) and target1_object.active 
+    target1_object.reached := true
+    target1_object.active  := false 
+    isTgReached1           := true
+    countTgReached1        += 1
+    css := na
+    target1_object.lbl.set_color(target1Css)
+
+if enableTarget1 and 
+ (
+  (target1_condition and (waitTarget1 ? target1_object.reached : true)) 
+  or 
+  (newTarget1 and target1_object.reached)
+ ) 
+    target_value = close + (isLong1 ? dist1 : -dist1)
+
+    //Delete label if reached and creating new target
+    if newTarget1 and target1_object.reached and showLabels
+        target1_object.lbl.delete()
+
+    //Create new target
+    target1_object := target.new(target_value, n, false, isLong1, active = true)
+
+    if showLabels
+        target1_object.lbl := label.new(n, target_value, 'Target'
+          , color = color.new(target1Css, 50)
+          , textcolor = color.white
+          , size = size.tiny
+          , style = label.style_label_left
+          , tooltip = str.tostring(target_value, format.mintick))
+
+    css := target1Css
+
+    target1_object.set_target(target1Css, target1Style)
+
+    isNewTarget1  := true 
+    countTargets1 += 1
+
+//-----------------------------------------------------------------------------}
+//Set crossunder target
+//-----------------------------------------------------------------------------{
+bool isNewTarget2   = false
+bool isTgReached2   = false
+
+var int countTargets2   = 0
+var int countTgReached2 = 0
+
+var target2_object = target.new(reached = true, active = false)
+
+target2_condition = ta.crossunder(close, source)
+
+//Distance
+dist2 = switch distOptions2
+    'Currencies' => distTarget2
+    '%' => close + distTarget2 / 100 * close
+    'ATR' => nz(ta.atr(50)) * distTarget2
+    'Ticks' => syminfo.mintick * distTarget2
+
+if target2_object.active and target2_object.reached == false
+    target2_object.lines.h.set_x2(n)
+    target2_object.lbl.set_x(n)
+
+if (isLong2 ? (useWicks2 ? high : close) > target2_object.value : (useWicks2 ? low : close) < target2_object.value) and target2_object.active 
+    target2_object.reached := true
+    target2_object.active  := false 
+    isTgReached2           := true
+    countTgReached2        += 1
+    css := na
+    target2_object.lbl.set_color(target2Css)
+
+if enableTarget2     and
+ (
+  (target2_condition and (waitTarget2 ? target2_object.reached : true)) 
+  or 
+  (newTarget2 and target2_object.reached)
+ ) 
+    target_value = close + (isLong2 ? dist2 : -dist2)
+
+    //Delete label if reached and creating new target
+    if newTarget2 and target2_object.reached and showLabels
+        target1_object.lbl.delete()
+
+    //Create new target
+    target2_object := target.new(target_value, n, false, isLong2, active = true)
+
+    if showLabels
+        target2_object.lbl := label.new(n, target_value, 'Target'
+          , color = color.new(target2Css, 50)
+          , textcolor = color.white
+          , size = size.tiny
+          , style = label.style_label_left
+          , tooltip = str.tostring(target_value, format.mintick))
+    
+    css := target2Css
+
+    target2_object.set_target(target2Css, target2Style)
+
+    isNewTarget2  := true 
+    countTargets2 += 1
+
+//-----------------------------------------------------------------------------}
+//Plots
+//-----------------------------------------------------------------------------{
+barcolor(candleColoring ? css : na, title = 'Candle Coloring')
+
+//-----------------------------------------------------------------------------}
+//Dashboard
+//-----------------------------------------------------------------------------{
+var table_position = dashLoc == 'Bottom Left' ? position.bottom_left 
+  : dashLoc == 'Top Right' ? position.top_right 
+  : position.bottom_right
+
+var table_size = textSize == 'Tiny' ? size.tiny 
+  : textSize == 'Small' ? size.small 
+  : size.normal
+
+var tb = table.new(table_position, 3, 4
+  , bgcolor      = #1e222d
+  , border_color = #373a46
+  , border_width = 1
+  , frame_color  = #373a46
+  , frame_width  = 1)
+
+if showDash
+
+    if barstate.isfirst
+        if enableTarget1 or enableTarget2
+            tb.cell(0, 0,             ''           , text_color = color.white, text_size = table_size)
+            tb.cell(1, 0,          'Count'         , text_color = color.white, text_size = table_size)
+            tb.cell(2, 0,    'Target\nReached'     , text_color = color.white, text_size = table_size)
+            tb.cell(0, 3,         'Total'          , text_color = color.white, text_size = table_size)
+
+        if enableTarget1
+            tb.cell(0, 1,        'Target 1'        , text_color = color.white, text_size = table_size)
+        if enableTarget2
+            tb.cell(0, 2,        'Target 2'        , text_color = color.white, text_size = table_size)
+
+    if barstate.islast
+        totT = countTargets1   + countTargets2        
+        totR = countTgReached1 + countTgReached2
+ 
+        if totT == 0
+            tb.clear(0, 0, 2, 3)
+            tb.cell(0, 0, 'Please Select another input source from the "Source" setting.', text_color = color.white, text_size = table_size)
+        else
+            if enableTarget1
+                tb.cell(1, 1, str.tostring(countTargets1)                                                                       , text_color = color.white, text_size = table_size)
+                tb.cell(2, 1, str.format  ('{0} ({1}%)', countTgReached1 , math.round(100 / countTargets1 * countTgReached1, 1)), text_color = color.white, text_size = table_size)
+            if enableTarget2
+                tb.cell(1, 2, str.tostring(countTargets2)                                                                       , text_color = color.white, text_size = table_size)
+                tb.cell(2, 2, str.format  ('{0} ({1}%)', countTgReached2 , math.round(100 / countTargets2 * countTgReached2, 1)), text_color = color.white, text_size = table_size)
+            if enableTarget1 or enableTarget2
+                tb.cell(1, 3, str.tostring(     totT    )                                                                       , text_color = color.white, text_size = table_size)
+                tb.cell(2, 3, str.format  ('{0} ({1}%)',       totR      , math.round(100 /      totT     *       totR     , 1)), text_color = color.white, text_size = table_size)
+
+
+//-----------------------------------------------------------------------------}
+//Alerts
+//-----------------------------------------------------------------------------{
+alertcondition(isNewTarget1, "Target 1 New"    , "Target 1 New"    )
+alertcondition(isTgReached1, 'Target 1 Reached', 'Target 1 Reached')
+
+alertcondition(isNewTarget2, "Target 2 New"    , "Target 2 New"    )
+alertcondition(isTgReached2, 'Target 2 Reached', 'Target 2 Reached')
+
+//-----------------------------------------------------------------------------}

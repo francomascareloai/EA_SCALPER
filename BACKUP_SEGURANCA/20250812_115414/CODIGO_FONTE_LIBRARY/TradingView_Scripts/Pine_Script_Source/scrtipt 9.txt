@@ -1,0 +1,118 @@
+
+//@version=5
+indicator("script 9", 
+     overlay = false)
+
+greencolor = #2DD204
+redcolor = #D2042D
+
+_pulldat(src, res, rep)=>
+    out = request.security(syminfo.tickerid, res, src[rep ? 0 : barstate.isrealtime ? 1 : 0])[rep ? 0 : barstate.isrealtime ? 0 : 1]
+    out
+    
+_imom(src, length, powSlow, powFast)=>
+    suma = 0., sumwa=0.
+    sumb = 0., sumwb=0.
+    
+    for k = 0 to length 
+        weight = length-k
+        suma  += nz(src[k]) * math.pow(weight, powSlow)
+        sumb  += nz(src[k]) * math.pow(weight, powFast)
+        sumwa += math.pow(weight, powSlow)
+        sumwb += math.pow(weight, powFast)
+    out = (sumb/sumwb-suma/sumwa)
+    out
+
+_dm(per, res, rep)=>
+    highin =  _pulldat(high, res, rep)
+    lowin = _pulldat(low, res, rep)
+    demax = math.max(ta.change(highin), 0)
+    demin = -math.min(ta.change(lowin), 0)
+    maxma= ta.sma(demax, per)
+    minma = ta.sma(demin, per)
+    demarker = 100 * maxma / (maxma + minma)
+    demarker
+
+demarkper = input(title='DeMarker Period', defval=14, group = "DeMarker Settings")
+demarkres = input.timeframe("", 'DeMarker Resolution', group = "DeMarker Settings")
+demarkrep = input(true, 'DeMarker Allow Repainting?', group = "DeMarker Settings")
+
+macdsrcin = input.source(close, "MACD Source", group = "MACD Settings")
+fmacd = input(title='MACD Fast Period', defval=12, group = "MACD Settings")
+smacd = input(title='MACD Slow Period', defval=26, group = "MACD Settings")
+macdres = input.timeframe("", 'MACD Resolution', group = "MACD Settings")
+macdrep = input(true, 'MACD Allow Repainting?', group = "MACD Settings")
+
+rsisrcin = input.source(close, "RSI Source", group = "RSI Settings")
+rsiper = input.int(14, "RSI Period", group = "RSI Settings")
+rsires = input.timeframe("", 'RSI Resolution', group = "RSI Settings")
+rsirep = input(true, 'RSI Allow Repainting?', group = "RSI Settings")
+
+velsrcin = input.source(close, "Velocity Source", group = "Velocity Settings")
+velper = input.int(32, "Velocity Period", group = "Velocity Settings")
+velfast = input.int(1, "Velocity Fast Period", group = "Velocity Settings")
+velslow = input.int(2, "Velocity Slow Period", group = "Velocity Settings")
+velres = input.timeframe("", 'Velocity Resolution', group = "Velocity Settings")
+velrep = input(true, 'Velocity Allow Repainting?', group = "Velocity Settings")
+
+ccisrcin = input.source(close, "CCI Source", group = "CCI Settings")
+cciper = input.int(14, "CCI Period", group = "CCI Settings")
+ccires = input.timeframe("", 'CCI Resolution', group = "CCI Settings")
+ccirep = input(true, 'CCI Allow Repainting?', group = "CCI Settings")
+
+periodK = input.int(14, title="Stochasitc %K Length", minval=1, group = "Stochasitc Settings")
+smoothK = input.int(1, title="Stochasitc %K Smoothing", minval=1, group = "Stochasitc Settings")
+periodD = input.int(3, title="Stochasitc %D Smoothing", minval=1, group = "Stochasitc Settings")
+stochres = input.timeframe("", 'Stochasitc Resolution', group = "Stochasitc Settings")
+stochrep = input(true, 'Stochasitc Allow Repainting?', group = "Stochasitc Settings")
+
+colorbars = input.bool(true, "Color bars?", group = "UI Options")
+
+macdsrc = _pulldat(macdsrcin, macdres, macdrep) 
+rsisrc =  _pulldat(rsisrcin, rsires, rsirep)
+velsrc =  _pulldat(velsrcin, velres, velrep) 
+ccisrc = _pulldat(ccisrcin, ccires, ccirep) 
+stochhi =_pulldat(high, stochres, stochrep)   
+stochlo = _pulldat(low, stochres, stochrep)    
+stochclose = _pulldat(close, stochres, stochrep)
+
+dmark = _dm(demarkper, demarkres, demarkrep)
+[macd, _, _] = ta.macd(macdsrc, fmacd, smacd, 9)
+rsi = ta.rsi(rsisrc, rsiper)
+stoch = ta.sma(ta.stoch(stochclose, stochhi, stochlo, periodK), smoothK)
+cci = ta.cci(ccisrc, cciper)
+vel = _imom(velsrc, velper, velfast, velslow)
+
+plotshape(1, color = dmark > 50 ? greencolor : redcolor, style = shape.circle, location = location.absolute)
+plotshape(2, color = macd > 0 ? greencolor : redcolor, style = shape.circle, location = location.absolute)
+plotshape(3, color = rsi > 50 ? greencolor : redcolor, style = shape.circle, location = location.absolute)
+plotshape(4, color = stoch > 50 ? greencolor : redcolor, style = shape.circle, location = location.absolute)
+plotshape(5, color = cci > 0 ? greencolor : redcolor, style = shape.circle, location = location.absolute)
+plotshape(6, color = vel > 0 ? greencolor : redcolor, style = shape.circle, location = location.absolute)
+
+colorout = 
+     dmark > 50 and macd > 0 and rsi > 50 and stoch > 50 and cci > 0 and vel > 0 ? greencolor : 
+     dmark < 50 and macd < 0 and rsi < 50 and stoch < 50 and cci < 0 and vel < 0  ? redcolor : 
+     color.gray
+
+barcolor(colorbars ? colorout : na)
+
+goLong_pre = dmark > 50 and macd > 0 and rsi > 50 and stoch > 50 and cci > 0 and vel > 0  
+goShort_pre = dmark < 50 and macd < 0 and rsi < 50 and stoch < 50 and cci < 0 and vel < 0 
+
+contSwitch = 0
+contSwitch := nz(contSwitch[1])
+contSwitch := goLong_pre ? 1 : goShort_pre ? -1 : contSwitch
+
+goLong = goLong_pre and ta.change(contSwitch)
+goShort = goShort_pre and ta.change(contSwitch)
+
+plotshape(colorout == redcolor ? 7 : na, style = shape.triangledown, location = location.absolute, size = size.auto, color = color.fuchsia)
+plotshape(colorout == greencolor ? 0 : na, style = shape.triangleup, location = location.absolute, size = size.auto, color = color.yellow)
+
+alertcondition(goLong, title="Long", message="Super 6x: RSI, MACD, Stoch, DeMarker, CCI, & Velocity [Loxx]: Long\nSymbol: {{ticker}}\nPrice: {{close}}")
+alertcondition(goShort, title="Short", message="Super 6x: RSI, MACD, Stoch, DeMarker, CCI, & Velocity [Loxx]: Short\nSymbol: {{ticker}}\nPrice: {{close}}")
+
+
+
+

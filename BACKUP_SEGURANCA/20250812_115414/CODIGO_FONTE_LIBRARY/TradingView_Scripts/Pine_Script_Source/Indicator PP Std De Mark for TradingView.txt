@@ -1,0 +1,178 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join us https://t.me/simpleforextools
+
+//@version=6
+indicator("PP Std De Mark", "De Mark", overlay=true, max_lines_count=500, max_labels_count=500)
+
+pivotTypeInput = input.string(title="Type", defval="DM", options=["Traditional", "Fibonacci", "Woodie", "Classic", "DM", "Camarilla"])
+pivotAnchorInput = input.string(title="Pivots Timeframe", defval="Auto", options=["Auto", "Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "Biyearly", "Triyearly", "Quinquennially", "Decennially"])
+maxHistoricalPivotsInput = input.int(title="Number of Pivots Back", defval=15, minval=1, maxval=200, display = display.data_window)
+isDailyBasedInput = input.bool(title="Use Daily-based Values", defval=true, display = display.data_window, tooltip="When this option is unchecked, Pivot Points will use intraday data while calculating on intraday charts. If Extended Hours are displayed on the chart, they will be taken into account during the pivot level calculation. If intraday OHLC values are different from daily-based values (normal for stocks), the pivot levels will also differ.")
+showLabelsInput = input.bool(title="Show Labels", defval=true, group="labels", display = display.data_window)
+showPricesInput = input.bool(title="Show Prices", defval=true, group="labels", display = display.data_window)
+positionLabelsInput = input.string("Left", "Labels Position", options=["Left", "Right"], group="labels", display = display.data_window)
+linewidthInput = input.int(title="Line Width", defval=1, minval=1, maxval=100, group="levels", display = display.data_window)
+
+DEFAULT_COLOR = #FB8C00
+pColorInput = input.color(DEFAULT_COLOR, "P‏  ‏  ‏", inline="P", group="levels", display = display.data_window)
+pShowInput = input.bool(true, "", inline="P", group="levels", display = display.data_window)
+s1ColorInput = input.color(DEFAULT_COLOR, "S1", inline="S1/R1" , group="levels", display = display.data_window)
+s1ShowInput = input.bool(true, "", inline="S1/R1", group="levels", display = display.data_window)
+r1ColorInput = input.color(DEFAULT_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R1", inline="S1/R1", group="levels", display = display.data_window)
+r1ShowInput = input.bool(true, "", inline="S1/R1", group="levels", display = display.data_window)
+s2ColorInput = input.color(DEFAULT_COLOR, "S2", inline="S2/R2", group="levels", display = display.data_window)
+s2ShowInput = input.bool(true, "", inline="S2/R2", group="levels", display = display.data_window)
+r2ColorInput = input.color(DEFAULT_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R2", inline="S2/R2", group="levels", display = display.data_window)
+r2ShowInput = input.bool(true, "", inline="S2/R2", group="levels", tooltip = "Not applicable to DM", display = display.data_window)
+s3ColorInput = input.color(DEFAULT_COLOR, "S3", inline="S3/R3", group="levels", display = display.data_window)
+s3ShowInput = input.bool(true, "", inline="S3/R3", group="levels", display = display.data_window)
+r3ColorInput = input.color(DEFAULT_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R3", inline="S3/R3", group="levels", display = display.data_window)
+r3ShowInput = input.bool(true, "", inline="S3/R3", group="levels", tooltip = "Not applicable to DM", display = display.data_window)
+s4ColorInput = input.color(DEFAULT_COLOR, "S4", inline="S4/R4", group="levels", display = display.data_window)
+s4ShowInput = input.bool(true, "", inline="S4/R4", group="levels", display = display.data_window)
+r4ColorInput = input.color(DEFAULT_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R4", inline="S4/R4", group="levels", display = display.data_window)
+r4ShowInput = input.bool(true, "", inline="S4/R4", group="levels", tooltip = "Not applicable to: Fibonacci, DM", display = display.data_window)
+s5ColorInput = input.color(DEFAULT_COLOR, "S5", inline="S5/R5", group="levels", display = display.data_window)
+s5ShowInput = input.bool(true, "", inline="S5/R5", group="levels", display = display.data_window)
+r5ColorInput = input.color(DEFAULT_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R5", inline="S5/R5", group="levels", display = display.data_window)
+r5ShowInput = input.bool(true, "", inline="S5/R5", group="levels", tooltip = "Not applicable to: Fibonacci, Woodie, Classic, DM", display = display.data_window)
+
+type graphicSettings
+    string levelName
+    color levelColor
+    bool showLevel
+
+var graphicSettingsArray = array.from(
+      graphicSettings.new(" P", pColorInput, pShowInput),
+      graphicSettings.new("R1", r1ColorInput, r1ShowInput), graphicSettings.new("S1", s1ColorInput, s1ShowInput),
+      graphicSettings.new("R2", r2ColorInput, r2ShowInput), graphicSettings.new("S2", s2ColorInput, s2ShowInput),
+      graphicSettings.new("R3", r3ColorInput, r3ShowInput), graphicSettings.new("S3", s3ColorInput, s3ShowInput),
+      graphicSettings.new("R4", r4ColorInput, r4ShowInput), graphicSettings.new("S4", s4ColorInput, s4ShowInput),
+      graphicSettings.new("R5", r5ColorInput, r5ShowInput), graphicSettings.new("S5", s5ColorInput, s5ShowInput))
+
+autoAnchor = switch
+    timeframe.isintraday => timeframe.multiplier <= 15 ? "1D" : "1W"
+    timeframe.isdaily    => "1M"
+    => "12M"
+
+pivotTimeframe = switch pivotAnchorInput
+    "Auto"      => autoAnchor
+    "Daily"     => "1D"
+    "Weekly"    => "1W"
+    "Monthly"   => "1M"
+    "Quarterly" => "3M"
+    => "12M"
+
+//@variable The number of years in the selected Pivot period
+pivotYearMultiplier = switch pivotAnchorInput
+    "Biyearly"       => 2
+    "Triyearly"      => 3
+    "Quinquennially" => 5
+    "Decennially"    => 10
+    => 1
+
+//@variable The number of values in the pivots of the selected type
+numOfPivotLevels = switch pivotTypeInput
+    "Traditional" => 11
+    "Camarilla"   => 11
+    "Woodie"      => 9
+    "Classic"     => 9
+    "Fibonacci"   => 7
+    "DM"          => 3
+
+type pivotGraphic
+    line pivotLine
+    label pivotLabel
+
+method delete(pivotGraphic graphic) =>
+    graphic.pivotLine.delete()
+    graphic.pivotLabel.delete()
+
+var drawnGraphics = matrix.new<pivotGraphic>()
+
+localPivotTimeframeChange = timeframe.change(pivotTimeframe) and year % pivotYearMultiplier == 0
+securityPivotTimeframeChange = timeframe.change(timeframe.period) and year % pivotYearMultiplier == 0
+
+pivotTimeframeChangeCounter(condition) => 
+    var count = 0
+    if condition and bar_index > 0
+        count += 1
+    count
+
+localPivots = ta.pivot_point_levels(pivotTypeInput, localPivotTimeframeChange)
+securityPivotPointsArray = ta.pivot_point_levels(pivotTypeInput, securityPivotTimeframeChange)
+
+securityTimeframe = timeframe.isintraday ? "1D" : timeframe.period
+[securityPivots, securityPivotCounter] = request.security(syminfo.tickerid, pivotTimeframe, [securityPivotPointsArray, pivotTimeframeChangeCounter(securityPivotTimeframeChange)], lookahead = barmerge.lookahead_on)
+pivotPointsArray = isDailyBasedInput ? securityPivots : localPivots
+
+//@function Sets the ending points of the currently active pivots to `endTime`.
+affixOldPivots(endTime) =>
+    if drawnGraphics.rows() > 0
+        lastGraphics = drawnGraphics.row(drawnGraphics.rows() - 1)
+
+        for graphic in lastGraphics
+            graphic.pivotLine.set_x2(endTime)
+            if positionLabelsInput == "Right"
+                graphic.pivotLabel.set_x(endTime)
+
+//@function Draws pivot lines and labels from `startTime` to the approximate end of the period.
+drawNewPivots(startTime) =>
+    
+    newGraphics = array.new<pivotGraphic>()
+
+    for [index, coord] in pivotPointsArray
+        levelSettings = graphicSettingsArray.get(index)
+        if not na(coord) and levelSettings.showLevel
+            lineEndTime = startTime + timeframe.in_seconds(pivotTimeframe) * 1000 * pivotYearMultiplier
+            pivotLine = line.new(startTime, coord, lineEndTime, coord, xloc = xloc.bar_time, color=levelSettings.levelColor, width=linewidthInput)
+            pivotLabel = label.new(x = positionLabelsInput == "Left" ? startTime : lineEndTime,
+                               y = coord,
+                               text = (showLabelsInput ? levelSettings.levelName + " " : "") + (showPricesInput ? "(" + str.tostring(coord, format.mintick) + ")" : ""),
+                               style = positionLabelsInput == "Left" ? label.style_label_right : label.style_label_left,
+                               textcolor = levelSettings.levelColor,
+                               color = #00000000,
+                               xloc=xloc.bar_time)
+            
+            newGraphics.push(pivotGraphic.new(pivotLine, pivotLabel))
+    
+    drawnGraphics.add_row(array_id = newGraphics)
+
+    if drawnGraphics.rows() > maxHistoricalPivotsInput
+        oldGraphics = drawnGraphics.remove_row(0)
+        
+        for graphic in oldGraphics
+            graphic.delete()
+
+
+localPivotDrawConditionStatic = not isDailyBasedInput and localPivotTimeframeChange
+securityPivotDrawConditionStatic = isDailyBasedInput and securityPivotCounter != securityPivotCounter[1]
+
+var isMultiYearly = array.from("Biyearly", "Triyearly", "Quinquennially", "Decennially").includes(pivotAnchorInput)
+localPivotDrawConditionDeveloping = not isDailyBasedInput and time_close == time_close(pivotTimeframe) and not isMultiYearly 
+securityPivotDrawConditionDeveloping = false
+
+if (securityPivotDrawConditionStatic or localPivotDrawConditionStatic)
+    affixOldPivots(time)
+    drawNewPivots(time)
+
+// If possible, draw pivots from the beginning of the chart if none were found
+var FIRST_BAR_TIME = time
+if (barstate.islastconfirmedhistory and drawnGraphics.columns() == 0)
+
+    if not na(securityPivots) and securityPivotCounter > 0
+        if isDailyBasedInput
+            drawNewPivots(FIRST_BAR_TIME)
+        else 
+            runtime.error("Not enough intraday data to calculate Pivot Points. Lower the Pivots Timeframe or turn on the 'Use Daily-based Values' option in the indicator settings.")
+    else
+        runtime.error("Not enough data to calculate Pivot Points. Lower the Pivots Timeframe in the indicator settings.")
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

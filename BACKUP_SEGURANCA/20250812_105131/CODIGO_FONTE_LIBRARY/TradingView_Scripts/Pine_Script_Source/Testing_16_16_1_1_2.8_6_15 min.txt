@@ -1,0 +1,86 @@
+//@version=5
+strategy("TESTING", overlay=true)
+
+// Input settings
+source = input(defval=close, title='Source')
+per1 = input.int(defval=27, minval=1, title='Fast period')
+mult1 = input.float(defval=1.6, minval=0.1, title='Fast range')
+per2 = input.int(defval=55, minval=1, title='Slow period')
+mult2 = input.float(defval=2, minval=0.1, title='Slow range')
+skipThresholdPercent = input.float(defval=1.3, title='Skip Threshold (%)')
+stopLossPercent = input.float(defval=1.0, minval=0.0, step=0.1, title='Stop Loss Percentage')
+
+// Smooth range calculation
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), t)
+    ta.ema(avrng, wper) * m
+
+smrng1 = smoothrng(source, per1, mult1)
+smrng2 = smoothrng(source, per2, mult2)
+smrng = (smrng1 + smrng2) / 2
+
+// Range filtering
+rngfilt(x, r) =>
+    var float rngfilt = na
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r : x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+    rngfilt
+
+filt = rngfilt(source, smrng)
+
+// Trend detection
+STR = filt + smrng
+STS = filt - smrng
+
+FUB = 0.0
+FUB := STR < nz(FUB[1]) or close[1] > nz(FUB[1]) ? STR : nz(FUB[1])
+FLB = 0.0
+FLB := STS > nz(FLB[1]) or close[1] < nz(FLB[1]) ? STS : nz(FLB[1])
+TRF = 0.0
+TRF := nz(TRF[1]) == FUB[1] and close <= FUB ? FUB : nz(TRF[1]) == FUB[1] and close >= FUB ? FLB : nz(TRF[1]) == FLB[1] and close >= FLB ? FLB : nz(TRF[1]) == FLB[1] and close <= FLB ? FUB : FUB
+
+// Trading conditions
+longCondition = ta.crossover(close, TRF)
+shortCondition = ta.crossunder(close, TRF)
+
+// Check the distance to TRF for skipping entries
+distanceToTRF = math.abs(close - TRF)
+threshold = (skipThresholdPercent / 100) * close
+
+var bool inShortPosition = false
+
+if (shortCondition)
+    if (distanceToTRF > threshold)
+        label.new(bar_index, close, "Skipped Sell Entry", color=color.red, textcolor=color.white, style=label.style_label_up)
+    else
+        strategy.entry("Sell", strategy.short)
+        inShortPosition := true
+
+if (longCondition)
+    if (distanceToTRF > threshold)
+        label.new(bar_index, close, "Skipped Buy Entry", color=color.red, textcolor=color.white, style=label.style_label_down)
+    else
+        strategy.entry("Buy", strategy.long)
+        inShortPosition := false  // Exit short position when entering long
+
+// Set Stop Loss and Take Profit
+if (strategy.position_size > 0)
+    stopLossLong = close * (1 - stopLossPercent / 100)
+    takeProfitLong = close * (1 + stopLossPercent / 100)
+    strategy.exit("Sell on Stop Loss/TP", from_entry="Buy", stop=stopLossLong, limit=takeProfitLong)
+
+if (strategy.position_size < 0)
+    stopLossShort = close * (1 + stopLossPercent / 100)
+    takeProfitShort = close * (1 - stopLossPercent / 100)
+    strategy.exit("Cover on Stop Loss/TP", from_entry="Sell", stop=stopLossShort, limit=takeProfitShort)
+
+// Exit short if a long signal is skipped
+if (inShortPosition and longCondition and distanceToTRF > threshold)
+    strategy.close("Sell")  // Close the short position at market price
+
+// Plotting signals
+plotshape(longCondition and distanceToTRF <= threshold, title='Long', text='BUY', style=shape.labelup, textcolor=color.white, size=size.tiny, location=location.belowbar, color=color.rgb(0, 19, 230))
+plotshape(shortCondition and distanceToTRF <= threshold, title='Short', text='SELL', style=shape.labeldown, textcolor=color.white, size=size.tiny, location=location.abovebar, color=color.rgb(0, 19, 230))
+
+// Plot the trend filter Test
+plot(TRF, title="Testing", color=color.blue)

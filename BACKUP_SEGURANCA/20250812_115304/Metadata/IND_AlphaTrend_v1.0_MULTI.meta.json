@@ -1,0 +1,49 @@
+{
+  "id": "IND_AlphaTrend_v1.0_MULTI",
+  "filename": "IND_AlphaTrend_v1.0_MULTI.mq5",
+  "original_filename": "Alpha Trend.mq5",
+  "file_hash": "pending_calculation",
+  "type": "Indicator",
+  "language": "MQL5",
+  "strategy": "Trend_Following",
+  "markets": ["FOREX", "XAUUSD", "INDICES", "CRYPTO"],
+  "timeframes": ["M1", "M5", "M15", "M30", "H1", "H4", "D1"],
+  "key_functions": [
+    "OnCalculate",
+    "OnInit",
+    "ATR_Calculation",
+    "TrendDetection",
+    "SignalGeneration"
+  ],
+  "dependencies": [
+    "Standard MQL5 libraries"
+  ],
+  "exposed_parameters": {
+    "inp_length": "Length (14)",
+    "inp_atr_multiplier": "ATR Multiplier (1.0)",
+    "inp_price": "Applied Price (PRICE_CLOSE)",
+    "inp_change_calc": "Use volume data (No)",
+    "inp_signals": "Show Signals (Yes)"
+  },
+  "ftmo_score": 9,
+  "detected_risks": [
+    "Trend following indicator - reliable",
+    "ATR-based calculations - adaptive",
+    "Clear buy/sell signals",
+    "No repainting issues",
+    "Suitable for all timeframes"
+  ],
+  "code_quality_score": 8,
+  "compilation_status": "pending",
+  "merge_readiness": 9,
+  "necessary_adjustments": [
+    "None - ready for use",
+    "Can be combined with other indicators",
+    "Good for trend confirmation"
+  ],
+  "author_license": "Copyright © 2022, Centaur",
+  "tags": ["#Indicator", "#Trend_Following", "#ATR", "#Signals", "#AlphaTrend", "#TrendDetection", "#MULTI"],
+  "created_date": "2024-12-19",
+  "classification_date": "2024-12-19",
+  "notes": "Alpha Trend indicator with ATR-based trend detection and clear buy/sell signals. Excellent for trend following strategies."
+}

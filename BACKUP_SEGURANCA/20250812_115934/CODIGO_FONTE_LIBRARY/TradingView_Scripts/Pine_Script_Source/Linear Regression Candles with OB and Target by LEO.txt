@@ -1,0 +1,1750 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Llopezf
+
+//@version=5
+indicator("Linear Regression Candles with OB and Target by LEO", format=format.price, precision=4, overlay = true, max_bars_back = 4000,max_lines_count=500,max_labels_count=500, max_boxes_count=500)               
+
+colors    = input.string(title = "Color Scheme", defval="BRIGHT", options=["DARK", "BRIGHT"])
+periods   = input(5,     "Relevant Periods to identify OB")                // Required number of subsequent candles in the same direction to identify Order Block
+threshold = input.float(0.0,   "Min. Percent move to identify OB", step = 0.1)   // Required minimum % move (from potential OB close to last subsequent candle to identify Order Block)
+usewicks  = input(false, "Use whole range [High/Low] for OB marking?" )    // Display High/Low range for each OB instead of Open/Low for Bullish / Open/High for Bearish
+showbull  = input(true,  "Show latest Bullish Channel?")                   // Show Channel for latest Bullish OB?
+showbear  = input(true,  "Show latest Bearish Channel?")                   // Show Channel for latest Bearish OB?
+showdocu  = input(false, "Show Label for documentation tooltip?")          // Show Label which shows documentation as tooltip?
+info_pan  = input(false, "Show Latest OB Panel?")                          // Show Info Panel with latest OB Stats
+
+ob_period = periods + 1                                                    // Identify location of relevant Order Block candle
+absmove   = ((math.abs(close[ob_period] - close[1]))/close[ob_period]) * 100    // Calculate absolute percent move from potential OB to last candle of subsequent candles
+relmove   = absmove >= threshold                                           // Identify "Relevant move" by comparing the absolute move to the threshold
+
+// Color Scheme
+bullcolor = colors == "DARK"? color.white : color.green
+bearcolor = colors == "DARK"? color.blue : color.red
+
+// Bullish Order Block Identification
+bullishOB = close[ob_period] < open[ob_period]                             // Determine potential Bullish OB candle (red candle)
+
+int upcandles  = 0
+for i = 1 to periods
+    upcandles := upcandles + (close[i] > open[i]? 1 : 0)                   // Determine color of subsequent candles (must all be green to identify a valid Bearish OB)
+
+OB_bull      = bullishOB and (upcandles == (periods)) and relmove          // Identification logic (red OB candle & subsequent green candles)
+OB_bull_high = OB_bull? usewicks? high[ob_period] : open[ob_period] : na   // Determine OB upper limit (Open or High depending on input)
+OB_bull_low  = OB_bull? low[ob_period]  : na                               // Determine OB lower limit (Low)
+OB_bull_avg  = (OB_bull_high + OB_bull_low)/2                              // Determine OB middle line
+
+
+// Bearish Order Block Identification
+bearishOB = close[ob_period] > open[ob_period]                             // Determine potential Bearish OB candle (green candle)
+
+int downcandles  = 0
+for i = 1 to periods
+    downcandles := downcandles + (close[i] < open[i]? 1 : 0)               // Determine color of subsequent candles (must all be red to identify a valid Bearish OB)
+
+OB_bear      = bearishOB and (downcandles == (periods)) and relmove        // Identification logic (green OB candle & subsequent green candles)
+OB_bear_high = OB_bear? high[ob_period] : na                               // Determine OB upper limit (High)
+OB_bear_low  = OB_bear? usewicks? low[ob_period] : open[ob_period] : na    // Determine OB lower limit (Open or Low depending on input)
+OB_bear_avg  = (OB_bear_low + OB_bear_high)/2                              // Determine OB middle line
+
+// Plotting
+
+plotshape(OB_bull, title="Bullish OB", style = shape.triangleup,   color = bullcolor, textcolor = bullcolor, size = size.tiny, location = location.belowbar, offset = -ob_period, text = "Bullish OB")     // Bullish OB Indicator
+bull1 = plot(OB_bull_high, title="Bullish OB High", style = plot.style_linebr, color = bullcolor, offset = -ob_period, linewidth = 3)                                               // Bullish OB Upper Limit
+bull2 = plot(OB_bull_low,  title="Bullish OB Low",  style = plot.style_linebr, color = bullcolor, offset = -ob_period, linewidth = 3)                                               // Bullish OB Lower Limit
+fill(bull1, bull2, color=bullcolor, transp = 0, title = "Bullish OB fill")                                                                                                          // Fill Bullish OB
+plotshape(OB_bull_avg, title="Bullish OB Average", style = shape.cross,   color = bullcolor, size = size.normal, location = location.absolute, offset = -ob_period)                 // Bullish OB Average
+
+
+plotshape(OB_bear, title="Bearish OB", style = shape.triangledown, color = bearcolor, textcolor = bearcolor,  size = size.tiny, location = location.abovebar, offset = -ob_period, text = "Bearish OB")     // Bearish OB Indicator
+bear1 = plot(OB_bear_low,  title="Bearish OB Low",  style = plot.style_linebr, color = bearcolor, offset = -ob_period, linewidth = 3)                                                // Bearish OB Lower Limit
+bear2 = plot(OB_bear_high, title="Bearish OB High", style = plot.style_linebr, color = bearcolor, offset = -ob_period, linewidth = 3)                                                // Bearish OB Upper Limit
+fill(bear1, bear2, color=bearcolor, transp = 0, title = "Bearish OB fill")                                                                                                           // Fill Bearish OB
+plotshape(OB_bear_avg, title="Bearish OB Average", style = shape.cross,   color = bearcolor, size = size.normal, location = location.absolute, offset = -ob_period)                  // Bullish OB Average
+
+var line linebull1 = na       // Bullish OB average 
+var line linebull2 = na       // Bullish OB open
+var line linebull3 = na       // Bullish OB low
+var line linebear1 = na       // Bearish OB average
+var line linebear2 = na       // Bearish OB high
+var line linebear3 = na       // Bearish OB open
+
+if OB_bull and showbull
+    line.delete(linebull1)
+    linebull1 := line.new(x1 = bar_index, y1 = OB_bull_avg, x2 = bar_index - 1, y2 = OB_bull_avg, extend = extend.left, color = bullcolor, style = line.style_solid, width = 1)
+    
+    line.delete(linebull2)
+    linebull2 := line.new(x1 = bar_index, y1 = OB_bull_high, x2 = bar_index - 1, y2 = OB_bull_high, extend = extend.left, color = bullcolor, style = line.style_dashed, width = 1)
+    
+    line.delete(linebull3)
+    linebull3 := line.new(x1 = bar_index, y1 = OB_bull_low, x2 = bar_index - 1, y2 = OB_bull_low, extend = extend.left, color = bullcolor, style = line.style_dashed, width = 1)
+
+if OB_bear and showbear
+    line.delete(linebear1)
+    linebear1 := line.new(x1 = bar_index, y1 = OB_bear_avg, x2 = bar_index - 1, y2 = OB_bear_avg, extend = extend.left, color = bearcolor,  style = line.style_solid, width = 1)
+    
+    line.delete(linebear2)
+    linebear2 := line.new(x1 = bar_index, y1 = OB_bear_high, x2 = bar_index - 1, y2 = OB_bear_high, extend = extend.left, color = bearcolor,  style = line.style_dashed, width = 1)
+    
+    line.delete(linebear3)
+    linebear3 := line.new(x1 = bar_index, y1 = OB_bear_low, x2 = bar_index - 1, y2 = OB_bear_low, extend = extend.left, color = bearcolor,  style = line.style_dashed, width = 1)
+
+
+// Alerts for Order Blocks Detection
+
+alertcondition(OB_bull, title='New Bullish OB detected', message='New Bullish OB detected - This is NOT a BUY signal!')
+alertcondition(OB_bear, title='New Bearish OB detected', message='New Bearish OB detected - This is NOT a SELL signal!')
+
+// Print latest Order Blocks in Data Window
+
+var latest_bull_high = 0.0         // Variable to keep latest Bull OB high
+var latest_bull_avg  = 0.0         // Variable to keep latest Bull OB average
+var latest_bull_low  = 0.0         // Variable to keep latest Bull OB low
+var latest_bear_high = 0.0         // Variable to keep latest Bear OB high
+var latest_bear_avg  = 0.0         // Variable to keep latest Bear OB average
+var latest_bear_low  = 0.0         // Variable to keep latest Bear OB low
+
+// Assign latest values to variables
+if OB_bull_high > 0
+    latest_bull_high := OB_bull_high
+
+if OB_bull_avg > 0
+    latest_bull_avg := OB_bull_avg
+
+if OB_bull_low > 0
+    latest_bull_low := OB_bull_low
+
+if OB_bear_high > 0
+    latest_bear_high := OB_bear_high
+    
+if OB_bear_avg > 0
+    latest_bear_avg := OB_bear_avg
+    
+if OB_bear_low > 0
+    latest_bear_low := OB_bear_low
+
+// Plot invisible characters to be able to show the values in the Data Window
+plotchar(latest_bull_high, char = ' ', location = location.abovebar, color = #777777, transp = 100, size = size.tiny, title = "Latest Bull High")
+plotchar(latest_bull_avg,  char = ' ', location = location.abovebar, color = #777777, transp = 100, size = size.tiny, title = "Latest Bull Avg")
+plotchar(latest_bull_low,  char = ' ', location = location.abovebar, color = #777777, transp = 100, size = size.tiny, title = "Latest Bull Low")
+plotchar(latest_bear_high, char = ' ', location = location.abovebar, color = #777777, transp = 100, size = size.tiny, title = "Latest Bear High")
+plotchar(latest_bear_avg,  char = ' ', location = location.abovebar, color = #777777, transp = 100, size = size.tiny, title = "Latest Bear Avg")
+plotchar(latest_bear_low,  char = ' ', location = location.abovebar, color = #777777, transp = 100, size = size.tiny, title = "Latest Bear Low")
+
+
+//InfoPanel for latest Order Blocks
+
+draw_InfoPanel(_text, _x, _y, font_size)=>
+    var label la_panel = na
+    label.delete(la_panel)
+    la_panel := label.new(
+         x=_x, y=_y, 
+         text=_text, xloc=xloc.bar_time, yloc=yloc.price, 
+         color=color.new(#383838, 5), style=label.style_label_left, textcolor=color.white, size=font_size)
+
+info_panel_x = time_close + math.round(ta.change(time) * 100)
+info_panel_y = close
+
+title = "LATEST ORDER BLOCKS"
+row0 = "-----------------------------------------------------"
+row1 = ' Bullish - High: ' + str.tostring(latest_bull_high, '#.##')
+row2 = ' Bullish - Avg: ' + str.tostring(latest_bull_avg, '#.##')
+row3 = ' Bullish - Low: ' + str.tostring(latest_bull_low, '#.##')
+row4 = "-----------------------------------------------------"
+row5 = ' Bearish - High: ' + str.tostring(latest_bear_high, '#.##')
+row6 = ' Bearish - Avg: ' + str.tostring(latest_bear_avg, '#.##')
+row7 = ' Bearish - Low: ' + str.tostring(latest_bear_low, '#.##')
+
+panel_text = '\n' + title + '\n' + row0 + '\n' + row1 + '\n' + row2 + '\n' + row3 + '\n' + row4 + '\n\n' + row5 + '\n' + row6 + '\n' + row7 + '\n'
+
+if info_pan
+    draw_InfoPanel(panel_text, info_panel_x, info_panel_y, size.normal)
+
+
+// === Label for Documentation/Tooltip ===
+chper = time - time[1]
+chper := ta.change(chper) > 0 ? chper[1] : chper
+
+// === Tooltip text ===
+
+var vartooltip = "Indicator to help identifying instituational Order Blocks. Often these blocks signal the beginning of a strong move, but there is a high probability, that these prices will be revisited at a later point in time again and therefore are interesting levels to place limit orders. \nBullish Order block is the last down candle before a sequence of up candles. \nBearish Order Block is the last up candle before a sequence of down candles. \nIn the settings the number of required sequential candles can be adjusted. \nFurthermore a %-threshold can be entered which the sequential move needs to achieve in order to validate a relevant Order Block. \nChannels for the last Bullish/Bearish Block can be shown/hidden."
+
+// === Print Label ===
+var label l_docu = na
+label.delete(l_docu)
+
+if showdocu
+    l_docu := label.new(x = time + chper * 35, y = close, text = "DOCU OB", color=color.gray, textcolor=color.white, style=label.style_label_center, xloc = xloc.bar_time, yloc=yloc.price, size=size.tiny, textalign = text.align_left, tooltip = vartooltip)
+
+
+signal_length = input.int(title="Signal Smoothing",  minval = 1, maxval = 200, defval = 7)
+sma_signal = input.bool(title="Simple MA (Signal Line)",  defval=true)
+
+lin_reg = input.bool(title="Lin Reg",  defval=true)
+linreg_length = input.int(title="Linear Regression Length",  minval = 1, maxval = 200, defval = 11)
+
+bopen = lin_reg ? ta.linreg(open, linreg_length, 0) : open
+bhigh = lin_reg ? ta.linreg(high, linreg_length, 0) : high
+blow = lin_reg ? ta.linreg(low, linreg_length, 0) : low
+bclose = lin_reg ? ta.linreg(close, linreg_length, 0) : close
+
+r = bopen < bclose
+
+signal = sma_signal ? ta.sma(bclose, signal_length) : ta.ema(bclose, signal_length)
+
+plotcandle(r ? bopen : na, r ? bhigh : na, r ? blow: na, r ? bclose : na, title="LinReg Candles", color= color.green, wickcolor=color.green, bordercolor=color.green, editable= true)
+plotcandle(r ? na : bopen, r ? na : bhigh, r ? na : blow, r ? na : bclose, title="LinReg Candles", color=color.red, wickcolor=color.red, bordercolor=color.red, editable= true)
+
+plot(signal, color=color.blue,linewidth = 2)
+
+//------------------------------------------------------------------------------
+//  === Trend Line ===
+//------------------------------------------------------------------------------
+
+startyear = input(defval = 2020, title = "Start Year")
+startmonth = input(defval = 1, title = "Start Month")
+startday = input(defval = 1, title = "Start day")
+prd = input.int(defval = 20, title="Pivot Period", minval = 10, maxval = 50)
+PPnum = input.int(defval = 3, title="Number of Pivot Points to check", minval = 2, maxval = 6)
+utcol = input(defval = color.lime, title = "Colors", inline = "tcol")
+dtcol = input(defval = color.red, title = "", inline = "tcol")
+
+float ph = ta.pivothigh(prd, prd)
+float pl = ta.pivotlow(prd, prd)
+
+var tval = array.new_float(PPnum)
+var tpos = array.new_int(PPnum)
+var bval = array.new_float(PPnum)
+var bpos = array.new_int(PPnum)
+
+add_to_array(apointer1, apointer2, val)=>
+    array.unshift(apointer1, val)
+    array.unshift(apointer2, bar_index)
+    array.pop(apointer1)
+    array.pop(apointer2)
+
+if ph
+    add_to_array(tval, tpos, ph)
+
+if pl
+    add_to_array(bval, bpos, pl)
+    
+// line definitions
+maxline = 3
+var bln = array.new_line(maxline, na)
+var tln = array.new_line(maxline, na)
+
+// loop for pivot points to check if there is possible trend line
+countlinelo = 0
+countlinehi = 0
+
+starttime = timestamp(startyear, startmonth, startday, 0, 0, 0)
+
+if time >= starttime
+    for x = 0 to maxline - 1
+        line.delete(array.get(bln, x))
+        line.delete(array.get(tln, x))
+    for p1 = 0 to PPnum - 2 
+        uv1 = 0.0
+        uv2 = 0.0
+        up1 = 0
+        up2 = 0
+        if countlinelo <= maxline
+            for p2 = PPnum - 1 to p1 + 1
+                val1 = array.get(bval, p1)
+                val2 = array.get(bval, p2)
+                pos1 = array.get(bpos, p1)
+                pos2 = array.get(bpos, p2)
+                if val1 > val2
+                    diff = (val1 - val2) / (pos1 - pos2)
+                    hline = val2 + diff
+                    lloc = bar_index
+                    lval = low
+                    valid = true
+                    for x = pos2 + 1 - prd to bar_index
+                        if close[bar_index - x] < hline
+                            valid := false
+                            break
+                        lloc := x
+                        lval := hline
+                        hline := hline + diff
+                    
+                        
+                    if valid
+                        uv1 := hline - diff
+                        uv2 := val2
+                        up1 := lloc
+                        up2 := pos2
+                        break
+
+        dv1 = 0.0
+        dv2 = 0.0
+        dp1 = 0
+        dp2 = 0                
+        if countlinehi <= maxline
+            for p2 = PPnum - 1 to p1 + 1                
+                val1 = array.get(tval, p1)
+                val2 = array.get(tval, p2)
+                pos1 = array.get(tpos, p1)
+                pos2 = array.get(tpos, p2)
+                if val1 < val2
+                    diff = (val2 - val1) / float(pos1 - pos2)
+                    hline = val2 - diff
+                    lloc = bar_index
+                    lval = high
+                    valid = true
+                    for x = pos2 + 1 - prd to bar_index
+                        if close[bar_index - x] > hline
+                            valid := false
+                            break
+                        lloc := x
+                        lval := hline
+                        hline := hline - diff
+                        
+                    if valid
+                        dv1 := hline + diff
+                        dv2 := val2
+                        dp1 := lloc
+                        dp2 := pos2
+                        break
+                         
+        // if there is continues uptrend line then draw it
+        if up1 != 0 and up2 != 0 and countlinelo < maxline
+            countlinelo += 1
+            array.set(bln, countlinelo - 1, line.new(up2 - prd, uv2, up1, uv1, color = utcol))
+        
+        // if there is continues downtrend line then draw it
+        if dp1 != 0 and dp2 != 0 and countlinehi < maxline
+            countlinehi += 1
+            array.set(tln, countlinehi - 1, line.new(dp2 - prd, dv2, dp1, dv1, color = dtcol))
+
+//------------------------------------------------------------------------------
+//  === Hull Suite ===
+//------------------------------------------------------------------------------
+
+//INPUT
+src = input(close, title="Source")
+modeSwitch = input.string("Hma", title="Hull Variation", options=["Hma", "Thma", "Ehma"])
+length = input(55, title="Length(180-200 for floating S/R , 55 for swing entry)")
+lengthMult = input(1.0, title="Length multiplier (Used to view higher timeframes with straight band)")
+
+useHtf = input(false, title="Show Hull MA from X timeframe? (good for scalping)")
+htf = input.timeframe("240", title="Higher timeframe")
+//ta.change(time("D"), 240)
+//label.new(x=bar_index, y=high, text="Higher timeframe", style=label.style_label_down, color=color.green)
+switchColor = input(true, "Color Hull according to trend?")
+candleCol = input(false,title="Color candles based on Hull's Trend?")
+visualSwitch  = input(true, title="Show as a Band?")
+thicknesSwitch = input(1, title="Line Thickness")
+transpSwitch = input.int(40, title="Band Transparency",step=5)
+
+//FUNCTIONS
+//HMA
+HMA(_src, _length) =>  ta.wma(2 * ta.wma(_src, _length / 2) - ta.wma(_src, _length), math.round(math.sqrt(_length)))
+//EHMA    
+EHMA(_src, _length) =>  ta.ema(2 * ta.ema(_src, _length / 2) - ta.ema(_src, _length), math.round(math.sqrt(_length)))
+//THMA    
+THMA(_src, _length) =>  ta.wma(ta.wma(_src,_length / 3) * 3 - ta.wma(_src, _length / 2) - ta.wma(_src, _length), _length)
+    
+//SWITCH
+Mode(modeSwitch, src, len) =>
+      modeSwitch == "Hma"  ? HMA(src, len) :
+      modeSwitch == "Ehma" ? EHMA(src, len) : 
+      modeSwitch == "Thma" ? THMA(src, len/2) : na
+
+//OUT
+_hull = Mode(modeSwitch, src, int(length * lengthMult))
+HULL = useHtf ? request.security(syminfo.ticker, htf, _hull) : _hull
+MHULL = HULL[0]
+SHULL = HULL[2]
+
+//COLOR
+hullColor = switchColor ? (HULL > HULL[2] ? #00ff0070 : #ff000070) : #ff9800
+
+//PLOT
+///< Frame
+Fi1 = plot(MHULL, title="MHULL", color=hullColor, linewidth=thicknesSwitch, transp=50)
+Fi2 = plot(visualSwitch ? SHULL : na, title="SHULL", color=hullColor, linewidth=thicknesSwitch, transp=50)
+
+///< Ending Filler
+fill(Fi1, Fi2, title="Band Filler", color=hullColor, transp=transpSwitch)
+///BARCOLOR
+barcolor(color = candleCol ? (switchColor ? hullColor : na) : na)
+
+
+//------------------------------------------------------------------------------
+//  ABCD Patterns
+//------------------------------------------------------------------------------
+
+length2 = input(5)
+up1 = ta.pivothigh(high,length2,length2)
+dn1 = ta.pivotlow(low,length2,length2)
+upcount = ta.barssince(not na(up1))
+dncount = ta.barssince(not na(dn1))
+ppp = (not na(dn1) and dncount[1]>upcount[1]) ? dn1 : (not na(up1) and dncount[1]<upcount[1]) ? up1 : na
+up = (not na(up1) and dncount[1]<upcount[1]) ? up1 : na
+dn = (not na(dn1) and dncount[1]>upcount[1]) ? dn1 : na
+n1 = bar_index
+plot(up,title="pivot high",color = #77777700,offset=-length2)
+plot(dn,title="pivot low",color = #77777700,offset=-length2)
+plot(ppp,title="pivot line",color = #77777700,offset=-length2)
+
+a = ta.valuewhen(not na(ppp),n1,2)
+b = ta.valuewhen(not na(ppp),n1,1)
+c = ta.valuewhen(not na(ppp),n1,0)
+
+av = ta.valuewhen(not na(ppp),ppp,2)
+bv = ta.valuewhen(not na(ppp),ppp,1)
+cv = ta.valuewhen(not na(ppp),ppp,0)
+
+//bullish AB=CD pattern
+ABCD_bear = av<bv and (bv-cv)<=(0.89*(bv-av)) and (bv-cv)>=(0.38*(bv-av))
+ABCD_bear1 = (high-cv)>=(bv-av) and ABCD_bear
+label1 = ABCD_bear1 and not(ABCD_bear1[1]) ? label.new(bar_index,high,text="Bearish AB=CD",color=color.red,style=label.style_arrowdown,yloc=yloc.abovebar,
+     textcolor=color.rgb(255, 82, 82, 30),size=size.normal) : na
+     
+//bearish AB=CD pattern
+ABCD_bull = av>bv and (cv-bv)<=(0.89*(av-bv)) and (cv-bv)>=(0.38*(av-bv))
+ABCD_bull1 = (cv-low)>=(av-bv) and ABCD_bull
+label2 = ABCD_bull1 and not(ABCD_bull1[1]) ? label.new(bar_index,low,text="Bullish AB=CD",color=color.green,style=label.style_arrowup,yloc=yloc.belowbar,
+     textcolor=color.rgb(76, 175, 79, 30),size=size.normal) : na
+
+
+//------------------------------------------------------------------------------
+//  === Zig Zag Channels ===
+//------------------------------------------------------------------------------
+
+length1      = input(100)
+extend      = input(true,'Extend To Last Bar')
+show_ext    = input(true,'Show Extremities') 
+show_labels = input(true,'Show Labels') 
+
+//Style
+
+upcol = input(#ff1100,'Upper Extremity Color',group='Style')
+midcol = input(#ff5d00,'Zig Zag Color',group='Style')
+dncol = input(#2157f3,'Lower Extremity Color',group='Style')
+//------------------------------------------------------------------------------
+os1 = 0
+src1 = close
+n = bar_index
+var float valtop = na
+var float valbtm = na
+
+//------------------------------------------------------------------------------
+upper = ta.highest(src1,length1)
+lower = ta.lowest(src1,length1)
+os1 := src1[length1] > upper ? 0 : src1[length1] < lower ? 1 : os1[1]
+
+btm = os1 == 1 and os1[1] != 1
+top = os1 == 0 and os1[1] != 0
+
+//------------------------------------------------------------------------------
+btm_n = ta.valuewhen(btm,n,0)
+top_n = ta.valuewhen(top,n,0)
+len = math.abs(btm_n - top_n)
+
+if btm
+    max_diff_up = 0.
+    max_diff_dn = 0.
+    valbtm := low[length1]
+    
+    for i = 0 to len-1
+        point = low[length1] + i/(len-1)*(valtop - low[length1])
+        max_diff_up := math.max(math.max(src1[length1+i],open[length1+i]) - point,max_diff_up)
+        max_diff_dn := math.max(point - math.min(src1[length1+i],open[length1+i]),max_diff_dn)
+        
+    line.new(n[len+length1],valtop,n[length1],low[length1],color=midcol)
+    
+    if show_ext
+        line.new(n[len+length1],valtop+max_diff_up,n[length1],low[length1]+max_diff_up
+          ,color=upcol,style=line.style_dotted)
+        line.new(n[len+length1],valtop-max_diff_dn,n[length1],low[length1]-max_diff_dn
+          ,color=dncol,style=line.style_dotted)
+    if show_labels
+        label.new(n[length1],low[length1],str.tostring(low[length1],'#.####'),color=#00000000
+          ,style=label.style_label_up,textcolor=dncol,textalign=text.align_left,size=size.small)
+
+if top
+    max_diff_up = 0.
+    max_diff_dn = 0.
+    valtop := high[length1]
+    
+    for i = 0 to len-1
+        point = high[length1] + i/(len-1)*(valbtm - high[length1])
+        max_diff_up := math.max(math.max(src1[length1+i],open[length1+i]) - point,max_diff_up)
+        max_diff_dn := math.max(point - math.min(src1[length1+i],open[length1+i]),max_diff_dn)
+    
+    line.new(n[len+length1],valbtm,n[length1],high[length1],color=midcol)
+    
+    if show_ext
+        line.new(n[len+length1],valbtm+max_diff_up,n[length1],high[length1]+max_diff_up
+          ,color=upcol,style=line.style_dotted)
+        line.new(n[len+length1],valbtm-max_diff_dn,n[length1],high[length1]-max_diff_dn
+          ,color=dncol,style=line.style_dotted)
+    if show_labels
+        label.new(n[length1],high[length1],str.tostring(high[length1],'#.####'),color=#00000000
+          ,style=label.style_label_down,textcolor=upcol,textalign=text.align_left,size=size.small)
+
+if barstate.islast and extend
+    max_diff_up = 0.
+    max_diff_dn = 0.  
+    x1 = 0
+    y1 = 0.
+    
+    if os1 == 1
+        x1 := btm_n-length1
+        y1 := valbtm
+        
+        for i = 0 to n-btm_n+length1-1
+            point = src1 + i/(n-btm_n+length1-1)*(valbtm - src1)
+            max_diff_up := math.max(math.max(src1[i],open[i]) - point,max_diff_up)
+            max_diff_dn := math.max(point - math.min(src1[i],open[i]),max_diff_dn)
+
+    else 
+        x1 := top_n-length1
+        y1 := valtop
+        
+        for i = 0 to n-top_n+length1-1
+            point = src1 + i/(n-top_n+length1-1)*(valtop - src1)
+            max_diff_up := math.max(math.max(src1[i],open[i]) - point,max_diff_up)
+            max_diff_dn := math.max(point - math.min(src1[i],open[i]),max_diff_dn)
+        
+    line.delete(line.new(x1,y1,n,src1,color=midcol,extend=extend.right)[1])
+    
+    if show_ext
+        line.delete(line.new(x1,y1+max_diff_up,n,src1+max_diff_up
+          ,color=upcol,style=line.style_dotted,extend=extend.right)[1])
+        line.delete(line.new(x1,y1-max_diff_dn,n,src1-max_diff_dn
+          ,color=dncol,style=line.style_dotted,extend=extend.right)[1])
+          
+//------------------------------------------------------------------------------
+plot(btm ? low[length1] : top ? high[length1] : na,'Circles'
+  ,color = btm ? dncol : upcol
+  ,style=plot.style_circles
+  ,offset=-length1)
+//------------------------------------------------------------------------------
+//  Gann Square of 9 
+//------------------------------------------------------------------------------
+var bool RedGan = input.bool(true, title="On/Off Red line")
+var bool BlueGan = input.bool(true, title="On/Off Blue line")
+var bool labelOn = input.bool(true, title="On/Off Label")
+var color LabelColor = input.color(title="Label color", defval=color.black)
+var color BlueLineColor = input.color(title="Blue Line color", defval=color.blue)
+var color RedLineColor = input.color(title="Red  Line color", defval=color.red)
+var string Extend = input.string(defval="true", title="Extend line")
+var int PriceLevel = input.int(3, title="Price Level", options=[3, 5])
+
+// Variables
+var label rl1 = na
+var label rl2 = na
+var label sl1 = na
+var label bl1 = na
+var label bl2 = na
+label.delete(rl1)
+label.delete(rl2)
+label.delete(sl1)
+label.delete(bl1)
+label.delete(bl2)
+
+// Función para dibujar líneas
+drawLine(resistance, start, end, extend, linecolor) =>
+    gannLine = line.new(x1=start, y1=resistance, x2=end, y2=resistance)
+    line.set_color(gannLine, linecolor)
+    if extend
+        line.set_extend(id=gannLine, extend=extend.left)
+    gannLine
+// Función para dibujar etiquetas
+drawLabel(x, y, labelText) =>
+    GannLabel = label.new(x, y, labelText, xloc=xloc.bar_time, style=label.style_none)
+    GannLabel
+
+// Variables y cálculos
+var int max = 20
+var int rangeMin = 0
+var float[] GannNum = array.new_float(0)
+dt = time - time[1]
+labelPosition = time + 3 * dt
+
+// Condiciones de última barra
+if barstate.islast
+    for min = rangeMin to max
+        for i = 0 to 3
+            var float gNum = 0
+            if min == rangeMin and i == 0
+                gNum := min + (min+2)
+            else if min > rangeMin and i == 0
+                gNum := math.round(array.get(GannNum, array.size(GannNum)-1)) + (min+1) + min
+            else
+                gNum := math.round(array.get(GannNum, array.size(GannNum)-1)) + (min+2) + min
+            array.push(GannNum, gNum)
+
+    var int maxItem = array.size(GannNum)-1
+    var int next = 0
+    var float denomenator = 0.0
+    if close[0] >= 10000
+        denomenator := 0.01
+    else if close[0] >= 1000
+        denomenator := 0.1
+    else if close[0] >= 100
+        denomenator := 1
+    else if close[0] >=10
+        denomenator := 10
+    else if close[0] >=0.05
+        denomenator := 100
+    else 
+        denomenator := 1000
+        
+    var float price = close[0] * denomenator
+    var float resistance = 0.0
+    var float support = 0.0
+    var float blueGannPrice1 = 0.0
+    var int GannPos = 0
+    for i = 0 to array.size(GannNum)-1
+        if i == maxItem
+            next := i
+        else 
+            next := i + 1
+            
+        if array.get(GannNum, i) <= price and array.get(GannNum, next) > price
+            resistance := array.get(GannNum, next) / denomenator
+            support := array.get(GannNum, i) / denomenator
+            blueGannPrice1 := (support + resistance) / 2
+            GannPos := i
+            break
+    
+    var int startLine = bar_index[0]
+    var int endLine = bar_index[10]
+    var int GannWeightPosition = close[0] >= blueGannPrice1 ? 2 : -1
+    
+    if RedGan
+        resistance1 = drawLine(resistance, startLine, endLine, Extend == "true", RedLineColor)
+        support1 = drawLine(support, startLine, endLine, Extend == "true", RedLineColor)
+    if labelOn
+        rl1 := drawLabel(labelPosition, resistance, "R1 = " + str.tostring(resistance))
+        sl1 := drawLabel(labelPosition, support, "S1 = " + str.tostring(support))
+        label.set_textcolor(sl1, LabelColor)
+    if PriceLevel == 5
+        resistancePrice2 = array.get(GannNum, GannPos+GannWeightPosition) / denomenator
+        resistance2 = drawLine(resistancePrice2, startLine, endLine, Extend == "true", RedLineColor)
+        if labelOn
+            resistanceText2 = GannWeightPosition > 0 ? "R2 = " : "S2 = "
+            rl2 := drawLabel(labelPosition, resistancePrice2, resistanceText2 + str.tostring(resistancePrice2))
+            label.set_textcolor(rl2, LabelColor)
+    if BlueGan
+        var line blueGann1 = drawLine(blueGannPrice1, startLine, endLine, Extend == "true", BlueLineColor)
+        if labelOn
+            BlueText1 = close[0] >= blueGannPrice1 ? "S1 = " : "R1 = "
+            bl1 := drawLabel(labelPosition, blueGannPrice1, BlueText1 + str.tostring(blueGannPrice1))
+            label.set_textcolor(bl1, LabelColor)
+        if PriceLevel == 5
+            var float BlueGannPrice2 = GannWeightPosition > 0 ? (array.get(GannNum, GannPos+1) + array.get(GannNum, GannPos+2)) / 2 : (array.get(GannNum, GannPos-1) + array.get(GannNum, GannPos)) / 2
+            BlueGannPrice2 := BlueGannPrice2 / denomenator
+            var line blueGann2 = drawLine(BlueGannPrice2, startLine, endLine, Extend == "true", BlueLineColor)
+            if labelOn
+                BlueText2 = GannWeightPosition > 0 ? "R1 = " : "S1 = "
+                bl2 := drawLabel(labelPosition, BlueGannPrice2, BlueText2 + str.tostring(BlueGannPrice2))
+                label.set_textcolor(bl2, LabelColor)
+
+//-----------------------------------------------------------------------------}
+//Targets with Market Structure Break & Order Block
+//-----------------------------------------------------------------------------{
+showLabels = input(true, 'Show Target Labels', inline = 'style')
+candleColoring = input(true, 'Candle Coloring', inline = 'style')
+
+//Condition Rule
+enableTarget1 = input(true, 'Enable Target'
+  , inline    = 'enable'
+  , group     = 'Target 1')
+
+isLong1       = input(true, 'Long Position Target'
+  , inline    = 'enable'
+  , group     = 'Target 1')
+
+_ = input.string('Source A', 'New Target Condition', options = ['Source A']
+  , inline    = 'targetRule1'
+  , group     = 'Target 1')
+
+target1Condition = input.string('CrossOver', ''
+  , options   = ['CrossOver', 'CrossUnder', 'Cross', 'Equal']
+  , inline    = 'targetRule1'
+  , group     = 'Target 1')
+
+_ = input.string('Source B', '', options = ['Source B']
+  , inline    = 'targetRule1'
+  , group     = 'Target 1')  
+
+//Source A
+targetSource1A = input.string('External', 'Source A'
+  , options   = ['External', 'ACCDIST', 'ATR', 'BB Middle', 'BB Upper', 'BB Lower', 'CCI', 'CMO', 'COG', 'DC High', 'DC Mid', 'DC Low'
+              , 'DEMA', 'EMA', 'HMA', 'III', 'KC Middle', 'KC Upper', 'KC Lower', 'LINREG', 'MACD', 'MACD-signal', 'MACD-histogram', 'MEDIAN'
+              , 'MFI', 'MODE', 'MOM', 'NVI', 'OBV', 'PVI', 'PVT', 'RMA', 'ROC', 'RSI', 'SMA', 'STOCH', 'Supertrend'
+              , 'TEMA', 'VWAP', 'VWMA', 'WAD', 'WMA', 'WVAD', '%R']
+  , inline    = 'A'
+  , group     = 'Target 1')
+
+targetExternal1A = input(close, 'External'
+  , inline    = 'A'
+  , group     = 'Target 1')
+
+targetTiSettings1A = input.string('', 'Settings'
+  , inline    = 'A'
+  , group     = 'Target 1')
+
+//Source B
+targetSource1B = input.string('Supertrend', 'Source B'
+  , options   = ['External', 'Value', 'ACCDIST', 'ATR', 'BB Middle', 'BB Upper', 'BB Lower', 'CCI', 'CMO', 'COG', 'DC High', 'DC Mid', 'DC Low'
+              , 'DEMA', 'EMA', 'HMA', 'III', 'KC Middle', 'KC Upper', 'KC Lower', 'LINREG', 'MACD', 'MACD-signal', 'MACD-histogram', 'MEDIAN'
+              , 'MFI', 'MODE', 'MOM', 'NVI', 'OBV', 'PVI', 'PVT', 'RMA', 'ROC', 'RSI', 'SMA', 'STOCH', 'Supertrend'
+              , 'TEMA', 'VWAP', 'VWMA', 'WAD', 'WMA', 'WVAD', '%R']
+  , inline    = 'B'
+  , group     = 'Target 1')
+
+targetExternal1B = input(open, 'External'
+  , inline    = 'B'
+  , group     = 'Target 1')
+
+targetTiSettings1B = input.string('10,3', 'Settings'
+  , inline    = 'B'
+  , group     = 'Target 1')
+
+targetValue1B = input(0, 'Source B Value'
+  , inline    = 'B_'
+  , group     = 'Target 1')
+
+target1Css    = input(#089981c1, 'Target Color '
+  , inline    = 'style'
+  , group     = 'Target 1')
+
+target1Style  = input.string('· · ·', '    Levels Style'
+  , options   = ['──','- - -','· · ·']
+  , inline    = 'style'
+  , group     = 'Target 1')
+
+showSource1   = input.bool(false, 'Show Source Values'
+  , group     = 'Target 1')
+
+//-----------------------------------------------------------------------------}
+//Target 1 Logic
+//-----------------------------------------------------------------------------{
+waitTarget1   = input(false, 'Wait Until Reached'
+  , group     = 'Target 1 Logic')
+
+newTarget1    = input(false, 'New Target When Reached'
+  , group     = 'Target 1 Logic')
+
+useWicks1     = input(true, 'Evaluate Wicks'
+  , group     = 'Target 1 Logic')
+
+distTarget1   = input.float(3, 'Target Distance From Price'
+  , inline    = 'dist1'
+  , group     = 'Target 1 Logic')
+
+distOptions1  = input.string('ATR', ''
+  , options   = ['Currencies', '%', 'ATR', 'Ticks', 'External Value']
+  , inline    = 'dist1'
+  , group     = 'Target 1 Logic')
+
+externalDist1 = input(close, 'External Distance Value'
+  , group     = 'Target 1 Logic')
+
+//-----------------------------------------------------------------------------}
+//Target 2
+//-----------------------------------------------------------------------------{
+//Condition Rule
+enableTarget2 = input(true, 'Enable Target'
+  , inline    = 'enable'
+  , group     = 'Target 2')
+
+isLong2 = input(false, 'Long Position Target'
+  , inline    = 'enable'
+  , group     = 'Target 2')
+
+_ = input.string('Source A', 'New Target Condition', options = ['Source A']
+  , inline    = 'targetRule2'
+  , group     = 'Target 2')
+
+target2Condition = input.string('CrossUnder', ''
+  , options   = ['CrossOver', 'CrossUnder', 'Cross', 'Equal']
+  , inline    = 'targetRule2'
+  , group     = 'Target 2')
+
+_ = input.string('Source B', '', options = ['Source B']
+  , inline    = 'targetRule2'
+  , group     = 'Target 2')
+
+//Source A
+targetSource2A = input.string('External', 'Source A'
+  , options   = ['External', 'ACCDIST', 'ATR', 'BB Middle', 'BB Upper', 'BB Lower', 'CCI', 'CMO', 'COG', 'DC High', 'DC Mid', 'DC Low'
+              , 'DEMA', 'EMA', 'HMA', 'III', 'KC Middle', 'KC Upper', 'KC Lower', 'LINREG', 'MACD', 'MACD-signal', 'MACD-histogram', 'MEDIAN'
+              , 'MFI', 'MODE', 'MOM', 'NVI', 'OBV', 'PVI', 'PVT', 'RMA', 'ROC', 'RSI', 'SMA', 'STOCH', 'Supertrend'
+              , 'TEMA', 'VWAP', 'VWMA', 'WAD', 'WMA', 'WVAD', '%R']
+  , inline    = 'A'
+  , group     = 'Target 2')
+
+targetExternal2A = input(close, 'External'
+  , inline    = 'A'
+  , group     = 'Target 2')
+
+targetTiSettings2A = input.string('', 'Settings'
+  , inline    = 'A'
+  , group     = 'Target 2')
+
+//Source B
+targetSource2B = input.string('Supertrend', 'Source B'
+  , options   = ['External', 'Value', 'ACCDIST', 'ATR', 'BB Middle', 'BB Upper', 'BB Lower', 'CCI', 'CMO', 'COG', 'DC High', 'DC Mid', 'DC Low'
+              , 'DEMA', 'EMA', 'HMA', 'III', 'KC Middle', 'KC Upper', 'KC Lower', 'LINREG', 'MACD', 'MACD-signal', 'MACD-histogram', 'MEDIAN'
+              , 'MFI', 'MODE', 'MOM', 'NVI', 'OBV', 'PVI', 'PVT', 'RMA', 'ROC', 'RSI', 'SMA', 'STOCH', 'Supertrend'
+              , 'TEMA', 'VWAP', 'VWMA', 'WAD', 'WMA', 'WVAD', '%R']
+  , inline    = 'B'
+  , group     = 'Target 2')
+
+targetExternal2B = input(open, 'External'
+  , inline    = 'B'
+  , group     = 'Target 2')
+
+targetTiSettings2B = input.string('10,3', 'Settings'
+  , inline    = 'B'
+  , group     = 'Target 2')
+
+targetValue2B = input(0, 'Source B Value'  
+  , inline    = 'B_'
+  , group     = 'Target 2')
+
+target2Css    = input(#f23646c0, 'Target Color '
+  , inline    = 'style'
+  , group     = 'Target 2')
+
+target2Style  = input.string('· · ·', '    Levels Style'
+  , options   = ['──','- - -','· · ·']
+  , inline    = 'style'
+  , group     = 'Target 2')
+
+showSource2   = input.bool(false, 'Show Source Values'
+  , group     = 'Target 2')
+
+//-----------------------------------------------------------------------------}
+//Target 2 Logic
+//-----------------------------------------------------------------------------{
+waitTarget2   = input(false, 'Wait Until Reached'
+  , group     = 'Target 2 Logic')
+
+newTarget2    = input(false, 'New Target When Reached'
+  , group     = 'Target 2 Logic')
+
+useWicks2     = input(true, 'Evaluate Wicks'
+  , group     = 'Target 2 Logic')
+
+distTarget2   = input.float(3, 'Target Distance From Price'
+  , inline    = 'dist1'
+  , group     = 'Target 2 Logic')
+
+distOptions2  = input.string('ATR', ''
+  , options   = ['Currencies', '%', 'ATR', 'Ticks', 'External Value']
+  , inline    = 'dist1'
+  , group     = 'Target 2 Logic')
+
+externalDist2 = input(close, 'External Distance Value   '
+  , group     = 'Target 2 Logic')
+
+//-----------------------------------------------------------------------------}
+//Target 2 Logic
+//-----------------------------------------------------------------------------{
+showDash      = input.bool     (    false      , 'Show Dashboard'                                                     , group= 'Dashboard')
+dashLoc       = input.string   (  'Top Right' , 'Location'  , options = ['Top Right', 'Bottom Right', 'Bottom Left'] , group= 'Dashboard')
+textSize      = input.string   (   'Normal'   , 'Size'      , options =          ['Tiny', 'Small', 'Normal']         , group= 'Dashboard')
+
+//-----------------------------------------------------------------------------}
+//UDT
+//-----------------------------------------------------------------------------{
+type lshape
+    line v
+    line h
+
+type target
+    float  value
+    int    loc
+    bool   reached
+    bool   islong
+    bool   active
+    lshape lines
+    label  lbl
+
+//-----------------------------------------------------------------------------}
+//Functions
+//-----------------------------------------------------------------------------{
+
+INV = color.new(color.blue, 100)
+
+aNoVisuals = array.from('ACCDIST', 'ATR', 'CCI', 'CMO', 'COG', 'III', 'MACD', 'MACD-signal', 'MACD-histogram', 'MFI', 'MOM', 'NVI', 'OBV', 'PVI', 'PVT', 'ROC', 'RSI', 'STOCH', 'WAD', 'WVAD', '%R')
+
+a_1Val       = array.from( 'ATR'  ,  'CCI'  ,  'CMO'  ,  'COG'  , 'DC High', 'DC Mid', 'DC Low', 'DEMA'  ,  'EMA'  ,  'HMA'  , 'MEDIAN',  'MFI'  ,  'MODE' ,  'MOM'  ,  'RMA'  ,  'ROC'  ,  'RSI'  ,  'SMA'  , 'STOCH' , 'TEMA'  , 'VWMA'  ,  'WMA'  ,   '%R'  )
+a_1ValValues = array.from('Length', 'Length', 'Length', 'Length', 'Length' , 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length', 'Length')
+
+a_2Val       = array.from( 'BB Middle'     ,   'BB Upper'     ,   'BB Lower'     ,  'KC Middle'     ,   'KC Upper'     ,   'KC Lower'     ,    'LINREG'      ,     'Supertrend'    )
+a_2ValValues = array.from('Length, Mult'   , 'Length, Mult'   , 'Length, Mult'   , 'Length, Mult'   , 'Length, Mult'   , 'Length, Mult'   , 'Length, Offset' , 'ATR Length, Factor')
+
+a_3Val       = array.from(              'MACD'             ,           'MACD-signal'          ,         'MACD-histogram'         )
+a_3ValValues = array.from('Short, Long & Signal EMA Length', 'Short, Long & Signal EMA Length', 'Short, Long & Signal EMA Length')
+
+method set_target(target id, css, lstyle)=>
+    style = switch lstyle
+        '- - -' => line.style_dashed
+        '· · ·' => line.style_dotted
+        =>         line.style_solid
+    
+    id.lines := lshape.new(line.new(n, close, n, id.value, color = css, style = style),
+      line.new(n, id.value, n, id.value, color = css, style = style))
+
+method delete(target id)=>
+    id.lines.v.delete()
+    id.lines.h.delete()
+
+method getSetting(array<string> id , idx) => int(str.tonumber(id.get(idx)))
+
+method getStFloat(array<string> id , idx) =>     str.tonumber(id.get(idx))
+
+method isString  (array<string> settings) =>
+    isS = false 
+    for s in settings 
+        if na(str.tonumber(s) / 1)
+            isS := true 
+            break 
+    txt = isS ? 'Please, use numbers' : ''
+
+method ema(int len, float source) => 
+    alpha = 2 / (len + 1)
+    float ema = na
+    sma = ta.sma(source, len)
+    ema := alpha * source + (1 - alpha) * nz(ema[1], sma[1])
+
+method rma(int len, float source) =>
+    alpha = 1 / len, float sum = 0
+    sum := na(sum[1]) ? ta.sma(source, len) : alpha * source + (1 - alpha) * nz(sum[1])
+
+method value(string choice, array<string> setting, float targetExternal, float targetValue) => 
+  
+    sZ  =  setting.size() , float value = na
+    int int1 = na 
+
+    if sZ > 0
+        for  i  = setting.size ( ) -1 to 0
+            get = setting.get  (i) 
+            if  get == ''   or get == ' '
+             or get == '  ' or get == '   '
+                setting.remove (i)
+
+    isS = setting.isString()
+    txt = switch 
+        isS != '' => isS
+        a_1Val.includes(choice) =>
+            if setting.size() != 1
+                str.format    (   'Please enter 1 value for {0}: {1}'        , choice, a_1ValValues.get(a_1Val.indexof(choice)))
+            else 
+                if setting.getSetting(0) - setting.getStFloat(0) != 0
+                    str.format('{0} ({1}) -> Length must be an Integer value', choice, a_1ValValues.get(a_1Val.indexof(choice)))
+        
+        a_2Val.includes(choice) =>
+            if setting.size() != 2
+                str.format    (   'Please enter 2 values for {0}: {1}'       , choice, a_2ValValues.get(a_2Val.indexof(choice)))
+            else 
+                if setting.getSetting(0) - setting.getStFloat(0) != 0
+                    str.format('{0} ({1}) -> Length must be an Integer value', choice, a_2ValValues.get(a_2Val.indexof(choice)))
+
+        a_3Val.includes(choice) =>
+            if setting.size() != 3
+                str.format    (   'Please enter 3 values for {0}: {1}'       , choice, a_3ValValues.get(a_3Val.indexof(choice)))
+            else                
+                if  setting.getSetting(0) - setting.getStFloat(0) != 0                
+                 or setting.getSetting(1) - setting.getStFloat(1) != 0
+                 or setting.getSetting(2) - setting.getStFloat(2) != 0
+                    'Each Number must be an Integer value'
+
+    float shortEMA = na, float longEMA = na, float macd    = na, float signal2  = na, float hist = na
+    float BBmiddle = na, float BBupper = na, float BBlower = na
+    float KCmiddle = na, float KCupper = na, float KClower = na
+
+    if txt == '' 
+        if str.contains(choice, 'BB')
+            len           = setting.getSetting(0)
+            BBmiddle     := ta.sma(close, len)
+            float dev     = setting.getStFloat(1) * ta.stdev(close, len)
+            BBupper      := BBmiddle + dev 
+            BBlower      := BBmiddle - dev
+
+        if str.contains(choice, 'KC')
+            KCmiddle     := setting.getSetting(0).ema(close)
+            KCrange       = setting.getSetting(0).ema(ta.tr) 
+            KCupper      := KCmiddle + KCrange * setting.getStFloat(1)
+            KClower      := KCmiddle - KCrange * setting.getStFloat(1)
+
+        if str.contains(choice, 'MACD')
+            shortEMA     := setting.getSetting(0).ema(close) 
+            longEMA      := setting.getSetting(1).ema(close) 
+            macd         := shortEMA - longEMA
+            signal2       := setting.getSetting(2).ema(macd)
+            hist         := macd - signal2 
+
+        value := switch choice 
+
+            'ACCDIST'        => ta.accdist
+
+            'ATR'            => setting.getSetting(0).rma(ta.tr(true))
+
+            'BB Middle'      => BBmiddle 
+            'BB Upper'       => BBupper
+            'BB Lower'       => BBlower
+
+            'CCI'            => ta.cci(close, setting.getSetting(0))
+
+            'CMO'            => ta.cmo(close, setting.getSetting(0))
+
+            'COG'            => ta.cog(close, setting.getSetting(0))
+
+            'DC High'        =>                                             ta.highest(setting.getSetting(0))             
+            'DC Mid'         => math.avg(ta.highest(setting.getSetting(0)), ta.lowest (setting.getSetting(0)))
+            'DC Low'         =>                                             ta.lowest (setting.getSetting(0)) 
+
+            'DEMA'           =>  
+                len  = setting.getSetting(0)
+                ema1 = len.ema(close)
+                ema2 = len.ema(ema1 )
+                2    * ema1 -  ema2       
+
+            'EMA'            => setting.getSetting(0).ema(close)
+
+            'External'       => targetExternal
+
+            'HMA'            => 
+                len = setting.getSetting(0)
+                ta.wma(2 * ta.wma(close, math.floor(len / 2)) - ta.wma(close, len), math.floor(math.sqrt(len)))
+
+            'III'            => ta.iii 
+
+            'KC Middle'      => KCmiddle
+            'KC Upper'       => KCupper
+            'KC Lower'       => KClower
+
+            'LINREG'         => 
+                len = setting.getSetting(0), off = setting.getSetting(1)
+                float sX     = 0, float sY = 0, float sXSqr = 0, float sXY = 0
+                for i = 1   to len
+                    val      = close[len-i], per = i+1, sX += per, sY += val
+                    sXSqr   += math.pow(per, 2), sXY += val * per
+                slope        = (sXY * len - sX * sY) / (sXSqr * len - math.pow(sX, 2))
+                intcp        = ta.sma(close, len) - slope * sX / len + slope
+                intcp + slope * (len - off)
+
+            'MACD'           => macd 
+            'MACD-signal'    => signal
+            'MACD-histogram' => hist
+
+            'MEDIAN'         => ta.median(close, setting.getSetting(0))
+
+            'MFI'            => ta.mfi(close, setting.getSetting(0))  
+
+            'MODE'           => ta.mode(close, setting.getSetting(0))
+
+            'MOM'            => ta.mom(close, setting.getSetting(0))  
+
+            'NVI'            => ta.nvi
+
+            'OBV'            => ta.obv
+
+            'PVI'            => ta.pvi
+
+            'PVT'            => ta.pvt 
+
+            'SMA'            => ta.sma(close, setting.getSetting(0))
+
+            'RMA'            => setting.getSetting(0).rma(close)
+
+            'ROC'            => ta.roc(close, setting.getSetting(0))
+
+            'RSI'            => 
+                len  = setting.getSetting(0), var num = 0., var den = 0., d = nz(close - close[1])
+                num += (math.max(d, 0) - num) / len, den += (math.abs(d   ) - den) / len
+                num / den * 100        
+
+            'STOCH'          => ta.stoch(close, high, low, setting.getSetting(0))
+
+            'Supertrend'     => 
+                len          = setting.getSetting(0), factor    = setting.getStFloat(1)
+                var atr      = 0. , var upper = high, var lower = low, var float trend = na
+                atr         += (nz(ta.tr) - atr)  / len
+                up           = hl2 + atr * factor   , dn = hl2 - atr * factor
+                upper       := close[1] < upper ? math.min(up, upper) : up
+                lower       := close[1] > lower ? math.max(dn, lower) : dn
+                trend       := close    > upper ? 1 : close < lower ? 0 : trend
+                trend       == 1 ? lower : upper
+
+            'TEMA'           => 
+                len  = setting.getSetting(0)
+                ema1 = len.ema(close)
+                ema2 = len.ema(ema1 )
+                ema3 = len.ema(ema2 )
+                (3 * ema1) - (3 * ema2) + ema3
+
+            'Value'          => targetValue
+
+            'VWAP'           => ta.vwap(close)
+
+            'VWMA'           => ta.vwma(close, setting.getSetting(0))
+            
+            'WAD'            => ta.wad 
+
+            'WMA'            => ta.wma(close, setting.getSetting(0))
+
+            'WVAD'           => ta.wvad
+
+            '%R'             => ta.wpr(setting.getSetting(0))
+
+    [txt, value]
+
+//-----------------------------------------------------------------------------}
+//Set target 1
+//-----------------------------------------------------------------------------{
+var color css            = na
+bool      isNewTarget1   = false
+bool      isTgReached1   = false
+
+var int countTargets1   = 0
+var int countTgReached1 = 0
+
+var target1_object      = target.new(reached = true, active = false)
+
+var setting1A           = str.split(targetTiSettings1A, ',')
+var setting1B           = str.split(targetTiSettings1B, ',')
+
+[txt1A, source1A] = targetSource1A.value(setting1A, targetExternal1A,       na     )
+[txt1B, source1B] = targetSource1B.value(setting1B, targetExternal1B, targetValue1B)
+
+target1_condition = switch target1Condition
+    'CrossOver'  => ta.crossover (source1A, source1B)
+    'CrossUnder' => ta.crossunder(source1A, source1B)
+    'Cross'      => ta.cross     (source1A, source1B)
+    'Equal'      => source1A == source1B
+
+//Distance
+dist1 = switch distOptions1
+    'Currencies' => distTarget1
+    '%' => close + distTarget1 / 100 * close
+    'ATR' => nz(ta.atr(50)) * distTarget1
+    'Ticks' => syminfo.mintick * distTarget1
+    'External Value' => externalDist1 * distTarget1
+
+if target1_object.active and target1_object.reached == false
+    target1_object.lines.h.set_x2(n)
+    target1_object.lbl.set_x(n)
+
+if (isLong1 ? (useWicks1 ? high : close) > target1_object.value : (useWicks1 ? low : close) < target1_object.value) and target1_object.active 
+    target1_object.reached := true
+    target1_object.active  := false 
+    isTgReached1           := true
+    countTgReached1        += 1
+    css := na
+    target1_object.lbl.set_color(target1Css)
+
+if enableTarget1 and 
+ (
+  (target1_condition and (waitTarget1 ? target1_object.reached : true)) 
+  or 
+  (newTarget1 and target1_object.reached)
+ ) 
+    target_value = close + (isLong1 ? dist1 : -dist1)
+
+    //Delete label if reached and creating new target
+    if newTarget1 and target1_object.reached and showLabels
+        target1_object.lbl.delete()
+
+    //Create new target
+    target1_object := target.new(target_value, n, false, isLong1, active = true)
+
+    if showLabels
+        target1_object.lbl := label.new(n, target_value, 'Target'
+          , color = color.new(target1Css, 50)
+          , textcolor = color.white
+          , size = size.tiny
+          , style = label.style_label_left
+          , tooltip = str.tostring(target_value, format.mintick))
+
+    css := target1Css
+
+    target1_object.set_target(target1Css, target1Style)
+
+    isNewTarget1  := true 
+    countTargets1 += 1
+
+//-----------------------------------------------------------------------------}
+//Set target 2
+//-----------------------------------------------------------------------------{
+bool     isNewTarget2   = false
+bool     isTgReached2   = false
+
+var int countTargets2   = 0
+var int countTgReached2 = 0
+
+var target2_object      = target.new(reached = true, active = false)
+
+var setting2A           = str.split(targetTiSettings2A, ',')
+var setting2B           = str.split(targetTiSettings2B, ',')
+
+[txt2A, source2A] = targetSource2A.value(setting2A, targetExternal2A,       na     )
+[txt2B, source2B] = targetSource2B.value(setting2B, targetExternal2B, targetValue2B)
+
+target2_condition = switch target2Condition
+    'CrossOver'  => ta.crossover (source2A, source2B)
+    'CrossUnder' => ta.crossunder(source2A, source2B)
+    'Cross'      => ta.cross     (source2A, source2B)
+    'Equal'      => source2A == source2B
+
+//Distance
+dist2 = switch distOptions2
+    'Currencies' => distTarget2
+    '%' => close + distTarget2 / 100 * close
+    'ATR' => nz(ta.atr(50)) * distTarget2
+    'Ticks' => syminfo.mintick * distTarget2
+    'External Value' => externalDist2 * distTarget2
+
+if target2_object.active and target2_object.reached == false
+    target2_object.lines.h.set_x2(n)
+    target2_object.lbl.set_x(n)
+
+if (isLong2 ? (useWicks2 ? high : close) > target2_object.value : (useWicks2 ? low : close) < target2_object.value) and target2_object.active 
+    target2_object.reached := true
+    target2_object.active  := false 
+    isTgReached2           := true
+    countTgReached2        += 1
+    css := na
+    target2_object.lbl.set_color(target2Css)
+
+if enableTarget2     and
+ (
+  (target2_condition and (waitTarget2 ? target2_object.reached : true)) 
+  or 
+  (newTarget2 and target2_object.reached)
+ ) 
+    target_value = close + (isLong2 ? dist2 : -dist2)
+
+    //Delete label if reached and creating new target
+    if newTarget2 and target2_object.reached and showLabels
+        target2_object.lbl.delete()
+
+    //Create new target
+    target2_object := target.new(target_value, n, false, isLong2, active = true)
+
+    if showLabels
+        target2_object.lbl := label.new(n, target_value, 'Target'
+          , color = color.new(target2Css, 50)
+          , textcolor = color.white
+          , size = size.tiny
+          , style = label.style_label_left
+          , tooltip = str.tostring(target_value, format.mintick))
+    
+    css := target2Css
+
+    target2_object.set_target(target2Css, target2Style)
+
+    isNewTarget2  := true 
+    countTargets2 += 1
+
+//-----------------------------------------------------------------------------}
+//Plots
+//-----------------------------------------------------------------------------{
+noVisuals1 = array.includes(aNoVisuals, targetSource1A) or array.includes(aNoVisuals, targetSource1B) 
+noVisuals2 = array.includes(aNoVisuals, targetSource2A) or array.includes(aNoVisuals, targetSource2B) 
+
+plot(showSource1 and enableTarget1 and not noVisuals1 ? source1A : na, 'Target 1, source A', color=#089981)
+plot(showSource1 and enableTarget1 and not noVisuals1 ? source1B : na, 'Target 1, source B', color=#2157f3)
+
+plot(showSource2 and enableTarget2 and not noVisuals2 ? source2A : na, 'Target 2, source A', color=#ffe400)
+plot(showSource2 and enableTarget2 and not noVisuals2 ? source2B : na, 'Target 2, source B', color=#ff1100)
+
+barcolor(candleColoring ? css : na, title = 'Candle Coloring')
+
+//-----------------------------------------------------------------------------}
+//Alerts
+//-----------------------------------------------------------------------------{
+alertcondition(isNewTarget1, "Target 1 New"    , "Target 1 New"    )
+alertcondition(isTgReached1, 'Target 1 Reached', 'Target 1 Reached')
+
+alertcondition(isNewTarget2, "Target 2 New"    , "Target 2 New"    )
+alertcondition(isTgReached2, 'Target 2 Reached', 'Target 2 Reached')
+
+
+//-----------------------------------------------------------------------------}
+//Market Structure Break & Order Block
+//-----------------------------------------------------------------------------{
+settings = "Settings"
+zigzag_len = input.int(9, "ZigZag Length", group=settings)
+show_zigzag = input.bool(false, "Show Zigzag", group=settings)
+fib_factor = input.float(0.273, "Fib Factor for breakout confirmation", 0, 1, 0.01, group=settings)
+
+text_size = input.string(size.tiny, "Text Size", [size.tiny, size.small, size.normal, size.large, size.huge], group=settings)
+
+delete_boxes = input.bool(true, "Delete Old/Broken Boxes", group=settings)
+
+bu_ob_inline_color = "Bu-OB Colors"
+be_ob_inline_color = "Be-OB Colors"
+bu_bb_inline_color = "Bu-BB Colors"
+be_bb_inline_color = "Be-BB Colors"
+
+bu_ob_display_settings = "Bu-OB Display Settings"
+bu_ob_color = input.color(color.new(color.green, 80), "Color", group=bu_ob_display_settings, inline=bu_ob_inline_color)
+bu_ob_border_color = input.color(color.rgb(76, 175, 79, 80), "Border Color", group=bu_ob_display_settings, inline=bu_ob_inline_color)
+bu_ob_text_color = input.color(color.rgb(76, 175, 79, 80), "Text Color", group=bu_ob_display_settings, inline=bu_ob_inline_color)
+
+be_ob_display_settings = "Be-OB Display Settings"
+be_ob_color = input.color(color.new(color.red, 80), "Color", group=be_ob_display_settings, inline=be_ob_inline_color)
+be_ob_border_color = input.color(color.rgb(255, 82, 82, 80), "Border Color", group=be_ob_display_settings, inline=be_ob_inline_color)
+be_ob_text_color = input.color(color.rgb(255, 82, 82, 80), "Text Color", group=be_ob_display_settings, inline=be_ob_inline_color)
+
+bu_bb_display_settings = "Bu-BB & Bu-MB Display Settings"
+bu_bb_color = input.color(color.new(color.green, 80), "Color", group=bu_bb_display_settings, inline=bu_bb_inline_color)
+bu_bb_border_color = input.color(color.rgb(76, 175, 79, 80), "Border Color", group=bu_bb_display_settings, inline=bu_bb_inline_color)
+bu_bb_text_color = input.color(color.rgb(76, 175, 79, 80), "Text Color", group=bu_bb_display_settings, inline=bu_bb_inline_color)
+
+be_bb_display_settings = "Be-BB & Be-MB Display Settings"
+be_bb_color = input.color(color.new(color.red, 80), "Color", group=be_bb_display_settings, inline=be_bb_inline_color)
+be_bb_border_color = input.color(color.rgb(255, 82, 82, 80), "Border Color", group=be_bb_display_settings, inline=be_bb_inline_color)
+be_bb_text_color = input.color(color.rgb(255, 82, 82, 80), "Text Color", group=be_bb_display_settings, inline=be_bb_inline_color)
+
+
+var float[] high_points_arr = array.new_float(5)
+var int[] high_index_arr = array.new_int(5)
+var float[] low_points_arr = array.new_float(5)
+var int[] low_index_arr = array.new_int(5)
+
+var box[] bu_ob_boxes = array.new_box(5)
+var box[] be_ob_boxes = array.new_box(5)
+var box[] bu_bb_boxes = array.new_box(5)
+var box[] be_bb_boxes = array.new_box(5)
+
+to_up = high >= ta.highest(zigzag_len)
+to_down = low <= ta.lowest(zigzag_len)
+
+trend = 1
+trend := nz(trend[1], 1)
+trend := trend == 1 and to_down ? -1 : trend == -1 and to_up ? 1 : trend
+
+last_trend_up_since = ta.barssince(to_up[1])
+low_val = ta.lowest(nz(last_trend_up_since > 0 ? last_trend_up_since : 1, 1))
+low_index = bar_index - ta.barssince(low_val == low)
+
+last_trend_down_since = ta.barssince(to_down[1])
+high_val = ta.highest(nz(last_trend_down_since > 0 ? last_trend_down_since : 1, 1))
+high_index = bar_index - ta.barssince(high_val == high)
+
+if ta.change(trend) != 0
+    if trend == 1
+        array.push(low_points_arr, low_val)
+        array.push(low_index_arr, low_index)
+    if trend == -1
+        array.push(high_points_arr, high_val)
+        array.push(high_index_arr, high_index)
+
+
+f_get_high(ind) =>
+    [array.get(high_points_arr, array.size(high_points_arr) - 1 - ind), array.get(high_index_arr, array.size(high_index_arr) - 1 - ind)]
+
+
+f_get_low(ind) =>
+    [array.get(low_points_arr, array.size(low_points_arr) - 1 - ind), array.get(low_index_arr, array.size(low_index_arr) - 1 - ind)]
+
+
+f_delete_box(box_arr) =>
+    if delete_boxes
+        box.delete(array.shift(box_arr))
+    else
+        array.shift(box_arr)
+    0
+
+
+[h0, h0i] = f_get_high(0)
+[h1, h1i] = f_get_high(1)
+
+[l0, l0i] = f_get_low(0)
+[l1, l1i] = f_get_low(1)
+
+if ta.change(trend) != 0 and show_zigzag
+    if trend == 1
+        line.new(h0i, h0, l0i, l0)
+    if trend == -1
+        line.new(l0i, l0, h0i, h0)
+
+market = 1
+market := nz(market[1], 1)
+// market := market == 1 and close < l0 and low < l0 - math.abs(h0 - l0) * fib_factor ? -1 : market == -1 and close > h0 and high > h0 + math.abs(h0 - l0) * fib_factor ? 1 : market
+last_l0 = ta.valuewhen(ta.change(market) != 0, l0, 0)
+last_h0 = ta.valuewhen(ta.change(market) != 0, h0, 0)
+market := last_l0 == l0 or last_h0 == h0 ? market : market == 1 and l0 < l1 and l0 < l1 - math.abs(h0 - l1) * fib_factor ? -1 : market == -1 and h0 > h1 and h0 > h1 + math.abs(h1 - l0) * fib_factor ? 1 : market
+
+bu_ob_index = bar_index
+bu_ob_index := nz(bu_ob_index[1], bar_index)
+for i=h1i to l0i[zigzag_len]
+    index = bar_index - i 
+    if open[index] > close[index]
+        bu_ob_index := bar_index[index]
+
+bu_ob_since = bar_index - bu_ob_index
+
+be_ob_index = bar_index
+be_ob_index := nz(be_ob_index[1], bar_index)
+for i=l1i to h0i[zigzag_len]
+    index = bar_index - i 
+    if open[index] < close[index]
+        be_ob_index := bar_index[index]
+
+be_ob_since = bar_index - be_ob_index
+
+be_bb_index = bar_index
+be_bb_index := nz(be_bb_index[1], bar_index)
+for i=h1i - zigzag_len to l1i
+    index = bar_index - i
+    if open[index] > close[index]
+        be_bb_index := bar_index[index]
+
+be_bb_since = bar_index - be_bb_index
+
+bu_bb_index = bar_index
+bu_bb_index := nz(bu_bb_index[1], bar_index)
+for i=l1i - zigzag_len to h1i
+    index = bar_index - i
+    if open[index] < close[index]
+        bu_bb_index := bar_index[index]
+
+bu_bb_since = bar_index - bu_bb_index
+
+if ta.change(market) != 0
+    if market == 1
+        line.new(h1i, h1, h0i, h1, color=color.rgb(76, 175, 79, 100), width=1)
+        label.new(int(math.avg(h1i, l0i)), h1, "MSB", color=color.new(color.black, 100), style=label.style_label_down, textcolor=color.rgb(76, 175, 79, 100), size=size.small)
+        bu_ob = box.new(bu_ob_index, high[bu_ob_since], bar_index + 10, low[bu_ob_since], bgcolor=bu_ob_color, border_color=bu_ob_border_color, text="Bu-OB", text_color=bu_ob_text_color, text_halign=text.align_right, text_size=text_size)
+        bu_bb = box.new(bu_bb_index, high[bu_bb_since], bar_index + 10, low[bu_bb_since], bgcolor=bu_bb_color, border_color=bu_bb_border_color, text=l0 < l1 ? "Bu-BB" : "Bu-MB", text_color=bu_bb_text_color, text_halign=text.align_right, text_size=text_size)
+        array.push(bu_ob_boxes, bu_ob)
+        array.push(bu_bb_boxes, bu_bb)
+    if market == -1
+        line.new(l1i, l1, l0i, l1, color=color.rgb(255, 82, 82, 100), width=1)
+        label.new(int(math.avg(l1i, h0i)), l1, "MSB", color=color.new(color.black, 100), style=label.style_label_up, textcolor=color.rgb(255, 82, 82, 100), size=size.small)
+        be_ob = box.new(be_ob_index, high[be_ob_since], bar_index + 10, low[be_ob_since], bgcolor=be_ob_color, border_color=be_ob_border_color, text="Be-OB", text_color=be_ob_text_color, text_halign=text.align_right, text_size=text_size)
+        be_bb = box.new(be_bb_index, high[be_bb_since], bar_index + 10, low[be_bb_since], bgcolor=be_bb_color, border_color=be_bb_border_color, text=h0 > h1 ? "Be-BB" : "Be-MB", text_color=be_bb_text_color, text_halign=text.align_right, text_size=text_size)
+        array.push(be_ob_boxes, be_ob)
+        array.push(be_bb_boxes, be_bb)
+
+for bull_ob in bu_ob_boxes
+    bottom = box.get_bottom(bull_ob)
+    top = box.get_top(bull_ob)
+    if close < bottom
+        f_delete_box(bu_ob_boxes)
+    else if close < top
+        alert("Price in the BU-OB zone")
+    else
+        box.set_right(bull_ob, bar_index + 10)
+    
+for bear_ob in be_ob_boxes
+    top = box.get_top(bear_ob)
+    bottom = box.get_bottom((bear_ob))
+    if close > top
+        f_delete_box(be_ob_boxes)
+    if close > bottom
+        alert("Price in the BE-OB zone")
+    else
+        box.set_right(bear_ob, bar_index + 10)
+        
+for bear_bb in be_bb_boxes
+    top = box.get_top(bear_bb)
+    bottom = box.get_bottom(bear_bb)
+    if close > top
+        f_delete_box(be_bb_boxes)
+    else if close > bottom
+        alert("Price in the BE-BB zone")
+    else
+        box.set_right(bear_bb, bar_index + 10)
+        
+for bull_bb in bu_bb_boxes
+    bottom = box.get_bottom(bull_bb)
+    top = box.get_top(bull_bb)
+    if close < bottom
+        f_delete_box(bu_bb_boxes)
+    else if close < top
+        alert("Price in the BU-BB zone")
+    else
+        box.set_right(bull_bb, bar_index + 10)
+
+
+alertcondition(ta.change(market) != 0, "MSB", "MSB")
+
+//-----------------------------------------------------------------------------}
+//SUPPLY AND DEMAND
+//-----------------------------------------------------------------------------{
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+per = input.float(10., 'Threshold %', minval = 0, maxval = 100)
+div = input.int(50, 'Resolution'    , minval = 2, maxval = 500)
+tf  = input.timeframe('', 'Intrabar TF')
+
+//Colors
+showSupply = input(true ,'Supply        ', inline = 'supply', group = 'Style')
+supplyCss  = input(#2156f321, ''         , inline = 'supply', group = 'Style')
+supplyArea = input(true ,'Area'          , inline = 'supply', group = 'Style')
+supplyAvg  = input(true ,'Average'       , inline = 'supply', group = 'Style')
+supplyWavg = input(true ,'Weighted'      , inline = 'supply', group = 'Style')
+
+showEqui   = input(false ,'Equilibrium'   , inline = 'equi'  , group = 'Style')
+equiCss    = input(color.gray, ''      , inline = 'equi'  , group = 'Style')
+equiAvg    = input(true ,'Average'       , inline = 'equi'  , group = 'Style')
+equiWavg   = input(true ,'Weighted'      , inline = 'equi'  , group = 'Style')
+
+showDemand = input(true ,'Demand    '    , inline = 'demand', group = 'Style')
+demandCss  = input(#ff5e0020, ''         , inline = 'demand', group = 'Style')
+demandArea = input(true ,'Area'          , inline = 'demand', group = 'Style')
+demandAvg  = input(true ,'Average'       , inline = 'demand', group = 'Style')
+demandWavg = input(true ,'Weighted'      , inline = 'demand', group = 'Style')
+
+//-----------------------------------------------------------------------------}
+//UDT's
+//-----------------------------------------------------------------------------{
+type bin
+    float lvl
+    float prev
+    float sum
+    float prev_sum
+    float csum
+    float avg
+    bool isreached
+
+type area
+    box  bx
+    line avg 
+    line wavg 
+
+//-----------------------------------------------------------------------------}
+//Functions
+//-----------------------------------------------------------------------------{
+
+get_hlv()=> [high, low, volume]
+
+method set_area(area id, x1, top, btm, avg, wavg, showArea, showAvg, showWavg)=>
+    if showArea
+        id.bx.set_lefttop(x1, top)
+        id.bx.set_rightbottom(n, btm)    
+    
+    if showAvg
+        id.avg.set_xy1(x1, avg)
+        id.avg.set_xy2(n, avg)
+    
+    if showWavg
+        id.wavg.set_xy1(x1, wavg)
+        id.wavg.set_xy2(n, wavg)
+
+//-----------------------------------------------------------------------------}
+//Main variables
+//-----------------------------------------------------------------------------{
+var max1  = 0. 
+var min1  = 0.
+var x1   = 0
+var csum = 0.
+
+//Intrabar data
+[h, l, v] = request.security_lower_tf(syminfo.tickerid, tf, get_hlv())
+
+//Init on left bar
+if time == chart.left_visible_bar_time
+    max1 := high
+    min1 := low
+    csum := volume
+    x1 := n
+else //Accumulate
+    max1 := math.max(high, max1)
+    min1 := math.min(low, min1)
+    csum += volume
+
+//-----------------------------------------------------------------------------}
+//Set zones
+//-----------------------------------------------------------------------------{
+var supply_area = area.new(
+  box.new(na, na, na, na, na, bgcolor = color.new(supplyCss, 90))
+  , line.new(na, na, na, na, color = supplyCss)
+  , line.new(na, na, na, na, color = supplyCss, style = line.style_dashed))
+
+var demand_area = area.new(
+  box.new(na, na, na, na, na, bgcolor = color.new(demandCss, 90))
+  , line.new(na, na, na, na, color = demandCss)
+  , line.new(na, na, na, na, color = demandCss, style = line.style_dashed))
+
+var equi  = line.new(na, na, na, na, color = equiCss)
+var wequi = line.new(na, na, na, na, color = equiCss, style = line.style_dashed)
+
+var float supply_wavg = na
+var float demand_wavg = na
+
+if time == chart.right_visible_bar_time
+    r = (max1 - min1) / div
+    supply = bin.new(max1, max1, 0, 0, 0, 0, false)
+    demand = bin.new(min1, min1, 0, 0, 0, 0, false)
+
+    //Loop trough intervals
+    for i = 0 to div-1
+        supply.lvl -= r
+        demand.lvl += r
+
+        //Accumulated volume column
+        if not supply.isreached and showSupply and supplyArea
+            box.new(x1, supply.prev, x1 + int(supply.sum / csum * (n - x1)), supply.lvl, na
+              , bgcolor = color.new(supplyCss, 50))
+        
+        if not demand.isreached and showDemand and demandArea
+            box.new(x1, demand.lvl, x1 + int(demand.sum / csum * (n - x1)), demand.prev, na
+              , bgcolor = color.new(demandCss, 50))
+        
+        //Loop trough bars
+        for j = 0 to (n - x1)-1
+            //Loop trough intrabars
+            for k = 0 to (v[j]).size()-1
+                //Accumulate if within upper internal
+                supply.sum      += (h[j]).get(k) > supply.lvl and (h[j]).get(k) < supply.prev ? (v[j]).get(k) : 0
+                supply.avg      += supply.lvl * (supply.sum - supply.prev_sum)
+                supply.csum     += supply.sum - supply.prev_sum
+                supply.prev_sum := supply.sum
+
+                //Accumulate if within lower interval
+                demand.sum      += (l[j]).get(k) < demand.lvl and (l[j]).get(k) > demand.prev ? (v[j]).get(k) : 0
+                demand.avg      += demand.lvl * (demand.sum - demand.prev_sum)
+                demand.csum     += demand.sum - demand.prev_sum
+                demand.prev_sum := demand.sum
+                
+            //Test if supply accumulated volume exceed threshold and set box
+            if supply.sum / csum * 100 > per and not supply.isreached
+                avg = math.avg(max1, supply.lvl)
+                supply_wavg := supply.avg / supply.csum
+
+                //Set Box/Level coordinates
+                if showSupply
+                    supply_area.set_area(x1, max1, supply.lvl, avg, supply_wavg, supplyArea, supplyAvg, supplyWavg)
+
+                supply.isreached := true
+            
+            //Test if demand accumulated volume exceed threshold and set box
+            if demand.sum / csum * 100 > per and not demand.isreached and showDemand
+                avg = math.avg(min1, demand.lvl)
+                demand_wavg := demand.avg / demand.csum
+                
+                //Set Box/Level coordinates
+                if showDemand
+                    demand_area.set_area(x1, demand.lvl, min1, avg, demand_wavg, demandArea, demandAvg, demandWavg)
+
+                demand.isreached := true
+            
+            if supply.isreached and demand.isreached
+                break
+        
+        if supply.isreached and demand.isreached and showEqui
+            //Set equilibrium
+            if equiAvg
+                avg = math.avg(max1, min1)
+                equi.set_xy1(x1, avg)
+                equi.set_xy2(n, avg)
+            
+            //Set weighted equilibrium
+            if equiWavg
+                wavg = math.avg(supply_wavg, demand_wavg)
+                wequi.set_xy1(x1, wavg)
+                wequi.set_xy2(n, wavg)
+
+            break
+        
+        supply.prev := supply.lvl
+        demand.prev := demand.lvl
+
+//------------------------------------------------------------------------------
+//  === Range Detector ===
+//------------------------------------------------------------------------------
+
+length3 = input.int(20, 'Minimum Range Length', minval = 2)
+mult   = input.float(1., 'Range Width', minval = 0, step = 0.1)
+atrLen = input.int(500, 'ATR Length', minval = 1)
+
+//Style
+upCss = input(#089981, 'Broken Upward', group = 'Style')
+dnCss = input(#f23645, 'Broken Downward', group = 'Style')
+unbrokenCss = input(#2157f3, 'Unbroken', group = 'Style')
+
+//-----------------------------------------------------------------------------}
+//Detect and highlight ranges
+//-----------------------------------------------------------------------------{
+//Ranges drawings
+var box bx = na
+var line lvl = na
+
+//Extensions
+var float max2 = na
+var float min2 = na
+
+var os = 0
+color detect_css = na
+
+atr = ta.atr(atrLen) * mult
+ma = ta.sma(close, length3)
+
+count = 0
+for i = 0 to length3-1
+    count += math.abs(close[i] - ma) > atr ? 1 : 0
+
+if count == 0 and count[1] != count
+    //Test for overlap and change coordinates
+    if n[length3] <= bx.get_right()
+        max2 := math.max(ma + atr, bx.get_top())
+        min2 := math.min(ma - atr, bx.get_bottom())
+        
+        //Box new coordinates
+        bx.set_top(max)
+        bx.set_rightbottom(n, min2)
+        bx.set_bgcolor(color.new(unbrokenCss, 80))
+
+        //Line new coordinates
+        avg = math.avg(max2, min2)
+        lvl.set_y1(avg)
+        lvl.set_xy2(n, avg)
+        lvl.set_color(unbrokenCss)
+    else
+        max2 := ma + atr
+        min2 := ma - atr
+
+        //Set new box and level
+        bx := box.new(n[length3], ma + atr, n, ma - atr, na
+          , bgcolor = color.new(unbrokenCss, 80))
+        
+        lvl := line.new(n[length3], ma, n, ma
+          , color = unbrokenCss
+          , style = line.style_dotted)
+
+        detect_css := color.new(#787b86, 80)
+        os := 0
+
+else if count == 0
+    bx.set_right(n)
+    lvl.set_x2(n)
+
+//Set color
+if close > bx.get_top()
+    bx.set_bgcolor(color.new(upCss, 80))
+    lvl.set_color(upCss)
+    os := 1
+else if close < bx.get_bottom()
+    bx.set_bgcolor(color.new(dnCss, 80))
+    lvl.set_color(dnCss)
+    os := -1
+
+//-----------------------------------------------------------------------------}
+//Plots
+//-----------------------------------------------------------------------------{
+//Range detection bgcolor
+bgcolor(detect_css)
+
+plot(max2, 'Range Top'
+  , max2 != max2[1] ? na : os == 0 ? unbrokenCss : os == 1 ? upCss : dnCss)
+
+plot(min2, 'Range Bottom'
+  , min2 != min2[1] ? na : os == 0 ? unbrokenCss : os == 1 ? upCss : dnCss)
+
+//-----------------------------------------------------------------------------}

@@ -1,0 +1,31 @@
+{
+  "id": "3e41d3a4dea9411c",
+  "arquivo": "mt DanielScalper.mq5",
+  "hash": "3e41d3a4dea9411c",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 40,
+  "riscos_detectados": [
+    "Martingale/Grid detected",
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 60,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

@@ -1,0 +1,131 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © sphinxtradingresearch
+// thanks to cdikici71
+//@version=5
+
+//indicator name
+indicator("HTF Candles",overlay=true,max_boxes_count = 500,max_lines_count = 100)
+
+//user inputs
+htf      = input.timeframe(defval= "60", title = "HTF",group ="HTF",inline="htf")
+showhtf  = input.bool(defval = true,title = "Show HTF boxes",group="HTF",inline="htf")
+fonthtf  = input.color(defval = color.black, title = "HTF Font color", group = "HTF")
+show_candle= input.bool(defval = true,title = "Show HTF Candle",group="HTF",inline="htf1")
+dx= input(defval= 0 ,title = " start from ahead",group="HTF",inline="htf1")
+bull_color =input.color(defval = color.aqua, title=" Bull Color " , inline="clr", group= "Candle Colors")
+bear_color =input.color(defval = color.white, title=" Bear Color " , inline="clr", group= "Candle Colors")
+
+//data
+sym = syminfo.tickerid 
+tf = timeframe.period
+
+var o0 = open
+var h0 = high
+var l0 = low
+var h0bar = bar_index
+var l0bar = bar_index
+var h1bar = bar_index
+var l1bar = bar_index
+var h0t   = time
+var l0t   = time
+var t0 = time
+var c0 = close
+var h1 = high
+var l1 = low
+var t1 = time
+var c1 = close
+var o1 = open
+var h2 = high
+var l2 = low
+var o2 = open
+var c2 = close
+var h3 = high
+var l3 = low
+var o3 = open
+var c3 = close
+
+if timeframe.change(htf)
+    t0 := time
+    o0 := open
+    h0 := high
+    l0 := low
+if high >= h0
+    h0 := high
+    h0bar := bar_index
+    h0t   := time    
+if low <= l0
+    l0 := low
+    l0bar := bar_index
+    l0t   := time
+c0:= close
+if timeframe.change(htf)
+    o1 := o0[1]
+    h1 := h0[1]
+    l1 := l0[1]
+    t1 := t0[1]
+    c1 := close[1] 
+    h2 := h1[1]
+    l2 := l1[1]
+    o2 := o1[1]
+    c2 := c1[1]
+    h3 := h2[1]
+    l3 := l2[1]
+    o3 := o2[1]
+    c3 := c2[1]
+
+f_text(string _tf)=>
+    _text = str.tonumber(_tf) < 59 ? _tf + 'm' :
+     str.tonumber(_tf) > 59  ? str.tostring(math.floor(str.tonumber(_tf)/60))  + 'h' : _tf
+
+Getcolor(_sym,res, data1, i1 , data2,i2) =>
+    [op,cl] = request.security(_sym, res, [data1[i1],data2[i2]], lookahead=barmerge.lookahead_on ,ignore_invalid_symbol = true)
+    clr = op > cl ? color.new(bear_color, 0) : color.new(bull_color,0)
+    clr
+
+//plotting data
+sw1=line.new(na,na,na,na)
+sw2=line.new(na,na,na,na)
+xxo  = o0 ,  xxc = c0 ,  xxh = h0 ,  xxl = l0
+xxo1 = o1 , xxc1 = c1 , xxh1 = h1 , xxl1 = l1
+xxo2 = o2 , xxc2 = c2 , xxh2 = h2 , xxl2 = l2
+xxo3 = o3 , xxc3 = c3 , xxh3 = h3 , xxl3 = l3
+
+if show_candle
+    if barstate.islast 
+        line.delete(sw1[1])  
+        line.delete(sw2[1])
+        bl0=box.new(left=bar_index+dx+18 ,top= xxc , right= bar_index+dx +20 , bottom = xxo, bgcolor = Getcolor(sym,htf,open,0,close,0), border_color = Getcolor(sym,htf,open,0,close,0) , text = f_text(htf) , text_size = size.tiny ,text_valign = text.align_center , text_halign = text.align_center,text_color = fonthtf )
+        wup=box.new(left=bar_index+dx+19 ,top= xxh , right= bar_index+dx +19 , bottom = math.max(xxo,xxc) , border_color = Getcolor(sym,htf,open,0,close,0),border_width =1)
+        wdw=box.new(left=bar_index+dx+19 ,top= xxl , right= bar_index+dx +19 , bottom = math.min(xxo,xxc) , border_color = Getcolor(sym,htf,open,0,close,0),border_width =1)
+
+        bl01=box.new(left=bar_index+dx+15 ,top= xxc1 , right= bar_index+dx +17 , bottom = xxo1, bgcolor = Getcolor(sym,htf,open,1,close,1), border_color = Getcolor(sym,htf,open,1,close,1) , text = f_text(htf), text_size = size.tiny ,text_valign = text.align_center , text_halign = text.align_center,text_color = fonthtf   )
+        wup1=box.new(left=bar_index+dx+16 ,top= xxh1 , right= bar_index+dx +16 , bottom = math.max(xxo1,xxc1) , border_color = Getcolor(sym,htf,open,1,close,1),border_width =1)
+        wdw1=box.new(left=bar_index+dx+16 ,top= xxl1 , right= bar_index+dx +16 , bottom = math.min(xxo1,xxc1) , border_color = Getcolor(sym,htf,open,1,close,1),border_width =1)
+    
+        bl02=box.new(left=bar_index+dx+12 ,top= xxc2 , right= bar_index+dx +14 , bottom = xxo2, bgcolor = Getcolor(sym,htf,open,2,close,2), border_color = Getcolor(sym,htf,open,2,close,2) , text = f_text(htf) , text_size = size.tiny ,text_valign = text.align_center , text_halign = text.align_center,text_color = fonthtf  )
+        wup2=box.new(left=bar_index+dx+13 ,top= xxh2 , right= bar_index+dx +13 , bottom = math.max(xxo2,xxc2) , border_color = Getcolor(sym,htf,open,2,close,2),border_width =1)
+        wdw2=box.new(left=bar_index+dx+13 ,top= xxl2 , right= bar_index+dx +13 , bottom = math.min(xxo2,xxc2) , border_color = Getcolor(sym,htf,open,2,close,2),border_width =1)
+
+        bl03=box.new(left=bar_index+dx+9  ,top= xxc3 , right= bar_index+dx +11 , bottom = xxo3, bgcolor = Getcolor(sym,htf,open,3,close,3), border_color = Getcolor(sym,htf,open,3,close,3) , text = f_text(htf) , text_size = size.tiny ,text_valign = text.align_center , text_halign = text.align_center,text_color = fonthtf  )
+        wup3=box.new(left=bar_index+dx+10 ,top= xxh3 , right= bar_index+dx +10 , bottom = math.max(xxo3,xxc3) , border_color = Getcolor(sym,htf,open,3,close,3),border_width =1)
+        wdw3=box.new(left=bar_index+dx+10 ,top= xxl3 , right= bar_index+dx +10 , bottom = math.min(xxo3,xxc3) , border_color = Getcolor(sym,htf,open,3,close,3),border_width =1)
+
+
+
+        box.delete(bl0[1])
+        box.delete(bl01[1])
+        box.delete(bl02[1])
+        box.delete(bl03[1])
+                    
+        box.delete(wup[1])
+        box.delete(wdw[1])
+        box.delete(wup1[1])
+        box.delete(wdw1[1])
+        box.delete(wup2[1])
+        box.delete(wdw2[1])       
+        box.delete(wup3[1])
+        box.delete(wdw3[1])
+
+       
+
+

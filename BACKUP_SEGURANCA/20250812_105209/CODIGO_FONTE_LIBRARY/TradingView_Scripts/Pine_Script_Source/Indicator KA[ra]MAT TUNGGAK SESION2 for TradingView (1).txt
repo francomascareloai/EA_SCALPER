@@ -1,0 +1,178 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+//@kromut76
+strategy(title='KA[ra]MAT TUNGGAK SESION2', shorttitle='KT2', overlay=true, default_qty_value=100, default_qty_type=strategy.percent_of_equity, initial_capital=10000, max_bars_back=1000)
+
+src = input(title='Source', defval=close)
+
+//DATE RANGE FILTER {
+i_tradeDirection = input.string(title='Trade Direction', defval=strategy.direction.all, options=[strategy.direction.all, strategy.direction.long, strategy.direction.short], group='Trade Filters')
+strategy.risk.allow_entry_in(i_tradeDirection)
+i_startTime = input.time(defval=timestamp('01 Jan 2000 00:00 +0000'), title='Start Time', group='Trade Filters')
+i_endTime = input.time(defval=timestamp('01 Jan 2099 00:00 +0000'), title='End Time', group='Trade Filters')
+inDateRange = time >= i_startTime and time <= i_endTime
+
+
+// EXIT STRATEGY
+showTrade   = input.bool(true, 'Show TP/SL')
+KAMA1SL = input(title='KAMA Stop Loss', defval=true, group = "EXIT STRATEGY")
+ATRTSL = input(title='ATR Trailing Stop Loss', defval=true, group = "EXIT STRATEGY")
+
+// KAMA (FASTEST)
+length1 = input(title='KAMA 1: Length', defval=14, group = "KAMA Input")
+fastLength1 = input(title='KAMA 1: Fast KAMA Length', defval=2, group = "KAMA Input")
+slowLength1 = input(title='KAMA 1: Slow KAMA Length', defval=20, group = "KAMA Input")
+
+// Kaufman's Adaptive Moving Average
+getKAMA(src, length1, fastLength1, slowLength1) =>
+    mom = math.abs(ta.change(src, length1))
+    volatility = math.sum(math.abs(ta.change(src)), length1)
+
+    // Efficiency Ratio
+    er = volatility != 0 ? mom / volatility : 0
+
+    fastAlpha = 2 / (fastLength1 + 1)
+    slowAlpha = 2 / (slowLength1 + 1)
+
+    // KAMA Alpha
+    sc = math.pow(er * (fastAlpha - slowAlpha) + slowAlpha, 2)
+
+    kama = 0.0
+    kama := sc * src + (1 - sc) * nz(kama[1])
+    kama
+
+kama1 = getKAMA(src, length1, fastLength1, slowLength1)
+
+//If the kama1 has increased...
+kama1delta = kama1[0] - kama1[1]
+
+
+// KAMA Plots
+plot(kama1, title='KAMA 1', color=color.new(#e91e63, 0), display=display.all, linewidth=2)
+
+
+//========================================= KAMA FILTER ===========================================
+entryFilter = input.float(title='KAMA Entry Filter', defval=1, minval=0.01, group = "KAMA Filter")
+exitFilter = input.float(title='KAMA Exit Filter', defval=0.5, minval=0.01,  group = "KAMA Filter")
+
+entryMAAF = entryFilter * ta.stdev(kama1delta, length1)
+exitMAAF = exitFilter * ta.stdev(kama1delta, length1)
+srcEma = ta.ema(src, length1)
+
+//========================================= TRAILING ATR STOP ====================================
+atrLookback = input(defval=14, title='Trailing ATR Lookback Period', group = "ATR")
+multiplier = input.float(defval=3, title='Trailing ATR Multiplier', step=0.1, minval=0.5, maxval=4, group = "ATR")
+trailMode = input.string(title='Trail Mode', defval='Trailing', options=['Running', 'Trailing'], group = "ATR")
+trigInput = input.string(title='Trigger Trailing Stop On', defval='Wick', options=['Close', 'Wick'], group = "ATR")
+
+// Calculate ATR
+atrValue = ta.atr(atrLookback)
+atrMultiplied = atrValue * multiplier
+
+[_, direction] = ta.supertrend(length1, atrLookback) 
+
+// Plot the price minus the ATR
+atrLow = close - atrMultiplied
+// Calculate the low trailing ATRs every time. The trailing stop loss never goes down.
+// Set them to something to start with
+trailAtrLow = atrLow
+// If the ATR Low has gone up AND it has gone above the trail, the low trailing ATR should also go up. If the ATR Low has gone up or down, but not below the trail, the ATR trail stays where it is
+trailAtrLow := na(trailAtrLow[1]) ? trailAtrLow : atrLow >= trailAtrLow[1] ? atrLow : trailAtrLow[1]
+// Trigger stop based on candle close or low
+trigSupport = trigInput == 'Close' ? close : trigInput == 'Wick' ? low : na
+// Determine if price is below support
+supportHit = trigSupport <= trailAtrLow
+// If price is below support, reset the trailing ATR
+trailAtrLow := supportHit ? atrLow : trailAtrLow
+// Plot Lines
+plotLow = ATRTSL ? trailAtrLow : na
+plot(plotLow, title='ATR Low', color=color.new(color.white, 50), style=plot.style_linebr, linewidth=1, display=display.all)
+
+//SL TP PERCENT {
+string sltp= "STOP/TAKE PROFIT"
+usetpsl     = input.bool(true, 'Use TP/SL', inline=sltp, group=sltp)
+float percentStop = input.float(3.5, "Stop %",  minval = 0.0, step = 0.1, group=sltp, inline='percent')
+float percentTP   = input.float(5.3, "Limit %", minval = 0.0, step = 0.1, group=sltp, inline='percent')
+
+// This can be used to calculate the take profit and stop levels.
+float sl = css.ticksToStopLevel (css.percentToTicks (percentStop))
+float tp = css.ticksToTpLevel   (css.percentToTicks (percentTP))  
+
+exitPrice = strategy.closedtrades.exit_price(strategy.closedtrades)//-1)
+bias      = math.sign(strategy.position_size)
+avg       = strategy.position_avg_price
+
+// Conditions used to reference position and determine trade bias
+bool long         = strategy.position_size > 0
+bool short        = strategy.position_size < 0
+bool enterLong    = long  and not long [1]
+bool enterShort   = short and not short[1]
+bool enter        = enterLong or enterShort 
+bool exit         = strategy.position_size == 0 and not (strategy.position_size == 0)[1]
+bool flat         = strategy.position_size == 0
+
+//STRATEGY PLOTS {
+avgerage    = plot(showTrade  ? avg : na, "ENTRY", not enter ? color.new(color.white, 0) : na, 2, plot.style_linebr)
+slp         = plot(showTrade  ? sl  : na, "STOP LOSS", not enter ? color.new(color.red, 60) : na, 4, plot.style_linebr)
+tpp         = plot(showTrade  ? tp  : na, "TAKE PROFIT", not enter ? color.new(color.green,   60) : na, 4, plot.style_linebr)
+
+fill(tpp, avgerage, color = color.new(color.green,   80), title='TP Background')
+fill(avgerage, slp, color = color.new(color.red, 80) , title= 'SL Background')
+//}
+
+//ALERTS {
+i_alert_txt_entry_long = input.text_area(defval = "", title = "Long Entry Message", group = "Alerts")
+i_alert_txt_entry_short = input.text_area(defval = "", title = "Short Entry Message", group = "Alerts")
+i_alert_txt_exit_long = input.text_area(defval = "", title = "Long Exit Message", group = "Alerts")
+i_alert_txt_exit_short = input.text_area(defval = "", title = "Short Exit Message", group = "Alerts")
+
+// Strategy code begins here
+import TradingView/Strategy/2 as css
+if usetpsl == true and long
+    css.exitPercent("exit long",percentStop, percentTP, alertMessage=i_alert_txt_exit_long)
+
+if usetpsl == true and short
+    css.exitPercent("exit short", percentStop, percentTP, alertMessage=i_alert_txt_exit_short)
+
+bool longCondition  = kama1delta  > 0 and kama1delta > entryMAAF 
+bool shortCondition = (kama1delta < 0 and math.abs(kama1delta) > exitMAAF) or (ATRTSL ? supportHit : na)
+
+//========================================= ENTRY & EXITS =====================================================
+// Create entries based on the cross conditions for both trades biases.
+if longCondition and inDateRange 
+    strategy.close("SHORT", alert_message=i_alert_txt_exit_short)
+    strategy.entry("LONG", strategy.long, alert_message=i_alert_txt_entry_long)
+
+if shortCondition and inDateRange
+    strategy.close("LONG", alert_message=i_alert_txt_exit_long)
+    strategy.entry("SHORT", strategy.short, alert_message=i_alert_txt_entry_short)
+
+if (direction < 0 and (direction > 0)[1])
+    strategy.close("LONG", "LX", alert_message=i_alert_txt_exit_long)
+    
+if (direction > 0 and (direction < 0)[1])
+    strategy.close("SHORT", "SX", alert_message=i_alert_txt_exit_short)
+
+//rr = input(1.5, "Risk : Reward", group = "Set up risk : reward")
+//var float stoplosslevel  = na
+//if entryMAAF  and strategy.position_size==0
+//    stoplosslevel := math.min(low, low[1], low[2])
+//takeprofitlevel = strategy.position_avg_price + rr*(strategy.position_avg_price-stoplosslevel)
+//strategy.exit("Long", limit = takeprofitlevel, stop=stoplosslevel, comment="TP/SL")
+
+//Plot SL and TP
+//p1=plot(strategy.position_size > 0 ? stoplosslevel : na, color=color.red, style=plot.style_linebr, title="SL")
+//p2=plot(strategy.position_size > 0 ? takeprofitlevel : na, color=color.lime, style=plot.style_linebr, title="TP")
+//p3=plot(strategy.position_size > 0 ? strategy.position_avg_price : na, color=color.silver, style=plot.style_linebr, title="Entry")
+//fill(p1, p3, color=color.red, transp = 90)
+//fill(p2, p3, color=color.green, transp = 90)
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

@@ -1,0 +1,711 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator('Quant Algo', overlay=true)
+
+prd = input.int(defval=2, title='QA Period [1]', minval=1, maxval=50, group='Quant Algo Major Settings')
+Factor = input.float(defval=3, title='QA Multiplier', minval=1, step=0.1, group='Quant Algo Major Settings', tooltip = 'Change from 1.9 (most aggressive) to 3 (most conservative) with a step of 0.1')
+Pd = input.int(defval=10, title='QA Factor [1]', minval=1, group='Quant Algo Major Settings', tooltip = 'Conservative - "10", Aggressive - "16"; *Change only in combination with QA Multiplier')
+showlabel = input(defval=true, title='Show Buy/Sell Labels')
+
+// get rsi 
+rsiSource = input(title='RSI Source', defval=close)
+rsiLength = input(title='RSI Length', defval=14)
+rsiMiddle = input(title='RSI Middle', defval=50)
+rsiLower = input(title='RSI Middle', defval=65)
+
+rsValue = ta.rsi(rsiSource, rsiLength)
+Cond1 = rsValue > rsiMiddle
+Cond2 = rsValue < rsiMiddle
+
+// get 50ema
+emaLength1 = input(title='EMA 1 Lenght', defval=50)
+emaLength2 = input(title='EMA 2 Lenght', defval=120)
+emaLength3 = input(title='EMA 3 Lenght', defval=120)
+src1 = input(close, title='Source')
+ema3 = ta.ema(close, emaLength3)
+smma = 0.0
+smma := na(smma[1]) ? ema3 : (smma[1] * (emaLength3 - 1) + src1) / emaLength3
+
+
+ema1 = ta.ema(close, emaLength1)
+ema2 = ta.ema(close, emaLength2)
+plot(ema1, color=color.new(#F44336, 0), title='50 EMA')
+
+// candles above below EMA
+aboveEMA = close > ema1
+aboveEMA2 = close > ema2
+belowEMA = close < ema1
+fouraboveEMA = aboveEMA[1] and aboveEMA[2] and aboveEMA[3] and aboveEMA[4]
+emaCond = not aboveEMA[6]
+emaCond1 = not belowEMA[6]
+
+// get ema filters
+longFilter = close > ema1 and emaCond
+shortFilter = close < ema1 and emaCond1
+buycond5 = close > ema2
+sellcond6 = close < smma
+
+// get Pivot High/Low
+float ph = ta.pivothigh(prd, prd)
+float pl = ta.pivotlow(prd, prd)
+
+// calculate the Center line using pivot points
+var float center = na
+float lastpp = ph ? ph : pl ? pl : na
+if lastpp
+    if na(center)
+        center := lastpp
+        center
+    else
+        //weighted calculation
+        center := (center * 2 + lastpp) / 3
+        center
+
+// upper/lower bands calculation
+Up = center - Factor * ta.atr(Pd)
+Dn = center + Factor * ta.atr(Pd)
+
+// get the trend
+float TUp = na
+float TDown = na
+Trend = 0
+TUp := close[1] > TUp[1] ? math.max(Up, TUp[1]) : Up
+TDown := close[1] < TDown[1] ? math.min(Dn, TDown[1]) : Dn
+Trend := close > TDown[1] ? 1 : close < TUp[1] ? -1 : nz(Trend[1], 1)
+Trailingsl = Trend == 1 ? TUp : TDown
+//Cloud 
+ma_type = input(title='MA Type', defval='EMA', group='Quant Algo Cloud')
+ma_period = input.int(title='QA Period [1]', defval=21, minval=1, group='Quant Algo Cloud')
+ma_period_smoothing = input.int(title='QA Period [2]', defval=7, minval=1, group='Quant Algo Cloud')
+
+color_positive = input(title='Bullish color', defval=color.new(#26A69A, 50))
+color_negative = input(title='Bearish color', defval=color.new(#EF5350, 50))
+color_hl = input(title='High & Low cloud color', defval=color.new(#808080, 80))
+
+show_line = input(title='Show (lines)', defval=false)
+show_hl_cloud = input(title='Show (High & Low cloud)', defval=true)
+show_oc_cloud = input(title='Show (Open & Close cloud)', defval=true)
+
+f_ma_type(input_ma_type, input_source, input_ma_period) =>
+    result = float(na)
+
+    if input_ma_type == 'EMA'
+        result := ta.ema(input_source, input_ma_period)
+        result
+    result
+
+o = f_ma_type(ma_type, open, ma_period)
+c = f_ma_type(ma_type, close, ma_period)
+h = f_ma_type(ma_type, high, ma_period)
+l = f_ma_type(ma_type, low, ma_period)
+
+ha = ticker.heikinashi(syminfo.tickerid)
+
+ha_o = request.security(ha, timeframe.period, o)
+ha_c = request.security(ha, timeframe.period, c)
+ha_h = request.security(ha, timeframe.period, h)
+ha_l = request.security(ha, timeframe.period, l)
+
+ha_o_smooth = f_ma_type(ma_type, ha_o, ma_period_smoothing)
+ha_c_smooth = f_ma_type(ma_type, ha_c, ma_period_smoothing)
+ha_h_smooth = f_ma_type(ma_type, ha_h, ma_period_smoothing)
+ha_l_smooth = f_ma_type(ma_type, ha_l, ma_period_smoothing)
+
+trend = ha_c_smooth >= ha_o_smooth
+
+color_trend = trend ? color_positive : color_negative
+
+color_show_line_positive = show_line ? color_positive : na
+color_show_line_negative = show_line ? color_negative : na
+
+color_show_hl_cloud = show_hl_cloud ? color_hl : na
+color_show_oc_cloud = show_oc_cloud ? color_trend : na
+
+o_line = plot(ha_o_smooth, color=color_show_line_positive, title='Open line')
+c_line = plot(ha_c_smooth, color=color_show_line_negative, title='Close line')
+
+h_line = plot(ha_h_smooth, color=color_show_line_positive, title='High line')
+l_line = plot(ha_l_smooth, color=color_show_line_negative, title='Low line')
+
+fill(o_line, c_line, color=color_show_oc_cloud, title='Open & Close Trendcloud')
+fill(h_line, l_line, color=color_show_hl_cloud, title='High & Low Trendcloud')
+
+Cond3 = close > ha_c and ha_c_smooth >= ha_o_smooth
+Cond4 = close < ha_c and ha_c_smooth <= ha_o_smooth
+ApplyNewFilter = input(defval=true, title='EMA Filter', group= 'Advanced Filters')
+ApplyNewFilter2 = input(defval=false, title='QA SQZ Filter', group= 'Advanced Filters')
+ApplyNewFilter3 = input(defval=false, title='QA Comp. Filter', group= 'Advanced Filters')
+ApplyNewFilter4 = input(defval=false, title='QA TVol. Filter', group= 'Advanced Filters')
+type = input.string('Stoch RSI + RSI', 'Stoch + Confirmation', options=['Stoch DPR + DPR', 'Stoch MFI + MFI', 'Stoch OBV + VO', 'Stoch RSI + RSI', 'Stoch RVI + RVI'], group = 'QA Comp. Filter Settings') 
+smoothK = input.int(3 , 'QA : K', minval=1, group = 'QA Comp. Filter Settings')
+smoothD = input.int(3 , 'QA : D', minval=1, group = 'QA Comp. Filter Settings')
+length  = input.int(14, 'QA : Length', minval=1, group = 'QA Comp. Filter Settings')
+
+group_addon = 'QA SQZ Filter Settings'
+           
+dispSqueeze = input(false, 'Hide SQZ Strength Line', group=group_addon)
+bbkcLength  = input.int  (21 , 'QA : Length', minval=1, group=group_addon)
+bbMult      = input.float(2  , 'QA : SD', minval=.25, step=.25, maxval=3, group=group_addon)
+kcMult      = input.float(1.5, 'QA : Vol. Multiplier', minval=.25, step=.25, maxval=3, group=group_addon)
+nzVolume = nz(volume)
+get_rvi() =>
+    stddev = ta.stdev(close, 10)
+    upper  = ta.ema(ta.change(close) <= 0 ? 0 : stddev, 14)
+    lower  = ta.ema(ta.change(close) >  0 ? 0 : stddev, 14)
+    rvi    = upper / (upper + lower) * 100
+
+get_dpr() =>
+    buyPressure  = 0.
+    sellPressure = 0.
+    priceDelta   = 0.
+    priceRange   = 0.
+    dpr          = 0.
+    dominance    = 0.
+
+    if nzVolume
+        for i = 0 to length
+            priceDelta := close[i] - open[i]
+            priceRange := high[i]  - low[i]
+    
+            if priceDelta > 0
+                buyPressure += priceDelta / priceRange * nzVolume[i]
+
+            if priceDelta < 0
+                sellPressure += priceDelta / priceRange * nzVolume[i]
+
+        dominance := buyPressure + math.abs(sellPressure)
+        
+        if dominance != 0.
+            dpr := 100 * (buyPressure / dominance)
+        else
+            dpr := 50
+
+stochSource = switch type
+    'Stoch DPR + DPR'   => get_dpr()
+    'Stoch RSI + RSI'   => ta.rsi(close, length)
+    'Stoch RVI + RVI'   => get_rvi()
+    'Stoch MFI + MFI'   => ta.mfi(hlc3, length)
+    'Stoch OBV + VO'    => ta.obv
+
+companion = switch type
+    'Stoch OBV + VO'    => ((ta.ema(nzVolume, 5) - ta.ema(nzVolume, 10)) / ta.ema(nzVolume, 10) + .5) * 100
+    => stochSource
+
+k  = ta.sma(ta.stoch(close, high, low, length), smoothK)
+kx = ta.sma(ta.stoch(stochSource, stochSource, stochSource, length), smoothK)
+d  = ta.sma(kx, smoothD)
+
+// TTM Squeeze Indicator 
+var bool noSqz = na
+if not dispSqueeze
+    [_, bbUpper, bbLower] = ta.bb(close, bbkcLength, bbMult)
+    [_, kcUpper, kcLower] = ta.kc(close, bbkcLength, kcMult, true)
+
+    noSqz := bbLower < kcLower and bbUpper > kcUpper
+    noSqz
+
+// -Plot ======================================================================================== //
+plotshape(not dispSqueeze ? true : na, 'Squeeze On/Off', shape.diamond, location.bottom, noSqz ? #2DD204 : #5c5c5c)
+cond8 = noSqz
+cond9 = companion > 50 
+
+import loxx/loxxmas/1
+
+_iT3(src, per, hot, clean)=>
+    a = hot
+    _c1 = -a * a * a
+    _c2 = 3 * a * a + 3 * a * a * a
+    _c3 = -6 * a * a - 3 * a - 3 * a * a * a
+    _c4 = 1 + 3 * a + a * a * a + 3 * a * a
+    
+    alpha = 0.
+    
+    if (clean == "Advanced")
+        alpha := 2.0 / (2.0 + (per - 1.0) / 2.0)
+    else 
+        alpha := 2.0 / (1.0 + per)
+
+    _t30 = src, _t31 = src
+    _t32 = src, _t33 = src
+    _t34 = src, _t35 = src
+    
+    _t30 := nz(_t30[1]) + alpha * (src -  nz(_t30[1]))
+    _t31 := nz(_t31[1]) + alpha * (_t30 - nz(_t31[1]))
+    _t32 := nz(_t32[1]) + alpha * (_t31 - nz(_t32[1]))
+    _t33 := nz(_t33[1]) + alpha * (_t32 - nz(_t33[1]))
+    _t34 := nz(_t34[1]) + alpha * (_t33 - nz(_t34[1]))
+    _t35 := nz(_t35[1]) + alpha * (_t34 - nz(_t35[1]))
+    out =
+         _c1 * _t35 + _c2 * _t34 +
+         _c3 * _t33 +  _c4 * _t32
+    out
+
+_declen()=>
+    mtckstr = str.tostring(syminfo.mintick)
+    da = str.split(mtckstr, ".")
+    temp = array.size(da) 
+    dlen = 0.
+    if syminfo.mintick < 1
+        dstr = array.get(da, 1) 
+        dlen := str.length(dstr)
+    dlen
+
+variant(type, src, len) =>
+    sig = 0.0
+    trig = 0.0
+    special = false
+    if type == "Exponential Moving Average - EMA"
+        [t, s, b] = loxxmas.ema(src, len)
+        sig := s
+        trig := t
+        special := b
+    else if type == "Fast Exponential Moving Average - FEMA"
+        [t, s, b] = loxxmas.fema(src, len)
+        sig := s
+        trig := t
+        special := b
+    trig
+    
+PriceSmoothing = input.int(5, "TVol. Smoothing Factor", group= "QA TVol. Filter Settings")
+t3hot = input.float(.5, "TVol. Multiplier", group= "QA TVol. Filter Settings")   
+t3swt = input.string("Advanced", "TVol. Smoothing", options = ["Advanced", "Basic"], group = "QA TVol. Filter Settings")
+
+FilterInPips = input.float(1.9, "TVol. Smoothing Filter", group= "QA TVol. Filter Settings") 
+
+sigmatype = input.string("Exponential Moving Average - EMA", "Smoothing Type", options = ["Exponential Moving Average - EMA", "Fast Exponential Moving Average - FEMA"], group = "QA TVol. Filter Settings")
+Ma1Period = input.int(100, "TVol. Length", group= "QA TVol. Filter Settings")        
+
+pipMultiplier = math.pow(10, _declen() % 2)
+
+cHigh = _iT3(high, PriceSmoothing, t3hot, t3swt)
+cLow = _iT3(low, PriceSmoothing, t3hot, t3swt)
+cOpen = _iT3(open, PriceSmoothing, t3hot, t3swt)
+cClose = _iT3(close, PriceSmoothing, t3hot, t3swt)
+pClose =  _iT3(nz(close[1]), PriceSmoothing, t3hot, t3swt)
+
+val = 0., valc = 0.
+truerng = math.max(cHigh, pClose) - math.min(cLow, pClose)
+rng = cHigh - cLow
+vqi = (rng != 0 and truerng != 0) ? ((cClose - pClose) / truerng + (cClose - cOpen) / rng) * 0.5 : val[1] 
+
+val := nz(val[1]) + math.abs(vqi) * (cClose - pClose + cClose - cOpen) * 0.5 
+if (FilterInPips > 0)
+    if (math.abs(val - val[1]) < FilterInPips * pipMultiplier * syminfo.mintick) 
+        val := nz(val[1]) 
+        
+sig = nz(val[1])
+
+temp = variant(sigmatype, val, Ma1Period) 
+levelu = 0., leveld = 0., mid = 0.
+levelu := (val > sig) ? temp : nz(levelu[1])
+leveld := (val < sig) ? temp : nz(leveld[1])
+
+cond10 = val > leveld
+cond11 = val < leveld
+
+// check and plot the signals
+bsignal = Trend == 1 and Trend[1] == -1 and longFilter and Cond1 and (not ApplyNewFilter or buycond5) and (not ApplyNewFilter2 or cond8) and (not ApplyNewFilter3 or cond9) and (not ApplyNewFilter4 or cond10)//and Cond3
+plotshape(bsignal and showlabel ? Trailingsl : na, title='Buy', text='Buy', location=location.absolute, style=shape.labelup, size=size.small, color=color.lime, textcolor=color.new(#000000, 0))
+ssignal = Trend == -1 and Trend[1] == 1 and shortFilter and Cond2 and (not ApplyNewFilter or sellcond6) and (not ApplyNewFilter2 or cond8) and (not ApplyNewFilter3 or cond9) and (not ApplyNewFilter4 or cond11)//and Cond4 
+plotshape(ssignal and showlabel ? Trailingsl : na, title='Sell', text='Sell', location=location.absolute, style=shape.labeldown, size=size.small, color=color.red, textcolor=color.new(#FFFFFF, 0))
+
+// alerts
+alertcondition(Trend == 1 and Trend[1] == -1 and longFilter and Cond1 and (not ApplyNewFilter or buycond5) and (not ApplyNewFilter2 or cond8) and (not ApplyNewFilter3 or cond9) and (not ApplyNewFilter4 or cond10), title='Buy Signal', message='Buy Signal')
+alertcondition(Trend == -1 and Trend[1] == 1 and shortFilter and Cond2 and (not ApplyNewFilter or sellcond6) and (not ApplyNewFilter2 or cond8) and (not ApplyNewFilter3 or cond9) and (not ApplyNewFilter4 or cond11), title='Sell Signal', message='Sell Signal')
+
+//
+i_showDash = input.bool(true, 'Show dashboard?', group='Dashboard Settings')
+lookback = input.int(defval=2, title='Trend Strength', tooltip='Optimal value: [30m and lower TF - "2"], [45m and higher TF - "4"]. Check User Manual To Learn More')
+oneSet = input.timeframe(defval='240', title='First Timeframe', group='Set Timeframe',
+  tooltip='Allows you to set different time frames for looking at the trend.')
+twoSet = input.timeframe(defval='D', title='Second Timeframe', group='Set Timeframe')
+threeSet = input.timeframe(defval='W', title='Third Timeframe', group='Set Timeframe')
+fourSet = input.timeframe(defval='M', title='Fourth Timeframe', group='Set Timeframe')
+ 
+f_getHTF() =>
+	ph1 = ta.pivothigh(high, lookback, lookback)
+	pl1 = ta.pivotlow(low, lookback, lookback)
+	highLevel = ta.valuewhen(ph1, high[lookback], 0)
+	lowLevel = ta.valuewhen(pl1, low[lookback], 0)
+	barsSinceHigh = ta.barssince(ph1) + lookback
+	barsSinceLow = ta.barssince(pl1) + lookback
+	timeSinceHigh = time[barsSinceHigh]
+	timeSinceLow = time[barsSinceLow]
+	[ph1, pl1, highLevel, lowLevel, barsSinceHigh, barsSinceLow, timeSinceHigh, timeSinceLow]
+ 
+[ph_01, pl_01, hL_01, lL_01, bsSH_01, bsSL_01, tSH_01, tSL_01] = request.security(syminfo.tickerid, oneSet, f_getHTF())
+[ph_02, pl_02, hL_02, lL_02, bsSH_02, bsSL_02, tSH_02, tSL_02] = request.security(syminfo.tickerid, twoSet, f_getHTF())
+[ph_03, pl_03, hL_03, lL_03, bsSH_03, bsSL_03, tSH_03, tSL_03] = request.security(syminfo.tickerid, threeSet, f_getHTF())
+[ph_04, pl_04, hL_04, lL_04, bsSH_04, bsSL_04, tSH_04, tSL_04] = request.security(syminfo.tickerid, fourSet, f_getHTF())
+ 
+// Check to ensure boxes are all higher timeframe than the chart to remove glyph and gray out box if that's the case
+tfInMinutes(simple string tf = "") =>
+	float chartTf =
+  	timeframe.multiplier * (
+  	timeframe.isseconds ? 1. / 60         	:
+  	timeframe.isminutes ? 1.              	:
+  	timeframe.isdaily   ? 60. * 24        	:
+  	timeframe.isweekly  ? 60. * 24 * 7    	:
+  	timeframe.ismonthly ? 60. * 24 * 30.4375  : na)
+	float result = tf == "" ? chartTf : request.security(syminfo.tickerid, tf, chartTf)
+   
+float chartTFInMinutes = tfInMinutes()
+bool TF1Check = tfInMinutes(oneSet) < chartTFInMinutes
+bool TF2Check = tfInMinutes(twoSet) < chartTFInMinutes
+bool TF3Check = tfInMinutes(threeSet) < chartTFInMinutes
+bool TF4Check = tfInMinutes(fourSet) < chartTFInMinutes
+ 
+// Current timeframe pivots
+phC = ta.pivothigh(high, lookback, lookback)
+plC = ta.pivotlow(low, lookback, lookback)
+ 
+// == TREND CALCULATIONS (USING A TUPLE TO CONSOLIDATE REPETATIVE CODE AND GENERATE MULTIPE VARIABLES WITH ONE FUNCTION ==
+f_signal(highLevel, lowLevel) =>
+	uptrendSignal = high > highLevel
+	downtrendSignal = low < lowLevel
+	inUptrend = bool(na)
+	inDowntrend = bool(na)
+	inUptrend := uptrendSignal[1] ? true : downtrendSignal[1] ? false : inUptrend[1]
+	inDowntrend := not inUptrend
+	[uptrendSignal, downtrendSignal, inUptrend, inDowntrend]
+ 
+[uptrendSignal1, downtrendSignal1, inUptrend1, inDowntrend1] = f_signal(hL_01, lL_01)  // 1st Timeframe
+[uptrendSignal2, downtrendSignal2, inUptrend2, inDowntrend2] = f_signal(hL_02, lL_02)  // 2nd Timeframe
+[uptrendSignal3, downtrendSignal3, inUptrend3, inDowntrend3] = f_signal(hL_03, lL_03)  // 3rd Timeframe
+[uptrendSignal4, downtrendSignal4, inUptrend4, inDowntrend4] = f_signal(hL_04, lL_04)  // 4th Timeframe
+ 
+// == TREND TABLE PLOTTING ==
+upColor = color.rgb(38, 166, 154)
+downColor = color.rgb(240, 83, 80)
+upColor1 = color.rgb(30, 255, 0)
+downColor1 = color.rgb(255, 4, 0)
+tfColor = color.new(#999999, 0)
+netlColor = color.new(#707070, 0)
+  
+// Define glyphs
+glyph1 = TF1Check ? na : inUptrend1 ? '▲ ': '▼ '
+glyph2 = TF2Check ? na : inUptrend2 ? '▲ ': '▼ '
+glyph3 = TF3Check ? na : inUptrend3 ? '▲ ': '▼ '
+glyph4 = TF4Check ? na : inUptrend4 ? '▲ ': '▼ '
+
+dashboard_location  =   input.session("Bottom Right",  "Dashboard Location",   options = ["Top Right","Bottom Right","Top Left","Bottom Left", "Middle Right","Bottom Center"], group = 'Style Settings')
+dashboard_text_size =   input.session(     'Tiny',      "Dashboard Size",   options = ["Tiny","Small","Normal","Large"], group = 'Style Settings')
+transparency          =   input.int(35, 'Transparency', minval = 0, maxval = 100, group = 'Style Settings')
+
+ticker = ticker.new(syminfo.prefix, syminfo.ticker)
+realOpen = request.security(ticker, timeframe.period, open, lookahead=barmerge.lookahead_on)
+realHigh = request.security(ticker, timeframe.period, high, lookahead=barmerge.lookahead_on)
+realLow = request.security(ticker, timeframe.period, low, lookahead=barmerge.lookahead_on)
+realClose = request.security(ticker, timeframe.period, close, lookahead=barmerge.lookahead_on)
+//Heikin Ashi Values
+haOpen = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open, lookahead=barmerge.lookahead_on)
+haHigh = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, high, lookahead=barmerge.lookahead_on)
+haLow = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, low, lookahead=barmerge.lookahead_on)
+haClose = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close, lookahead=barmerge.lookahead_on)
+//Shared Inputs
+len = input.int(14, minval=1, title='DI Length')
+lenSig = input.int(4, minval=1, maxval=50, title='ADX Smoothing')
+trendThres = input.float(22, step=0.1, title='Trend Threshold Level')
+useHA = input(defval=false, title=' Activate Heikin Ashi Smoothing')
+//Real OHLC ADX calculation
+up = ta.change(realHigh)
+down = -ta.change(realLow)
+plusDM = na(up) ? na : up > down and up > 0 ? up : 0
+minusDM = na(down) ? na : down > up and down > 0 ? down : 0
+trur = ta.rma(math.max(realHigh - realLow, math.abs(realHigh - realClose[1]), math.abs(realLow - realClose[1])), len)
+plus = fixnan(100 * ta.rma(plusDM, len) / trur)
+minus = fixnan(100 * ta.rma(minusDM, len) / trur)
+sum = plus + minus
+adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), lenSig)
+//Heikin Ashi ADX calculation  
+haUp = ta.change(haHigh)
+haDown = -ta.change(haLow)
+haPlusDM = na(haUp) ? na : haUp > haDown and haUp > 0 ? haUp : 0
+haMinusDM = na(haDown) ? na : haDown > haUp and haDown > 0 ? haDown : 0
+haTrur = ta.rma(math.max(haHigh - haLow, math.abs(haHigh - haClose[1]), math.abs(haLow - haClose[1])), len)
+haPlus = fixnan(100 * ta.rma(haPlusDM, len) / haTrur)
+haMinus = fixnan(100 * ta.rma(haMinusDM, len) / haTrur)
+haSum = haPlus + haMinus
+haAdx = 100 * ta.rma(math.abs(haPlus - haMinus) / (haSum == 0 ? 1 : haSum), lenSig)
+//// Calculation value type used selection
+adxSelect = if useHA == true
+    haAdx
+else
+    adx
+//
+minusSelect = if useHA == true
+    haMinus
+else
+    minus
+
+plusSelect = if useHA == true
+    haPlus
+else
+    plus
+//ADX&DMI
+whiteADX = color.new(#FFFFFF, 0)
+whiteADX2 = color.new(#F5F5F5, 25)
+grey1 = color.new(#555555, 0)  //#696969 #808080
+greyTrsp = color.new(#555555, 25)
+grey2 = color.new(#383838, 0)  //#555555
+//ADX & DI plots
+//Trends
+adxTrend = ta.crossover(adxSelect, trendThres)
+adxEnd = ta.crossunder(adxSelect, trendThres)
+bullTrend = ta.crossover(adxSelect, trendThres) and plusSelect > minusSelect
+bearTrend = ta.crossover(adxSelect, trendThres) and plusSelect < minusSelect
+bullEnd = ta.crossunder(adxSelect, trendThres) and plusSelect > minusSelect
+bearEnd = ta.crossunder(adxSelect, trendThres) and plusSelect < minusSelect
+
+// Dashboard Create
+var trend_text = ''
+var strenght_text = ''
+var strenght_color = color.white
+var strenght_bg = color.white
+var trend_color = color.white
+var trend_bg = color.white
+var table_position  =   dashboard_location  == 'Top Left' ? position.top_left :
+  dashboard_location == 'Bottom Left'   ? position.bottom_left :
+  dashboard_location == 'Middle Right'  ? position.middle_right :
+  dashboard_location == 'Bottom Center' ? position.bottom_center :
+  dashboard_location == 'Top Right'     ? position.top_right : position.bottom_right
+
+var table_text_size  = dashboard_text_size == 'Tiny' ? size.tiny :
+  dashboard_text_size == 'Small' ? size.small :
+  dashboard_text_size == 'Normal' ? size.normal : size.large
+
+
+
+var dashboard = table.new(table_position,12,12,
+  frame_color = #424347,
+  frame_width = 3,
+  border_color= #000000,
+  border_width= 1)
+
+if (barstate.islast) and i_showDash
+    
+    //Headings
+    table.cell(dashboard,  0, 1, 'Quant Algo', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+	table.cell(dashboard,  2, 1, 'Dashboard v4', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+    table.cell(dashboard,  0, 2, 'TF1', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+    table.cell(dashboard,  0, 3, 'TF2', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+    table.cell(dashboard,  0, 4, 'TF3', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+    table.cell(dashboard,  0, 5, 'TF4', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+    table.cell(dashboard,  0, 6,  'Trend', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+    table.cell(dashboard,  0, 7,   'Trend Strength', width = 5, text_color = color.white, text_size = table_text_size, bgcolor = color.rgb(0, 0, 0, 24))
+
+if barstate.islast and i_showDash
+	table.cell(dashboard,  2, 2, str.tostring(glyph1 + oneSet), width = 5, text_color =color.new(TF1Check ? tfColor : inUptrend1 ? upColor : downColor, 0), text_size = table_text_size, bgcolor = color.new(TF1Check ? tfColor : inUptrend1 ? upColor : downColor, 60))
+	table.cell(dashboard,  2, 3, str.tostring(glyph2 + twoSet), width = 5, text_color =color.new(TF2Check ? tfColor : inUptrend2 ? upColor : downColor, 0), text_size = table_text_size, bgcolor = color.new(TF2Check ? tfColor : inUptrend2 ? upColor : downColor, 60))
+	table.cell(dashboard,  2, 4, str.tostring(glyph3 + threeSet), width = 5, text_color =color.new(TF3Check ? tfColor : inUptrend3 ? upColor : downColor, 0), text_size = table_text_size, bgcolor = color.new(TF3Check ? tfColor : inUptrend3 ? upColor : downColor, 60))
+	table.cell(dashboard,  2, 5, str.tostring(glyph4 + fourSet), width = 5, text_color =color.new(TF4Check ? tfColor : inUptrend4 ? upColor : downColor, 0), text_size = table_text_size, bgcolor = color.new(TF4Check ? tfColor : inUptrend4 ? upColor : downColor, 60))
+	if inUptrend1 and inUptrend2 and inUptrend3 and inUptrend4
+		trend_text := 'Strong Bullish'
+		trend_color := upColor
+		trend_bg := upColor
+	if inDowntrend1 and inDowntrend2 and inDowntrend3 and inDowntrend4
+		trend_text := 'Strong Bearish'
+		trend_color := downColor
+		trend_bg := downColor
+	if inUptrend1 and inUptrend2 and inUptrend3 and inDowntrend4 or inDowntrend1 and inUptrend2 and inUptrend3 and inUptrend4 or inUptrend1 and inDowntrend2 and inUptrend3 and inUptrend4 or inUptrend1 and inUptrend2 and inDowntrend3 and inUptrend4
+		trend_text := 'Bullish'
+		trend_color := upColor
+		trend_bg := upColor
+	if inDowntrend1 and inDowntrend2 and inDowntrend3 and inUptrend4 or inUptrend1 and inDowntrend2 and inDowntrend2 and inDowntrend3 or inDowntrend1 and inUptrend2 and inDowntrend3 and inDowntrend4 or inDowntrend1 and inDowntrend2 and inUptrend3 and inDowntrend4
+		trend_text := 'Bearish'
+		trend_color := downColor
+		trend_bg := downColor
+	if inUptrend1 and inUptrend2 and inDowntrend3 and inDowntrend4 or inUptrend3 and inUptrend4 and inDowntrend1 and inDowntrend2 or inUptrend1 and inDowntrend2 and inUptrend3 and inDowntrend4 or inUptrend1 and not inUptrend2 and not inUptrend3 and inUptrend4 or inDowntrend1 and inUptrend2 and inUptrend3 and inDowntrend4 or inDowntrend1 and inUptrend2 and inUptrend4 and inDowntrend3 or inUptrend1 and inDowntrend2 and inDowntrend3 and inUptrend4
+		trend_text := 'Neutral'
+		trend_color := netlColor
+		trend_bg := netlColor
+	table.cell(dashboard, 2, 6, trend_text, width = 5, text_color =trend_color, text_size = table_text_size, bgcolor = color.new(trend_bg, 60)) //
+	if adxSelect > trendThres and adxSelect > adxSelect[1]
+		strenght_text := 'Strong'
+		strenght_color := upColor
+		strenght_bg := upColor
+	if adxSelect > trendThres and adxSelect < adxSelect[1]
+		strenght_text := 'Weak'
+		strenght_color := downColor
+		strenght_bg := downColor
+	if adxSelect < trendThres and adxSelect < adxSelect[1]
+		strenght_text := 'Weak'
+		strenght_color := downColor
+		strenght_bg := downColor
+	if adxSelect < trendThres and adxSelect > adxSelect[1]
+		strenght_text := 'Weak'
+		strenght_color := downColor
+		strenght_bg := downColor
+	table.cell(dashboard, 2, 7, strenght_text, width = 5, text_color = strenght_color, text_size = table_text_size, bgcolor = color.new(strenght_bg, 60))
+// Extremums
+i_showExtremums = input.bool(true, 'Show Extremums?', group='Extremums')
+lookback12 = input(20, 'Lookback period', group='Extremums', tooltip = 'Optimal- "20", Conservative - "50"; Note: Increase the value to decrease the number of extremums')
+// Signal condition
+longsig = high - low >= ta.sma(high - low, 20) * 1.5 and low < ta.lowest(low[1], lookback12) and close >= high - (high - low) * 50/100 and i_showExtremums
+shortsig = high - low >= ta.sma(high - low, 20) * 1.5 and high > ta.highest(high[1], lookback12) and close <= low + (high - low) * 50/100 and i_showExtremums
+// Plots for signal occurrences
+plotshape(longsig, title='Long signal', style=shape.circle, color=color.new(color.orange, 1), location=location.belowbar, size=size.tiny)
+plotshape(shortsig, title='Short signal', style=shape.circle, color=color.new(color.orange, 1), location=location.abovebar, size=size.tiny)
+plotshape(longsig and close > open, title='Long signal with up candle', style=shape.circle, color=color.new(#00FF03, 1), location=location.belowbar, size=size.tiny)
+plotshape(shortsig and close < open, title='Short signal with down candle', style=shape.circle, color=color.new(#FF0000, 1), location=location.abovebar, size=size.tiny)
+
+//Bands
+i_showBands = input.bool(true, 'Show Quant Algo Premium/Discount Bands?')
+groupQA = " Quant Algo Premium/Discount Bands"
+
+i_boost = input.float(1, "[QA] Base Line Factor", group=groupQA, step=0.10, minval = 0)
+i_bandBoost = input.float(1, "[QA] Bands Period", group=groupQA, step=0.10, minval = 0)
+i_smoothingType = input.string("SMA", " [QA] Bands Source", options=["SMA", "EMA"], inline="source", group=groupQA)
+i_length = input.int(20, "", inline="source", group=groupQA, minval=1)
+
+groupVisual = "[Quant Algo] Bands Color"
+extremeUpColor = input.color(color.new(#fd3f3f, 92), "Main Bands Area", group=groupVisual, inline="band")
+extremeDownColor = input.color(color.new(color.lime, 92), "", group=groupVisual, inline="band")
+extremeUpColor1 = input.color(color.new(#fd3f3f, 88), "Extreme Bands Area", group=groupVisual, inline="band")
+extremeDownColor1 = input.color(color.new(color.lime, 88), "", group=groupVisual, inline="band")
+extremeUpColor2 = input.color(color.new(#fd3f3f, 88), "Upper Shadow", group=groupVisual, inline="band1")
+extremeDownColor2 = input.color(color.new(color.lime, 92), "Lower Shadow", group=groupVisual, inline="band1")
+deviationBandColor = input.color(color.new(color.white, 95), "Bands Outline Color", group=groupVisual)
+
+i_source = ohlc4
+smoothedValue(source, length) =>
+    i_smoothingType == "SMA" ? ta.sma(source, length) : i_smoothingType == "EMA" ? ta.ema(source, length) : na
+fairPriceSmooth = smoothedValue(i_source, i_length) 
+
+lowSpread = low / fairPriceSmooth
+highSpread = high / fairPriceSmooth
+
+deviationDown = low < fairPriceSmooth and high > fairPriceSmooth ? lowSpread : na
+deviationUp = low < fairPriceSmooth and high > fairPriceSmooth ? highSpread : na
+
+var deviationUpList = array.new_float(0, 0)
+var deviationDownList = array.new_float(0, 0)
+
+deviationUpSize = array.size(deviationUpList)
+deviationDownSize = array.size(deviationDownList)
+
+sizeLimitDev = 1000
+
+if deviationUpSize > sizeLimitDev
+    array.remove(deviationUpList, 0)
+
+if deviationDownSize > sizeLimitDev
+    array.remove(deviationDownList, 0)
+
+array.push(deviationUpList, deviationUp)
+array.push(deviationDownList, deviationDown)
+
+medianUpDeviation = array.median(deviationUpList)
+medianDownDeviation = array.median(deviationDownList) 
+
+upperBand = fairPriceSmooth * medianUpDeviation
+lowerBand = fairPriceSmooth * medianDownDeviation
+
+bandUpSpread = upperBand - fairPriceSmooth
+bandDownSpread = fairPriceSmooth - lowerBand
+
+upperBandBoosted = fairPriceSmooth + (bandUpSpread * i_boost)
+lowerBandBoosted = fairPriceSmooth - (bandDownSpread * i_boost)
+
+var int dirSwitch = 0
+
+ohlcSpread = ohlc4 / fairPriceSmooth
+
+var pivotUps = array.new_float(0, 0)
+var pivotDowns = array.new_float(0, 0)
+
+pivotUpsSize = array.size(pivotUps)
+pivotDownsSize = array.size(pivotDowns)
+
+sizeLimitBand = 2000
+
+if array.size(pivotUps) > sizeLimitBand
+    array.remove(pivotUps, 0)
+
+if array.size(pivotDowns) > sizeLimitBand
+    array.remove(pivotDowns, 0)
+
+pivotUp = ta.pivothigh(ohlcSpread, 5, 5)
+pivotDown = ta.pivotlow(ohlcSpread, 5, 5)
+
+if low > upperBand and i_showBands
+    array.push(pivotUps, pivotUp)
+else
+    if high < lowerBand and i_showBands
+        array.push(pivotDowns, pivotDown)  
+
+medianPivotUp = array.median(pivotUps)
+medianPivotDown = array.median(pivotDowns)
+
+pivotBandUpBase = fairPriceSmooth * (medianPivotUp) 
+pivotBandDownBase = fairPriceSmooth * (medianPivotDown)
+
+pBandUpSpread = (pivotBandUpBase - fairPriceSmooth) * i_bandBoost
+pBandDownSpread = (fairPriceSmooth - pivotBandDownBase) * i_bandBoost
+pBandUpSpread1 = (pivotBandUpBase - fairPriceSmooth) * i_bandBoost * 0.5
+pBandDownSpread1 = (fairPriceSmooth - pivotBandDownBase) * i_bandBoost * 0.5
+pBandUpSpread2 = (pivotBandUpBase - fairPriceSmooth) * 0.19
+pBandDownSpread2 = (fairPriceSmooth - pivotBandDownBase) * 0.19
+
+pivotBandUp = fairPriceSmooth + pBandUpSpread * 1.2
+pivotBandDown = fairPriceSmooth - pBandDownSpread * 1.025
+
+pivotBandUp2 = pivotBandUp + pBandUpSpread
+pivotBandDown2 = pivotBandDown - pBandDownSpread
+
+pivotBandUp3 = pivotBandUp2 + pBandUpSpread
+pivotBandDown3 = pivotBandDown2 - pBandDownSpread
+
+pivotBandUp4 = pivotBandUp3 + pBandUpSpread1
+pivotBandDown4 = pivotBandDown3 - pBandDownSpread1
+
+pivotBandUp5 = pivotBandUp4 + pBandUpSpread2
+pivotBandDown5 = pivotBandDown4 - pBandDownSpread2
+
+extremeUpFill = extremeUpColor
+extremeDownFill = extremeDownColor
+extremeUpFill1 = extremeUpColor1
+extremeDownFill1 = extremeDownColor1
+extremeUpFill2 = extremeUpColor2
+extremeDownFill2 = extremeDownColor2
+
+p1U = plot(pivotBandUp, "Bullish Channel Band", color=color.new(#ffffff, 60), linewidth = 2, style = plot.style_circles, display=display.all - display.status_line)
+p1D = plot(pivotBandDown, "Bearish Channel Band", color=color.new(#ffffff, 60), linewidth = 2, style = plot.style_circles, display=display.all - display.status_line)
+p2U = plot(pivotBandUp2, "Lower Main Premium Band", color=deviationBandColor, display=display.all - display.status_line)
+p2D = plot(pivotBandDown2, "Upper Main Discount Band", color=deviationBandColor, display=display.all - display.status_line)
+p3U = plot(pivotBandUp3, "Upper Main Premium Band", color=deviationBandColor, display=display.all - display.status_line)
+p3D = plot(pivotBandDown3, "Lower Main Discount Band", color=deviationBandColor, display=display.all - display.status_line)
+p4U = plot(pivotBandUp4, "Upper Extreme Premium Band", color=deviationBandColor, display=display.all - display.status_line)
+p4D = plot(pivotBandDown4, "Lower Extreme Premium Band", color=deviationBandColor, display=display.all - display.status_line)
+p5U = plot(pivotBandUp5, "Upper Shadow Line", color=color.new(color.white,100), display=display.all - display.status_line)
+p5D = plot(pivotBandDown5, "Lower Shadow Line", color=color.new(color.white,100), display=display.all - display.status_line)
+fill(p3U, p2U, color= extremeUpFill, title="Extreme fair value deviation band up fill")
+fill(p3D, p2D, color= extremeDownFill, title="Extreme fair value deviation band down fill")
+fill(p4U, p3U, color= extremeUpFill1, title="Extreme fair value deviation band up fill")
+fill(p4D, p3D, color= extremeDownFill1, title="Extreme fair value deviation band down fill")
+hot2B = color.new(extremeUpFill2, 85)
+hot3B = color.new(extremeUpFill2, 100)
+cold2B = color.new(extremeDownFill2, 85)
+cold3B = color.new(extremeDownFill2, 100)
+fill(p5U, p4U, pivotBandUp4, pivotBandUp5, hot2B, hot3B, "Extreme fair value deviation band up fill")
+fill(p5D, p4D, pivotBandDown4, pivotBandDown5, cold2B, cold3B, "Extreme fair value deviation band down fill")
+
+colorbars = input.bool(true, "Color bars?", group = 'Color bars', tooltip = "Enable this option to color bars in accordance with Quant Algo cloud")
+
+greencolor = #2DD204
+redcolor = #D2042D 
+
+barQAcloudcolor = trend ? greencolor : redcolor
+
+barcolor(colorbars ?  barQAcloudcolor : na)
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

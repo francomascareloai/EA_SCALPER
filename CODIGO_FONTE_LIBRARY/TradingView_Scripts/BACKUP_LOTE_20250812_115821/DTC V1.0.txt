@@ -1,0 +1,65 @@
+//@version=6
+indicator(title = 'DTC V1.0', shorttitle = 'DTC V1.0', overlay = true)
+src = close
+
+// Slow EMA Length Inputs
+len7 = input.int(30, minval = 1, title = 'Slow EMA 7')
+len8 = input.int(35, minval = 1, title = 'Slow EMA 8')
+len9 = input.int(40, minval = 1, title = 'Slow EMA 9')
+len10 = input.int(45, minval = 1, title = 'Slow EMA 10')
+len11 = input.int(50, minval = 1, title = 'Slow EMA 11')
+len12 = input.int(60, minval = 1, title = 'Slow EMA 12')
+
+// Slow EMA Calculation
+ema7 = ta.ema(src, len7)
+ema8 = ta.ema(src, len8)
+ema9 = ta.ema(src, len9)
+ema10 = ta.ema(src, len10)
+ema11 = ta.ema(src, len11)
+ema12 = ta.ema(src, len12)
+
+// Slow EMA Color Rules
+colslowL = ema7 > ema8 and ema8 > ema9 and ema9 > ema10 and ema10 > ema11 and ema11 > ema12
+colslowS = ema7 < ema8 and ema8 < ema9 and ema9 < ema10 and ema10 < ema11 and ema11 < ema12
+
+// Slow EMA Final Color Rules
+colFinal2 = colslowL ? color.lime : colslowS ? color.red : color.gray
+
+// Slow EMA Plots
+plot(ema7, title = 'Slow EMA 7', style = plot.style_line, linewidth = 4, color = colFinal2)
+plot(ema8, title = 'Slow EMA 8', style = plot.style_line, linewidth = 3, color = colFinal2)
+plot(ema9, title = 'Slow EMA 9', style = plot.style_line, linewidth = 3, color = colFinal2)
+plot(ema10, title = 'Slow EMA 10', style = plot.style_line, linewidth = 3, color = colFinal2)
+plot(ema11, title = 'Slow EMA 11', style = plot.style_line, linewidth = 3, color = colFinal2)
+plot(ema12, title = 'Slow EMA 12', style = plot.style_line, linewidth = 4, color = colFinal2)
+
+// Buy/Sell Signal Logic
+buySignal = not colslowL[1] and colslowL 
+sellSignal = not colslowS[1] and colslowS 
+
+// Auto-Adjust Offset (Based on ATR)
+atrValue = ta.atr(14) 
+offsetDynamic = atrValue * 0.5 
+
+// Plot Buy and Sell Signals using label.new
+if buySignal
+    label.new(bar_index, ema7 - offsetDynamic, 'BUY', style = label.style_label_up, yloc = yloc.price, color = color.green, textcolor = color.black, size = size.small)
+
+if sellSignal
+    label.new(bar_index, ema7 + offsetDynamic, 'SELL', style = label.style_label_down, yloc = yloc.price, color = color.red, textcolor = color.black, size = size.small)
+
+// Alerts
+alertcondition(buySignal, title = 'Buy Alert', message = 'Buy Signal Triggered')
+alertcondition(sellSignal, title = 'Sell Alert', message = 'Sell Signal Triggered')
+
+// ? TEAM7 Label (Single Definition)
+var label lbl = na
+if na(lbl)
+    lbl := label.new(bar_index, close, "TEAM7", 
+         color=color.blue, textcolor=color.white, 
+         size=size.tiny, style=label.style_label_down, 
+         xloc=xloc.bar_index, yloc=yloc.price, 
+         tooltip="TEAM7 Indicator")
+else
+    label.set_x(lbl, bar_index)
+    label.set_y(lbl, close)

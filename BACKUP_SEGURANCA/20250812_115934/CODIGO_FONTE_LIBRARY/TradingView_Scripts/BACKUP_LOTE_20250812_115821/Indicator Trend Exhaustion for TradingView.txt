@@ -1,0 +1,305 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join us https://t.me/simpleforextools
+
+// © upslidedown
+// One of the first indicators I ever used was %R, and I realized that with crypto strategies a period of 112 
+// provided very interesting results in trend following strategies. This indicator intends to mix standard %R
+// with the longer period %R and show key areas of interest. Using classic overbought/oversold logic, the 
+// indicator highlights a key trend and a subsequent break in that trend. When this condition is detected it 
+// will print a reversal arrow down. This is one of my odder ideas that appears to have some merit, so I'm 
+// publicly publishing for the community to find. If you find this useful please reach out and let me know.
+
+
+//@version=6
+import HeWhoMustNotBeNamed/ta/1
+indicator("%R Trend Exhaustion [upslidedown]", format=format.price, precision=2, explicit_plot_zorder=true)
+
+
+const string version = "v2.2"
+const string groupSettings = "Settings "+ version
+
+
+// colors
+var bullcol = input.color(#2466A7, 'Cold Color', group=groupSettings, inline="col")
+var bearcol = input.color(#CA0017, 'Hot Color', group=groupSettings, inline="col")
+var invisible = color.rgb(0, 0, 0, 100)
+var bullcol_xlight = color.new(bullcol, 80)
+var bearcol_xlight = color.new(bearcol, 80)
+var bullcol_light = color.new(bullcol, 70)
+var bearcol_light = color.new(bearcol, 70)
+var bullcol_medium = color.new(bullcol, 60)
+var bearcol_medium = color.new(bearcol, 60)
+var shortcol = chart.fg_color
+var longcol = color.rgb(139, 174, 255)
+var pivotcol = color.white
+const int bull_signal_loc = -107
+const int bear_signal_loc = 5
+
+
+const string mode1 = "1 Oscillator Mode"
+const string mode2 = "2 Overlay Mode (top and bottom no oscillator)"
+const string mode3 = "3 Candle Mode"
+mode = input.string(mode1, "Display Mode", options=[mode1, mode2, mode3], tooltip="Modes 2 & 3 are more advanced and expect that you most likely overlay the indicator on top of price action itself or another indiciator using TradingView's object tree panel.", group=groupSettings)
+compact = mode == mode2
+formula1 = "Standard (2 Period)"
+formula2 = "Average"
+//formula3 = "Difference" //removed difference because it was too much a headache to maintain and not good IMO
+formula = input.string(formula1, "Formula", options=[formula1, formula2], group=groupSettings)
+use_average = formula == formula2
+
+src = input.source(close, "Source", group=groupSettings)
+threshold = input.int(20, title="Exhaustion Threshold", minval=1, maxval=50, group=groupSettings, tooltip="Sets the overbought/oversold zone size and offset. Lower values will produce less results, higher values towards 50 will produce many results.")
+smoothType = input.string('ema', title="Smoothing Type", options=['sma', 'ema', 'hma', 'rma', 'wma', 'vwma', 'swma', 'highlow', 'linreg', 'median', 'mom', 'percentrank'], group=groupSettings)
+average_ma = input.int(3, "Average Formula MA", group=groupSettings)
+
+plot_shading = input.bool(true, title="Fill Gradients in OB/OS Zone", group=groupSettings)
+plot_crosses = input.bool(false, title="Highlight Crossovers", group=groupSettings, tooltip="Experimental idea for plotting crossovers with attempted bull/bear coloring. This needs to be combined with other TA but typically crossover condition results in interesting price action during or after.")
+plot_zero_crosses = input.bool(false, title="Plot Zero Line Crosses", group=groupSettings, tooltip="Experimental idea for plotting crosses")
+
+const string lookbackGroupName = "Dual Signal Setup (Fast/Slow Lookback)"
+shortLength = input.int(title="Fast Length", defval=21, group=lookbackGroupName)
+shortSmoothingLength = input.int(7, title="Fast Smoothing Length", group=lookbackGroupName)
+longLength = input.int(112, title="Slow Length", minval=1, group=lookbackGroupName)
+longSmoothingLength = input.int(3, title="Slow Smoothing Length", group=lookbackGroupName)
+
+ 
+// functions
+_pr(length) =>
+	float max = ta.highest(length)
+	float min = ta.lowest(length)
+	100 * (src - max) / (max - min)
+
+float s_percentR = _pr(shortLength)
+float l_percentR = _pr(longLength)
+float avg_percentR = math.avg(s_percentR, l_percentR)
+
+if shortSmoothingLength > 1
+    s_percentR := ta.ma(s_percentR, smoothType, shortSmoothingLength)
+if longSmoothingLength > 1
+    l_percentR := ta.ma(l_percentR, smoothType, longSmoothingLength)
+if average_ma > 1
+    avg_percentR := ta.ma(avg_percentR, smoothType, average_ma)
+
+
+var was_ob = false
+var was_os = false
+
+// ob/os logic
+bool overbought = s_percentR >= -threshold and l_percentR >= -threshold
+bool oversold = s_percentR <= -100+threshold and l_percentR <= -100+threshold
+bool ob_reversal = not overbought and overbought[1]
+bool os_reversal = not oversold and oversold[1]
+bool ob_trend_start = overbought and not overbought[1]
+bool os_trend_start = oversold and not oversold[1]
+
+bool bool_cross_long1 = ta.crossover(s_percentR, -50)
+bool bool_cross_long2 = ta.crossover(l_percentR, -50)
+bool cross_zero_long = bool_cross_long1 or bool_cross_long2
+bool bool_cross_short1 = ta.crossunder(s_percentR, -50)
+bool bool_cross_short2 = ta.crossunder(l_percentR, -50)
+bool cross_zero_short = bool_cross_short1 or bool_cross_short2
+
+bool zero_long = (s_percentR > -50 and l_percentR > -50) and cross_zero_long
+bool zero_short = (s_percentR < -50 and l_percentR < -50) and cross_zero_short
+
+if use_average 
+    // use average
+    overbought := avg_percentR >= -threshold
+    oversold := avg_percentR <= -100+threshold
+    ob_reversal := not overbought and overbought[1]
+    os_reversal := not oversold and oversold[1]
+    ob_trend_start := overbought and not overbought[1]
+    os_trend_start := oversold and not oversold[1]
+
+
+// detect crossovers for potential "in between" signals
+bool cross_bear = ta.crossover(l_percentR, s_percentR)
+bool cross_bull = ta.crossunder(l_percentR, s_percentR)
+
+
+// Print lines for stuff
+top = hline(mode == mode1 ? 0 : na, 'Top', bearcol_medium, linestyle=hline.style_solid)
+band1 = hline(mode == mode1 ? -threshold : na, 'Top Threshold', bearcol_medium, linestyle=hline.style_solid)
+middle = hline(mode == mode1 ? -50 : na, 'Middle Line', color.new(chart.fg_color, 80), linestyle=hline.style_solid)
+band0 = hline(mode == mode1 ? -100+threshold : na, 'Bottom Threshold', bullcol_medium, linestyle=hline.style_solid)
+bottom = hline(mode == mode1 ? -100 : na, 'Bottom', bullcol_medium, linestyle=hline.style_solid)
+
+
+// plot %R
+p_fastr = plot(mode == mode1 and not use_average ? s_percentR : na, "Fast Period %R", color=shortcol, linewidth=1)
+p_slowr = plot(mode == mode1 and not use_average ? l_percentR : na, "Slow Period %R", color=longcol, linewidth=1)
+p_avgr = plot(mode == mode1 and use_average ? avg_percentR : na, "Average Formula %R", color=shortcol, linewidth=1)
+
+
+gradientBullColor = plot_shading ? color.new(bullcol, 100) : invisible
+gradientBearColor = plot_shading ? color.new(bearcol, 100) : invisible
+fill(p_fastr, p_slowr, 0, -30, top_color = color.new(gradientBearColor, 0), bottom_color = gradientBearColor,  title = "Overbought Gradient Fill")
+fill(p_fastr, p_slowr, -70,  -100,  top_color = gradientBullColor, bottom_color = color.new(gradientBullColor, 0), title = "Oversold Gradient Fill")
+
+
+plotshape(ob_reversal ? bear_signal_loc : na, title="Overbought Trend Reversal ▼", style=shape.triangledown, location=mode == mode1 ? location.absolute : mode == mode3 ? location.abovebar : location.top, color=bearcol, text='', textcolor=invisible, size=size.tiny)
+plotshape(os_reversal ? bull_signal_loc : na, title="Oversold Trend Reversal ▲", style=shape.triangleup, location=mode == mode1 ? location.absolute : mode == mode3 ? location.belowbar : location.bottom, color=bullcol, text='', textcolor=invisible, size=size.tiny)
+plotshape(overbought ? bear_signal_loc : na, title="Overbought Trend Warning ■", style=shape.square, location=mode == mode1 ? location.absolute : mode == mode3 ? location.abovebar : location.top, color=bearcol_medium, text='', textcolor=invisible, size=size.tiny)
+plotshape(oversold ? bull_signal_loc : na, title="Oversold Trend Warning ■", style=shape.square, location=mode == mode1 ? location.absolute : mode == mode3 ? location.belowbar : location.bottom, color=bullcol_medium, text='', textcolor=invisible, size=size.tiny)
+
+plotshape(zero_long and plot_zero_crosses ? bear_signal_loc : na, title="Zero Cross Long", style=shape.triangleup, location=mode == mode1 ? location.absolute : mode == mode3 ? location.abovebar : location.top, color=color.yellow, text='', textcolor=invisible, size=size.tiny)
+plotshape(zero_short and plot_zero_crosses ? bull_signal_loc : na, title="Zero Cross Short", style=shape.triangledown, location=mode == mode1 ? location.absolute : mode == mode3 ? location.belowbar : location.bottom, color=color.yellow, text='', textcolor=invisible, size=size.tiny)
+
+plot(not compact and plot_crosses and (cross_bull or cross_bear) ? l_percentR : na, "Crossover Dot (small)", style=plot.style_circles, color=pivotcol, linewidth=4)
+plot(not compact and plot_crosses and (cross_bull or cross_bear) ? l_percentR : na, "Crossover Dot (big)", style=plot.style_circles, color=cross_bull ? bullcol_light : bearcol_light, linewidth=12)
+
+
+plotchar(ob_trend_start ? bear_signal_loc : na, char="◡", color=bearcol, location=mode == mode1 ? location.absolute : mode == mode3 ? location.abovebar : location.top)
+plotchar(os_trend_start ? bull_signal_loc : na, char="◠", color=bullcol, location=mode == mode1 ? location.absolute : mode == mode3 ? location.belowbar : location.bottom)
+
+
+
+// Alerts
+
+varip groupAlerts = "Alerts"
+bullStartOn = input.bool(true, "Bull trend start ⏹", group=groupAlerts, inline="bullStart")
+bullStartTxt = input.string("%RTE bull trend start ⏹", "", group=groupAlerts, inline="bullStart")
+bearStartOn = input.bool(true, "Bear trend start ⏹", group=groupAlerts, inline="bearStart")
+bearStartTxt = input.string("%RTE bear trend start ⏹", "", group=groupAlerts, inline="bearStart")
+bullReversalOn = input.bool(true, "Bull trend break ▼", group=groupAlerts, inline="bullReversal")
+bullReversalTxt = input.string("%RTE bull trend break ▼", "", group=groupAlerts, inline="bullReversal")
+bearReversalOn = input.bool(true, "Bear trend break ▲", group=groupAlerts, inline="bearReversal")
+bearReversalTxt = input.string("%RTE bear trend break ▲", "", group=groupAlerts, inline="bearReversal")
+bullCrossOn = input.bool(false, "Bull cross ⏺", group=groupAlerts, inline="bullCross")
+bullCrossTxt = input.string("Bullish crossover", "", group=groupAlerts, inline="bullCross")
+bearCrossOn = input.bool(false, "Bear cross ⏺", group=groupAlerts, inline="bearCross")
+bearCrossTxt = input.string("Bearish crossover", "", group=groupAlerts, inline="bearCross")
+
+if (bullStartOn and ob_trend_start)
+    alert(message=bullStartTxt, freq=alert.freq_once_per_bar_close)
+if (bearStartOn and os_trend_start)
+    alert(message=bearStartTxt, freq=alert.freq_once_per_bar_close)
+if (bullReversalOn and ob_reversal)
+    alert(message=bullReversalTxt, freq=alert.freq_once_per_bar_close)
+if (bearReversalOn and os_reversal)
+    alert(message=bearReversalTxt, freq=alert.freq_once_per_bar_close)
+if (bullCrossOn and cross_bull)
+    alert(message=bullCrossTxt, freq=alert.freq_once_per_bar_close)
+if (bearCrossOn and cross_bear)
+    alert(message=bearCrossTxt, freq=alert.freq_once_per_bar_close)
+
+alertcondition(ob_reversal, "Arrow Down (Bearish Reversal)", message="Arrow Down: Overbought trend is exhausted")
+alertcondition(os_reversal, "Arrow Up (Bullish Reversal)", message="Arrow Up: Oversold trend is exhausted")
+alertcondition(ob_trend_start, "Overbought Trend Started", message="Warning: Possible overbought trend exhaustion")
+alertcondition(os_trend_start, "Oversold Trend Started", message="Warning: Possible oversold trend exhaustion")
+alertcondition(cross_bull, "Bullish Crossover", message="Potential bullish crossover printed")
+alertcondition(cross_bear, "Bearish Crossover", message="Potential bearish crossover printed")
+
+// ---------------------------------------------
+// Experimental difference idea
+//varip diffGroupName = "Difference (Experimental)"
+//plot_difference = input.bool(false, "Plot Difference", group=diffGroupName, tooltip="I thought maybe this would show buying or selling phase... but in the end I don't think this is very useful data. It's interesting to look at though!")
+//invert_difference = input.bool(false, "Invert Difference Calcuation", group=diffGroupName)
+//diffcol = input.color(color.new(#BABABA, 75), title="Difference Fill Color", group=diffGroupName)
+//difference = invert_difference ? s_percentR-l_percentR : l_percentR-s_percentR
+//difference := difference - 50
+// Plot experimental difference idea
+//diff_plot = plot(plot_difference ? difference : na, title="Difference", color=color.new(color.white,80), linewidth=1, style=plot.style_line)
+//fill(diff_plot, plot(-50, color=invisible), title="Difference Fill", color=diffcol)
+// ---------------------------------------------
+
+const string group_strategy = "Strategy (send external signal to TTS backtester)"
+
+bool longDealsEnabled = input.bool(true, "Enable Long Deals", group=group_strategy)
+bool shortDealsEnabled = input.bool(true, "Enable Short Deals", group=group_strategy)
+
+strategy1 = "1 Trend Following @ Square"
+strategy2 = "2 Reversal @ Square"
+strategy3 = "3 Reversal Trade @ Triangle"
+strategy4 = "4 Re-enter Trend Trade @ Triangle"
+strategy5 = "5 Pings"
+strategy6 = "6 Zero Line Cross"
+
+strategyEntry = input.string(strategy1, "Strategy Entry", options=[strategy1, strategy2, strategy3, strategy4, strategy5, strategy6], group=group_strategy)
+
+
+bool startLongDeal = false
+bool startShortDeal = false
+bool endLongDeal = false
+bool endShortDeal = false
+
+switch strategyEntry
+    strategy1 =>
+        if ob_trend_start and longDealsEnabled
+            startLongDeal := true
+        else if os_trend_start and shortDealsEnabled
+            startShortDeal := true
+    strategy2 =>
+        if os_trend_start and longDealsEnabled
+            startLongDeal := true
+        else if ob_trend_start and shortDealsEnabled
+            startShortDeal := true
+
+    strategy3 =>
+        //strategy := ob_reversal ? -1 : os_reversal ? 1 : 0
+        if ob_reversal and shortDealsEnabled
+            startShortDeal := true
+        else if os_reversal and longDealsEnabled
+            startLongDeal := true
+
+    strategy4 =>
+        //strategy := ob_reversal ? -1 : os_reversal ? 1 : 0
+        if os_reversal and shortDealsEnabled
+            startShortDeal := true
+        else if ob_reversal and longDealsEnabled
+            startLongDeal := true
+
+    strategy5 =>
+        //strategy :=  ? 1 : cross_bear ? -1 : 0    
+        if cross_bull and longDealsEnabled
+            startLongDeal := true
+        else if cross_bear and shortDealsEnabled
+            startShortDeal := true
+
+    strategy6 =>
+        //strategy :=  ? 1 : cross_bear ? -1 : 0    
+        if zero_long and longDealsEnabled
+            startLongDeal := true
+        else if zero_short and shortDealsEnabled
+            startShortDeal := true
+
+
+import jason5480/external_input_utils/6 as exiu
+
+// LOGIC ============================================================================================================
+// Compose the signal that will be passed to the "Template Trailing Strategy" following the "two channel mod div" convention 
+float longChannelComp = 10.0 * (startLongDeal ? 2.0 : 0.0)
+float shortChannelComp = startShortDeal ? 2.0 : 0.0
+
+// This is the ONLY value that will be passed to the "Template Trailing Strategy" script as External Input
+float signal = longChannelComp + shortChannelComp
+
+// Decompose the produced signal using the same "two channel mod div" convention verify the correctness of the results
+// WARNING! At this point we assume that the "Template Trailiing Strategy" uses the same convention in order to interpret and
+// decode the given signal the same way this indicator does. You might want to check TTS "Settings/Input" tab Startegy - External
+// section. The default strategy settings should match the logic described below. 
+bool startLongDealDec = exiu.eval_cond(signal, '/10==', 2.0)
+bool startShortDealDec = exiu.eval_cond(signal, 'mod10==', 2.0)
+
+
+// Use this indicator as an external input in scripts like "Template Trailing Strategy" that can utilize the signal value.
+// Emit the current signal value (21, 20, 10, 0, 01, 02, 12, 40, 30, 04, 03).
+plot(series = signal, title = '🔌Signal', color = color.olive, display = display.data_window + display.status_line)
+
+// debug speed!!
+//import PineCoders/LibraryStopwatch/1 as sw
+//[timePerBarInMs, totalTimeInMs, barsTimed, barsNotTimed] = sw.stopwatchStats()
+//msElapsed = sw.stopwatch()
+// Data window debugging
+//plotchar(msElapsed,'ms elapsed', '') 
+//plotchar(timePerBarInMs,'time per bar in ms','')
+// ==========================================================================================
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

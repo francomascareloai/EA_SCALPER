@@ -1,0 +1,51 @@
+{
+  "arquivo": "EA_BasicHarmonicPattern_v1.0_MULTI.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Pattern",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "autor": "mutiiriallan.forex@gmail.com",
+  "descricao": "EA básico para negociação baseada em padrões harmônicos com múltiplos take profits",
+  "funcoes_principais": [
+    "OnInit",
+    "OnDeinit",
+    "OnTick",
+    "iCustom",
+    "CopyBuffer",
+    "CTrade.Buy",
+    "CTrade.Sell"
+  ],
+  "parametros_expostos": [],
+  "conformidade_ftmo": {
+    "score": 7,
+    "observacoes": "EA com potencial FTMO mas precisa de ajustes no gerenciamento de risco",
+    "riscos_detectados": [
+      "Lote fixo 0.01 sem cálculo dinâmico",
+      "Sem limite de drawdown",
+      "Sem filtro de sessão"
+    ],
+    "ajustes_necessarios": [
+      "Implementar cálculo dinâmico de lote baseado em risco",
+      "Adicionar limite de drawdown diário",
+      "Implementar filtro de sessão de negociação",
+      "Adicionar validação de spread"
+    ]
+  },
+  "qualidade_codigo": {
+    "score": 8,
+    "observacoes": "Código bem estruturado com uso adequado da biblioteca Trade.mqh"
+  },
+  "tags": [
+    "#EA",
+    "#Pattern",
+    "#HarmonicPattern",
+    "#MULTI",
+    "#CustomIndicator",
+    "#MultipleTP",
+    "#NeedsFTMOAdjustment"
+  ],
+  "data_criacao": "2024-12-19T10:32:00Z",
+  "caminho_completo": "CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/Pattern/EA_BasicHarmonicPattern_v1.0_MULTI.mq5"
+}

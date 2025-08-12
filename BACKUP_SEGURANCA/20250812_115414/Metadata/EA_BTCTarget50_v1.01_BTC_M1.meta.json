@@ -1,0 +1,53 @@
+{
+  "arquivo": "BTC_M1_Target50_EA.mq5",
+  "nome_padronizado": "EA_BTCTarget50_v1.01_BTC_M1",
+  "tipo": "EA",
+  "categoria": "Grid_Martingale",
+  "estrategia": "Grid_Hedging_Target",
+  "mercado": "BTC",
+  "timeframe": "M1",
+  "descricao": "EA BTC M1 Target $50 v1.01 por Akhtar + ChatGPT. Sistema de grid hedging que abre posições buy e sell simultâneas, adiciona grid no lado vencedor e fecha tudo ao atingir $50 de lucro. Encoding corrompido detectado.",
+  "funcoes_principais": [
+    "Dual Position Opening (Buy+Sell)",
+    "Grid Trading System",
+    "Profit Target Management ($50)",
+    "Position Counting Logic",
+    "Lot Multiplier System",
+    "Winning Side Grid Addition"
+  ],
+  "parametros_expostos": [
+    "ProfitTargetUSD (50) - meta de lucro em USD",
+    "BaseLot (0.01) - lote base",
+    "LotMultiplier (1.3) - multiplicador de lote",
+    "MaxPositions (10) - máximo de posições",
+    "GridStepPoints (200) - distância do grid em pontos"
+  ],
+  "ftmo_score": 1,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Sistema de hedging (alto risco)",
+    "Grid trading com martingale",
+    "Múltiplas posições simultâneas",
+    "Sem stop loss",
+    "Sem daily loss limit",
+    "Encoding corrompido",
+    "Target alto ($50)",
+    "Risco de margin call elevado",
+    "Incompatível com regras FTMO"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Corrigir encoding do arquivo",
+    "Remover estratégia de hedging",
+    "Implementar stop loss obrigatório",
+    "Adicionar daily loss limit rigoroso",
+    "Remover grid/martingale",
+    "Implementar one-trade-at-a-time policy",
+    "Adicionar gestão de risco por percentual (máximo 1%)",
+    "Reduzir drasticamente o target"
+  ],
+  "tags": ["#EA", "#BTC", "#M1", "#Grid_Martingale", "#Hedging", "#Target_50", "#High_Risk", "#Corrupted_Encoding", "#Nao_FTMO", "#Akhtar", "#ChatGPT"],
+  "caminho_origem": "All_MQ5/BTC_M1_Target50_EA.mq5",
+  "caminho_final": "EAs/Grid_Martingale/EA_BTCTarget50_v1.01_BTC_M1.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "EA com estratégia extremamente arriscada de grid hedging. Encoding corrompido torna o código difícil de ler. Target de $50 é alto para estratégia de risco. Incompatível com qualquer estratégia de risco responsável."
+}

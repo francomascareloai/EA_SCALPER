@@ -1,0 +1,102 @@
+﻿//@version=6
+indicator('<[Osc]Раннее обнаружение тренда V2]>', shorttitle = '<[РОТ+V2]>', overlay = false, precision = 3)
+
+// ========== НАСТРОЙКИ ========== //
+LP_Period = input.int(5, 'Период сглаживания', minval = 1, maxval = 50)
+K1 = input.float(0.4, 'Коэффициент K1 (основной)', step = 0.05)
+K2 = input.float(0.2, 'Коэффициент K2 (вторичный)', step = 0.05)
+
+// Уровни
+ob_level = input.float(1.0, 'Уровень перекупленности', minval = 0.1, maxval = 1.0, step = 0.1)
+ob_level2 = input.float(0.5, 'Уровень перекупленности 2', minval = 0.1, maxval = 1.0, step = 0.1)
+os_level2 = input.float(-0.5, 'Уровень перепроданности 2', minval = -1.0, maxval = -0.1, step = 0.1)
+os_level = input.float(-1.0, 'Уровень перепроданности', minval = -1.0, maxval = -0.1, step = 0.1)
+
+// Сигналы
+show_signals = input(true, "Показывать сигналы тренда")
+show_pre_signals = input(true, "Показывать предварительные сигналы")
+signal_offset = input.float(0.1, "Смещение сигналов по вертикали", step = 0.1)
+convergence_threshold = input.float(0.05, "Порог сближения линий", step = 0.01)
+
+// ========== ВЫЧИСЛЕНИЯ ========== //
+var float HP = 0.0
+var float Filt = 0.0
+var float Peak = 0.0
+var float X = 0.0
+var float Quotient1 = 0.0
+var float Quotient2 = 0.0
+
+// Высокочастотный фильтр
+alpha1 = (math.cos(0.707 * 2 * math.pi / 100) + math.sin(0.707 * 2 * math.pi / 100) - 1) / math.cos(0.707 * 2 * math.pi / 100)
+HP := (1 - alpha1 / 2) * (1 - alpha1 / 2) * (close - 2 * close[1] + close[2]) + 2 * (1 - alpha1) * nz(HP[1]) - (1 - alpha1) * (1 - alpha1) * nz(HP[2])
+
+// Суперсглаживание
+a1 = math.exp(-1.414 * math.pi / LP_Period)
+b1 = 2 * a1 * math.cos(1.414 * math.pi / LP_Period)
+c2 = b1
+c3 = -a1 * a1
+c1 = 1 - c2 - c3
+Filt := c1 * (HP + nz(HP[1])) / 2 + c2 * nz(Filt[1]) + c3 * nz(Filt[2])
+
+// Детектор пиков
+Peak := 0.991 * nz(Peak[1])
+if math.abs(Filt) > Peak
+    Peak := math.abs(Filt)
+    Peak
+
+// Нормализация
+if Peak != 0
+    X := Filt / Peak
+    X
+
+Quotient1 := (X + K1) / (K1 * X + 1)
+Quotient2 := (X + K2) / (K2 * X + 1)
+
+// Основные сигналы тренда
+buy_signal = ta.crossover(Quotient1, os_level2) and Quotient1 > Quotient2
+sell_signal = ta.crossunder(Quotient1, ob_level2) or (Quotient1 > ob_level2 and Quotient1 < Quotient2)
+
+// Предварительные сигналы (сближение линий в зонах)
+lines_converged = math.abs(Quotient1 - Quotient2) <= convergence_threshold
+
+pre_buy_signal = lines_converged and Quotient1 < os_level2 and Quotient2 < os_level2
+pre_sell_signal = lines_converged and Quotient1 > ob_level2 and Quotient2 > ob_level2
+
+// ========== ОТОБРАЖЕНИЕ ========== //
+// Основные линии
+p1 = plot(Quotient1, color = #00ffee, title = 'Основная линия (K1)', linewidth = 2)
+p2 = plot(Quotient2, color = #ff0057, title = 'Сигнальная линия (K2)', linewidth = 2)
+
+// Заливка между линиями
+fill(p1, p2, color = #2d78da80, title = 'Зона между линиями')
+
+// Уровни
+hline(ob_level, 'OB', #ff525280, linestyle = hline.style_dotted, linewidth = 2)
+hline(ob_level2, 'OB2', #ff525280, linestyle = hline.style_dotted, linewidth = 2)
+hline(os_level, 'OS', #4caf5080, linestyle = hline.style_dotted, linewidth = 2)
+hline(os_level2, 'OS2', #4caf5080, linestyle = hline.style_dotted, linewidth = 2)
+hline(0, 'Нулевая линия', #dbca2f80, linewidth = 1)
+
+// Горизонтальная заливка между уровнями 
+fill(hline(ob_level), hline(ob_level2), color = #ff00001a, title = 'Зона между OB уровнями')
+fill(hline(os_level), hline(os_level2), color = #00ff001a, title = 'Зона между OS уровнями')
+
+// Отображение сигналов
+plotshape(show_signals and buy_signal ? Quotient1 - signal_offset : na, title="КУПИТЬ", location=location.absolute, style=shape.triangleup, size=size.small, color=#00ff00, text="К", textcolor=#ffffff, offset=-1)
+plotshape(show_signals and sell_signal ? Quotient1 + signal_offset : na, title="ПРОДАТЬ", location=location.absolute, style=shape.triangledown, size=size.small, color=#ff0000, text="П", textcolor=#ffffff, offset=-1)
+
+// Отображение предварительных сигналов
+plotshape(show_pre_signals and pre_buy_signal ? Quotient1 - signal_offset : na, location=location.absolute, style=shape.circle, size=size.tiny, color=#00ff00)
+plotshape(show_pre_signals and pre_sell_signal ? Quotient1 + signal_offset : na, location=location.absolute, style=shape.circle, size=size.tiny, color=#ff0000)
+
+// Алерты
+alertcondition(buy_signal, title="Сигнал на покупку", message="Обнаружен восходящий тренд")
+alertcondition(sell_signal, title="Сигнал на продажу", message="Обнаружен нисходящий тренд")
+alertcondition(pre_buy_signal, title="Предварительный сигнал на покупку", message="Возможен восходящий тренд")
+alertcondition(pre_sell_signal, title="Предварительный сигнал на продажу", message="Возможен нисходящий тренд")
+
+var table t = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(t, 0, 0, "DM", text_color=#ffffff, bgcolor=#2196f326, text_size=size.large)
+
+// ================================================ КОНЕЦ КОДА ================================================ //

@@ -1,0 +1,41 @@
+{
+  "nome_arquivo": "IND_GridBuilder_v1.0_MULTI.mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Utilities",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "autor": "Siddiqui, Alejandro Galindo (modificado por jeanlouie)",
+  "descricao": "Indicador para construção de grid visual no gráfico. Desenha linhas horizontais com espaçamento configurável para auxiliar na análise de níveis de preço.",
+  "funcoes_principais": [
+    "Desenho de grid horizontal no gráfico",
+    "Espaçamento configurável entre linhas",
+    "Atualização dinâmica baseada no preço atual",
+    "Ferramenta visual para análise de níveis",
+    "Compatível com qualquer instrumento"
+  ],
+  "parametros_expostos": [
+    "GridSpace"
+  ],
+  "conformidade_ftmo": {
+    "score": 9,
+    "status": "FTMO_Ready",
+    "observacoes": "Indicador puramente visual sem execução de trades. Útil para análise técnica e planejamento de estratégias."
+  },
+  "riscos_identificados": [
+    "Nenhum risco direto - apenas ferramenta visual",
+    "Pode sobrecarregar o gráfico se mal configurado"
+  ],
+  "observacoes_tecnicas": [
+    "Código convertido de MQL4 para MQL5",
+    "Problemas de encoding (BOM)",
+    "Estrutura simples de indicador customizado",
+    "Modificado por jeanlouie em 2021",
+    "Baseado no trabalho original de 2005"
+  ],
+  "tags": ["#Indicator", "#Utilities", "#MULTI", "#Grid", "#Visual_Tool", "#FTMO_Ready", "#Analysis"],
+  "caminho_arquivo": "Indicators/IND_GridBuilder_v1.0_MULTI.mq5",
+  "data_classificacao": "2025-01-27",
+  "status_revisao": "Classificado"
+}

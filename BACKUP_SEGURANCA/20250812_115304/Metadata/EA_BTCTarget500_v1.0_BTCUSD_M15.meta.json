@@ -1,0 +1,32 @@
+{
+  "arquivo": "BTCUSD_M15_Target500_EA.mq5",
+  "nome_padronizado": "EA_BTCTarget500_v1.0_BTCUSD_M15",
+  "tipo": "EA",
+  "categoria": "Incomplete",
+  "estrategia": "Target_Based",
+  "mercado": "BTCUSD",
+  "timeframe": "M15",
+  "descricao": "EA incompleto para BTCUSD M15 com meta de $500. Contém apenas comentários de cabeçalho sem implementação de lógica de trading.",
+  "funcoes_principais": [],
+  "parametros_expostos": [],
+  "ftmo_score": 0,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Código incompleto",
+    "Sem lógica de trading",
+    "Sem gerenciamento de risco",
+    "Apenas comentários"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Implementar lógica de trading completa",
+    "Adicionar Stop Loss obrigatório",
+    "Implementar controle de risco máximo 1%",
+    "Adicionar filtros de sessão",
+    "Implementar daily loss limit"
+  ],
+  "tags": ["#EA", "#Target_Based", "#BTCUSD", "#M15", "#Nao_FTMO", "#Incompleto"],
+  "caminho_origem": "All_MQ5/BTCUSD_M15_Target500_EA.mq5",
+  "caminho_final": "EAs/Misc/EA_BTCTarget500_v1.0_BTCUSD_M15.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "Arquivo contém apenas comentários de cabeçalho. Necessita implementação completa."
+}

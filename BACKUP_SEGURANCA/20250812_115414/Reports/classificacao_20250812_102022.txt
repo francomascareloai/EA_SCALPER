@@ -1,0 +1,26 @@
+
+🤖 RELATÓRIO DE CLASSIFICAÇÃO AUTOMÁTICA
+==================================================
+
+📊 ESTATÍSTICAS GERAIS:
+• Arquivos processados: 181
+• Arquivos movidos: 181
+• Erros encontrados: 0
+• EAs FTMO-Ready: 43
+
+📈 DISTRIBUIÇÃO POR CATEGORIA:
+• Custom: 96 arquivos
+• Trend: 21 arquivos
+• Grid_Martingale: 14 arquivos
+• Volume: 37 arquivos
+• Scalping: 11 arquivos
+• SMC: 2 arquivos
+
+
+✅ PROCESSO CONCLUÍDO
+Data: 2025-08-12 10:20:22
+
+Próximos passos:
+1. Revisar arquivos em Misc/
+2. Validar metadados gerados
+3. Atualizar índices principais

@@ -1,0 +1,149 @@
+//@version=5
+
+indicator("OSaverage", shorttitle="OSaverage", precision=4,overlay=false)
+
+//////////////////////
+///@FGHtrading///////
+/////////////////////
+
+//https://t.me/+gSE9yX4Dcpg1YzBk
+
+///https://t.me/+6VMjzAQUINU0NDlk
+
+
+// Input variables for Xtrender
+short_l1 = input.int(5, title="Short-Term EMA Length 1", group="Xtrender Settings")
+short_l2 = input.int(20, title="Short-Term EMA Length 2", group="Xtrender Settings")
+short_l3 = input.int(15, title="Short-Term RSI Length", group="Xtrender Settings")
+long_l1 = input.int(20, title="Long-Term EMA Length 1", group="Xtrender Settings")
+long_l2 = input.int(15, title="Long-Term EMA Length 2", group="Xtrender Settings")
+
+// Input variables for TSI
+strat = input.string("Fast", "Select TSI Speed", group="TSI Settings", options=["Fast", "Slow"])
+
+// Function to fetch data from higher timeframe
+get_htf_data(src) =>
+    request.security(syminfo.tickerid, "D", src)
+
+// Calculate Xtrender values
+shortTermXtrender = ta.rsi(ta.ema(close, short_l1) - ta.ema(close, short_l2), short_l3) - 50
+longTermXtrender = ta.rsi(ta.ema(close, long_l1), long_l2) - 50
+
+// Calculate TSI values
+doubleSmooth(src, longvar, shortvar) =>
+    first_smooth = ta.ema(src, longvar)
+    ta.ema(first_smooth, shortvar)
+
+longvar = strat == "Fast" ? input.int(25, "Long Length Fast") : input.int(25, "Long Length Slow")
+shortvar = strat == "Fast" ? input.int(5, "Short Length Fast") : input.int(13, "Short Length Slow")
+signalvar = strat == "Fast" ? input.int(14, "Signal Length Fast") : input.int(13, "Signal Length Slow")
+
+pc = ta.change(close)
+dSmoothPc = doubleSmooth(pc, longvar, shortvar)
+dSmoothAbs = doubleSmooth(math.abs(pc), longvar, shortvar)
+tsi = 100 * (dSmoothPc / dSmoothAbs)
+tsiSignal = ta.ema(tsi, signalvar)
+
+// TSI Cross per Timeframe
+tsi_cross(tf) =>
+    tsi_tf = request.security(syminfo.tickerid, tf, tsi)
+    tsiSignal_tf = request.security(syminfo.tickerid, tf, tsiSignal)
+    tsi_tf > tsiSignal_tf
+
+// Calculate Xtrender T3
+t3(src, len) =>
+    xe1 = ta.ema(src, len)
+    xe2 = ta.ema(xe1, len)
+    xe3 = ta.ema(xe2, len)
+    xe4 = ta.ema(xe3, len)
+    xe5 = ta.ema(xe4, len)
+    xe6 = ta.ema(xe5, len)
+    b = 0.7
+    c1 = -b * b * b
+    c2 = 3 * b * b + 3 * b * b * b
+    c3 = -6 * b * b - 3 * b - 3 * b * b * b
+    c4 = 1 + 3 * b + b * b * b + 3 * b * b
+    c1 * xe6 + c2 * xe5 + c3 * xe4 + c4 * xe3
+
+xtrenderT3 = t3(shortTermXtrender, 5)
+
+// Table Settings
+showTable = input.bool(true, title="Show Multi-Timeframe Table", group="Multi-Timeframe Table")
+tf1 = input.timeframe("5", title="Timeframe 1", group="Multi-Timeframe Table")
+tf2 = input.timeframe("30", title="Timeframe 2", group="Multi-Timeframe Table")
+tf3 = input.timeframe("60", title="Timeframe 3", group="Multi-Timeframe Table")
+tf4 = input.timeframe("120", title="Timeframe 4", group="Multi-Timeframe Table")
+tf5 = input.timeframe("240", title="Timeframe 5", group="Multi-Timeframe Table")
+tf6 = input.timeframe("1D", title="Timeframe 6 (Daily)", group="Multi-Timeframe Table")
+tableHeaderBgColor = input.color(color.blue, "Table Header Background", group="Multi-Timeframe Table")
+tableCellBgColor = input.color(color.gray, "Table Cell Background", group="Multi-Timeframe Table")
+upTextColor = input.color(color.lime, title="UP Text Color", group="Multi-Timeframe Table")
+downTextColor = input.color(color.red, title="DOWN Text Color", group="Multi-Timeframe Table")
+
+// Plot Xtrender values
+plot(shortTermXtrender, title="Short-Term Xtrender", 
+     color=shortTermXtrender > 0 ? (shortTermXtrender > shortTermXtrender[1] ? color.lime : color.green) : 
+                                   (shortTermXtrender > shortTermXtrender[1] ? color.red : color.maroon), 
+     style=plot.style_columns, linewidth=1, transp=50)
+
+
+
+
+// Plot histograms for TSI
+plot(tsi - tsiSignal, title="TSI Histogram", 
+     color=tsi > tsiSignal ? color.lime : color.maroon, 
+     style=plot.style_histogram, linewidth=2)
+
+// Plot background color for TSI
+bgcolor(tsi > tsiSignal ? color.new(color.green, 90) : color.new(color.red, 90), title="TSI Background", transp=90)
+
+// Plot zero line
+hline(0, "Zero Line", color=color.gray, linestyle=hline.style_dotted)
+
+// Bar color based on TSI and Xtrender
+barColor = tsi > tsiSignal and shortTermXtrender > 0 ? color.lime :
+           tsi < tsiSignal and shortTermXtrender < 0 ? color.red :
+           tsi > tsiSignal and shortTermXtrender < 0 ? color.orange :
+           tsi < tsiSignal and shortTermXtrender > 0 ? color.blue :
+           na
+barcolor(barColor, title="Bar Color")
+
+
+
+x1=input(defval=200,title='fast length')
+x2=input(defval=200,title='slow length')
+
+src1 = input(title='Source fast', defval=close)
+src2 = input(title='Source slow', defval=close)
+
+mafast(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "HMA" => ta.hma(source,length)
+        "ALMA" => ta.alma(source, length,0.85,6)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+maslow(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "HMA" => ta.hma(source,length)
+        "ALMA" => ta.alma(source, length,0.85,6)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+maTypeInputfast = input.string("SMA", title="MA Type fast", options=["SMA", "ALMA", "EMA", "SMMA (RMA)", "WMA", "VWMA","HMA"], group="MA Settings")
+maTypeInputslow = input.string("SMA", title="MA Type slow", options=["SMA", "ALMA", "EMA", "SMMA (RMA)", "WMA", "VWMA","HMA"], group="MA Settings")
+
+
+mafast_ = mafast(src1 , x1 ,  maTypeInputfast)
+maslow_ = maslow(src2 , x2 ,  maTypeInputslow)
+
+plot(mafast_ , color= color.red,force_overlay=true)
+plot(maslow_ , color= color.green,force_overlay=true,display=display.none)
+
+
+

@@ -1,0 +1,75 @@
+// © The_lurker
+
+//@version=5
+indicator("RSI MFI WPR Combo ", shorttitle="الزين", overlay=true)
+
+// --------------- Section 1: Input Definitions -The_lurker --------------
+// The lurker inputs
+mfiperiod = input.int(title="MFI Period", defval=14)
+rsiperiod = input.int(title="RSI Period", defval=14)
+wprperiod = input.int(title="WPR Period", defval=14)
+
+// The lurker MFI inputs -The_lurker
+length_The_lurkerMFI = 14
+oversoldlevel_The_lurkerMFI = 19
+
+// Volume Multiplier for exit condition -The_lurker
+volumeMultiplier = input.float(title="Volume Multiplier", defval=1.5, step=0.01)
+
+// --------------- Section 2: Indicator Calculations -The_lurker --------------
+// Calculate The lurker indicators
+mfi = ta.mfi(close, mfiperiod)
+rsi = ta.rsi(close, rsiperiod)
+highestHigh = ta.highest(high, wprperiod)
+lowestLow = ta.lowest(low, wprperiod)
+wpr = -100 * (highestHigh - close) / (highestHigh - lowestLow)
+
+// Calculate The lurker MFI 
+upper_The_lurkerMFI = ta.sma(volume * (ta.change(close) <= 0 ? 0 : close), length_The_lurkerMFI) * length_The_lurkerMFI
+lower_The_lurkerMFI = ta.sma(volume * (ta.change(close) >= 0 ? 0 : close), length_The_lurkerMFI) * length_The_lurkerMFI
+_rsi_The_lurkerMFI(upper, lower) =>
+    float result = na
+    if lower == 0
+        result := 100
+    else if upper == 0
+        result := 0
+    else
+        result := 100.0 - (100.0 / (1.0 + upper / lower))
+    result
+mf_The_lurkerMFI = _rsi_The_lurkerMFI(upper_The_lurkerMFI, lower_The_lurkerMFI)
+
+// --------------- Section 3: Condition Definitions -The_lurker --------------
+// The lurker MFI Oversold condition
+The_lurkerMFI_oversold = mf_The_lurkerMFI <= oversoldlevel_The_lurkerMFI
+
+// The lurker conditions
+condition = mfi < 30 and rsi < 30 and wpr <-91
+condition1 = mfi > rsi * 2
+condition2 = rsi > 30 and mfi < 15
+
+// Warning conditions
+conditionExit = mfi > 82 and rsi > 88 and volume > volume[1] * volumeMultiplier
+
+// Combined alert condition
+combinedAlertCondition = condition or condition1 or condition2 or The_lurkerMFI_oversold 
+
+// --------------- Section 4: Plotting and Alerts -The_lurker --------------
+// Set background color for The lurker MFI Oversold
+bgcolor(The_lurkerMFI_oversold ? color.new(#78c94a, 85) : na)
+
+// Plot warning and exit signals
+warningColor = (condition) ? color.rgb(231, 233, 213) : na
+if (condition)
+    label.new(bar_index, low, "دخول آمن", style=label.style_label_up, color=color.rgb(253, 253, 253), size=size.small, textcolor=color.black)
+
+if (condition1)
+    label.new(bar_index, low, "سيولة ضعف الشراء", style=label.style_label_up, color=color.rgb(236, 234, 76, 12), size=size.small, textcolor=color.black)
+
+if (condition2)
+    label.new(bar_index, low, "شراء ضعف السيولة", style=label.style_label_up, color=color.purple, size=size.small, textcolor=color.white)
+
+if (conditionExit)
+    label.new(bar_index, high, "خروج آمن", style=label.style_label_down, color=color.red, size=size.small, textcolor=color.white)
+
+// Set an alert for combined conditions -The_lurker
+alertcondition(combinedAlertCondition, title="Combined Alert", message="انتباه تغير اتجاه قادم")

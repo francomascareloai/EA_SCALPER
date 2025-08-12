@@ -1,0 +1,137 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator("LBB + RSI Multi-Level + Compact Table", overlay=true)
+
+// === Настройки ===
+lbbLength = input.int(20, title="LBB Period")
+lbbMult = input.float(2.0, title="LBB Multiplier")
+rsiLength = input.int(14, title="RSI Period")
+volLength = input.int(20, title="Volume SMA Length")
+// === Часовой пояс пользователя (для отображения времени в таблице) ===
+timeOffsetHours = input.int(0, title="UTC Offset (ваш часовой пояс)", minval=-12, maxval=14)
+
+// === Расчёты Bollinger и RSI ===
+logClose = math.log(close)
+logBasis = ta.sma(logClose, lbbLength)
+logDev = lbbMult * ta.stdev(logClose, lbbLength)
+logLower = logBasis - logDev
+logUpper = logBasis + logDev
+lowerBand = math.exp(logLower)
+upperBand = math.exp(logUpper)
+basisBand = math.exp(logBasis)
+rsi = ta.rsi(close, rsiLength)
+vol = volume
+avgVol = ta.sma(volume, volLength)
+highVol = vol > avgVol
+
+// === Пин-бары ===
+body = math.abs(close - open)
+upperWick = high - math.max(close, open)
+lowerWick = math.min(close, open) - low
+isPinBarBull = lowerWick > body * 2 and upperWick < body
+isPinBarBear = upperWick > body * 2 and lowerWick < body
+
+// === Сигналы ===
+cond_rsi40_long = close < lowerBand and rsi < 40
+cond_rsi35_long = close < lowerBand and rsi < 35
+cond_rsi30_long = close < lowerBand and rsi < 30
+cond_rsi60_short = close > upperBand and rsi > 60
+cond_rsi65_short = close > upperBand and rsi > 65
+cond_rsi70_short = close > upperBand and rsi > 70
+// === Расчёт времени сигнальной свечи ===
+signalTime = (cond_rsi30_long or cond_rsi35_long or cond_rsi40_long or cond_rsi60_short or cond_rsi65_short or cond_rsi70_short) ? time : na
+string formattedTime = na
+if not na(signalTime)
+    formattedTime := str.format("{0,date,dd-MM-yy HH:mm}", signalTime + timeOffsetHours * 60 * 60 * 1000)
+
+// === Визуальные треугольники ===
+plotshape(cond_rsi40_long, location=location.belowbar, color=color.orange, style=shape.triangleup, size=size.small, title="LONG RSI < 40", text="40")
+plotshape(cond_rsi35_long, location=location.belowbar, color=color.yellow, style=shape.triangleup, size=size.small, title="LONG RSI < 35", text="35")
+plotshape(cond_rsi30_long, location=location.belowbar, color=color.green, style=shape.triangleup, size=size.normal, title="LONG RSI < 30", text="30")
+plotshape(cond_rsi60_short, location=location.abovebar, color=color.red, style=shape.triangledown, size=size.small, title="SHORT RSI > 60", text="60")
+plotshape(cond_rsi65_short, location=location.abovebar, color=color.purple, style=shape.triangledown, size=size.small, title="SHORT RSI > 65", text="65")
+plotshape(cond_rsi70_short, location=location.abovebar, color=color.blue, style=shape.triangledown, size=size.normal, title="SHORT RSI > 70", text="70")
+
+// 🔍 Отладочные кружки
+plotshape((cond_rsi40_long or cond_rsi35_long or cond_rsi30_long), location=location.belowbar, style=shape.circle, color=color.green, size=size.tiny, title="DEBUG Long Signal")
+plotshape((cond_rsi60_short or cond_rsi65_short or cond_rsi70_short), location=location.abovebar, style=shape.circle, color=color.red, size=size.tiny, title="DEBUG Short Signal")
+
+// === Алерты ===
+alertcondition(cond_rsi40_long, title="LBB LONG RSI < 40", message="📉 LONG сигнал: {{ticker}} @ {{close}} / RSI < 40 ({{rsi}})")
+alertcondition(cond_rsi35_long, title="LBB LONG RSI < 35", message="📉 LONG сигнал: {{ticker}} @ {{close}} / RSI < 35 ({{rsi}})")
+alertcondition(cond_rsi30_long, title="LBB LONG RSI < 30", message="📉 LONG сигнал: {{ticker}} @ {{close}} / RSI < 30 ({{rsi}})")
+alertcondition(cond_rsi60_short, title="LBB SHORT RSI > 60", message="📈 SHORT сигнал: {{ticker}} @ {{close}} / RSI > 60 ({{rsi}})")
+alertcondition(cond_rsi65_short, title="LBB SHORT RSI > 65", message="📈 SHORT сигнал: {{ticker}} @ {{close}} / RSI > 65 ({{rsi}})")
+alertcondition(cond_rsi70_short, title="LBB SHORT RSI > 70", message="📈 SHORT сигнал: {{ticker}} @ {{close}} / RSI > 70 ({{rsi}})")
+
+// === Формат объема ===
+volFormat(val) =>
+    result = ''
+    if val >= 1000000
+        result := str.tostring(val / 1000000, '#.##') + 'M'
+    else if val >= 1000
+        result := str.tostring(val / 1000, '#.##') + 'K'
+    else
+        result := str.tostring(val, '#.##')
+    result
+
+// === Настройки позиции таблицы ===
+tablePositionStr = input.string("Top Right", title="Позиция таблицы", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"])
+
+getTablePosition(posStr) =>
+    pos = position.top_right
+    if posStr == "Top Left"
+        pos := position.top_left
+    else if posStr == "Bottom Right"
+        pos := position.bottom_right
+    else if posStr == "Bottom Left"
+        pos := position.bottom_left
+    pos
+
+// === Таблица сигналов ===
+var table sigTable = table.new(getTablePosition(tablePositionStr), 1, 5, border_width=1)
+
+sigText = ""
+pinInfo = (isPinBarBull or isPinBarBear) ? "✔" : "–"
+volInfo = highVol ? "HIGH" : "low"
+sigColor = color.gray
+
+if cond_rsi30_long
+    sigText := "📉 LONG " + str.tostring(close, "#.##")
+    sigColor := color.green
+else if cond_rsi35_long
+    sigText := "📉 LONG " + str.tostring(close, "#.##")
+    sigColor := color.yellow
+else if cond_rsi40_long
+    sigText := "📉 LONG " + str.tostring(close, "#.##")
+    sigColor := color.orange
+else if cond_rsi70_short
+    sigText := "📈 SHORT " + str.tostring(close, "#.##")
+    sigColor := color.blue
+else if cond_rsi65_short
+    sigText := "📈 SHORT " + str.tostring(close, "#.##")
+    sigColor := color.purple
+else if cond_rsi60_short
+    sigText := "📈 SHORT " + str.tostring(close, "#.##")
+    sigColor := color.red
+
+if sigText != ""
+    table.cell(sigTable, 0, 0, sigText, text_color=color.white, bgcolor=sigColor, text_halign=text.align_center)
+    table.cell(sigTable, 0, 1, "RSI: " + str.tostring(rsi, "#.0"), text_halign=text.align_center)
+    table.cell(sigTable, 0, 2, "Vol: " + volFormat(vol), text_halign=text.align_center)
+    table.cell(sigTable, 0, 3, "PinBar: " + pinInfo, text_halign=text.align_center)
+    table.cell(sigTable, 0, 4, "Time: " + formattedTime, text_halign=text.align_center)
+// === График Bollinger Bands ===
+plot(lowerBand, title="LBB Lower", color=color.red)
+plot(upperBand, title="LBB Upper", color=color.blue)
+plot(basisBand, title="LBB Basis", color=color.gray)
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

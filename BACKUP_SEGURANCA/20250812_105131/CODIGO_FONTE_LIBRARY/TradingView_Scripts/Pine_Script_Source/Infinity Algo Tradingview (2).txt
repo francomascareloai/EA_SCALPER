@@ -1,0 +1,260 @@
+ // This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © PhamNhatDuy
+
+//@version=5
+
+//@version=5
+
+indicator("TEA EA", overlay=true, precision=0, explicit_plot_zorder=true, max_labels_count=500)
+// Get user input
+emaEnergy   = false
+sensitivity = input.float(6, "  Sensitivity (0.5 - 10)", 0.5, 10, step=0.1)
+keltner_length = 10
+atrPeriod = 10
+factor = 3.5
+
+// Keltner Channel function
+keltner_channel(src, length) =>
+    ma = ta.sma(src, length)
+    rangec = high - low
+    upper = ma + rangec
+    lower = ma - rangec
+    [upper, lower]
+
+// Modified Supertrend function using Keltner Channel
+supertrend(_src, factor, atrLen, kel_length) =>
+    [upperKeltner, lowerKeltner] = keltner_channel(_src, kel_length)
+    rangec = upperKeltner - lowerKeltner
+    upperBand = _src + factor * rangec
+    lowerBand = _src - factor * rangec
+    prevLowerBand = nz(lowerBand[1])
+    prevUpperBand = nz(upperBand[1])
+    lowerBand := lowerBand > prevLowerBand or close[1] < prevLowerBand ? lowerBand : prevLowerBand
+    upperBand := upperBand < prevUpperBand or close[1] > prevUpperBand ? upperBand : prevUpperBand
+    int direction = na
+    float superTrend = na
+    prevSuperTrend = superTrend[1]
+
+    if na(rangec[1])
+        direction := 1
+    else if prevSuperTrend == prevUpperBand
+        direction := close > upperBand ? -1 : 1
+    else
+        direction := close < lowerBand ? 1 : -1
+    superTrend := direction == -1 ? lowerBand : upperBand
+    [superTrend, direction]
+// Get Components
+ema1        = ta.ema(high,  9)
+ema2        = ta.ema(high, 12)
+ema3        = ta.ema(high, 15)
+ema4        = ta.ema(high, 18)
+ema5        = ta.ema(high, 21)
+ema6        = ta.ema(high, 24)
+ema7        = ta.ema(high, 27)
+ema8        = ta.ema(high, 30)
+ema9        = ta.ema(high, 33)
+ema10        = ta.ema(high, 36)
+ema11        = ta.ema(high, 39)
+ema12       = ta.ema(high, 42)
+ema13       = ta.ema(high, 45)
+ema14        = ta.ema(high, 48)
+ema15        = ta.ema(high, 51)
+
+
+// Colors
+green = color.new(#2BBC4D, 0)
+red   = color.new(#C51D0B, 0)
+
+emaEnergyColor(ma) =>
+    emaEnergy ? (close >= ma ? green : red) : color.new(na, 0)
+
+// Plots
+//plot(ema1, "", emaEnergyColor(ema1), editable=false)
+//plot(ema2, "", emaEnergyColor(ema2), editable=false)
+plot(ema3, "", emaEnergyColor(ema3), editable=false)
+plot(ema4, "", emaEnergyColor(ema4), editable=false)
+plot(ema5, "", emaEnergyColor(ema5), editable=false)
+plot(ema6, "", emaEnergyColor(ema6), editable=false)
+plot(ema7, "", emaEnergyColor(ema7), editable=false)
+plot(ema8, "", emaEnergyColor(ema8), editable=false)
+plot(ema9, "", emaEnergyColor(ema9), editable=false)
+plot(ema10, "", emaEnergyColor(ema10), editable=false)
+plot(ema11, "", emaEnergyColor(ema11), editable=false)
+plot(ema12, "", emaEnergyColor(ema12), editable=false)
+plot(ema13, "", emaEnergyColor(ema13), editable=false)
+plot(ema14, "", emaEnergyColor(ema14), editable=false)
+plot(ema15, "", emaEnergyColor(ema15), editable=false)
+[supertrend, direction] = supertrend(close, sensitivity, 11, keltner_length)
+bull = ta.crossover(close, supertrend)
+bear = ta.crossunder(close, supertrend)
+
+y1 = low - (ta.atr(30) * 2)
+y2 = high + (ta.atr(30) * 2)
+
+
+// Braid Filter
+
+//-- Inputs : TẠO BẢNG CHỌN BỘ LỌC 
+maType = input.string('McGinley', 'Filter', options=['EMA', 'DEMA', 'TEMA', 'WMA', 'VWMA', 'SMA', 'SMMA', 'HMA', 'LSMA', 'Kijun', 'McGinley', 'RMA'])
+Period1 = 3
+Period2 = 7
+Period3 = 20
+PipsMinSepPercent = input(60, 'Filter Strength')
+
+//-- Moving Average
+ma(type, src, len) =>
+    float result = 0
+    if type == 'SMA'  // Simple
+        result := ta.sma(src, len)
+        result
+    if type == 'EMA'  // Exponential
+        result := ta.ema(src, len)
+        result
+    if type == 'DEMA'  // Double Exponential
+        e = ta.ema(src, len)
+        result := 2 * e - ta.ema(e, len)
+        result
+    if type == 'TEMA'  // Triple Exponential
+        e = ta.ema(src, len)
+        result := 3 * (e - ta.ema(e, len)) + ta.ema(ta.ema(e, len), len)
+        result
+    if type == 'WMA'  // Weighted
+        result := ta.wma(src, len)
+        result
+    if type == 'VWMA'  // Volume Weighted
+        result := ta.vwma(src, len)
+        result
+    if type == 'SMMA'  // Smoothed
+        w = ta.wma(src, len)
+        sma_prev = ta.sma(src, len)
+        sma_value = na(w[1]) ? sma_prev : (w[1] * (len - 1) + src) / len
+        result := sma_value
+    if type == 'RMA'
+        result := ta.rma(src, len)
+        result
+    if type == 'HMA'  // Hull
+        result := ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))
+        result
+    if type == 'LSMA'  // Least Squares
+        result := ta.linreg(src, len, 0)
+        result
+    if type == 'Kijun'  //Kijun-sen
+        kijun = math.avg(ta.lowest(len), ta.highest(len))
+        result := kijun
+        result
+    if type == 'McGinley'
+        mg = 0.0
+        ema_value = ta.ema(src, len)
+        mg := na(mg[1]) ? ema_value : mg[1] + (src - mg[1]) / (len * math.pow(src / mg[1], 4))
+        result := mg
+    result
+
+//-- Braid Filter   
+ma01 = ma(maType, close, Period1)
+ma02 = ma(maType, open, Period2)
+ma03 = ma(maType, close, Period3)
+
+max = math.max(math.max(ma01, ma02), ma03)
+min = math.min(math.min(ma01, ma02), ma03)
+
+dif = max - min
+
+filter = ta.atr(14) * PipsMinSepPercent / 100
+
+//-- Plots
+BraidColor = ma01 > ma02 and dif > filter ? color.green : ma02 > ma01 and dif > filter ? color.red : color.gray
+
+//plot(dif, 'Braid', BraidColor, 5, plot.style_columns)
+//plot(filter, 'Filter', color.new(color.blue, 0), 2, plot.style_line)
+//bgcolor(BraidColor, transp=90)
+
+// Braid Filter Finish
+
+buy  = bull and ma01 > ma02 and dif > filter ? label.new(bar_index, y1, "MUA", xloc.bar_index, yloc.price, green, label.style_label_up, color.white, size.normal) : na
+sell = bear and ma02 > ma01 and dif > filter ? label.new(bar_index, y2, "BAN", xloc.bar_index, yloc.price, red, label.style_label_down, color.white, size.normal) : na
+
+// THÊM GIÁ MUA VÀ BÁN 
+GIA_MUA = label.get_y(id=buy)
+label.set_text(id=buy, text=str.tostring(GIA_MUA,'0.00'))
+
+
+GIA_BAN = label.get_y(id=sell)
+label.set_text(id=sell, text=str.tostring(GIA_BAN,'0.00'))
+
+
+
+/////////////////
+
+[supertrends, directions] = supertrend(close, sensitivity, atrPeriod, keltner_length)
+bodyMiddle = plot((open + close) / 2, display=display.none)
+// Trend Catcher Indicator (Example)
+ema100 = ta.ema(close, 10)
+ema200 = ta.ema(close, 20)
+crossover_condition = ta.crossover(ema100, ema200)
+crossunder_condition = ta.crossunder(ema100, ema200)
+trendCatcher = crossover_condition ? 1 : crossunder_condition ? -1 : 0
+trendColor = trendCatcher == 1 ? color.rgb(90, 23, 102) : na
+barcolor(trendColor)
+// Colored candles
+barcolor(color = close > supertrends ? color.rgb(102, 255, 0) : color.rgb(255, 0, 0))
+
+// Take Profit Script
+
+colorsr = 'DARK'
+bullcolorr = colorsr == 'DARK' ?  color.rgb(0, 255, 8) : #00DBFF
+bearcolorr = colorsr == 'DARK' ?  color.rgb(255, 0, 0) : #E91E63
+
+
+ShowTEX = input.bool(true, "Show Take Profit Signals")
+TE1 = true
+TE2 = true
+TE3 = true
+//TE4 = input(true, 'TE - 4' , group="Money Moves [Trend Exhaustion]" , inline = "TEX")
+
+rsiLengthInput = 22
+rsiSourceInput = close
+maTypeInput = ta.sma(close, 14)
+up66 = ta.rma(math.max(ta.change(rsiSourceInput), 0), rsiLengthInput)
+downw = ta.rma(-math.min(ta.change(rsiSourceInput), 0), rsiLengthInput)
+rsi66 = downw == 0 ? 100 : up66 == 0 ? 0 : 100 - (100 / (1 + up66 / downw))
+rsiMA = maTypeInput
+
+long1 = ta.crossover(rsi66, 30)
+//long2 = ta.crossover(rsi66, 20)
+//long3 = ta.crossover(rsi66, 15)
+//long4 = ta.crossover(rsi66, 10)
+
+// SHORT
+short1 = ta.crossunder(rsi66, 70)
+//short2 = ta.crossunder(rsi66, 80)
+//short3 = ta.crossunder(rsi66, 85)
+//short4 = ta.crossunder(rsi66, 90)
+
+// LONG: HIEN THI THONG BAO CHOT BUY
+// Điều kiện Long + cho phép hiển thị 
+plotshape(long1 and ShowTEX and TE1, "GO LONG 1", style=shape.circle, location=location.belowbar,size=size.tiny, color = color.new(bullcolorr , 60) , text="Sell TP" , textcolor = bullcolorr , editable = false)
+//plotshape(long2 and ShowTEX and TE2, "GO LONG 2", style=shape.circle, location=location.belowbar,size=size.tiny, color = color.new(bullcolorr , 50), text="Sell TP2" , textcolor = bullcolorr , editable = false)
+//plotshape(long3 and ShowTEX and TE3, "GO LONG 3", style=shape.circle, location=location.belowbar,size=size.tiny, color = color.new(bullcolorr , 10), text="Sell TP3", textcolor = bullcolorr , editable = false)
+//plotshape(long4 and ShowTEX, "GO LONG 4", style=shape.circle, location=location.belowbar,size=size.tiny, color=color.gray, text="4")
+
+// SHORT
+plotshape(short1 and ShowTEX and TE1, "GO SHORT 1", style=shape.circle, location=location.abovebar,size=size.tiny,  color = color.new(bearcolorr , 60) , text="Buy TP" , textcolor = bearcolorr , editable = false)
+//plotshape(short2 and ShowTEX and TE2, "GO SHORT 2", style=shape.circle, location=location.abovebar,size=size.tiny,  color = color.new(bearcolorr , 50) , text="Buy TP2" , textcolor = bearcolorr , editable = false)
+//plotshape(short3 and ShowTEX and TE3, "GO SHORT 3", style=shape.circle, location=location.abovebar,size=size.tiny,  color = color.new(bearcolorr , 10) , text="Buy TP3" , textcolor = bearcolorr , editable = false)
+//plotshape(short4 and ShowTEX, "GO SHORT 4", style=shape.circle, location=location.abovebar,size=size.tiny, color=color.gray, text="4")
+
+
+//alertcondition(long1 or short1 , 'Trend Exhausted - 1', 'Trend Exhausted | Strength - 1 ')
+//alertcondition(long2 or short2 , 'Trend Exhausted - 2', 'Trend Exhausted | Strength - 2 ')
+//alertcondition(long3 or short3 , 'Trend Exhausted - 3', 'Trend Exhausted | Strength - 3 ')
+
+// GUI TIN HIEU THÔNG BÁO
+Alert_Buy =bull and ma01 > ma02 and dif > filter
+Alert_Sell =bear and ma02 > ma01 and dif > filter
+alertcondition(Alert_Buy ,'MUA', 'MUA')
+alertcondition(Alert_Sell ,'SELL', 'SELL')
+// Peak Profit Script
+
+//import protradingart/pta_plot/6 as pp 
+////
+//pp.peakprofit(bull and ma01 > ma02 and dif > filter, bear and ma02 > ma01 and dif > filter)   

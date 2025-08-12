@@ -1,0 +1,2008 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Crypto_Wolf_Traders
+
+//@version=5
+strategy("Crypto_Wolf_Traders_V4.1", overlay=true, max_labels_count=500, default_qty_type = strategy.percent_of_equity, default_qty_value = 100, initial_capital = 1000000)
+
+///////////////////////////////////////////////////////////////////////////////
+//-----------------------------CRYPTO-WOLF-TRADERS - RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//strategy("Crypto_Wolf_Traders_V4.1"): This line initializes a new strategy and gives it a name. In this case, the name of the strategy is "Crypto_Wolf_Traders_V4.1".
+//overlay=true: This argument specifies whether the strategy should be drawn as an overlay on the main chart or not. If set to true, the strategy will be drawn as an overlay.
+
+//max_labels_count=500: This argument sets the maximum number of labels that can be used in the strategy. Labels are used to display information on the chart, such as buy and sell signals, and this argument limits the number of labels that can be displayed at any one time.
+
+//default_qty_type = strategy.percent_of_equity: This line sets the default quantity type for the strategy. In this case, the default quantity type is set to be a percentage of the equity in the trading account. This means that the size of the trades will be based on a percentage of the account's equity.
+
+//default_qty_value = 100: This argument sets the default quantity value for the strategy. In this case, the default quantity value is set to be 100 percent of the equity in the trading account. This means that the strategy will use all of the available equity in the account for each trade.
+
+//initial_capital = 1000000: This argument sets the initial capital for the strategy. In this case, the initial capital is set to be 1 million dollars. This means that the strategy will start with a trading account balance of 1 million dollars.
+
+
+///////////////////////////////////////////////////////////////////////////////
+//-----------------------------CRYPTO-WOLF-TRADERS----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+// SIGNAL MEANINGS 
+//"Buy Label" = Strong Buy
+//"Sell Label" = Strong Sell
+//"Don't Long" = Green Cross
+//"Don't Short" = Red Cross
+//"Weak Buy " = Green Circle
+//"Weak Sell" = Red Circle
+//"Reversal Buy" = Green Diamond
+//"Reversal Sell" = Red Diamond
+
+// Get user settings
+res               = input.timeframe(title='TIMEFRAME', defval='15', group ="NON REPAINT")
+showBuySell       = input(true, "BUY/SELL SIGNALS ON/OFF", group="BUY & SELL SIGNALS")
+sensitivity       = input.float(2.07, "SENSITIVITY (1-6)", 0.1, 6, group="BUY & SELL SIGNALS")
+percentStop       = input.float(0.3, "STOP LOSS % (0 TO DISABLE)", 0, group="BUY & SELL SIGNALS")
+offsetSignal      = input.float(2, "SIGNAL OFFSET", 0, group="BUY & SELL SIGNALS")
+showReversal      = input(true, "REVERSAL SIGNALS ON/OFF", group="BUY & SELL SIGNALS")
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//res = input.timeframe(title='TIMEFRAME', defval='15', group ="NON REPAINT"): This line defines a variable called res that represents the timeframe used for the strategy. The input.timeframe function creates a drop-down menu in the TradingView UI that allows the user to select the timeframe. The title argument sets the text displayed next to the drop-down menu, defval sets the default value of the variable, and group specifies the group to which the input belongs.
+
+//showBuySell = input(true, "BUY/SELL SIGNALS ON/OFF", group="BUY & SELL SIGNALS"): This line defines a boolean variable called showBuySell that determines whether the buy/sell signals are displayed on the chart or not. The input function creates a checkbox in the TradingView UI that allows the user to enable or disable the signals. The true argument sets the default value of the variable to true (i.e., the signals are displayed by default). The second argument sets the text displayed next to the checkbox, and group specifies the group to which the input belongs.
+
+//sensitivity = input.float(2.07, "SENSITIVITY (1-6)", 0.1, 6, group="BUY & SELL SIGNALS"): This line defines a float variable called sensitivity that represents the sensitivity of the strategy. The input.float function creates a slider in the TradingView UI that allows the user to adjust the value of the variable. The first argument sets the default value of the variable, and the second argument sets the text displayed next to the slider. The third and fourth arguments set the minimum and maximum values of the slider, respectively. group specifies the group to which the input belongs.
+
+//percentStop = input.float(0.3, "STOP LOSS % (0 TO DISABLE)", 0, group="BUY & SELL SIGNALS"): This line defines a float variable called percentStop that represents the percentage of the stop loss for the strategy. The input.float function creates a slider in the TradingView UI that allows the user to adjust the value of the variable. The first argument sets the default value of the variable, and the second argument sets the text displayed next to the slider. The third and fourth arguments set the minimum and maximum values of the slider, respectively. If the user sets this variable to zero, the stop loss will be disabled. group specifies the group to which the input belongs.
+
+//offsetSignal = input.float(2, "SIGNAL OFFSET", 0, group="BUY & SELL SIGNALS"): This line defines a float variable called offsetSignal that represents the offset of the signals for the strategy. The input.float function creates a slider in the TradingView UI that allows the user to adjust the value of the variable. The first argument sets the default value of the variable, and the second argument sets the text displayed next to the slider. The third and fourth arguments set the minimum and maximum values of the slider, respectively. group specifies the group to which the input belongs.
+
+//showReversal = input(true, "REVERSAL SIGNALS ON/OFF", group="BUY & SELL SIGNALS"): This line defines a boolean variable called showReversal that determines whether the reversal signals are displayed on the chart or not. The input function creates a checkbox in the TradingView UI that allows the user to enable or disable
+
+
+// Entry & Exit
+enableE           = input(true, "EXIT & ENTRY ON/OFF", group="EXIT & ENTRY")
+Stop              = input.color(color.new(#83868f, 5), "STOP LOSS", group="EXIT & ENTRY")
+Entry             = input.color(color.new(#8d020e, 5), "ENTRY", group="EXIT & ENTRY")
+Tp1               = input.color(color.new(#038007, 5), "TAKE PROFIT", group="EXIT & ENTRY")
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//enableE = input(true, "EXIT & ENTRY ON/OFF", group="EXIT & ENTRY"): This line defines a boolean variable called enableE that determines whether the exit and entry points for the trades are displayed on the chart or not. The input function creates a checkbox in the TradingView UI that allows the user to enable or disable the display. The true argument sets the default value of the variable to true (i.e., the exit and entry points are displayed by default), and group specifies the group to which the input belongs.
+
+//Stop = input.color(color.new(#83868f, 5), "STOP LOSS", group="EXIT & ENTRY"): This line defines a color variable called Stop that represents the color of the stop loss line on the chart. The input.color function creates a color picker in the TradingView UI that allows the user to choose the color. The color.new function sets the initial color and transparency of the line. The second argument sets the text displayed next to the color picker, and group specifies the group to which the input belongs.
+
+//Entry = input.color(color.new(#8d020e, 5), "ENTRY", group="EXIT & ENTRY"): This line defines a color variable called Entry that represents the color of the entry line on the chart. The input.color function creates a color picker in the TradingView UI that allows the user to choose the color. The color.new function sets the initial color and transparency of the line. The second argument sets the text displayed next to the color picker, and group specifies the group to which the input belongs.
+
+//Tp1 = input.color(color.new(#038007, 5), "TAKE PROFIT", group="EXIT & ENTRY"): This line defines a color variable called Tp1 that represents the color of the take profit line on the chart. The input.color function creates a color picker in the TradingView UI that allows the user to choose the color. The color.new function sets the initial color and transparency of the line. The second argument sets the text displayed next to the color picker, and group specifies the group to which the input belongs.
+
+
+
+// Supply & Demand
+enableSD          = input(true, "SUPPLY & DEMAND ON/OFF", group="SUPPLY & DEMAND")
+mitigation        = input.string('Wick', 'MITIGATION', options = ['Wick', 'Close'], group ="SUPPLY & DEMAND")
+length            = input.int(20, 'VOLUME PIVOT', minval = 1, group ="SUPPLY & DEMAND")
+bull_ext_last     = input.int(1, 'DEMAND', minval = 1, inline = 'bull', group ="SUPPLY & DEMAND")
+bull_avg_css      = input.color(color.new(#019106, 1), '', inline = 'bull', group ="SUPPLY & DEMAND")
+bull_css          = input.color(color.new(#00000000, 100), '', inline = 'bull', group ="SUPPLY & DEMAND")
+bg_bull_css       = input.color(color.new(#00ff0a, 90), '', inline = 'bull', group ="SUPPLY & DEMAND")
+bear_ext_last     = input.int(1, 'SUPPLY', minval = 1 , inline = 'bear', group ="SUPPLY & DEMAND")
+bear_avg_css      = input.color(color.new(#86020d, 1), '', inline = 'bear', group ="SUPPLY & DEMAND")
+bear_css          = input.color(color.new(#00000000, 100), '', inline = 'bear', group ="SUPPLY & DEMAND")
+bg_bear_css       = input.color(color.new(#ff0015, 90), '', inline = 'bear', group ="SUPPLY & DEMAND")
+line_style        = input.string("Solid", "LINE STYLE", ["Solid", "Dotted", "Dashed"], group ="SUPPLY & DEMAND")
+line_width        = input.int(2, 'LINE WIDTH', minval = 1, group ="SUPPLY & DEMAND")
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//enableSD: a boolean value that determines whether the supply and demand indicator should be enabled or not.
+//mitigation: a string value that determines whether to use wicks or closing prices for the calculation of the indicator.
+//length: an integer value that sets the length of the volume pivot used in the indicator calculation.
+//bull_ext_last: an integer value that sets the length of the demand zone extension from the last pivot high.
+//bull_avg_css: a color value that sets the color of the average demand zone.
+//bull_css: a color value that sets the color of the demand zone.
+//bg_bull_css: a color value that sets the background color of the demand zone.
+//bear_ext_last: an integer value that sets the length of the supply zone extension from the last pivot low.
+//bear_avg_css: a color value that sets the color of the average supply zone.
+//bear_css: a color value that sets the color of the supply zone.
+//bg_bear_css: a color value that sets the background color of the supply zone.
+//line_style: a string value that sets the line style of the indicator.
+//line_width: an integer value that sets the width of the indicator line.
+
+
+// Support & Resistance
+enableSR          = input(true, "SUPPORT & RESISTANCE ON/Off", group="SUPPORT & RESISTANCE")
+colorSup          = input(#00dbff, "SUPPORT", group="SUPPORT & RESISTANCE")
+colorRes          = input(#E91E63, "RESISTANCE", group="SUPPORT & RESISTANCE")
+strengthSR        = input.int(6, "S/R STRENGTH", 1, group="SUPPORT & RESISTANCE")
+lineStyle1        = input.string("Solid", "LINE STYLE", ["Solid", "Dotted", "Dashed"], group="SUPPORT & RESISTANCE")
+lineWidth1        = input.int(2, "LINE WIDTH", 1, group="SUPPORT & RESISTANCE")
+expandSR          = input(true, "EXTEND LINES", group = "SUPPORT & RESISTANCE")
+useZones          = input(true, "ZONE ON/OFF", group="SUPPORT & RESISTANCE")
+useHLZones        = input(true, "HIGH LOW ZONES ON/OFF", group="SUPPORT & RESISTANCE")
+zoneWidth         = input.int(4, "ZONE WIDTH %", 0, tooltip="it's calculated using % of the distance between highest/lowest in last 300 bars", group="SUPPORT & RESISTANCE")
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//enableSR: a boolean (true/false) input to enable/disable support and resistance lines.
+//colorSup: a color input to set the color for support lines.
+//colorRes: a color input to set the color for resistance lines.
+//strengthSR: an integer input to set the strength of the support and resistance lines.
+//lineStyle1: a string input to set the style of the support and resistance lines (solid, dotted, or dashed).
+//lineWidth1: an integer input to set the width of the support and resistance lines.
+//expandSR: a boolean input to enable/disable the extension of support and resistance lines beyond the current price.
+//useZones: a boolean input to enable/disable the display of zones between support and resistance lines.
+//useHLZones: a boolean input to enable/disable the display of zones between the high and low of the price.
+//zoneWidth: an integer input to set the width (in percentage) of the zones.
+
+
+// Trend Table
+
+showDashboard     = input(false, "TREND DASHBOARD ON/OFF", group="TREND DASHBOARD")
+locationDashboard = input.string("Middle Right", "Table Location", ["Top Right", "Middle Right", "Bottom Right", "Top Center", "Middle Center", "Bottom Center", "Top Left", "Middle Left", "Bottom Left"], group="TREND DASHBOARD")
+tableTextColor    = input(color.rgb(236, 233, 233), "TEXT", group="TREND DASHBOARD")
+tableBgColor      = input(color.black, "BACKGROUND", group="TREND DASHBOARD")
+sizeDashboard     = input.string("Small", "TABLE SIZE", ["Large", "Normal", "Small", "Tiny"], group="TREND DASHBOARD")
+showPdHlc         = input(false, "PREVIOUS DAY H/L/C", group="PREVIOUS DAY HIGH LOW CLOSE")
+lineColor         = input.color(#028a07, "LINE COLORS", group="PREVIOUS DAY HIGH LOW CLOSE")
+lineStyle         = input.string("Solid", "LINE STYLE", ["Solid", "Dotted", "Dashed"], group ="PREVIOUS DAY HIGH LOW CLOSE")
+lineWidth         = input.int(1, "LINE WIDTH", group="PREVIOUS DAY HIGH LOW CLOSE")
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//enableE: Enables or disables the exit and entry feature.
+
+//Stop: Sets the color for the stop loss.
+
+//Entry: Sets the color for the entry.
+
+//Tp1: Sets the color for the take profit.
+
+//enableSD: Enables or disables the supply and demand feature.
+
+//mitigation: Sets whether to use wick or close price for volume pivot calculation.
+
+//length: Sets the length for volume pivot calculation.
+
+//bull_ext_last: Sets the number of previous candles to use for demand calculation.
+
+//bull_avg_css: Sets the color for the demand average line.
+
+//bull_css: Sets the color for the demand zone.
+
+//bg_bull_css: Sets the background color for the demand zone.
+
+//bear_ext_last: Sets the number of previous candles to use for supply calculation.
+
+//bear_avg_css: Sets the color for the supply average line.
+
+//bear_css: Sets the color for the supply zone.
+
+//bg_bear_css: Sets the background color for the supply zone.
+
+//line_style: Sets the line style for the supply and demand zones.
+
+//line_width: Sets the line width for the supply and demand zones.
+
+//enableSR: Enables or disables the support and resistance feature.
+
+//colorSup: Sets the color for the support lines.
+
+//colorRes: Sets the color for the resistance lines.
+
+//strengthSR: Sets the strength of the support and resistance lines.
+
+//lineStyle1: Sets the line style for the support and resistance lines.
+
+//lineWidth1: Sets the line width for the support and resistance lines.
+
+//expandSR: Enables or disables extending the support and resistance lines.
+
+//useZones: Enables or disables drawing zones between the support and resistance lines.
+
+//useHLZones: Enables or disables drawing high and low zones between the support and resistance lines.
+
+//zoneWidth: Sets the width of the zones as a percentage of the distance between the highest and lowest price in the last 300 bars.
+
+//showDashboard: Enables or disables the trend dashboard feature.
+
+//locationDashboard: Sets the location of the trend dashboard.
+
+//tableTextColor: Sets the color of the text in the trend dashboard.
+
+//tableBgColor: Sets the background color of the trend dashboard.
+
+//sizeDashboard: Sets the size of the trend dashboard.
+
+//showPdHlc: Enables or disables the previous day high, low, and close feature.
+
+//lineColor: Sets the color of the line for the previous day high, low, and close.
+
+//lineStyle: Sets the line style for the previous day high, low, and close.
+
+//lineWidth: Sets the line width for the previous day high, low, and close.
+
+
+// Create non-repainting security function
+
+rp_security(_symbol, _res, _src) =>
+    request.security(_symbol, _res, _src[barstate.isrealtime ? 1 : 0])
+
+htfHigh = rp_security(syminfo.tickerid, res, high)
+htfLow = rp_security(syminfo.tickerid, res, low)
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//The rp_security function is a custom function that requests historical price data for a security from TradingView's servers. The function takes three arguments: _symbol, _res, and _src.
+
+//_symbol is the symbol of the security that we want to retrieve data for. In this case, we're using syminfo.tickerid to get the ticker symbol of the current security.
+
+//_res is the resolution of the historical data that we want to retrieve. It's passed as an argument to security function, which is called within rp_security. In this case, we're using the value of res, which is set earlier in the script.
+
+//_src is the price data that we want to retrieve. It's also passed as an argument to security function, and in this case, we're using high and low to retrieve the high and low prices of the security.
+
+//The htfHigh and htfLow variables are then assigned the historical high and low prices of the security using the rp_security function with the appropriate arguments. The barstate.isrealtime condition is used to make sure that we're always retrieving the most recent historical data available for the security, even when using the function in real-time mode.
+
+
+
+// Main Indicator
+// Functions
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), t)
+    smoothrng = ta.ema(avrng, wper) * m
+rngfilt(x, r) =>
+    rngfilt = x
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r : x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+percWidth(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+securityNoRep(sym, res, src) => request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_on)
+swingPoints(prd) =>
+    pivHi = ta.pivothigh(prd, prd)
+    pivLo = ta.pivotlow (prd, prd)
+    last_pivHi = ta.valuewhen(pivHi, pivHi, 1)
+    last_pivLo = ta.valuewhen(pivLo, pivLo, 1)
+    hh = pivHi and pivHi > last_pivHi ? pivHi : na
+    lh = pivHi and pivHi < last_pivHi ? pivHi : na
+    hl = pivLo and pivLo > last_pivLo ? pivLo : na
+    ll = pivLo and pivLo < last_pivLo ? pivLo : na
+    [hh, lh, hl, ll]
+f_chartTfInMinutes() =>
+    float _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1                   :
+      timeframe.isminutes ? 1.                  :
+      timeframe.isdaily   ? 60. * 24            :
+      timeframe.isweekly  ? 60. * 24 * 7        :
+      timeframe.ismonthly ? 60. * 24 * 30.4375  : na)
+f_kc(src, len, sensitivity) =>
+    basis = ta.sma(src, len)
+    span  = ta.atr(len)
+    [basis + span * sensitivity, basis - span * sensitivity]
+wavetrend(src, chlLen, avgLen) =>
+    esa = ta.ema(src, chlLen)
+    d = ta.ema(math.abs(src - esa), chlLen)
+    ci = (src - esa) / (0.015 * d)
+    wt1 = ta.ema(ci, avgLen)
+    wt2 = ta.sma(wt1, 3)
+    [wt1, wt2]
+f_top_fractal(src) => src[4] < src[2] and src[3] < src[2] and src[2] > src[1] and src[2] > src[0]
+f_bot_fractal(src) => src[4] > src[2] and src[3] > src[2] and src[2] < src[1] and src[2] < src[0]
+f_fractalize (src) => f_top_fractal(src) ? 1 : f_bot_fractal(src) ? -1 : 0
+f_findDivs(src, topLimit, botLimit) =>
+    fractalTop = f_fractalize(src) > 0 and src[2] >= topLimit ? src[2] : na
+    fractalBot = f_fractalize(src) < 0 and src[2] <= botLimit ? src[2] : na
+    highPrev = ta.valuewhen(fractalTop, src[2], 0)[2]
+    highPrice = ta.valuewhen(fractalTop, high[2], 0)[2]
+    lowPrev = ta.valuewhen(fractalBot, src[2], 0)[2]
+    lowPrice = ta.valuewhen(fractalBot, low[2], 0)[2]
+    bearSignal = fractalTop and high[1] > highPrice and src[1] < highPrev
+    bullSignal = fractalBot and low[1] < lowPrice and src[1] > lowPrev
+    [bearSignal, bullSignal]
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//smoothrng(x, t, m): Calculates the smoothed range of a given price series x, using the Exponential Moving Average (EMA) function. The t parameter controls the period of the EMA, and the m parameter controls the multiplier.
+
+//rngfilt(x, r): Filters out noise from a given price series x, by setting any value that is too far away from the previous value to be equal to the previous value.
+
+//percWidth(len, perc): Calculates the percentage width of a given price range, based on the highest and lowest values over a certain period of len.
+
+//securityNoRep(sym, res, src): Requests historical price data for a given trading symbol sym, at a specified resolution res, and for a specified data source src.
+
+//swingPoints(prd): Identifies swing points in a given price series prd, which are defined as the highest high or lowest low within a certain range.
+
+//f_chartTfInMinutes(): Calculates the time period of a given chart, in minutes.
+
+//f_kc(src, len, sensitivity): Calculates the Keltner Channel (KC) bands for a given price series src, using the Simple Moving Average (SMA) function and the Average True Range (ATR) indicator.
+
+//wavetrend(src, chlLen, avgLen): Calculates the WaveTrend oscillator for a given price series src, using the EMA function.
+
+//f_top_fractal(src): Determines whether a given set of four price values src represents a top fractal, which is a pattern of higher highs and lower lows.
+
+//f_bot_fractal(src): Determines whether a given set of four price values src represents a bottom fractal, which is a pattern of lower lows and higher highs.
+
+//f_fractalize (src): Determines whether a given set of four price values src represents either a top or bottom fractal.
+
+//f_findDivs(src, topLimit, botLimit): Identifies bullish or bearish divergences in a given price series src, based on the occurrence of fractals and the previous price highs and lows.
+
+
+
+// Get components
+source    = input(close, title = "Smoothring Source", group = "Smoothing")
+smrng1_input= input.int(32, "Smring1", 1, 100 , 1 , group = "Smoothing")
+smrng1_sens = input.float(defval = 2.07,title = "sens",minval = 0.1, maxval = 5 , step = 0.01 , group = "Smoothing")
+smrng2_input= input.int(50, "Smring2", 1, 100 , 1 , group = "Smoothing")
+smrng1    = smoothrng(source, smrng1_input, smrng1_sens)
+smrng2    = smoothrng(source, smrng2_input, sensitivity)
+smrng     = (smrng1 + smrng2) / 2
+filt      = rngfilt(source, smrng)
+up        = 0.0, up := filt > filt[1] ? nz(up[1]) + 1 : filt < filt[1] ? 0 : nz(up[1])
+dn        = 0.0, dn := filt < filt[1] ? nz(dn[1]) + 1 : filt > filt[1] ? 0 : nz(dn[1])
+bullCond  = bool(na), bullCond := source > filt and source > source[1] and up > 0 or source > filt and source < source[1] and up > 0
+bearCond  = bool(na), bearCond := source < filt and source < source[1] and dn > 0 or source < filt and source > source[1] and dn > 0
+lastCond  = 0, lastCond := bullCond ? 1 : bearCond ? -1 : lastCond[1]
+bull      = bullCond and lastCond[1] == -1
+bear      = bearCond and lastCond[1] == 1
+countBull = ta.barssince(bull)
+countBear = ta.barssince(bear)
+trigger   = nz(countBull, bar_index) < nz(countBear, bar_index) ? 1 : 0
+rsi       = ta.rsi(close, 28)
+rsiOb     = rsi > 78 and rsi > ta.ema(rsi, 10)
+rsiOs     = rsi < 27 and rsi < ta.ema(rsi, 10)
+dHigh     = securityNoRep(syminfo.tickerid, "D", high [1])
+dLow      = securityNoRep(syminfo.tickerid, "D", low  [1])
+dClose    = securityNoRep(syminfo.tickerid, "D", close[1])
+ema = ta.ema(close, 144)
+emaBull = close > ema
+equal_tf(res) => str.tonumber(res) == f_chartTfInMinutes() and not timeframe.isseconds
+higher_tf(res) => str.tonumber(res) > f_chartTfInMinutes() or timeframe.isseconds
+too_small_tf(res) => (timeframe.isweekly and res=="1") or (timeframe.ismonthly and str.tonumber(res) < 10)
+securityNoRep1(sym, res, src) =>
+    bool bull_ = na
+    bull_ := equal_tf(res) ? src : bull_
+    bull_ := higher_tf(res) ? request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_on) : bull_
+    bull_array = request.security_lower_tf(syminfo.tickerid, higher_tf(res) ? str.tostring(f_chartTfInMinutes()) + (timeframe.isseconds ? "S" : "") : too_small_tf(res) ? (timeframe.isweekly ? "3" : "10") : res, src)
+    if array.size(bull_array) > 1 and not equal_tf(res) and not higher_tf(res)
+        bull_ := array.pop(bull_array)
+    array.clear(bull_array)
+    bull_
+TF1Bull   = securityNoRep1(syminfo.tickerid, "1"   , emaBull)
+TF3Bull   = securityNoRep1(syminfo.tickerid, "3"   , emaBull)
+TF5Bull   = securityNoRep1(syminfo.tickerid, "5"   , emaBull)
+TF15Bull  = securityNoRep1(syminfo.tickerid, "15"  , emaBull)
+TF30Bull  = securityNoRep1(syminfo.tickerid, "30"  , emaBull)
+TF60Bull  = securityNoRep1(syminfo.tickerid, "60"  , emaBull)
+TF120Bull = securityNoRep1(syminfo.tickerid, "120" , emaBull)
+TF240Bull = securityNoRep1(syminfo.tickerid, "240" , emaBull)
+TF480Bull = securityNoRep1(syminfo.tickerid, "480" , emaBull)
+TFDBull   = securityNoRep1(syminfo.tickerid, "1440", emaBull)
+[wt1, wt2] = wavetrend(close, 5, 10)
+[wtDivBear1, wtDivBull1] = f_findDivs(wt2, 15, -40)
+[wtDivBear2, wtDivBull2] = f_findDivs(wt2, 45, -65)
+wtDivBull = wtDivBull1 or wtDivBull2
+wtDivBear = wtDivBear1 or wtDivBear2
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The script calculates two different smoothing techniques, smrng1 and smrng2, and combines them to create a filtered version of the source data. The filtered data is then used to calculate an Up/Down count and Bull/Bear conditions. The script also uses the Relative Strength Index (RSI) to identify overbought and oversold conditions, and a Moving Average (MA) to identify bullish and bearish trends.
+
+//The script includes multiple timeframes (TF) to analyze different periods in the data. Each TF calculates the moving average for the respective period and checks if the current price is above or below it.
+
+//Finally, the script uses the WaveTrend Oscillator to detect bullish and bearish divergences.
+
+
+// Colors
+white = #00c2fd, white30 = color.new(white, 100)
+blue = #fd00fd, blue30 = color.new(blue, 100)
+whiteish  = #ffffff, whiteish30  = color.new(whiteish , 100)
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//you have defined four colors: white, blue, whiteish, and their respective 30% opacity versions.
+
+//white is defined as the hex value #00c2fd and white30 is defined as a Color object with the same hex value and 100% opacity. Similarly, blue is defined as the hex value #fd00fd and blue30 is defined as a Color object with the same hex value and 100% opacity.
+
+//Lastly, whiteish is defined as the hex value #ffffff (which is pure white), and whiteish30 is defined as a Color object with the same hex value and 100% opacity.
+
+
+// Plot
+off = percWidth(300, offsetSignal)
+barcolor(up > dn ? white : blue)
+plotshape(showBuySell and bull ? low  - off : na, "Buy Label" , shape.labelup  , location.absolute, color(#028806), 0, "Buy" , color.white, size=size.tiny)
+plotshape(showBuySell and bear ? high + off : na, "Sell Label", shape.labeldown, location.absolute, color(#8b010d), 0, "Sell", color.white, size=size.tiny)
+plotshape(ta.crossover(wt1, wt2) and wt2 <= -53, "Don't Sell/Bottom" , shape.xcross, location.belowbar, color(#8a0410), size=size.tiny)
+plotshape(ta.crossunder(wt1, wt2) and wt2 >= 53, "Don't Buy/Top", shape.xcross, location.abovebar, color(#038507), size=size.tiny)
+plotshape(wtDivBull, "Weak Buy ", shape.circle  , location.belowbar, color(#038307), size=size.auto)
+plotshape(wtDivBear, "Weak Sell", shape.circle, location.abovebar, color(#8b030e), size=size.auto)
+plotshape(showReversal and rsiOs, "Reversal Buy" , shape.diamond, location.belowbar, color(#037007), size=size.tiny)
+plotshape(showReversal and rsiOb, "Reversal Sell", shape.diamond, location.abovebar, color(#7e050f), size=size.tiny)
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The code includes a series of plotshape functions that generate various shapes and labels on the chart based on certain conditions being met.
+//refer to above explanations in order to understand the meaning of each used indicator.
+
+
+
+srcStop = close
+atrBand = srcStop * (percentStop / 100)
+atrStop = trigger ? srcStop - atrBand : srcStop + atrBand
+lastTrade(src) => ta.valuewhen(bull or bear, src, 0)
+entry_y = lastTrade(srcStop)
+stop_y = lastTrade(atrStop)
+tp1_y = (entry_y - lastTrade(atrStop)) * 1 + entry_y
+tp2_y = (entry_y - lastTrade(atrStop)) * 2 + entry_y
+tp3_y = (entry_y - lastTrade(atrStop)) * 3 + entry_y
+tp4_y = (entry_y - lastTrade(atrStop)) * 4 + entry_y
+tp5_y = (entry_y - lastTrade(atrStop)) * 5 + entry_y
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//The first few lines define colors using hexadecimal codes and the TradingView color.new() function.
+
+//The off variable is defined using a custom percWidth() function that takes in a width and an offset signal.
+
+//The barcolor() function sets the color of the bars based on whether the close of the current bar is higher or lower than the close of the previous bar.
+
+//The plotshape() function is used to plot shapes on the chart based on various conditions.
+
+//The lastTrade() function returns the value of the src parameter (which is the closing price) at the last bar where either a buy or a sell signal was generated.
+
+//The entry_y variable is set to the closing price at the last bar where a buy or sell signal was generated. The stop_y variable is set to the stop loss level calculated using the ATR (Average True Range) indicator.
+
+//The tp1_y through tp5_y variables are set to the target profit levels, calculated as a multiple of the ATR distance from the entry price to the stop loss level.
+
+
+
+// Labels
+labelTpSl(y, txt, color) =>
+    label labelTpSl = percentStop and enableE != 0 ? label.new(bar_index + 1, y, txt, xloc.bar_index, yloc.price, color, label.style_label_left, color.white, size.normal) : na
+    label.delete(labelTpSl[1])
+labelTpSl(entry_y, "Entry: " + str.tostring(math.round_to_mintick(entry_y)), color = Entry)
+labelTpSl(stop_y , "StopLoss: " + str.tostring(math.round_to_mintick(stop_y)), color = Stop)
+labelTpSl(tp1_y, "Take Profit 1: " + str.tostring(math.round_to_mintick(tp1_y)), color = Tp1)
+labelTpSl(tp2_y, "Take Profit 2: " + str.tostring(math.round_to_mintick(tp2_y)), color = Tp1)
+labelTpSl(tp3_y, "Take Profit 3: " + str.tostring(math.round_to_mintick(tp3_y)), color = Tp1)
+labelTpSl(tp4_y, "Take Profit 4: " + str.tostring(math.round_to_mintick(tp4_y)), color = Tp1)
+labelTpSl(tp5_y, "Take Profit 5: " + str.tostring(math.round_to_mintick(tp5_y)), color = Tp1)
+lineTpSl(y, color) =>
+    line lineTpSl = percentStop and enableE != 0 ? line.new(bar_index - (trigger ? countBull : countBear) + 4, y, bar_index + 1, y, xloc.bar_index, extend.none, color, line.style_solid) : na
+    line.delete(lineTpSl[1])
+lineTpSl(entry_y, color = Entry)
+lineTpSl(stop_y, color = Stop)
+lineTpSl(tp1_y, color = Tp1)
+lineTpSl(tp2_y, color = Tp1)
+lineTpSl(tp3_y, color = Tp1)
+lineTpSl(tp4_y, color = Tp1)
+lineTpSl(tp5_y, color = Tp1)
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The script seems to define a set of functions that create labels and lines on the chart representing entry, stop-loss, and take-profit levels based on certain conditions and parameters.
+
+//In particular, the script defines a function lastTrade that returns the last trading signal based on whether there was a bullish or bearish signal, and a function labelTpSl that creates labels on the chart for each of the entry, stop-loss, and take-profit levels based on their values and colors. The lineTpSl function creates lines on the chart connecting the entry, stop-loss, and take-profit levels.
+
+//The script also defines several variables and parameters that are used to calculate the entry, stop-loss, and take-profit levels. For example, srcStop is set to the closing price of the asset, atrBand is set to a percentage of the srcStop, and atrStop is calculated based on whether there is a trading signal and whether it is bullish or bearish. The tp1_y, tp2_y, tp3_y, tp4_y, and tp5_y variables are calculated based on the entry_y and atrStop variables.
+
+
+
+// SUPPLY & DEMAND
+//Functions 
+
+//Line Style function
+get_line_style(style) =>
+    out = switch style
+        'Solid'  => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//This is a function definition for get_line_style that takes a string parameter style. Inside the function, there is a switch statement that checks the value of the style parameter and returns a line style based on it.
+
+//If style is 'Solid', the function returns line.style_solid. If style is 'Dashed', the function returns line.style_dashed. If style is 'Dotted', the function returns line.style_dotted.
+
+//The switch statement is a control flow statement that allows the program to execute different code based on the value of an expression.
+
+
+
+//Function to get order block coordinates
+get_coordinates(condition, top, btm, ob_val)=>
+    var ob_top  = array.new_float(0)
+    var ob_btm  = array.new_float(0)
+    var ob_avg  = array.new_float(0)
+    var ob_left = array.new_int(0)
+
+    float ob = na
+
+    //Append coordinates to arrays
+    if condition and enableSD
+        avg = math.avg(top, btm)
+        
+        array.unshift(ob_top, top)
+        array.unshift(ob_btm, btm)
+        array.unshift(ob_avg, avg)
+        array.unshift(ob_left, time[length])
+        
+        ob := ob_val
+    
+    [ob_top, ob_btm, ob_avg, ob_left, ob]
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//This function get_coordinates take four input arguments:
+
+//condition: a boolean condition
+//top: a float representing the highest value
+//btm: a float representing the lowest value
+//ob_val: a float representing an optional value
+//The function initializes four arrays of floats (ob_top, ob_btm, ob_avg, ob_left) and a variable ob which is initially set to na. If condition and enableSD are true, it calculates the average of top and btm and appends the values to the arrays. Finally, it sets ob to ob_val and returns an array of the arrays ob_top, ob_btm, ob_avg, and ob_left along with the value of ob.
+
+
+//Function to remove mitigated order blocks from coordinate arrays
+remove_mitigated(ob_top, ob_btm, ob_left, ob_avg, target, bull)=>
+    mitigated = false
+    target_array = bull ? ob_btm : ob_top
+
+    for element in target_array
+        idx = array.indexof(target_array, element)
+
+        if (bull ? target < element : target > element)
+            mitigated := true
+
+            array.remove(ob_top, idx)
+            array.remove(ob_btm, idx)
+            array.remove(ob_avg, idx)
+            array.remove(ob_left, idx)
+    
+    mitigated
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//This function checks if the target price level has already been reached and if so, removes any overlapping levels from the ob_top, ob_btm, ob_left, and ob_avg arrays. The target_array is set to ob_btm if bull is true, otherwise, it is set to ob_top.
+
+//The function loops through each element in target_array and checks if the target is less than (bull is true) or greater than (bull is false) the element. If so, the element is removed from all the arrays at the same index using the array.remove function. Finally, the function returns a boolean value indicating whether any levels were removed (mitigated).
+
+
+
+//Function to set order blocks
+set_order_blocks(ob_top, ob_btm, ob_left, ob_avg, ext_last, bg_css, border_css, lvl_css)=>
+    var ob_box = array.new_box(0)
+    var ob_lvl = array.new_line(0)
+
+    //Fill arrays with boxes/lines
+    if barstate.isfirst
+        for i = 0 to ext_last-1
+            array.unshift(ob_box, box.new(na,na,na,na
+              , xloc = xloc.bar_time
+              , extend= extend.right
+              , bgcolor = bg_css
+              , border_color = color.new(border_css, 70)))
+
+            array.unshift(ob_lvl, line.new(na,na,na,na
+              , xloc = xloc.bar_time
+              , extend = extend.right
+              , color = lvl_css
+              , style = get_line_style(line_style)
+              , width = line_width))
+
+    //Set order blocks
+    if barstate.islast
+        if array.size(ob_top) > 0
+            for i = 0 to math.min(ext_last-1, array.size(ob_top)-1)
+                get_box = array.get(ob_box, i)
+                get_lvl = array.get(ob_lvl, i)
+
+                box.set_lefttop(get_box, array.get(ob_left, i), array.get(ob_top, i))
+                box.set_rightbottom(get_box, array.get(ob_left, i), array.get(ob_btm, i))
+
+                line.set_xy1(get_lvl, array.get(ob_left, i), array.get(ob_avg, i))
+                line.set_xy2(get_lvl, array.get(ob_left, i)+1, array.get(ob_avg, i))
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//The function takes several parameters including arrays of prices (ob_top, ob_btm, ob_left, ob_avg), an integer (ext_last), and various CSS styling values (bg_css, border_css, lvl_css, line_style, and line_width).
+
+//The function first initializes two new arrays (ob_box and ob_lvl) to hold boxes and lines for the order blocks.
+
+//If barstate.isfirst is true, the function adds boxes and lines to the arrays based on the value of ext_last.
+
+//If barstate.islast is true and there are items in the ob_top array, the function sets the position and size of the boxes and lines based on the values in the ob_top, ob_btm, ob_left, and ob_avg arrays.
+
+
+
+//Global elements 
+var os = 0
+var target_bull = 0.
+var target_bear = 0.
+
+n = bar_index
+upper = ta.highest(length)
+lower = ta.lowest(length)
+
+if mitigation == 'Close'
+    target_bull := ta.lowest(close, length)
+    target_bear := ta.highest(close, length)
+else
+    target_bull := lower
+    target_bear := upper
+
+os := high[length] > upper ? 0 : low[length] < lower ? 1 : os[1]
+
+phv = ta.pivothigh(volume, length, length)
+
+
+
+//Get bullish/bearish order blocks coordinates 
+[bull_top
+  , bull_btm
+  , bull_avg
+  , bull_left
+  , bull_ob] = get_coordinates(phv and os == 1, hl2[length], low[length], low[length])
+
+[bear_top
+  , bear_btm
+  , bear_avg
+  , bear_left
+  , bear_ob] = get_coordinates(phv and os == 0, high[length], hl2[length], high[length])
+
+//Remove mitigated order blocks
+mitigated_bull = remove_mitigated(bull_top
+  , bull_btm
+  , bull_left
+  , bull_avg
+  , target_bull
+  , true)
+
+mitigated_bear = remove_mitigated(bear_top
+  , bear_btm
+  , bear_left
+  , bear_avg
+  , target_bear
+  , false)
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//the code is checking for pivot highs in the volume and then getting the coordinates of the bullish and bearish order blocks. The code then checks if the order blocks have been mitigated (removed) based on the target bull and bear values.
+//bull_top: an array of the top coordinates for the bullish order blocks.
+//bull_btm: an array of the bottom coordinates for the bullish order blocks.
+//bull_avg: an array of the average coordinates for the bullish order blocks.
+//bull_left: an array of the time coordinates for the left side of the bullish order blocks.
+//bull_ob: a variable that holds the value for the bullish order block.
+//The same variables with the prefix bear_ are used for the bearish order blocks.
+//The mitigated_bull and mitigated_bear variables store boolean values indicating whether any order blocks were mitigated (removed) based on the target bull and bear values.
+
+
+
+//Set bullish order blocks
+set_order_blocks(bull_top
+  , bull_btm
+  , bull_left
+  , bull_avg
+  , bull_ext_last
+  , bg_bull_css
+  , bull_css
+  , bull_avg_css)
+
+//Set bearish order blocks
+set_order_blocks(bear_top
+  , bear_btm
+  , bear_left
+  , bear_avg
+  , bear_ext_last
+  , bg_bear_css
+  , bear_css
+  , bear_avg_css)
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//the code is calling the set_order_blocks() function twice, once for bullish order blocks and once for bearish order blocks.
+//These functions will set the order blocks using the specified parameters for each type of block.
+
+
+
+
+// SUPPORT & RESISTANCE
+
+percWidth1(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+
+// Get components
+rb            = 10
+prd           = 284
+ChannelW      = 10
+label_loc     = 55
+style1        = lineStyle1 == "Solid" ? line.style_solid : lineStyle1 == "Dotted" ? line.style_dotted :  line.style_dashed
+ph            = ta.pivothigh(rb, rb)
+pl            = ta.pivotlow (rb, rb)
+sr_levels     = array.new_float(21, na)
+prdhighest    = ta.highest(prd)
+prdlowest     = ta.lowest(prd)
+cwidth        = percWidth(prd, ChannelW)
+zonePerc      = percWidth(300, zoneWidth)
+aas           = array.new_bool(41, true)
+u1            = 0.0, u1 := nz(u1[1])
+d1            = 0.0, d1 := nz(d1[1])
+highestph     = 0.0, highestph := highestph[1]
+lowestpl      = 0.0, lowestpl := lowestpl[1]
+var sr_levs   = array.new_float(21, na)
+label hlabel  = na, label.delete(hlabel[1])
+label llabel  = na, label.delete(llabel[1])
+var sr_lines  = array.new_line(21, na)
+var sr_linesH = array.new_line(21, na)
+var sr_linesL = array.new_line(21, na)
+var sr_linesF = array.new_linefill(21, na)
+var sr_labels = array.new_label(21, na)
+if ph or pl
+    for x = 0 to array.size(sr_levels) - 1
+        array.set(sr_levels, x, na)
+    highestph := prdlowest
+    lowestpl := prdhighest
+    countpp = 0
+    for x = 0 to prd
+        if na(close[x])
+            break
+        if not na(ph[x]) or not na(pl[x])
+            highestph := math.max(highestph, nz(ph[x], prdlowest), nz(pl[x], prdlowest))
+            lowestpl := math.min(lowestpl, nz(ph[x], prdhighest), nz(pl[x], prdhighest))
+            countpp += 1
+            if countpp > 40
+                break
+            if array.get(aas, countpp)
+                upl = (ph[x] ? high[x + rb] : low[x + rb]) + cwidth
+                dnl = (ph[x] ? high[x + rb] : low[x + rb]) - cwidth
+                u1 := countpp == 1 ? upl : u1
+                d1 := countpp == 1 ? dnl : d1
+                tmp = array.new_bool(41, true)
+                cnt = 0
+                tpoint = 0
+                for xx = 0 to prd
+                    if na(close[xx])
+                        break
+                    if not na(ph[xx]) or not na(pl[xx])
+                        chg = false
+                        cnt += 1
+                        if cnt > 40
+                            break
+                        if array.get(aas, cnt)
+                            if not na(ph[xx])
+                                if high[xx + rb] <= upl and high[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                            if not na(pl[xx])
+                                if low[xx + rb] <= upl and low[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                        if chg and cnt < 41
+                            array.set(tmp, cnt, false)
+                if tpoint >= strengthSR
+                    for g = 0 to 40 by 1
+                        if not array.get(tmp, g)
+                            array.set(aas, g, false)
+                    if ph[x] and countpp < 21
+                        array.set(sr_levels, countpp, high[x + rb])
+                    if pl[x] and countpp < 21
+                        array.set(sr_levels, countpp, low[x + rb])
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//This code appears is creating support and resistance levels based on pivot highs and lows. It first sets some variables such as the width of the channels, the period for which to calculate the levels, and the percentage width of the zones. It then loops through the pivot highs and lows to calculate the highest and lowest prices, and also calculates the upper and lower bounds of the channels. It then loops through the prices again to determine the number of touchpoints on the channels and checks if there are enough touchpoints to qualify as support or resistance. Finally, it sets the support and resistance levels in an array.
+
+
+// Plot
+var line highest_ = na, line.delete(highest_)
+var line lowest_  = na, line.delete(lowest_)
+var line highest_fill1 = na, line.delete(highest_fill1)
+var line highest_fill2 = na, line.delete(highest_fill2)
+var line lowest_fill1  = na, line.delete(lowest_fill1)
+var line lowest_fill2  = na, line.delete(lowest_fill2)
+hi_col = close >= highestph ? colorSup : colorRes
+lo_col = close >= lowestpl  ? colorSup : colorRes
+if enableSR
+    highest_ := line.new(bar_index - 311, highestph, bar_index, highestph, xloc.bar_index, expandSR ? extend.both : extend.right, hi_col, style1, lineWidth1)
+    lowest_  := line.new(bar_index - 311, lowestpl , bar_index, lowestpl , xloc.bar_index, expandSR ? extend.both : extend.right, lo_col, style1, lineWidth1)
+    if useHLZones
+        highest_fill1 := line.new(bar_index - 311, highestph + zonePerc, bar_index, highestph + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        highest_fill2 := line.new(bar_index - 311, highestph - zonePerc, bar_index, highestph - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill1  := line.new(bar_index - 311, lowestpl + zonePerc , bar_index, lowestpl + zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill2  := line.new(bar_index - 311, lowestpl - zonePerc , bar_index, lowestpl - zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        linefill.new(highest_fill1, highest_fill2, color.new(hi_col, 90))
+        linefill.new(lowest_fill1 , lowest_fill2 , color.new(lo_col, 90))
+if ph or pl
+    for x = 0 to array.size(sr_lines) - 1
+        array.set(sr_levs, x, array.get(sr_levels, x))
+for x = 0 to array.size(sr_lines) - 1
+    line.delete(array.get(sr_lines, x))
+    line.delete(array.get(sr_linesH, x))
+    line.delete(array.get(sr_linesL, x))
+    linefill.delete(array.get(sr_linesF, x))
+    if array.get(sr_levs, x) and enableSR
+        line_col = close >= array.get(sr_levs, x) ? colorSup : colorRes
+        array.set(sr_lines, x, line.new(bar_index - 355, array.get(sr_levs, x), bar_index, array.get(sr_levs, x), xloc.bar_index, expandSR ? extend.both : extend.right, line_col, style1, lineWidth1))
+        if useZones
+            array.set(sr_linesH, x, line.new(bar_index - 355, array.get(sr_levs, x) + zonePerc, bar_index, array.get(sr_levs, x) + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesL, x, line.new(bar_index - 355, array.get(sr_levs, x) - zonePerc, bar_index, array.get(sr_levs, x) - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesF, x, linefill.new(array.get(sr_linesH, x), array.get(sr_linesL, x), color.new(line_col, 90)))
+for x = 0 to array.size(sr_labels) - 1
+    label.delete(array.get(sr_labels, x))
+    if array.get(sr_levs, x) and enableSR
+        lab_loc = close >= array.get(sr_levs, x) ? label.style_label_up : label.style_label_down
+        lab_col = close >= array.get(sr_levs, x) ? colorSup             : colorRes
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//it includes several variables and functions that are used to draw lines, fill areas, and add labels to a chart or graph.
+
+//At a high level, the code is checking whether certain conditions are met (such as whether the current closing price is above or below a certain level), and if so, it creates new lines, fills, or labels on the chart to mark important support or resistance levels.
+
+//The code is deleting old lines, fills, and labels as necessary, and updating existing ones with new colors or styles. The purpose of this code is likely to help traders or investors visually identify key price levels that may have significance for making trading decisions.
+
+
+
+// Dashboard
+var dashboard_loc  = locationDashboard == "Top Right" ? position.top_right : locationDashboard == "Middle Right" ? position.middle_right : locationDashboard == "Bottom Right" ? position.bottom_right : locationDashboard == "Top Center" ? position.top_center : locationDashboard == "Middle Center" ? position.middle_center : locationDashboard == "Bottom Center" ? position.bottom_center : locationDashboard == "Top Left" ? position.top_left : locationDashboard == "Middle Left" ? position.middle_left : position.bottom_left
+var dashboard_size = sizeDashboard == "Large" ? size.large : sizeDashboard == "Normal" ? size.normal : sizeDashboard == "Small" ? size.small : size.tiny
+var dashboard      = showDashboard ? table.new(dashboard_loc, 2, 15, tableBgColor, #000000, 2, tableBgColor, 1) : na
+dashboard_cell(column, row, txt, signal=false) => table.cell(dashboard, column, row, txt, 0, 0, signal ? #000000 : tableTextColor, text_size=dashboard_size)
+dashboard_cell_bg(column, row, col) => table.cell_set_bgcolor(dashboard, column, row, col)
+if barstate.islast and showDashboard
+    dashboard_cell(0, 0 , "Crypto_Wolf_Traders_V4.1")
+    dashboard_cell(0, 1 , "Current Position")
+    dashboard_cell(0, 2 , "Current Trend")
+    dashboard_cell(0, 3 , "Volume")
+    dashboard_cell(0, 4 , "Timeframe")
+    dashboard_cell(0, 5 , "1 min:")
+    dashboard_cell(0, 6 , "3 min:")
+    dashboard_cell(0, 7 , "5 min:")
+    dashboard_cell(0, 8 , "15 min:")
+    dashboard_cell(0, 9 , "30 min:")
+    dashboard_cell(0, 10, "1 H:")
+    dashboard_cell(0, 11, "2 H:")
+    dashboard_cell(0, 12, "4 H:")
+    dashboard_cell(0, 13, "8 H:")
+    dashboard_cell(0, 14, "Daily:")
+    dashboard_cell(1, 0 , "")
+    dashboard_cell(1, 1 , trigger ? "Buy" : "Sell", true), dashboard_cell_bg(1, 1, trigger ? #058809 : #8f0712)
+    dashboard_cell(1, 2 , emaBull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 2, emaBull ? #047c08 : #8d040f)
+    dashboard_cell(1, 3 , str.tostring(volume))
+    dashboard_cell(1, 4 , "Trends")
+    dashboard_cell(1, 5 , TF1Bull   ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 5 , TF1Bull   ? #008104 : #85040e)
+    dashboard_cell(1, 6 , TF3Bull   ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 6 , TF3Bull   ? #028106 : #8b0510)
+    dashboard_cell(1, 7 , TF5Bull   ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 7 , TF5Bull   ? #027c06 : #8d040f)
+    dashboard_cell(1, 8 , TF15Bull  ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 8 , TF15Bull  ? #018005 : #80040e)
+    dashboard_cell(1, 9 , TF30Bull  ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 9 , TF30Bull  ? #028806 : #85020d)
+    dashboard_cell(1, 10, TF60Bull  ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 10, TF60Bull  ? #028006 : #86030e)
+    dashboard_cell(1, 11, TF120Bull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 11, TF120Bull ? #038107 : #81030e)
+    dashboard_cell(1, 12, TF240Bull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 12, TF240Bull ? #028307 : #74020b)
+    dashboard_cell(1, 13, TF480Bull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 13, TF480Bull ? #048008 : #81030d)
+    dashboard_cell(1, 14, TFDBull   ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 14, TFDBull   ? #047c08 : #85020d)
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+//The script is designed to display a dashboard on the chart, showing various information about the current market conditions for the user's chosen asset. The dashboard's position and size are determined by user inputs, and the dashboard will only be shown if the user has selected this option.
+
+//The script contains several functions to create cells within the table, which will display the relevant information such as the current position, trend, volume, and timeframes ranging from 1 minute to daily. The color of the cells will change based on whether the condition is bullish or bearish.
+
+//The code uses conditional (ternary) operators to determine the position and size of the dashboard, as well as to determine the text and background color of the cells based on their respective conditions.
+
+//Finally, the barstate.islast and showDashboard conditions ensure that the dashboard is only displayed on the last bar of the chart and only if the user has selected this option.
+
+
+
+// Previos Day H/L/C
+lStyle = lineStyle == "Solid" ? line.style_solid : lineStyle == "Dotted" ? line.style_dotted : line.style_dashed
+dHighLine   = showPdHlc ? line.new(bar_index, dHigh,  bar_index + 1, dHigh , xloc.bar_index, extend.both, lineColor, lStyle, lineWidth) : na, line.delete(dHighLine[1])
+dLowLine    = showPdHlc ? line.new(bar_index, dLow ,  bar_index + 1, dLow  , xloc.bar_index, extend.both, lineColor, lStyle, lineWidth) : na, line.delete(dLowLine[1])
+dCloseLine  = showPdHlc ? line.new(bar_index, dClose, bar_index + 1, dClose, xloc.bar_index, extend.both, lineColor, lStyle, lineWidth) : na, line.delete(dCloseLine[1])
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The code is creating three lines (dHighLine, dLowLine, dCloseLine) based on the values of dHigh, dLow, and dClose, which are presumably variables representing high, low, and close price data.
+
+//The line style (solid, dotted, or dashed) is determined by the value of the lineStyle variable, which is being checked using a ternary operator. If lineStyle is "Solid", lStyle will be set to line.style_solid. If lineStyle is "Dotted", lStyle will be set to line.style_dotted. Otherwise, lStyle will be set to line.style_dashed.
+
+//The new lines are being plotted using the line.new() function, with arguments for the starting and ending x and y coordinates, xloc, extend, line color, line style, and line width. If showPdHlc is true, the lines will be visible on the chart, otherwise they will not be plotted (na is a Pine Script keyword for "not available"). After each new line is created, the code is immediately deleting the previous instance of that line, presumably to avoid cluttering the chart with too many lines.
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//------------------CRYPTO-WOLF-TRADERS-NEURAL-NETRORK------------------------------------//
+////////////////////////////////////////////////////////////////////////////////
+price = plot(close, title='Close Line', color=color.new(color.blue, 0), display=display.none)
+////////////////////////////////////////////////////////////////////////////////
+//TREND INDICATORS▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+//Trend EMA
+tttradetrend = 'Only place BUY or SELL orders with the direction of the Trend EMA.'
+tradetrendoption = input.bool(false, title='Only Tade with Trend', group = "NEURAL NETWORK", tooltip=tttradetrend)
+len111 = input.int(defval=200, minval=0, maxval=2000, title='Trend EMA Length')
+src111 = close
+out111 = ta.ema(src111, len111)
+ma111 = plot(out111, title='EMA 200', linewidth=5, color=color.new(color.blue, 0), offset=0)
+mabuy = out111 > out111[1]
+masell = out111 < out111[1]
+//5 EMAs////////////////////////////////////////////////////////////////////////
+len1 = 9
+src1 = close
+out1 = ta.ema(src1, len1)
+ema1color = out1 > out1[1] ? #00bcd4 : #e91e63
+ema1 = plot(out1, title='EMA 9', linewidth=3, color=color.new(ema1color, 50), offset=0, display=display.none)
+fill(price, ema1, title='EMA 9 Fill', color=color.new(ema1color, 90), editable=true)
+len2 = 21
+src2 = close
+out2 = ta.ema(src2, len2)
+ema2color = out2 > out2[1] ? #00bcd4 : #e91e63
+ema2 = plot(out2, title='EMA 21', linewidth=3, color=color.new(ema2color, 50), offset=0, display=display.none)
+fill(price, ema2, title='EMA 21 Fill', color=color.new(ema2color, 90), editable=true)
+len3 = 55
+src3 = close
+out3 = ta.ema(src3, len3)
+ema3color = out3 > out3[1] ? #00bcd4 : #e91e63
+ema3 = plot(out3, title='EMA 55', linewidth=3, color=color.new(ema3color, 50), offset=0, display=display.none)
+fill(price, ema3, title='EMA 55 Fill', color=color.new(ema3color, 90), editable=true)
+len4 = 100
+src4 = close
+out4 = ta.ema(src4, len4)
+ema4color = out4 > out4[1] ? #00bcd4 : #e91e63
+ema4 = plot(out4, title='EMA 100', linewidth=3, color=color.new(ema4color, 50), offset=0, display=display.none)
+fill(price, ema4, title='EMA 100 Fill', color=color.new(ema4color, 90), editable=true)
+len5 = 200
+src5 = close
+out5 = ta.ema(src5, len5)
+ema5color = out5 > out5[1] ? #00bcd4 : #e91e63
+ema5 = plot(out5, title='EMA 200', linewidth=3, color=color.new(ema5color, 50), offset=0, display=display.none)
+fill(price, ema5, title='EMA 200 Fill', color=color.new(ema5color, 90), editable=true)
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The code creates several plots and lines related to technical analysis indicators such as moving averages and trend lines. The first few lines of code seem to define some variables related to the trend lines and then plot them using the plot() and fill() functions.
+
+//The later part of the code defines several moving averages with different periods (9, 21, 55, 100, and 200) and then plots them using the plot() and fill() functions as well. The color.new() function is used to define the colors of the lines and fills based on the direction of the moving average (rising or falling).
+
+
+
+//Supertrend////////////////////////////////////////////////////////////////////
+atrPeriod = 10
+factor = 3
+[supertrend, direction] = ta.supertrend(factor, atrPeriod)
+bodyMiddle = plot((open + close) / 2, display=display.none, title='Body Middle Line')
+uptrend = direction < 0 and direction[1] > 0[1] ? supertrend : na
+downtrend = direction > 0 and direction[1] < 0[1] ? supertrend : na
+//fill(bodyMiddle, upTrend, color.new(color.green, 90), fillgaps=false)
+//fill(bodyMiddle, downTrend, color.new(color.red, 90), fillgaps=false)
+//bullishsupertrend = supertrend < close and supertrend[1] > close
+//plotshape(uptrend, style=shape.labelup, color=color.green, location=location.belowbar, size=size.large)
+
+//HMA///////////////////////////////////////////////////////////////////////////
+len6 = 100
+src6 = close
+hma = ta.wma(2 * ta.wma(src6, len6 / 2) - ta.wma(src6, len6), math.floor(math.sqrt(len6)))
+hmacolor = close > hma ? #00bcd4 : #e91e63
+plot(hma, title='HMA Line', color=color.new(hmacolor, 25), linewidth=5)
+
+//Parabolic SAR/////////////////////////////////////////////////////////////////
+start = 0.02
+increment = 0.01
+maximum = 0.2
+psar = ta.sar(start, increment, maximum)
+//plot(psar, "ParabolicSAR", style=plot.style_circles, color=#ffffff)
+
+//END▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+////////////////////////////////////////////////////////////////////////////////
+//MOMENTUM INCIDATORS▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+// code to plot a trading strategy using technical indicators. The code includes the following indicators:
+
+//SuperTrend: a trend-following indicator that uses the average true range (ATR) and a multiplier to determine support and resistance levels.
+//Body Middle Line: the average of the open and close prices of each candlestick.
+//HMA: Hull Moving Average, a weighted moving average that uses the square root of the period to reduce lag.
+//Parabolic SAR: a trend-following indicator that uses dots above or below the price to indicate bullish or bearish signals.
+//These lines define the parameters for the SuperTrend indicator, which is a popular technical analysis tool used in trading. atrPeriod is the period used to calculate the Average True Range (ATR) value, which is a measure of volatility. factor is the factor used to multiply the ATR value, which is then added to/subtracted from the moving average to create the upper and lower bands of the SuperTrend. The ta.supertrend() function is then used to calculate the SuperTrend values, which are stored in the supertrend variable, and the direction of the trend (1 for uptrend, -1 for downtrend) is stored in the direction variable.
+//This line calculates the midpoint of the candlestick body (average of the open and close prices) and assigns it to the bodyMiddle variable. It also creates a hidden plot of this value using the plot() function, which is used later to fill the space between the SuperTrend and the midpoint line.
+//These lines use conditional statements to determine whether the SuperTrend is in an uptrend or downtrend, based on the values of direction and its previous value (direction[1]). If the current value of direction is negative and the previous value was positive, then uptrend is set to the current supertrend value. If the current value of direction is positive and the previous value was negative, then downtrend is set to the current supertrend value. If neither condition is met, then the value is set to na (not available).
+
+
+
+//RSI Divergence////////////////////////////////////////////////////////////////
+len11 = 14
+src11 = close
+lbR11 = 2
+lbL11 = 6
+rangeUpper11 = 60
+rangeLower11 = 5
+plotBull11 = true
+plotHiddenBull11 = false
+plotBear11 = true
+plotHiddenBear11 = false
+bearColor11 = color.red
+bullColor11 = color.green
+hiddenBullColor11 = color.new(color.green, 80)
+hiddenBearColor11 = color.new(color.red, 80)
+textColor11 = color.white
+noneColor11 = color.new(color.white, 100)
+osc11 = ta.rsi(src11, len11)
+
+//plot(osc11, title="RSI", linewidth=2, color=#2962FF)
+//hline(50, title="Middle Line", color=#787B86, linestyle=hline.style_dotted)
+//obLevel11 = hline(70, title="Overbought", color=#787B86, linestyle=hline.style_dotted)
+//osLevel11 = hline(30, title="Oversold", color=#787B86, linestyle=hline.style_dotted)
+//fill(obLevel11, osLevel11, title="Background", color=color.rgb(33, 150, 243, 90))
+
+plFound11 = na(ta.pivotlow(osc11, lbL11, lbR11)) ? false : true
+phFound11 = na(ta.pivothigh(osc11, lbL11, lbR11)) ? false : true
+_inRange11(cond) =>
+    bars11 = ta.barssince(cond == true)
+    rangeLower11 <= bars11 and bars11 <= rangeUpper11
+
+//Regular Bullish Divergence
+
+//Osc: Higher Low
+oscHL11 = osc11[lbR11] > ta.valuewhen(plFound11, osc11[lbR11], 1) and _inRange11(plFound11[1])
+//Price: Lower Low
+priceLL11 = low[lbR11] < ta.valuewhen(plFound11, low[lbR11], 1)
+
+bullCond11 = plotBull11 and priceLL11 and oscHL11 and plFound11
+//plot(plFound11 ? osc11[lbR11] : na, offset=-lbR11, title="Regular Bullish", linewidth=2, color=(bullCond11 ? bullColor11 : noneColor11))
+//plotshape(bullCond11 ? osc11[lbR11] : na, offset=-lbR11, title="Regular Bullish Label", text=" Bull ", style=shape.labelup, location=location.absolute, color=bullColor11, textcolor=textColor11)
+
+//Hidden Bullish Divergence
+
+//Osc: Lower Low
+oscLL11 = osc11[lbR11] < ta.valuewhen(plFound11, osc11[lbR11], 1) and _inRange11(plFound11[1])
+//Price: Higher Low
+priceHL11 = low[lbR11] > ta.valuewhen(plFound11, low[lbR11], 1)
+
+hiddenBullCond11 = plotHiddenBull11 and priceHL11 and oscLL11 and plFound11
+//plot(plFound11 ? osc11[lbR11] : na, offset=-lbR11, title="Hidden Bullish", linewidth=2, color=(hiddenBullCond11 ? hiddenBullColor11 : noneColor11))
+//plotshape(hiddenBullCond11 ? osc11[lbR11] : na, offset=-lbR11, title="Hidden Bullish Label", text=" H Bull ", style=shape.labelup, location=location.absolute, color=bullColor11, textcolor=textColor11)
+
+//Regular Bearish Divergence
+
+//Osc: Lower High
+oscLH11 = osc11[lbR11] < ta.valuewhen(phFound11, osc11[lbR11], 1) and _inRange11(phFound11[1])
+//Price: Higher High
+priceHH11 = high[lbR11] > ta.valuewhen(phFound11, high[lbR11], 1)
+
+bearCond11 = plotBear11 and priceHH11 and oscLH11 and phFound11
+//plot(phFound11 ? osc11[lbR11] : na, offset=-lbR11, title="Regular Bearish", linewidth=2, color=(bearCond11 ? bearColor11 : noneColor11))
+//plotshape(bearCond11 ? osc11[lbR11] : na, offset=-lbR11, title="Regular Bearish Label", text=" Bear ", style=shape.labeldown, location=location.absolute, color=bearColor11, textcolor=textColor11)
+
+//Hidden Bearish Divergence
+
+//Osc: Higher High
+oscHH11 = osc11[lbR11] > ta.valuewhen(phFound11, osc11[lbR11], 1) and _inRange11(phFound11[1])
+// Price: Lower High
+priceLH11 = high[lbR11] < ta.valuewhen(phFound11, high[lbR11], 1)
+
+hiddenBearCond11 = plotHiddenBear11 and priceLH11 and oscHH11 and phFound11
+//plot(phFound11 ? osc11[lbR11] : na, offset=-lbR11, title="Hidden Bearish", linewidth=2, color=(hiddenBearCond11 ? hiddenBearColor11 : noneColor11))
+//plotshape(hiddenBearCond11 ? osc11[lbR11] : na, offset=-lbR11, title="Hidden Bearish Label", text=" H Bear ", style=shape.labeldown, location=location.absolute, color=bearColor11, textcolor=textColor11)
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The script is used to detect different types of divergences between the price and the relative strength index (RSI) indicator.
+
+//The script starts by defining various input parameters, such as the length of the RSI, the lookback period for finding pivot lows and highs, and the upper and lower ranges for identifying divergences.
+
+//Next, the script calculates the RSI values using the 'ta.rsi' function and then looks for pivot lows and highs using the 'ta.pivotlow' and 'ta.pivothigh' functions.
+
+//The script then defines several functions to check whether a given condition is within the specified range. For example, the '_inRange11' function takes a condition and returns 'true' if the number of bars since the condition is within the 'rangeLower11' and 'rangeUpper11' parameters.
+
+//After defining these helper functions, the script goes on to check for different types of divergences. Regular bullish and bearish divergences are identified when the RSI forms a higher low or lower high, respectively, while the price forms a lower low or higher high. Hidden bullish and bearish divergences are similar, but the RSI and price positions are reversed.
+
+//Finally, the script plots the different types of divergences on the chart using the 'plot' and 'plotshape' functions, and sets the colors and text for each type of divergence.
+
+
+
+//MACD Divergence///////////////////////////////////////////////////////////////
+fast_length12 = 12
+slow_length12 = 26
+src12 = close
+signal_length12 = 9
+sma_source12 = 'EMA'
+sma_signal12 = 'EMA'
+//Plot colors
+col_macd12 = #2962FF
+col_signal12 = #FF6D00
+col_grow_above12 = #26A69A
+col_fall_above12 = #B2DFDB
+col_grow_below12 = #FFCDD2
+col_fall_below12 = #FF5252
+//Calculating
+fast_ma12 = sma_source12 == 'SMA' ? ta.sma(src12, fast_length12) : ta.ema(src12, fast_length12)
+slow_ma12 = sma_source12 == 'SMA' ? ta.sma(src12, slow_length12) : ta.ema(src12, slow_length12)
+macd = fast_ma12 - slow_ma12
+signal = sma_signal12 == 'SMA' ? ta.sma(macd, signal_length12) : ta.ema(macd, signal_length12)
+hist = macd - signal
+//plot(hist, title="Histogram", style=plot.style_columns, color=(hist>=0 ? (hist[1] < hist ? col_grow_above12 : col_fall_above12) : (hist[1] < hist ? col_grow_below12 : col_fall_below12)))
+//plot(macd, title="MACD", color=col_macd12)
+//plot(signal, title="Signal", color=col_signal12)
+
+donttouchzero12 = true
+
+lbR12 = 2
+lbL12 = 6
+rangeUpper12 = 60
+rangeLower12 = 5
+plotBull12 = true
+plotHiddenBull12 = false
+plotBear12 = true
+plotHiddenBear12 = false
+bearColor12 = color.red
+bullColor12 = color.green
+hiddenBullColor12 = color.new(color.green, 80)
+hiddenBearColor12 = color.new(color.red, 80)
+textColor12 = color.white
+noneColor12 = color.new(color.white, 100)
+osc12 = macd
+
+plFound12 = na(ta.pivotlow(osc12, lbL12, lbR12)) ? false : true
+phFound12 = na(ta.pivothigh(osc12, lbL12, lbR12)) ? false : true
+_inRange12(cond) =>
+    bars12 = ta.barssince(cond == true)
+    rangeLower12 <= bars12 and bars12 <= rangeUpper12
+
+//Regular Bullish Divergence
+
+//Osc: Higher Low
+oscHL12 = osc12[lbR12] > ta.valuewhen(plFound12, osc12[lbR12], 1) and _inRange12(plFound12[1]) and osc12[lbR12] < 0
+// Price: Lower Low
+priceLL12 = low[lbR12] < ta.valuewhen(plFound12, low[lbR12], 1)
+priceHHZero12 = ta.highest(osc12, lbL12 + lbR12 + 5)
+//plot(priceHHZero,title="priceHHZero",color=color.green)
+blowzero12 = donttouchzero12 ? priceHHZero12 < 0 : true
+
+bullCond12 = plotBull12 and priceLL12 and oscHL12 and plFound12 and blowzero12
+//plot(plFound12 ? osc12[lbR12] : na, offset=-lbR12, title="Regular Bullish", linewidth=2, color=(bullCond12 ? bullColor12 : noneColor12))
+//plotshape(bullCond12 ? osc12[lbR12] : na, offset=-lbR12, title="Regular Bullish Label", text=" Bull ", style=shape.labelup, location=location.absolute, color=bullColor12, textcolor=textColor12)
+
+//Hidden Bullish Divergence
+
+//Osc: Lower Low
+oscLL12 = osc12[lbR12] < ta.valuewhen(plFound12, osc12[lbR12], 1) and _inRange12(plFound12[1])
+//Price: Higher Low
+priceHL12 = low[lbR12] > ta.valuewhen(plFound12, low[lbR12], 1)
+
+hiddenBullCond12 = plotHiddenBull12 and priceHL12 and oscLL12 and plFound12
+//plot(plFound12 ? osc12[lbR12] : na, offset=-lbR12, title="Hidden Bullish", linewidth=2, color=(hiddenBullCond12 ? hiddenBullColor12 : noneColor12))
+//plotshape(hiddenBullCond12 ? osc12[lbR12] : na, offset=-lbR12, title="Hidden Bullish Label", text=" H Bull ", style=shape.labelup, location=location.absolute, color=bullColor12, textcolor=textColor12)
+
+//Regular Bearish Divergence
+
+//Osc: Lower High
+oscLH12 = osc12[lbR12] < ta.valuewhen(phFound12, osc12[lbR12], 1) and _inRange12(phFound12[1]) and osc12[lbR12] > 0
+priceLLZero12 = ta.lowest(osc12, lbL12 + lbR12 + 5)
+//plot(priceLLZero,title="priceLLZero", color=color.red)
+bearzero12 = donttouchzero12 ? priceLLZero12 > 0 : true
+//Price: Higher High
+priceHH12 = high[lbR12] > ta.valuewhen(phFound12, high[lbR12], 1)
+
+bearCond12 = plotBear12 and priceHH12 and oscLH12 and phFound12 and bearzero12
+//plot(phFound12 ? osc12[lbR12] : na, offset=-lbR12, title="Regular Bearish", linewidth=2, color=(bearCond12 ? bearColor12 : noneColor12))
+//plotshape(bearCond12 ? osc12[lbR12] : na, offset=-lbR12, title="Regular Bearish Label", text=" Bear ", style=shape.labeldown, location=location.absolute, color=bearColor12, textcolor=textColor12)
+
+//Hidden Bearish Divergence
+
+//Osc: Higher High
+oscHH12 = osc12[lbR12] > ta.valuewhen(phFound12, osc12[lbR12], 1) and _inRange12(phFound12[1])
+//Price: Lower High
+priceLH12 = high[lbR12] < ta.valuewhen(phFound12, high[lbR12], 1)
+
+hiddenBearCond12 = plotHiddenBear12 and priceLH12 and oscHH12 and phFound12
+//plot(phFound12 ? osc12[lbR12] : na, offset=-lbR12, title="Hidden Bearish", linewidth=2, color=(hiddenBearCond12 ? hiddenBearColor12 : noneColor12))
+//plotshape(hiddenBearCond12 ? osc12[lbR12] : na, offset=-lbR12, title="Hidden Bearish Label", text=" H Bear ", style=shape.labeldown, location=location.absolute, color=bearColor12, textcolor=textColor12)
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+//The code is using the Moving Average Convergence Divergence (MACD) indicator to identify regular and hidden bullish/bearish divergences.
+
+//The strategy plots the MACD histogram, MACD line, and signal line on a chart. It also includes parameters to customize the strategy, such as the fast and slow length for the MACD calculation, the source for the moving average calculation, and the signal length for the signal line.
+
+//The strategy then looks for bullish or bearish divergences by comparing the MACD oscillator to price lows/highs. It identifies regular and hidden bullish divergences when the oscillator shows a higher low and the price shows a lower low or higher low, respectively. Conversely, it identifies regular and hidden bearish divergences when the oscillator shows a lower high and the price shows a higher high or lower high, respectively.
+
+//The strategy plots the divergences on the chart and adds labels to indicate the type of divergence detected (regular or hidden) and the direction (bullish or bearish). It also includes parameters to customize the appearance of the plotted lines and labels.
+
+
+
+
+//Wave Trend Divergence/////////////////////////////////////////////////////////
+n1 = 9
+n2 = 12
+ap = hlc3
+hline = 0
+
+//Divergence
+lbR13 = 2
+lbL13 = 6
+rangeUpper13 = 60
+rangeLower13 = 5
+plotBull13 = true
+plotHiddenBull13 = false
+plotBear13 = true
+plotHiddenBear13 = false
+
+bearColor13 = color.red
+bullColor13 = color.green
+hiddenBullColor13 = color.green
+hiddenBearColor13 = color.red
+textColor13 = color.white
+noneColor13 = color.new(color.white, 100)
+
+_inRange13(cond) =>
+    bars13 = ta.barssince(cond == true)
+    rangeLower13 <= bars13 and bars13 <= rangeUpper13
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The script define a technical indicator called "Wave Trend Divergence" that detects bullish and bearish divergences in the price action using the Wave Trend oscillator. The oscillator is calculated based on the high, low, and close price of the asset.
+//The script also sets up some parameters for the divergence detection, including the lookback periods for the Wave Trend oscillator, the range of bars to consider for the divergences, and the colors of the bullish and bearish signals.
+
+
+
+//Stochastic Divergence/////////////////////////////////////////////////////////
+periodK14 = 14
+smoothK14 = 3
+periodD14 = 3
+k14 = ta.sma(ta.stoch(close, high, low, periodK14), smoothK14)
+d14 = ta.sma(k14, periodD14)
+
+//Divergence
+lbR14 = 2
+lbL14 = 6
+rangeUpper14 = 60
+rangeLower14 = 5
+plotBull14 = true
+plotHiddenBull14 = false
+plotBear14 = true
+plotHiddenBear14 = false
+
+bearColor14 = color.red
+bullColor14 = color.green
+hiddenBullColor14 = color.green
+hiddenBearColor14 = color.red
+textColor14 = color.white
+noneColor14 = color.new(color.white, 100)
+
+osc14 = k14
+
+plFound14 = na(ta.pivotlow(osc14, lbL14, lbR14)) ? false : true
+phFound14 = na(ta.pivothigh(osc14, lbL14, lbR14)) ? false : true
+
+_inRange14(cond) =>
+    bars14 = ta.barssince(cond == true)
+    rangeLower14 <= bars14 and bars14 <= rangeUpper14
+
+//Regular Bullish
+
+//Osc: Higher Low
+oscHL14 = osc14[lbR14] > ta.valuewhen(plFound14, osc14[lbR14], 1) and _inRange14(plFound14[1])
+
+//Price: Lower Low
+priceLL14 = low[lbR14] < ta.valuewhen(plFound14, low[lbR14], 1)
+
+bullCond14 = plotBull14 and priceLL14 and oscHL14 and plFound14
+//plot(plFound14 ? osc14[lbR14] : na, offset=-lbR14, title="Regular Bullish", linewidth=2, color=(bullCond14 ? bullColor14 : noneColor14))
+//plotshape(bullCond14 ? osc14[lbR14] : na, offset=-lbR14, title="Regular Bullish Label", text=" Bull ", style=shape.labelup, location=location.absolute, color=bullColor14, textcolor=textColor14)
+
+//Hidden Bullish
+
+//Osc: Lower Low
+oscLL14 = osc14[lbR14] < ta.valuewhen(plFound14, osc14[lbR14], 1) and _inRange14(plFound14[1])
+
+//Price: Higher Low
+priceHL14 = low[lbR14] > ta.valuewhen(plFound14, low[lbR14], 1)
+
+hiddenBullCond14 = plotHiddenBull14 and priceHL14 and oscLL14 and plFound14
+//plot(plFound14 ? osc14[lbR14] : na, offset=-lbR14, title="Hidden Bullish", linewidth=2, color=(hiddenBullCond14 ? hiddenBullColor14 : noneColor14))
+//plotshape(hiddenBullCond14 ? osc14[lbR14] : na, offset=-lbR14, title="Hidden Bullish Label", text=" H Bull ", style=shape.labelup, location=location.absolute, color=bullColor14, textcolor=textColor14)
+
+//Regular Bearish
+
+//Osc: Lower High
+oscLH14 = osc14[lbR14] < ta.valuewhen(phFound14, osc14[lbR14], 1) and _inRange14(phFound14[1])
+
+//Price: Higher High
+priceHH14 = high[lbR14] > ta.valuewhen(phFound14, high[lbR14], 1)
+
+bearCond14 = plotBear14 and priceHH14 and oscLH14 and phFound14
+//plot(phFound14 ? osc14[lbR14] : na, offset=-lbR14, title="Regular Bearish", linewidth=2, color=(bearCond14 ? bearColor14 : noneColor14))
+//plotshape(bearCond14 ? osc14[lbR14] : na, offset=-lbR14, title="Regular Bearish Label", text=" Bear ", style=shape.labeldown, location=location.absolute, color=bearColor14, textcolor=textColor14)
+
+//Hidden Bearish
+
+//Osc: Higher High
+oscHH14 = osc14[lbR14] > ta.valuewhen(phFound14, osc14[lbR14], 1) and _inRange14(phFound14[1])
+
+//Price: Lower High
+priceLH14 = high[lbR14] < ta.valuewhen(phFound14, high[lbR14], 1)
+
+hiddenBearCond14 = plotHiddenBear14 and priceLH14 and oscHH14 and phFound14
+//plot(phFound14 ? osc14[lbR14] : na, offset=-lbR14, title="Hidden Bearish", linewidth=2, color=(hiddenBearCond14 ? hiddenBearColor14 : noneColor14))
+//plotshape(hiddenBearCond14 ? osc14[lbR14] : na, offset=-lbR14, title="Hidden Bearish Label", text=" H Bear ", style=shape.labeldown, location=location.absolute, color=bearColor14, textcolor=textColor14)
+
+
+//END▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+////////////////////////////////////////////////////////////////////////////////
+//VOLATILITY INDICATORS▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//It calculates the Stochastic Oscillator and then identifies regular and hidden bullish and bearish divergences.
+
+//periodK14: the look-back period for the %K calculation of the Stochastic Oscillator.
+//smoothK14: the smoothing period for the %K calculation of the Stochastic Oscillator.
+//periodD14: the look-back period for the %D calculation of the Stochastic Oscillator.
+//lbR14: the right-hand look-back period for the divergence calculation.
+//lbL14: the left-hand look-back period for the divergence calculation.
+//rangeUpper14: the maximum number of bars between the pivot low/high and the current bar to consider a divergence.
+//rangeLower14: the minimum number of bars between the pivot low/high and the current bar to consider a divergence.
+//plotBull14: a boolean that indicates whether to plot regular bullish divergences.
+//plotHiddenBull14: a boolean that indicates whether to plot hidden bullish divergences.
+//plotBear14: a boolean that indicates whether to plot regular bearish divergences.
+//plotHiddenBear14: a boolean that indicates whether to plot hidden bearish divergences.
+//bearColor14: the color for regular bearish divergences.
+//bullColor14: the color for regular bullish divergences.
+//hiddenBullColor14: the color for hidden bullish divergences.
+//hiddenBearColor14: the color for hidden bearish divergences.
+//textColor14: the color for the text in the labels.
+//noneColor14: the color for bars that do not meet the divergence criteria.
+
+
+
+//Average True Range /////////////////////////////////////////////////
+length2 = 1
+mult2 = 1.85
+showLabels = true
+useClose = false
+highlightState = false
+
+atr = mult2 * ta.atr(length2)
+
+longStop = (useClose ? ta.highest(close, length2) : ta.highest(length2)) - atr
+longStopPrev = nz(longStop[1], longStop)
+longStop := close[1] > longStopPrev ? math.max(longStop, longStopPrev) : longStop
+
+shortStop = (useClose ? ta.lowest(close, length2) : ta.lowest(length2)) + atr
+shortStopPrev = nz(shortStop[1], shortStop)
+shortStop := close[1] < shortStopPrev ? math.min(shortStop, shortStopPrev) : shortStop
+
+var int dir = 1
+dir := close > shortStopPrev ? 1 : close < longStopPrev ? -1 : dir
+
+var color longColor = color.green
+var color shortColor = color.red
+
+buySignal = dir == 1 and dir[1] == -1
+//plotshape(buySignal and showLabels ? longStop : na, title="Gold Buy", text="Buy", location=location.belowbar, style=shape.labelup, size=size.tiny, color=longColor, textcolor=color.new(color.white, 0))
+
+sellSignal = dir == -1 and dir[1] == 1
+//plotshape(sellSignal and showLabels ? shortStop : na, title="Gold Sell", text="Sell", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=shortColor, textcolor=color.new(color.white, 0))
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//This code is implementing the Average True Range (ATR) indicator as a stop loss mechanism for a trading strategy.
+//The ATR is calculated using the ta.atr() function with a length2 parameter of 1 and a mult2 parameter of 1.85.
+//The longStop and shortStop variables are then calculated as the highest high minus the ATR and the lowest low plus the ATR, respectively. These stops are updated on each bar based on whether the previous bar's close price was above or below the previous stop level.
+//The dir variable is set based on whether the current close price is above or below the previous shortStop or longStop, respectively.
+//Finally, the buySignal and sellSignal variables are set based on whether the dir value changes from -1 to 1 or from 1 to -1, respectively.
+
+
+
+//Relative Volatility Index Divergence//////////////////////////////////////////
+length15 = 12
+src15 = close
+len15 = 14
+stddev15 = ta.stdev(src15, length15)
+upper15 = ta.ema(ta.change(src15) <= 0 ? 0 : stddev15, len15)
+lower15 = ta.ema(ta.change(src15) > 0 ? 0 : stddev15, len15)
+rvi = upper15 / (upper15 + lower15) * 100
+
+//Divergence
+lbR15 = 2
+lbL15 = 6
+rangeUpper15 = 60
+rangeLower15 = 5
+plotBull15 = true
+plotHiddenBull15 = false
+plotBear15 = true
+plotHiddenBear15 = false
+
+bearColor15 = color.red
+bullColor15 = color.green
+hiddenBullColor15 = color.green
+hiddenBearColor15 = color.red
+textColor15 = color.white
+noneColor15 = color.new(color.white, 100)
+
+d15 = rvi
+osc15 = d15
+
+plFound15 = na(ta.pivotlow(osc15, lbL15, lbR15)) ? false : true
+phFound15 = na(ta.pivothigh(osc15, lbL15, lbR15)) ? false : true
+
+_inRange15(cond) =>
+    bars15 = ta.barssince(cond == true)
+    rangeLower15 <= bars15 and bars15 <= rangeUpper15
+
+//Regular Bullish
+
+//Osc: Higher Low
+oscHL15 = osc15[lbR15] > ta.valuewhen(plFound15, osc15[lbR15], 1) and _inRange15(plFound15[1])
+
+//Price: Lower Low
+priceLL15 = low[lbR15] < ta.valuewhen(plFound15, low[lbR15], 1)
+
+bullCond15 = plotBull15 and priceLL15 and oscHL15 and plFound15
+//plot(plFound15 ? osc15[lbR15] : na, offset=-lbR15, title="Regular Bullish", linewidth=2, color=(bullCond15 ? bullColor15 : noneColor15))
+//plotshape(bullCond15 ? osc15[lbR15] : na, offset=-lbR15, title="Regular Bullish Label", text=" Bull ", style=shape.labelup, location=location.absolute, color=bullColor15, textcolor=textColor15)
+
+//Hidden Bullish
+
+//Osc: Lower Low
+oscLL15 = osc15[lbR15] < ta.valuewhen(plFound15, osc15[lbR15], 1) and _inRange15(plFound15[1])
+
+//Price: Higher Low
+priceHL15 = low[lbR15] > ta.valuewhen(plFound15, low[lbR15], 1)
+
+hiddenBullCond15 = plotHiddenBull15 and priceHL15 and oscLL15 and plFound15
+//plot(plFound15 ? osc15[lbR15] : na, offset=-lbR15, title="Hidden Bullish", linewidth=2, color=(hiddenBullCond15 ? hiddenBullColor15 : noneColor15))
+//plotshape(hiddenBullCond15 ? osc15[lbR15] : na, offset=-lbR15, title="Hidden Bullish Label", text=" H Bull ", style=shape.labelup, location=location.absolute, color=bullColor15, textcolor=textColor15)
+
+//Regular Bearish
+
+//Osc: Lower High
+oscLH15 = osc15[lbR15] < ta.valuewhen(phFound15, osc15[lbR15], 1) and _inRange15(phFound15[1])
+
+//Price: Higher High
+priceHH15 = high[lbR15] > ta.valuewhen(phFound15, high[lbR15], 1)
+
+bearCond15 = plotBear15 and priceHH15 and oscLH15 and phFound15
+//plot(phFound15 ? osc15[lbR15] : na, offset=-lbR15, title="Regular Bearish", linewidth=2, color=(bearCond15 ? bearColor15 : noneColor15))
+//plotshape(bearCond15 ? osc15[lbR15] : na, offset=-lbR15, title="Regular Bearish Label", text=" Bear ", style=shape.labeldown, location=location.absolute, color=bearColor15, textcolor=textColor15)
+
+//Hidden Bearish
+
+//Osc: Higher High
+oscHH15 = osc15[lbR15] > ta.valuewhen(phFound15, osc15[lbR15], 1) and _inRange15(phFound15[1])
+
+//Price: Lower High
+priceLH15 = high[lbR15] < ta.valuewhen(phFound15, high[lbR15], 1)
+
+hiddenBearCond15 = plotHiddenBear15 and priceLH15 and oscHH15 and phFound15
+//plot(phFound15 ? osc15[lbR15] : na, offset=-lbR15, title="Hidden Bearish", linewidth=2, color=(hiddenBearCond15 ? hiddenBearColor15 : noneColor15))
+//plotshape(hiddenBearCond15 ? osc15[lbR15] : na, offset=-lbR15, title="Hidden Bearish Label", text=" H Bear ", style=shape.labeldown, location=location.absolute, color=bearColor15, textcolor=textColor15)
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The code calculates the Relative Volatility Index (RVI) based on the upper and lower bounds and determines the presence of bullish or bearish trends based on the price and oscillating RVI values.
+//The length15 variable is set to 12, indicating the length of the RVI calculation period. The src15 variable is set to close, indicating that the RVI is based on closing prices. The len15 variable is set to 14, indicating the length of the exponential moving average (EMA) period for the standard deviation. The stddev15 variable calculates the standard deviation of the closing prices over the length15 period. The upper15 variable calculates the upper bound of the RVI based on the positive standard deviation changes, and the lower15 variable calculates the lower bound of the RVI based on the negative standard deviation changes. Finally, the rvi variable calculates the RVI as the upper bound divided by the sum of the upper and lower bounds, multiplied by 100.
+//The code then calculates the bullish and bearish trends based on the RVI and price values. The lbR15 and lbL15 variables determine the left and right lengths of the pivot range, respectively, and the rangeUpper15 and rangeLower15 variables set the upper and lower bounds of the range within which the trend is considered relevant. The plotBull15 and plotHiddenBull15 variables determine whether the bullish trends and hidden bullish trends should be plotted, respectively, and the plotBear15 and plotHiddenBear15 variables determine whether the bearish trends and hidden bearish trends should be plotted, respectively. The bearColor15, bullColor15, hiddenBullColor15, hiddenBearColor15, textColor15, and noneColor15 variables determine the colors for the various plot elements.
+//The code then checks whether the current bar is in the pivot range and whether a pivot low or pivot high is found within the range. The _inRange15() function checks whether the current bar is within the pivot range. The plFound15 and phFound15 variables indicate whether a pivot low or pivot high is found, respectively.
+//The code then calculates the various trend conditions. For a regular bullish trend, the oscHL15 variable checks whether the RVI has a higher low than the previous RVI value, the priceLL15 variable checks whether the low price has a lower low than the previous low price within the pivot range, and the bullCond15 variable is set to true if both conditions are met. For a hidden bullish trend, the oscLL15 variable checks whether the RVI has a lower low than the previous RVI value, the priceHL15 variable checks whether the low price has a higher low than the previous low price within the pivot range, and the hiddenBullCond15 variable is set to true if both conditions are met. For a regular bearish trend, the oscLH15 variable checks whether the RVI has a lower high than the previous RVI value, the priceHH15 variable checks whether the high price has a higher high than the previous high price within the pivot range, and the bearCond15 variable is set to true if both conditions are met. For a hidden bearish trend, //the opposite is calculated
+
+
+
+//Support and Resistance////////////////////////////////////////////////////////
+left16 = 200
+right16 = 20
+quick_right16 = 5
+src16 = 'Close'
+
+pivothigh_1 = ta.pivothigh(close, left16, right16)
+pivothigh_2 = ta.pivothigh(high, left16, right16)
+pivot_high16 = src16 == 'Close' ? pivothigh_1 : pivothigh_2
+pivotlow_1 = ta.pivotlow(close, left16, right16)
+pivotlow_2 = ta.pivotlow(low, left16, right16)
+pivot_lows16 = src16 == 'Close' ? pivotlow_1 : pivotlow_2
+
+pivothigh_3 = ta.pivothigh(close, left16, quick_right16)
+pivothigh_4 = ta.pivothigh(high, left16, quick_right16)
+quick_pivot_high16 = src16 == 'Close' ? pivothigh_3 : pivothigh_4
+pivotlow_3 = ta.pivotlow(close, left16, quick_right16)
+pivotlow_4 = ta.pivotlow(low, left16, quick_right16)
+quick_pivot_lows16 = src16 == 'Close' ? pivotlow_3 : pivotlow_4
+
+valuewhen_1 = ta.valuewhen(quick_pivot_high16, close[quick_right16], 0)
+valuewhen_2 = ta.valuewhen(quick_pivot_high16, high[quick_right16], 0)
+level1 = src16 == 'Close' ? valuewhen_1 : valuewhen_2
+valuewhen_3 = ta.valuewhen(quick_pivot_lows16, close[quick_right16], 0)
+valuewhen_4 = ta.valuewhen(quick_pivot_lows16, low[quick_right16], 0)
+level2 = src16 == 'Close' ? valuewhen_3 : valuewhen_4
+valuewhen_5 = ta.valuewhen(pivot_high16, close[right16], 0)
+valuewhen_6 = ta.valuewhen(pivot_high16, high[right16], 0)
+level3 = src16 == 'Close' ? valuewhen_5 : valuewhen_6
+valuewhen_7 = ta.valuewhen(pivot_lows16, close[right16], 0)
+valuewhen_8 = ta.valuewhen(pivot_lows16, low[right16], 0)
+level4 = src16 == 'Close' ? valuewhen_7 : valuewhen_8
+valuewhen_9 = ta.valuewhen(pivot_high16, close[right16], 1)
+valuewhen_10 = ta.valuewhen(pivot_high16, high[right16], 1)
+level5 = src16 == 'Close' ? valuewhen_9 : valuewhen_10
+valuewhen_11 = ta.valuewhen(pivot_lows16, close[right16], 1)
+valuewhen_12 = ta.valuewhen(pivot_lows16, low[right16], 1)
+level6 = src16 == 'Close' ? valuewhen_11 : valuewhen_12
+valuewhen_13 = ta.valuewhen(pivot_high16, close[right16], 2)
+valuewhen_14 = ta.valuewhen(pivot_high16, high[right16], 2)
+level7 = src16 == 'Close' ? valuewhen_13 : valuewhen_14
+valuewhen_15 = ta.valuewhen(pivot_lows16, close[right16], 2)
+valuewhen_16 = ta.valuewhen(pivot_lows16, low[right16], 2)
+level8 = src16 == 'Close' ? valuewhen_15 : valuewhen_16
+
+level1_col = close >= level1 ? color.green : color.red
+level2_col = close >= level2 ? color.green : color.red
+level3_col = close >= level3 ? color.green : color.red
+level4_col = close >= level4 ? color.green : color.red
+level5_col = close >= level5 ? color.green : color.red
+level6_col = close >= level6 ? color.green : color.red
+level7_col = close >= level7 ? color.green : color.red
+level8_col = close >= level8 ? color.green : color.red
+
+length17 = 9
+src17 = close
+hma17 = ta.wma(2 * ta.wma(src17, length17 / 2) - ta.wma(src17, length17), math.floor(math.sqrt(length17)))
+
+buy1 = hma17 > level1 and hma17[1] < level1[1] and close > close[2]
+buy2 = hma17 > level2 and hma17[1] < level2[1] and close > close[2]
+buy3 = hma17 > level3 and hma17[1] < level3[1] and close > close[2]
+buy4 = hma17 > level4 and hma17[1] < level4[1] and close > close[2]
+buy5 = hma17 > level5 and hma17[1] < level5[1] and close > close[2]
+buy6 = hma17 > level6 and hma17[1] < level6[1] and close > close[2]
+buy7 = hma17 > level7 and hma17[1] < level7[1] and close > close[2]
+buy8 = hma17 > level8 and hma17[1] < level8[1] and close > close[2]
+
+sell1 = hma17 < level1 and hma17[1] > level1[1] and close < close[2]
+sell2 = hma17 < level2 and hma17[1] > level2[1] and close < close[2]
+sell3 = hma17 < level3 and hma17[1] > level3[1] and close < close[2]
+sell4 = hma17 < level4 and hma17[1] > level4[1] and close < close[2]
+sell5 = hma17 < level5 and hma17[1] > level5[1] and close < close[2]
+sell6 = hma17 < level6 and hma17[1] > level6[1] and close < close[2]
+sell7 = hma17 < level7 and hma17[1] > level7[1] and close < close[2]
+sell8 = hma17 < level8 and hma17[1] > level8[1] and close < close[2]
+
+
+//END▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+////////////////////////////////////////////////////////////////////////////////
+//VOLUME INDICATORS▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//This script is trading strategy based on support and resistance levels and the Hull Moving Average (HMA) indicator. The first section of the code calculates the support and resistance levels using the ta.pivothigh and ta.pivotlow functions. These levels are then used in the second section to generate buy and sell signals when the HMA indicator crosses above or below the support and resistance levels.
+//Specifically, the code defines eight levels of support and resistance, each calculated using different combinations of the ta.pivothigh and ta.pivotlow functions with different input parameters. The HMA indicator is then calculated using the ta.wma function with a period of 9. The buy and sell signals are generated based on whether the HMA is above or below each of the eight support and resistance levels and whether the HMA was below or above the respective level on the previous candle.
+//Overall, this code implements a relatively simple trading strategy that aims to enter long positions when the price is above certain support and resistance levels and the HMA is rising and to enter short positions when the price is below certain support and resistance levels and the HMA is falling
+
+
+//OBV Divergence////////////////////////////////////////////////////////////////
+len18 = 20
+src18 = close
+lbR18 = 2
+lbL18 = 6
+rangeUpper18 = 60
+rangeLower18 = 5
+plotBull18 = true
+plotHiddenBull18 = false
+plotBear18 = true
+plotHiddenBear18 = false
+
+
+bearColor18 = color.red
+bullColor18 = color.green
+hiddenBullColor18 = color.green
+hiddenBearColor18 = color.new(color.red, 80)
+textColor18 = color.white
+noneColor18 = color.new(color.white, 100)
+
+csrc = ta.change(src18)
+obv1(src18) =>
+    ta.cum(ta.change(src18) > 0 ? volume : csrc < 0 ? -volume : 0 * volume)
+
+_inRange(cond) =>
+    bars = ta.barssince(cond == true)
+    rangeLower18 <= bars and bars <= rangeUpper18
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//This code is defining a function that calculates On Balance Volume (OBV) divergence for a given security, which is a technical analysis indicator used in financial markets to identify potential trend reversals. OBV is calculated by adding the volume on days where the price goes up and subtracting the volume on days where the price goes down.
+//The function takes several parameters, including the length of the OBV calculation period (len18), the source data for the price data (src18), and the range in which to consider potential divergences (rangeUpper18 and rangeLower18). The function also has parameters to determine whether to plot bullish and/or bearish divergences, and the colors to use for the plots.
+//The code also includes a helper function called "_inRange", which checks if a certain condition (in this case, whether a value is true) occurs within a certain range of bars.
+//Overall,this code is meant to help identify potential trend reversals by identifying divergences between price movements and volume movements, and plotting them on a chart.
+
+
+
+//Chaikin Money Flow////////////////////////////////////////////////////////////
+length19 = 50
+ad19 = close == high and close == low or high == low ? 0 : (2 * close - low - high) / (high - low) * volume
+cmf = math.sum(ad19, length19) / math.sum(volume, length19)
+//plot(cmf, color=#43A047, title="MF")
+//hline(0, color=#787B86, title="Zero", linestyle=hline.style_dashed)
+
+//VWAP//////////////////////////////////////////////////////////////////////////
+computeVWAP(src20, isNewPeriod, stDevMultiplier) =>
+    var float sumSrcVol = na
+    var float sumVol = na
+    var float sumSrcSrcVol = na
+
+    sumSrcVol := isNewPeriod ? src20 * volume : src20 * volume + sumSrcVol[1]
+    sumVol := isNewPeriod ? volume : volume + sumVol[1]
+    // sumSrcSrcVol calculates the dividend of the equation that is later used to calculate the standard deviation
+    sumSrcSrcVol := isNewPeriod ? volume * math.pow(src20, 2) : volume * math.pow(src20, 2) + sumSrcSrcVol[1]
+
+    _vwap = sumSrcVol / sumVol
+    variance = sumSrcSrcVol / sumVol - math.pow(_vwap, 2)
+    variance := variance < 0 ? 0 : variance
+    stDev = math.sqrt(variance)
+
+    lowerBand20 = _vwap - stDev * stDevMultiplier
+    upperBand20 = _vwap + stDev * stDevMultiplier
+
+    [_vwap, lowerBand20, upperBand20]
+
+hideonDWM = false
+var anchor = 'Session'
+src20 = hlc3
+offset20 = 0
+
+showBands = true
+stdevMult = 1.0
+
+timeChange(period) =>
+    ta.change(time(period))
+
+new_earnings = request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_on)
+new_dividends = request.dividends(syminfo.tickerid, dividends.gross, barmerge.gaps_on, barmerge.lookahead_on)
+new_split = request.splits(syminfo.tickerid, splits.denominator, barmerge.gaps_on, barmerge.lookahead_on)
+
+tcD = timeChange('D')
+tcW = timeChange('W')
+tcM = timeChange('M')
+tc3M = timeChange('3M')
+tc12M = timeChange('12M')
+
+isNewPeriod = anchor == 'Earnings' ? new_earnings : anchor == 'Dividends' ? new_dividends : anchor == 'Splits' ? new_split : na(src20[1]) ? true : anchor == 'Session' ? tcD : anchor == 'Week' ? tcW : anchor == 'Month' ? tcM : anchor == 'Quarter' ? tc3M : anchor == 'Year' ? tc12M : anchor == 'Decade' ? tc12M and year % 10 == 0 : anchor == 'Century' ? tc12M and year % 100 == 0 : false
+
+float vwapValue = na
+float std = na
+float upperBandValue = na
+float lowerBandValue = na
+
+if not(hideonDWM and timeframe.isdwm)
+    [_vwap, bottom, top] = computeVWAP(src20, isNewPeriod, stdevMult)
+    vwapValue := _vwap
+    upperBandValue := showBands ? top : na
+    lowerBandValue := showBands ? bottom : na
+    lowerBandValue
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//This script is calculating the Chaikin Money Flow (CMF) and Volume Weighted Average Price (VWAP) indicators.
+//The CMF indicator uses the formula of the Accumulation Distribution (AD) indicator, which is based on the assumption that the volume of a stock is a reflection of the buying and selling pressure. The AD indicator is calculated using the high, low, close, and volume data, and the Chaikin Money Flow (CMF) indicator is the sum of the AD values over a given period divided by the sum of the volume over the same period.
+//The VWAP indicator is calculated by dividing the total value traded (price times volume) by the total volume traded over a given period. It is a popular trading indicator that shows the average price at which a stock has traded over a given period, weighted by the volume of each trade. This script calculates the VWAP value, as well as the upper and lower bands that are defined by adding and subtracting a certain number of standard deviations from the VWAP value.
+//The script also includes some additional code that allows for the specification of a certain anchor point (e.g., earnings, dividends, splits, session, week, month, quarter, year, etc.) that can be used to define when a new period should be considered for the VWAP calculation. There are also options to show or hide the upper and lower bands, as well as to adjust the number of standard deviations used to calculate them.
+
+
+
+//Candle Patterns///////////////////////////////////////////////////////////////
+
+//Bullish Engulfing
+C_DownTrend = true
+C_UpTrend = true
+var trendRule1 = 'SMA50'
+var trendRule2 = 'SMA50, SMA200'
+var trendRule = trendRule1
+
+if trendRule == trendRule1
+    priceAvg = ta.sma(close, 50)
+    C_DownTrend := close < priceAvg
+    C_UpTrend := close > priceAvg
+    C_UpTrend
+
+if trendRule == trendRule2
+    sma200 = ta.sma(close, 200)
+    sma50 = ta.sma(close, 50)
+    C_DownTrend := close < sma50 and sma50 < sma200
+    C_UpTrend := close > sma50 and sma50 > sma200
+    C_UpTrend
+C_Len = 14  // ema depth for bodyAvg
+C_ShadowPercent = 5.0  // size of shadows
+C_ShadowEqualsPercent = 100.0
+C_DojiBodyPercent = 5.0
+C_Factor = 2.0  // shows the number of times the shadow dominates the candlestick body
+
+C_BodyHi = math.max(close, open)
+C_BodyLo = math.min(close, open)
+C_Body = C_BodyHi - C_BodyLo
+C_BodyAvg = ta.ema(C_Body, C_Len)
+C_SmallBody = C_Body < C_BodyAvg
+C_LongBody = C_Body > C_BodyAvg
+C_UpShadow = high - C_BodyHi
+C_DnShadow = C_BodyLo - low
+C_HasUpShadow = C_UpShadow > C_ShadowPercent / 100 * C_Body
+C_HasDnShadow = C_DnShadow > C_ShadowPercent / 100 * C_Body
+C_WhiteBody = open < close
+C_BlackBody = open > close
+C_Range = high - low
+C_IsInsideBar = C_BodyHi[1] > C_BodyHi and C_BodyLo[1] < C_BodyLo
+C_BodyMiddle = C_Body / 2 + C_BodyLo
+C_ShadowEquals = C_UpShadow == C_DnShadow or math.abs(C_UpShadow - C_DnShadow) / C_DnShadow * 100 < C_ShadowEqualsPercent and math.abs(C_DnShadow - C_UpShadow) / C_UpShadow * 100 < C_ShadowEqualsPercent
+C_IsDojiBody = C_Range > 0 and C_Body <= C_Range * C_DojiBodyPercent / 100
+C_Doji = C_IsDojiBody and C_ShadowEquals
+
+patternLabelPosLow = low - ta.atr(30) * 0.6
+patternLabelPosHigh = high + ta.atr(30) * 0.6
+
+label_color_bullish = color.blue
+C_EngulfingBullishNumberOfCandles = 2
+C_EngulfingBullish = C_DownTrend and C_WhiteBody and C_LongBody and C_BlackBody[1] and C_SmallBody[1] and close >= open[1] and open <= close[1] and (close > open[1] or open < close[1])
+if C_EngulfingBullish
+    var ttBullishEngulfing = 'Engulfing\nAt the end of a given downward trend, there will most likely be a reversal pattern. To distinguish the first day, this candlestick pattern uses a small body, followed by a day where the candle body fully overtakes the body from the day before, and closes in the trend’s opposite direction. Although similar to the outside reversal chart pattern, it is not essential for this pattern to completely overtake the range (high to low), rather only the open and the close.'
+    ttBullishEngulfing
+    //label.new(bar_index, patternLabelPosLow, text="BE", style=label.style_label_up, color = label_color_bullish, textcolor=color.white, tooltip = ttBullishEngulfing)
+//bgcolor(highest(C_EngulfingBullish?1:0, C_EngulfingBullishNumberOfCandles)!=0 ? color.blue : na, offset=-(C_EngulfingBullishNumberOfCandles-1))
+
+//Bearish Engulfing
+label_color_bearish = color.red
+C_EngulfingBearishNumberOfCandles = 2
+C_EngulfingBearish = C_UpTrend and C_BlackBody and C_LongBody and C_WhiteBody[1] and C_SmallBody[1] and close <= open[1] and open >= close[1] and (close < open[1] or open > close[1])
+if C_EngulfingBearish
+    var ttBearishEngulfing = 'Engulfing\nAt the end of a given uptrend, a reversal pattern will most likely appear. During the first day, this candlestick pattern uses a small body. It is then followed by a day where the candle body fully overtakes the body from the day before it and closes in the trend’s opposite direction. Although similar to the outside reversal chart pattern, it is not essential for this pattern to fully overtake the range (high to low), rather only the open and the close.'
+    ttBearishEngulfing
+    //label.new(bar_index, patternLabelPosHigh, text="BE", style=label.style_label_down, color = label_color_bearish, textcolor=color.white, tooltip = ttBearishEngulfing)
+//bgcolor(highest(C_EngulfingBearish?1:0, C_EngulfingBearishNumberOfCandles)!=0 ? color.red : na, offset=-(C_EngulfingBearishNumberOfCandles-1))
+
+//END▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+////////////////////////////////////////////////////////////////////////////////
+//SIGNAL SCORES▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The script is implementing two candlestick patterns: the Bullish Engulfing and the Bearish Engulfing patterns.
+//The Bullish Engulfing pattern is a two-candle pattern that occurs during a downtrend. The first candle is a small-bodied bearish candle, followed by a large-bodied bullish candle that fully engulfs the body of the previous candle. The script checks for the presence of these criteria and sets a variable C_EngulfingBullish to true if they are met. It also includes a tooltip ttBullishEngulfing that explains the pattern and its significance. The script then adds a label with the text "BE" to the chart if C_EngulfingBullish is true.
+//The Bearish Engulfing pattern is a two-candle pattern that occurs during an uptrend. The first candle is a small-bodied bullish candle, followed by a large-bodied bearish candle that fully engulfs the body of the previous candle. The script checks for the presence of these criteria and sets a variable C_EngulfingBearish to true if they are met. It also includes a tooltip ttBearishEngulfing that explains the pattern and its significance. The script then adds a label with the text "BE" to the chart if C_EngulfingBearish is true.
+//The script also includes several variables and calculations that are used to define the various criteria for the patterns. These include the trend direction (C_DownTrend and C_UpTrend), the length of the candlestick bodies (C_Body), the presence of shadows (C_UpShadow and C_DnShadow), and the size of the candlestick body relative to the range of the candle (C_SmallBody and C_LongBody).
+
+
+
+//Alternate Signals Option
+alternatesignals = input(title='Alternate Signals', defval=true)
+
+//Position Options
+longpositions = input(title='Long Positions', defval=true)
+shortpositions = input(title='Short Positions', defval=true)
+
+//Stop Loss Warning Option
+stoplosspercent = input.float(title='Stop Loss Warning (%)', defval=-2.5, minval=-50, maxval=0, step=.1) / 100
+
+//Score Requirements
+stronglongscore = input.int(defval=10, minval=0, maxval=1000, title='Required Strong LONG Score')
+strongshortscore = input.int(defval=10, minval=0, maxval=1000, title='Required Strong SHORT Score')
+weaklongscore = input.int(defval=8, minval=0, maxval=1000, title='Required Weak LONG Score')
+weakshortscore = input.int(defval=8, minval=0, maxval=1000, title='Required Weak SHORT Score')
+
+
+//END▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The first line defines a boolean input variable called "alternatesignals", which will be used to enable or disable the alternate signals feature in the trading strategy.
+//The next two lines define boolean input variables called "longpositions" and "shortpositions", which will be used to enable or disable long and short positions in the trading strategy.
+//The fourth line defines a floating point input variable called "stoplosspercent", which represents the percentage by which the stop loss will be set below the entry price. The value of this variable is initially set to -2.5% and can be adjusted between -50% and 0% in increments of 0.1% using the input control.
+//The final four lines define integer input variables that represent the minimum score requirements for different types of signals in the trading strategy. The "stronglongscore" and "strongshortscore" variables represent the minimum score required for a strong long or short signal, while the "weaklongscore" and "weakshortscore" variables represent the minimum score required for a weak long or short signal. These values can be adjusted between 0 and 1000 using the input controls.
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//STOP LOSS WARNINGS▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+//Stop Loss Criteria
+longstoploss = strategy.position_avg_price * (1 + stoplosspercent)
+shortstoploss = strategy.position_avg_price * (1 - stoplosspercent)
+printstoplong = longstoploss > close and longstoploss[1] < close[1] and strategy.position_size > 0
+printstopshort = shortstoploss < close and shortstoploss[1] > close[1] and strategy.position_size < 0
+
+////////////////////////////////////////////////////////////////////////////
+//END▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//The user is able to set a percentage value for the stop loss warning through the stoplosspercent input variable. A negative value for stoplosspercent means the stop loss warning will trigger when the position is losing money. For example, a stoplosspercent value of -2.5 means that the stop loss warning will trigger when the position loses 2.5% of its value from the entry price.
+//The code then calculates the stop loss levels for long and short positions based on the strategy's average position price and the stoplosspercent value. If the current price crosses the stop loss level in the direction opposite to the position, a stop loss warning will be printed.
+//The stop loss warning will only trigger if the printstoplong or printstopshort variables are true, which means that the current price has crossed the stop loss level and the previous price was below or above the stop loss level, respectively.
+
+
+
+// Alerts
+// to automate put this in trendinview message:     {{strategy.order.alert_message}}
+i_alert_txt_entry_long = input.text_area(defval = "", title = "Long Entry Message", group = "Alerts")
+i_alert_txt_exit_long = input.text_area(defval = "", title = "Long Exit Message", group = "Alerts")
+i_alert_txt_entry_short = input.text_area(defval = "", title = "Short Entry Message", group = "Alerts")
+i_alert_txt_exit_short = input.text_area(defval = "", title = "Short Exit Message", group = "Alerts")
+i_alert_txt_TP_long = input.text_area(defval = "", title = "Long TP Message", group = "Alerts")
+i_alert_txt_TP_short = input.text_area(defval = "", title = "Short TP Message", group = "Alerts")
+i_alert_txt_SL_long = input.text_area(defval = "", title = "Long SL Message", group = "Alerts")
+i_alert_txt_SL_short = input.text_area(defval = "", title = "Short SL Message", group = "Alerts")
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+//This section of code defines input options for text areas used for alerts. These alerts can be used to notify the user of certain events or actions taken by the strategy, such as entering or exiting a position, reaching a take profit or stop loss level, etc. The text areas allow the user to customize the alert message that will be displayed.
+//Each text area has a default value of an empty string, and is grouped under the "Alerts" group. The input options are:
+//i_alert_txt_entry_long: Text area for the long entry alert message
+//i_alert_txt_exit_long: Text area for the long exit alert message
+//i_alert_txt_entry_short: Text area for the short entry alert message
+//i_alert_txt_exit_short: Text area for the short exit alert message
+//i_alert_txt_TP_long: Text area for the long take profit alert message
+//i_alert_txt_TP_short: Text area for the short take profit alert message
+//i_alert_txt_SL_long: Text area for the long stop loss alert message
+//i_alert_txt_SL_short: Text area for the short stop loss alert message
+//The alerts can be used to notify the user via email or other means using the TradingView alert system.
+
+
+
+// Entries and Exits with TP/SL
+if bull
+    //strategy.close("Short" , alert_message = i_alert_txt_exit_short)
+    strategy.entry("Long" , strategy.long , alert_message = i_alert_txt_entry_long)
+    strategy.exit("Take Profit 1", from_entry = "Long", limit = tp1_y , qty_percent = 20)//, alert_message = i_alert_txt_TP_long)
+    strategy.exit("Take Profit 2", from_entry = "Long", limit = tp2_y , qty_percent = 20)//, alert_message = i_alert_txt_TP_long)
+    strategy.exit("Take Profit 3", from_entry = "Long", limit = tp3_y , qty_percent = 20)//, alert_message = i_alert_txt_TP_long)
+    strategy.exit("Take Profit 4", from_entry = "Long", limit = tp4_y , qty_percent = 30)//, alert_message = i_alert_txt_TP_long)
+    strategy.exit("Take Profit 5", from_entry = "Long", limit = tp5_y , qty_percent = 100)//, alert_message = i_alert_txt_TP_long)
+    strategy.exit("Stop Loss", from_entry = "Long", loss = stop_y)//, alert_message = i_alert_txt_SL_long)
+
+if bear
+    //strategy.close("Long" , alert_message = i_alert_txt_exit_long)
+    strategy.entry("Short" , strategy.short, alert_message = i_alert_txt_entry_short)
+    strategy.exit("Take Profit 1", from_entry = "Short", limit = tp1_y , qty_percent = 20)//, alert_message = i_alert_txt_TP_short)
+    strategy.exit("Take Profit 2", from_entry = "Short", limit = tp2_y , qty_percent = 20)//, alert_message = i_alert_txt_TP_short)
+    strategy.exit("Take Profit 3", from_entry = "Short", limit = tp3_y , qty_percent = 20)//, alert_message = i_alert_txt_TP_short)
+    strategy.exit("Take Profit 4", from_entry = "Short", limit = tp4_y , qty_percent = 30)//, alert_message = i_alert_txt_TP_short)
+    strategy.exit("Take Profit 5", from_entry = "Short", limit = tp5_y , qty_percent = 100)//, alert_message = i_alert_txt_TP_short)
+    strategy.exit("Stop Loss", from_entry = "Short", loss = stop_y)//, alert_message = i_alert_txt_SL_short)
+
+
+///////////////////////////////////////////////////////////////////////////////
+//------------------ RIO1421 EXPLAINED CODE----------------------------------//
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+//First, it checks if the current trend is bullish or bearish using the bull and bear boolean variables that were calculated earlier.
+//If the trend is bullish, the script will attempt to enter a long position using the strategy.entry() function with the strategy.long argument. It will also set several take profit levels (TP1 to TP5) and a stop loss level using the strategy.exit() function with the from_entry argument set to "Long". The limit argument is used to set the price at which the position will be exited, while the qty_percent argument sets the percentage of the position size to exit at each TP level. Additionally, each exit has an optional alert_message argument which can be set to a custom message to be displayed in an alert.
+//If the trend is bearish, the script will attempt to enter a short position using the strategy.entry() function with the strategy.short argument. It will also set several take profit levels (TP1 to TP5) and a stop loss level using the strategy.exit() function with the from_entry argument set to "Short". The limit and qty_percent arguments are used in the same way as for the long position exits.
+//Note that the commented out strategy.close() lines are not needed since strategy.exit() will close the position from the corresponding entry. Also note that the alert_message argument for each entry is set to a custom message using the i_alert_txt_entry_long and i_alert_txt_entry_short input variables that were defined earlier.

@@ -1,0 +1,147 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © World_of_Indicators
+//@version=5
+indicator('Stocks Algo', shorttitle='Stocks Algo', overlay=true)
+
+// Input settings
+var string calcGroup = 'Calculation'
+length = input.int(title='ATR Period', defval=22, group=calcGroup)
+mult = input.float(title='ATR Multiplier', step=0.1, defval=3.0, group=calcGroup)
+useClose = input.bool(title='Use Close Price for Extremums', defval=true, group=calcGroup)
+
+var string visualGroup = 'Visuals'
+showLabels = input.bool(title='Show Buy/Sell Labels', defval=true, group=visualGroup)
+
+var string alertGroup = 'Alerts'
+awaitBarConfirmation = input.bool(title="Await Bar Confirmation", defval=true, group=alertGroup)
+
+// Calculation
+atr = mult * ta.atr(length)
+longStop = (useClose ? ta.highest(close, length) : ta.highest(length)) - atr
+longStopPrev = nz(longStop[1], longStop)
+longStop := close[1] > longStopPrev ? math.max(longStop, longStopPrev) : longStop
+
+shortStop = (useClose ? ta.lowest(close, length) : ta.lowest(length)) + atr
+shortStopPrev = nz(shortStop[1], shortStop)
+shortStop := close[1] < shortStopPrev ? math.min(shortStop, shortStopPrev) : shortStop
+
+var int dir = 1
+dir := close > shortStopPrev ? 1 : close < longStopPrev ? -1 : dir
+
+// Colors
+var color longColor = color.green
+var color shortColor = color.red
+var color textColor = color.new(color.white, 0)
+
+// Variables to store signal label and line IDs
+var label buySignalLabel = na
+var label sellSignalLabel = na
+var line entryLine = na
+var line stoplossLine = na
+var line target1Line = na
+var line target2Line = na
+var line target3Line = na
+var label entryLabel = na
+var label stoplossLabel = na
+var label target1Label = na
+var label target2Label = na
+var label target3Label = na
+
+// Functions to delete labels and lines
+f_delete_labels_and_lines() =>
+    if (not na(buySignalLabel))
+        label.delete(buySignalLabel)
+    if (not na(sellSignalLabel))
+        label.delete(sellSignalLabel)
+    if (not na(entryLabel))
+        label.delete(entryLabel)
+    if (not na(stoplossLabel))
+        label.delete(stoplossLabel)
+    if (not na(target1Label))
+        label.delete(target1Label)
+    if (not na(target2Label))
+        label.delete(target2Label)
+    if (not na(target3Label))
+        label.delete(target3Label)
+    if (not na(entryLine))
+        line.delete(entryLine)
+    if (not na(stoplossLine))
+        line.delete(stoplossLine)
+    if (not na(target1Line))
+        line.delete(target1Line)
+    if (not na(target2Line))
+        line.delete(target2Line)
+    if (not na(target3Line))
+        line.delete(target3Line)
+
+// Buy/Sell signals
+buySignal = dir == 1 and dir[1] == -1
+sellSignal = dir == -1 and dir[1] == 1
+
+if (buySignal or sellSignal)
+    f_delete_labels_and_lines()
+
+    if (buySignal)
+        buySignalLabel := label.new(x=bar_index, y=high, text='Buy Entry', style=label.style_label_up, color=color.new(longColor, 0), textcolor=textColor)
+        
+        entryPrice = high
+        stoplossPrice = entryPrice - atr * 0.5
+        target1Price = entryPrice + atr
+        target2Price = entryPrice + atr * 1.5
+        target3Price = entryPrice + atr * 2
+
+        entryLine := line.new(x1=bar_index, x2=bar_index + 50, y1=entryPrice, y2=entryPrice, color=color.blue, width=2)
+        entryLabel := label.new(x=bar_index, y=entryPrice, text='Buy Entry\n' + str.tostring(entryPrice), style=label.style_label_up, color=color.blue, textcolor=color.white)
+
+        stoplossLine := line.new(x1=bar_index, x2=bar_index + 50, y1=stoplossPrice, y2=stoplossPrice, color=color.red, width=2)
+        stoplossLabel := label.new(x=bar_index, y=stoplossPrice, text='Stoploss\n' + str.tostring(stoplossPrice), style=label.style_label_down, color=color.red, textcolor=color.white)
+
+        target1Line := line.new(x1=bar_index, x2=bar_index + 50, y1=target1Price, y2=target1Price, color=color.green, width=2)
+        target1Label := label.new(x=bar_index, y=target1Price, text='Target 1\n' + str.tostring(target1Price), style=label.style_label_up, color=color.green, textcolor=color.white)
+
+        target2Line := line.new(x1=bar_index, x2=bar_index + 50, y1=target2Price, y2=target2Price, color=color.green, width=2)
+        target2Label := label.new(x=bar_index, y=target2Price, text='Target 2\n' + str.tostring(target2Price), style=label.style_label_up, color=color.green, textcolor=color.white)
+
+        target3Line := line.new(x1=bar_index, x2=bar_index + 50, y1=target3Price, y2=target3Price, color=color.green, width=2)
+        target3Label := label.new(x=bar_index, y=target3Price, text='Target 3\n' + str.tostring(target3Price), style=label.style_label_up, color=color.green, textcolor=color.white)
+
+    if (sellSignal)
+        sellSignalLabel := label.new(x=bar_index, y=low, text='Sell Entry', style=label.style_label_down, color=color.new(shortColor, 0), textcolor=textColor)
+        
+        entryPrice = low
+        stoplossPrice = entryPrice + atr * 0.5
+        target1Price = entryPrice - atr
+        target2Price = entryPrice - atr * 1.5
+        target3Price = entryPrice - atr * 2
+
+        entryLine := line.new(x1=bar_index, x2=bar_index + 50, y1=entryPrice, y2=entryPrice, color=color.blue, width=2)
+        entryLabel := label.new(x=bar_index, y=entryPrice, text='Sell Entry\n' + str.tostring(entryPrice), style=label.style_label_down, color=color.blue, textcolor=color.white)
+
+        stoplossLine := line.new(x1=bar_index, x2=bar_index + 50, y1=stoplossPrice, y2=stoplossPrice, color=color.red, width=2)
+        stoplossLabel := label.new(x=bar_index, y=stoplossPrice, text='Stoploss\n' + str.tostring(stoplossPrice), style=label.style_label_up, color=color.red, textcolor=color.white)
+
+        target1Line := line.new(x1=bar_index, x2=bar_index + 50, y1=target1Price, y2=target1Price, color=color.green, width=2)
+        target1Label := label.new(x=bar_index, y=target1Price, text='Target 1\n' + str.tostring(target1Price), style=label.style_label_down, color=color.green, textcolor=color.white)
+
+        target2Line := line.new(x1=bar_index, x2=bar_index + 50, y1=target2Price, y2=target2Price, color=color.green, width=2)
+        target2Label := label.new(x=bar_index, y=target2Price, text='Target 2\n' + str.tostring(target2Price), style=label.style_label_down, color=color.green, textcolor=color.white)
+
+        target3Line := line.new(x1=bar_index, x2=bar_index + 50, y1=target3Price, y2=target3Price, color=color.green, width=2)
+        target3Label := label.new(x=bar_index, y=target3Price, text='Target 3\n' + str.tostring(target3Price), style=label.style_label_down, color=color.green, textcolor=color.white)
+
+// Alerts
+await = awaitBarConfirmation ? barstate.isconfirmed : true
+alertcondition(dir != dir[1] and await, title='Alert: SA Direction Change', message='Stocks Algo has changed direction!')
+alertcondition(buySignal and await, title='Alert: SA Buy', message='Stocks Algo Buy!')
+alertcondition(sellSignal and await, title='Alert: SA Sell', message='Stocks Algo Sell!')
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

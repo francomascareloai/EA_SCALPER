@@ -1,0 +1,917 @@
+// IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT  IMPORTANT
+
+// This production is AlgoPoint made indicator. The policy to protect customer rights is as follows:
+
+// In case of copying, unauthorized use, sharing of the codes of this indicator without AlgoPoint watermark,
+// or in any other case that may violate the rights of the customers who have get it from AlgoPoint, HARMONYALGO.LTD,
+//  to which the AlgoPoint brand is affiliated, will sue the persons who caused it. www.algopoint.co
+
+
+//@version=5
+indicator(shorttitle="AlgoPoint - FlipChart Algo", title="FlipChart Algo [AlgoPoint]", overlay=true, max_labels_count = 500)
+lengthbbb = 34
+maType = "SMA"
+src = close
+enablesignals = input(true, 'Buy/Sell', group="General Settings | All Free Algo: www.algopoint.co", inline = 'A1')
+length = input.int(10,title = '', minval=1, group="General Settings | All Free Algo: www.algopoint.co", inline = 'A1')
+enablereadysignals = input(true, '| Ready Signals', group="General Settings | All Free Algo: www.algopoint.co", inline = 'A2')
+mult = input.float(3.0, minval=0.001, maxval=50, title="Reversal Band Sensitivity", group="General Settings | All Free Algo: www.algopoint.co")
+enablebarcoloring = input(true, 'Candle Coloring', group="General Settings | All Free Algo: www.algopoint.co")
+ma(source, lengthbbb, _type) =>
+    switch _type
+        "SMA" => ta.sma(source, lengthbbb)
+        "EMA" => ta.ema(source, lengthbbb)
+        "SMMA (RMA)" => ta.rma(source, lengthbbb)
+        "WMA" => ta.wma(source, lengthbbb)
+        "VWMA" => ta.vwma(source, lengthbbb)
+
+basis = ta.ema(ma(src, lengthbbb, maType), 14)
+dev = mult * ta.stdev(src, lengthbbb)
+upper = ta.ema(basis + dev, 14)
+lower = ta.ema(basis - dev, 14)
+upper1 = upper + (ta.atr(30) * 0.8)
+lower1 = lower - (ta.atr(30) * 0.8)
+upper11 = upper1 + (ta.atr(30) * 0.8)
+lower11 = lower1 - (ta.atr(30) * 0.8)
+offsetbbb = 0
+//plot(basis, "Basis", color=#2962FF, offset = offsetbbb)
+p1 = plot(upper, "Upper", color=color.new(#F23645,75), offset = offsetbbb)
+p2 = plot(lower, "Lower", color=color.new(#089981,75), offset = offsetbbb)
+p11 = plot(upper1, "Upper 1", color=color.new(#F23645,60), offset = offsetbbb)
+p22 = plot(lower1, "Lower 1", color=color.new(#089981,60), offset = offsetbbb)
+p111 = plot(upper11, "Upper 2", color=color.new(#F23645,0), offset = offsetbbb)
+p222 = plot(lower11, "Lower 2", color=color.new(#089981,0), offset = offsetbbb)
+fill(p1, p11, color=color.new(#F23645, 90))
+fill(p2, p22, color=color.new(#089981, 90))
+fill(p11, p111, color=color.new(#F23645, 80))
+fill(p22, p222, color=color.new(#089981, 80))
+// Relative Volatility Index
+offset = 0
+bbMultInput = 4.0
+len = 14
+stddev = ta.stdev(src, length)
+uppervi = ta.ema(ta.change(src) <= 0 ? 0 : stddev, len)
+lowervi = ta.ema(ta.change(src) > 0 ? 0 : stddev, len)
+rvi = uppervi / (uppervi + lowervi) * 100
+readytobuy = ta.crossunder(rvi,20)
+readytosell = ta.crossover(rvi,80)
+buycondition = ta.crossover(rvi,20)
+sellcondition = ta.crossunder(rvi,80)
+y1 = low - (ta.atr(30) * 0.8)
+y2 = high + (ta.atr(30) * 0.8)
+y11 = low - (ta.atr(30) * 0.1)
+y22 = high + (ta.atr(30) * 0.1)
+buytext = low < lower ? '▲+' : '▲'
+selltext = high > upper ? '▼+' : '▼'
+if buycondition and enablesignals
+	label.new(bar_index , y1, buytext, color=#018208, style=label.style_label_up, textcolor=color.white, size=size.normal)
+if sellcondition and enablesignals
+	label.new(bar_index , y2, selltext, color=#d12208, style=label.style_label_down, textcolor=color.white, size=size.normal)
+//
+if readytobuy and enablereadysignals
+	label.new(bar_index , y11, 'Ready To ▲', color=#01820700, style=label.style_label_up, textcolor=color.white, size=size.small)
+if readytosell and enablereadysignals
+	label.new(bar_index , y22, 'Ready To ▼', color=#d1230800, style=label.style_label_down, textcolor=color.white, size=size.small)
+
+// Candle Coloring
+grad(src)=>
+    color out = switch 100 - int(src)
+        0  => color.new(#1500FF , 0)
+        1  => color.new(#1709F6 , 0)
+        2  => color.new(#1912ED , 0)
+        3  => color.new(#1B1AE5 , 0)
+        4  => color.new(#1D23DC , 0)
+        5  => color.new(#1F2CD3 , 0)
+        6  => color.new(#2135CA , 0)
+        7  => color.new(#233EC1 , 0)
+        8  => color.new(#2446B9 , 0)
+        9  => color.new(#264FB0 , 0)
+        10 => color.new(#2858A7 , 0)
+        11 => color.new(#2A619E , 0)
+        12 => color.new(#2C6A95 , 0)
+        13 => color.new(#2E728D , 0)
+        14 => color.new(#307B84 , 0)
+        15 => color.new(#32847B , 0)
+        16 => color.new(#348D72 , 0)
+        17 => color.new(#36956A , 0)
+        18 => color.new(#389E61 , 0)
+        19 => color.new(#3AA758 , 0)
+        20 => color.new(#3CB04F , 0)
+        21 => color.new(#3EB946 , 0)
+        22 => color.new(#3FC13E , 0)
+        23 => color.new(#41CA35 , 0)
+        24 => color.new(#43D32C , 0)
+        25 => color.new(#45DC23 , 0)
+        26 => color.new(#47E51A , 0)
+        27 => color.new(#49ED12 , 0)
+        28 => color.new(#4bf609 , 0)
+        29 => color.new(#58f600 , 0)
+        30 => color.new(#64f700 , 0)
+        31 => color.new(#6ff700 , 0)
+        32 => color.new(#78f700 , 0)
+        33 => color.new(#81f700 , 0)
+        34 => color.new(#89f800 , 0)
+        35 => color.new(#91f800 , 0)
+        36 => color.new(#99f800 , 0)
+        37 => color.new(#a0f800 , 0)
+        38 => color.new(#a7f800 , 0)
+        39 => color.new(#aef900 , 0)
+        40 => color.new(#b5f900 , 0)
+        41 => color.new(#bbf900 , 0)
+        42 => color.new(#c2f900 , 0)
+        43 => color.new(#c8f900 , 0)
+        44 => color.new(#cef900 , 0)
+        45 => color.new(#d4f900 , 0)
+        46 => color.new(#d9f900 , 0)
+        47 => color.new(#dff900 , 0)
+        48 => color.new(#e5f900 , 0)
+        49 => color.new(#eaf900 , 0)
+        50 => color.new(#eaf900 , 0)
+        51 => color.new(#ebf400 , 0)
+        52 => color.new(#ecee00 , 0)
+        53 => color.new(#ede900 , 0)
+        54 => color.new(#eee300 , 0)
+        55 => color.new(#efde00 , 0)
+        56 => color.new(#efd800 , 0)
+        57 => color.new(#efd300 , 0)
+        58 => color.new(#f0cd00 , 0)
+        59 => color.new(#f0c800 , 0)
+        60 => color.new(#f0c200 , 0)
+        61 => color.new(#f0bc00 , 0)
+        62 => color.new(#efb700 , 0)
+        63 => color.new(#efb100 , 0)
+        64 => color.new(#eeac00 , 0)
+        65 => color.new(#eea600 , 0)
+        66 => color.new(#eda100 , 0)
+        67 => color.new(#ec9b00 , 0)
+        68 => color.new(#eb9600 , 0)
+        69 => color.new(#ea9000 , 0)
+        70 => color.new(#e98b00 , 0)
+        71 => color.new(#e88500 , 0)
+        72 => color.new(#e68000 , 0)
+        73 => color.new(#e57a00 , 0)
+        74 => color.new(#e37500 , 0)
+        75 => color.new(#e16f00 , 0)
+        76 => color.new(#df6a00 , 0)
+        77 => color.new(#dd6400 , 0)
+        78 => color.new(#db5e00 , 0)
+        79 => color.new(#d95800 , 0)
+        80 => color.new(#d75300 , 0)
+        81 => color.new(#d44d00 , 0)
+        82 => color.new(#d24600 , 0)
+        83 => color.new(#cf4000 , 0)
+        84 => color.new(#cc3a00 , 0)
+        85 => color.new(#c93301 , 0)
+        86 => color.new(#c62c05 , 0)
+        87 => color.new(#c32408 , 0)
+        88 => color.new(#c01a0b , 0)
+        89 => color.new(#bd0e0e , 0)
+        90 => color.new(#F60000 , 0)
+        91 => color.new(#DF0505 , 0)
+        92 => color.new(#C90909 , 0)
+        93 => color.new(#B20E0E , 0)
+        94 => color.new(#9B1313 , 0)
+        95 => color.new(#851717 , 0)
+        96 => color.new(#6E1C1C , 0)
+        97 => color.new(#572121 , 0)
+        98 => color.new(#412525 , 0)
+        99 => color.new(#2A2A2A , 0)
+        100 => color.new(#1A1818 , 20)
+        => color.white
+lengthbarcoloring = 34
+scale  = 2
+smooth = length
+factor = 1.5
+ema(source)=>
+    var float ema = 0.0
+    var int count = 0
+    count := nz(count[1]) + 1
+    ema := (1.0 - 2.0 / (count + 1.0)) * nz(ema[1]) + 2.0 / (count + 1.0) * source
+    ema
+
+atan2(y, x) =>
+    var float angle = 0.0
+    if x > 0
+        angle := math.atan(y / x)
+    else
+        if x < 0 and y >= 0
+            angle := math.atan(y / x) + math.pi
+        else
+            if x < 0 and y < 0
+                angle := math.atan(y / x) - math.pi
+            else
+                if x == 0 and y > 0
+                    angle := math.pi / 2
+                else
+                    if x == 0 and y < 0
+                        angle := -math.pi / 2
+    angle
+
+degrees(float source) =>
+    source * 180 / math.pi
+
+// Epanechnikov kernel function
+epanechnikov_kernel(_src, _size, _h, _r) =>
+    _currentWeight = 0.0
+    _cumulativeWeight = 0.0
+    for i = 0 to _size
+        y = _src[i]
+        u = math.pow(i, 2) / (math.pow(_h, 2) * _r)
+        w = (u >= 1) ? 0 : (3. / 4) * (1 - math.pow(u, 2))
+        _currentWeight := _currentWeight + y * w
+        _cumulativeWeight := _cumulativeWeight + w
+    _currentWeight / _cumulativeWeight
+
+atr = ema(ta.tr)
+slope = (close - close[lengthbarcoloring]) / (atr/(lengthbarcoloring/scale) * lengthbarcoloring)
+angle_rad = atan2(slope, 1)
+degrees = (epanechnikov_kernel(degrees(angle_rad), lengthbarcoloring, smooth, factor) + 90) / 180 * 100
+colour = grad(degrees)
+barcolor(enablebarcoloring == true ? colour : #ffffff00)
+plotcandle(open, high, low, close, "Trend Candles", colour, colour, true, bordercolor = colour)
+//----------------------------------------}
+//Order Blocks
+//----------------------------------------{
+show_order_blocks=input.bool(true,"Order Blocks",group = 'Order Blocks', inline = "ob1")
+ibull_ob_css = input.color(#08998110, '', inline = 'ob1', group = 'Order Blocks')
+ibear_ob_css = input.color(#f2364610, '', inline = 'ob1', group = 'Order Blocks')
+ob_type__= input.string('All', '',options = ['All','Internal','External'], group = 'Order Blocks',inline = 'ob1')
+i_tf_ob = input.timeframe("", "Timeframe", group = 'Order Blocks', inline = "ob2")
+mittigation_filt= input.string('Wicks', "Mitigation Method",options = ['Touch','Wicks','Close','Average'], group = 'Order Blocks',inline = 'ob3')
+overlapping_filt= input(true, 'Hide Overlap', inline = 'ob3', group = 'Order Blocks')
+max_obs = input.int(4, 'Max OBs', minval = 3, group = 'Order Blocks', inline = 'ob4')
+length_extend_ob = input.int(defval = 70,title = "Length", minval = 0, maxval = 500 ,group = 'Order Blocks', inline = "ob4")
+ob_extend = input.bool(false,"Extend",group = 'Order Blocks', inline = "ob4")
+text_size_ob =input.string("Medium", options=["Small", "Medium","Large"], title="Text Size",inline="ob1_t", group="Order Blocks")
+text_size_ob_ = text_size_ob == "Small" ? size.tiny : text_size_ob == "Medium" ? size.small : text_size_ob == "Large" ? size.normal : text_size_ob == "Medium2" ? size.normal : text_size_ob == "Large2" ? size.large : size.huge
+ob_text_color_1 = input.color(#787b86 , '', inline = 'ob1_t', group = 'Order Blocks')
+volume_text = input.bool(true, 'Volume', group='Order Blocks',inline = 'ob1_t')
+percent_text = input.bool(true, 'Percentage', group='Order Blocks',inline = 'ob1_t')
+show_line_ob  = input.string("On", title = "Mid Line", options=["On", "Off"], group='Order Blocks',inline='ob1_l')
+show_line_ob_1=show_line_ob=="On"?true:false
+line_style_ob  = input.string("Dashed", title = "Line Style", options=["Solid", "Dashed", "Dotted"], group='Order Blocks',inline='ob1_l')
+line_style_ob_1 = line_style_ob=="Solid" ? line.style_solid : line_style_ob=="Dashed" ? line.style_dashed : line.style_dotted
+show_order_blocks_mtf=input.bool(false,"MTF Order Blocks",group = 'Order Blocks', inline = "m_ob1")
+ibull_ob_css_2 = input.color(#5d606b19, '', inline = 'm_ob1', group = 'Order Blocks')
+ibear_ob_css_2 = input.color(#5d606b19, '', inline = 'm_ob1', group = 'Order Blocks')
+ob_type__mtf= input.string('All', '',options = ['All','Internal','External'], group = 'Order Blocks',inline = 'm_ob1')
+i_tf_ob_mtf = input.timeframe("240", "Timeframe", group = 'Order Blocks', inline = "mob2")
+mittigation_filt_mtf= input.string('Wicks', "Mitigation Method",options = ['Touch','Wicks','Close','Average'], group = 'Order Blocks',inline = 'mob3')
+overlapping_filt_mtf= input(true, 'Hide Overlap', inline = 'mob3', group = 'Order Blocks')
+max_obs_mtf = input.int(4, 'Max OBs', minval = 3, group = 'Order Blocks', inline = "mob4")
+length_extend_ob_mtf = input.int(defval = 20,title = "Length", minval = 0, maxval = 500 ,group = 'Order Blocks', inline = "mob4")
+ob_extend_mtf = input.bool(false,"Extend",group = 'Order Blocks', inline = "mob4")
+v_filter = input.bool(true, 'Internal Bull/Bear Activity', group='Order Blocks',inline = 'volume')
+text_size_ob2 =input.string("Medium", options=["Small", "Medium","Large"], title="Text Size",inline="ob2_t", group="Order Blocks")
+text_size_ob_2 = text_size_ob2 == "Small" ? size.tiny : text_size_ob2 == "Medium" ? size.small : text_size_ob2== "Large" ? size.normal : text_size_ob2 == "Medium2" ? size.normal : text_size_ob2 == "Large2" ? size.large : size.huge
+ob_text_color_2 = input.color(#787b86 , '', inline = 'ob2_t', group = 'Order Blocks')
+volume_text_2 = input.bool(true, 'Volume', group='Order Blocks',inline = 'ob2_t')
+percent_text_2 = input.bool(true, 'Percentage', group='Order Blocks',inline = 'ob2_t')
+xsite = 'e'
+show_line_ob2  = input.string("On", title = "Mid Line", options=["On", "Off"], group='Order Blocks',inline='ob2_l')
+allinone = '👇'
+show_line_ob_2=show_line_ob2=="On"?true:false
+xykadagaba = 'M'
+line_style_ob2  = input.string("Dashed", title = "Line Style", options=["Solid", "Dashed", "Dotted"], group='Order Blocks',inline='ob2_l')
+xlix = 'lix'
+line_style_ob_2 = line_style_ob2=="Solid" ? line.style_solid : line_style_ob2=="Dashed" ? line.style_dashed : line.style_dotted
+xsell = 'sell'
+v_buy = #089981ba
+xiakx = 'M'
+v_sell = #f23646ba
+xio = '.io'
+tf_s1=i_tf_ob_mtf==''?timeframe.period:i_tf_ob_mtf
+xfwad = 'F'
+timeframe_st=not(str.contains(tf_s1,'S')) and not(str.contains(tf_s1,'D')) and not(str.contains(tf_s1,'W')) and not(str.contains(tf_s1,'M')) ? str.tonumber(tf_s1)>=60? str.tostring(str.tonumber(tf_s1)/60) +"H": tf_s1 +"M" : tf_s1
+timeframe1=timeframe_st + ' : '
+xnt = 'nt'
+show_iob = ob_type__=='All' or ob_type__=='Internal' //input(true, 'Internal', inline = 'ob', group = 'Order Blocks')
+xykad = 'I'
+show_ob = ob_type__=='All' or ob_type__=='External' //input(false, 'External', inline = 'ob', group = 'Order Blocks')
+xweb = 'W'
+show_iob_mtf = ob_type__mtf=='All' or ob_type__mtf=='Internal' //input(true, 'Internal', inline = 'ob', group = 'Order Blocks')
+xdomain = 'b'
+show_ob_mtf = ob_type__mtf=='All' or ob_type__mtf=='External' //input(false, 'External', inline = 'ob', group = 'Order Blocks')
+xgo = 'go'
+ob_showlast = 5//input.int(10, 'LookBack', minval = 1, inline = 'ob', group = 'Order Blocks')
+xaik = 'E'
+iob_showlast = 5//input.int(5, 'LookBack', minval = 1, inline = 'iob', group = 'Order Blocks')
+xacafag = 'l'
+max_width_ob = 3//input.float(3, 'Max OB Width', minval = 0.1,maxval = 3, inline = 'close', group = 'Order Blocks')
+xsad = 's'
+max_width_ob:=max_width_ob==3?20:max_width_ob
+xebl = 'R'
+style = 'Colored'
+xykabadada = 'U'
+v_lookback= 10
+xfop = 'o'
+ob_loockback=10
+xmy = 'my'
+timediff=(time[1]-time[101])/100
+//-----------------------------------------------------------------------------}
+//Global variables
+//-----------------------------------------------------------------------------{
+color transparent = #ffffff00
+lengthorderblock = 50
+is_newbar(res) =>
+    t = time(res)
+    not na(t) and (na(t[1]) or t > t[1])
+
+Show_MS(x, y, txt, css, dashed, down, lbl_size)=>
+    label.new(int(math.avg(x, bar_index)), y, txt, color = transparent, textcolor = css, style = down ? label.style_label_down : label.style_label_up, size = lbl_size)
+    line.new(x, y, bar_index, y, color = css, style = dashed ? line.style_dashed : line.style_solid)
+
+f_barssince(_cond, _count) =>
+    _barssince = bar_index - ta.valuewhen(_cond, bar_index, _count)
+    _barssince
+
+//Swings detection/measurements
+calculate_swing_points(lengthorderblock)=>
+    var prev = 0
+    prev := high[lengthorderblock] > ta.highest(lengthorderblock) ? 0 : low[lengthorderblock] < ta.lowest(lengthorderblock) ? 1 : prev[1]
+    t = prev == 0 and prev[1] != 0 ? high[lengthorderblock] : 0
+    b = prev == 1 and prev[1] != 1 ? low[lengthorderblock] : 0
+    [t, b]
+
+var t_MS = 0, var int_t_MS = 0
+xa = 'al'
+var internal_y_up = 0., var internal_x_up = 0, var internal_y_dn = 0., var internal_x_dn = 0
+xacad = 'A'
+var y_up = 0., var x_up = 0 , var y_dn = 0., var x_dn = 0
+xbled = 'P'
+var crossed_up = true,  var crossed_down = true
+xefx = 'R'
+var internal_up_broke = true, var internal_dn_broke = true
+xtod = 'g'
+var up_trailing = high, var down_trailing = low
+xacw = 'A'
+var up_trailing_x = 0,  var down_trailing_x = 0
+xiuk = 'l'
+var high_text = '',  var low_text = ''
+xpoi = 'poi'
+bullish_OB_Break = false 
+xoo = 'E'
+bearish_OB_Break = false
+//-----------------------------------------------------------------------------}
+//Order Blocks
+//-----------------------------------------------------------------------------{
+first_nonzero_digit(n) => 
+    s = str.tostring(n)
+
+    int r=int (str.tonumber(s[0]))
+    for c=0 to str.length(s)-1
+        if s[c] != '0'
+            r:=int (str.tonumber(s[c]))
+    r 
+
+//Order block coordinates function
+ob_found(loc,b_index,show_ob,show_iob)=>
+    
+    type_obs="none"
+    valid=false
+    H=high
+    L=low
+    O=open
+    C=close
+    V=volume
+    idx=1
+    volume_=0.0
+    b_volume=0
+    s_volume=0
+    use_max=false
+    min = 99999999.
+    max = 0.
+
+    if open[5]>close[5] and close[4]>=open[5] and low[1]>high[5] and low>high[5] and show_iob
+        if low[5]>low[4]
+            type_obs:="Internal Bearish"
+            H:=math.min(high[4],high[5])
+            L:=low[4]
+            O:=open[4]        
+            C:=close[4]
+            V:=volume[4]
+            idx:=time[4]
+            valid:=true
+            use_max:=false
+        else
+            type_obs:="Internal Bearish"
+            H:=high[5]
+            L:=low[5]
+            O:=open[5]        
+            C:=close[5]
+            V:=volume[5]
+            idx:=time[5]
+            valid:=true
+            use_max:=false
+    
+    else if open[5]<close[5] and close[4]<=open[5] and high[1]<low[5] and high<low[5] and show_iob
+        if high[4]>high[5]
+            type_obs:="Internal Bullish"
+            H:=high[4]
+            L:=math.max(low[4],low[5])
+            O:=open[4]        
+            C:=close[4]
+            V:=volume[4]
+            idx:=time[4]
+            valid:=true
+            use_max:=true
+        else
+            type_obs:="Internal Bullish"
+            H:=high[5]
+            L:=low[5]
+            O:=open[5]        
+            C:=close[5]
+            V:=volume[5]
+            idx:=time[5]
+            valid:=true
+            use_max:=true
+
+    else if open[5]>close[5] and close[4]>close[5] and close[3]>=open[5] and low>high[5] and show_iob
+        if low[5]>low[4]
+            type_obs:="Internal Bearish"
+            H:=math.min(high[4],high[5])
+            L:=low[4]
+            O:=open[4]        
+            C:=close[4]
+            V:=volume[4]
+            idx:=time[4]
+            valid:=true
+            use_max:=false
+        else
+            type_obs:="Internal Bearish"
+            H:=high[5]
+            L:=low[5]
+            O:=open[5]        
+            C:=close[5]
+            V:=volume[5]
+            idx:=time[5]
+            valid:=true
+            use_max:=false
+
+    else if open[5]<close[5] and close[4]<close[5] and close[3]<=open[5] and high<low[5] and show_iob
+        if high[4]>high[5]
+            type_obs:="Internal Bullish"
+            H:=high[4]
+            L:=math.max(low[4],low[5])
+            O:=open[4]        
+            C:=close[4]
+            V:=volume[4]
+            idx:=time[4]
+            valid:=true
+            use_max:=true
+        else
+            type_obs:="Internal Bullish"
+            H:=high[5]
+            L:=low[5]
+            O:=open[5]      
+            C:=close[5]
+            V:=volume[5]
+            idx:=time[5]
+            valid:=true
+            use_max:=true
+    else
+        valid:=false
+
+    if valid
+        
+        ind=0
+        thold_ = (ta.highest(300) - ta.lowest(300)) * (max_width_ob/2.) / 100.
+
+        buyingVolume = math.round(V * (C - L) / (H - L))
+        sellingVolume = math.round(V * (H - C) / (H - L))
+        t_volume = (buyingVolume+sellingVolume)/2.
+        b_volume:=int ((buyingVolume/ta.highest(t_volume,300))*100)
+        s_volume:=int ((sellingVolume/ta.highest(t_volume,300))*100)
+
+        volume_:=V
+        //Search for highest/lowest high within the structure interval and get range
+        if use_max
+            max:=H//[idx]
+            min_1=L//[idx]//H[1]-math.min(open[1],close[1])>ob_threshold
+            min:=math.max(min_1,max-thold_)
+        else
+            max_1=H//[idx]//math.max(open[idx],close[idx])
+            min:=L//[idx]
+            max:=math.min(max_1,min+thold_)
+
+    [valid,volume_,b_volume,s_volume,max,min,idx,use_max ? -1 : 1,type_obs]
+
+
+//Set order blocks
+show_orderblock(boxes,lines, target_top, target_btm, target_left, target_type, show_last, swing, size,vol,col_1,col_2,length_extend_ob,ob_extend,tf_text,tf_text_2,ob_text_size,vol_text,perct_text,text_color_ob,show_line_obs,line_style_obs)=>
+    for x = 0 to show_last-1
+        get_box = array.get(boxes, x)
+        box.set_lefttop(get_box, na, na)
+        box.set_rightbottom(get_box, na , na)
+        box.set_border_color(get_box, na)
+        box.set_bgcolor(get_box, na)
+        get_line = array.get(lines, x)
+        line.set_color(get_line,na)
+        line.set_xy1(get_line,na,na)
+        line.set_xy2(get_line,na,na)
+
+    for i = 0 to size-1
+        get_box = array.get(boxes, i)
+        get_line = array.get(lines, i)
+        max_left=bar_index-750
+        volume_sum=array.sum(vol)
+        volume_=array.get(vol, i)>100000000 ? array.get(vol, i)/100000000.: array.get(vol, i)>1000000 ? array.get(vol, i)/1000000. : array.get(vol, i)/1000.
+        volume_per=(array.get(vol, i)/volume_sum)*100
+
+        unit=array.get(vol, i)>100000000 ?' B': array.get(vol, i)>1000000 ?' M' : ' K'
+        text_vol=vol_text and perct_text ? tf_text +  str.tostring(volume_,'#.##')+ unit + ' ('+ str.tostring(volume_per,'#.##')+'%)' : vol_text and not(perct_text) ? tf_text +  str.tostring(volume_,'#.##')+ unit : not(vol_text) and perct_text ? tf_text +   ' '+ str.tostring(volume_per,'#.##')+'%' : tf_text_2+  ''
+        if max_left<array.get(target_left, i)//true
+            box.set_lefttop(get_box, array.get(target_left, i), array.get(target_top, i))
+            box.set_rightbottom(get_box,timenow+((timediff)*length_extend_ob) , array.get(target_btm, i))
+            box.set_text(get_box,text_vol)
+            box.set_text_color(get_box,text_color_ob)
+            box.set_border_color(get_box,color.gray)
+            box.set_border_width(get_box,2)
+            box.set_text_halign(get_box,text.align_right)
+            box.set_text_valign(get_box,text.align_center)
+            box.set_text_size(get_box,ob_text_size)
+            fully_extend=not(vol_text) and not(perct_text) and ob_extend? extend.right : extend.none
+            len_ext=not(vol_text) and not(perct_text)?length_extend_ob : length_extend_ob/2
+            line.set_extend(get_line,fully_extend)
+            line.set_style(get_line,line_style_obs)
+            line.set_xy1(get_line,array.get(target_left, i),array.get(target_top, i)-(array.get(target_top, i) - array.get(target_btm, i))/2)
+            line.set_xy2(get_line,time+((timediff)*(len_ext)),array.get(target_top, i)-(array.get(target_top, i) - array.get(target_btm, i))/2)
+            if show_line_obs
+                line.set_color(get_line,color.gray)
+
+            if ob_extend
+                box.set_extend(get_box, extend.right)
+
+            color css = na
+            css := array.get(target_type, i) == 1 ? col_1 : col_2
+            box.set_border_color(get_box, css)
+            box.set_bgcolor(get_box, css)
+            box.set_border_color(get_box, css)
+            
+
+// //Set order blocks
+display_sub_ob_sell(boxes, target_top, target_btm, target_left, target_type, show_last, swing, size,right)=>
+    for x = 0 to show_last-1
+        get_box = array.get(boxes, x)
+        box.set_lefttop(get_box, na, na)
+        box.set_rightbottom(get_box, na , na)
+        box.set_border_color(get_box, na)
+        box.set_bgcolor(get_box, na)
+
+    for i = 0 to math.min(show_last-1, size-1)
+        get_box = array.get(boxes, i)
+        x=1000000000000
+        max_left=bar_index-750
+        max_right=array.get(target_left, i)+(((timediff)*(array.get(right, i)+5))) //> time+((timediff)*20) ? time+((time[1]-time[2])*20) : array.get(target_left, i)+(time+((time[1]-time[2])*(array.get(right, i)+10)))
+        if max_left<array.get(target_left, i)//true
+            box.set_lefttop(get_box,math.max(array.get(target_left, i),max_left), array.get(target_top, i))
+            box.set_rightbottom(get_box, math.min(max_right,timenow+((timediff)*20)), array.get(target_top, i)-(array.get(target_top, i) - array.get(target_btm, i))/2)
+            //box.set_extend(get_box, extend.right)
+            color css = na
+            if max_left<array.get(target_left, i)//true
+                css := array.get(target_type, i) == 1 ? v_buy : v_buy
+                box.set_border_color(get_box, color.new(css,100))
+                box.set_bgcolor(get_box, css)
+    if overlapping_filt
+        for i = math.min(show_last-1, size-1) to 0
+            get_box = array.get(boxes, i)
+            valid=true
+            index=0
+            //label.new(array.get(target_left,i),array.get(target_top,i),str.tostring(i))
+            if i>0
+                for x=i-1 to 0
+                    if array.get(target_top,i)>=array.get(target_btm,x) and array.get(target_top,i)<=array.get(target_top,x)
+                        valid:=false
+                    if array.get(target_btm,i)>=array.get(target_btm,x) and array.get(target_btm,i)<=array.get(target_top,x)
+                        valid:=false
+                    if array.get(target_btm,i)==array.get(target_btm,x) and array.get(target_top,i)==array.get(target_top,x)
+                        valid:=false
+                    if array.get(target_btm,i)<=array.get(target_btm,x) and array.get(target_top,i)>=array.get(target_top,x)
+                        valid:=false
+            if not(valid)
+                box.set_border_color(get_box, na)
+                box.set_bgcolor(get_box, na)
+
+
+
+display_sub_ob_buy(boxes, target_top, target_btm, target_left, target_type, show_last, swing, size,right1,right2)=>
+    for x = 0 to show_last-1
+        get_box = array.get(boxes, x)
+        box.set_lefttop(get_box, na, na)
+        box.set_rightbottom(get_box, na , na)
+        box.set_border_color(get_box, na)
+        box.set_bgcolor(get_box, na)
+
+    for i = 0 to math.min(show_last-1, size-1)
+        get_box = array.get(boxes, i)
+        x=1000000000000
+        max_left=bar_index-750
+        right=math.max(array.get(right1, i),array.get(right2, i))
+        max_right=array.get(target_left, i)+(((timediff)*right+10)) //> time+((time[1]-time[2])*20 ? time+((time[1]-time[2])*20) : array.get(target_left, i)+(time+((time[1]-time[2])*(array.get(right, i)+10))))
+        if max_left<array.get(target_left, i)//true
+            box.set_lefttop(get_box, math.max(array.get(target_left, i),max_left), array.get(target_top, i)-(array.get(target_top, i) - array.get(target_btm, i))/2)
+            box.set_rightbottom(get_box, math.min(max_right,timenow+((timediff)*20)),  array.get(target_btm, i))
+            //box.set_right(get_box, array.get(target_left, i)+100)
+            //box.set_extend(get_box, extend.right)
+            color css = na
+            if max_left<array.get(target_left, i)//true
+                css := array.get(right1, i)>array.get(right2, i)? v_sell : v_sell
+                box.set_border_color(get_box, color.new(css,100))
+                box.set_bgcolor(get_box, css)
+
+remove_ob(target_top, target_btm, target_left, target_type, show_last, swing, size)=>
+    del_index=0
+    deleted=false
+    for i = 0 to size-1
+        if i>0
+            for x=i-1 to 0
+                if array.get(target_top,i)>=array.get(target_btm,x) and array.get(target_top,i)<=array.get(target_top,x)
+                    deleted:=true
+                    del_index:=i
+                if array.get(target_btm,i)>=array.get(target_btm,x) and array.get(target_btm,i)<=array.get(target_top,x)
+                    deleted:=true
+                    del_index:=i
+                if array.get(target_btm,i)==array.get(target_btm,x) and array.get(target_top,i)==array.get(target_top,x)
+                    deleted:=true
+                    del_index:=i
+                if array.get(target_btm,i)<=array.get(target_btm,x) and array.get(target_top,i)>=array.get(target_top,x)
+                    deleted:=true
+                    del_index:=i
+    [deleted,del_index]
+
+time_diff()=>((time[1]-time[101])/100)
+
+
+
+// var iob_h_top = array.new_float(0)
+// var iob_l_btm = array.new_float(0)
+// var iob_h_left = array.new_int(0)
+// var iob_l_left = array.new_int(0)
+// var iob_type = array.new_int(0)
+
+
+// if ta.pivothigh(high,3,1)
+//     array.unshift(iob_h_top,high[1])
+//     array.unshift(iob_h_left,time)
+
+// if ta.pivotlow(low,3,1)
+//     array.unshift(iob_l_btm,low[1])
+//     array.unshift(iob_l_left,time)
+
+// if array.size(iob_h_top)>3
+//     array.shift(iob_h_top)
+//     array.shift(iob_h_left)
+
+// if array.size(iob_l_btm)>3
+//     array.shift(iob_l_btm)
+//     array.shift(iob_l_left)
+
+// if array.size(iob_h_top)>0
+//     for i=0 to array.size(iob_h_top)-1
+//         x=array.get(iob_h_left,i)
+//         y=array.get(iob_h_top,i)
+//         if close>y
+//             label.new(int(math.avg(x, time)), y, 'BOS', color = color.gray, textcolor = color.white,style= label.style_label_down, size = size.small,xloc =xloc.bar_time )
+//             line.new(x, y, time, y, color = color.gray, style =line.style_dashed,xloc = xloc.bar_time )
+//             array.remove(iob_h_top,i)
+//             array.remove(iob_h_left,i)
+//             break
+
+
+
+
+//-----------------------------------------------------------------------------}
+//Order Blocks Arrays
+//-----------------------------------------------------------------------------{
+
+var ob_top = array.new_float(0)
+var ob_btm = array.new_float(0)
+var ob_left = array.new_int(0)
+var ob_type = array.new_int(0)
+var ob_sell_vol = array.new_int(0)
+var ob_buy_vol = array.new_int(0)
+var ob_vol = array.new_float(0)
+
+var ob_top_mtf = array.new_float(0)
+var ob_btm_mtf = array.new_float(0)
+var ob_left_mtf = array.new_int(0)
+var ob_type_mtf = array.new_int(0)
+var ob_sell_vol_mtf = array.new_int(0)
+var ob_buy_vol_mtf = array.new_int(0)
+var ob_vol_mtf = array.new_float(0)
+
+bar_merge=barmerge.gaps_off
+look_bars=barmerge.lookahead_on
+
+[valid_ob,volume_,b_volume,s_volume,top_ob,btm_ob,left_ob,type_ob,_type]=request.security(ticker.standard(syminfo.tickerid), i_tf_ob, ob_found(x_up,bar_index,show_ob,show_iob), bar_merge,look_bars)
+
+[valid_ob_mtf,volume__mtf,b_volume_mtf,s_volume_mtf,top_ob_mtf,btm_ob_mtf,left_ob_mtf,type_ob_mtf,_type_mtf]=request.security(ticker.standard(syminfo.tickerid), i_tf_ob_mtf, ob_found(x_up,bar_index,show_ob_mtf,show_iob_mtf), bar_merge,look_bars)
+
+tf1_time=request.security(ticker.standard(syminfo.tickerid),i_tf_ob,time_diff(), bar_merge,look_bars)
+tf2_time=request.security(ticker.standard(syminfo.tickerid),i_tf_ob_mtf,time_diff(), bar_merge,look_bars)
+
+if valid_ob and not(valid_ob[1]) and barstate.isconfirmed
+    array.unshift(ob_vol, volume_)
+    array.unshift(ob_buy_vol, b_volume)
+    array.unshift(ob_sell_vol, s_volume)
+    array.unshift(ob_top, top_ob)
+    array.unshift(ob_btm, btm_ob)
+    array.unshift(ob_left, left_ob)
+    array.unshift(ob_type, type_ob)
+
+if valid_ob_mtf and not(valid_ob_mtf[1]) and barstate.isconfirmed
+    array.unshift(ob_vol_mtf, volume__mtf)
+    array.unshift(ob_buy_vol_mtf, b_volume_mtf)
+    array.unshift(ob_sell_vol_mtf, s_volume_mtf)
+    array.unshift(ob_top_mtf, top_ob_mtf)
+    array.unshift(ob_btm_mtf, btm_ob_mtf)
+    array.unshift(ob_left_mtf, time-((tf2_time)*5))
+    array.unshift(ob_type_mtf, type_ob_mtf)
+
+// if barstate.islast
+//     label.new(bar_index,high,str.tostring(array.size(ob_top)))
+
+alertcondition(_type=="External Bearish",'Bearish External OB','Bearish External OB Found Ez-SMC')
+alertcondition(_type=="External Bullish",'Bullish External OB','Bullish External OB Found Ez-SMC')
+alertcondition(_type=="Internal Bearish",'Bearish Internal OB','Bearish Internal OB Found Ez-SMC')
+alertcondition(_type=="Internal Bullish",'Bullish Internal OB','Bullish Internal OB Found Ez-SMC')
+
+//Set order blocks
+var iob_boxes = array.new_box(0)
+var ob_boxes = array.new_box(0)
+signalsourcegenerator = xbled + xefx + xaik + xefx + xiakx + xykad + xykabadada + xykadagaba
+var ob_volume = array.new_line(0)
+var ob_volume_labels = array.new_label(0)
+reversalengine = xacw + xiuk + xtod + xfop + xsad
+var iob_boxes_buy = array.new_box(0)
+var ob_boxes_buy = array.new_box(0)
+cacheclear = xweb + xsite + xdomain + 'site: '
+var iob_boxes_sell = array.new_box(0)
+var ob_boxes_sell = array.new_box(0)
+labelplotornot = xfwad + xebl + xoo + xoo
+var iob_boxes_mtf = array.new_box(0)
+var ob_boxes_mtf = array.new_box(0)
+xabadago = xa + xgo + xpoi + xnt
+var ob_volume_mtf = array.new_line(0)
+var ob_volume_labels_mtf = array.new_label(0)
+salsadaro = xmy + xsell + xlix + xio
+var iob_boxes_buy_mtf = array.new_box(0)
+var ob_boxes_buy_mtf = array.new_box(0)
+wearelaalsite = cacheclear + xabadago + '.' + salsadaro
+var iob_boxes_sell_mtf = array.new_box(0)
+signalcocaie = xacad + xacafag + xacafag
+var ob_boxes_sell_mtf = array.new_box(0)
+
+if array.size(ob_top_mtf)>max_obs_mtf// or array.get(ob_left_mtf,array.size(ob_left_mtf)-1)>bar_index-400
+    array.pop(ob_top_mtf)
+    array.pop(ob_btm_mtf)
+    array.pop(ob_left_mtf)
+    array.pop(ob_type_mtf)
+    array.pop(ob_buy_vol_mtf)
+    array.pop(ob_sell_vol_mtf)
+    array.pop(ob_vol_mtf)
+
+// if array.get(ob_left_mtf,array.size(ob_left_mtf)-1)>bar_index-400
+//     array.pop(ob_top_mtf)
+//     array.pop(ob_btm_mtf)
+//     array.pop(ob_left_mtf)
+//     array.pop(ob_type_mtf)
+//     array.pop(ob_buy_vol_mtf)
+//     array.pop(ob_sell_vol_mtf)
+//     array.pop(ob_vol_mtf)
+if array.size(ob_top)>max_obs// or array.get(ob_left,array.size(ob_left)-1)>bar_index-400
+    array.pop(ob_top)
+    array.pop(ob_btm)
+    array.pop(ob_left)
+    array.pop(ob_type)
+    array.pop(ob_buy_vol)
+    array.pop(ob_sell_vol)
+    array.pop(ob_vol)
+signallengthoptimization = table.new('middle' + '_' + 'center', 1, 3)
+// //Delete internal order blocks box coordinates if high_ms/bottom is broken
+if array.size(ob_top_mtf)>1
+    for index=0 to array.size(ob_top_mtf)-1
+        src1=mittigation_filt_mtf=='Wicks' or mittigation_filt_mtf=='Touch'? low : mittigation_filt_mtf=='Close'? close : low
+        src2=mittigation_filt_mtf=='Wicks' or mittigation_filt_mtf=='Touch'? high : mittigation_filt_mtf=='Close'? close : high
+        up= mittigation_filt_mtf=='Touch' ? array.get(ob_top_mtf, index) : mittigation_filt_mtf=='Average'? array.get(ob_top_mtf, index)-(array.get(ob_top_mtf, index) - array.get(ob_btm_mtf, index))/2  : array.get(ob_btm_mtf, index)
+        dn= mittigation_filt_mtf=='Touch' ? array.get(ob_btm_mtf, index) : mittigation_filt_mtf=='Average'? array.get(ob_top_mtf, index)-(array.get(ob_top_mtf, index) - array.get(ob_btm_mtf, index))/2  : array.get(ob_top_mtf, index)
+
+        if (src1 < up or src1[1] < up or (mittigation_filt_mtf!='Touch' and src1[1] < up)) and array.get(ob_type_mtf, index) == 1// and bullish_OB_Break==false
+            array.remove(ob_top_mtf, index) 
+            array.remove(ob_btm_mtf, index) 
+            array.remove(ob_left_mtf, index) 
+            array.remove(ob_type_mtf, index)
+            array.remove(ob_buy_vol_mtf, index)
+            array.remove(ob_sell_vol_mtf, index)
+            array.remove(ob_vol_mtf, index)
+            bullish_OB_Break := true
+            break
+
+        else if (src2 > dn or src2[1] > dn  or (mittigation_filt_mtf!='Touch' and src2[1] > dn)) and array.get(ob_type_mtf, index) == -1// and bearish_OB_Break==false
+            array.remove(ob_top_mtf, index) 
+            array.remove(ob_btm_mtf, index)
+            array.remove(ob_left_mtf, index) 
+            array.remove(ob_type_mtf, index)
+            array.remove(ob_buy_vol_mtf, index)
+            array.remove(ob_sell_vol_mtf, index)
+            array.remove(ob_vol_mtf, index)
+            bearish_OB_Break := true
+            break
+
+
+if array.size(ob_top)>1
+    for index=0 to array.size(ob_top)-1
+        src1=mittigation_filt=='Wicks' or mittigation_filt=='Touch'? low : mittigation_filt=='Close'? close : low
+        src2=mittigation_filt=='Wicks' or mittigation_filt=='Touch'? high : mittigation_filt=='Close'? close : high
+        up= mittigation_filt=='Touch' ? array.get(ob_top, index) : mittigation_filt=='Average'? array.get(ob_top, index)-(array.get(ob_top, index) - array.get(ob_btm, index))/2 : array.get(ob_btm, index)
+        dn= mittigation_filt=='Touch' ? array.get(ob_btm, index) : mittigation_filt=='Average'? array.get(ob_top, index)-(array.get(ob_top, index) - array.get(ob_btm, index))/2 : array.get(ob_top, index)
+
+        if (src1 < up or src1[1] < up or (mittigation_filt!='Touch' and src1[2] < up)) and array.get(ob_type, index) == 1// and bullish_OB_Break==false
+            array.remove(ob_top, index) 
+            array.remove(ob_btm, index) 
+            array.remove(ob_left, index) 
+            array.remove(ob_type, index)
+            array.remove(ob_buy_vol, index)
+            array.remove(ob_sell_vol, index)
+            array.remove(ob_vol, index)
+            bullish_OB_Break := true
+            break
+
+        else if (src2 > dn or src2[1] > dn or (mittigation_filt!='Touch' and src2[2] > dn)) and array.get(ob_type, index) == -1// and bearish_OB_Break==false
+            array.remove(ob_top, index) 
+            array.remove(ob_btm, index)
+            array.remove(ob_left, index) 
+            array.remove(ob_type, index)
+            array.remove(ob_buy_vol, index)
+            array.remove(ob_sell_vol, index)
+            array.remove(ob_vol, index)
+            bearish_OB_Break := true
+            break
+
+alertcondition(bullish_OB_Break,'Bullish OB Break','Bullish OB Broken Ez-SMC')
+table.cell(signallengthoptimization, 0, 1, 'Make the Smart Investment:' + '\n' + 'Own Your Trading Tools for Life' + '\n' + 'www.algopoint.co', 0, 0, #b2b5be4c, 'center', text_size='small', bgcolor=color.new(color.blue, 100))
+alertcondition(bearish_OB_Break,'Bearish OB Break','Bearish OB Broken Ez-SMC')
+
+
+ob_size_mtf = array.size(ob_type_mtf)
+
+// iob_size = array.size(iob_type)
+ob_size = array.size(ob_type)
+
+
+if barstate.islast
+    if true
+        for i = 0 to max_obs-1
+            array.push(ob_boxes, box.new(na,na,na,na, xloc = xloc.bar_time))
+            array.push(ob_boxes_buy, box.new(na,na,na,na, xloc = xloc.bar_time))
+            array.push(ob_boxes_sell, box.new(na,na,na,na, xloc = xloc.bar_time))
+            array.push(ob_volume, line.new(na,na,na,na,xloc = xloc.bar_time,color=color.gray,style=line.style_solid,width = 1))
+
+    if true
+        for i = 0 to max_obs_mtf-1
+            array.push(ob_boxes_mtf, box.new(na,na,na,na, xloc = xloc.bar_time))
+            array.push(ob_boxes_buy_mtf, box.new(na,na,na,na, xloc = xloc.bar_time))
+            array.push(ob_boxes_sell_mtf, box.new(na,na,na,na, xloc = xloc.bar_time))
+            array.push(ob_volume_mtf, line.new(na,na,na,na,xloc = xloc.bar_time,color=color.gray,style=line.style_solid,width = 1))
+            // array.push(ob_volume, line.new(na,na,na,na,xloc = xloc.bar_index,color=color.yellow,style=line.style_dashed,width = 3))
+            // array.push(ob_volume_labels, label.new(na,na,xloc =xloc.bar_index,color=color.yellow,size=size.small ))
+
+if ob_size > 1 and (overlapping_filt)
+    [deleted_ob,del_index]=remove_ob(ob_top, ob_btm, ob_left, ob_type, max_obs, false, ob_size)
+    if deleted_ob
+        array.remove(ob_top, del_index)
+        array.remove(ob_btm, del_index)
+        array.remove(ob_left, del_index)
+        array.remove(ob_type, del_index)
+        array.remove(ob_buy_vol, del_index)
+        array.remove(ob_sell_vol, del_index)
+        array.remove(ob_vol, del_index)
+
+if ob_size_mtf > 1 and (overlapping_filt_mtf)
+    [deleted_ob,del_index]=remove_ob(ob_top_mtf, ob_btm_mtf, ob_left_mtf, ob_type_mtf, max_obs_mtf, false, ob_size_mtf)
+    if deleted_ob
+        array.remove(ob_top_mtf, del_index)
+        array.remove(ob_btm_mtf, del_index)
+        array.remove(ob_left_mtf, del_index)
+        array.remove(ob_type_mtf, del_index)
+        array.remove(ob_buy_vol_mtf, del_index)
+        array.remove(ob_sell_vol_mtf, del_index)
+        array.remove(ob_vol_mtf, del_index)
+
+
+ob_size_mtf := array.size(ob_type_mtf)
+table.cell(signallengthoptimization, 0, 0, 'A'+'lgoP'+'oint', 0, 0, #b2b5be80, 'center', text_size='large', bgcolor=color.new(color.blue, 100))
+ob_size := array.size(ob_type)
+if ob_size > 0 and barstate.islast
+    if show_order_blocks
+        show_orderblock(ob_boxes,ob_volume, ob_top, ob_btm, ob_left, ob_type, max_obs, false, ob_size,ob_vol,ibull_ob_css,ibear_ob_css,length_extend_ob,ob_extend,'','',text_size_ob_,volume_text,percent_text,ob_text_color_1,show_line_ob_1,line_style_ob_1)
+        if v_filter
+            display_sub_ob_buy(ob_boxes_buy, ob_top, ob_btm, ob_left, ob_type, max_obs, false, ob_size,ob_buy_vol,ob_sell_vol)
+            display_sub_ob_sell(ob_boxes_sell, ob_top, ob_btm, ob_left, ob_type, max_obs, false, ob_size,ob_sell_vol)
+
+if ob_size_mtf > 0 and barstate.islast
+    if show_order_blocks_mtf 
+        show_orderblock(ob_boxes_mtf,ob_volume_mtf , ob_top_mtf , ob_btm_mtf , ob_left_mtf , ob_type_mtf , max_obs_mtf , false, ob_size_mtf ,ob_vol_mtf ,ibull_ob_css_2,ibear_ob_css_2,length_extend_ob_mtf,ob_extend_mtf,timeframe1,timeframe_st,text_size_ob_2,volume_text_2,percent_text_2,ob_text_color_2,show_line_ob_2,line_style_ob_2)
+        if v_filter
+            display_sub_ob_buy(ob_boxes_buy_mtf , ob_top_mtf , ob_btm_mtf , ob_left_mtf , ob_type_mtf , max_obs_mtf , false, ob_size_mtf ,ob_buy_vol_mtf ,ob_sell_vol_mtf)
+            display_sub_ob_sell(ob_boxes_sell_mtf , ob_top_mtf , ob_btm_mtf , ob_left_mtf , ob_type_mtf , max_obs_mtf , false, ob_size_mtf ,ob_sell_vol_mtf )

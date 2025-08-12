@@ -1,0 +1,537 @@
+//@version=5
+// Copyright (c) 2021-present, UPS India
+indicator('Premium Indicator', overlay=true)
+
+
+//-----------------------------------------------------------------------------}
+// <---SWITCHES--->
+//-----------------------------------------------------------------------------} 
+
+showLabels = input.bool(title='Smart Signals', defval=true, group='ENABLE INDICATORS', tooltip='Enable Bullish and Bearish signals on chart')
+showTrendCatcher = input.bool(title='Trend Wave', defval=true, group='ENABLE INDICATORS', tooltip='Enable Trend Wave on chart')
+chochmr = input.bool(false, 'Market Structure', tooltip='Show Market Structure - CHoCh and BOS', group = "EXTRA FEATURES" )
+showSwingmr = input.bool(false, 'Show Swing Points', tooltip='Show Highs and Lows', group = "EXTRA FEATURES")
+showTT = input.bool(false, 'Timeframe Table', tooltip='Shows ongoing trend on diffrent timeframes', group = "ENABLE INDICATORS")
+
+
+
+
+//-----------------------------------------------------------------------------}
+// <---AUTOSIGNALS---> 
+//-----------------------------------------------------------------------------}
+
+lengthsg = input.int(50, "Signals Sensitivity", tooltip = "Adjust singals sensitivity according to your setup.", group = "Smart Signals Settings")
+mult = input.float(1, "Band Multiplier", tooltip = "This value controls the thickness of the bands, a larger value makes the indicator less noisy", group = "Smart Signals Settings")
+t1 = input.timeframe("5", "Time frame 1", group = "TABLE TIMEFRAMES")
+t2 = input.timeframe("15", "Time frame 2", group = "TABLE TIMEFRAMES")
+t3 = input.timeframe("60", "Time frame 3", group = "TABLE TIMEFRAMES")
+t4 = input.timeframe("240", "Time frame 4", group = "TABLE TIMEFRAMES")
+t5 = input.timeframe("1D", "Time frame 5", group = "TABLE TIMEFRAMES")
+green = input.color(color.rgb(0, 87, 90), "Bullish Color", group = "THEME")
+red = input.color(#ff1100, "Bearish Color", group = "THEME")
+
+src = close
+
+lag = math.floor((lengthsg - 1) / 2)
+
+zlema = ta.ema(src + (src - src[lag]), lengthsg)
+
+volatility = ta.highest(ta.atr(lengthsg), lengthsg*3) * mult
+
+var trend = 0
+
+if ta.crossover(close, zlema+volatility)
+    trend := 1
+
+if ta.crossunder(close, zlema-volatility)
+    trend := -1
+
+zlemaColor = trend == 1 ? color.new(green, 70) : color.new(red, 70)
+m = plot(zlema, linewidth=0, color=#00000000, editable=false)
+upper = plot(trend == -1 and showTrendCatcher ? zlema+volatility : na, style = plot.style_linebr, color = color.new(red, 70), editable=false)
+lower = plot(trend == 1 and showTrendCatcher? zlema-volatility : na, style = plot.style_linebr, color = color.new(green, 70), editable=false)
+
+fill(m, upper, (open + close) / 2, zlema+volatility, color.new(red, 90), color.new(red, 70))
+fill(m, lower, (open + close) / 2, zlema-volatility, color.new(green, 90), color.new(green, 70))
+
+plotshape(ta.crossunder(trend, 0) and showLabels ? zlema+volatility : na, "Bearish Trend Signals", shape.labeldown, location.absolute, red, text = "Sell", textcolor = #ffffff, size = size.normal)
+plotshape(ta.crossover(trend, 0) and showLabels ? zlema-volatility : na, "Bullish Trend Signals", shape.labelup, location.absolute, green, text = "Buy", textcolor = #ffffff, size = size.normal)
+
+
+s1 = request.security(syminfo.tickerid, t1, trend)
+s2 = request.security(syminfo.tickerid, t2, trend)
+s3 = request.security(syminfo.tickerid, t3, trend)
+s4 = request.security(syminfo.tickerid, t4, trend)
+s5 = request.security(syminfo.tickerid, t5, trend)
+
+s1a = s1 == 1 ? "Bullish" : "Bearish"
+s2a = s2 == 1 ? "Bullish" : "Bearish"
+s3a = s3 == 1 ? "Bullish" : "Bearish"
+s4a = s4 == 1 ? "Bullish" : "Bearish"
+s5a = s5 == 1 ? "Bullish" : "Bearish"
+
+if barstate.islast and showTT
+    var data_table = table.new(position=position.top_right, columns=2, rows=6, bgcolor=chart.bg_color)
+    table.cell(data_table, text_halign=text.align_center, column=0, row=0, text="TIME FRAME", bgcolor=color.rgb(0, 87, 90), text_color=#ffffff)
+    table.cell(data_table, text_halign=text.align_center, column=1, row=0, text="TREND", bgcolor=color.rgb(0, 87, 90), text_color=#ffffff)
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=1, text=t1, text_color=#ffffff, bgcolor=#111620)
+    table.cell(data_table, text_halign=text.align_center, column=1, row=1, text=s1a, text_color=#ffffff, bgcolor=s1a == "Bullish" ? #089981 : red)
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=2, text=t2, text_color=#ffffff, bgcolor=#111620)
+    table.cell(data_table, text_halign=text.align_center, column=1, row=2, text=s2a, text_color=#ffffff, bgcolor=s2a == "Bullish" ? #089981 : red)
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=3, text=t3, text_color=#ffffff, bgcolor=#111620)
+    table.cell(data_table, text_halign=text.align_center, column=1, row=3, text=s3a, text_color=#ffffff, bgcolor=s3a == "Bullish" ? #089981 : red)
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=4, text=t4, text_color=#ffffff, bgcolor=#111620)
+    table.cell(data_table, text_halign=text.align_center, column=1, row=4, text=s4a, text_color=#ffffff, bgcolor=s4a == "Bullish" ? #089981 : red)
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=5, text=t5, text_color=#ffffff, bgcolor=#111620)
+    table.cell(data_table, text_halign=text.align_center, column=1, row=5, text=s5a, text_color=#ffffff, bgcolor=s5a == "Bullish" ? #089981 : red)
+
+
+/////////////////////////////////////////ALERTS
+// Inputs to enable/disable alerts
+
+alertBullishEnabled = input.bool(true, "Enable Bullish Alert", group="ALERT SETTINGS", tooltip="Recieve alert when bullish signal appears")
+alertBearishEnabled = input.bool(true, "Enable Bearish Alert", group="ALERT SETTINGS", tooltip="Recieve alert when bearish signal appears")
+
+//-----------------------------------------------------------------------------
+// Trigger alerts based on the button states
+if alertBullishEnabled and ta.crossover(trend, 0)
+    alert("New Bullish Signal on " + syminfo.tickerid + " " + str.tostring(timeframe.period), alert.freq_once_per_bar)
+
+if alertBearishEnabled and ta.crossunder(trend, 0)
+    alert("New Bearish Signal on " + syminfo.tickerid + " " + str.tostring(timeframe.period), alert.freq_once_per_bar)
+
+//-----------------------------------------------------------------------------
+// Alert conditions for triggering via alertcondition (for use in TradingView's alert system)
+alertcondition(ta.crossover(trend, 0), "Bullish Signals", "New Bullish Signal on {{ticker}} {{interval}}")
+alertcondition(ta.crossunder(trend, 0), "Bearish Bearish", "New Bearish Signal on {{ticker}} {{interval}}")
+
+
+
+
+
+//-----------------------------------------------------------------------------}
+// <---MARKET STRUCTURE--->
+//-----------------------------------------------------------------------------}
+
+// Constants
+color CLEAR = color.rgb(0,0,0,100)
+
+// Inputs
+swingSize = input.int(20, 'Swing Length', group = "MARKET STRUCTURE SETTINGS", tooltip='The number of left and right bars checked when searching for a swing point.' )
+bosConfType = input.string('Candle Close', 'Structure Placement', ['Candle Close', 'Wicks'], group = "MARKET STRUCTURE SETTINGS", tooltip='Choose whether candle close/wick above previous swing point counts as a BOS.')
+
+
+mrColor = input.color(#818181, 'Highs and Lows Color', group='MARKET STRUCTURE SETTINGS')
+bosColor = input.color(#818181, 'Market Structure Color', group='MARKET STRUCTURE SETTINGS')
+bosStyle = input.string('Dashed', 'Line Style', ['Solid', 'Dashed', 'Dotted'], group='MARKET STRUCTURE SETTINGS')
+bosWidth = input.int(1, 'Line Width', minval=1, group='MARKET STRUCTURE SETTINGS')
+
+// Functions
+lineStyle(x) =>
+    switch x
+        'Solid' => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+
+
+// Calculations
+
+//Finding high and low pivots
+pivHi = ta.pivothigh(high, swingSize, swingSize)
+pivLo = ta.pivotlow(low, swingSize, swingSize)
+
+
+//Tracking the previous swing levels to determine hh lh hl ll
+var float prevHigh = na
+var float prevLow = na
+var int prevHighIndex = na
+var int prevLowIndex = na
+
+//Tracking whether previous levels have been breached
+var bool highActive = false
+var bool lowActive = false
+
+bool hh = false
+bool lh = false
+bool hl = false
+bool ll = false
+
+//Variable to track the previous swing type, used later on to draw 0.5 Retracement Levels (HH = 2, LH = 1, HL = -1, LL = -2)
+var int prevSwing = 0
+
+if not na(pivHi)
+    if pivHi >= prevHigh
+        hh := true
+        prevSwing := 2
+    else
+        lh := true
+        prevSwing := 1
+    prevHigh := pivHi
+    highActive := true
+    prevHighIndex := bar_index - swingSize
+
+if not na(pivLo)
+    if pivLo >= prevLow
+        hl := true
+        prevSwing := -1
+    else
+        ll := true
+        prevSwing := -2
+    prevLow := pivLo
+    lowActive := true
+    prevLowIndex := bar_index - swingSize
+
+//Generating the breakout signals
+bool highBroken = false
+bool lowBroken = false
+
+//Tracking prev breakout
+var int prevBreakoutDir = 0
+
+float highSrc = bosConfType == 'Candle Close' ? close : high
+float lowSrc = bosConfType == 'Candle Close' ? close : low
+
+if highSrc > prevHigh and highActive
+    highBroken := true
+    highActive := false
+if lowSrc < prevLow and lowActive
+    lowBroken := true
+    lowActive := false
+
+
+// Visual Output
+
+//Swing level labels
+if hh and showSwingmr
+    label.new(bar_index - swingSize, pivHi, 'HH', color=CLEAR, style=label.style_label_down, textcolor=mrColor)
+if lh and showSwingmr
+    label.new(bar_index - swingSize, pivHi, 'LH', color=CLEAR, style=label.style_label_down, textcolor=mrColor)
+if hl and showSwingmr
+    label.new(bar_index - swingSize, pivLo, 'HL', color=CLEAR, style=label.style_label_up, textcolor=mrColor)
+if ll and showSwingmr
+    label.new(bar_index - swingSize, pivLo, 'LL', color=CLEAR, style=label.style_label_up, textcolor=mrColor)
+//Generating the BOS Lines
+if highBroken
+    if chochmr
+        line.new(prevHighIndex, prevHigh, bar_index, prevHigh, color=bosColor, style=lineStyle(bosStyle), width=bosWidth)
+        label.new(math.floor(bar_index - (bar_index - prevHighIndex) / 2), prevHigh, prevBreakoutDir == -1 ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bosColor, size=size.small)
+        prevBreakoutDir := 1  
+if lowBroken
+    if chochmr
+        line.new(prevLowIndex, prevLow, bar_index, prevLow, color=bosColor, style=lineStyle(bosStyle), width=bosWidth)
+        label.new(math.floor(bar_index - (bar_index - prevLowIndex) / 2), prevLow, prevBreakoutDir == 1 ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bosColor, style=label.style_label_up, size=size.small)
+        prevBreakoutDir := -1
+
+
+
+
+//-----------------------------------------------------------------------------}
+//<---Breakout Finder--->
+//-----------------------------------------------------------------------------}
+
+// Breakout Settings
+indicator_switch = input.bool(defval=false, title="Breakout Levels", group="ENABLE INDICATORS", tooltip = "Enable Auto Breakout levels Detector with Support and Resistance Levels")
+prd = input.int(defval=5, title='Breakout Period', minval=2, group='BREAKOUT SETTINGS', tooltip = "Decrease period to get Extra Levels of Breakout/Breakdown" )
+bo_len = input.int(defval=200, title='Max Breakout Length', minval=30, maxval=300, group='BREAKOUT SETTINGS')
+cwidthu = input.float(defval=3., title='Levels Threshold', minval=1., maxval=10) / 100, group='BREAKOUT SETTINGS'
+mintest = input.int(defval=2, title='Minimum Number of Tests', minval=1, group='BREAKOUT SETTINGS')
+bocolorup = input.color(defval=#089981, title='Breakout Colors', inline='bocol', group='BREAKOUT SETTINGS')
+bocolordown = input.color(defval=#f23645, title='', inline='bocol', group='BREAKOUT SETTINGS')
+lstyle = input.string(defval=line.style_solid, title='Line Style', options=[line.style_solid, line.style_dashed, line.style_dotted], group='BREAKOUT SETTINGS')
+
+//width
+lll = math.max(math.min(bar_index, 300), 1)
+float h_ = ta.highest(lll)
+float l_ = ta.lowest(lll)
+float chwidth = (h_ - l_) * cwidthu
+
+// check if PH/PL
+ph = ta.pivothigh(prd, prd)
+pl = ta.pivotlow(prd, prd)
+
+//keep Pivot Points and their locations in the arrays
+var phval = array.new_float(0)
+var phloc = array.new_int(0)
+var plval = array.new_float(0)
+var plloc = array.new_int(0)
+
+// keep PH/PL levels and locations
+if ph
+    array.unshift(phval, ph)
+    array.unshift(phloc, bar_index - prd)
+    if array.size(phval) > 1  // cleanup old ones
+        for x = array.size(phloc) - 1 to 1 by 1
+            if bar_index - array.get(phloc, x) > bo_len
+                array.pop(phloc)
+                array.pop(phval)
+
+if pl
+    array.unshift(plval, pl)
+    array.unshift(plloc, bar_index - prd)
+    if array.size(plval) > 1  // cleanup old ones
+        for x = array.size(plloc) - 1 to 1 by 1
+            if bar_index - array.get(plloc, x) > bo_len
+                array.pop(plloc)
+                array.pop(plval)
+
+// check bullish cup
+float bomax = na
+int bostart = bar_index
+num = 0
+hgst = ta.highest(prd)[1]
+if array.size(phval) >= mintest and close > open and close > hgst
+    bomax := array.get(phval, 0)
+    xx = 0
+    for x = 0 to array.size(phval) - 1 by 1
+        if array.get(phval, x) >= close
+            break
+        xx := x
+        bomax := math.max(bomax, array.get(phval, x))
+        bomax
+    if xx >= mintest and open <= bomax
+        for x = 0 to xx by 1
+            if array.get(phval, x) <= bomax and array.get(phval, x) >= bomax - chwidth
+                num += 1
+                bostart := array.get(phloc, x)
+                bostart
+        if num < mintest or hgst >= bomax
+            bomax := na
+            bomax
+
+if not na(bomax) and num >= mintest and indicator_switch
+    line.new(x1=bar_index, y1=bomax, x2=bostart, y2=bomax, color=bocolorup, style=lstyle)
+    line.new(x1=bar_index, y1=bomax - chwidth, x2=bostart, y2=bomax - chwidth, color=bocolorup, style=lstyle)
+    line.new(x1=bostart, y1=bomax - chwidth, x2=bostart, y2=bomax, color=bocolorup, style=lstyle)
+    line.new(x1=bar_index, y1=bomax - chwidth, x2=bar_index, y2=bomax, color=bocolorup, style=lstyle)
+
+plotshape(not na(bomax) and num >= mintest and indicator_switch, editable = false, location=location.belowbar, text='Breakout', textcolor=bocolorup, style=shape.triangleup, color=bocolorup, size=size.small)
+
+// check bearish cup
+float bomin = na
+bostart := bar_index
+num1 = 0
+lwst = ta.lowest(prd)[1]
+if array.size(plval) >= mintest and close < open and close < lwst
+    bomin := array.get(plval, 0)
+    xx = 0
+    for x = 0 to array.size(plval) - 1 by 1
+        if array.get(plval, x) <= close
+            break
+        xx := x
+        bomin := math.min(bomin, array.get(plval, x))
+        bomin
+    if xx >= mintest and open >= bomin
+        for x = 0 to xx by 1
+            if array.get(plval, x) >= bomin and array.get(plval, x) <= bomin + chwidth
+                num1 += 1
+                bostart := array.get(plloc, x)
+                bostart
+        if num1 < mintest or lwst <= bomin
+            bomin := na
+            bomin
+
+if not na(bomin) and num1 >= mintest and indicator_switch
+    line.new(x1=bar_index, y1=bomin, x2=bostart, y2=bomin, color=bocolordown, style=lstyle)
+    line.new(x1=bar_index, y1=bomin + chwidth, x2=bostart, y2=bomin + chwidth, color=bocolordown, style=lstyle)
+    line.new(x1=bostart, y1=bomin + chwidth, x2=bostart, y2=bomin, color=bocolordown, style=lstyle)
+    line.new(x1=bar_index, y1=bomin + chwidth, x2=bar_index, y2=bomin, color=bocolordown, style=lstyle)
+
+plotshape(not na(bomin) and num1 >= mintest and indicator_switch, location=location.abovebar, editable =false, style=shape.triangledown, textcolor=bocolordown, text='Breakdown', color=bocolordown, size=size.small)
+
+
+
+
+//-----------------------------------------------------------------------------}
+// <---MARKET CONDITION TABLE--->
+//-----------------------------------------------------------------------------}
+
+//  Table On/Off
+infoDataTableOn = input.bool(false, title="Trend Strength Screener", group="ENABLE INDICATORS", tooltip = "Enable Multi Trend Analyzer")
+
+//Table Positions
+bright = position.bottom_right
+bleft = position.bottom_left
+bcenter = position.bottom_center
+tright = position.top_right
+tleft = position.top_left
+tcenter = position.top_center
+mright = position.middle_right
+mleft = position.middle_left
+mcenter = position.middle_center
+itablePosition = input.string(tright, title="Screener Position", options=[bright, bleft, bcenter, tright, tleft, tcenter, mright, mleft, mcenter], group="TREND STRENGTH SCREENER SETTINGS")
+
+//Lengths
+macdOn = input.bool(true, title="MACD", group="ENABLE SCREENER COMPONENTS")
+
+stochasticOn = input.bool(true, title="STOCHSTIC RSI", group="ENABLE SCREENER COMPONENTS")
+
+vortexOn = input.bool(true, title="VORTEX", group="ENABLE SCREENER COMPONENTS")
+
+momOn = input.bool(true, title="MOMENTUM", group="ENABLE SCREENER COMPONENTS")
+
+rsiOn = input.bool(true, title="RSI", group="ENABLE SCREENER COMPONENTS")
+
+psarOn = input.bool(true, title="PSAR", group="ENABLE SCREENER COMPONENTS")
+
+dmiOn = input.bool(true, title="DMI", group="ENABLE SCREENER COMPONENTS")
+
+mfiOn = input.bool(true, title="MONEY FLOW INDEX", group="ENABLE SCREENER COMPONENTS")
+
+fisherOn = input.bool(true, title="FISHER", group="ENABLE SCREENER COMPONENTS")
+
+
+//Fisher Transform
+high_ = ta.highest(hl2, 14)
+low_ = ta.lowest(hl2, 14)
+round_(val) => val > .99 ? .999 : val < -.99 ? -.999 : val
+value = 0.0
+value := round_(.66 * ((hl2 - low_) / (high_ - low_) - .5) + .67 * nz(value[1]))
+fish1 = 0.0
+fish1 := .5 * math.log((1 + value) / (1 - value)) + .5 * nz(fish1[1])
+fish2 = fish1[1]
+
+//Stochastic RSI
+rsi1 = ta.rsi(close, 14)
+k = ta.sma(ta.stoch(rsi1, rsi1, rsi1, 14), 3)
+dsc = ta.sma(k, 3)
+
+//Vortex
+VMP = math.sum( math.abs( high - low[1]), 14)
+VMM = math.sum( math.abs( low - high[1]), 14)
+STR = math.sum( ta.atr(1), 14)
+VIP = VMP / STR
+VIM = VMM / STR
+
+//DMI
+[diplus, diminus, adx] = ta.dmi(14, 14)
+
+//PSAR
+psar = ta.sar(.02, .02, .02)
+
+//Momentum
+mom = ta.mom(close, 14)
+
+//Money Flow Index
+mfi = ta.mfi(close, 14)
+
+//RSI
+rsi = ta.rsi(close, 14)
+
+//MACD
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+
+//Create MACD indicator label table data
+macdIndicatorLabel = 'MACD Neutral'
+macdLabel = color.blue
+if macdLine > signalLine
+    macdLabel := #089981
+    macdIndicatorLabel := "MACD Bullish"
+else if macdLine < signalLine
+    macdLabel := #e91e63
+    macdIndicatorLabel := "MACD Bearish"
+    
+//Create Stochastic RSI indicator label table data
+stochIndicatorLabel = 'Stochastic Neutral'
+stochLabel = color.blue
+if k > dsc
+    stochLabel := #089981
+    stochIndicatorLabel := "Stochastic Bullish"
+else if k < dsc
+    stochLabel := #e91e63
+    stochIndicatorLabel := "Stochastic Bearish"
+    
+//Create Vortex indicator label table data
+vortexIndicatorLabel = 'Vortex Neutral'
+vortexLabel = color.blue
+if VIP > VIM
+    vortexLabel := #089981
+    vortexIndicatorLabel := "Vortex Bullish"
+else if VIP < VIM
+    vortexLabel := #e91e63
+    vortexIndicatorLabel := "Vortex Bearish"
+
+//Create MFI indicator label table data
+mfiIndicatorLabel = 'MFI Neutral'
+mfiLabel = color.blue
+if mfi > mfi[1]
+    mfiLabel := #089981
+    mfiIndicatorLabel := "MFI Bullish"
+else if mfi < mfi[1]
+    mfiLabel := #e91e63
+    mfiIndicatorLabel := "MFI Bearish"
+    
+//Create Fisher indicator label table data
+fisherIndicatorLabel = 'Fisher Neutral'
+fisherLabel = color.blue
+if fish1 > fish2
+    fisherLabel := #089981
+    fisherIndicatorLabel := "Fisher Bullish"
+else if fish1 < fish2
+    fisherLabel := #e91e63
+    fisherIndicatorLabel := "Fisher Bearish"
+    
+//Create DMI indicator label table data
+dmiIndicatorLabel = 'DMI Neutral'
+dmiLabel = color.blue
+if diplus > diminus
+    dmiLabel := #089981
+    dmiIndicatorLabel := "DMI Bullish"
+else if diplus < diminus
+    dmiLabel := #e91e63
+    dmiIndicatorLabel := "DMI Bearish"
+    
+//Create Momentum indicator label table data
+momIndicatorLabel = 'Momentum Neutral'
+momLabel = color.blue
+if mom > mom[1]
+    momLabel := #089981
+    momIndicatorLabel := "Momentum Bullish"
+else if mom < mom[1]
+    momLabel := #e91e63
+    momIndicatorLabel := "Momentum Bearish"
+    
+//Create PSAR indicator label table data
+psarIndicatorLabel = 'PSAR Neutral'
+psarLabel = color.blue
+if close > psar
+    psarLabel := #089981
+    psarIndicatorLabel := "PSAR Bullish"
+else if close < psar
+    psarLabel := #e91e63
+    psarIndicatorLabel := "PSAR Bearish"
+    
+//Create RSI indicator label table data
+rsiIndicatorLabel = 'RSI Neutral'
+rsiLabel = color.blue
+if rsi > rsi[1]
+    rsiLabel := #089981
+    rsiIndicatorLabel := "RSI Bullish"
+else if rsi < rsi[1]
+    rsiLabel := #e91e63
+    rsiIndicatorLabel := "RSI Bearish"
+
+//Plot Price Difference Table
+infoDataTable = table.new(itablePosition, columns=1, rows=10)
+if infoDataTableOn and barstate.islast
+    table.cell(table_id=infoDataTable, column=0, row=8, text=mfiOn ? mfiIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=mfiLabel)
+    table.cell(table_id=infoDataTable, column=0, row=9, text=fisherOn ? fisherIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=fisherLabel)
+    table.cell(table_id=infoDataTable, column=0, row=7, text=dmiOn ? dmiIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=dmiLabel)
+    table.cell(table_id=infoDataTable, column=0, row=4, text=momOn ? momIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=momLabel)
+    table.cell(table_id=infoDataTable, column=0, row=6, text=psarOn ? psarIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=psarLabel)
+    table.cell(table_id=infoDataTable, column=0, row=5, text=rsiOn ? rsiIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=rsiLabel)
+    table.cell(table_id=infoDataTable, column=0, row=1, text=macdOn ? macdIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=macdLabel)
+    table.cell(table_id=infoDataTable, column=0, row=2, text=stochasticOn ? stochIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=stochLabel)
+    table.cell(table_id=infoDataTable, column=0, row=3, text=vortexOn ? vortexIndicatorLabel : na, height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=vortexLabel)
+    table.cell(table_id=infoDataTable, column=0, row=0, text="TREND STRENGTH SCREENER", height=0, text_color=color.white, text_halign=text.align_left, text_valign=text.align_top, bgcolor=#673AB7)
+
+//Alerts
+alertcondition(rsiLabel == #e91e63 and mfiLabel == #e91e63 and fisherLabel == #e91e63 and dmiLabel == #e91e63 and momLabel == #e91e63 and psarLabel == #e91e63 and 
+ macdLabel == #e91e63 and stochLabel == #e91e63 and vortexLabel == #e91e63, "All Factors Bearish Alert", "All Bearish Indicators {{ticker}} {{interval}}")
+ 
+alertcondition(rsiLabel == #089981 and mfiLabel == #089981 and fisherLabel == #089981 and dmiLabel == #089981 and momLabel == #089981 and psarLabel == #089981 and 
+ macdLabel == #089981 and stochLabel == #089981 and vortexLabel == #089981, "All Factors Bullish Alert", "All Bullish Indicators {{ticker}} {{interval}}")

@@ -1,0 +1,1150 @@
+//By @3dots - code started here 
+//@version=5
+// # ========================================================================= #
+indicator(title = "MELONA ORDER BLOCK STRATEGY (by 3dots) 5TH UPDATE", shorttitle = "MELONA ORDER BLOCK STRATEGY (by 3dots) 5TH UPDATE", overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500, max_bars_back = 500, max_polylines_count = 100)
+
+// Supply & Demand
+gr_sr = "Supply & Demand"
+showsr = input(true, title="Show Supply & Demand", group = gr_sr)
+swing_length = input.int(defval=8, title="Sensitivity", group = gr_sr)
+box_width = input.float(defval=4, title="Zone Width", group = gr_sr)
+box_extend_option = input.string("Right", title="Extend Box", options=["Right", "Both"], group = gr_sr) 
+res = input.timeframe(title='Time Frame', defval='', group= gr_sr)
+s1 = request.security(syminfo.tickerid, res, showsr, gaps=barmerge.gaps_on)
+demand_color = input.color(#08998148, title = 'Supply & Demand Color', group = gr_sr ,inline = "1")
+supply_color = input.color(#f2364648, title = '', group = gr_sr, inline = "1")
+
+
+// # ========================================================================= #
+//                                Supply & Demand
+// # ========================================================================= #
+history_of_demand_to_keep = 20
+show_zigzag = false
+show_price_action_labels = false
+// Other initializations
+avg_volume = ta.sma(volume, 20)
+very_weak_multiplier = 0.5
+weak_multiplier = 1
+strong_multiplier = 1.5
+
+// Rejection handling
+var int[] demandRejections = array.new_int(history_of_demand_to_keep, 0)
+var int[] supplyRejections = array.new_int(history_of_demand_to_keep, 0)
+var int[] demandCreationBars = array.new_int(history_of_demand_to_keep, na)
+var int[] supplyCreationBars = array.new_int(history_of_demand_to_keep, na)
+
+var box[] current_demand_box = array.new_box(history_of_demand_to_keep, na)
+var box[] current_supply_box = array.new_box(history_of_demand_to_keep, na)
+
+f_check_demand_rejections() =>
+    for i = 0 to history_of_demand_to_keep - 1
+        if not na(array.get(demandCreationBars, i))
+            if bar_index - array.get(demandCreationBars, i) > 15 and bar_index - array.get(demandCreationBars, i) % 15 == 0
+                label.new(bar_index, high, "Checking demand rejection", color=color.red)
+                dBox = array.get(current_demand_box, i)
+                if (na(dBox))
+                    continue
+                withinBox = (high >= box.get_bottom(dBox) and high <= box.get_top(dBox)) or (close >= box.get_bottom(dBox) and close <= box.get_top(dBox))
+                bearishCandlesCount = math.sum(close < open ? 1 : 0, 15)
+                if withinBox and bearishCandlesCount >= 7
+                    label.new(bar_index, low, "Bearish count > 7", color=color.blue)
+                    array.set(demandRejections, i, array.get(demandRejections, i) + 1)
+
+f_check_supply_rejections() =>
+    for i = 0 to history_of_demand_to_keep - 1
+        if not na(array.get(supplyCreationBars, i))
+            if bar_index - array.get(supplyCreationBars, i) > 15 and bar_index - array.get(supplyCreationBars, i) % 15 == 0
+                label.new(bar_index, low, "Checking supply rejection", color=color.red)
+                sBox = array.get(current_supply_box, i)
+                if (na(sBox))
+                    continue
+                withinBox = (low <= box.get_top(sBox) and low >= box.get_bottom(sBox)) or (close <= box.get_top(sBox) and close >= box.get_bottom(sBox))
+                bullishCandlesCount = math.sum(close > open ? 1 : 0, 15)
+                if withinBox and bullishCandlesCount >= 7
+                    label.new(bar_index, high, "Bullish count > 7", color=color.blue)
+                    array.set(supplyRejections, i, array.get(supplyRejections, i) + 1)
+
+f_array_add_pop(array, new_value_to_add) =>
+    array.unshift(array, new_value_to_add)
+    array.pop(array)
+
+f_sh_sl_labels(array, swing_type) =>
+    var string label_text = na
+    if swing_type == 1
+        if array.get(array, 0) >= array.get(array, 1)
+            label_text := 'HH'
+        else
+            label_text := 'LH'
+        label.new(bar_index - swing_length, array.get(array,0), text = label_text, style=label.style_label_down, textcolor = color.white, color = color.new(color.white, 100), size = size.tiny)
+    else if swing_type == -1
+        if array.get(array, 0) >= array.get(array, 1)
+            label_text := 'HL'
+        else
+            label_text := 'LL'
+        label.new(bar_index - swing_length, array.get(array,0), text = label_text, style=label.style_label_up, textcolor = color.white, color = color.new(color.white, 100), size = size.tiny)
+
+f_check_overlapping(new_poi, box_array, atr) =>
+    atr_threshold = atr * 2
+    okay_to_draw = true
+    for i = 0 to array.size(box_array) - 1
+        top = box.get_top(array.get(box_array, i))
+        bottom = box.get_bottom(array.get(box_array, i))
+        poi = (top + bottom) / 2
+        upper_boundary = poi + atr_threshold
+        lower_boundary = poi - atr_threshold
+        if new_poi >= lower_boundary and new_poi <= upper_boundary
+            okay_to_draw := false
+            break
+        else 
+            okay_to_draw := true
+    okay_to_draw
+
+f_supply_demand(value_array, bn_array, box_array, label_array, box_type, atr) =>
+    atr_buffer = atr * (box_width / 15)
+    box_left = array.get(bn_array, 0)
+    box_right = bar_index + 20
+    var float box_top = 0.00
+    var float box_bottom = 0.00
+    var float poi = 0.00
+    if box_type == 1
+        box_top := array.get(value_array, 0)
+        box_bottom := box_top - atr_buffer
+        poi := (box_top + box_bottom) / 2
+    else if box_type == -1
+        box_bottom := array.get(value_array, 0)
+        box_top := box_bottom + atr_buffer
+        poi := (box_top + box_bottom) / 2
+    okay_to_draw = f_check_overlapping(poi, box_array, atr)
+    swing_volume = volume[swing_length]
+    var string strength_text = ""
+    
+    highest_volume_last_20 = ta.highest(volume, 20)
+    volume_percentage = math.round(swing_volume / highest_volume_last_20 * 100) 
+    volume_percentage := math.min(volume_percentage, 100)  // Cap the volume percentage to 100
+
+    var extend_option = extend.right
+    if box_extend_option == "Right"
+        extend_option := extend.right
+    else if box_extend_option == "Both"
+        extend_option := extend.both
+    if box_type == 1 and okay_to_draw and s1
+        box.delete( array.get(box_array, array.size(box_array) - 5) )
+        f_array_add_pop(box_array, box.new( left = box_left, top = box_top, right = box_right, bottom = box_bottom, border_color = color.rgb(242,54,69,50), border_width=1,
+             bgcolor = supply_color, extend = extend_option, text = strength_text, text_halign = text.align_center, text_valign = text.align_center, text_color = color.rgb(59, 59, 59), text_size = size.small, xloc = xloc.bar_index))
+        box.delete( array.get(label_array, array.size(label_array) - 5) )
+        f_array_add_pop(label_array, box.new( left = box_left, top = poi, right = box_right, bottom = poi, border_color = color.rgb(242,54,69,50), border_width=1, border_style=line.style_dotted,
+             bgcolor = color.new(color.black,100), extend = extend_option,  text = 'MAIN OB', text_halign = text.align_center, text_valign = text.align_center, text_color = color.rgb(59, 59, 59), text_size = size.small, xloc = xloc.bar_index))
+    else if box_type == -1 and okay_to_draw and s1
+        box.delete( array.get(box_array, array.size(box_array) - 5) )
+        f_array_add_pop(box_array, box.new( left = box_left, top = box_top, right = box_right, bottom = box_bottom, border_color = color.rgb(0,188,212,50), border_width=1,
+             bgcolor = demand_color, extend = extend_option,  text = strength_text, text_halign = text.align_center, text_valign = text.align_center, text_color = color.rgb(59, 59, 59), text_size = size.small, xloc = xloc.bar_index))
+        box.delete( array.get(label_array, array.size(label_array) - 5) )
+        f_array_add_pop(label_array, box.new( left = box_left, top = poi, right = box_right, bottom = poi, border_color = color.rgb(0,188,212,50), border_width=1, border_style=line.style_dotted,
+             bgcolor = color.new(color.black,100), extend = extend_option,  text = 'MAIN OB', text_halign = text.align_center, text_valign = text.align_center, text_color = color.rgb(59, 59, 59), text_size = size.small, xloc = xloc.bar_index))
+f_sd_to_bos(box_array, bos_array, label_array, zone_type) =>
+    if zone_type == 1
+        for i = 0 to array.size(box_array) - 1
+            level_to_break = box.get_top(array.get(box_array,i))
+            if close >= level_to_break
+                box.delete(array.get(box_array, i))
+                box.delete(array.get(label_array, i))
+    if zone_type == -1
+        for i = 0 to array.size(box_array) - 1
+            level_to_break = box.get_bottom(array.get(box_array,i))
+            if close <= level_to_break
+                box.delete(array.get(box_array, i))
+                box.delete(array.get(label_array, i))
+
+f_extend_box_endpoint(box_array) =>
+    for i = 0 to array.size(box_array) - 1
+        box.set_right(array.get(box_array, i), bar_index + 30) // Extend only 20 bars
+
+atr567 = ta.atr(50)
+swing_high = ta.pivothigh(high, swing_length, swing_length)
+swing_low = ta.pivotlow(low, swing_length, swing_length)
+var swing_high_values = array.new_float(5,0.00)
+var swing_low_values = array.new_float(5,0.00)
+var swing_high_bns = array.new_int(5,0)
+var swing_low_bns = array.new_int(5,0)
+var current_supply_poi = array.new_box(history_of_demand_to_keep, na)
+var current_demand_poi = array.new_box(history_of_demand_to_keep, na)
+var supply_bos = array.new_box(5, na)
+var demand_bos = array.new_box(5, na)
+if not na(swing_high)
+    f_array_add_pop(swing_high_values, swing_high)
+    f_array_add_pop(swing_high_bns, bar_index[swing_length])
+    if show_price_action_labels
+        f_sh_sl_labels(swing_high_values, 1)
+    f_supply_demand(swing_high_values, swing_high_bns, current_supply_box, current_supply_poi, 1, atr567)
+else if not na(swing_low)
+    f_array_add_pop(swing_low_values, swing_low)
+    f_array_add_pop(swing_low_bns, bar_index[swing_length])
+    if show_price_action_labels
+        f_sh_sl_labels(swing_low_values, -1)
+    f_supply_demand(swing_low_values, swing_low_bns, current_demand_box, current_demand_poi, -1, atr567)
+f_sd_to_bos(current_supply_box, supply_bos, current_supply_poi, 1)
+f_sd_to_bos(current_demand_box, demand_bos, current_demand_poi, -1)
+f_extend_box_endpoint(current_supply_box)
+f_extend_box_endpoint(current_demand_box)
+
+// Inside the main execution, after the box is drawn, check for rejections
+if not na(swing_low)
+    f_array_add_pop(swing_low_values, swing_low)
+    f_array_add_pop(swing_low_bns, bar_index[swing_length])
+    if show_price_action_labels
+        f_sh_sl_labels(swing_low_values, -1)
+    f_supply_demand(swing_low_values, swing_low_bns, current_demand_box, current_demand_poi, -1, atr567)
+    f_check_demand_rejections()
+
+if not na(swing_high)
+    f_array_add_pop(swing_high_values, swing_high)
+    f_array_add_pop(swing_high_bns, bar_index[swing_length])
+    if show_price_action_labels
+        f_sh_sl_labels(swing_high_values, 1)
+    f_supply_demand(swing_high_values, swing_high_bns, current_supply_box, current_supply_poi, 1, atr567)
+    f_check_supply_rejections()
+
+
+
+//-----------------------------------------------------------------------------{
+    //Boolean set
+//-----------------------------------------------------------------------------{
+s_BOS        = 0
+s_CHoCH      = 1
+i_BOS        = 2
+i_CHoCH      = 3
+i_pp_CHoCH   = 4
+green_candle = 5
+red_candle   = 6
+s_CHoCHP     = 7
+i_CHoCHP     = 8
+
+boolean =
+ array.from(
+   false
+ , false 
+ , false 
+ , false 
+ , false 
+ , false 
+ , false 
+ , false
+ , false
+ )
+
+
+//-----------------------------------------------------------------------------{
+    // User inputs
+//-----------------------------------------------------------------------------{
+
+show_swing_ms                   = input.string      ("None"                            , "Swing        "               , inline = "1", group = "MARKET STRUCTURE"            , options = ["All", "CHoCH", "CHoCH+", "BOS", "None"])
+show_internal_ms                = input.string      ("None"                            , "Internal     "               , inline = "2", group = "MARKET STRUCTURE"            , options = ["All", "CHoCH", "CHoCH+", "BOS", "None"])
+internal_r_lookback             = input.int         (5                                , ""                            , inline = "2", group = "MARKET STRUCTURE"            , minval = 2)
+swing_r_lookback                = input.int         (50                               , ""                            , inline = "1", group = "MARKET STRUCTURE"            , minval = 2)
+ms_mode                         = input.string      ("Manual"                         , "Market Structure Mode"       , inline = "a", group = "MARKET STRUCTURE"            , tooltip = "[Manual] Use selected lenght\n[Dynamic] Use automatic lenght" ,options = ["Manual", "Dynamic"])
+i_ms_up_BOS                   = input.color       (#089981                          , ""                            , inline = "2", group = "MARKET STRUCTURE")
+i_ms_dn_BOS                   = input.color       (#f23645                          , ""                            , inline = "2", group = "MARKET STRUCTURE")
+s_ms_up_BOS                   = input.color       (#089981                          , ""                            , inline = "1", group = "MARKET STRUCTURE")
+s_ms_dn_BOS                   = input.color       (#f23645                          , ""                            , inline = "1", group = "MARKET STRUCTURE")
+ob_show                         = input.bool        (true                             , "Show Last    "               , inline = "1", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Display volumetric order blocks on the chart \n\n[Input] Ammount of volumetric order blocks to show")
+ob_num                          = input.int         (5                                , ""                            , inline = "1", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Orderblocks number", minval = 1, maxval = 10)
+ob_metrics_show                 = input.bool        (true                             , "Internal Buy/Sell Activity"  , inline = "2", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Display volume metrics that have formed the orderblock")
+css_metric_up                   = input.color       (color.new(#047c32, 50)        , "         "                   , inline = "2", group = "VOLUMETRIC ORDER BLOCKS")
+css_metric_dn                   = input.color       (color.new(#cf041b, 50)        , ""                            , inline = "2", group = "VOLUMETRIC ORDER BLOCKS")
+ob_swings                       = input.bool        (false                            , "Swing Order Blocks"          , inline = "a", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Display swing volumetric order blocks")
+css_swing_up                    = input.color       (color.new(color.gray  , 90)    , "                 "           , inline = "a", group = "VOLUMETRIC ORDER BLOCKS")
+css_swing_dn                    = input.color       (color.new(color.silver, 90)    , ""                            , inline = "a", group = "VOLUMETRIC ORDER BLOCKS")
+ob_filter                       = input.string      ("None"                           , "Filtering             "      , inline = "d", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Filter out volumetric order blocks by BOS/CHoCH/CHoCH+", options = ["None", "BOS", "CHoCH", "CHoCH+"])
+ob_mitigation                   = input.string      ("Absolute"                       , "Mitigation           "       , inline = "4", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Trigger to remove volumetric order blocks", options = ["Absolute", "Middle"])
+ob_pos                          = input.string      ("Precise"                        , "Positioning          "       , inline = "k", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Position of the Order Block\n[Full] Cover the whole candle\n[Middle] Cover half candle\n[Accurate] Adjust to volatility\n[Precise] Same as Accurate but more precise", options = ["Full", "Middle", "Accurate", "Precise"])
+use_grayscale                   = input.bool        (true                            , "Grayscale"                   , inline = "6", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Use gray as basic order blocks color")
+use_show_metric                 = input.bool        (true                             , "Show Metrics"                , inline = "7", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Show volume associated with the orderblock and his relevance")
+use_middle_line                 = input.bool        (false                             , "Show Middle-Line"            , inline = "8", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Show mid-line order blocks")
+use_overlap                     = input.bool        (true                             , "Hide Overlap"                , inline = "9", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "Hide overlapping order blocks")
+use_overlap_method              = input.string      ("Previous"                       , "Overlap Method    "          , inline = "Z", group = "VOLUMETRIC ORDER BLOCKS"         , tooltip = "[Recent] Preserve the most recent volumetric order blocks\n\n[Previous] Preserve the previous volumetric order blocks", options = ["Recent", "Previous"])
+ob_bull_css                     = input.color       (color.new(#089981 ,  90)       , ""                            , inline = "1", group = "VOLUMETRIC ORDER BLOCKS")
+ob_bear_css                     = input.color       (color.new(#f23645 ,  90)       , ""                            , inline = "1", group = "VOLUMETRIC ORDER BLOCKS")
+
+
+show_lbl                        = input.bool        (false                            , "Show swing point"            , inline = "1", group = "High and Low"                    , tooltip = "Display swing point")
+show_mtb                        = input.bool        (false                            , "Show High/Low/Equilibrium"   , inline = "2", group = "High and Low"                    , tooltip = "Display Strong/Weak High And Low and Equilibrium")
+toplvl                          = input.color       (color.red                      , "Premium Zone   "             , inline = "3", group = "High and Low")
+midlvl                          = input.color       (color.white                    , "Equilibrium Zone"            , inline = "4", group = "High and Low")
+btmlvl                          = input.color       (#089981                        , "Discount Zone    "           , inline = "5", group = "High and Low")
+
+t                               = color.t           (ob_bull_css)
+invcol                          = color.new         (color.white                    , 100)
+obtxt                           = input.string("Small"            , "Metric Size"                    , ["Tiny", "Small", "Normal", "Large", "Huge"], inline = "7", group = "VOLUMETRIC ORDER BLOCKS" )
+
+
+
+method txSz(string s) =>
+    out = switch s
+        "Tiny"   => size.tiny
+        "Small"  => size.small
+        "Normal" => size.normal
+        "Large"  => size.large
+        "Huge"   => size.huge
+    out
+
+
+type bar
+    float   o = open
+    float   c = close
+    float   h = high
+    float   l = low
+    float   v = volume
+    int     n = bar_index
+    int     t = time
+
+type Zphl
+    line   top
+    line   bottom
+    label  top_label
+    label  bottom_label
+    bool   stopcross
+    bool   sbottomcross
+    bool   itopcross
+    bool   ibottomcross
+    string txtup
+    string txtdn
+    float  topy
+    float  bottomy
+    float  topx
+    float  bottomx
+    float  tup
+    float  tdn
+    int    tupx
+    int    tdnx
+    float  itopy
+    float  itopx
+    float  ibottomy
+    float  ibottomx
+    float  uV
+    float  dV
+
+type FVG
+    box [] box
+    line[] ln
+    bool   bull
+    float  top
+    float  btm
+    int    left
+    int    right
+
+type ms
+	float[] p
+	int  [] n
+    float[] l
+
+type msDraw
+	int    n
+	float  p
+	color  css
+	string txt
+	bool   bull
+
+type obC 
+    float[] top
+    float[] btm
+    int  [] left
+    float[] avg
+    float[] dV 
+    float[] cV 
+    int  [] wM 
+    int  [] blVP 
+    int  [] brVP 
+    int  [] dir  
+    float[] h
+    float[] l
+    int  [] n
+
+type obD 
+    box [] ob 
+    box [] eOB
+    box [] blB 
+    box [] brB 
+    line[] mL
+
+type zone
+    chart.point points
+    float p
+    int   c
+    int   t
+
+type hqlzone
+    box   pbx
+    box   ebx
+    box   lbx
+    label plb
+    label elb
+    label lbl
+
+type ehl
+    float pt
+    int   t
+    float pb
+    int   b
+
+type pattern
+    string found = "None"
+    bool isfound = false
+    int   period = 0
+    bool  bull   = false
+
+type alerts
+    bool chochswing     = false
+    bool chochplusswing = false
+    bool swingbos       = false
+    bool chochplus      = false
+    bool choch          = false
+    bool bos            = false
+    bool equal          = false
+    bool ob             = false
+    bool swingob        = false
+    bool zone           = false
+    bool fvg            = false
+    bool obtouch        = false
+
+
+bar         b      = bar.new()
+var pattern p      = pattern.new()
+
+alerts      blalert = alerts.new()
+alerts      bralert = alerts.new()
+
+if p.isfound
+
+    p.period += 1
+
+if p.period == 50
+
+    p.period  := 0
+    p.found   := "None"
+    p.isfound := false
+    p.bull    := na
+
+switch
+
+    b.c > b.o => boolean.set(green_candle, true)
+    b.c < b.o => boolean.set(red_candle  , true)
+
+f_zscore(src, lookback) =>
+
+    (src - ta.sma(src, lookback)) / ta.stdev(src, lookback)
+
+var int iLen = internal_r_lookback
+var int sLen = swing_r_lookback
+
+vv = f_zscore(((close - close[iLen]) / close[iLen]) * 100,iLen)
+
+if ms_mode == "Dynamic"
+
+    switch
+
+        vv >= 1.5 or vv <= -1.5 => iLen := 10
+        vv >= 1.6 or vv <= -1.6 => iLen := 9
+        vv >= 1.7 or vv <= -1.7 => iLen := 8
+        vv >= 1.8 or vv <= -1.8 => iLen := 7
+        vv >= 1.9 or vv <= -1.9 => iLen := 6
+        vv >= 2.0 or vv <= -2.0 => iLen := 5
+        =>                         iLen
+
+var msline = array.new<line>(0)
+
+iH = ta.pivothigh(high, iLen, iLen)
+sH = ta.pivothigh(high, sLen, sLen)
+iL = ta.pivotlow (low , iLen, iLen)
+sL = ta.pivotlow (low , sLen, sLen)
+
+hl  () => [high, low]
+
+[pdh, pdl] = request.security(syminfo.tickerid , 'D'  , hl() , lookahead = barmerge.lookahead_on)
+[pwh, pwl] = request.security(syminfo.tickerid , 'W'  , hl() , lookahead = barmerge.lookahead_on)
+[pmh, pml] = request.security(syminfo.tickerid , 'M'  , hl() , lookahead = barmerge.lookahead_on)
+[pyh, pyl] = request.security(syminfo.tickerid , '12M', hl() , lookahead = barmerge.lookahead_on)
+
+lstyle(style) =>
+
+    out = switch style
+
+        '⎯⎯⎯'  => line.style_solid
+        '----' => line.style_dashed
+        '····' => line.style_dotted
+
+mtfphl(h, l ,tf ,css, pdhl_style) =>
+
+    var line hl = line.new(
+       na
+     , na
+     , na
+     , na
+     , xloc      = xloc.bar_time
+     , color     = css
+     , style     = lstyle(pdhl_style)
+     )
+
+    var line ll   = line.new(
+       na
+     , na
+     , na
+     , na
+     , xloc      = xloc.bar_time
+     , color     = css
+     , style     = lstyle(pdhl_style)
+     )
+
+    var label lbl = label.new(
+       na
+     , na
+     , xloc      = xloc.bar_time
+     , text      = str.format('P{0}L', tf)
+     , color     = invcol
+     , textcolor = css
+     , size      = size.small
+     , style     = label.style_label_left
+     )
+
+    var label hlb = label.new(
+       na
+     , na
+     , xloc      = xloc.bar_time
+     , text      = str.format('P{0}H', tf)
+     , color     = invcol
+     , textcolor = css
+     , size      = size.small
+     , style     = label.style_label_left
+     )
+
+    hy = ta.valuewhen(h != h[1] , h    , 1)
+    hx = ta.valuewhen(h == high , time , 1)
+    ly = ta.valuewhen(l != l[1] , l    , 1)
+    lx = ta.valuewhen(l == low  , time , 1)
+
+    if barstate.islast
+
+        extension = time + (time - time[1]) * 50
+    
+        line.set_xy1(hl , hx        , hy)
+        line.set_xy2(hl , extension , hy)
+        label.set_xy(hlb, extension , hy)
+        line.set_xy1(ll , lx        , ly)
+        line.set_xy2(ll , extension , ly)
+        label.set_xy(lbl, extension , ly)
+
+
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+//{ - End                                                                                                                                        }
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+//{----------------------------------------------------------------------------------------------------------------------------------------------}
+
+
+
+
+
+
+
+
+
+
+
+
+//Main parameters
+ShowBuy = false
+ShowSell = false
+
+
+
+
+ma_typeq= 'WMA'
+
+ma(type, src8, len8) =>
+    float result = 0
+    if type == 'SMA'  // Simple
+        result := ta.sma(src8, len8)
+        result
+    if type == 'EMA'  // Exponential
+        result := ta.ema(src8, len8)
+        result
+    if type == 'WMA'  // Weighted
+        result := ta.wma(src8, len8)
+        result
+
+
+///Baseline Channel
+
+src8 = close
+BBMC = ma(ma_typeq, close, 50)
+useTrueRange = input(true)
+multy = input.float(0.2, step=0.05, title='Base Channel Multiplier')
+Keltma = ma(ma_typeq, src8, 50)
+range_1 = useTrueRange ? ta.tr : high - low
+rangema = ta.ema(range_1, 50)
+upperk = Keltma + rangema * multy
+lowerk = Keltma - rangema * multy
+color_bar = close > upperk ? #39ff14 : close < lowerk ? #ff1100 : color.yellow
+
+//PLOTS
+p1 = plot(true ? BBMC : na, color=color_bar, linewidth=6, title='Baseline', transp=0)
+
+
+
+i_lenHARSI = 14
+i_smoothing = 1
+
+i_colUp = color.teal
+i_colDown = color.red
+i_colWick = color.gray
+
+
+i_source = ohlc4
+i_lenRSI = 7
+i_mode = true
+i_showPlot = true
+i_showHist = true
+
+
+i_showStoch =false
+i_ribbon = true
+i_smoothK = 3
+i_smoothD = 3
+i_stochLen = 14
+i_stochFit = 80
+
+f_zrsi(_source, _length) =>
+    ta.rsi(_source, _length) - 50
+
+f_zstoch(_source, _length, _smooth, _scale) =>
+    float _zstoch = ta.stoch(_source, _source, _source, _length) - 50
+    float _smoothed = ta.sma(_zstoch, _smooth)
+    float _scaled = (_smoothed / 100) * _scale
+
+f_rsi(_source, _length, _mode) =>
+    float _zrsi = f_zrsi(_source, _length)
+    var float _smoothed = na
+    _smoothed := na(_smoothed[1]) ? _zrsi : (_smoothed[1] + _zrsi) / 2
+    _mode ? _smoothed : _zrsi
+
+f_rsiHeikinAshi(_length) =>
+    float _closeRSI = f_zrsi(close, _length)
+    float _openRSI = na(_closeRSI[1]) ? _closeRSI : _closeRSI[1]
+    float _highRSI_raw = f_zrsi(high, _length)
+    float _lowRSI_raw = f_zrsi(low, _length)
+    float _highRSI = math.max(_highRSI_raw, _lowRSI_raw)
+    float _lowRSI = math.min(_highRSI_raw, _lowRSI_raw)
+    float _close = (_openRSI + _highRSI + _lowRSI + _closeRSI) / 4
+    var float _open = na
+    _open := na(_open[i_smoothing]) ? (_openRSI + _closeRSI) / 2 : ((_open[1] * i_smoothing) + _close[1]) / (i_smoothing + 1)
+    float _high = math.max(_highRSI, math.max(_open, _close))
+    float _low = math.min(_lowRSI, math.min(_open, _close))
+    [_open, _high, _low, _close]
+// Seriler, çizgiler ve etiketler
+float RSI = f_rsi(i_source, i_lenRSI, i_mode)
+float StochK = f_zstoch(RSI, i_stochLen, i_smoothK, i_stochFit)
+float StochD = ta.sma(StochK, i_smoothD)
+[O, H, L, C] = f_rsiHeikinAshi(i_lenHARSI)
+color bodyColour = C > O ? i_colUp : i_colDown
+color wickColour = i_colWick
+color colShadow = color.new(color.black, 20)
+color colNone = color.new(color.black, 100)
+color colRSI = color.new(color.rgb(250, 200, 50), 0)
+color colStochK = color.new(color.blue, 0)
+color colStochD = color.new(color.orange, 0)
+color colStochFill = StochK >= StochD ? color.new(colStochK, 50) : color.new(colStochD, 50)
+HO = request.security(syminfo.tickerid, "60", O)
+HH = request.security(syminfo.tickerid, "60", H)
+HL = request.security(syminfo.tickerid, "60", L)
+HC = request.security(syminfo.tickerid, "60", C)
+lcd1 = HC > HO
+lcd2 = ta.sma(HL, 5) < -20
+scd1 = HC < HO
+scd2 = ta.sma(HH, 5) > 20
+llcd1 = HC > HO
+llcd2 = ta.sma(HL, 5) < -20
+sscd1 = HC < HO
+sscd2 = ta.sma(HH, 5) > 20
+lh1 = lcd1 and lcd2
+sh1 = scd1 and scd2
+l15 = llcd1 and llcd2
+s15 = sscd1 and sscd2
+len2 = 12
+len3 = 144
+len8 = 169
+len9 = 576
+len10 = 676
+out2 = ta.ema(close, len2)
+out3 = ta.ema(close, len3)
+out8 = ta.ema(close, len8)
+out9 = ta.ema(close, len9)
+out10 = ta.ema(close, len10)
+
+
+///////////////////////////////////////////////
+////////////////////////////////////////////
+// Inputs
+pQ = 24
+hl = 40
+ll = -40
+// Function
+s = close
+Su = ta.sma(close > open ? s - s[1] : 0, pQ)
+Sd = ta.sma(close < open ? math.abs(s - s[1]) : 0, pQ)
+cmo = ((Su - Sd) / (Su + Sd)) * 100
+ma1 = ta.ema(cmo, 12)
+ma2 = ta.ema(ma1, 24)
+ma3 = ta.ema(ma2, 48)
+// Color Switches
+c0 = cmo > ma1 ? color.new(color.green, 0) : color.new(color.red, 0)
+c1 = ma1 > cmo ? color.new(color.red, 0) : color.new(color.green, 0)
+c2 = ma2 > cmo ? color.new(color.maroon, 0) : color.new(color.blue, 0)
+c3 = ma3 > cmo ? color.new(color.silver, 0) : color.new(color.lime, 0)
+
+
+// Buy Condition (Zero Line and MA Cross)
+cmoCrossMA1 = ta.crossover(cmo, ma1) and cmo <= 0
+cmoCrossMA2 = ta.crossover(cmo, ma2) and cmo <= 0
+cmoCrossMA3 = ta.crossover(cmo, ma3) and cmo <= 0
+// Set bar color to black if any crossover occurs
+//barcolor(cmoCrossMA1 or cmoCrossMA2 or cmoCrossMA3 ? color.black : na)
+// Alert condition
+alertcondition(cmoCrossMA1 or cmoCrossMA2 or cmoCrossMA3, title="Buy Signal", message="CMO has crossed above MA while at or below the zero line. Buy Signal.")
+////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////
+// 
+BBperiod = 21
+BBdeviations = 1.00
+UseATRfilter = true
+ATRperiod = 5
+hl1 = false
+//
+BBUpper = ta.sma(close, BBperiod) + ta.stdev(close, BBperiod) * BBdeviations
+BBLower = ta.sma(close, BBperiod) - ta.stdev(close, BBperiod) * BBdeviations
+//
+TrendLine = 0.0
+iTrend = 0.0
+longcondition = 0.0
+shortcondition = 0.0
+//
+BBSignal = close > BBUpper ? 1 : close < BBLower ? -1 : 0
+// 
+if BBSignal == 1 and UseATRfilter == 1
+    TrendLine := low - ta.atr(ATRperiod)
+    if TrendLine < TrendLine[1]
+        TrendLine := TrendLine[1]
+        TrendLine
+if BBSignal == -1 and UseATRfilter == 1
+    TrendLine := high + ta.atr(ATRperiod)
+    if TrendLine > TrendLine[1]
+        TrendLine := TrendLine[1]
+        TrendLine
+if BBSignal == 0 and UseATRfilter == 1
+    TrendLine := TrendLine[1]
+    TrendLine
+//
+if BBSignal == 1 and UseATRfilter == 0
+    TrendLine := low
+    if TrendLine < TrendLine[1]
+        TrendLine := TrendLine[1]
+        TrendLine
+if BBSignal == -1 and UseATRfilter == 0
+    TrendLine := high
+    if TrendLine > TrendLine[1]
+        TrendLine := TrendLine[1]
+        TrendLine
+if BBSignal == 0 and UseATRfilter == 0
+    TrendLine := TrendLine[1]
+    TrendLine
+//
+iTrend := iTrend[1]
+if TrendLine > TrendLine[1]
+    iTrend := 1
+    iTrend
+if TrendLine < TrendLine[1]
+    iTrend := -1
+    iTrend
+//
+longcondition := iTrend[1] == -1 and iTrend == 1 ? 1 : na
+shortcondition := iTrend[1] == 1 and iTrend == -1 ? 1 : na
+//
+plot(TrendLine, color=iTrend > 0 ? color.blue : color.red, style=plot.style_line, linewidth=2, title='Trend Line', transp=0, force_overlay=true)
+
+////////////////////
+//GRADIENT AREA
+////////////////////
+f_c_gradientAdvDecPro(_source, _center, _steps, _c_bearWeak, _c_bearStrong, _c_bullWeak, _c_bullStrong) =>
+    var float _qtyAdvDec = 0.
+    var float _maxSteps = math.max(1, _steps)
+    bool _xUp = ta.crossover(_source, _center)
+    bool _xDn = ta.crossunder(_source, _center)
+    float _chg = ta.change(_source)
+    bool _up = _chg > 0
+    bool _dn = _chg < 0
+    bool _srcBull = _source > _center
+    bool _srcBear = _source < _center
+    _qtyAdvDec := _srcBull ? _xUp ? 1 : _up ? math.min(_maxSteps, _qtyAdvDec + 1) : _dn ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _srcBear ? _xDn ? 1 : _dn ? math.min(_maxSteps, _qtyAdvDec + 1) : _up ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _qtyAdvDec
+    var color _return = na
+    _return := _srcBull ? color.from_gradient(_qtyAdvDec, 1, _maxSteps, _c_bullWeak, _c_bullStrong) : _srcBear ? color.from_gradient(_qtyAdvDec, 1, _maxSteps, _c_bearWeak, _c_bearStrong) : _return
+    _return
+
+//MA TYPES
+mat(source, length, type) =>
+    type == 'SMA' ? ta.sma(source, length) : type == 'EMA' ? ta.ema(source, length) : type == 'RMA' ? ta.rma(source, length) : type == 'WMA' ? ta.wma(source, length) : type == 'VWMA' ? ta.vwma(source, length) : type == 'HMA' ? ta.hma(source, length) : type == 'TMA' ? ta.sma(ta.sma(source, length), length) : na
+
+//INPUTS
+bullrr = color.rgb(0, 255, 0)
+bearrr = color.rgb(255, 0, 0)
+neutral = color.rgb(255, 255, 0, 0)
+show_ma = true
+ma_type = 'WMA'
+ma_source = close
+ma_length = 55
+UseGradient = true
+stepn = 5
+ma = mat(ma_source, ma_length, ma_type)
+colwq = f_c_gradientAdvDecPro(ma, ta.ema(ma, 3), stepn, neutral, bearrr, neutral, bullrr)
+////////////////////
+//END GRADIENT AREA
+////////////////////
+
+
+
+
+
+
+
+
+
+// Volatility and Trend Strength Calculations
+averageTrueRange = ta.atr(14)
+volatilityDeviation = 2 * ta.stdev(averageTrueRange, 21)
+movingAverageATR = ta.sma(averageTrueRange, 21)
+upperVolatility = movingAverageATR + volatilityDeviation
+lowerVolatility = movingAverageATR - volatilityDeviation
+volatilityRatio = (averageTrueRange - lowerVolatility) / (upperVolatility - lowerVolatility)
+volatilityPercentage = (40 * volatilityRatio + 30)
+
+
+showPressure = input.bool(true, title = "Show Single Candle Order Block (Pressure)", group = "Single Candle Order Block Settings")
+mitigationStyle = input.string("Close", title = "Mitigation Method", options = ["Close", "Wick"], group = "Single Candle Order Block Settings")
+showLast = input.int(6, title = "Show Last X Single Candle Order Blocks", group = "Single Candle Order Block Settings", minval = 1, maxval = 15)
+volatilityFilter = input.bool(false, title = "Apply Volatility Filter", group = "Single Candle Order Block Settings",
+ tooltip ="Enables filtering of Order Blocks based on volatility. When enabled, only Order Blocks with an Average True Range (ATR) above the mean value of the ATR")
+bullishScobColor = input.color(color.new(#00FF00, 80), title = "Bullish/Bearish Pressure Block Color", group = "Single Candle Order Block Style Settings", inline = "color")
+bearishScobColor = input.color(color.new(#BD10E0, 80), title = " ", group = "Single Candle Order Block Style Settings", inline = "color")
+
+// تنظیمات جدول وضعیت
+showStatusTable = input.bool(true, title = "نمایش جدول وضعیت", group = "تنظیمات جدول")
+tablePosition = input.string("top_right", title = "موقعیت جدول", options = ["top_right", "top_left", "bottom_right", "bottom_left"], group = "تنظیمات جدول")
+tableTextSize = input.string("small", title = "اندازه متن جدول", options = ["tiny", "small", "normal", "large"], group = "تنظیمات جدول")
+
+isSellnow=false
+isBuynow=false
+
+type Pressure
+    float top
+    float bottom
+    int barStart
+    box block
+    bool broken
+
+var array<Pressure> bullishScobArray = array.new<Pressure>()    
+var array<Pressure> bearishScobArray = array.new<Pressure>()   
+
+buyPressure=false
+sellPressure=false
+buyMainob=false
+sellMainob=false
+
+// وضعیت قیمت در مناطق فشار
+var inBullishZone = false
+var inBearishZone = false
+
+// Variables to track pressure detections at candle close
+var bool bullishPressureOnClose = false
+var bool bearishPressureOnClose = false
+
+// تعریف جدول وضعیت
+var table statusTable = na
+
+// تبدیل string به اندازه متن
+f_getTextSize(textSizeString) =>
+    switch textSizeString
+        "tiny" => size.tiny
+        "small" => size.small
+        "normal" => size.normal
+        "large" => size.large
+
+// تبدیل string به موقعیت جدول
+f_getTablePosition(positionString) =>
+    switch positionString
+        "top_right" => position.top_right
+        "top_left" => position.top_left
+        "bottom_right" => position.bottom_right
+        "bottom_left" => position.bottom_left
+
+f_check_overlap(array<Pressure> scobArray, float top, float bottom) =>
+    overlap = false
+    if scobArray.size() > 1
+        for i = 0 to array.size(scobArray) - 1
+            scobElement = array.get(scobArray, i)
+            if ((top < scobElement.top and top > scobElement.bottom) or (bottom > scobElement.bottom and bottom < scobElement.top))
+                overlap:= true
+    overlap
+
+// Original detection conditions
+detectBullishSCOB = open[2] > close[2] and close[1] > open[1] and close > open and low[1] < low[2] and close > high[1]
+detectBearishSCOB = open[2] < close[2] and close[1] < open[1] and close < open and high[1] > high[2] and close < low[1]
+
+// Conditions specifically for alerts - only valid on confirmed close
+detectBullishOnClose = barstate.isconfirmed and detectBullishSCOB
+detectBearishOnClose = barstate.isconfirmed and detectBearishSCOB
+
+atrw = ta.atr(14)
+atrFilter = ta.sma(atrw,200)
+
+// Reset pressure detection on new bars
+if barstate.isfirst
+    bullishPressureOnClose := false
+    bearishPressureOnClose := false
+    // ایجاد جدول وضعیت
+    if showStatusTable
+        statusTable := table.new(f_getTablePosition(tablePosition), 1, 6, bgcolor = color.new(color.black, 95), border_width = 1,force_overlay = true)
+        table.cell(statusTable, 0, 0, "Price status", text_color = color.green, bgcolor = color.new(color.gray, 75), text_size = f_getTextSize(tableTextSize))
+        table.cell(statusTable, 0, 1, "Out of pressures", text_color = color.green, bgcolor = color.new(color.gray, 95), text_size = f_getTextSize(tableTextSize))
+
+// Set the detection variables only on confirmed candle close
+if barstate.isconfirmed
+    bullishPressureOnClose := detectBullishSCOB
+    bearishPressureOnClose := detectBearishSCOB
+
+// Original pressure detection and processing logic
+if detectBearishSCOB
+    newScob = Pressure.new(top = high[1], bottom = low[1], barStart = time[1], block = na, broken = false)
+    buyPressure := false
+    sellPressure := true
+    if not f_check_overlap(bearishScobArray, newScob.top, newScob.bottom)
+        if volatilityFilter and atrw > atrFilter
+            array.push(bearishScobArray, newScob)
+        if not volatilityFilter
+            array.push(bearishScobArray, newScob)
+    if bearishScobArray.size() > 20
+        testScob = bearishScobArray.shift()
+        box.delete(testScob.block)
+
+if detectBullishSCOB
+    newScob = Pressure.new(top = high[1], bottom = low[1], barStart = time[1], block = na, broken = false)
+    buyPressure := true
+    sellPressure := false
+    if not f_check_overlap(bullishScobArray, newScob.top, newScob.bottom)
+        if volatilityFilter and atrw > atrFilter
+            array.push(bullishScobArray, newScob)
+        if not volatilityFilter
+            array.push(bullishScobArray, newScob)
+    if bullishScobArray.size() > 20
+        testScob = bullishScobArray.shift()
+        box.delete(testScob.block)
+
+// تابع بررسی آیا قیمت در منطقه فشار است
+f_checkPriceInPressure() =>
+    inBullish = false
+    inBearish = false
+    
+    // بررسی منطقه فشار خرید
+    if bullishScobArray.size() > 0
+        for i = bullishScobArray.size() - 1 to 0
+            bullishScob = bullishScobArray.get(i)
+            if close >= bullishScob.bottom and close <= bullishScob.top
+                inBullish := true
+                break
+    
+    // بررسی منطقه فشار فروش
+    if bearishScobArray.size() > 0
+        for i = bearishScobArray.size() - 1 to 0
+            bearishScob = bearishScobArray.get(i)
+            if close >= bearishScob.bottom and close <= bearishScob.top
+                inBearish := true
+                break
+    
+    [inBullish, inBearish]
+
+if showPressure
+    if bullishScobArray.size() > 0
+        counter = 0
+        for i = bullishScobArray.size() - 1 to 0 
+            bullishScob = bullishScobArray.get(i)
+            if counter < showLast
+                if na(bullishScob.block) 
+                    bullishScob.block := box.new(top = bullishScob.top, bottom = bullishScob.bottom, left = bullishScob.barStart, right = time, xloc=xloc.bar_time, bgcolor = bullishScobColor, border_color = bullishScobColor
+                     , text = "Bullish pressure", text_color = color.green, text_halign = text.align_right, text_size = size.small, force_overlay = true)
+                if not na(bullishScob.block) and bullishScob.bottom > (mitigationStyle == "Close" ? close : low)
+                    deletedScob = bullishScobArray.remove(i)
+                    deletedScob.block.delete()
+                    break
+                counter := counter + 1
+                bullishScob.block.set_right(time)
+            else 
+                bullishScob.block.delete()
+                bullishScob.block := na
+
+    if bearishScobArray.size() > 0
+        counter = 0
+        for i = bearishScobArray.size() - 1 to 0
+            bearishScob = bearishScobArray.get(i)
+            if counter < showLast
+                if na(bearishScob.block)
+                    bearishScob.block := box.new(top = bearishScob.top, bottom = bearishScob.bottom, left = bearishScob.barStart, right = time, xloc=xloc.bar_time, bgcolor = bearishScobColor, border_color = bearishScobColor
+                     , text = "Bearish pressure", text_color = color.red, text_halign = text.align_right, text_size = size.small, force_overlay = true)
+                if not na(bearishScob.block) and bearishScob.top < (mitigationStyle == "Close" ? close : high)
+                    deletedScob = bearishScobArray.remove(i)
+                    deletedScob.block.delete()
+                    break
+                counter := counter + 1
+                bearishScob.block.set_right(time)
+            else 
+                bearishScob.block.delete()
+                bearishScob.block := na
+
+// به‌روزرسانی جدول وضعیت
+if showStatusTable and not na(statusTable)
+    [isInBullish, isInBearish] = f_checkPriceInPressure()
+    
+    if isInBullish
+        table.cell(statusTable, 0, 1, "Price in bullish zone", text_color = color.white, bgcolor = color.new(color.green, 40), text_size = f_getTextSize(tableTextSize)) 
+    else if isInBearish
+        table.cell(statusTable, 0, 1, "Price in bearish zone", text_color = color.white, bgcolor = color.new(color.purple, 40), text_size = f_getTextSize(tableTextSize))
+    else
+        table.cell(statusTable, 0, 1, "Price out of pressure zone", text_color = color.green, bgcolor = color.new(color.gray, 95), text_size = f_getTextSize(tableTextSize))
+    
+    table.cell(statusTable, 0, 2, "Volatility " + str.tostring(volatilityPercentage, "##.##") + "%", text_color = color.green, bgcolor = color.new(color.gray, 95), text_size = f_getTextSize(tableTextSize))
+    // RSI Calculation
+    rsiValueww = ta.rsi(close, 14)
+    table.cell(statusTable, 0, 3, "RSI " + str.tostring(rsiValueww, "##.##"), text_color = rsiValueww > 65 ? color.white : color.green, bgcolor = rsiValueww > 65 ? color.new(color.purple, 40) : color.new(color.gray, 95) , text_size = f_getTextSize(tableTextSize))
+    currentVolume = volume
+    table.cell(statusTable, 0, 4, "Volume " + str.tostring(currentVolume, "##,##0"), text_color = color.green, bgcolor = color.new(color.gray, 95), text_size = f_getTextSize(tableTextSize))
+    if close > upperk and iTrend > 0
+        table.cell(statusTable, 0, 5, "GO LONG Trades", text_color = color.white, bgcolor = color.new(#39ff14, 10), text_size = f_getTextSize(tableTextSize)) 
+    if close < lowerk and iTrend <= 0
+        table.cell(statusTable, 0, 5, "GO SHORT Trades", text_color = color.white, bgcolor = color.new(#ff1100, 10), text_size = f_getTextSize(tableTextSize)) 
+   
+    if not(close < lowerk and iTrend <= 0) and not (close > upperk and iTrend > 0)
+        table.cell(statusTable, 0, 5, "Don't trade", text_color = color.green, bgcolor = color.new(color.gray, 75), text_size = f_getTextSize(tableTextSize)) 
+    
+    if close < lowerk and iTrend > 0
+        table.cell(statusTable, 0, 5, "Trend is changing", text_color = color.white, bgcolor = color.new(color.purple, 40), text_size = f_getTextSize(tableTextSize)) 
+    if close > upperk  and iTrend <= 0
+        table.cell(statusTable, 0, 5, "Trend is changing", text_color = color.white, bgcolor = color.new(color.green, 40), text_size = f_getTextSize(tableTextSize)) 
+    
+// Alert conditions specifically using the candle-close-only detection variables
+alertcondition(bullishPressureOnClose, title="Bullish Pressure Formed", message="Bullish Pressure has formed!")
+alertcondition(bearishPressureOnClose, title="Bearish Pressure Formed", message="Bearish Pressure has formed!")
+alertcondition(bullishPressureOnClose or bearishPressureOnClose, title="Pressure Formed", message="A Pressure zone has formed!")
+
+
+
+
+
+bool  show_sr = true
+int   len     = 30
+color bul_col = input.color(color.rgb(0, 230, 119, 70), "", inline = "sr")
+color ber_col = input.color(color.rgb(255, 82, 82, 70), "", inline = "sr")
+
+// Correction
+bool  show_cor = input.bool(false, "", group = "correction", inline = "cor"), correction = input.int(5, "Correction %", group = "correction", inline = "cor")
+color corr_col = input.color(#2195f32d, "", group = "correction", inline = "cor")
+
+color m_col     = chart.fg_color
+color noneColor = color.new(color.white, 100)
+
+
+correction(correction)=>
+    var boxes = array.new<box>()
+    roc = ta.roc(close, 15)
+    var roc_indx = int(na)
+    var roc_src = float(na)
+
+    if ta.cross(roc, 0)
+        roc_indx := bar_index
+        roc_src  := high
+
+    if ta.crossunder(roc, -correction) 
+        boxes.push(box.new(roc_indx, roc_src, bar_index+1, low, na, 0, bgcolor = corr_col, force_overlay = true))
+
+    if boxes.size() > 1
+        for i = 0 to boxes.size() - 1
+            box_id = boxes.get(i)
+            indx = i < boxes.size() - 1 ? i+1 : 0 
+            box_id_1 = boxes.get(indx)
+
+            if box_id.get_left() == box_id_1.get_left()
+                box.delete(box_id_1) 
+                //boxes.set(indx, box(na))
+
+            if box_id.get_right() - box_id.get_left() >= 10
+                box.delete(box_id) 
+
+norm_candle_size()=>
+    ((high-low) / ta.stdev(high-low, 200))
+
+
+draw_levels()=>
+
+    PH  = ta.pivothigh(len,len)
+    PL  = ta.pivotlow(len, len)
+    Atr = ta.atr(200)* 0.3
+
+    candle_size = norm_candle_size()
+
+    big_candle = candle_size[len] > 1
+    style      = candle_size[len] > 1.5 ? line.style_solid : line.style_dashed
+
+    var lines = array.new<line>()
+    var boxes = array.new<box>()
+
+    if big_candle
+        if not na(PH)
+            lines.push(line.new(bar_index-len, PH, bar_index, PH, extend = extend.right, style = style, color = m_col, force_overlay = true))
+            boxes.push(box.new(bar_index-len, PH + Atr, bar_index+5, PH - Atr, na, 0, bgcolor = ber_col, force_overlay = true,text = "MAIN OB Reserved Position",text_color = color.red,text_size = size.small,text_halign = text.align_right))
+        if not na(PL)
+            lines.push(line.new(bar_index-len, PL, bar_index, PL, extend = extend.right, style = style, color = m_col, force_overlay = true))
+            boxes.push(box.new(bar_index-len, PL + Atr, bar_index+5, PL - Atr, na, 0, bgcolor = bul_col, force_overlay = true,text = "MAIN OB Reserved Position",text_color = color.green,text_size = size.small,text_halign = text.align_right))
+
+    for line_id in lines
+        level  = line_id.get_y1()
+        box_id = boxes.get(lines.indexof(line_id))
+        box_id.set_right(bar_index+10)    
+
+        if high[1] > level and high < level 
+            box.set_lefttop(box_id, bar_index, level+Atr)
+            box.set_rightbottom(box_id, bar_index+5, level-Atr)
+            box.set_bgcolor(box_id, ber_col)
+
+        if low[1] < level and low > level 
+            box.set_lefttop(box_id, bar_index, level+Atr)
+            box.set_rightbottom(box_id, bar_index+5, level-Atr)
+            box.set_bgcolor(box_id, bul_col)
+
+    if array.size(lines) > 0    
+        if array.size(lines) > 6
+            line.delete(array.shift(lines))
+            box.delete(array.shift(boxes))
+// }
+
+
+// ＰＬＯＴ ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+if show_sr
+    draw_levels()
+
+if show_cor
+    correction(correction)
+
+ 
+
+var table logo = table.new(position.bottom_right, 2, 1, force_overlay = true)
+table.cell(logo, 1, 0, '|O|B|U|5|  ', text_size=size.normal, text_color=color.rgb(0, 180, 0))
+table.cell(logo, 0, 0, '|M|E|L|O|N|A| ', text_size=size.normal, text_color=color.white,bgcolor = color.rgb(0, 180, 0,30))
+//By @3dots - code endeded here 

@@ -1,0 +1,135 @@
+//@version=5
+indicator("FREE ALGOs [EzAlgo SR]", overlay=true)
+ 
+//------------------- EzAlgo SR | https://www.ezalgo.co ----------------------//
+// Get user input
+enableSR   = input(true, "SR On/Off", group="SR")
+colorSup   = input(#00DBFF, "Support Color", group="SR")
+colorRes   = input(#E91E63, "Resistance Color", group="SR")
+strengthSR = input.int(2, "S/R Strength", 1, group="SR")
+lineStyle  = input.string("Dotted", "Line Style", ["Solid", "Dotted", "Dashed"], group="SR")
+lineWidth  = input.int(2, "S/R Line Width", 1, group="SR")
+useZones   = input(true, "Zones On/Off", group="SR")
+useHLZones = input(true, "High Low Zones On/Off", group="SR")
+zoneWidth  = input.int(2, "Zone Width %", 0, tooltip="it's calculated using % of the distance between highest/lowest in last 300 bars", group="SR")
+expandSR   = input(true, "Expand SR")
+// Functions
+percWidth(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+// Get components
+rb            = 10
+prd           = 284
+ChannelW      = 10
+label_loc     = 55
+style         = lineStyle == "Solid" ? line.style_solid : lineStyle == "Dotted" ? line.style_dotted : line.style_dashed
+ph            = ta.pivothigh(rb, rb)
+pl            = ta.pivotlow (rb, rb)
+sr_levels     = array.new_float(21, na)
+prdhighest    = ta.highest(prd)
+prdlowest     = ta.lowest(prd)
+cwidth        = percWidth(prd, ChannelW)
+zonePerc      = percWidth(300, zoneWidth)
+aas           = array.new_bool(41, true)
+u1            = 0.0, u1 := nz(u1[1])
+d1            = 0.0, d1 := nz(d1[1])
+highestph     = 0.0, highestph := highestph[1]
+lowestpl      = 0.0, lowestpl := lowestpl[1]
+var sr_levs   = array.new_float(21, na)
+label hlabel  = na, label.delete(hlabel[1])
+label llabel  = na, label.delete(llabel[1])
+var sr_lines  = array.new_line(21, na)
+var sr_linesH = array.new_line(21, na)
+var sr_linesL = array.new_line(21, na)
+var sr_linesF = array.new_linefill(21, na)
+var sr_labels = array.new_label(21, na)
+if ph or pl
+    for x = 0 to array.size(sr_levels) - 1
+        array.set(sr_levels, x, na)
+    highestph := prdlowest
+    lowestpl := prdhighest
+    countpp = 0
+    for x = 0 to prd
+        if na(close[x])
+            break
+        if not na(ph[x]) or not na(pl[x])
+            highestph := math.max(highestph, nz(ph[x], prdlowest), nz(pl[x], prdlowest))
+            lowestpl := math.min(lowestpl, nz(ph[x], prdhighest), nz(pl[x], prdhighest))
+            countpp += 1
+            if countpp > 40
+                break
+            if array.get(aas, countpp)
+                upl = (ph[x] ? high[x + rb] : low[x + rb]) + cwidth
+                dnl = (ph[x] ? high[x + rb] : low[x + rb]) - cwidth
+                u1 := countpp == 1 ? upl : u1
+                d1 := countpp == 1 ? dnl : d1
+                tmp = array.new_bool(41, true)
+                cnt = 0
+                tpoint = 0
+                for xx = 0 to prd
+                    if na(close[xx])
+                        break
+                    if not na(ph[xx]) or not na(pl[xx])
+                        chg = false
+                        cnt += 1
+                        if cnt > 40
+                            break
+                        if array.get(aas, cnt)
+                            if not na(ph[xx])
+                                if high[xx + rb] <= upl and high[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                            if not na(pl[xx])
+                                if low[xx + rb] <= upl and low[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                        if chg and cnt < 41
+                            array.set(tmp, cnt, false)
+                if tpoint >= strengthSR
+                    for g = 0 to 40 by 1
+                        if not array.get(tmp, g)
+                            array.set(aas, g, false)
+                    if ph[x] and countpp < 21
+                        array.set(sr_levels, countpp, high[x + rb])
+                    if pl[x] and countpp < 21
+                        array.set(sr_levels, countpp, low[x + rb])
+// Plot
+var line highest_ = na, line.delete(highest_)
+var line lowest_  = na, line.delete(lowest_)
+var line highest_fill1 = na, line.delete(highest_fill1)
+var line highest_fill2 = na, line.delete(highest_fill2)
+var line lowest_fill1  = na, line.delete(lowest_fill1)
+var line lowest_fill2  = na, line.delete(lowest_fill2)
+hi_col = close >= highestph ? colorSup : colorRes
+lo_col = close >= lowestpl  ? colorSup : colorRes
+if enableSR
+    highest_ := line.new(bar_index - 311, highestph, bar_index, highestph, xloc.bar_index, expandSR ? extend.both : extend.right, hi_col, style, lineWidth)
+    lowest_  := line.new(bar_index - 311, lowestpl , bar_index, lowestpl , xloc.bar_index, expandSR ? extend.both : extend.right, lo_col, style, lineWidth)
+    if useHLZones
+        highest_fill1 := line.new(bar_index - 311, highestph + zonePerc, bar_index, highestph + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        highest_fill2 := line.new(bar_index - 311, highestph - zonePerc, bar_index, highestph - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill1  := line.new(bar_index - 311, lowestpl + zonePerc , bar_index, lowestpl + zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill2  := line.new(bar_index - 311, lowestpl - zonePerc , bar_index, lowestpl - zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        linefill.new(highest_fill1, highest_fill2, color.new(hi_col, 80))
+        linefill.new(lowest_fill1 , lowest_fill2 , color.new(lo_col, 80))
+if ph or pl
+    for x = 0 to array.size(sr_lines) - 1
+        array.set(sr_levs, x, array.get(sr_levels, x))
+for x = 0 to array.size(sr_lines) - 1
+    line.delete(array.get(sr_lines, x))
+    line.delete(array.get(sr_linesH, x))
+    line.delete(array.get(sr_linesL, x))
+    linefill.delete(array.get(sr_linesF, x))
+    if array.get(sr_levs, x) and enableSR
+        line_col = close >= array.get(sr_levs, x) ? colorSup : colorRes
+        array.set(sr_lines, x, line.new(bar_index - 355, array.get(sr_levs, x), bar_index, array.get(sr_levs, x), xloc.bar_index, expandSR ? extend.both : extend.right, line_col, style, lineWidth))
+        if useZones
+            array.set(sr_linesH, x, line.new(bar_index - 355, array.get(sr_levs, x) + zonePerc, bar_index, array.get(sr_levs, x) + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesL, x, line.new(bar_index - 355, array.get(sr_levs, x) - zonePerc, bar_index, array.get(sr_levs, x) - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesF, x, linefill.new(array.get(sr_linesH, x), array.get(sr_linesL, x), color.new(line_col, 80)))
+for x = 0 to array.size(sr_labels) - 1
+    label.delete(array.get(sr_labels, x))
+    if array.get(sr_levs, x) and enableSR
+        lab_loc = close >= array.get(sr_levs, x) ? label.style_label_up : label.style_label_down
+        lab_col = close >= array.get(sr_levs, x) ? colorSup             : colorRes
+        array.set(sr_labels, x, label.new(bar_index + label_loc, array.get(sr_levs, x), str.tostring(math.round_to_mintick(array.get(sr_levs, x))), color=lab_col , textcolor=#000000, style=lab_loc))
+hlabel := enableSR ? label.new(bar_index + label_loc + math.round(math.sign(label_loc)) * 20, highestph, "High Level : " + str.tostring(highestph), color=hi_col, textcolor=#000000, style=label.style_label_down) : na
+llabel := enableSR ? label.new(bar_index + label_loc + math.round(math.sign(label_loc)) * 20, lowestpl , "Low  Level : " + str.tostring(lowestpl) , color=lo_col, textcolor=#000000, style=label.style_label_up  ) : na

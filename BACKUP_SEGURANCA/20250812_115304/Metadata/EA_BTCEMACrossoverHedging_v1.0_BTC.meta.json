@@ -1,0 +1,48 @@
+{
+  "arquivo": "BTC_EMA_Crossover_TSL_EA_Hedging.mq5",
+  "nome_padronizado": "EA_BTCEMACrossoverHedging_v1.0_BTC",
+  "tipo": "EA",
+  "categoria": "Hedging",
+  "estrategia": "EMA_Crossover_Hedging",
+  "mercado": "BTC",
+  "timeframe": "MULTI",
+  "descricao": "EA BTC EMA Crossover com Hedging v1.0 gerado por ChatGPT. Versão modificada do EMA crossover que permite hedging removendo verificação de posição existente. Sistema baseado em cruzamento de EMAs rápida (5) e lenta (8).",
+  "funcoes_principais": [
+    "EMA Crossover Detection",
+    "Hedging Strategy Implementation",
+    "Multiple Position Management",
+    "Trailing Stop Loss Management"
+  ],
+  "parametros_expostos": [
+    "FastEMAPeriod (5)",
+    "SlowEMAPeriod (8)",
+    "TrailingStopPips (10)",
+    "StopLossPips (0 - disabled)",
+    "TakeProfitPips (0 - disabled)"
+  ],
+  "ftmo_score": 3,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Estratégia de hedging (alto risco)",
+    "Múltiplas posições simultâneas",
+    "Sem controle de exposição total",
+    "Sem gestão de risco por percentual",
+    "Sem daily loss limit",
+    "Risco de margin call elevado",
+    "Incompatível com regras FTMO padrão"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Remover estratégia de hedging",
+    "Implementar one-trade-at-a-time policy",
+    "Adicionar gestão de risco rigorosa (máximo 1%)",
+    "Implementar daily loss limit",
+    "Adicionar controle de exposição máxima",
+    "Implementar filtros de sessão",
+    "Adicionar maximum drawdown protection"
+  ],
+  "tags": ["#EA", "#BTC", "#EMA_Crossover", "#Hedging", "#High_Risk", "#Multiple_Positions", "#ChatGPT", "#Nao_FTMO"],
+  "caminho_origem": "All_MQ5/BTC_EMA_Crossover_TSL_EA_Hedging.mq5",
+  "caminho_final": "EAs/Hedging/EA_BTCEMACrossoverHedging_v1.0_BTC.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "EA com estratégia de hedging que viola princípios básicos de gestão de risco FTMO. Múltiplas posições simultâneas aumentam drasticamente o risco. Requer modificação substancial para uso em contas FTMO."
+}

@@ -1,0 +1,235 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Daniel_Ge
+// Inspired by Olivier Seban's Supertrend
+//
+// When you are reading this you are obviously looking at the source code ;) If you like (or dislike) this script or parts of it please consider to comment or boost it. Feel free to contact me.
+
+//@version=5
+strategy(title = "ATR Trend strategy", shorttitle = "ATR Trend strategy", overlay = true)
+// Library Import
+import Daniel_Ge/Functions/2 as lib
+
+//Inputs
+src = input.source(close, "Source", group = "Settings  ||  Source")
+src_hl = input.bool(true, "Use Highest High & Lowest Low", group = "Settings  ||  Source", tooltip = "Use highest high & lowest low as source. Default is active. If unchecked the highest high & lowest low of 'Source' will be used. This setting has a low - medium impact on trend calculation.")
+length = input.int(10, "Time Period", minval = 1, group = "Settings  ||  Source", tooltip = "The time period used to calculate ATR trend. Default is 10. This setting has a low - medium impact on trend calculation.")
+
+atr_type = input.string("Classic ATR (RMA)", "ATR Type", options = ["Classic ATR (RMA)", "Linear Regression (LSMA)", "Ehlers Super Smoother", "Optimum Elliptic Filter", "Butterworth 2 Pole", "Hann", "SMA", "EMA", "WMA", "HMA"], group = "Settings  ||  Average True Range (ATR)", tooltip = "Moving average used to calculate ATR. Default is 'Classic RMA' which uses the native ATR function. This setting has a medium impact on ATR trend calculation and is mostly for finetuning.")
+atr_multi = input.float(2.0, "ATR Weight", minval = 0.05, step = 0.05, group = "Settings  ||  Average True Range (ATR)", tooltip = "Default is 2. Higher values provide less false signals but a less 'sensitive' trend. Lower values provide more signals but also more false signals. This setting has a high impact on ATR trend calculation.")
+fast_atr_multi = input.float(0.5, "Fast ATR Weight", minval = -5.00, step = 0.05, group = "Settings  ||  Average True Range (ATR)", tooltip = "Default is -1. Only used when 'Show Fast Trend' is active. Usually the same value as 'ATR Weight' but can be adjusted for finetuning")
+show_fast = input.bool(false, "Show Fast Trend", group = "Settings  ||  Average True Range (ATR)", tooltip = "Plots an additional trendline which uses the 'fast ATR Weight' value.")
+show_dc_switch = input.bool(false, "Show DC Switch", group = "Settings  ||  Average True Range (ATR)", tooltip = "Plots the switch between upper/lower donchain channels (as used in Turtle Trade Channels). This setting is optional but can help to identify early trend changes.")
+
+show_channel = input.bool(false, "Show Smoothed Range Channel", group = "Settings  ||  Smoothed Range Channel", tooltip = "Show Smoothed Range Channel")
+channel_length = input.int(50, "Channel Length", minval = 2, group = "Settings  ||  Smoothed Range Channel", tooltip = "Default is 50. Lower values are more sensitive to price changes")
+channel_multi = input.float(3.0, "Channel Multiplier", minval = 0.1, step = 0.2, group = "Settings  ||  Smoothed Range Channel", tooltip = "Like BB multiplier. Default is 3.0. Increaes/Decreases channel width.")
+
+show_signals = input.bool(false, "Show Buy/Sell Signals", group = "Settings  ||  Style", tooltip = "Shows a buy/sell signal when the trend changes direction. These signals are also used in the corresponding alerts.")
+color_coding = input.bool(true, "Advanced Color Coding", group = "Settings  ||  Style", tooltip = "Uses a different color when the trend starts to change but the change isn't confirmed (yet).")
+fast_fill = input.bool(false, "Fill Fast Trend", group = "Settings  ||  Style", tooltip = "Fills the gap between both trendlines (only used when 'Show Fast Trend' is active).")
+trend_filling = input.bool(false, "Fill Price/Trend", group = "Settings  ||  Style", tooltip = "Fills the gap between the closing price and trend line.")
+channel_fill = input.bool(false, "Fill Smoothed Range Channel", group = "Settings  ||  Style", tooltip = "Fills smoothed range channel.")
+channel_gradient = input.bool(false, "Use Gradient Filling for Channel", group = "Settings  ||  Style", tooltip = "Use Gradient Filling instead of regular filling")
+
+lr_offset = input.int(0, "Linear Regression Offset", group = "Adjustments  ||  Linear Regression (LSMA)", tooltip = "Only used when 'Linear Regression (LSMA)' is set as ATR type. Default is 0. This setting should be considered as a fine tuning / adjustment option.")
+lr_length = input.int(20, "Linear Regression Length", minval = 2, group = "Adjustments  ||  Linear Regression (LSMA)", tooltip = "Only used when 'Linear Regression (LSMA)' is set as ATR type. Default is 20. This setting should be considered as a fine tuning / adjustment option.")
+
+
+// Custom ATR
+get_atr(i_length, type) =>
+    trueRange = ta.tr(true)
+    switch type
+        "SMA" => ta.sma(trueRange, i_length)
+        "EMA" => ta.ema(trueRange, i_length)
+        "Classic ATR (RMA)" => ta.atr(i_length)
+        "WMA" => ta.wma(trueRange, i_length)        
+        "HMA" => ta.hma(trueRange, i_length)
+        "Ehlers Super Smoother" => lib.super_smoother(trueRange, i_length)
+        "Hann" => lib.hann_ma(trueRange, i_length)
+        "Linear Regression (LSMA)" => ta.linreg(trueRange, lr_length, lr_offset)
+        "Optimum Elliptic Filter" => lib.oef(trueRange)
+        "Butterworth 2 Pole" => lib.butterworth_2Pole(trueRange, i_length)
+//
+atr = get_atr(5, atr_type) * atr_multi
+fast_atr = get_atr(5, atr_type) * fast_atr_multi
+
+// Highest/Lowest of source
+lower = ta.lowest(src, length)
+upper = ta.highest(src, length)
+
+// DC Switch
+dc_switch = ta.barssince(src >= upper[1]) <= ta.barssince(src <= lower[1]) ? lower : upper
+
+// Highest High/Lowest Low
+if src_hl
+    lower := ta.lowest(low, length)
+    upper := ta.highest(high, length)
+    dc_switch := ta.barssince(high >= upper[1]) <= ta.barssince(low <= lower[1]) ? lower : upper
+//
+
+
+
+// Trend direction
+string direction = upper > upper[1] ? "up" : lower < lower[1] ? "down" : "neutral"
+
+// Trend and signal variables
+float half_candle = lib.half_candle() // only used for color coding - not needed for atr trend calculation
+float trend = 0.0
+string up_down_trend = na
+bool buy_trend_signal = false
+bool sell_trend_signal = false
+// Fast Trend variables
+string fast_direction = upper > upper[1] ? "up" : lower < lower[1] ? "down" : "neutral"
+float fast_trend = 0.0
+string up_down_fast_trend = na
+
+// ATR trend logic
+if direction == "up"
+    trend := low - atr
+    if trend < trend[1]
+        trend := trend[1]
+if direction == "down"
+    trend := high + atr
+    if trend > trend[1]
+        trend := trend[1]
+if direction == "neutral"
+    trend := trend[1]
+//
+
+// Buy/Sell signals
+up_down_trend := up_down_trend[1]
+if trend > trend[1]
+    up_down_trend := "up"
+if trend < trend[1]
+    up_down_trend := "down"
+//
+
+// ATR fast_trend logic
+if fast_direction == "up"
+    fast_trend := low - fast_atr
+    if fast_trend < fast_trend[1]
+        fast_trend := fast_trend[1]
+if fast_direction == "down"
+    fast_trend := high + fast_atr
+    if fast_trend > fast_trend[1]
+        fast_trend := fast_trend[1]
+if fast_direction == "neutral"
+    fast_trend := fast_trend[1]
+//
+
+// fast_trend buy/sell signals
+up_down_fast_trend := up_down_fast_trend[1]
+if fast_trend > fast_trend[1]
+    up_down_fast_trend := "up"
+if fast_trend < fast_trend[1]
+    up_down_fast_trend := "down"
+//
+
+// Smoothed Range Channel
+smchr = lib.smoothrng(src, channel_length, channel_multi)
+channel_upper = trend + smchr
+channel_lower = trend - smchr
+
+
+// Buy/Sell Signals
+buy_trend_signal := up_down_trend[1] == "down" and up_down_trend == "up" ? true : false
+sell_trend_signal := up_down_trend[1] == "up" and up_down_trend == "down" ? true : false
+buy_fast_trend = up_down_fast_trend[1] == "down" and up_down_fast_trend == "up" ? true : false
+sell_fast_trend = up_down_fast_trend[1] == "up" and up_down_fast_trend == "down" ? true : false
+buy_fast_trend_crossover = ta.crossover(fast_trend, trend)
+sell_fast_trend_crossunder = ta.crossunder(fast_trend, trend)
+buy_channel_signal = close > channel_upper and close[1] < channel_upper
+sell_channel_signal = close < channel_lower and close[1] > channel_lower
+
+
+// Plots
+p00 = plot(trend, display = display.none, editable = false) // only for filling
+p0 = plot(color_coding ? trend : na, "ATR Trend - Advanced Color Coding", color = half_candle < trend and up_down_trend != "down" ? color(#ff4100) : up_down_trend == "up" ? color(#00cbff) : half_candle > trend ? color(#ff4101) : color(#ff0099), linewidth = 2)
+p1 = plot(color_coding == false ? trend : na, "ATR Trend", color = up_down_trend == "up" ? color(#00cbff) : color(#ff0099), linewidth = 2)
+p2 = plot(show_fast ? fast_trend : na, "Fast ATR Trend", color = up_down_fast_trend == "up" ? color(#00ffd4) : color(#e90c5e), linewidth = 1)
+p3 = plot(show_channel ? channel_upper : na, "Upper Channel", color = color(#00a7d1))
+p4 = plot(show_channel ? channel_lower : na, "Lower Channel", color = color(#e90c74))
+p5 = plot(show_dc_switch ? dc_switch : na, "DC Switch", color(#2a95ff), 1)
+p99 = plot(src, display = display.none, editable = false) // only for filling
+
+// Filling
+fill(p99, p1, close > trend and trend_filling and color_coding == false ? color.new(#00cbff, 95) : close < trend and trend_filling and color_coding == false ? color.new(#ff0099, 95) : na, title = "Trend Filling")
+fill(p99, p0, close > trend and trend_filling and color_coding ? color.new(#00cbff, 95) : close < trend and trend_filling and color_coding ? color.new(#ff0099, 95) : na, title = "Trend Filling")
+fill(p00, p2, fast_fill and trend > fast_trend ? color.new(#720c3b, 90) : na, "Lower Fast Filling")
+fill(p00, p2, fast_fill and trend < fast_trend ? color.new(#005e76, 90) : na, "Upper Fast Filling")
+fill(p00, p3, channel_fill ? color.new(#00cbff, 95) : na, "Upper Smoothed Range Channel Filling")
+fill(p00, p4, channel_fill ? color.new(#ff0099, 95) : na, "Lower Smoothed Range Channel Filling")
+// Gradient Filling
+fill(p00, p3, trend, channel_upper, channel_gradient ? color.new(#00cbff, 90) : na, na, title = "Upper Gradient Channel Filling")
+fill(p00, p4, trend, channel_lower, channel_gradient ? color.new(#ff0099, 85) : na, na, title = "Lower Gradient Channel Filling")
+
+
+// Buy/Sell Shapes
+plotshape(buy_trend_signal and show_signals ? trend - atr : na, title = "Buy signal" ,style = shape.triangleup, location = location.absolute, color = color(#00cbff), size=size.small)
+plotshape(sell_trend_signal and show_signals ? trend + atr : na, title = "Sell signal", style = shape.triangledown, location = location.absolute, color = color(#ff0099), size=size.small)
+plotshape(buy_fast_trend and show_signals and show_fast ? trend - atr : na, title = "Buy signal (Fast Trend)", style = shape.triangleup, location = location.absolute, color = color(#00cbff), size=size.small)
+plotshape(sell_fast_trend and show_signals and show_fast ? trend + atr : na, title = "Sell signal (Fast Trend)", style = shape.triangledown, location = location.absolute, color = color(#ff0099), size=size.small)
+plotshape(buy_fast_trend_crossover and show_signals and show_fast ? trend - atr : na, title = "Buy signal (Fast Trend crossover)", style = shape.triangleup, location = location.absolute, color = color(#00cbff), size=size.small)
+plotshape(sell_fast_trend_crossunder and show_signals and show_fast ? trend + atr : na, title = "Sell signal (Fast Trend crossunder)", style = shape.triangledown, location = location.absolute, color = color(#ff0099), size=size.small)
+plotshape(buy_channel_signal and show_signals and show_channel ? trend - atr : na, title = "Buy signal (Smoothed Range Channel)", style = shape.triangleup, location = location.absolute, color = color(#00cbff), size=size.small)
+plotshape(sell_channel_signal and show_signals and show_channel ? trend + atr : na, title = "Sell signal (Smoothed Range Channel)", style = shape.triangledown, location = location.absolute, color = color(#ff0099), size=size.small)
+
+// Alerts
+// alertcondition(sell_trend_signal, title="Down Trend", message = "Down Trend")
+// alertcondition(buy_trend_signal, title="Up Trend", message = "Up Trend")
+// alertcondition(sell_fast_trend, title = "Fast Trend down", message = "Fast Trend shows downwards move")
+// alertcondition(buy_fast_trend, title = "Fast Trend  up", message = "Fast Trend shows upwards move")
+// alertcondition(sell_fast_trend_crossunder, title = "Fast Trend Crossing down", message = "Fast Trend crossed under trend")
+// alertcondition(buy_fast_trend_crossover, title = "Fast Trend Crossing up", message = "Fast Trend crossed over trend")
+// alertcondition(buy_channel_signal, title = "Upper Channel Breakout", message = "Close price above upper channel")
+// alertcondition(sell_channel_signal, title = "Lower Channel Breakout", message = "Close price below lower channel")
+
+
+
+// buy_trend_signal := up_down_trend[1] == "down" and up_down_trend == "up" ? true : false
+// sell_trend_signal := up_down_trend[1] == "up" and up_down_trend == "down" ? true : false
+// buy_fast_trend = up_down_fast_trend[1] == "down" and up_down_fast_trend == "up" ? true : false
+// sell_fast_trend = up_down_fast_trend[1] == "up" and up_down_fast_trend == "down" ? true : false
+// buy_fast_trend_crossover = ta.crossover(fast_trend, trend)
+// sell_fast_trend_crossunder = ta.crossunder(fast_trend, trend)
+// buy_channel_signal = close > channel_upper and close[1] < channel_upper
+// sell_channel_signal = close < channel_lower and close[1] > channel_lower
+
+
+
+conditons = input.bool(defval = true, title = "Select only the conditons you prefer for the strategy to operate on: ")
+trend_signal_strategy = input.bool(defval = true, title = "Add the variable: trend_signal_strategy ?")
+fast_trend_strategy = input.bool(defval = true, title = "Add the variable: trend_signal_strategy ?")
+fast_trend_crossover = input.bool(defval = true, title = "Add the variable: fast_trend_crossover ?")
+channel_signal = input.bool(defval = true, title = "Add the variable: channel_signal ?")
+
+
+if trend_signal_strategy == true
+    strategy.entry(id='Long', direction=strategy.long, when= buy_trend_signal)
+    strategy.close(id='Long', when= sell_trend_signal)
+
+    strategy.entry(id='Short', direction=strategy.short, when= sell_trend_signal)
+    strategy.close(id='Short', when=buy_trend_signal)
+
+
+if fast_trend_strategy == true
+    strategy.entry(id='Long', direction=strategy.long, when= buy_fast_trend)
+    strategy.close(id='Long', when= sell_fast_trend)
+
+    strategy.entry(id='Short', direction=strategy.short, when= sell_fast_trend)
+    strategy.close(id='Short', when=buy_fast_trend)
+
+
+if fast_trend_crossover == true
+    strategy.entry(id='Long', direction=strategy.long, when= buy_fast_trend_crossover)
+    strategy.close(id='Long', when= sell_fast_trend_crossunder)
+
+    strategy.entry(id='Short', direction=strategy.short, when= sell_fast_trend_crossunder)
+    strategy.close(id='Short', when=buy_fast_trend_crossover)
+
+if channel_signal == true
+    strategy.entry(id='Long', direction=strategy.long, when= buy_channel_signal)
+    strategy.close(id='Long', when= sell_channel_signal)
+
+    strategy.entry(id='Short', direction=strategy.short, when= sell_channel_signal)
+    strategy.close(id='Short', when=buy_channel_signal)

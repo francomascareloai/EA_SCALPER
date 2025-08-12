@@ -1,0 +1,787 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+
+// By 3dots  thanks to © zdmre
+
+//This strategy has been created by 3dots
+// Based on rsi signals coded by zdmre and order blocks and chart patterns 
+//- code started here
+//@version=5
+indicator("MELONA - RSI STRATEGY", overlay=false, max_bars_back = 500)
+
+////INPUTs
+inputgroup = "**********INPUTs**********"
+shdiv = input.bool(defval = true, title = "Show Divergences", group=inputgroup)
+shpoints = input.bool(defval = true, title = "Show Points", group=inputgroup)
+shdate = input.bool(defval = true, title = "Show Dates", group=inputgroup)
+shtline = input.bool(defval = true, title = "Show Trend Lines", group=inputgroup)
+shbg = input.bool(defval = true, title = "Show StdDev Background", group=inputgroup)
+
+////ALERTs
+alertgroup = "**********ALERTs**********"
+i_detectLongs  = input(true, "Detect Longs", group=alertgroup)
+i_detectShorts = input(true, "Detect Shorts", group=alertgroup)
+
+////RSI
+rsigroup = "**********RSI**********"
+len = input.int(14, minval=1, title='RSI Length', group = rsigroup)
+src = input(close, 'RSI Source', group = rsigroup)
+up = ta.rma(math.max(ta.change(src), 0), len)
+down = ta.rma(-math.min(ta.change(src), 0), len)
+rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)
+plot(rsi, 'RSI', color=color.new(#7E57C2, 0))
+
+band1 = hline(70, "Upper Band", color=#787B86)
+bandm = hline(50, "Middle Band", color=color.new(#787B86, 50))
+band0 = hline(30, "Lower Band", color=#787B86)
+fill(band1, band0, color=color.rgb(126, 87, 194, 90), title="Background")
+
+ob= ta.cross(rsi, 70) == 1 and rsi >= 70
+os = ta.cross(rsi, 30) == 1 and rsi <= 30
+
+plot(ob and shpoints ? rsi : na ,title='Overbought', style=plot.style_circles, color=color.new(color.red, 0), linewidth=5)
+plot(os and shpoints ? rsi : na ,title='Oversold ', style=plot.style_circles, color=color.new(color.green, 0), linewidth=5)
+
+////STDDEV
+drawLine(X1, Y1, X2, Y2, ExtendType, Color, LineStyle) =>
+    var line Line = na
+    Line := line.new(X1, Y1, X2, Y2, xloc.bar_index, ExtendType, Color, LineStyle, 1)
+    line.delete(Line[1])
+
+rsdcr2(PeriodMinusOne, Deviations, Estimate) =>
+    var period = PeriodMinusOne + 1
+    var devDenominator = Estimate == 'Unbiased' ? PeriodMinusOne : period
+    Ex = 0.0
+    Ex2 = 0.0
+    Exy = 0.0
+    Ey = 0.0
+    for i = 0 to PeriodMinusOne by 1
+        closeI = nz(rsi[i])
+        Ex := Ex + i
+        Ex2 := Ex2 + i * i
+        Exy := Exy + closeI * i
+        Ey := Ey + closeI
+        Ey
+    ExEx = Ex * Ex
+    slope = Ex2 == ExEx ? 0.0 : (period * Exy - Ex * Ey) / (period * Ex2 - ExEx)
+    linearRegression = (Ey - slope * Ex) / period
+    intercept = linearRegression + bar_index * slope
+    deviation = 0.0
+    for i = 0 to PeriodMinusOne by 1
+        deviation := deviation + math.pow(nz(rsi[i]) - (intercept - bar_index[i] * slope), 2.0)
+        deviation
+    deviation := Deviations * math.sqrt(deviation / devDenominator)
+    correlate = ta.correlation(rsi, bar_index, period)
+    r2 = math.pow(correlate, 2.0)
+    [linearRegression, slope, deviation, correlate, r2]
+periodTrend = 140
+deviationsAmnt = 1.1
+estimatorType = 'Unbiased'
+var extendType = 'Right'
+periodMinusOne = periodTrend - 1
+[linReg, slope, deviation, correlate, r2] = rsdcr2(periodMinusOne, deviationsAmnt, estimatorType)
+endPointBar = bar_index - periodTrend + 1
+endPointY = linReg + slope * periodMinusOne
+
+////TRENDLINEs
+trendgroup = "**********TREND LINE**********"
+length = input(21, title='Zigzag Length')
+
+r = rsi[length]
+l = rsi[14]
+
+ph = ta.pivothigh(rsi,length,length)
+pl = ta.pivotlow(rsi,length,length)
+valH = ta.valuewhen(ph,r,0)
+valL = ta.valuewhen(pl,r,0)
+valpH = ta.valuewhen(ph,r,1)
+valpL = ta.valuewhen(pl,r,1)
+
+d = math.abs(r)
+n = bar_index
+label lbl = na
+HIH = valH > valpH ? "HH" : na 
+HIL = valH < valpH ? "LH" : na
+LOL = valL < valpL ? "LL" : na
+LOH = valL > valpL ? "HL" : na
+
+if ph and valH > valpH and shtline
+    lbl := label.new(n[length],math.max(r,l),HIH,color=#ff1100  ,
+      style=label.style_label_down,textcolor=color.white,size=size.tiny)
+    label.delete(lbl[1])
+    linehh = line.new(n[length],math.max(r,l), bar_index, math.max(r,l), extend=extend.right, color=color.red)
+    line.delete(linehh[1])
+else if ph and valH < valpH and shtline
+    lbl := label.new(n[length],math.max(r,l),HIL,color=#e79700 ,
+      style=label.style_label_down,textcolor=color.white,size=size.tiny)
+    label.delete(lbl[1])
+    linehl = line.new(n[length],math.max(r,l), bar_index, math.max(r,l), extend=extend.right, color=color.orange)
+    line.delete(linehl[1])
+else if pl and valL < valpL and shtline
+    lbl := label.new(n[length],math.min(r,l),LOL,color=#009c0c   ,  
+      style=label.style_label_up,textcolor=color.white,size=size.tiny)
+    label.delete(lbl[1]) 
+    linell = line.new(n[length],math.min(r,l), bar_index, math.min(r,l), extend=extend.right, color=color.green)
+    line.delete(linell[1])
+else if pl and valL > valpL and shtline
+    lbl := label.new(n[length],math.min(r,l),LOH,color= #0073ee ,
+      style=label.style_label_up,textcolor=color.white,size=size.tiny)
+    label.delete(lbl[1])
+    linelh = line.new(n[length],math.min(r,l), bar_index, math.min(r,l), extend=extend.right, color=color.blue)
+    line.delete(linelh[1])
+label.delete(lbl[200])  
+barcolor(rsi > linReg + deviation and ta.pivothigh(rsi, length, 0) and rsi >= 65 and shbg ? color.white : rsi < linReg - deviation and ta.pivotlow(rsi, length, 1) and rsi <= 35 and shbg ? color.yellow : na)
+bgcolor(rsi > linReg + deviation and ta.pivothigh(rsi, length, 0) and rsi >= 65 and shbg ? color.new(color.red,50) : rsi < linReg - deviation and ta.pivotlow(rsi, length, 1) and rsi <= 35 and shbg ? color.new(color.green, 50) : na)
+
+
+////WEDGE
+wedgegroup = "**********WEDGE**********"
+//Inputs
+lengthdiv = input.int(21, 'Leftbars Length',minval=0, group=wedgegroup)
+lengthright = input.int(0, 'Rightbars Length', tooltip = "0 for Instant",minval=0, group=wedgegroup)
+extendOptionUp = input.string("none", title="Upper Line Extension", 
+     options=["none", "left", "right", "both"],group=wedgegroup)
+extendOptionLow = input.string("none", title="Lower Line Extension", 
+     options=["none", "left", "right", "both"])
+
+astart = input.int(1, 'Draw Upper Line From Pivot',minval=1, inline='pivot')
+aend = input.int(0, 'To Pivot #',minval=0, inline='pivot')
+bstart = input.int(1, 'Draw Lower Line From Pivot',minval=1, inline='pivot2')
+bend = input.int(0, 'To Pivot #', minval=0,inline='pivot2')
+stylewg = input.string('Dot', 'Line Style:', options=['Dot', 'Dash', 'Solid'], inline='custom2')
+colorwg = input.string('Red/Green', 'Line Color:', options=['Red/Green', 'White', 'Yellow', 'Blue'], inline='custom2')
+lwidth = input.int(2,'Line Width:', minval=0,maxval=4, inline='custom2')
+
+lengthwg = lengthright
+length2wg = lengthright
+
+
+//Conditions
+upwg = ta.pivothigh(rsi, lengthdiv,  lengthright)
+dnwg = ta.pivotlow(rsi, lengthdiv,  lengthright)
+upchart = ta.pivothigh(close, lengthdiv, lengthright)
+dnchart = ta.pivotlow(close, lengthdiv, lengthright)
+
+nw = bar_index
+a1 = ta.valuewhen(not na(upwg), nw, astart)
+b1 = ta.valuewhen(not na(dnwg), nw, bstart)
+a2 = ta.valuewhen(not na(upwg), nw, aend)
+b2 = ta.valuewhen(not na(dnwg), nw, bend)
+
+ach1 = ta.valuewhen(not na(upchart), nw, astart)
+bch1 = ta.valuewhen(not na(dnchart), nw, bstart)
+ach2 = ta.valuewhen(not na(upchart), nw, aend)
+bch2 = ta.valuewhen(not na(dnchart), nw, bend)
+
+//Styles
+style = line.style_dotted
+if stylewg == 'Dash'
+    style := line.style_dashed
+if stylewg == 'Solid'
+    style := line.style_solid
+if stylewg == 'Dot'
+    style := line.style_dotted
+
+//Colors
+color1 = color.red
+color2 = color.green
+if colorwg == 'White'
+    color1 := color.white
+    color2 := color.white
+    color2
+if colorwg == 'Yellow'
+    color1 := color.yellow
+    color2 := color.yellow
+    color2
+if colorwg == 'Blue'
+    color1 := color.blue
+    color2 := color.blue
+    color2
+if colorwg == 'Red/Green'
+    color1 := color.red
+    color2 := color.green
+    color2
+
+//Lines
+lineExtendUp = extendOptionUp == "left" ? extend.left :
+     extendOptionUp == "right" ? extend.right :
+     extendOptionUp == "both" ? extend.both :
+         extend.none
+lineExtendLow = extendOptionLow == "left" ? extend.left :
+     extendOptionLow == "right" ? extend.right :
+     extendOptionLow == "both" ? extend.both :
+         extend.none
+
+//DIVERGENCE
+div1 = upwg[nw - a2] < upwg[nw - a1] and upchart[nw - ach2] > upchart[nw - ach1] and upchart > high[nw - ach1]
+div2 = dnwg[nw - b2] > dnwg[nw - b1] and dnchart[nw - bch2] < dnchart[nw - bch1] and dnchart < low[nw - bch1]
+
+if div1 and shdiv and i_detectShorts
+    line.new(nw[nw - a1 + lengthwg], upwg[nw - a1], nw[nw - a2 + lengthwg], upwg[nw - a2], extend=lineExtendUp,color=color1, width=lwidth,style=style)
+    label1 = label.new(nw[nw - a2 + lengthwg], 70 , text="Divergence\n|", style=label.style_label_down, color=color.new(color.red,100))
+    label.set_size(label1, size.small)
+    label.set_textcolor(label1, color.red) 
+if div2 and shdiv and i_detectLongs
+    line.new(nw[nw - b1 + length2wg], dnwg[nw - b1], nw[nw - b2 + length2wg], dnwg[nw - b2], extend=lineExtendLow, color=color2, width=lwidth, style=style)
+    label2 = label.new(nw[nw - b2 + length2wg], 30, text="|\nDivergence", style=label.style_label_up, color=color.new(color.green,100))
+    label.set_size(label2, size.small)
+    label.set_textcolor(label2, color.green) 
+if div1 and shdate and i_detectShorts
+    label1 = label.new(nw[nw - a2 + lengthwg], 80 , text = str.format("{0,date, y\nMMM-d\n}", time[nw - a2 + lengthwg]), style=label.style_label_down, color=color.new(color.red,100))
+    label.set_size(label1, size.small)
+    label.set_textcolor(label1, color.red)
+if div2 and shdate and i_detectLongs
+    label2 = label.new(nw[nw - b2 + length2wg], 20 , text = str.format("{0,date, \ny\nMMM-d}", time[nw - b2 + length2wg]), style=label.style_label_up, color=color.new(color.green,100))
+    label.set_size(label2, size.small)
+    label.set_textcolor(label2, color.green)
+
+////ALERT
+// Trigger an alert on crosses.
+enterShort = i_detectShorts and div1
+enterLong  = i_detectLongs  and div2
+enterPos = i_detectLongs and i_detectShorts and (div1 or div2)
+//Conditions
+alertcondition(enterLong, "Divergence Alert (Long)", "Go Long ▲\n\nTicker: {{ticker}}\nTime: {{time}}\nPrice: {{close}}")
+alertcondition(enterShort, "Divergence Alert (Short)", "Go Short ▼\n\nTicker: {{ticker}}\nTime: {{time}}\nPrice: {{close}}")
+alertcondition(enterPos, "Divergences Alert", "Ticker: {{ticker}}\nTime: {{time}}\nPrice: {{close}}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+showSCOB = input.bool(true,title = "Show Single Candle Order Block (SCOB)",group = "Single Candle Order Block Settings")
+mitigationStyle = input.string("Close",title = "Mitigation Method",options = ["Close","Wick"],group = "Single Candle Order Block Settings")
+showLast = input.int(6,title = "Show Last X Single Candle Order Blocks",group = "Single Candle Order Block Settings",minval = 1 , maxval = 15)
+volatilityFilter = input.bool(false,title = "Apply Volatility Filter",group = "Single Candle Order Block Settings",
+ tooltip ="Enables filtering of Order Blocks based on volatility. When enabled, only Order Blocks with an Average True Range (ATR) above the mean value of the ATR" )
+bullishScobColor = input.color(color.new(#00FF00, 80), title = "Bullish/Bearish SCOB Block Color", group = "Single Candle Order Block Style Settings",inline = "color")
+bearishScobColor = input.color(color.new(#BD10E0, 80), title = " ", group = "Single Candle Order Block Style Settings",inline = "color")
+
+type scob
+    float top
+    float bottom
+    int barStart
+    box block
+    bool broken
+
+var array<scob> bullishScobArray = array.new<scob>()    
+var array<scob> bearishScobArray = array.new<scob>()   
+
+f_check_overlap(array<scob> scobArray, float top, float bottom) =>
+    overlap = false
+    if scobArray.size() > 1
+        for i = 0 to array.size(scobArray) - 1
+            scobElement = array.get(scobArray, i)
+            if ((top < scobElement.top and top > scobElement.bottom) or (bottom > scobElement.bottom and bottom < scobElement.top))
+                overlap:= true
+    overlap
+
+detectBullishSCOB = open[2] > close[2] and close[1] > open[1] and close > open and low[1] < low[2] and close > high[1]
+detectBearishSCOB = open[2] < close[2] and close[1] < open[1] and close < open and high[1] > high[2] and close < low[1]
+atr = ta.atr(14)
+atrFilter = ta.sma(atr,200)
+
+if detectBearishSCOB
+    newScob = scob.new(top = high[1],bottom = low[1],barStart = time[1],block = na,broken = false)
+    if not f_check_overlap(bearishScobArray, newScob.top, newScob.bottom)
+        if volatilityFilter and atr > atrFilter
+            array.push(bearishScobArray,newScob)
+        if not volatilityFilter
+            array.push(bearishScobArray,newScob)
+    if bearishScobArray.size() > 20
+        testScob = bearishScobArray.shift()
+        box.delete(testScob.block)
+
+if detectBullishSCOB
+    newScob = scob.new(top = high[1],bottom = low[1],barStart = time[1],block = na,broken = false)
+    if not f_check_overlap(bullishScobArray, newScob.top, newScob.bottom)
+        if volatilityFilter and atr > atrFilter
+            array.push(bullishScobArray,newScob)
+        if not volatilityFilter
+            array.push(bullishScobArray,newScob)
+    if bullishScobArray.size() > 20
+        testScob = bullishScobArray.shift()
+        box.delete(testScob.block)
+
+if showSCOB
+    if bullishScobArray.size() > 0
+        counter = 0
+        for i = bullishScobArray.size() - 1 to 0 
+            bullishScob = bullishScobArray.get(i)
+            if counter < showLast
+                if na(bullishScob.block) 
+                    bullishScob.block := box.new(top = bullishScob.top,bottom = bullishScob.bottom,left = bullishScob.barStart,right = time,xloc=xloc.bar_time,bgcolor = bullishScobColor,border_color = bullishScobColor,force_overlay = true
+                     ,text = "Bu-SCOB",text_color = color.new(color.white,65),text_halign = text.align_right,text_size = size.tiny)
+                if not na(bullishScob.block) and bullishScob.bottom > (mitigationStyle == "Close" ? close : low)
+                    deletedScob = bullishScobArray.remove(i)
+                    deletedScob.block.delete()
+                    break
+                counter := counter + 1
+                bullishScob.block.set_right(time)
+            else 
+                bullishScob.block.delete()
+                bullishScob.block := na
+
+    if bearishScobArray.size() > 0
+        counter = 0
+        for i = bearishScobArray.size() - 1 to 0
+            bearishScob = bearishScobArray.get(i)
+            if counter < showLast
+                if na(bearishScob.block)
+                    bearishScob.block := box.new(top = bearishScob.top,bottom = bearishScob.bottom,left = bearishScob.barStart,right = time,xloc=xloc.bar_time,bgcolor = bearishScobColor,border_color = bearishScobColor,force_overlay = true
+                     ,text = "Be-SCOB",text_color = color.new(color.white,65),text_halign = text.align_right,text_size = size.tiny)
+                if not na(bearishScob.block) and bearishScob.top < (mitigationStyle == "Close" ? close : high)
+                    deletedScob = bearishScobArray.remove(i)
+                    deletedScob.block.delete()
+                    break
+                counter := counter + 1
+                bearishScob.block.set_right(time)
+            else 
+                bearishScob.block.delete()
+                bearishScob.block := na
+
+alertcondition(detectBullishSCOB, title="Bullish SCOB Detected", message="A Bullish Single Candle Order Block has formed")
+alertcondition(detectBearishSCOB, title="Bearish SCOB Detected", message="A Bearish Single Candle Order Block has formed")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//****************** HARMONIC *****************
+
+//
+CRAK1 = input.int(13, step=10)
+CRAK2 = input.int(17, step=10)
+CRAK3 = input.int(110, step=10)
+CRAK4 = input.int(109, step=10)
+CRAK5 = input.int(103, step=10)
+CRAK6 = input.int(1, step=10)
+CRAK7 = input.int(1, step=10)
+CRAK8 = input.int(9, step=10) 
+CRAK9 = input.int(11, step=10)
+CRAK10 = input.int(120, step=10)
+CRAK11 = input.int(200, step=10)
+CRAK12 = input.int(200, step=10)
+CRAK13 = input.int(110, step=10)
+CRAK14 = input.int(11, step=10)
+CRAK15 = input.int(12, step=10)
+CRAK16 = input.int(2, step=10)
+CRAK17 = input.int(1, step=10)
+CRAK18 = input.int(2, step=10)
+CRAK19 = input.int(1, step=10)
+CRAK20 = input.int(2, step=10)
+///
+DETECT3 = input.int(18, step=10)
+PATTERN1 = input(true)
+PATTERN10 = input.int(18, step=5, minval=1)
+COLORP1 = input(color.rgb(43, 52, 146, 55))
+zigzag1Width = 1
+zigzag1Style = line.style_dotted
+ 
+PATTERN2 = input(true)
+PATTERN20 = input.int(24, step=5, minval=1)
+COLORP2 = input(color.rgb(43, 52, 146, 55))
+zigzag2Width = 1
+zigzag2Style = line.style_dotted
+ 
+PATTERN3 = input(true)
+PATTERN30 = input.int(32, step=5, minval=1)
+COLORP3 = input(color.rgb(43, 52, 146, 55))
+zigzag3Width = 1
+zigzag3Style = line.style_dotted
+ 
+PATTERN4 = input(true)
+PATTERN40 = input.int(38, step=5, minval=1)
+COLORP4 = input(color.rgb(43, 52, 146, 55))
+zigzag4Width = 1
+zigzag4Style = line.style_dotted
+
+P11 = input(true)
+P22 = input(true)
+P33 = input(true)
+P44 = input(true)
+P55 = input(true)
+P66 = input(true)
+DETECTM = input.int(18, minval=5, step=5, maxval=200)
+//
+DATAC = input.int(350, step=10)
+DATAC2 = input.int(400, step=10)
+//
+MaxRiskPerReward = input.int(29, title='DETECT/PER', step=10, minval=0)
+//
+
+//
+E1 = input.int(370, step=10)
+E2 = input.int(390, step=10)
+showStatTable = false
+CANCLE_PATTERNS = input(false)
+//
+CRAKD90 = input.int(200, step=10)
+CRAKFALSE200 = input.int(200, step=10)
+CRAKFALSE100 = input.int(300, step=10)
+///
+BULL_PATTERNS = input(color.new(color.silver,85))
+BEAR_PATTERNS = input(color.new(color.blue,85))
+
+err_min = (100 - DETECTM) / 100
+err_max = (100 + DETECTM) / 100
+
+var zigzagpivots1 = array.new_float(0)
+var zigzagpivotbars1 = array.new_int(0)
+var zigzagpivotdirs1 = array.new_int(0)
+
+var zigzagpivots2 = array.new_float(0)
+var zigzagpivotbars2 = array.new_int(0)
+var zigzagpivotdirs2 = array.new_int(0)
+
+var zigzagpivots3 = array.new_float(0)
+var zigzagpivotbars3 = array.new_int(0)
+var zigzagpivotdirs3 = array.new_int(0)
+
+var zigzagpivots4 = array.new_float(0)
+var zigzagpivotbars4 = array.new_int(0)
+var zigzagpivotdirs4 = array.new_int(0)
+
+var wmlines1 = array.new_line(8)
+var wmtype1 = array.new_int(2, 1)
+var wmLabels1 = array.new_bool(13, false)
+var wmLabel1 = array.new_label(1)
+
+var wmlines2 = array.new_line(8)
+var wmtype2 = array.new_int(2, 1)
+var wmLabels2 = array.new_bool(13, false)
+var wmLabel2 = array.new_label(1)
+
+var wmlines3 = array.new_line(8)
+var wmtype3 = array.new_int(2, 1)
+var wmLabels3 = array.new_bool(13, false)
+var wmLabel3 = array.new_label(1)
+
+var wmlines4 = array.new_line(8)
+var wmtype4 = array.new_int(2, 1)
+var wmLabels4 = array.new_bool(13, false)
+var wmLabel4 = array.new_label(1)
+
+pivots(length) =>
+    float phigh = ta.highestbars(high, length) == 0 ? high : na
+    float plow = ta.lowestbars(low, length) == 0 ? low : na
+    dir = 0
+    iff_1 = plow and na(phigh) ? -1 : dir[1]
+    dir := phigh and na(plow) ? 1 : iff_1
+    [dir, phigh, plow]
+
+zigzag(length, zigzagpivots, zigzagpivotbars, zigzagpivotdirs) =>
+    [dir, phigh, plow] = pivots(length)
+    dirchanged = ta.change(dir)
+
+    if phigh or plow
+        value = dir == 1 ? phigh : plow
+        bar = bar_index
+        newDir = dir
+        if not dirchanged and array.size(zigzagpivots) >= 1
+            pivot = array.shift(zigzagpivots)
+            pivotbar = array.shift(zigzagpivotbars)
+            pivotdir = array.shift(zigzagpivotdirs)
+            useNewValues = value * pivotdir < pivot * pivotdir
+            value := useNewValues ? pivot : value
+            bar := useNewValues ? pivotbar : bar
+            bar
+
+        if array.size(zigzagpivots) >= 2
+            LastPoint = array.get(zigzagpivots, 1)
+            newDir := dir * value > dir * LastPoint ? dir * 2 : dir
+            newDir
+
+        array.unshift(zigzagpivots, value=value)
+        array.unshift(zigzagpivotbars, bar)
+        array.unshift(zigzagpivotdirs, newDir)
+
+        if array.size(zigzagpivots) > DETECT3
+            array.pop(zigzagpivots)
+            array.pop(zigzagpivotbars)
+            array.pop(zigzagpivotdirs)
+
+get_harmonic_label(wmLabels, dir, price, bar) =>
+    isP11 = array.get(wmLabels, 0)
+    isP22 = array.get(wmLabels, 1)
+    isP33 = array.get(wmLabels, 2)
+    isP44 = array.get(wmLabels, 3)
+    isP55 = array.get(wmLabels, 4)
+    isP66 = array.get(wmLabels, 5)
+
+    labelText = isP11 ? 'Gartley' : ''
+    labelText := labelText + (isP22 ? (labelText == '' ? '' : '\n') + 'Crab' : '')
+    labelText := labelText + (isP33 ? (labelText == '' ? '' : '\n') + 'Deep Crab' : '')
+    labelText := labelText + (isP44 ? (labelText == '' ? '' : '\n') + 'Bat' : '')
+    labelText := labelText + (isP55 ? (labelText == '' ? '' : '\n') + 'Butterfly' : '')
+    labelText := labelText + (isP66 ? (labelText == '' ? '' : '\n') + 'Shark' : '')
+    
+
+    trendColor = dir > 0 ? BULL_PATTERNS : BEAR_PATTERNS
+
+    baseLabel = label.new(x=bar, y=price, text=labelText, yloc=yloc.price, color=trendColor, style=dir < 1 ? label.style_label_down : label.style_label_up, textcolor=color.black, size=size.large,force_overlay = true)
+    baseLabel
+
+detect_harmonic_pattern(zigzagpivots, zigzagpivotbars, zigzagpivotdirs, wmlines, wmlabel, wmtype, wmLabels, zigzagColor, zigzagWidth, zigzagStyle, showZigZag) =>
+    start = CANCLE_PATTERNS ? 1 : 0
+    wm_pattern = false
+    abcd_pattern = false
+    double_pattern = false
+    if array.size(zigzagpivots) >= 6 + start and showZigZag
+
+        d = array.get(zigzagpivots, start + 0)
+        dBar = array.get(zigzagpivotbars, start + 0)
+        dDir = array.get(zigzagpivotdirs, start + 0)
+
+        c = array.get(zigzagpivots, start + 1)
+        cBar = array.get(zigzagpivotbars, start + 1)
+        cDir = array.get(zigzagpivotdirs, start + 1)
+
+        b = array.get(zigzagpivots, start + 2)
+        bBar = array.get(zigzagpivotbars, start + 2)
+        bDir = array.get(zigzagpivotdirs, start + 2)
+
+        a = array.get(zigzagpivots, start + 3)
+        aBar = array.get(zigzagpivotbars, start + 3)
+        aDir = array.get(zigzagpivotdirs, start + 3)
+
+        x = array.get(zigzagpivots, start + 4)
+        xBar = array.get(zigzagpivotbars, start + 4)
+        xDir = array.get(zigzagpivotdirs, start + 4)
+
+        y = array.get(zigzagpivots, start + 5)
+        yBar = array.get(zigzagpivotbars, start + 5)
+        yDir = array.get(zigzagpivotdirs, start + 5)
+
+        highPoint = math.max(x, a, b, c, d)
+        lowPoint = math.min(x, a, b, c, d)
+        dir = c > d ? 1 : -1
+
+        xabRatio = math.abs(b - a) / math.abs(x - a)
+        abcRatio = math.abs(c - b) / math.abs(a - b)
+        bcdRatio = math.abs(d - c) / math.abs(b - c)
+        xadRatio = math.abs(d - a) / math.abs(x - a)
+        yxaRatio = math.abs(a - x) / math.abs(y - x)
+
+        abTime = math.abs(aBar - bBar)
+        cdTime = math.abs(cBar - dBar)
+        abPrice = math.abs(a - b)
+        cdPrice = math.abs(c - d)
+
+        time_ratio = cdTime / abTime
+        price_ratio = cdPrice / abPrice
+        abcdDirection = a < b and a < c and c < b and c < d and a < d and b < d ? 1 : a > b and a > c and c > b and c > d and a > d and b > d ? -1 : 0
+
+        risk = math.abs(b - d)
+        reward = math.abs(c - d)
+        riskPerReward = risk * 100 / (risk + reward)
+
+        if b < highPoint and b > lowPoint
+            //gartley
+            if P11 and xabRatio >= 0.588 * err_min and xabRatio <= 0.648 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 0.786 * err_min and xadRatio <= 0.886 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 0, true)
+            else
+                array.set(wmLabels, 0, false)
+            //Crab
+            if P22 and  xabRatio >= 0.382 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 1.618 * err_min and xadRatio <= 1.902 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 1, true)
+            else
+                array.set(wmLabels, 1, false)
+            //Deep Crab
+            if P33  and xabRatio >= 0.886 * err_min and xabRatio <= 0.936 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 1.618 * err_min and xadRatio <= 1.902 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 2, true)
+            else
+                array.set(wmLabels, 2, false)
+            //Bat
+            if P44 and xabRatio >= 0.382 * err_min and xabRatio <= 0.55 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 0.886 * err_min and xadRatio <= 0.886 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 3, true)
+            else
+                array.set(wmLabels, 3, false)
+            //Butterfly
+            if P55 and xabRatio >= 0.755 * err_min and xabRatio <= 0.816 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 1.272 * err_min and xadRatio <= 1.272 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 4, true)
+            else
+                array.set(wmLabels, 4, false)
+            //Shark
+            if P66 and xabRatio >= 0.382 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 1.13 * err_min and abcRatio <= 1.618 * err_max and xadRatio >= 0.886 * err_min and xadRatio <= 1.13 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 5, true)
+            else
+                array.set(wmLabels, 5, false)
+
+        cancelW = false
+        cancelA = false
+        cancelD = false
+        if wm_pattern[1] and x == x[1] and a == a[1] and b == b[1] and c == c[1]
+            line.delete(array.get(wmlines, 0))
+            line.delete(array.get(wmlines, 1))
+            line.delete(array.get(wmlines, 2))
+            line.delete(array.get(wmlines, 3))
+            line.delete(array.get(wmlines, 4))
+            line.delete(array.get(wmlines, 5))
+            line.delete(array.get(wmlines, 6))
+            line.delete(array.get(wmlines, 7))
+            label.delete(array.get(wmlabel, 0))
+            cancelW := true
+            cancelW
+
+        if abcd_pattern[1] and a == a[1] and b == b[1] and c == c[1]
+            line.delete(array.get(wmlines, 1))
+            line.delete(array.get(wmlines, 2))
+            line.delete(array.get(wmlines, 3))
+            label.delete(array.get(wmlabel, 0))
+            cancelA := true
+            cancelA
+
+        if double_pattern[1] and a == a[1] and b == b[1] and c == c[1]
+            line.delete(array.get(wmlines, 5))
+            label.delete(array.get(wmlabel, 0))
+            cancelD := true
+            cancelD
+
+        if wm_pattern
+            xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            cd = line.new(y1=c, y2=d, x1=cBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            xd = line.new(y1=x, y2=d, x1=xBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            ac = line.new(y1=a, y2=c, x1=aBar, x2=cBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            array.set(wmlines, 0, xa)
+            array.set(wmlines, 1, ab)
+            array.set(wmlines, 2, bc)
+            array.set(wmlines, 3, cd)
+            array.set(wmlines, 4, xb)
+            array.set(wmlines, 5, bd)
+            array.set(wmlines, 6, xd)
+            array.set(wmlines, 7, ac)
+            array.set(wmtype, 0, dir)
+            linefill.new(xa, xb, color=color.rgb(44, 93, 136, 94))
+            linefill.new(bc, bd, color=color.rgb(44, 93, 136, 94))
+        if abcd_pattern and not wm_pattern
+            ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            cd = line.new(y1=c, y2=d, x1=cBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            array.set(wmlines, 1, ab)
+            array.set(wmlines, 2, bc)
+            array.set(wmlines, 3, cd)
+            array.set(wmtype, 0, dir)
+        if double_pattern and not wm_pattern
+            bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle,force_overlay = true)
+            array.set(wmlines, 5, bd)
+            array.set(wmtype, 0, dir)
+
+        if wm_pattern or abcd_pattern or double_pattern
+            array.set(wmlabel, 0, get_harmonic_label(wmLabels, dir, d, dBar))
+
+    pattern = wm_pattern and not wm_pattern[1] or abcd_pattern and not abcd_pattern[1] or double_pattern and not double_pattern[1]
+    pattern
+
+zigzag(PATTERN10, zigzagpivots1, zigzagpivotbars1, zigzagpivotdirs1)
+zigzag(PATTERN20, zigzagpivots2, zigzagpivotbars2, zigzagpivotdirs2)
+zigzag(PATTERN30, zigzagpivots3, zigzagpivotbars3, zigzagpivotdirs3)
+zigzag(PATTERN40, zigzagpivots4, zigzagpivotbars4, zigzagpivotdirs4)
+
+
+
+wm_pattern1 = detect_harmonic_pattern(zigzagpivots1, zigzagpivotbars1, zigzagpivotdirs1, wmlines1, wmLabel1, wmtype1, wmLabels1, COLORP1, zigzag1Width, zigzag1Style, PATTERN1)
+wm_pattern2 = detect_harmonic_pattern(zigzagpivots2, zigzagpivotbars2, zigzagpivotdirs2, wmlines2, wmLabel2, wmtype2, wmLabels2, COLORP2, zigzag2Width, zigzag2Style, PATTERN2)
+wm_pattern3 = detect_harmonic_pattern(zigzagpivots3, zigzagpivotbars3, zigzagpivotdirs3, wmlines3, wmLabel3, wmtype3, wmLabels3, COLORP3, zigzag3Width, zigzag3Style, PATTERN3)
+wm_pattern4 = detect_harmonic_pattern(zigzagpivots4, zigzagpivotbars4, zigzagpivotdirs4, wmlines4, wmLabel4, wmtype4, wmLabels4, COLORP4, zigzag4Width, zigzag4Style, PATTERN4)
+
+alertcondition(wm_pattern1 or wm_pattern2 or wm_pattern3 or wm_pattern4, title='Harmonic Alert', message='Harmonic Alert {{ticker}}')
+
+var stats = table.new(position=position.top_right, columns=8, rows=DETECT3 + 2, border_width=1)
+
+if barstate.islast and showStatTable
+    if PATTERN1
+        table.cell(table_id=stats, column=0, row=0, text='Zigzag ' + str.tostring(PATTERN10), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=0, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=1, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots1) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs1, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=0, row=i + 2, text=str.tostring(array.get(zigzagpivots1, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=1, row=i + 2, text=str.tostring(array.get(zigzagpivotbars2, i)), bgcolor=bgcolor)
+
+    if PATTERN2
+        table.cell(table_id=stats, column=2, row=0, text='Zigzag ' + str.tostring(PATTERN20), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=2, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=3, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots2) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs2, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=2, row=i + 2, text=str.tostring(array.get(zigzagpivots2, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=3, row=i + 2, text=str.tostring(array.get(zigzagpivotbars2, i)), bgcolor=bgcolor)
+
+    if PATTERN3
+        table.cell(table_id=stats, column=4, row=0, text='Zigzag ' + str.tostring(PATTERN30), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=4, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=5, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots3) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs3, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=4, row=i + 2, text=str.tostring(array.get(zigzagpivots3, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=5, row=i + 2, text=str.tostring(array.get(zigzagpivotbars3, i)), bgcolor=bgcolor)
+
+    if PATTERN4
+        table.cell(table_id=stats, column=6, row=0, text='Zigzag ' + str.tostring(PATTERN40), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=6, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=7, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots4) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs4, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=6, row=i + 2, text=str.tostring(array.get(zigzagpivots4, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=7, row=i + 2, text=str.tostring(array.get(zigzagpivotbars4, i)), bgcolor=bgcolor)
+
+
+
+
+/////////
+
+//'
+
+
+//fiboLevel= b + (1.618 * (c - b))
+//line.new(x1=dBar+1, y1=fiboLevel, x2=dBar+40, y2=fiboLevel, color=color.red, width=1)
+
+
+//isP11 = array.get(wmLabels, 0)
+//isP22 = array.get(wmLabels, 1)
+//isP33 = array.get(wmLabels, 2)
+//isP44 = array.get(wmLabels, 3)
+//isP55 = array.get(wmLabels, 4)
+//isP66 = array.get(wmLabels, 5)
+
+//This strategy has been created by 3dots - code ended here
+
+// ==========================================================================================

@@ -1,0 +1,591 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © @simpleforextools
+
+//@version=5
+// # ========================================================================= #
+// #                   |   Indicator  |
+// # ========================================================================= #
+indicator(title = "Signals And Overlays | [V.2.0]", shorttitle = "Signals And Overlays", overlay =  true, max_lines_count =  500, max_labels_count = 500, max_boxes_count =  500)
+
+// # ============================[GET USERS INPUT]============================ #
+// # ==== [BASIC SETTINGS]
+gr_basic                = "BASIC SETTINGS"
+bullish                 = input.color(#51d6ff, "Bullish", inline = "0", group = gr_basic, tooltip = "1")
+bearish                 = input.color(#97a1a3, "Bearish", inline = "0", group = gr_basic)
+showsignals             = input.bool(true, "Show Signals", inline = "1", group = gr_basic, tooltip = "1")
+sigsensiviti            = input.float(4.238 , "???????????", inline = "1", step = 0.001, group = gr_basic)
+candle                  = input.bool(true, "Coloring Candle", inline = "2", group = gr_basic, tooltip = "1")
+candlemod               = input.string("Trend", "???????",["Trend"], inline = "2", group = gr_basic)
+signfilter              = input.string("None", "Signal Filters??????????????????", ["None", "Trend Tracer", "Reversal Zones", "Cloud"], inline = "3", group = gr_basic, tooltip = "1")
+// # ==== [FEATURES]
+gr_ft                   = "FEATURES"
+trendtracer             = input.bool(true, "Trend Tracer???????????", inline = "1", group = gr_ft, tooltip = "1")
+trendtracersens         = input.int(2, "", minval = 1, inline = "1", group = gr_ft)
+revzones                = input.bool(true, "Reversal Zones????????", inline = "2", group = gr_ft, tooltip = "1")
+revzonessens            = input.int(50, "", minval = 1, inline = "2", group = gr_ft)
+cloudshow               = input.bool(false, "Cloud????????????????????", inline = "3", group = gr_ft, tooltip = "1")
+cloudsens               = input.int(1, "", minval = 1, inline = "3", group = gr_ft)
+trendlineshow           = input.bool(false, "Trend Line??????????????", inline  = "4", group = gr_ft, tooltip = "1")
+trendlinesens           = input.int(14, "", minval = 2, inline = "4", group = gr_ft)
+smarttrailshow          = input.bool(true, "Smart Trail?????????????", inline = "5", group = gr_ft, tooltip = "1")
+smarttrailsens          = input.int(8, "", minval = 1, inline = "5", group = gr_ft)
+// # ==== [SUPPORT AND RESISTANCE]
+gr_sr               = "SUPPORT AND RESISTANCE"
+showSR              = input.bool(true, "Support / Resistance", inline = "01", group = gr_sr)
+timef               = input.timeframe("", "", inline = "01", group = gr_sr)
+levelssr            = input.int(7 , "Levels", inline = "02", group = gr_sr)
+prd                 = input.int(10 , "Pivot Period", inline = "02", group = gr_sr)
+
+// # ==== [DASHBOARD]
+gr_dashboard            = "DASHBOARD SETTINGS"
+showDash                = input(true, "Dashboard",group = gr_dashboard)
+showDashtrend           = input(true, "Trend Dashboard",group = gr_dashboard)
+dashLoc                 = input.string("Bottom Right", "Location", options = ["Top Right", "Bottom Right", "Bottom Left"], group = gr_dashboard)
+textSize                = input.string("Normal", "Size", options = ["Tiny", "Small", "Normal"], group = gr_dashboard)
+// # ==== [RISK MANAGEMENT]
+gr_risk                 = "RISK Management"
+levels                  = input.bool(false, "Show TP/SL Levels" , group = gr_risk , inline = "1")
+dynamic_tp              = input.bool(false, "Dynamic TP" , group = gr_risk , inline = "1")
+slrisk                  = input.int(1, "SL %", inline = "2", group = gr_risk)
+tp1risk                 = input.int(1, "TP 1 %", inline = "3", group = gr_risk)
+tp2risk                 = input.int(2, "TP 2 %", inline = "4", group = gr_risk)
+tp3risk                 = input.int(3, "TP 3 %", inline = "5", group = gr_risk)
+// # ==== [ALERTS]
+gr_alert                = "ALERT SETTINGS"
+sigaler                 = input.bool(false, "Signals Alerts", inline = "1", group = gr_alert, tooltip = "1")
+trendtraceraalert       = input.bool(false, "Trend Tracer", inline = "2", group = gr_alert, tooltip = "1")
+revzonesalert           = input.bool(false, "Reversal Zones", inline = "3", group = gr_alert, tooltip = "1")
+cloudalert              = input.bool(false, "Cloud", inline = "4", group = gr_alert, tooltip = "1")
+
+// # ============================[FUNCTIONS]============================ #
+// # ==== [Trend Tracer]
+// ATR
+get_atr(i_length) =>
+    ta.atr(i_length)
+
+atr = get_atr(5) * trendtracersens
+// # ==== [REVERSAL ZONES]
+// Kama
+kama(ssrc, llen) =>
+    kama = 0.0
+    sum_1 = math.sum(math.abs(ssrc - ssrc[1]), llen)
+    sum_2 = math.sum(math.abs(ssrc - ssrc[1]), llen)
+    kama := nz(kama[1]) + math.pow((sum_1 != 0 ? math.abs(ssrc - ssrc[llen]) / sum_2 : 0) * (0.288 - 0.0666) + 0.0666, 2) * (ssrc - nz(kama[1]))
+    sma_kama = ta.sma(kama, llen)
+// # ==== [Cloud]
+avg(src,length,mult)=>
+    atr = ta.atr(length)*mult
+    up = hl2 + atr
+    dn = hl2 - atr
+    upper = 0.,lower = 0.
+    upper := src[1] < upper[1] ? math.min(up,upper[1]) : up
+    lower := src[1] > lower[1] ? math.max(dn,lower[1]) : dn
+    
+    os = 0,max = 0.,min = 0.
+    os := src > upper ? 1 : src < lower ? 0 : os[1]
+    spt = os == 1 ? lower : upper
+    max := ta.cross(src,spt) ? math.max(src,max[1]) : os == 1 ? math.max(src,max[1]) : spt
+    min := ta.cross(src,spt) ? math.min(src,min[1]) : os == 0 ? math.min(src,min[1]) : spt
+    math.avg(max,min)
+// # ==== [SUPPORT RESISTANCE]
+src_c = request.security(syminfo.tickerid,timef,close, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+src_o = request.security(syminfo.tickerid,timef,open, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+f_resInMinutes() =>
+    _resInMinutes = timeframe.multiplier * (timeframe.isseconds ? 1. / 60 : timeframe.isminutes ? 1. : timeframe.isdaily ? 60. * 24 : timeframe.isweekly ? 60. * 24 * 7 : timeframe.ismonthly ? 60. * 24 * 30.4375 : na)
+    _resInMinutes
+f_timefResInMinutes(_res) =>
+    request.security(syminfo.tickerid, _res, f_resInMinutes())
+f_timefIsIntraday(_res) =>
+    [intraday, daily, weekly, monthly] = request.security(syminfo.tickerid, _res, [timeframe.isintraday, timeframe.isdaily, timeframe.isweekly, timeframe.ismonthly])
+    check = intraday ? "Intraday" : daily ? "Daily" : weekly ? "Weekly" : monthly ? "Monthly" : "Error" 
+    check
+mtimef_multiplier = int (f_timefResInMinutes(timef) / f_resInMinutes())
+// # ============================[GET COMPONENTS]============================ #
+src                     = close
+rsi = 14
+// # ==== [SIGNALS]
+rsi_smooth              = 3 // RSI Smoothing for signals
+wilders_Period          = rsi * 2 - 1
+sig_rsi                 = ta.rsi(src, rsi)
+sig_ma_rsi              = ta.ema(sig_rsi, rsi_smooth)
+sig_atr_rsi             = math.abs(sig_ma_rsi[1] - sig_ma_rsi)
+sig_ma_atr_rsi          = ta.ema(sig_atr_rsi, wilders_Period)
+dar                     = ta.ema(sig_ma_atr_rsi, wilders_Period) * sigsensiviti
+longband = 0.0
+shortband = 0.0
+trend1 = 0
+DeltaFastAtrRsi         = dar
+RSIndex                 = sig_ma_rsi
+newshortband            = RSIndex + DeltaFastAtrRsi
+newlongband             = RSIndex - DeltaFastAtrRsi
+longband               := RSIndex[1] > longband[1] and RSIndex > longband[1] ? math.max(longband[1], newlongband) : newlongband
+shortband              := RSIndex[1] < shortband[1] and RSIndex < shortband[1] ? math.min(shortband[1], newshortband) : newshortband
+cross_1                 = ta.cross(longband[1], RSIndex)
+trend1                  := ta.cross(RSIndex, shortband[1]) ? 1 : cross_1 ? -1 : nz(trend1[1], 1)
+FastAtrRsiTL            = trend1 == 1 ? longband : shortband
+// Find all the QQE Crosses
+QQExlong                = 0
+QQExlong               := nz(QQExlong[1])
+QQExshort               = 0
+QQExshort              := nz(QQExshort[1])
+QQExlong               := FastAtrRsiTL < RSIndex ? QQExlong + 1 : 0
+QQExshort              := FastAtrRsiTL > RSIndex ? QQExshort + 1 : 0
+//Conditions
+qqeLong                 = QQExlong == 1 ? FastAtrRsiTL[1] - 50 : na
+qqeShort                = QQExshort == 1 ? FastAtrRsiTL[1] - 50 : na
+// # ==== [TREND TRACER]
+trend_length            = 10 // ATR Period
+lr_length               = 20 // Linear Regression (LSMA)
+lr_offset               = 0 // Linear Regression (LSMA)
+// Highest/Lowest of source
+lower = ta.lowest(src, trend_length)
+upper = ta.highest(src, trend_length)
+if trendtracer
+    lower := ta.lowest(low, trend_length)
+    upper := ta.highest(high, trend_length)
+// Trend direction
+string direction = upper > upper[1] ? "up" : lower < lower[1] ? "down" : "neutral"
+// Trend and signal variables
+float trend = 0.0
+string up_down_trend = na
+bool trendtracer_buy = false
+bool trendtracer_sell = false
+// ATR trend logic
+if direction == "up"
+    trend := low - atr
+    if trend < trend[1]
+        trend := trend[1]
+if direction == "down"
+    trend := high + atr
+    if trend > trend[1]
+        trend := trend[1]
+if direction == "neutral"
+    trend := trend[1]
+// Buy/Sell signals
+up_down_trend := up_down_trend[1]
+if trend > trend[1]
+    up_down_trend := "up"
+if trend < trend[1]
+    up_down_trend := "down"
+// Buy/Sell Signals
+trendtracer_buy := up_down_trend[1] == "down" and up_down_trend == "up" ? true : false
+trendtracer_sell := up_down_trend[1] == "up" and up_down_trend == "down" ? true : false
+// # ==== [REVERSAL ZONES]
+rg = kama(ta.tr, revzonessens)
+basis = kama(close, revzonessens)
+upper1 = basis + rg * 9
+upper2 = basis + rg * 11
+upper3 = basis + rg * 14
+lower1 = basis - rg * 9
+lower2 = basis - rg * 11
+lower3 = basis - rg * 14
+
+revzonesbuy = ta.crossunder(high, lower1)
+revzonessell = ta.crossover(low, upper1)
+// # ==== [CLOUD]
+offset = 1
+tenkan = avg(close,9 + cloudsens,2)
+kijun = avg(close,26 + cloudsens,4)
+senkouA = math.avg(kijun,tenkan)
+senkouB = avg(close,52,6)
+cloud_buy = ta.crossover(senkouA,senkouB)
+cloud_sell = ta.crossover(senkouB, senkouA)
+// # ==== [TREND LINES]
+var upper_tl = 0.
+var lower_tl = 0.
+var slope_ph = 0.
+var slope_pl = 0.
+var offset_tl = trendlineshow ? trendlinesens : 0
+n = bar_index
+ph = ta.pivothigh(trendlinesens, trendlinesens)
+pl = ta.pivotlow(trendlinesens, trendlinesens)
+slope = ta.atr(trendlinesens) / trendlinesens * 1
+slope_ph := ph ? slope : slope_ph
+slope_pl := pl ? slope : slope_pl
+upper_tl := ph ? ph : upper_tl - slope_ph
+lower_tl := pl ? pl : lower_tl + slope_pl
+var upos = 0
+var dnos = 0
+upos := ph ? 0 : close > upper_tl - slope_ph * trendlinesens ? 1 : upos
+dnos := pl ? 0 : close < lower_tl + slope_pl * trendlinesens ? 1 : dnos
+// # ==== [SUPERTREND]
+[supertrend, direction1] = ta.supertrend(math.round(math.avg(6, smarttrailsens)), 34 * 2)
+hullup = ta.hma(high, math.round(math.avg(21, 34))) + ta.atr(100) * math.round(smarttrailsens / 2.5)
+hulldown = ta.hma(low, math.round(math.avg(21, 34))) - ta.atr(100) * math.round(smarttrailsens / 2.5)
+hline = ta.highest(close, 34) + ta.atr(100)
+lline = ta.lowest(close, 34) + ta.atr(100)
+supert = 0.0
+supert := if close > supertrend
+    math.avg(supertrend, supertrend, supertrend, hulldown, lline)
+else if close < supertrend
+    math.avg(supertrend, supertrend, supertrend, hullup, hline)
+supert2 = 0.0
+supert2 := if close > supert
+    supert + ta.atr(100) * 1
+else if close < supert
+    supert - ta.atr(100) * 1
+
+smoothedSupert = ta.sma(supert, 2)
+smoothedSupert2 = ta.sma(supert2,2)
+tool = direction1 > 0 or direction1 < 0
+// # ==== [RSI]
+ma(x, len) => ta.rma(x, len)
+upperr = ta.highest(src, rsi)
+lowerr = ta.lowest(src, rsi)
+r = upperr - lowerr
+d = src - src[1]
+dif = upperr > upperr[1] ? r 
+  : lowerr < lowerr[1] ? -r 
+  : d
+num = ma(dif, rsi)
+den = ma(math.abs(dif), rsi)
+arsi = math.min(num / den * 50 + 50,100)
+// # ==== [VOLUME]
+volback = 13
+up_bar = close > hl2 
+dn_bar = close < hl2 
+u_vol = up_bar ? volume : 0
+d_vol = dn_bar ? volume : 0
+up_vol = math.sum(u_vol, volback)
+dn_vol = math.sum(d_vol, volback)
+vol = math.min(100 * (up_vol - dn_vol) / (up_vol + dn_vol),100)
+// # ==== [SQUEEZE]
+var max = 0.0
+var min = 0.0
+max := nz(math.max(src, max - (max - src) / 50), src)
+min := nz(math.min(src, min + (src - min) / 50), src)
+diff = math.log(max - min)
+// # ==== [MONEY FLOW]
+mf = math.min(ta.mfi(src, 14),100)
+// # ==== [ADX]
+up = ta.change(high)
+down = -ta.change(low)
+trur = ta.rma(ta.tr, 14)
+plus = fixnan(100 * ta.rma(up > down and up > 0 ? up : 0, 14) / trur)
+minus = fixnan(100 * ta.rma(down > up and down > 0 ? down : 0, 14) / trur)
+sum = plus + minus
+adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), 14)
+// # ==== [TREND DETECTOR MTF]
+ema = ta.ema(close, 144)
+emaBull = close > ema
+trend_5m   = request.security(syminfo.tickerid, "5"   , emaBull)
+trend_15m  =  request.security(syminfo.tickerid, "15"  , emaBull)
+trend_30m  =  request.security(syminfo.tickerid, "30"  , emaBull)
+trend_1h  =  request.security(syminfo.tickerid, "60"  , emaBull)
+trend_4h =  request.security(syminfo.tickerid, "240" , emaBull)
+trend_1d   =  request.security(syminfo.tickerid, "1440", emaBull)
+// # ==== [RISK MANAGEMENT]
+trigger2 = qqeLong ? 1 : 0
+countBull = ta.barssince(qqeLong)
+countBear = ta.barssince(qqeShort)
+trigger   = nz(countBull, bar_index) < nz(countBear, bar_index) ? 1 : 0
+
+slatr = ta.atr(14) * slrisk
+slris = trigger == 1 ? low - slatr : high + slatr
+
+tp1atr = ta.atr(14) * tp1risk
+tp1ris = trigger == 1 ? low - tp1atr : high + tp1atr
+
+tp2atr = ta.atr(14) * tp2risk
+tp2ris = trigger == 1 ? low - tp2atr : high + tp2atr
+
+tp3atr = ta.atr(14) * tp3risk
+tp3ris = trigger == 1 ? low - tp3atr : high + tp3atr
+
+lastTrade(close) => ta.valuewhen(qqeLong or qqeShort , close, 0)
+// # ==== [SUPPORT AND RESISTANCE]
+maxnumpp = 284
+ChannelW = 10
+min_strength = 2
+prd := prd * mtimef_multiplier
+float src1 = math.max(src_c, src_o) 
+float src2 = math.min(src_c, src_o)
+float src3 = math.max(close, open)  
+float src4 = math.min(close, open)   
+float ph6 = ta.pivothigh(src1, prd, prd)
+float pl6 = ta.pivotlow(src2, prd, prd)
+Lstyle = line.style_solid
+timef_res = f_timefIsIntraday(timef)
+timef_text = str.tostring(timef)
+
+// # ============================[PLOTTING]============================ #
+// # ==== [SIGNALS]
+// Normal
+y1 = low - (ta.atr(30) * 2), y1B = low - ta.atr(30)
+y2 = high + (ta.atr(30) * 2), y2B = high + ta.atr(30)
+buy  = qqeLong and showsignals and signfilter == "None" ? label.new(bar_index, y1, "^", xloc.bar_index, yloc.price, bullish, label.style_label_up, color.white, size.normal) : na
+sell = qqeShort and showsignals and signfilter == "None"? label.new(bar_index, y2, "Ў", xloc.bar_index, yloc.price, bearish, label.style_label_down, color.white, size.normal) : na
+// Trend Tracer
+trendtracer_b = trendtracer_buy and showsignals and signfilter == "Trend Tracer" ? label.new(bar_index, y1, "^", xloc.bar_index, yloc.price, bullish, label.style_label_up, color.white, size.normal) : na
+trendtracer_s = trendtracer_sell and showsignals and signfilter == "Trend Tracer"? label.new(bar_index, y2, "Ў", xloc.bar_index, yloc.price, bearish, label.style_label_down, color.white, size.normal) : na
+// Reversal zones
+revzones_s = revzonessell and showsignals and signfilter == "Reversal Zones" ? label.new(bar_index, y2, "Ў", xloc.bar_index, yloc.price, bearish, label.style_label_down, color.white, size.normal) : na
+revzones_b = revzonesbuy and showsignals and signfilter == "Reversal Zones" ? label.new(bar_index, y1, "^", xloc.bar_index, yloc.price, bullish, label.style_label_up, color.white, size.normal) : na
+// Cloud
+cloud_buy1 = cloud_buy and showsignals and signfilter == "Cloud" ? label.new(bar_index, y1, "^", xloc.bar_index, yloc.price, bullish, label.style_label_up, color.white, size.normal) : na
+cloud_sell1 = cloud_sell and showsignals and signfilter == "Cloud" ? label.new(bar_index, y2, "Ў", xloc.bar_index, yloc.price, bearish, label.style_label_down, color.white, size.normal) : na
+// # ==== [TREND TRACER]
+p1 = plot(trendtracer ? trend : na, "ATR Trend", color = up_down_trend == "up" ? bullish : bearish, linewidth = 2, editable = false)
+// # ==== [TREND TRACER]
+pp1 = plot(revzones ? upper1 : na, transp=100, editable = false)
+pp2 = plot(revzones ? upper2  : na, transp=100, editable = false)
+pp3 = plot(revzones ? upper3  : na, transp=100, editable = false)
+pp4 = plot(revzones ? lower1  : na, transp=100, editable = false)
+pp5 = plot(revzones ? lower2  : na, transp=100, editable = false)
+pp6 = plot(revzones ? lower3  : na, transp=100, editable = false)
+fill(pp1, pp2, color=color.new(bearish, 70), editable = false)
+fill(pp2, pp3, color=color.new(bearish, 50), editable = false)
+fill(pp4, pp5, color=color.new(bullish, 70), editable = false)
+fill(pp5, pp6, color=color.new(bullish, 50), editable = false)
+// # ==== [CLOUD]
+A = plot(cloudshow ? senkouA : na,'Senkou Span A',na,offset=offset-1, editable = false)
+B = plot(cloudshow ? senkouB : na,'Senkou Span B',na,offset=offset-1, editable = false)
+fill(A,B,senkouA > senkouB ? color.new(bullish, 80) : color.new(bearish,80))
+// # ==== [TREND LINES]
+var uptl  = trendlineshow ? line.new(na,na,na,na, color = bullish, style = line.style_dashed, extend = extend.right) : na
+var dntl  = trendlineshow ? line.new(na,na,na,na, color = bearish, style = line.style_dashed, extend = extend.right) : na
+
+if ph and trendlineshow
+    uptl.set_xy1(n-offset_tl, trendlineshow ? ph : upper_tl - slope_ph * trendlinesens)
+    uptl.set_xy2(n-offset_tl+1, trendlineshow ? ph - slope : upper_tl - slope_ph * (trendlinesens+1))
+
+if pl and trendlineshow
+    dntl.set_xy1(n-offset_tl, trendlineshow ? pl : lower_tl + slope_pl * trendlinesens)
+    dntl.set_xy2(n-offset_tl+1, trendlineshow ? pl + slope : lower_tl + slope_pl * (trendlinesens+1))
+// # ==== [SMART TRAIL]
+tool12 = plot(smarttrailshow ? ((direction1 < 0 and direction1[1] < 0) or (direction1 > 0 and direction1[1] > 0) ? smoothedSupert : na) : na, "Extreme line", color=smarttrailshow ? (close > ((direction1 < 0 and direction1[1] < 0) or (direction1 > 0 and direction1[1] > 0) ? smoothedSupert : na) ? bullish : bearish) : na, style=plot.style_linebr, editable = false)
+tool2 = plot(smarttrailshow ? (tool ? smoothedSupert2 : na) : na, "Zone line", color=color.new(color.gray, 100), display=smarttrailshow ? display.none : display.none, editable=false, style=plot.style_linebr, editable = false)
+fill(tool12, tool2, color=close > supert ? color.new(bullish, 80) : color.new(bearish, 80), fillgaps=false)
+lineColor = close > supertrend ? bullish : close < supertrend ? bearish : na
+plot(smarttrailshow ? ((direction1 < 0 and direction1[1] < 0) or (direction1 > 0 and direction1[1] > 0) ? smoothedSupert : na) : na, color=smarttrailshow ? lineColor : na, linewidth=2, style=smarttrailshow ? plot.style_line : plot.style_line, title="Trend Area Line", editable = false)
+// # ==== [COLORING CANDLE]
+barcolor(QQExlong ? bullish : bearish)
+// # ==== [RISK MANAGEMENT]
+entry = levels ? label.new(time, close, "ENTRY  | " + str.tostring(lastTrade(close), "#.####"), xloc.bar_time, yloc.price, #00e2ff, label.style_none, color.white, size.normal) : na
+label.set_x(entry, label.get_x(entry) + math.round(ta.change(time) * 10))
+label.set_y(entry, lastTrade(close))
+label.delete(entry[1])
+
+stop_y = lastTrade(slris) 
+stop  = levels ? label.new(time, close, "SL   | " + str.tostring(stop_y, "#.####"), xloc.bar_time, yloc.price, bearish, label.style_none, color.white, size.normal) : na
+label.set_x(stop, label.get_x(stop) + math.round(ta.change(time) * 10))
+label.set_y(stop, stop_y)
+label.delete(stop[1])
+
+tp1Rl_y = (lastTrade(close)-lastTrade(tp1ris)) + lastTrade(close)
+tp1Rl   = levels ? label.new(time, close, "TP 1 | " + str.tostring(tp1Rl_y,  "#.####"), xloc.bar_time, yloc.price, bullish, label.style_none, color.white, size.normal ) : na
+label.set_x(tp1Rl, label.get_x(tp1Rl) + math.round(ta.change(time) * 10))
+label.set_y(tp1Rl, tp1Rl_y)
+label.delete(tp1Rl[1])
+
+tp2RL_y = (lastTrade(close)-lastTrade(tp2ris)) + lastTrade(close)
+tp2RL   = levels ? label.new(time, close, "TP 2 | " + str.tostring(tp2RL_y, "#.####"), xloc.bar_time, yloc.price, bullish, label.style_none, color.white, size.normal) : na
+label.set_x(tp2RL, label.get_x(tp2RL) + math.round(ta.change(time) * 10))
+label.set_y(tp2RL, tp2RL_y)
+label.delete(tp2RL[1])
+
+tp3RL_y = (lastTrade(close)-lastTrade(tp3ris)) + lastTrade(close)
+tp3RL   = levels ? label.new(time , close , "TP 3 | " + str.tostring(tp3RL_y, "#.####"), xloc.bar_time, yloc.price, bullish, label.style_none, color.white, size.normal) : na
+label.set_x(tp3RL, label.get_x(tp3RL) + math.round(ta.change(time) * 10))
+label.set_y(tp3RL, tp3RL_y)
+label.delete(tp3RL[1])
+
+lineEntry = levels  ? line.new(bar_index - (trigger == 0 ? countBull : countBear), lastTrade(close), bar_index + 10, lastTrade(close), xloc.bar_index, extend.none, color.yellow, line.style_solid, 2) : na, line.delete(lineEntry[1])
+lineStop  = levels ? line.new(bar_index - (trigger == 0 ? countBull : countBear), stop_y, bar_index + 10, stop_y, xloc.bar_index, extend.none, bearish, line.style_solid, 2) : na, line.delete(lineStop[1])
+lineTp1Rl   = levels ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp1Rl_y, bar_index + 10, tp1Rl_y, xloc.bar_index, extend.none, bullish, line.style_solid, 2) : na, line.delete(lineTp1Rl[1])
+lineTp2RL   = levels ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp2RL_y, bar_index + 10, tp2RL_y, xloc.bar_index, extend.none, bullish, line.style_solid, 2) : na, line.delete(lineTp2RL[1])
+lineTp3RL   = levels ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp3RL_y, bar_index + 10, tp3RL_y, xloc.bar_index, extend.none, bullish, line.style_solid, 2) : na, line.delete(lineTp3RL[1])
+
+// Dynamic TP
+rsi_tp = ta.rsi(close ,14)
+tpLabels(tp) =>
+    tp1Bull = ta.crossover (rsi_tp, 70), tp2Bull = ta.crossover (rsi_tp, 75), tp3Bull = ta.crossover (rsi_tp, 80)
+    tp1Bear = ta.crossunder(rsi_tp, 30), tp2Bear = ta.crossunder(rsi_tp, 25), tp3Bear = ta.crossunder(rsi_tp, 20)
+    tp1Bull := tp1Bull and (nz(ta.barssince(tp1Bull)[1], 9999) > countBull), tp2Bull := tp2Bull and (ta.barssince(tp1Bull)[1] <= countBull), tp2Bull := tp2Bull and (nz(ta.barssince(tp2Bull)[1], 9999) > countBull), tp3Bull := tp3Bull and (ta.barssince(tp2Bull)[1] <= countBull), tp3Bull := tp3Bull and (nz(ta.barssince(tp3Bull)[1], 9999) > countBull)
+    tp1Bear := tp1Bear and (nz(ta.barssince(tp1Bear)[1], 9999) > countBear), tp2Bear := tp2Bear and (ta.barssince(tp1Bear)[1] <= countBear), tp2Bear := tp2Bear and (nz(ta.barssince(tp2Bear)[1], 9999) > countBear), tp3Bear := tp3Bear and (ta.barssince(tp2Bear)[1] <= countBear), tp3Bear := tp3Bear and (nz(ta.barssince(tp3Bear)[1], 9999) > countBear)
+
+    if dynamic_tp
+        trigger ? (tp == 1 ? tp1Bull : tp == 2 ? tp2Bull : tp3Bull) : (tp == 1 ? tp1Bear : tp == 2 ? tp2Bear : tp3Bear)
+
+plotshape(tpLabels(1), "", shape.xcross, location.abovebar, trigger ? color.yellow : na , 0, "TP 1", trigger ? color.yellow : na , false)
+plotshape(tpLabels(2), "", shape.xcross, location.abovebar, trigger ? color.yellow : na , 0, "TP 2", trigger ? color.yellow : na , false)
+plotshape(tpLabels(3), "", shape.xcross, location.abovebar, trigger ? color.yellow : na , 0, "TP 3", trigger ? color.yellow : na , false)
+plotshape(tpLabels(1), "", shape.xcross, location.belowbar, trigger ? na    : color.yellow, 0, "TP 1", trigger ? na    : color.yellow, false)
+plotshape(tpLabels(2), "", shape.xcross, location.belowbar, trigger ? na    : color.yellow, 0, "TP 2", trigger ? na    : color.yellow, false)
+plotshape(tpLabels(3), "", shape.xcross, location.belowbar, trigger ? na    : color.yellow, 0, "TP 3", trigger ? na    : color.yellow, false)
+
+// # ==== [SUPPORT RESISTANCE]
+if str.tostring(timef) == ""
+    timef_text := na(timeframe.multiplier / 60) ? timeframe.period : timeframe.multiplier < 60 ?  timeframe.period + " M |" : str.tostring(timeframe.multiplier / 60) + " H |"
+else if timef_res == "Intraday"
+    timef_text := na(str.tonumber(timef) / 60) ? str.tostring(timef) : str.tonumber(timef) < 60 ?  str.tostring(timef) + " M |" : str.tostring(str.tonumber(timef) / 60) + " H |"
+else
+    timef_text := str.tostring(timef)
+//calculate maximum S/R channel zone width
+prdhighest = request.security(syminfo.tickerid, timef, ta.highest(300))
+prdlowest = request.security(syminfo.tickerid, timef, ta.lowest(300))
+cwidth = (prdhighest - prdlowest) * ChannelW / 100
+var pivotvals = array.new_float(0)
+if ph6 or pl6
+    array.unshift(pivotvals, ph6 ? ph6 : pl6)
+    if array.size(pivotvals) > maxnumpp  // limit the array size
+        array.pop(pivotvals)
+get_sr_vals(ind) =>
+    float lo = array.get(pivotvals, ind)
+    float hi = lo
+    int numpp = 0
+    for y = 0 to array.size(pivotvals) - 1 by 1
+        float cpp = array.get(pivotvals, y)
+        float wdth = cpp <= lo ? hi - cpp : cpp - lo
+        if wdth <= cwidth  // fits the max channel width?
+            lo := cpp <= lo ? cpp : lo
+            hi := cpp > lo ? cpp : hi
+            numpp += 1
+            numpp
+    [hi, lo, numpp]
+var sr_up_level = array.new_float(0)
+var sr_dn_level = array.new_float(0)
+sr_strength = array.new_float(0)
+
+find_loc(strength) =>
+    ret = array.size(sr_strength)
+    for i = ret > 0 ? array.size(sr_strength) - 1 : na to 0 by 1
+        if strength <= array.get(sr_strength, i)
+            break
+        ret := i
+        ret
+    ret
+
+check_sr(hi, lo, strength) =>
+    ret = true
+    for i = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        //included?
+        if array.get(sr_up_level, i) >= lo and array.get(sr_up_level, i) <= hi or array.get(sr_dn_level, i) >= lo and array.get(sr_dn_level, i) <= hi
+            if strength >= array.get(sr_strength, i)
+                array.remove(sr_strength, i)
+                array.remove(sr_up_level, i)
+                array.remove(sr_dn_level, i)
+                ret
+            else
+                ret := false
+                ret
+            break
+    ret
+
+var sr_lines = array.new_line(11, na)
+var sr_labels = array.new_label(11, na)
+var timef_labels = array.new_label(11, na)
+
+if ph6 or pl6
+    //because of new calculation, remove old S/R levels
+    array.clear(sr_up_level)
+    array.clear(sr_dn_level)
+    array.clear(sr_strength)
+    //find S/R zones
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        [hi, lo, strength] = get_sr_vals(x)
+        if check_sr(hi, lo, strength)
+            loc = find_loc(strength)
+            // if strength is in first levels sr then insert it to the arrays 
+            if loc < levelssr and strength >= min_strength
+                array.insert(sr_strength, loc, strength)
+                array.insert(sr_up_level, loc, hi)
+                array.insert(sr_dn_level, loc, lo)
+                // keep size of the arrays = 5
+                if array.size(sr_strength) > levelssr
+                    array.pop(sr_strength)
+                    array.pop(sr_up_level)
+                    array.pop(sr_dn_level)
+
+    for x = 1 to 10 by 1
+        line.delete(array.get(sr_lines, x))
+        label.delete(array.get(sr_labels, x))
+        label.delete(array.get(timef_labels, x))
+
+    for x = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        float mid = math.round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if showSR
+            array.set(sr_lines, x + 1, line.new(x1=bar_index, y1=mid, x2=bar_index - 1, y2=mid, extend=extend.both, color=mid >= close ? color.new(bearish, 75) : color.new(bullish, 75), style=Lstyle, width=1 * 20))
+            if showSR
+                array.set(sr_labels, x + 1, label.new(x=bar_index + 40, y=mid, text=(showSR ? timef_text : na) + (showSR ? (" " + str.tostring(mid)) : na), color=mid >= close ? #ff525200 : #00e67700, textcolor=color.rgb(184, 184, 184),
+                 size = size.normal, style=label.style_label_left))
+// # ============================[DASHBOARD]============================ #
+// # ==== [RSI]
+rsiemo = arsi > 50 ? '??' : arsi < 30 ? '??' : '??'
+bgrsi = arsi >= 80 ? color.new(bearish,60) : arsi >= 50 ? color.new(bearish,80) : arsi >= 20 ? color.new(bullish,80) : color.new(bullish,60)
+txtrsi = arsi >= 80 ? color.new(bearish,30) : arsi >= 50 ? color.new(bearish,10) : arsi >= 20 ? color.new(bullish,10) : color.new(bullish,30)
+// # ==== [VOLUME]
+volemo = vol > 50 ? '??' : vol < 30 ? '??' : '??'
+bgvol = vol >= 80 ? color.new(bullish, 60) : vol >= 50 ? color.new(bullish, 80) : vol >= 20 ? color.new(bearish, 80) : color.new(bearish, 60)
+txtvol = vol >= 80 ? color.new(bullish, 30) : vol >= 50 ? color.new(bullish, 10) : vol >= 20 ? color.new(bearish, 10) : color.new(bearish, 30)
+// # ==== [SQUEEZE]
+squeeze = -50 * ta.correlation(diff, bar_index, 20) + 50
+bgsqueeze = squeeze >= 80 ? color.new(bullish, 60) : squeeze >= 50 ? color.new(bullish, 80) : squeeze >= 20 ? color.new(bearish, 80) : color.new(bearish, 60)
+txtsqueeze = squeeze >= 80 ? color.new(bullish,30) : squeeze >= 50 ? color.new(bullish,10) : squeeze >= 20 ? color.new(bearish,10) : color.new(bearish,30)
+// # ==== [MONEY FLOW]
+mfemo= mf > 50 ? "??" : "??"
+bgmf = mf >= 80 ? color.new(bullish, 60) : mf >= 50 ? color.new(bullish, 80) : mf >= 20 ? color.new(bearish, 80) : color.new(bearish, 60)
+txtmf = mf >= 80 ? color.new(bullish, 30) : mf >= 50 ? color.new(bullish, 10) : mf >= 20 ? color.new(bearish, 10) : color.new(bearish, 30)
+// # ==== [ADX]
+adxemo= adx > 50 ? "??" : "??"
+bgadx = adx >= 80 ? color.new(bullish, 60) : adx >= 50 ? color.new(bullish, 80) : adx >= 20 ? color.new(bearish, 80) : color.new(bearish, 60)
+txtadx = adx >= 80 ? color.new(bullish, 30) : adx >= 50 ? color.new(bullish, 10) : adx >= 20 ? color.new(bearish, 10) : color.new(bearish, 30)
+// # ==== [DRAWING TREND DASHBOARD]
+var table_position = dashLoc == 'Bottom Left' ? position.bottom_left 
+  : dashLoc == 'Top Right' ? position.top_right 
+  : position.bottom_right
+var table_size = textSize == 'Tiny' ? size.tiny 
+  : textSize == 'Small' ? size.small 
+  : size.normal
+var tbmtf = table.new(position.top_right, 7, 7
+  , bgcolor = #1e222d
+  , border_color = #373a46
+  , border_width = 1
+  , frame_color = #373a46
+  , frame_width = 1)
+if showDashtrend 
+    if barstate.islast
+        tbmtf.cell(1, 1,"5M", text_color = trend_5m ? color.new(bullish,30) : color.new(bearish,30), text_size = table_size, text_halign = text.align_left, bgcolor = trend_5m ? color.new(bullish,60) : color.new(bearish,60))
+        tbmtf.cell(2, 1,"15M", text_color = trend_15m ? color.new(bullish,30) : color.new(bearish,30), text_size = table_size, text_halign = text.align_left, bgcolor = trend_15m ? color.new(bullish,60) : color.new(bearish,60))
+        tbmtf.cell(3, 1,"30M", text_color = trend_30m ? color.new(bullish,30) : color.new(bearish,30), text_size = table_size, text_halign = text.align_left, bgcolor = trend_30m ? color.new(bullish,60) : color.new(bearish,60))
+        tbmtf.cell(4, 1,"1H", text_color = trend_1h ? color.new(bullish,30) : color.new(bearish,30), text_size = table_size, text_halign = text.align_left, bgcolor = trend_1h ? color.new(bullish,60) : color.new(bearish,60))
+        tbmtf.cell(5, 1,"4H", text_color = trend_4h ? color.new(bullish,30) : color.new(bearish,30), text_size = table_size, text_halign = text.align_left, bgcolor = trend_4h ? color.new(bullish,60) : color.new(bearish,60))
+        tbmtf.cell(6, 1,"1D", text_color = trend_1d ? color.new(bullish,30) : color.new(bearish,30), text_size = table_size, text_halign = text.align_left, bgcolor = trend_1d ? color.new(bullish,60) : color.new(bearish,60))
+// # ==== [DRAWING DASHBOARD]
+var tb = table.new(table_position, 7, 7
+  , bgcolor = #1e222d
+  , border_color = #373a46
+  , border_width = 2
+  , frame_color = #373a46
+  , frame_width = 1)
+
+if showDash 
+    if barstate.islast
+        tb.cell(1, 1,  str.tostring(rsiemo) + " RSI",                  text_color =color.white, text_size = table_size, text_halign = text.align_left)
+        tb.cell(1, 2,  str.tostring(volemo) + " Volume Sentiment"  ,   text_color =color.white, text_size = table_size, text_halign = text.align_left)
+        tb.cell(1, 3,                         "?? Squeeze" ,           text_color =color.white, text_size = table_size, text_halign = text.align_left)
+        tb.cell(1, 4,  str.tostring(mfemo) +  " Money Flow" ,          text_color = color.white, text_size = table_size, text_halign = text.align_left)
+        tb.cell(1, 5,  str.tostring(adxemo) + " ADX" ,                 text_color =color.white, text_size = table_size, text_halign = text.align_left)
+        tb.cell(2, 1,  str.tostring(arsi, format.percent),            text_color = txtrsi, text_size = table_size, bgcolor = bgrsi)
+        tb.cell(2, 2,  str.tostring(vol, format.percent),             text_color = txtvol, text_size = table_size, bgcolor = bgvol)
+        tb.cell(2, 3,  str.tostring(squeeze, format.percent),         text_color = txtsqueeze, text_size = table_size, bgcolor = bgsqueeze)
+        tb.cell(2, 4,  str.tostring(mf, format.percent) , text_color = txtmf, text_size = table_size, bgcolor = bgmf)
+        tb.cell(2, 5,  str.tostring(adx, format.percent),             text_color = txtadx, text_size = table_size, bgcolor = bgadx)
+
+// # ============================[Alerts]============================ #
+// Signals Normal
+alertcondition(sigaler ? qqeLong : na, "New Signal", message = "New Buy Signal | Normal")
+alertcondition(sigaler ? qqeShort : na, "New Signal", message = "New Sell Signal | Normal")
+// Signals Trend Tracer
+alertcondition(trendtraceraalert ? trendtracer_buy : na, title="New Signal", message = "New Buy Signal | Trend Tracer")
+alertcondition(trendtraceraalert ? trendtracer_sell : na, title="New Signal", message = "New Sell Signal | Trend Tracer")
+// Signals Reversal Zones
+alertcondition(revzonesalert ? revzonesbuy : na, title="New Signal", message = "New Buy Signal | Reversal Zones")
+alertcondition(revzonesalert ? revzonessell : na, title="New Signal", message = "New Sell Signal | Reversal Zones")
+// Signals Cloud
+alertcondition(cloudalert ? cloud_buy : na, title="New Signal", message = "New Buy Signal | Cloud")
+alertcondition(cloudalert ? cloud_sell : na, title="New Signal", message = "New Sell Signal | Cloud")
+
+// ==========================================================================================

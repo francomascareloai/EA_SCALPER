@@ -1,0 +1,80 @@
+instrument {name = '11 Oscillator', overlay = false}
+
+length      = input(14, "Length", input.integer, 1 , 1000, 1)
+srcApply    = input(1, "Source", input.string_selection, inputs.titles) 
+
+local src   = inputs[srcApply]
+
+highlight   = input(true,"Highlight Movement", input.boolean)
+showSigLine = input(false,"Show Signal Line", input.boolean)
+showHisto   = input(true,"Show Histogram", input.boolean)
+showSignal  = input(true,"Show Buy/Sell Signal", input.boolean) 
+
+SM01        = "OB/OS Crossover"
+SM02        = "Zero-Line Cross"
+SM03        = "Signal Crossover" 
+
+SM          = {SM01, SM02, SM03}
+
+signalMode  = input(2, "Signal", input.string_selection, SM)
+
+local v = make_series()
+v : set(0)
+
+for i = 1 , length-1, 1 do   
+    t = iff(src > src[i] , 1 , iff(src < src[i] , -1 , 0))
+    v = t + v
+end
+
+emaV     = ema(v,5)
+moLine   = ema(emaV,3)
+sigLine  = ema(moLine,3)
+
+c_moLine = iff(moLine > sigLine ,"green" , "red")
+
+overBought       = moLine[1] > 10 and moLine[0] < 10
+overSold         = moLine[1] < -10 and moLine[0] > -10
+crossZeroLong    = moLine[1] < 0 and moLine[0] > 0
+crossZeroShort   = moLine[1] > 0 and moLine[0] < 0
+crossSignalLong  = moLine[1] < sigLine and moLine[0] > sigLine
+crossSignalShort = moLine[1] > sigLine and moLine[0] < sigLine
+
+if (showSignal == true) then 
+    longSignal  = iff(signalMode == 1 , overSold , iff(signalMode == 2 , crossZeroLong , crossSignalLong))
+    shortSignal = iff(signalMode == 1 , overBought , iff(signalMode == 2 , crossZeroShort , crossSignalShort))
+end 
+
+if showHisto == true then  
+    rect {
+        first = 0,
+        second = iff(moLine, moLine, na(moLine)),
+        color = iff(moLine > 0, "green", "red"),
+        width = 0.5
+    }
+end 
+
+--plot(showHisto ? moLine : na, "KS Oscillator 11", moLine > 0 ? color.lime : color.red, 3, plot.style_histogram) 
+
+plot(moLine, "KS Oscillator 11", c_moLine, 2) 
+
+if showSigLine == true then 
+
+  plot(sigLine, "Signal", "yellow", 2)
+end
+
+Buy = iff(longSignal == true, -10, false)
+Sell = iff(shortSignal == true, 10, false)
+
+if showSignal == true then 
+
+    plot(Buy, "Buy", "lime", 3, 0, style.points)
+    plot(Sell, "Sell", "orange", 3, 0, style.points)
+
+--plotshape(showSignal ? longSignal : na,"Long Signal",shape.triangleup,location.top,color.lime)
+--plotshape(showSignal ? shortSignal : na,"Short Signal",shape.triangledown,location.bottom,color.red) 
+
+end
+
+plot(0, "h0", "white", 1, 0, style.dash_line)
+plot(10, "h10", "white", 1, 0, style.dash_line)
+plot(-10, "h20", "white", 1, 0, style.dash_line)

@@ -1,0 +1,168 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © AlgoAlpha
+
+//@version=5
+indicator(title='Standardized Orderflow [AlgoAlpha]', shorttitle = "AlgoAlpha - ⨊ Standardized Orderflow", precision = 3, overlay=false)
+
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+        "HMA" => ta.hma(source, length)
+
+// Input parameters
+useSmoothing = input.bool(true, "Smooth OrderFlow?", group = "Calculation Parameters")
+orderFlowWindow = input.int(12, minval=1, title='Order Flow Period', group = "Calculation Parameters")
+smoothingLength = input.int(10, minval=1, title='Order Flow HMA Smoothing Length', group = "Calculation Parameters")
+velocityCalcLength = input(21, "Velocity Calculation Length", group = "Calculation Parameters")
+velocitySignalLength = input(14, "Velocity Signal Length", group = "Calculation Parameters")
+maTypeInput = input.string("EMA", title="Velocity MA Type", options=["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA", "HMA"], group="Calculation Parameters")
+displayMode = input.string("Both", "Display Mode", ["Both", "Order Flow", "Order Velocity"], group = "Display Options")
+reversalType = input.string("Both", "Reversal Type", ["Both", "Order Flow", "Order Velocity"], group = "Display Options")
+
+// Colors
+upColor = input(#00ffbb, "Up Colour")
+downColor = input(#ff1100, "Down Colour")
+haUpColor = input(#089981, "Heiken Ashi Up Colour")
+haDownColor = input(#f23645, "Heiken Ashi Down Colour")   
+
+// Display conditionals
+orderFlowDisplayCond = displayMode != "Order Velocity" ? display.all : display.none
+transparencyControl1 = displayMode == "Order Flow" ? 0 : 30
+narrowDisplayCond = displayMode == "Order Flow" ? display.all : display.none
+wideDisplayCond = displayMode != "Order Flow" ? display.all : display.none
+
+// Order Flow Calculation
+orderFlow = math.sum(close > close[1] ? volume : (close < close[1] ? -volume : 0), orderFlowWindow)
+orderFlow := useSmoothing ? ta.hma(orderFlow, smoothingLength) : orderFlow
+
+// Standard Deviation Calculation
+stdDev = ta.stdev(orderFlow, 45) * 1
+normalizedOrderFlow = orderFlow/(stdDev + stdDev)
+
+// Order Flow Changes
+chg1 = normalizedOrderFlow * 0.80
+chg2 = normalizedOrderFlow * 0.60
+chg3 = normalizedOrderFlow * 0.40
+chg4 = normalizedOrderFlow * 0.20
+
+// Velocity Calculation
+velocityDiff = ma((normalizedOrderFlow - ma(normalizedOrderFlow, velocitySignalLength, maTypeInput)) * 10, velocityCalcLength, maTypeInput)  
+
+// Reversal Conditions
+bullishReversalCond = reversalType == "Order Flow" ? ta.crossover(normalizedOrderFlow, -1.5) : (reversalType == "Order Velocity" ? ta.crossover(velocityDiff, -4) : (ta.crossover(velocityDiff, -4) or ta.crossover(normalizedOrderFlow, -1.5)) )
+bearishReversalCond = reversalType == "Order Flow" ? ta.crossunder(normalizedOrderFlow, 1.5) : (reversalType == "Order Velocity" ? ta.crossunder(velocityDiff, 4) : (ta.crossunder(velocityDiff, 4) or ta.crossunder(normalizedOrderFlow, 1.5)) )
+
+// Plotting Order Flow Columns
+plot(normalizedOrderFlow, color = color.new(normalizedOrderFlow > 0 ? upColor : downColor, transparencyControl1+60), style = plot.style_columns, linewidth = 4, display = orderFlowDisplayCond)
+plot(chg1, color = color.new(normalizedOrderFlow > 0 ? upColor : downColor, transparencyControl1+55), style = plot.style_columns, linewidth = 4, display = orderFlowDisplayCond)
+plot(chg2, color = color.new(normalizedOrderFlow > 0 ? upColor : downColor, transparencyControl1+40), style = plot.style_columns, linewidth = 4, display = orderFlowDisplayCond)
+plot(chg3, color = color.new(normalizedOrderFlow > 0 ? upColor : downColor, transparencyControl1+30), style = plot.style_columns, linewidth = 4, display = orderFlowDisplayCond)
+plot(chg4, color = color.new(normalizedOrderFlow > 0 ? upColor : downColor, transparencyControl1+25), style = plot.style_columns, linewidth = 4, display = orderFlowDisplayCond)
+plot(normalizedOrderFlow, color = color.new(normalizedOrderFlow > 0 ? upColor : downColor, transparencyControl1), display = orderFlowDisplayCond)
+
+// Zero Line and other reference lines
+z = plot(0, color = color.gray, style = plot.style_cross)
+f = plot(4, display = display.none)
+t = plot(2, display = display.none)
+negf = plot(-4, display = display.none)
+negt = plot(-2, display = display.none)
+
+// Reversal Indicators
+plotchar(bullishReversalCond ? (displayMode == "Order Flow" ? -2.5 : -6) : na, char = "▲", color = upColor, location = location.absolute, size = size.tiny)
+plotchar(bearishReversalCond ? (displayMode == "Order Flow" ? 2.5 : 6) : na, char = "▼", color = downColor, location = location.absolute, size = size.tiny)
+
+// Heiken Ashi RSI Candle Calculation
+o = velocityDiff[1]
+h = math.max(velocityDiff, velocityDiff[1])
+l = math.min(velocityDiff, velocityDiff[1])
+c = velocityDiff
+
+haClose = (o + h + l + c) / 4
+haOpen = float(na)
+haOpen := na(haOpen[1]) ? (o + c) / 2 : (nz(haOpen[1]) + nz(haClose[1])) / 2
+haHigh = math.max(h, math.max(haOpen, haClose))
+haLow = math.min(l, math.min(haOpen, haClose))
+
+plotcandle(haOpen, haHigh, haLow, haClose, "Heiken Ashi RSI", haClose > haOpen ? haUpColor : haDownColor, haClose > haOpen ? haUpColor : haDownColor, bordercolor = haClose > haOpen ? haUpColor : haDownColor, display = wideDisplayCond)
+
+bgcolor((displayMode != "Order Velocity" and normalizedOrderFlow > 2) or (displayMode == "Order Velocity" and haClose > 4) ? color.new(downColor, 80) : (displayMode != "Order Velocity" and normalizedOrderFlow < -2) or (displayMode == "Order Velocity" and haClose < -4) ? color.new(upColor, 80) : na)
+
+// Filling
+fill(z, f, top_value =  4, bottom_value = 1, bottom_color = na, top_color = color.from_gradient(haClose, -4, 4, color.new(downColor,100), color.new(downColor,40)), display = wideDisplayCond) 
+fill(z, negf, top_value =  -1, bottom_value = -4, bottom_color = color.from_gradient(-haClose, -4, 4, color.new(upColor,100), color.new(upColor,40)) , top_color = na, display = wideDisplayCond)
+fill(z, t, top_value =  2, bottom_value = 1, bottom_color = na, top_color = color.from_gradient(normalizedOrderFlow, -2, 2, color.new(downColor,100), color.new(downColor,40)), display = narrowDisplayCond)
+fill(z, negt, top_value =  -1, bottom_value = -2, bottom_color = color.from_gradient(-normalizedOrderFlow, -2, 2, color.new(upColor,100), color.new(upColor,40)) , top_color = na, display = narrowDisplayCond)
+
+
+// Divergences Section
+plotBullish = input(title="Plot Bullish", defval=true, group = "Divergences")
+plotHiddenBull = input(title="Plot Hidden Bullish", defval=false, group = "Divergences")
+plotBear = input(title="Plot Bearish", defval=true, group = "Divergences")
+plotHiddenBear = input(title="Plot Hidden Bearish", defval=false, group = "Divergences")
+bearColor = haDownColor
+bullColor = haUpColor
+hiddenBullColor = color.new(haUpColor, 80)
+hiddenBearColor = color.new(haDownColor, 80)
+textColor = color.white
+noneColor = color.new(color.white, 100)
+
+lbR = input(title="Pivot Lookback Right", defval=1)
+lbL = input(title="Pivot Lookback Left", defval=30)
+
+plFound = na(ta.pivotlow(haClose, lbL, lbR)) ? false : true
+phFound = na(ta.pivothigh(haClose, lbL, lbR)) ? false : true
+_inRange(cond) =>
+	bars = ta.barssince(cond == true)
+	-80 <= bars and bars <= 80
+
+// Regular Bullish
+oscHL = haClose[lbR] > ta.valuewhen(plFound, haClose[lbR], 1) and _inRange(plFound[1])
+priceLL = low[lbR] < ta.valuewhen(plFound, low[lbR], 1)
+bullCond = plotBullish and priceLL and oscHL and plFound
+plot(plFound ? haClose[lbR] : na, offset=-lbR, title="Regular Bullish", linewidth=2, color=(bullCond ? bullColor : noneColor), display = wideDisplayCond)
+plotshape(bullCond ? haClose[lbR] : na, offset=-lbR, title="Regular Bullish Label", text=" Bull ", style=shape.labelup, location=location.absolute, color=bullColor, textcolor=textColor, display = wideDisplayCond)
+
+// Hidden Bullish
+oscLL = haClose[lbR] < ta.valuewhen(plFound, haClose[lbR], 1) and _inRange(plFound[1])
+priceHL = low[lbR] > ta.valuewhen(plFound, low[lbR], 1)
+hiddenBullCond = plotHiddenBull and priceHL and oscLL and plFound
+plot(plFound ? haClose[lbR] : na, offset=-lbR, title="Hidden Bullish", linewidth=2, color=(hiddenBullCond ? hiddenBullColor : noneColor), display = wideDisplayCond)
+plotshape(hiddenBullCond ? haClose[lbR] : na, offset=-lbR, title="Hidden Bullish Label", text=" H Bull ", style=shape.labelup, location=location.absolute, color=bullColor, textcolor=textColor, display = wideDisplayCond)
+
+// Regular Bearish
+oscLH = haClose[lbR] < ta.valuewhen(phFound, haClose[lbR], 1) and _inRange(phFound[1])
+priceHH = high[lbR] > ta.valuewhen(phFound, high[lbR], 1)
+bearCond = plotBear and priceHH and oscLH and phFound
+plot(phFound ? haClose[lbR] : na, offset=-lbR, title="Regular Bearish", linewidth=2, color=(bearCond ? bearColor : noneColor), display = wideDisplayCond)
+plotshape(bearCond ? haClose[lbR] : na, offset=-lbR, title="Regular Bearish Label", text=" Bear ", style=shape.labeldown, location=location.absolute, color=bearColor, textcolor=textColor, display = wideDisplayCond)
+
+// Hidden Bearish
+oscHH = haClose[lbR] > ta.valuewhen(phFound, haClose[lbR], 1) and _inRange(phFound[1])
+priceLH = high[lbR] < ta.valuewhen(phFound, high[lbR], 1)
+hiddenBearCond = plotHiddenBear and priceLH and oscHH and phFound
+plot(phFound ? haClose[lbR] : na, offset=-lbR, title="Hidden Bearish", linewidth=2, color=(hiddenBearCond ? hiddenBearColor : noneColor), display = wideDisplayCond)
+plotshape(hiddenBearCond ? haClose[lbR] : na, offset=-lbR, title="Hidden Bearish Label", text=" H Bear ", style=shape.labeldown, location=location.absolute, color=bearColor, textcolor=textColor, display = wideDisplayCond)
+
+
+
+// Alerts
+
+// Order Flow Cross Above/Below Zero Line
+alertcondition(ta.crossover(normalizedOrderFlow, 0), title="Order Flow Cross Above Zero", message="Order Flow crossed above the zero line")
+alertcondition(ta.crossunder(normalizedOrderFlow, 0), title="Order Flow Cross Below Zero", message="Order Flow crossed below the zero line")
+
+// Order Flow Overbought/Oversold Conditions
+alertcondition(normalizedOrderFlow > 2, title="Order Flow Overbought", message="Order Flow is in an overbought condition")
+alertcondition(normalizedOrderFlow < -2, title="Order Flow Oversold", message="Order Flow is in an oversold condition")
+
+// Order Velocity Overbought/Oversold Conditions
+alertcondition(haClose > 4, title="Order Velocity Overbought", message="Order Velocity is in an overbought condition")
+alertcondition(haClose < -4, title="Order Velocity Oversold", message="Order Velocity is in an oversold condition")
+
+// Heiken Ashi Close Cross Above/Below Open
+alertcondition(ta.crossover(haClose, haOpen), title="Order Velocity Trending Up", message="Heiken Ashi Order Velocity is trending up")
+alertcondition(ta.crossunder(haClose, haOpen), title="Order Velocity Trending Down", message="Heiken Ashi Order Velocity is trending down")

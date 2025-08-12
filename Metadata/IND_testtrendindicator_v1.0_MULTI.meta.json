@@ -1,0 +1,30 @@
+{
+  "id": "d74688202b4c8f87",
+  "arquivo": "test_trend_indicator.mq4",
+  "hash": "d74688202b4c8f87",
+  "tipo": "Indicator",
+  "linguagem": "MQL4",
+  "estrategia": "Scalping",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 60,
+  "riscos_detectados": [
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 80,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

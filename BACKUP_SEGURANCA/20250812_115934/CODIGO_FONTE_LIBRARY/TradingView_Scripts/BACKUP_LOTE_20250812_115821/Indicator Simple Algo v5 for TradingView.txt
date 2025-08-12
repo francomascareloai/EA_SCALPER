@@ -1,0 +1,357 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//INPUTS
+cooldownPeriod = input.int(10,title="Cooldown Period", minval=0, group = "Settings") 
+
+lbLeft = 20
+lbRight = 20
+
+showSwing = input.bool(true,title="Show Swings?", inline="s_1", group = 'Swing Detaction')
+swingClr = input.color(color.rgb(3, 205, 251), title='', inline="s_1", group = 'Swing Detaction')
+
+bullWidth = input.int(1, title='Line Width:', group='Bullish Sweep')
+bullStyle = input.string('Dashed', title='Line Style:', options=['Solid', 'Dotted', 'Dashed'], group='Bullish Sweep')
+bullColor = input.color(color.rgb(255, 255, 255), title='Bullish Color:', group='Bullish Sweep')
+
+bearWidth = input.int(1, title='Line Width:', group='Bearish Sweep')
+bearStyle = input.string('Dashed', title='Line Style:', options=['Solid', 'Dotted', 'Dashed'], group='Bearish Sweep')
+bearColor = input.color(color.rgb(255, 255, 255), title='Bearish Color:', group='Bearish Sweep')
+
+//FUNCTIONS
+lineStyle(s) =>
+    if s == 'Solid'
+        line.style_solid
+    else if s == 'Dotted'
+        line.style_dotted
+    else
+        line.style_dashed
+
+//VARS
+var int bullSignalIndex = 0
+var int bearSignalIndex = 0
+
+var line bullLine = na
+var line bearLine = na
+
+var line highLine = na
+var line lowLine = na
+
+var label swingHighLbl = na
+var label swingLowLbl = na
+var label swingHighLblTxt = na
+var label swingLowLblTxt = na
+
+var float swingLowVal = na
+var float swingHighVal = na
+
+//CALCULATIONS
+pLow = ta.pivotlow(low, lbLeft, lbRight)
+pHigh = ta.pivothigh(high, lbLeft, lbRight)
+
+pLowVal = ta.valuewhen(not na(pLow), low[lbRight], 0) 
+pHighVal = ta.valuewhen(not na(pHigh), high[lbRight], 0)
+
+prevLowIndex = ta.valuewhen(not na(pLow), bar_index[lbRight], 0)
+prevHighIndex = ta.valuewhen(not na(pHigh), bar_index[lbRight], 0)
+
+lp = ta.lowest(low, lbLeft)
+hp = ta.highest(high, lbLeft)
+
+highestClose = ta.highest(close, lbLeft)
+lowestClose = ta.lowest(close, lbLeft)
+
+bullishSFP = low < pLowVal and close > pLowVal and open > pLowVal and low == lp and lowestClose >= pLowVal
+bearishSFP = high > pHighVal and close < pHighVal and open < pHighVal and high == hp and highestClose <= pHighVal
+
+bullCond = bullishSFP[3] and (close > pLowVal) and  (close[1] > pLowVal[1]) and (close[2] > pLowVal[2]) and bar_index >= bullSignalIndex + cooldownPeriod
+bearCond = bearishSFP[3] and (close < pHighVal) and  (close[1] < pHighVal[1]) and (close[2] < pHighVal[2]) and bar_index >= bearSignalIndex + cooldownPeriod
+
+//Check Swing H/L Stopper
+var int swingLowCounter = 0
+var int swingHighCounter = 0
+var bool isSwingLowCheck = false
+var bool isSwingHighCheck = false
+var bool stopPrintingLow = false
+var bool stopPrintingHigh = false
+
+if high < swingLowVal and isSwingLowCheck
+    swingLowCounter := swingLowCounter+1
+
+if low > swingHighVal and isSwingHighCheck
+    swingHighCounter := swingHighCounter+1
+
+if ta.crossunder(close, swingLowVal) and isSwingLowCheck == false
+    isSwingLowCheck := true
+    swingLowCounter := 1
+
+if ta.crossover(close, swingHighVal) and isSwingHighCheck == false
+    isSwingHighCheck := true
+    swingHighCounter := 1
+
+if swingLowCounter == 5 and isSwingLowCheck
+    stopPrintingLow := true
+    isSwingLowCheck := false
+    line.set_x2(lowLine,bar_index[4])
+
+if swingHighCounter == 5 and isSwingHighCheck
+    stopPrintingHigh := true
+    isSwingHighCheck := false
+    line.set_x2(highLine,bar_index[4])
+
+//Draw sweep lines
+if bullCond
+    bullSignalIndex := bar_index
+    bullLine := line.new(prevLowIndex, pLowVal, bar_index-3, pLowVal, color=bullColor, width=bullWidth, style=lineStyle(bullStyle))
+
+if bearCond
+    bearSignalIndex := bar_index
+    bearLine := line.new(prevHighIndex, pHighVal, bar_index-3, pHighVal, color=bearColor, width=bearWidth, style=lineStyle(bearStyle))
+
+var swingHighArr = array.new_label(0)
+var swingHighTextArr = array.new_label(0)
+
+var swingLowArr = array.new_label(0)
+var swingLowTextArr = array.new_label(0)
+
+if array.size(swingHighArr) >= 3
+    label.delete(array.shift(swingHighArr))
+    label.delete(array.shift(swingHighTextArr))
+   
+if array.size(swingLowArr) >= 3
+    label.delete(array.shift(swingLowArr))
+    label.delete(array.shift(swingLowTextArr))
+
+//Draw range lines
+if showSwing
+    if stopPrintingHigh == false 
+        line.set_x2(highLine,bar_index+5)
+    if stopPrintingLow == false
+        line.set_x2(lowLine,bar_index+5)
+
+if showSwing and not na(pHigh) and bearishSFP[lbRight] == false
+    stopPrintingHigh := false
+    swingHighVal := high[lbRight]
+    line.delete(highLine)
+    highLine := line.new(bar_index[lbRight], high[lbRight], bar_index+10, high[lbRight], color = swingClr, width = 2)
+
+    swingHighLbl := label.new(bar_index[lbRight], high[lbRight], text="", yloc=yloc.abovebar, color = swingClr, textcolor = swingClr, style = label.style_triangledown, size = size.auto)
+    swingHighLblTxt := label.new(bar_index[lbRight], high[lbRight], text="Swing\nH", yloc=yloc.abovebar, color = swingClr, textcolor = swingClr, style = label.style_none, size = size.small)
+    array.push(swingHighArr, swingHighLbl)
+    array.push(swingHighTextArr, swingHighLblTxt)
+
+if showSwing and not na(pLow) and bullishSFP[lbRight] == false
+    stopPrintingLow := false
+    swingLowVal := low[lbRight]
+    line.delete(lowLine)
+    lowLine := line.new(bar_index[lbRight], low[lbRight], bar_index+10, low[lbRight], color = swingClr, width = 2)
+
+    swingLowLbl := label.new(bar_index[lbRight], low[lbRight], text="", yloc=yloc.belowbar, color = swingClr, textcolor = swingClr, style = label.style_triangleup, size = size.auto)
+    swingLowLblTxt := label.new(bar_index[lbRight], low[lbRight], text="Swing\nL", yloc=yloc.belowbar, color = swingClr, textcolor = swingClr, style = label.style_none, size = size.small)
+    array.push(swingLowArr, swingLowLbl)
+    array.push(swingLowTextArr, swingLowLblTxt) 
+
+//PLOTS
+plotshape(bullCond, text='LIQUZ', color=bullColor, textcolor=bullColor, location=location.belowbar, offset = -3)
+plotshape(bearCond, text='LIQUZ', color=bearColor, textcolor=bearColor, location=location.abovebar, offset = -3) 
+
+//ALERTS
+alertcondition(bullishSFP, title='Bullish Sweep', message='{{ticker}} Bullish Sweep, Price:{{close}}')
+alertcondition(bearishSFP, title='Bearish Sweep', message='{{ticker}} Bearish Sweep, Price:{{close}}')
+ 
+//------------------ AI Signals | https://www.getaisignals.com ---------------//
+// Get user input
+sensitivity = input.string("Low", "Sensitivity", ["Low", "Medium", "High"])
+suppRes     = input.bool(false, "Support & Resistance")
+breaks      = input.bool(false, "Breaks")
+signals     = input.bool(true, "Buy/Sell Signals?")
+emaEnergy   = input.bool(true, "EMA Energy")
+channelBal  = input.bool(true, "Channel Balance")
+
+// Functions
+supertrend(_src, factor, atrLen) =>
+    atr = ta.atr(atrLen)
+    upperBand = _src + factor * atr
+    lowerBand = _src - factor * atr
+    prevLowerBand = nz(lowerBand[1])
+    prevUpperBand = nz(upperBand[1])
+    lowerBand := lowerBand > prevLowerBand or close[1] < prevLowerBand ? lowerBand : prevLowerBand
+    upperBand := upperBand < prevUpperBand or close[1] > prevUpperBand ? upperBand : prevUpperBand
+    int direction = na
+    float superTrend = na
+    prevSuperTrend = superTrend[1]
+    if na(atr[1])
+        direction := 1
+    else if prevSuperTrend == prevUpperBand
+        direction := close > upperBand ? -1 : 1
+    else
+        direction := close < lowerBand ? 1 : -1
+    superTrend := direction == -1 ? lowerBand : upperBand
+    [superTrend, direction]
+lr_slope(_src, _len) =>
+    x = 0.0, y = 0.0, x2 = 0.0, xy = 0.0
+    for i = 0 to _len - 1
+        val = _src[i]
+        per = i + 1
+        x += per
+        y += val
+        x2 += per * per
+        xy += val * per
+    _slp = (_len * xy - x * y) / (_len * x2 - x * x)
+    _avg = y / _len
+    _int = _avg - _slp * x / _len + _slp
+    [_slp, _avg, _int]
+lr_dev(_src, _len, _slp, _avg, _int) =>
+    upDev = 0.0, dnDev = 0.0
+    val = _int
+    for j = 0 to _len - 1
+        price = high[j] - val
+        if price > upDev
+            upDev := price
+        price := val - low[j]
+        if price > dnDev
+            dnDev := price
+        price := _src[j]
+        val += _slp
+    [upDev, dnDev]
+// Get Components
+ocAvg       = math.avg(open, close)
+sma1        = ta.sma(close, 5)
+sma2        = ta.sma(close, 6)
+sma3        = ta.sma(close, 7)
+sma4        = ta.sma(close, 8)
+sma5        = ta.sma(close, 9)
+sma6        = ta.sma(close, 10)
+sma7        = ta.sma(close, 11)
+sma8        = ta.sma(close, 12)
+sma9        = ta.sma(close, 13)
+
+psar        = ta.sar(0.02, 0.02, 0.2)
+[middleKC1, upperKC1, lowerKC1] = ta.kc(close, 80, 10.5)
+[middleKC2, upperKC2, lowerKC2] = ta.kc(close, 80, 9.5)
+[middleKC3, upperKC3, lowerKC3] = ta.kc(close, 80, 8)
+[middleKC4, upperKC4, lowerKC4] = ta.kc(close, 80, 3)
+[supertrend, direction] = supertrend(close, sensitivity == "Low" ? 6.8 : sensitivity == "Medium" ? 2.5 : 3, 11)
+barsL       = 10
+barsR       = 10
+pivotHigh = fixnan(ta.pivothigh(barsL, barsR)[1])
+pivotLow = fixnan(ta.pivotlow(barsL, barsR)[1])
+source = close, period = 150
+[s, a, i] = lr_slope(source, period)
+[upDev, dnDev] = lr_dev(source, period, s, a, i)
+// Colors
+green       = #6df902ce, green2   = #5bcd04e4
+red         = #f9040485, red2     = #DD0000
+emaEnergyColor(ma) => emaEnergy ? (close >= ma ? green : red) : na
+// Plots
+k1 = plot(ta.ema(upperKC1, 50), "", na, editable=false)
+k2 = plot(ta.ema(upperKC2, 50), "", na, editable=false)
+k3 = plot(ta.ema(upperKC3, 50), "", na, editable=false)
+k4 = plot(ta.ema(upperKC4, 50), "", na, editable=false)
+k5 = plot(ta.ema(lowerKC4, 50), "", na, editable=false)
+k6 = plot(ta.ema(lowerKC3, 50), "", na, editable=false)
+k7 = plot(ta.ema(lowerKC2, 50), "", na, editable=false)
+k8 = plot(ta.ema(lowerKC1, 50), "", na, editable=false)
+fill(k1, k2, channelBal ? color.new(red2, 40) : na, editable=false)
+fill(k2, k3, channelBal ? color.new(red2, 65) : na, editable=false)
+fill(k3, k4, channelBal ? color.new(red2, 90) : na, editable=false)
+fill(k5, k6, channelBal ? color.new(green2, 90) : na, editable=false)
+fill(k6, k7, channelBal ? color.new(green2, 65) : na, editable=false)
+fill(k7, k8, channelBal ? color.new(green2, 40) : na, editable=false)
+plot(sma1, "", emaEnergyColor(sma1), editable=false)
+plot(sma2, "", emaEnergyColor(sma2), editable=false)
+plot(sma3, "", emaEnergyColor(sma3), editable=false)
+plot(sma4, "", emaEnergyColor(sma4), editable=false)
+plot(sma5, "", emaEnergyColor(sma5), editable=false)
+plot(sma6, "", emaEnergyColor(sma6), editable=false)
+plot(sma7, "", emaEnergyColor(sma7), editable=false)
+plot(sma8, "", emaEnergyColor(sma8), editable=false)
+plot(sma9, "", emaEnergyColor(sma9), editable=false)
+
+
+
+
+y1 = low - (ta.atr(30) * 2), y1B = low - ta.atr(30)
+y2 = high + (ta.atr(30) * 2), y2B = high + ta.atr(30)
+bull = ta.crossover(close, supertrend) and close >= sma9
+bear = ta.crossunder(close, supertrend) and close <= sma9
+buy  = bull ? label.new(bar_index, y1, "Buy🚀", xloc.bar_index, yloc.price, #2BE300, label.style_label_up, #000000) : na
+sell = bear ? label.new(bar_index, y2, "Sell 🐻", xloc.bar_index, yloc.price, red2, label.style_label_down, color.white) : na
+
+plot(pivotHigh, "Resistance", not suppRes or ta.change(pivotHigh) ? na : red2, 2, offset=-(barsR + 1), editable=false)
+plot(pivotLow, "Support", not suppRes or ta.change(pivotLow) ? na : green2, 2, offset=-(barsR + 1), editable=false)
+upB = breaks and ta.crossover(close, pivotHigh) ? label.new(bar_index, y1B, "B", xloc.bar_index, yloc.price, green, label.style_label_up, color.white, size.small) : na
+dnB = breaks and ta.crossunder(close, pivotLow) ? label.new(bar_index, y2B, "B", xloc.bar_index, yloc.price, red, label.style_label_down, color.white, size.small) : na
+x1 = bar_index - period + 1, _y1 = i + s * (period - 1), x2 = bar_index, _y2 = i
+
+
+
+
+
+//@version=5
+
+indicator("Simple Algo v5"
+  , overlay = true
+  , max_labels_count = 500
+  , max_lines_count = 500
+  , max_boxes_count = 500
+  , max_bars_back = 500)
+
+//======================================================================================= 
+// MODULO DE SEÑALES PARA MEGA POWER 
+//======================================================================================= 
+
+changeCond =  bull  or bear //NECESARIO PARA EL MODULO DE TPS 
+//======================================================================================= 
+ 
+// Módulo  - Entrada - SL - TPS mejora enviada por: CRIPTOMAN SPAIN @CRIPTOTR4DER 
+//----------------------------------------- 
+//********************************************************* 
+//*                     Módulo                            * 
+//*              Entrada - SL - TPSEND                    * 
+//********************************************************* 
+// Cálculos 
+groupEnTpSl = "Módulo - Signals" 
+plot(na) 
+//======================================================================================= 
+//ESTO ES EL CALCULO COMO SE HACIA EN EL PRIMER SCRIPT QUE ME ENVIASTE 
+//======================================================================================= 
+levels_tip = "Habilita etiquetas compra/venta /SL" 
+atrLen_tip = "Atr para el Calculo de Stoploss y TakeProfit" 
+atrRisk_tip = "Multiplicador de Riesgo ATR: Recomendado 1.5 o 1.9" 
+levels = input(title='Mostrar Etiquetas de Entrada/SL/TP', defval=true, group=groupEnTpSl, tooltip=levels_tip)  
+atrLen   = input.int(10, "ATR Length SL ", group=groupEnTpSl, tooltip=atrLen_tip) 
+atrRisk  = input.float(1, "ATR Risk SL", group=groupEnTpSl,tooltip=atrRisk_tip ) 
+trigger = bull ? 1 : 0 
+atrBand = ta.atr(atrLen) * atrRisk 
+atrStop = trigger == 1 ? low - atrBand : high + atrBand 
+//======================================================================================= 
+lastTrade(src) => ta.valuewhen(changeCond, src, 0 ) 
+//======================================================================================= 
+//======================================================================================= 
+//ENTRADAS 
+entry = levels ? label.new(time, close, "ENTRY" + str.tostring(lastTrade(close), "#.######"), xloc.bar_time, yloc.price, #501da800, label.style_label_left, color.rgb(4, 158, 214), size.normal) : na 
+label.set_y(entry, lastTrade(close)) 
+label.delete(entry[1]) 
+stop_y = lastTrade(atrStop) 
+
+tp1_y =  (lastTrade(close)-lastTrade(atrStop))*1 + lastTrade(close) 
+tp1   = levels ? label.new(time, close, " 1 - " + str.tostring(tp1_y, "#.#####"), xloc.bar_time, yloc.price,  #51ff0000, label.style_label_left, #01ff16, size.normal) : na 
+label.set_y(tp1, tp1_y) 
+label.delete(tp1[1]) 
+tp2_y = (lastTrade(close)-lastTrade(atrStop))*2 + lastTrade(close) 
+tp2   = levels ? label.new(time, close, " 2 - " + str.tostring(tp2_y, "#.#####"), xloc.bar_time, yloc.price, #51ff0000, label.style_label_left, #01ff16, size.normal) : na 
+label.set_y(tp2, tp2_y) 
+label.delete(tp2[1]) 
+tp3_y = (lastTrade(close)-lastTrade(atrStop))*3 + lastTrade(close) 
+tp3   = levels ? label.new(time, close, " 3 - " + str.tostring(tp3_y, "#.#####"), xloc.bar_time, yloc.price, #51ff0000, label.style_label_left, #01ff16, size.normal) : na 
+label.set_y(tp3, tp3_y) 
+label.delete(tp3[1])
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

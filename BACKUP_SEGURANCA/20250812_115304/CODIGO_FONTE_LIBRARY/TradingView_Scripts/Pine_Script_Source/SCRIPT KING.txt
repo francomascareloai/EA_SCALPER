@@ -1,0 +1,62 @@
+
+instrument { name = "King", overlay = true, icon = "indicators:MA" }
+
+--
+SMA_period = input(21, "SMA Period", input.integer, 1)
+EMA_period = input(5, "EMA Period", input.integer, 1)
+
+-- 
+sma_value = sma(close, SMA_period)
+ema_value = ema(close, EMA_period)
+
+-- 
+function crossover(series1, series2)
+    return (series1[1] <= series2[1] and series1 > series2)
+end
+
+-- 
+function crossunder(series1, series2)
+    return (series1[1] >= series2[1] and series1 < series2)
+end
+
+-- 
+sma_below_price = close > sma_value
+red_green_green = close[3] < open[3] and close[2] > open[2] and close[1] > open[1]
+ema_crosses_above_sma = crossover(ema_value, sma_value)
+
+buy_signal = (sma_below_price and red_green_green) or ema_crosses_above_sma
+
+--
+sma_above_price = close < sma_value
+green_red_red = close[3] > open[3] and close[2] < open[2] and close[1] < open[1]
+ema_crosses_below_sma = crossunder(ema_value, sma_value)
+
+sell_signal = (sma_above_price and green_red_red) or ema_crosses_below_sma
+
+
+input_group {
+   "Line",
+   smacolor = input { default = "purple", type = input.color },
+   smawidth = input { default = 2, type = input.line_width},
+   emacolor = input { default = "yellow", type = input.color },
+   emawidth = input { default = 2, type = input.line_width}		
+
+}
+
+plot(sma_value, "SMA", smacolor, smawidth)
+plot(ema_value, "EMA", emacolor, emawidth)
+
+
+-- 
+plot_shape(buy_signal and not ema_crosses_above_sma, "Buy", shape_style.triangleup, shape_size.large, 'green', shape_location.belowbar, 0, '(KING)', 'white')
+plot_shape(buy_signal and ema_crosses_above_sma, "Buy EMA-SMA", shape_style.triangleup, shape_size.large, 'purple', shape_location.belowbar, 0, 'Compra (KING)', 'yellow')
+
+plot_shape(sell_signal and not ema_crosses_below_sma, "Sell", shape_style.triangledown, shape_size.large, 'red', shape_location.abovebar, 0, '(KING)', 'white')
+plot_shape(sell_signal and ema_crosses_below_sma, "Sell EMA-SMA", shape_style.triangledown, shape_size.large, 'purple', shape_location.abovebar, 0, 'Venda (KING)', 'yellow')
+
+
+--[[ 
+    Indicador King
+    Desenvolvido por: Vitor Cruz
+    Descrição: Este indicador fornece sinais de compra e venda com base em EMA e SMA cross.
+]]

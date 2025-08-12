@@ -1,0 +1,1716 @@
+//@version=5
+//
+indicator("Elite Algo v30 [AlgoPoint]", shorttitle="Elite Algo v30 [AlgoPoint]",
+overlay = true, precision=0, explicit_plot_zorder=true, max_labels_count=500)
+
+
+// This code is created by algopoint. All other leaked algos is available at
+algopoint.mysellix.io
+// Scammer List:
+// Discord Username: nedenolmuyor (ZZ_Algo)
+// Discord Username: rayyav       (MAD MAD) Also He is Eyo Breakout Telegram Admin,
+Becareful
+//
+// AlgoPoint Official Contact Adrress
+// Discord Username:      algopoint
+// Instagram:             algopoint
+// Instagram:             algopoint01
+// Website:               algopoint.mysellix.io
+// Mail:                  algopointstore@gmail.com
+
+
+
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// ---------------------------------------------- User Inputes
+-----------------------------------------------------
+// Volatility Calculater
+// FUNCTIONS
+title = 'AlgoPoint'
+subtitle = 'All Leaked Algos | IG: algopoint'
+symInfoCheck = false
+symInfo = syminfo.ticker + ' | ' + timeframe.period + (timeframe.isminutes ? 'M' :
+na)
+date = str.tostring(dayofmonth(time_close)) + '/' + str.tostring(month(time_close))
++ '/' + str.tostring(year(time_close))
+textVPosition = 'middle'
+textHPosition = 'center'
+symVPosition = 'top'
+symHPosition = 'left'
+width = 0
+height = 0
+c_title = #b2b5be80
+s_title = 'large'
+a_title = 'center'
+c_subtitle = #b2b5be80
+s_subtitle = 'normal'
+a_subtitle = 'center'
+c_bg = color.new(color.blue, 100)
+// Close to Close Volatility
+f_coc(x, period, sqrtAnnual) =>
+    mean = ta.sma(x, period)
+    s = array.new_float(0)
+    for i = 0 to period - 1 by 1
+        array.push(s, math.pow(x[i] - mean, 2))
+    sqrtAnnual * math.sqrt(array.sum(s) / (period - 1))
+
+// Parkinson Volatility
+f_park(period, sqrtAnnual) =>
+    var LOG2 = math.log(2)
+    powLogHighLow = math.pow(math.log(high / low), 2)
+    sqrtAnnual * math.sqrt(1.0 / period * math.sum(1.0 / (4.0 * LOG2) *
+powLogHighLow, period))
+
+// Garman Klass Volatility
+f_gk(period, sqrtAnnual) =>
+    var LOG2 = math.log(2)
+    var SQRT_1_PERIOD = math.sqrt(1 / period)
+    powLogHighLow = math.pow(math.log(high / low), 2)
+    powLogCloseOpen = math.pow(math.log(close / open), 2)
+    tmp = 0.5 * powLogHighLow - (2.0 * LOG2 - 1.0) * powLogCloseOpen
+    sqrtAnnual * math.sqrt(math.sum(tmp, period)) * SQRT_1_PERIOD
+
+// Rogers Satchell Volatility
+f_rsv(period, sqrtAnnual) =>
+    tmp = math.log(high / close) * math.log(high / open) + math.log(low / close) *
+math.log(low / open)
+    sqrtAnnual * math.sqrt(math.sum(tmp, period) / period)
+
+// Garman Klass Yang Zhang Extension Volatility
+f_gkyz(period, sqrtAnnual) =>
+    var LOG2 = math.log(2)
+    var SQRT_1_PERIOD = math.sqrt(1 / period)
+    powLogHighLow = math.pow(math.log(high / low), 2)
+    powLogCloseOpen = math.pow(math.log(close / open), 2)
+    lastClose = nz(close[1], close)
+    powLogOpenClose1 = math.pow(math.log(open / lastClose), 2)
+    tmp = powLogOpenClose1 + 0.5 * powLogHighLow - (2.0 * LOG2 - 1.0) *
+powLogCloseOpen
+    sqrtAnnual * math.sqrt(math.sum(tmp, period)) * SQRT_1_PERIOD
+
+// Yang Zhang Volatility
+f_yz(a, period, sqrtAnnual) =>
+    oaman = math.log(open) - math.log(nz(close[1], close))
+    u = math.log(high) - math.log(open)
+    d = math.log(low) - math.log(open)
+    caman = math.log(close) - math.log(open)
+    nMinusOne = period - 1
+    avgo = ta.sma(oaman, period)
+    avgc = ta.sma(caman, period)
+    so = array.new_float(0)
+    sc = array.new_float(0)
+    for i = 0 to period - 1 by 1
+        array.push(so, math.pow(oaman[i] - avgo, 2))
+        array.push(sc, math.pow(caman[i] - avgc, 2))
+    sumo = array.sum(so)
+    sumc = array.sum(sc)
+    Vo = sumo / nMinusOne
+    Vc = sumc / nMinusOne
+    Vrs = math.sum(u * (u - caman) + d * (d - caman), period) / period
+    k = (a - 1.0) / (a + (period + 1.0) / nMinusOne)
+    sqrtAnnual * math.sqrt(Vo + k * Vc + (1.0 - k) * Vrs)
+
+// Exponentially Weighted Volatility
+f_ewma(source, period, sqrtAnnual) =>
+    var lambda = (period - 1) / (period + 1)
+    squared = math.pow(source, 2)
+    float v = na
+    v := lambda * nz(v[1], squared) + (1.0 - lambda) * squared
+    sqrtAnnual * math.sqrt(v)
+
+// Mean Absolute Deviation (Adjusted)
+f_mad(source, period, sqrtAnnual) =>
+    var SQRT_HALF_PI = math.sqrt(math.asin(1))
+    mean = ta.sma(source, period)
+    S = array.new_float(0)
+    for i = 0 to period - 1 by 1
+        array.push(S, math.abs(source[i] - mean))
+    sumS = array.sum(S)
+    sqrtAnnual * (sumS / period) * SQRT_HALF_PI
+
+// Median Absolute Deviation
+f_mead(source, period, sqrtAnnual) =>
+    median = ta.percentile_nearest_rank(source, period, 50)
+    E = 0.0
+    for i = 0 to period - 1 by 1
+        E += math.abs(source[i] - median)
+        E
+    sqrtAnnual * math.sqrt(2) * (E / period)
+
+//Rescale Function
+f_rescale(_src, _size) =>
+    math.max(0, math.min(_size, int(_src / 100 * _size)))
+
+// label Panel Function
+_label(T, color_PnL) =>
+    label PnL_Label = na
+    label.delete(PnL_Label[1])
+    PnL_Label := label.new(time, 0, text=T, color=color_PnL, textcolor=color.white,
+size=size.normal, style=label.style_label_left, xloc=xloc.bar_time,
+textalign=text.align_left)
+    label.set_x(PnL_Label, label.get_x(PnL_Label) + math.round(ta.change(time) *
+3))
+
+// Round Function
+Round(src, digits) =>
+    p = math.pow(10, digits)
+    math.round(math.abs(src) * p) / p * math.sign(src)
+
+//Options for Inputs
+ON = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'On' : na
+OFF = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Off' : na
+CTC = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Close to Close' : na
+PKS = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Parkinson' : na
+GK = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Garman Klass' : na
+RS = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Rogers Satchell' : na
+GKYZ = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Garman Klass Yang Zhang
+Extension' : na
+YZ = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Yang Zhang' : na
+EWMA = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'EWMA' : na
+MAD = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Mean Absolute Deviation' : na
+MAAD = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 'Median Absolute Deviation' :
+na
+L = 'Line'
+SL = 'StepLine'
+Ar = 'Area'
+CL = 'Columns'
+
+// Settings
+Haman = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? EWMA : na
+period = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? 10 : na
+Annual = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? 365 : na
+a = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 1.34 : na
+Plen = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 365 : na
+Pco = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? ON : na
+sma = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? ON : na
+malen = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 55 : na
+bsg = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? OFF : na
+stl = CL
+lT = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? 3 : na
+i_invert = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? OFF : na
+bg = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? OFF : na
+sp = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? OFF : na
+
+// bgcolor(bg ? color.new(#000000, 20) : na, title='Dark Background', transp=90)
+
+var sqrtAnnual = math.sqrt(Annual) * 100
+
+logr = math.log(close / close[1])
+
+// Historical Volatiity Models
+Hv = if Haman == CTC
+     f_coc(logr, period, sqrtAnnual)
+else if Haman == PKS
+     f_park(period, sqrtAnnual)
+else if Haman== RS
+     f_rsv(period, sqrtAnnual)
+else if Haman == GK
+     f_gk(period, sqrtAnnual)
+else if Haman == GKYZ
+     f_gkyz(period, sqrtAnnual)
+else if Haman == EWMA
+     f_ewma(logr, period, sqrtAnnual)
+else if Haman == YZ
+     f_yz(a, period, sqrtAnnual)
+else if Haman == MAD
+     f_mad(logr, period, sqrtAnnual)
+else
+     // H == "Median Absolute Deviation"
+     f_mead(logr, period, sqrtAnnual)
+
+pstyle = stl == L ? plot.style_linebr : stl == SL ? plot.style_stepline : stl == Ar
+? plot.style_area : stl == CL ? plot.style_columns : plot.style_line
+textWatermark = table.new(textVPosition + '_' + textHPosition, 1, 3)
+//Hv Stats
+avgHV = ta.sma(Hv, malen)
+HVP = ta.percentrank(Hv, Plen)
+NearZero = HVP < 1.5 ? 1 : 0
+HV50 = ta.percentile_nearest_rank(Hv, Plen, 50)
+
+// // Text Functions
+// texthv() =>
+//     ' HV: ' + str.tostring(Round(Hv, 2))
+
+// textphv() =>
+//     'HV 50áµ—Ê° Percentile: ' + str.tostring(Round(HV50, 2))
+
+// texthvp() =>
+//     'HV Percentile: ' + str.tostring(Round(HVP, 2)) + 'áµ—Ê°'
+
+// // Coloring
+// var c_ = array.new_color(na)
+// if barstate.isfirst
+//     array.push(c_, #0effff)
+//     array.push(c_, #00fdf6)
+//     array.push(c_, #00fbee)
+//     array.push(c_, #00f9e4)
+//     array.push(c_, #00f6db)
+//     array.push(c_, #00f4d1)
+//     array.push(c_, #13f1c6)
+//     array.push(c_, #24efbc)
+//     array.push(c_, #31ecb1)
+//     array.push(c_, #3ce9a6)
+//     array.push(c_, #47e69b)
+//     array.push(c_, #51e390)
+//     array.push(c_, #5adf85)
+//     array.push(c_, #62dc7a)
+//     array.push(c_, #6ad96e)
+//     array.push(c_, #72d563)
+//     array.push(c_, #7ad157)
+//     array.push(c_, #81cd4b)
+//     array.push(c_, #88ca3f)
+//     array.push(c_, #8fc532)
+//     array.push(c_, #96c123)
+//     array.push(c_, #9cbd0e)
+//     array.push(c_, #a3b800)
+//     array.push(c_, #a9b300)
+//     array.push(c_, #b0ae00)
+//     array.push(c_, #b6a900)
+//     array.push(c_, #bca300)
+//     array.push(c_, #c29e00)
+//     array.push(c_, #c29e00)
+//     array.push(c_, #c89800)
+//     array.push(c_, #ce9100)
+//     array.push(c_, #d48b00)
+//     array.push(c_, #da8400)
+//     array.push(c_, #df7c00)
+//     array.push(c_, #e57400)
+//     array.push(c_, #ea6c00)
+//     array.push(c_, #ef6200)
+//     array.push(c_, #f35800)
+//     array.push(c_, #f74c00)
+//     array.push(c_, #fb3e00)
+//     array.push(c_, #ff2d00)
+
+//     if i_invert
+//         array.reverse(c_)
+// var sizeOf = array.size(c_) - 1
+// colorHV = Pco ? array.get(c_, f_rescale(HVP, sizeOf)) : color.aqua
+
+// Plots
+
+// plot(Hv, 'HV', color=colorHV, linewidth=lT, style=plot.style_line)
+// plot(sma ? avgHV : na, 'sma', color=color.new(#FFFFFF, 25), linewidth=2)
+
+//bgcolor(Hv > avgHV ? color.lime : na)
+
+// if sp
+//     _label(H + texthv() + '\n' + textphv() + '\n' + texthvp() + '\n\n',
+#000000c0)
+
+// col2 = HVP >= 1 ? color.yellow : HVP <= 1 and HVP >= 0.5 ? color.orange : HVP <=
+0.5 ? #8D0000 : color.silver
+// // bgcolor(bsg and NearZero ? col2 : na, transp=50)
+
+//Custrom MAS
+maa = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? avgHV / 100 * 140 : na
+mab = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? avgHV / 100 * 180 : na
+mac = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? avgHV / 100 * 240 : na
+mad = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? avgHV / 100 * 60 : na
+mae = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? avgHV / 100 * 20 : na
+
+
+// Auto Sensivity Volatility Band Settings
+
+float volatility = 0.0
+
+if Hv < maa and Hv > avgHV // ilk band ust
+    volatility := 6
+else if Hv < mab and Hv > maa // ikinci band ust
+    volatility := 7
+else if Hv < mac and Hv > mab // ucuncu band ust
+    volatility := 7.8
+else if Hv > mac // volatilite en ust degerde
+    volatility := 9
+else if Hv < maa and Hv > mad // altdaki ilk band
+    volatility :=     5
+else if Hv < mad      and Hv > mae // altdaki ikinci band
+    volatility :=     4
+else if Hv < mae      // volatilite butun bandlarin anltinda
+    volatility :=     3
+
+//plot(volatility,color = color.red)
+
+//   plot(maa,   'maa',   color=color.new(color.aqua,   25))
+//   plot(mab,   'mab',   color=color.new(color.aqua,   25))
+//   plot(mac,   'mac',   color=color.new(color.aqua,   25))
+//   plot(mad,   'mad',   color=color.new(color.aqua,   25))
+//   plot(mae,   'mae',   color=color.new(color.aqua,   25))
+
+
+
+// basic settings
+signalPreset        = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.string('None', 'Signal Preset⠀⠀⠀⠀⠀⠀⠀⠀⠀', ['None', 'Trend Only'],
+group='basic settings') : na
+signalLogic        = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.string('Pro
+Scalper', 'Signal Logic⠀⠀⠀⠀⠀⠀⠀⠀⠀', ['Pro Scalper', 'Normal'], group='basic
+settings') : na
+signalStyle       = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.string('Normal', 'Signal Style⠀⠀⠀⠀⠀⠀⠀⠀⠀', ['Normal', 'Minimal'],
+group='basic settings') : na
+signalAgility        = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.string('Auto Pilot', 'Agility%⠀⠀⠀⠀⠀⠀⠀⠀⠀', ['Auto Pilot', 'Manual'],
+group='basic settings') : na
+signalMode        = signalStyle == 'Normal' ? 'Simple Entry + Exits' : 'Minimized
+Entry + Exits'
+normalsensitivity        = title == 'AlgoPoint' and subtitle == 'All Leaked Algos
+| IG: algopoint' and textVPosition == 'middle' and textHPosition == 'center' and
+c_title == #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle
+== #b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.float(15, "Normal Sensitivity⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", 5.1, 50.1, step=0.1,
+group="basic settings", tooltip='Change Your Signal Sensitivity And Accuracy') : na
+sensitivity        = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.float(5,
+"Pro Scalper Sensitivity⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", 0.6, 15.1, step=0.1, group="basic
+settings", tooltip='Change Your Signal Sensitivity And Accuracy') : na
+strongSignalOnly = signalPreset == 'Trend Only' ? true : false
+noRepainting      = true
+auto_button       = signalAgility == 'Auto Pilot' ? true : false
+// basic chart features
+normalsignalsmode = normalsensitivity / 4.4
+normalsignalvolatility = volatility - 1.7
+if signalLogic == 'Pro Scalper'
+    sensitivity
+else if signalLogic == 'Normal'
+    sensitivity := normalsignalsmode
+//
+if signalLogic == 'Pro Scalper'
+    volatility
+else if signalLogic == 'Normal'
+    volatility := normalsignalvolatility
+//
+if auto_button == false
+    sensitivity
+else if auto_button == true
+    sensitivity := volatility
+//
+
+
+ReversalCloud     = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input(false,
+'Reversal Cloud⠀⠀⠀', group='basic chart features', inline='feature [R, 1]') : na
+LongTrendAverage = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input(false,
+'Long Trend Average', group='basic chart features', inline='feature [R, 1]',
+tooltip='Places A Reversal Channel In Which Reversals Can Be Predicted \n \nTrend
+Cloud Line (EMA), Will Be Shown On The Chart') : na
+ReversalBands     = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input(false,
+'Reversal Bands⠀⠀⠀', group='basic chart features', inline='feature [R, 2]') : na
+TrendTracer       = true
+frequencyCloud    = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input(false,
+'Frequency Cloud⠀⠀', 'Displays Short Trend Cloud', group='basic chart features',
+inline='feature [R, 2]') : na
+CandleColor       = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.string('Gradient Confirmation', 'Candle Stick Coloring', ['Gradient
+Confirmation', 'Off'], group='basic chart features') : na
+Plot_MAs = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.bool( defval = true, title = "Trend Cloud", group = 'basic chart features') :
+na
+
+// leading features
+//
+//=============================================================================
+// EK Cloud
+//=============================================================================
+//Moving Average
+gr_MA = "📈Moving Average Settings📈"
+// ---- User Settings ----
+Timeframe   = ''
+Repaint     = false
+MA_T1       = "Ehlers Kaufman"
+MA_S1_Input = close
+MA_L1       = 200
+MA_T2       = "Ehlers Kaufman"
+MA_S2_Input = close
+MA_L2       = 350
+MA_S1       = request.security(syminfo.tickerid, Timeframe, MA_S1_Input[Repaint ? 0
+: barstate.isrealtime ? 1 : 0])[Repaint ? 0 : barstate.isrealtime ? 0 : 1]
+MA_S2       = request.security(syminfo.tickerid, Timeframe, MA_S2_Input[Repaint ? 0
+: barstate.isrealtime ? 1 : 0])[Repaint ? 0 : barstate.isrealtime ? 0 : 1]
+
+// ---- Moving Averages ----
+MA_1 = switch MA_T1
+    "Simple"                 => ta.sma(MA_S1,MA_L1)
+    "Exponential"            => ta.ema(MA_S1,MA_L1)
+    "Double Exponential"     => 2 * ta.ema(MA_S1, MA_L1) - ta.ema(ta.ema(MA_S1,
+MA_L1), MA_L1)
+    "Triple Exponential"     => 3 * (ta.ema(MA_S1, MA_L1) - ta.ema(ta.ema(MA_S1,
+MA_L1), MA_L1)) + ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1)
+    "Quadruple Exponential" => 5 * ta.ema(MA_S1,MA_L1) - 10 * ta.ema(ta.ema(MA_S1,
+MA_L1), MA_L1) + 10 * ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1) - 5 *
+ta.ema(ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1), MA_L1) +
+ta.ema(ta.ema(ta.ema(ta.ema(ta.ema(MA_S1, MA_L1), MA_L1), MA_L1), MA_L1), MA_L1)
+    "Weighted"               => ta.wma(MA_S1,MA_L1)
+    "Volume-weighted"        => ta.vwma(MA_S1,MA_L1)
+    "Hull"                   => ta.hma(MA_S1,MA_L1)
+    "Symmetrical"            => ta.swma(MA_S1)
+    "Arnaud Legoux"          => ta.alma(MA_S1, MA_L1, 0.85, 6)
+    "Least Squares"          => ta.linreg(MA_S1, MA_L1, 0)
+    "Relative Strength"      => ta.rma(MA_S1,MA_L1)
+    "Welles Wilder"          =>
+        Wilder_MA1 = .0
+        Wilder_MA1 := 1 / MA_L1 * MA_S1 + (1 - 1 / MA_L1) * nz(Wilder_MA1[1])
+    "Triangular"             => ta.sma(ta.sma(MA_S1,MA_L1),MA_L1)
+    "Ehlers Kaufman"         =>
+        KA_D1 = .0
+        for int i = 0 to 80 - 1 by 1
+             KA_D1 += math.abs(nz(MA_S1[i]) - nz(MA_S1[i + 1]))
+        KA_EF1 = KA_D1 != 0 ? math.min(math.abs(MA_S1 - nz(MA_S1[80 - 1])) / KA_D1,
+1) : 0
+        KAMA1 = .0
+        KAMA1 := (math.pow((0.6667 * KA_EF1) + 0.0645, 2) * MA_S1) + ((1 -
+math.pow((0.6667 * KA_EF1) + 0.0645, 2)) * nz(KAMA1[1]))
+
+MA_2 = switch MA_T2
+    "Simple"                => ta.sma(MA_S2,MA_L2)
+    "Exponential"           => ta.ema(MA_S2,MA_L2)
+    "Double Exponential"    => 2 * ta.ema(MA_S2, MA_L2) - ta.ema(ta.ema(MA_S2,
+MA_L2), MA_L2)
+    "Triple Exponential"    => 3 * (ta.ema(MA_S2, MA_L2) - ta.ema(ta.ema(MA_S2,
+MA_L2), MA_L2)) + ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2)
+    "Quadruple Exponential" => 5 * ta.ema(MA_S2,MA_L2) - 10 * ta.ema(ta.ema(MA_S2,
+MA_L2), MA_L2) + 10 * ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2) - 5 *
+ta.ema(ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2), MA_L2) +
+ta.ema(ta.ema(ta.ema(ta.ema(ta.ema(MA_S2, MA_L2), MA_L2), MA_L2), MA_L2), MA_L2)
+    "Weighted"              => ta.wma(MA_S2,MA_L2)
+    "Volume-weighted"       => ta.vwma(MA_S2,MA_L2)
+    "Hull"                  => ta.hma(MA_S2,MA_L2)
+    "Symmetrical"           => ta.swma(MA_S2)
+    "Arnaud Legoux"         => ta.alma(MA_S2, MA_L2, 0.85, 6)
+    "Least Squares"         => ta.linreg(MA_S2, MA_L2, 0)
+    "Relative Strength"     => ta.rma(MA_S2,MA_L2)
+    "Welles Wilder"         =>
+        Wilder_MA2 = .0
+        Wilder_MA2 := 1 / MA_L2 * MA_S2 + (1 - 1 / MA_L2) * nz(Wilder_MA2[1])
+    "Triangular"            => ta.sma(ta.sma(MA_S2,MA_L2),MA_L2)
+    "Ehlers Kaufman"        =>
+        KA_D2 = .0
+        for int i = 0 to 135 - 1 by 1
+            KA_D2 += math.abs(nz(MA_S2[i]) - nz(MA_S2[i + 1]))
+        KA_EF2 = KA_D2 != 0 ? math.min(math.abs(MA_S2 - nz(MA_S2[135 - 1])) /
+KA_D2, 1) : 0
+        KAMA2 = .0
+        KAMA2 := (math.pow((0.6667 * KA_EF2) + 0.0645, 2) * MA_S2) + ((1 -
+math.pow((0.6667 * KA_EF2) + 0.0645, 2)) * nz(KAMA2[1]))
+
+
+
+
+MA_Color = Plot_MAs ? MA_1 > MA_2 ? color.new(#04994b, 80) : color.new(#b4060d, 80)
+: na
+P1 = plot(Plot_MAs ? MA_1 : na, title="Fast MA", color=MA_Color)
+P2 = plot(Plot_MAs ? MA_2 : na, title="Slow MA", color=MA_Color)
+table.cell(textWatermark, 0, 0, title, width, height, c_title, a_title,
+text_size=s_title, bgcolor=c_bg)
+fill(P1, P2, color = MA_Color)
+
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// ----------------------------------------------- Buy & Sell
+-----------------------------------------------------
+
+src       = close
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), t)
+    smoothrng = ta.ema(avrng, wper) * m
+    smoothrng
+smrng     = smoothrng(close, 100, sensitivity)
+
+rngfilt(x, r) =>
+    rngfilt = x
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r
+: x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+    rngfilt
+filt = rngfilt(src, smrng)
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+
+upward = 0.0
+upward := filt > filt[1] ? nz(upward[1]) + 1 : filt < filt[1] ? 0 : nz(upward[1])
+downward = 0.0
+downward := filt < filt[1] ? nz(downward[1]) + 1 : filt > filt[1] ? 0 :
+nz(downward[1])
+
+[mi, u, lo] = ta.kc(close, 90, 6.8)
+[mid, upp, loww] = ta.kc(close, 90, 5.3)
+[midd, ups, lowe] = ta.kc(close, 90, 4)
+
+shorttop = ta.sma(close, 13)
+longtop = ta.ema(close, 65)
+eq_cloud_is_bullish    = shorttop > longtop
+
+
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+
+hband = filt + smrng
+lband = filt - smrng
+
+longCond      = bool(na)
+shortCond     = bool(na)
+longCond     := src > filt and src > src[1] and upward > 0 or src > filt and src <
+src[1] and upward > 0
+shortCond    := src < filt and src < src[1] and downward > 0 or src < filt and src
+> src[1] and downward > 0
+CondIni = 0
+CondIni := longCond ? 1 : shortCond ? -1 : CondIni[1]
+
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+
+// Candle Rating
+//=============================================================================
+// INDICATOR 11 - Trend Confidence
+//============================================================================
+
+
+// CCI
+
+TM_Long = ta.cci(close, 20) > 50
+TM_Short = ta.cci(close, 20) < -50
+
+
+
+//color1 = ta.cci(close, 5) >= 0 ? #0022FC : #FC0400
+//plot(MagicTrend, color=color1, linewidth=3)
+
+
+// ADX
+lenadx = 21
+lensig = 21
+limadx = 34
+
+
+ADX_up = ta.change(high)
+ADX_down = -ta.change(low)
+trur = ta.rma(ta.tr, lenadx)
+plus = fixnan(100 * ta.rma(ADX_up > ADX_down and ADX_up > 0 ? ADX_up : 0, lenadx) /
+trur)
+minus = fixnan(100 * ta.rma(ADX_down > ADX_up and ADX_down > 0 ? ADX_down : 0,
+lenadx) / trur)
+sum = plus + minus
+adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
+
+macol = adx > limadx and plus > minus ? color.lime : adx > limadx and plus <
+minus ? color.red : color.black
+
+ADX_Long = adx > limadx and plus > minus
+ADX_Short = adx > limadx and plus < minus
+
+
+//Acumulation/Distribution
+ACC_Dist = ta.sma(ta.accdist, 21)
+
+ACC_Long = ta.accdist > ACC_Dist
+ACC_Short = ta.accdist < ACC_Dist
+
+
+// MFI
+
+
+MFI = ta.mfi(close , 14)
+MFI_SMA = ta.sma (MFI, 9)
+
+MFI_Long = MFI > MFI_SMA
+MFI_Short = MFI < MFI_SMA
+
+// Momentum Linear Regression
+
+mom = ta.mom(close, 21)
+lrmom = ta.linreg(mom, 28, 0)
+
+MOML_Long = lrmom > lrmom[1]
+MOML_Short = lrmom < lrmom[1]
+
+//
+entry_long = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? true : na
+entry_short = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? true : na
+
+Long_Signal_Strength = 0
+Short_Signal_Strength = 0
+
+if entry_long
+    if TM_Long
+        Long_Signal_Strength   += 1
+    if ADX_Long
+        Long_Signal_Strength   += 1
+    if ACC_Long
+        Long_Signal_Strength   += 1
+    if MFI_Long
+        Long_Signal_Strength   += 1
+    if MOML_Long
+        Long_Signal_Strength   += 1
+
+if entry_short
+     if TM_Short
+         Short_Signal_Strength += 1
+     if ADX_Short
+         Short_Signal_Strength += 1
+     if ACC_Short
+         Short_Signal_Strength += 1
+     if MFI_Short
+         Short_Signal_Strength += 1
+     if MOML_Short
+         Short_Signal_Strength += 1
+// Trend Detecting
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+length = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? 20 : na
+incr     = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? 100 : na
+resetOn = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? 'CHoCH' : na
+showMS = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? false : na
+
+//Style
+bullCss    = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? color.teal : na
+bearCss    = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? color.red : na
+retCss     = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? #ff5d00 : na
+areaTransp = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? 100 : na
+
+//------------------------------------------------------------------------------
+//Global variables
+//-----------------------------------------------------------------------------{
+var float ph_y = na , var int ph_x = na
+var float pl_y = na , var int pl_x = na
+var float topaman = na , var float btmaman = na
+var ph_cross = false, var pl_cross = false
+
+var float maxaman = na
+var float minaman = na
+var float ts = na
+
+var os = 0
+ms = 0
+
+//------------------------------------------------------------------------------
+//Detect pivots and get coordinates
+//-----------------------------------------------------------------------------{
+n = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? bar_index : na
+ph = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? ta.pivothigh(length, length) :
+na
+pl = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and
+textVPosition == 'middle' and textHPosition == 'center' and c_title == #b2b5be80
+and s_title == 'large' and a_title == 'center' and c_subtitle == #b2b5be80 and
+s_subtitle == 'normal' and a_subtitle == 'center' ? ta.pivotlow(length, length) :
+na
+
+if ph
+    ph_y := ph
+    ph_x := n - length
+    ph_cross := false
+
+if pl
+    pl_y := pl
+    pl_x := n - length
+    pl_cross := false
+
+//-----------------------------------------------------------------------------}
+//Bullish structures
+//-----------------------------------------------------------------------------{
+if close > ph_y and not ph_cross
+    if resetOn == 'CHoCH'
+         ms := os == -1 ? 1 : 0
+    else
+         ms := 1
+
+    ph_cross := true
+
+    //Highilight bullish MS
+    if showMS
+        line.new(ph_x, ph_y, n, ph_y
+          , color = bullCss
+          , style = os == -1 ? line.style_dashed : line.style_dotted)
+
+    os := 1
+
+    //Search for local minima
+    btmaman := low
+    for i = 0 to (n - ph_x)-1
+        btmaman := math.min(low[i], btmaman)
+
+//-----------------------------------------------------------------------------}
+//Bearish structures
+//-----------------------------------------------------------------------------{
+if close < pl_y and not pl_cross
+    if resetOn == 'CHoCH'
+         ms := os == 1 ? -1 : 0
+    else
+         ms := -1
+
+    pl_cross := true
+
+    //Highilight bearish MS
+    if showMS
+        line.new(pl_x, pl_y, n, pl_y
+          , color = bearCss
+          , style = os == 1 ? line.style_dashed : line.style_dotted)
+
+    os := -1
+
+    //Search for local maxima
+    topaman := high
+    for i = 0 to (n - pl_x)-1
+        topaman := math.max(high[i], topaman)
+
+//-----------------------------------------------------------------------------}
+//Trailing stop
+//-----------------------------------------------------------------------------{
+//Trailing max/min
+if ms == 1
+     maxaman := close
+else if ms == -1
+     minaman := close
+else
+     maxaman := math.max(close, maxaman)
+     minaman := math.min(close, minaman)
+
+//Trailing stop
+ts := ms == 1 ? btmaman
+  : ms == -1 ? topaman
+  : os == 1 ? ts + (maxaman - maxaman[1]) * incr / 100
+  : ts + (minaman - minaman[1]) * incr / 100
+
+//-----------------------------------------------------------------------------}
+//Plots
+//-----------------------------------------------------------------------------{
+cssaman = ms ? na
+  : os == 1 ? bullCss
+  : bearCss
+// plot_price = plot(close, editable = false, display = display.none)
+// plot_ts    = plot(ts, 'Trailing Stop', color = css)
+
+// css_area = (close - ts) * os < 0 ? retCss
+//   : css
+
+// fill(plot_price, plot_ts, color.new(css_area, areaTransp))
+
+//-----------------------------------------------------------------------------}
+//Plot Buy/Sell Signals on chart
+
+
+buyCond         = longCond and CondIni[1] == -1 and cssaman == bearCss and title   ==
+'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and textVPosition   ==
+'middle' and textHPosition == 'center' and c_title == #b2b5be80 and s_title ==
+'large' and a_title == 'center' and c_subtitle == #b2b5be80 and s_subtitle ==
+'normal' and a_subtitle == 'center'
+strongBuyCond1 = longCond and CondIni[1] == -1 and cssaman == bullCss and title    ==
+'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and textVPosition   ==
+'middle' and textHPosition == 'center' and c_title == #b2b5be80 and s_title ==
+'large' and a_title == 'center' and c_subtitle == #b2b5be80 and s_subtitle ==
+'normal' and a_subtitle == 'center'
+sellCond        = shortCond and CondIni[1] == 1 and cssaman == bullCss and title   ==
+'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and textVPosition   ==
+'middle' and textHPosition == 'center' and c_title == #b2b5be80 and s_title ==
+'large' and a_title == 'center' and c_subtitle == #b2b5be80 and s_subtitle ==
+'normal' and a_subtitle == 'center'
+strongSellCond1 = shortCond and CondIni[1] == 1 and cssaman == bearCss and title   ==
+'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint' and textVPosition   ==
+'middle' and textHPosition == 'center' and c_title == #b2b5be80 and s_title ==
+'large' and a_title == 'center' and c_subtitle == #b2b5be80 and s_subtitle ==
+'normal' and a_subtitle == 'center'
+
+
+enter_pluslong = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Long_Signal_Strength) : na
+enter_plussell = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Short_Signal_Strength) : na
+enter_longtrt = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Long_Signal_Strength) : na
+enter_selltrtt = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Short_Signal_Strength) : na
+
+
+smartbuysigtex = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? "Strong\n" +
+str.tostring(Long_Signal_Strength) + "★" : na
+smartbuyminimal = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? "▲+\n" +
+str.tostring(Long_Signal_Strength) + "★" : na
+
+smartselsigtex = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Short_Signal_Strength) + "★\n" + "Strong" : na
+smartselminimal = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Short_Signal_Strength) + "★\n" + "▼+" : na
+
+buysigtex = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? "Buy\n" +
+str.tostring(Long_Signal_Strength) + "★" : na
+buyminimal = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? "▲\n" +
+str.tostring(Long_Signal_Strength) + "★" : na
+
+selsigtex = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG: algopoint'
+and textVPosition == 'middle' and textHPosition == 'center' and c_title ==
+#b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Short_Signal_Strength) + "★\n" + "Sell" : na
+selsminimal = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+str.tostring(Short_Signal_Strength) + "★\n" + "▼" : na
+
+
+//
+if noRepainting
+    buyCond         := buyCond and barstate.isconfirmed
+    strongBuyCond1 := strongBuyCond1 and barstate.isconfirmed
+    sellCond        := sellCond and barstate.isconfirmed
+    strongSellCond1 := strongSellCond1 and barstate.isconfirmed
+// Buy Signals
+BuySignal = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Simple Entry + Exits' and buyCond and not strongSignalOnly ? label.new(bar_index,
+low ,buysigtex , xloc.bar_index, yloc.belowbar, #00cf4b8c, label.style_label_up ,
+color.white, size.normal) : na
+MinimalBuy = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Minimized Entry + Exits' and buyCond and not strongSignalOnly ?
+label.new(bar_index, low ,buyminimal , xloc.bar_index, yloc.belowbar, #00cf4b8c,
+label.style_label_up , color.white, size.normal) : na
+
+StrongBuy = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Simple Entry + Exits' and strongBuyCond1 ? label.new(bar_index,
+low ,smartbuysigtex , xloc.bar_index, yloc.belowbar, #00cf4b8c,
+label.style_label_up , color.white, size.normal) : na
+MinimalStrongBuy = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Minimized Entry + Exits' and strongBuyCond1 ? label.new(bar_index,
+low ,smartbuyminimal , xloc.bar_index, yloc.belowbar, #00cf4b8c,
+label.style_label_up , color.white, size.normal) : na
+//Sell Signals
+SellSignal = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Simple Entry + Exits' and sellCond and not strongSignalOnly ? label.new(bar_index,
+high,selsigtex , xloc.bar_index, yloc.abovebar, #ff00008c ,
+label.style_label_down, color.white, size.normal) : na
+MinimalSell = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Minimized Entry + Exits' and sellCond and not strongSignalOnly ?
+label.new(bar_index, high,selsminimal , xloc.bar_index, yloc.abovebar, #ff00008c ,
+label.style_label_down, color.white, size.normal) : na
+
+StrongSell = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Simple Entry + Exits' and strongSellCond1 ? label.new(bar_index,
+high,smartselsigtex , xloc.bar_index, yloc.abovebar, #ff00008c ,
+label.style_label_down, color.white, size.normal) : na
+MinimalStrongSell = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' and signalMode ==
+'Minimized Entry + Exits' and strongSellCond1 ? label.new(bar_index,
+high,smartselminimal , xloc.bar_index, yloc.abovebar, #ff00008c ,
+label.style_label_down, color.white, size.normal) : na
+
+//plotshape(signalMode == 'Simple Entry + Exits' ? buyCond and not strongSignalOnly
+: na,
+//      'Buy', shape.labelup, location.belowbar, color.new(#00cf4b, 45),
+size=size.normal, textcolor=color.white, text= buysigtex)
+
+//plotshape(signalMode == 'Minimized Entry + Exits' ? buyCond and not
+strongSignalOnly : na,
+//      'Minimized Buy', shape.labelup, location.belowbar, color.new(#00cf4b, 45),
+size=size.tiny, textcolor=color.white, text= buyminimal)
+//plotshape(signalMode == 'Simple Entry + Exits' ? strongBuyCond1 : na, 'Strong
+Buy',
+//      shape.labelup, location.belowbar, #00cf4b8c, size=size.normal,
+textcolor=color.white, text= smartbuysigtex)
+
+//plotshape(signalMode == 'Minimized Entry + Exits' ? strongBuyCond1 : na,
+'Minimized Strong Buy',
+//      shape.labelup, location.belowbar, color.new(#00cf4b, 45), size=size.small,
+textcolor=color.white, text= smartbuyminimal)
+
+//plotshape(signalMode == 'Simple Entry + Exits' ? sellCond and not
+strongSignalOnly : na, 'Sell',
+//      shape.labeldown, location.abovebar, color.new(#ff0000, 45),
+size=size.normal, textcolor=color.white, text= selsigtex)
+
+//plotshape(signalMode == 'Minimized Entry + Exits' ? sellCond and not
+strongSignalOnly : na,
+//      'Minimized Sell', shape.labeldown, location.abovebar, color.new(#ff0000,
+45), size=size.tiny, textcolor=color.white, text= selsminimal)
+
+//plotshape(signalMode == 'Simple Entry + Exits' ? strongSellCond1 : na, 'Strong
+Sell',
+//      shape.labeldown, location.abovebar, #ff00008c, size=size.normal,
+textcolor=color.white, text= smartselsigtex)
+
+//plotshape(signalMode == 'Minimized Entry + Exits' ? strongSellCond1 : na,
+'Minimized Strong Sell',
+//      shape.labeldown, location.abovebar, color.new(#ff0000, 45),
+size=size.small, textcolor=color.white, text= smartselminimal)
+
+//MA_Color = Plot_MAs ? MA_1 > MA_2 ? color.new(#04994b, 80) : color.new(#b4060d,
+80) : na
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// ------------------------------------------------ Candle Color
+----------------------------------------------------
+
+barcolor = src > filt and src > src[1] and upward > 0 ? color.new(#00db0a, 5) : src
+> filt and src <
+      src[1] and upward > 0 ? color.new(#00db05, 5) : src < filt and src < src[1]
+and downward > 0 ? color.new(#c90505, 5) :
+      src < filt and src > src[1] and downward > 0 ? color.new(#ff0000 , 5) :
+color.new(#3ebe48, 5) // 442886
+
+barcolor(CandleColor == 'Gradient Confirmation' and title == 'AlgoPoint' and
+subtitle == 'All Leaked Algos | IG: algopoint' and textVPosition == 'middle' and
+textHPosition == 'center' and c_title == #b2b5be80 and s_title == 'large' and
+a_title == 'center' and c_subtitle == #b2b5be80 and s_subtitle == 'normal' and
+a_subtitle == 'center' ? barcolor : na, title='Candle Colors')
+
+//
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// ------------------------------------------------ Reversal Cloud
+--------------------------------------------------
+u1 = plot(ReversalCloud and title == 'AlgoPoint' and subtitle == 'All Leaked Algos
+| IG: algopoint' and textVPosition == 'middle' and textHPosition == 'center' and
+c_title == #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle
+== #b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(u, 1) :
+na, transp=100, editable=false)
+u2 = plot(ReversalCloud and title == 'AlgoPoint' and subtitle == 'All Leaked Algos
+| IG: algopoint' and textVPosition == 'middle' and textHPosition == 'center' and
+c_title == #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle
+== #b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(upp, 5)
+: na, transp=100, editable=false)
+u3 = plot(ReversalCloud and title == 'AlgoPoint' and subtitle == 'All Leaked Algos
+| IG: algopoint' and textVPosition == 'middle' and textHPosition == 'center' and
+c_title == #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle
+== #b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(ups,
+10) : na, transp=100, editable=false)
+l1 = plot(ReversalCloud and title == 'AlgoPoint' and subtitle == 'All Leaked Algos
+| IG: algopoint' and textVPosition == 'middle' and textHPosition == 'center' and
+c_title == #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle
+== #b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(lo,
+1) : na, transp=100, editable=false)
+l2 = plot(ReversalCloud and title == 'AlgoPoint' and subtitle == 'All Leaked Algos
+| IG: algopoint' and textVPosition == 'middle' and textHPosition == 'center' and
+c_title == #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle
+== #b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(loww,
+5) : na, transp=100, editable=false)
+l3 = plot(ReversalCloud and title == 'AlgoPoint' and subtitle == 'All Leaked Algos
+| IG: algopoint' and textVPosition == 'middle' and textHPosition == 'center' and
+c_title == #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle
+== #b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(lowe,
+10) : na, transp=100, editable=false)
+plot(ReversalBands and title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(u, 1) :
+na, transp=50, editable=false, offset=2, color=color.new(#f23645, 60))
+plot(ReversalBands and title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(upp, 5) :
+na, transp=50, editable=false, offset=3, color=color.new(#f23645, 70))
+plot(ReversalBands and title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(ups,
+10) : na, transp=50, editable=false, offset=3, color=color.new(#f23645, 65))
+plot(ReversalBands and title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(lowe,
+10) : na, transp=50, editable=false, offset=3, color=color.new(#089981, 65))
+plot(ReversalBands and title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(loww, 5) :
+na, transp=50, editable=false, offset =3, color=color.new(#089981, 70))
+plot(ReversalBands and title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? ta.sma(lo, 1) :
+na, transp=50, editable=false, offset   =2 ,   color=color.new(#089981, 60))
+fill(u1, u2, color=color.new(#f23645,   65),   title='Reversal Zones [R3, R2]')
+fill(u2, u3, color=color.new(#f23645,   75),   title='Reversal Zones [R2, R1]')
+fill(l2, l3, color=color.new(#089981,   75),   title='Reversal Zones [S2, S1]')
+fill(l1, l2, color=color.new(#089981,   65),   title='Reversal Zones [S3, S2]')
+
+//
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// ------------------------------------------------- Trend Catcher
+--------------------------------------------------
+
+filtcolor = upward > 0 ? color.rgb(0, 255, 85) : downward > 0 ? color.new(#ff0000,
+0) : color.new(#56328f, 0)
+
+plot(TrendTracer and title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? filt : na,
+color=filtcolor, linewidth=3, title='Trend Tracer')
+
+//
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// ------------------------------------------------ Frquency Cloud
+--------------------------------------------------
+
+plot_eq_closing_price = plot(frequencyCloud and title == 'AlgoPoint' and subtitle
+== 'All Leaked Algos | IG: algopoint' and textVPosition == 'middle' and
+textHPosition == 'center' and c_title == #b2b5be80 and s_title == 'large' and
+a_title == 'center' and c_subtitle == #b2b5be80 and s_subtitle == 'normal' and
+a_subtitle == 'center' ? shorttop : na, transp=100, editable=false)
+plot_eq_external_value = plot(frequencyCloud and title == 'AlgoPoint' and subtitle
+== 'All Leaked Algos | IG: algopoint' and textVPosition == 'middle' and
+textHPosition == 'center' and c_title == #b2b5be80 and s_title == 'large' and
+a_title == 'center' and c_subtitle == #b2b5be80 and s_subtitle == 'normal' and
+a_subtitle == 'center' ? longtop : na, transp=100, editable=false)
+table.cell(textWatermark, 0, 1, subtitle, width, height, c_subtitle, a_subtitle,
+text_size=s_subtitle, bgcolor=c_bg)
+eqCloudColor = ta.sma(close, 26) < ta.sma(close, 48) ? color.new(#9f0700, 80) :
+shorttop < longtop ? color.new(#ff1100, 80) :
+      ta.sma(close, 26) > ta.sma(close, 48) ? color.new(#10253b, 80) :
+      shorttop > longtop ? color.new(#0d67c2, 80) : ta.sma(close, 34) >
+ta.sma(close, 56) ? color.new(#549de6, 80) : na
+
+fill(plot_eq_closing_price, plot_eq_external_value, color = eqCloudColor,
+title='Frequency Cloud Fill')
+
+//
+//
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+// ---------------------------------------------- Order Blocks
+------------------------------------------------
+// Order Blocks
+const color colup = #089981
+const color coldn = #f23645
+
+const string tm = "[Length] Use Length to adjust cordinate of the orderblocks\
+n[Full] Use whole candle body"
+const string tn = "Mitigation method for when to trigger order blocks"
+const string tj = "Order block Metrics text size"
+const string ta = 'Display internal buy & sell activity'
+const string tsorder = 'Show Last number of orderblocks'
+const string gv = "Volumetric Order Blocks"
+
+obshow          = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool (true
+, "Show Last"                          ,
+tsorder,           '1',            gv) : na
+oblast          = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.int         (3
+, ""                                   , 0,                     50,                  1 ,
+inline = '1', group = gv) : na
+obupcs          = input.color (color.new(colup, 90), ""
+,                                                        inline = '1', group = gv)
+obdncs          = input.color (color.new(coldn, 90), ""
+,                                                        inline = '1', group = gv)
+obshowactivity = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool (true
+, "Show Buy/Sell Activity             ",
+ta,           '2',           gv) : na
+obactup         = input.color (color.new(colup, 50), ""
+,                                                        inline = '2', group = gv)
+obactdn         = input.color (color.new(coldn, 50), ""
+,                                                        inline = '2', group = gv)
+obmode          = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.string("Length"                , "Construction "                   , ["Length",
+"Full"], tm,            '3',           gv) : na
+len             = input.int     (5                     , ""
+, 1,                     20,                    1 ,      inline = '3', group = gv)
+obmiti          = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.string("Close"                 , "Mitigation Method"               , ["Close",
+"Wick",            "Avg"], tn,                  group = gv) : na
+obtxt           = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ?
+input.string("Normal"                , "Metric Size"                     , ["Tiny",
+"Small", "Normal", "Large", "Huge"], tj,                    group = gv) : na
+showmetric      = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool (true
+, "Show Metrics"                   ,
+group = gv) : na
+showline       = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool (true
+, "Show Mid-Line"                  ,
+group = gv) : na
+overlap        = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool (true
+, "Hide Overlap"                   ,
+group = gv, tooltip = "Most recent order block will be preserved") : na
+
+blcreated     = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool(false
+, "Bullish OB Formed      "        , inline = "Formed"
+, group = "ANY ALERT") : na
+brcreated     = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool(false
+, "Bearish OB Formed"              , inline = "Formed"
+, group = "ANY ALERT") : na
+blmitigated   = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool(false
+, "Bullish OB Mitigated   "        , inline = "Mitigated"
+, group = "ANY ALERT") : na
+brmitigated   = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool(false
+, "Bearish OB Mitigated"           , inline = "Mitigated"
+, group = "ANY ALERT") : na
+blinside      = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool(false
+, "Price Inside Bullish OB"        , inline = "Inside"
+, group = "ANY ALERT") : na
+brinside      = title == 'AlgoPoint' and subtitle == 'All Leaked Algos | IG:
+algopoint' and textVPosition == 'middle' and textHPosition == 'center' and c_title
+== #b2b5be80 and s_title == 'large' and a_title == 'center' and c_subtitle ==
+#b2b5be80 and s_subtitle == 'normal' and a_subtitle == 'center' ? input.bool(false
+, "Price Inside Bearish OB"        , inline = "Inside"
+, group = "ANY ALERT") : na
+
+
+
+type bar
+    float o = open
+    float h = high
+    float   l   =   low
+    float   c   =   close
+    float   v   =   volume
+    int     i   =   bar_index
+    int     t   =   time
+
+type ob
+    float   top
+    float   btm
+    float   avg
+    int     loc
+    color   css
+    float   vol
+    int     dir
+    int     move
+    int     blPOS
+    int     brPOS
+    int     xlocbl
+    int     xlocbr
+
+type alert
+    bool created   = false
+    bool inside    = false
+    bool mitigated = false
+
+type cross
+    bool reset = false
+
+
+bar            b = bar .new()
+alert       blal = alert.new()
+alert       bral = alert.new()
+
+var cross blIS = cross.new()
+var cross brIS = cross.new()
+
+
+method txSz(string s) =>
+    out = switch s
+        "Tiny"   => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        "Huge"   => size.huge
+    out
+
+
+method display(ob id, ob[] full, int i) =>
+
+    box.new    (top = id.top, bottom   = id.btm, left = id.loc, right = b.t      ,
+border_color = na, bgcolor = id.css,   xloc = xloc.bar_time)
+    box.new    (top = id.top, bottom   = id.btm, left = b.t   , right = b.t + 1 ,
+border_color = na, bgcolor = id.css,   xloc = xloc.bar_time, extend = extend.right)
+
+    if obshowactivity
+
+        box.new(top = id.top, bottom = id.avg, left = id.loc, right = id.xlocbl,
+border_color = na, bgcolor = obactup, xloc = xloc.bar_time)
+        box.new(top = id.avg, bottom = id.btm, left = id.loc, right = id.xlocbr,
+border_color = na, bgcolor = obactdn, xloc = xloc.bar_time)
+
+    if showline
+
+        line.new(
+               x1 = id.loc
+             , x2 = b.t
+             , y1 = id.avg
+             , y2 = id.avg
+             , color = color.new(id.css, 0)
+             , xloc = xloc.bar_time
+             , style = line.style_dashed
+             )
+
+
+    if showmetric
+
+        if i == math.min(oblast - 1, full.size() - 1)
+
+            float   tV = 0
+            float[] dV = array.new<float>()
+
+            seq = math.min(oblast - 1, full.size() - 1)
+
+            for j = 0 to seq
+
+                  cV = full.get(j)
+
+                  tV += cV.vol
+
+                  if j == seq
+
+                      for y = 0 to seq
+
+                          dV.push(
+                               math.floor(
+                                   (full.get(y).vol / tV) * 100)
+                           )
+
+                          id = full.get(y)
+
+                        label.new(
+                               b.i + 1
+                             , id.avg
+                             , textcolor = color.new(id.css, 0)
+                             , style = label.style_label_left
+                             , size = obtxt.txSz()
+                             , color = #ffffff00
+                             , text =
+                                 str.tostring(
+                                      math.round(full.get(y).vol, 3), format =
+format.volume) + " (" + str.tostring(dV.get(y)) + "%)"
+                                 )
+
+
+method overlap(ob[] id) =>
+
+    if id.size() > 1
+        for i = id.size() - 1 to 1
+
+            stuff   = id.get(i)
+            current = id.get(0)
+
+            switch
+
+                stuff.btm   >   current.btm   and   stuff.btm   <   current.top   =>   id.remove(i)
+                stuff.top   <   current.top   and   stuff.btm   >   current.btm   =>   id.remove(i)
+                stuff.top   >   current.top   and   stuff.btm   <   current.btm   =>   id.remove(i)
+                stuff.top   <   current.top   and   stuff.top   >   current.btm   =>   id.remove(i)
+
+
+method umt(ob metric) =>
+
+    switch metric.dir
+
+        1 =>
+
+            switch metric.move
+
+                1 => metric.blPOS := metric.blPOS + 1, metric.move := 2
+                2 => metric.blPOS := metric.blPOS + 1, metric.move := 3
+                3 => metric.brPOS := metric.brPOS + 1, metric.move := 1
+
+        -1 =>
+
+            switch metric.move
+
+                1 => metric.brPOS := metric.brPOS + 1, metric.move := 2
+                2 => metric.brPOS := metric.brPOS + 1, metric.move := 3
+                3 => metric.blPOS := metric.blPOS + 1, metric.move := 1
+
+    if (b.t - b.t[1]) == (b.t[1] - b.t[2])
+
+        metric.xlocbl := metric.loc + (b.t - b.t[1]) * metric.blPOS
+        metric.xlocbr := metric.loc + (b.t - b.t[1]) * metric.brPOS
+
+
+fnOB() =>
+
+    var ob[] blob = array.new<ob>()
+    var ob[] brob = array.new<ob>()
+
+    var int dir = 0
+
+    up = ta.highest (      len     )
+    dn = ta.lowest   (     len     )
+    pv = ta.pivothigh(b.v, len, len)
+
+    dir := b.h[len] > up ? -1 : b.l[len] < dn ? 1 : dir[1]
+
+    atr = ta.atr(len)
+
+    btmP = obmode == "Length" ? (b.h[len] - 1 * atr[len]) < b.l[len] ? b.l[len] :
+(b.h[len] - 1 * atr[len]) : b.l[len]
+
+    topP = obmode == "Length" ? (b.l[len] + 1 * atr[len]) > b.h[len] ? b.h[len] :
+(b.l[len] + 1 * atr[len]) : b.h[len]
+    if pv and dir == 1
+
+        blob.unshift(
+             ob.new(topP, b.l[len], math.avg(topP, b.l[len]), b.t[len], obupcs,
+b.v[len], b.c[len] > b.o[len] ? 1 : -1, 1, 0, 0, b.t[len]))
+
+        blal.created := true
+        blIS.reset   := false
+
+    if pv and dir == -1
+
+        brob.unshift(
+             ob.new(
+                     b.h[len]
+                 , btmP
+                 , math.avg(btmP, b.h[len])
+                 , b.t[len]
+                 , obdncs
+                 , b.v[len]
+                 , b.c[len] > b.o[len] ? 1 : -1
+                 , 1
+                 , 0
+                 , 0
+                 , b.t[len]
+                   )
+                 )
+
+        bral.created := true
+        brIS.reset   := false
+
+    if blob.size() > 0 and barstate.isconfirmed
+
+        for [i, ob] in blob
+
+            for j = 0 to len - 1
+
+                if obmiti == "Close" ? math.min(b.c[j], b.o[j]) < ob.btm : obmiti
+== "Wick" ? b.l < ob.btm : obmiti == "Avg" ? b.l < ob.avg : na
+
+                    blob.remove(i)
+                    blal.mitigated := true
+                    break
+
+    if brob.size() > 0 and barstate.isconfirmed
+
+        for[i, ob] in brob
+
+            for j = 0 to len - 1
+
+                if obmiti == "Close" ? math.max(b.c[j], b.o[j]) > ob.top : obmiti
+== "Wick" ? b.h > ob.top : obmiti == "Avg" ? b.h > ob.avg : na
+
+                    brob.remove(i)
+                    bral.mitigated := true
+                    break
+
+    if blob.size() > 0
+         for [i, metric] in blob
+
+             metric.umt()
+
+     if brob.size() > 0
+
+         for [i, metric] in brob
+
+             metric.umt()
+
+     if overlap
+
+         blob.overlap()
+         brob.overlap()
+
+     if barstate.isconfirmed
+
+         if blob.size() > 0
+
+             ob = blob.get(0)
+
+             if low < ob.top and blIS.reset == false
+                 blal.inside := true
+                 blIS.reset := true
+
+         if brob.size() > 0
+
+             ob = brob.get(0)
+
+             if high > ob.btm and brIS.reset == false
+                 bral.inside := true
+                 brIS.reset := true
+
+     if barstate.islast
+
+         for bx in box.all
+             bx.delete()
+
+         for ln in line.all
+             ln.delete()
+
+//         for lb in label.all //Razzere Fixed!
+//             lb.delete() //Razzere Fixed!
+
+         if blob.size() > 0
+             for i = 0 to math.min(oblast - 1, blob.size() - 1)
+                 blob.get(i).display(blob, i)
+
+         if brob.size() > 0
+             for i = 0 to math.min(oblast - 1, brob.size() - 1)
+                 brob.get(i).display(brob, i)
+
+
+
+if obshow
+    fnOB()
+
+
+if blinside and blal.inside
+    alert("Price Inside Bullish OB")
+
+if blcreated and blal.created
+    alert("Bullish OB Formed")
+
+if blmitigated and blal.mitigated
+    alert("Bullish OB Mitigated")
+
+
+if brinside and bral.inside
+    alert("Price Inside Bearish OB")
+
+if brcreated and bral.created
+    alert("Bearish OB Formed")
+
+if brmitigated and bral.mitigated
+    alert("Bearish OB Mitigated")
+

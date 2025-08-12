@@ -1,0 +1,30 @@
+{
+  "id": "0b477c3cf7f17eb5",
+  "arquivo": "CANVAS EA.mq5",
+  "hash": "0b477c3cf7f17eb5",
+  "tipo": "Unknown",
+  "linguagem": "MQL5",
+  "estrategia": "Custom",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 50,
+  "riscos_detectados": [
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 70,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

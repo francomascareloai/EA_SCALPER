@@ -1,0 +1,45 @@
+{
+  "id": "IND_LimitedChannels_v1.0_MULTI",
+  "nome": "IND_LimitedChannels_v1.0_MULTI.mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Channel_Analysis",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "autor": "mladen",
+  "descricao": "Indicador de canais limitados que desenha múltiplos níveis de canal baseados em ATR. Mostra estado do mercado através de histograma colorido e 3 níveis superiores/inferiores para análise de breakout.",
+  "parametros_principais": [
+    "inpAtrPeriod: Período do ATR (padrão 50)",
+    "inpAtrMultiplier: Multiplicador do ATR (padrão 5)",
+    "Seleção de nível para uso (1, 2 ou 3)"
+  ],
+  "indicadores_utilizados": [
+    "ATR (Average True Range)",
+    "Cálculos de canal dinâmico"
+  ],
+  "ftmo_compliance": {
+    "score": 8,
+    "status": "FTMO_Ready",
+    "observacoes": "Indicador técnico avançado sem riscos diretos. Útil para análise de volatilidade e identificação de breakouts, mas arquivo tem problemas de encoding."
+  },
+  "riscos_identificados": [
+    "Problemas de encoding (BOM) no arquivo",
+    "Múltiplos níveis podem confundir iniciantes",
+    "ATR alto pode gerar canais muito largos"
+  ],
+  "tags": [
+    "#Indicator",
+    "#Channel_Analysis",
+    "#ATR",
+    "#Breakout",
+    "#Technical_Analysis",
+    "#FTMO_Ready",
+    "#Volatility",
+    "#BOM_Issues"
+  ],
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "status": "Classificado",
+  "observacoes_tecnicas": "Arquivo com problemas de encoding. Indicador sofisticado com múltiplos buffers e análise de estado do mercado através de cores. Código por mladen, conhecido desenvolvedor."
+}

@@ -1,0 +1,32 @@
+{
+  "id": "fcf1e9748a39bb70",
+  "arquivo": "EA Studio XAUUSD M1 70624374.mq5",
+  "hash": "fcf1e9748a39bb70",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Volume",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "M1",
+    "D1"
+  ],
+  "funcoes_chave": [
+    "TrailingStop",
+    "trailingStop"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 75,
+  "riscos_detectados": [],
+  "qualidade_codigo_score": 95,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

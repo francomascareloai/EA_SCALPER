@@ -1,0 +1,30 @@
+{
+  "id": "b4984dd2fd40f102",
+  "arquivo": "NRTR Channel.mq5",
+  "hash": "b4984dd2fd40f102",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 85,
+  "riscos_detectados": [
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 100,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

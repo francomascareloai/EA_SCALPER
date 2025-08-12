@@ -1,0 +1,2163 @@
+//+------------------------------------------------------------------+
+//|                           Server Error Protected Breakeven Flipper EA |
+//|                                          Copyright 2025, Your Name |
+//|                                          UNLIMITED FLIP VERSION      |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2025"
+#property link      ""
+#property version   "1.04"
+#property strict
+
+//--- Input Parameters
+input group "=== BASIC SETTINGS ==="
+input double InitialLotSize = 0.01;
+input double RecoveryMultiplier = 2.0;
+input double LossThresholdUSD = 10.0;
+input double RecoveryProfitTarget = 5.0;
+input int MagicNumber = 123456;
+
+input group "=== FIRST TRADE SETTINGS ==="
+input double TakeProfit = 100.0;           // Take Profit in points
+input bool UseTrailingStop = true;
+input double TrailingStart = 50.0;         // Points in profit to start trailing
+input double TrailingStep = 10.0;          // Minimum points to move trailing stop
+input double TrailingDistance = 30.0;      // Distance from current price
+
+input group "=== ADX FILTER (First Trade Only) ==="
+input bool UseADXFilter = true;
+input int ADXPeriod = 14;
+input double MinADXLevel = 25.0;           // Minimum ADX for trend strength
+
+input group "=== UNLIMITED FLIP CONTROLS ==="
+input bool EnableUnlimitedFlips = true;    // Enable unlimited flip breakeven
+input double MaxLotSizeMultiplier = 1000.0; // Multiplier for dynamic max lot size
+input bool IgnoreMarginChecks = true;      // Skip margin validation for flips
+input bool EnableLotSizeGrowth = true;     // Allow lot sizes to grow indefinitely
+input bool IgnoreBrokerLotLimits = true;   // Attempt to bypass broker lot limits
+input bool ForceUnlimitedFlips = true;     // Force flips regardless of conditions
+
+input group "=== RISK CONTROLS (Modified for Unlimited) ==="
+input int MaxRecoveryDepth = 999999;       // Unlimited recovery cycles
+input double MaxLotSize = 99999999.0;      // Truly unlimited lot size
+input double MaxEquityDrawdownPercent = 99.9; // Maximum drawdown tolerance
+input double MaxSpreadPoints = 1000.0;     // Very high spread tolerance
+input int MaxSlippagePoints = 50;          // Very high slippage tolerance
+
+input group "=== SERVER ERROR PROTECTION ==="
+input int MaxFlipRetries = 50;             // Increased retries for unlimited flips
+input int FlipRetryDelayMs = 1000;         // Reduced delay for faster flips
+input int ServerErrorRetryDelayMs = 3000;  // Reduced server error delay
+input bool EnableFlipRecovery = true;      // Enable flip recovery mechanisms
+input int MaxConsecutiveErrors = 10;       // Increased error tolerance
+input int ErrorCooldownSeconds = 30;       // Reduced cooldown time
+
+input group "=== TIMING CONTROLS ==="
+input int CooldownSeconds = 5;             // Reduced cooldown for unlimited flips
+input bool UseNewsFilter = false;          // Disabled for unlimited operation
+input int NewsAvoidanceMinutes = 0;        // Disabled
+
+input group "=== SAFETY SETTINGS ==="
+input int TradeOpenRetries = 10;           // Increased retries
+input int RetryDelayMs = 500;              // Reduced retry delay
+input bool AutoRestoreHedge = true;        // Keep hedge restoration
+
+//--- Global Variables
+enum TRADE_STATE
+{
+   STATE_WAITING_FIRST_TRADE,
+   STATE_FIRST_TRADE_ACTIVE,
+   STATE_RECOVERY_ACTIVE,
+   STATE_FLIP_IN_PROGRESS,
+   STATE_ERROR_RECOVERY
+};
+
+enum FLIP_STATE
+{
+   FLIP_IDLE,
+   FLIP_VALIDATING,
+   FLIP_CLOSING_OLD,
+   FLIP_OPENING_NEW,
+   FLIP_VERIFYING,
+   FLIP_COMPLETE,
+   FLIP_FAILED
+};
+
+struct TradeInfo
+{
+   int ticket;
+   int type;
+   double lots;
+   double openPrice;
+   datetime openTime;
+   bool isOlder;
+   bool verified;
+};
+
+struct FlipOperation
+{
+   FLIP_STATE state;
+   int oldTicket;
+   int oldType;
+   double oldLots;
+   double newLots;
+   int newTicket;
+   datetime startTime;
+   int retryCount;
+   int lastError;
+   bool rollbackRequired;
+   datetime lastRetryTime;
+};
+
+TRADE_STATE currentState = STATE_WAITING_FIRST_TRADE;
+TradeInfo activeTrades[2];
+int activeTradeCount = 0;
+int recoveryDepth = 0;
+datetime lastRecoveryTime = 0;
+double initialEquity = 0;
+bool emergencyMode = false;
+int totalFlipCount = 0; // Track total flips performed
+
+// Server error protection variables
+FlipOperation currentFlip;
+int consecutiveServerErrors = 0;
+datetime lastServerErrorTime = 0;
+bool serverErrorCooldown = false;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   Print("Server Error Protected UNLIMITED Breakeven Flipper EA initialized (Version 1.04)");
+   Print("WARNING: UNLIMITED FLIP MODE ENABLED - Use with extreme caution!");
+   initialEquity = AccountEquity();
+   
+   // Validate inputs with unlimited mode considerations
+   if(InitialLotSize <= 0 || RecoveryMultiplier <= 1.0)
+   {
+      Alert("Invalid lot size or recovery multiplier settings!");
+      return INIT_PARAMETERS_INCORRECT;
+   }
+   
+   if(MaxFlipRetries <= 0 || FlipRetryDelayMs <= 0)
+   {
+      Alert("Invalid flip retry settings!");
+      return INIT_PARAMETERS_INCORRECT;
+   }
+   
+   if(EnableUnlimitedFlips)
+   {
+      Print("UNLIMITED FLIP MODE ACTIVE:");
+      Print("- Max Recovery Depth: ", MaxRecoveryDepth);
+      Print("- Max Lot Size: ", MaxLotSize);
+      Print("- Margin Checks: ", (IgnoreMarginChecks ? "DISABLED" : "ENABLED"));
+      Print("- Lot Size Growth: ", (EnableLotSizeGrowth ? "UNLIMITED" : "LIMITED"));
+   }
+   
+   // Initialize trade array
+   for(int i = 0; i < 2; i++)
+   {
+      activeTrades[i].ticket = -1;
+      activeTrades[i].type = -1;
+      activeTrades[i].lots = 0;
+      activeTrades[i].openPrice = 0;
+      activeTrades[i].openTime = 0;
+      activeTrades[i].isOlder = false;
+      activeTrades[i].verified = false;
+   }
+   
+   // Initialize flip operation
+   ResetFlipOperation();
+   
+   return INIT_SUCCEEDED;
+}
+
+//+------------------------------------------------------------------+
+//| Reset flip operation structure                                   |
+//+------------------------------------------------------------------+
+void ResetFlipOperation()
+{
+   currentFlip.state = FLIP_IDLE;
+   currentFlip.oldTicket = -1;
+   currentFlip.oldType = -1;
+   currentFlip.oldLots = 0;
+   currentFlip.newLots = 0;
+   currentFlip.newTicket = -1;
+   currentFlip.startTime = 0;
+   currentFlip.retryCount = 0;
+   currentFlip.lastError = 0;
+   currentFlip.rollbackRequired = false;
+   currentFlip.lastRetryTime = 0;
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   Print("UNLIMITED Breakeven Flipper EA deinitialized. Reason: ", reason);
+   Print("Total flips performed: ", totalFlipCount);
+   Print("Final recovery depth: ", recoveryDepth);
+   
+   // If flip is in progress, log current state
+   if(currentFlip.state != FLIP_IDLE)
+   {
+      Print("WARNING: EA deinitialized during flip operation. State: ", EnumToString(currentFlip.state));
+      Print("Old ticket: ", currentFlip.oldTicket, " New ticket: ", currentFlip.newTicket);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   // Handle server error cooldown (shortened for unlimited mode)
+   if(serverErrorCooldown && EnableUnlimitedFlips)
+   {
+      if(TimeCurrent() - lastServerErrorTime >= ErrorCooldownSeconds)
+      {
+         serverErrorCooldown = false;
+         consecutiveServerErrors = 0;
+         Print("Server error cooldown expired. Resuming unlimited flip operations.");
+      }
+      else
+      {
+         return; // Skip processing during cooldown
+      }
+   }
+   
+   // Update active trades info with verification
+   UpdateActiveTradesInfoWithVerification();
+   
+   // Handle ongoing flip operation first
+   if(currentFlip.state != FLIP_IDLE)
+   {
+      HandleFlipOperation();
+      return; // Don't process other logic during flip
+   }
+   
+   // Modified risk controls for unlimited mode
+   if(!CheckUnlimitedModeRiskControls()) return;
+   
+   // Check market conditions (relaxed for unlimited mode)
+   if(!CheckUnlimitedModeMarketConditions()) return;
+   
+   // State machine logic
+   switch(currentState)
+   {
+      case STATE_WAITING_FIRST_TRADE:
+         HandleWaitingFirstTrade();
+         break;
+         
+      case STATE_FIRST_TRADE_ACTIVE:
+         HandleFirstTradeActive();
+         break;
+         
+      case STATE_RECOVERY_ACTIVE:
+         HandleRecoveryActive();
+         break;
+         
+      case STATE_ERROR_RECOVERY:
+         HandleErrorRecovery();
+         break;
+   }
+   
+   // Handle trailing stop for first trade
+   if(currentState == STATE_FIRST_TRADE_ACTIVE && UseTrailingStop)
+   {
+      HandleTrailingStop();
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Check unlimited mode risk controls                              |
+//+------------------------------------------------------------------+
+bool CheckUnlimitedModeRiskControls()
+{
+   if(!EnableUnlimitedFlips)
+   {
+      return CheckRiskControls(); // Use original method if unlimited disabled
+   }
+   
+   // Unlimited mode: Very relaxed risk controls
+   double currentEquity = AccountEquity();
+   double drawdownPercent = (initialEquity - currentEquity) / initialEquity * 100.0;
+   
+   // Only stop on extreme drawdown
+   if(drawdownPercent > MaxEquityDrawdownPercent)
+   {
+      Print("EXTREME equity drawdown reached: ", drawdownPercent, "%");
+      Print("Total flips performed before stop: ", totalFlipCount);
+      CloseAllTrades();
+      emergencyMode = true;
+      return false;
+   }
+   
+   // Log periodic status for unlimited mode
+   static datetime lastUnlimitedStatusLog = 0;
+   if(TimeCurrent() - lastUnlimitedStatusLog >= 60) // Every minute
+   {
+      Print("UNLIMITED MODE STATUS:");
+      Print("- Recovery Depth: ", recoveryDepth, "/", MaxRecoveryDepth);
+      Print("- Total Flips: ", totalFlipCount);
+      Print("- Current Drawdown: ", NormalizeDouble(drawdownPercent, 2), "%");
+      Print("- Active Trades: ", activeTradeCount);
+      if(activeTradeCount > 0)
+      {
+         Print("- Current Lot Sizes: ", activeTrades[0].lots, 
+               (activeTradeCount > 1 ? ", " + DoubleToString(activeTrades[1].lots, 2) : ""));
+      }
+      lastUnlimitedStatusLog = TimeCurrent();
+   }
+   
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Check unlimited mode market conditions                          |
+//+------------------------------------------------------------------+
+bool CheckUnlimitedModeMarketConditions()
+{
+   if(!EnableUnlimitedFlips)
+   {
+      return CheckMarketConditions(); // Use original method if unlimited disabled
+   }
+   
+   // Don't trade in emergency mode
+   if(emergencyMode)
+   {
+      return false;
+   }
+   
+   // Very relaxed spread check for unlimited mode
+   double spread = (Ask - Bid) / Point;
+   if(spread > MaxSpreadPoints)
+   {
+      static datetime lastSpreadWarning = 0;
+      if(TimeCurrent() - lastSpreadWarning >= 300) // Every 5 minutes
+      {
+         Print("High spread detected: ", spread, " points (Max: ", MaxSpreadPoints, ")");
+         lastSpreadWarning = TimeCurrent();
+      }
+      return false;
+   }
+   
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Update active trades information with verification              |
+//+------------------------------------------------------------------+
+void UpdateActiveTradesInfoWithVerification()
+{
+   activeTradeCount = 0;
+   
+   // Reset trade info
+   for(int i = 0; i < 2; i++)
+   {
+      activeTrades[i].ticket = -1;
+      activeTrades[i].type = -1;
+      activeTrades[i].lots = 0;
+      activeTrades[i].openPrice = 0;
+      activeTrades[i].openTime = 0;
+      activeTrades[i].isOlder = false;
+      activeTrades[i].verified = false;
+   }
+   
+   // Scan for our trades with verification
+   for(int i = 0; i < OrdersTotal(); i++)
+   {
+      if(OrderSelect(i, SELECT_BY_POS) && OrderMagicNumber() == MagicNumber && OrderSymbol() == Symbol())
+      {
+         if(activeTradeCount < 2)
+         {
+            activeTrades[activeTradeCount].ticket = OrderTicket();
+            activeTrades[activeTradeCount].type = OrderType();
+            activeTrades[activeTradeCount].lots = OrderLots();
+            activeTrades[activeTradeCount].openPrice = OrderOpenPrice();
+            activeTrades[activeTradeCount].openTime = OrderOpenTime();
+            activeTrades[activeTradeCount].verified = VerifyTradeExists(OrderTicket());
+            activeTradeCount++;
+         }
+      }
+   }
+   
+   // Determine which trade is older (relaxed validation for unlimited mode)
+   if(activeTradeCount == 2 && currentState == STATE_RECOVERY_ACTIVE)
+   {
+      DetermineOlderAndNewerTradesUnlimited();
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Determine older/newer trades with unlimited mode flexibility    |
+//+------------------------------------------------------------------+
+void DetermineOlderAndNewerTradesUnlimited()
+{
+   int olderIndex = -1;
+   int newerIndex = -1;
+   
+   // Determine based on time
+   if(activeTrades[0].openTime < activeTrades[1].openTime)
+   {
+      olderIndex = 0;
+      newerIndex = 1;
+   }
+   else
+   {
+      olderIndex = 1;
+      newerIndex = 0;
+   }
+   
+   // For unlimited mode, allow lot size validation to be more flexible
+   bool lotSizeValid = true;
+   
+   if(EnableUnlimitedFlips && EnableLotSizeGrowth)
+   {
+      // In unlimited mode, we expect newer trade to have larger lot size
+      // But we'll be more forgiving if there are rounding issues
+      double lotDifference = activeTrades[newerIndex].lots - activeTrades[olderIndex].lots;
+      double tolerance = MarketInfo(Symbol(), MODE_LOTSTEP) * 2.0; // Increased tolerance
+      
+      if(lotDifference < -tolerance) // Newer trade significantly smaller
+      {
+         Print("WARNING: Unusual lot size pattern detected in unlimited mode");
+         Print("Older trade (", activeTrades[olderIndex].ticket, ") lots: ", activeTrades[olderIndex].lots);
+         Print("Newer trade (", activeTrades[newerIndex].ticket, ") lots: ", activeTrades[newerIndex].lots);
+         Print("This may indicate a partial flip or recovery situation");
+         
+         // In unlimited mode, we'll continue anyway but log the warning
+         lotSizeValid = true; // Allow operation to continue
+      }
+   }
+   else
+   {
+      // Standard validation
+      lotSizeValid = activeTrades[newerIndex].lots >= activeTrades[olderIndex].lots;
+   }
+   
+   if(lotSizeValid || EnableUnlimitedFlips)
+   {
+      activeTrades[olderIndex].isOlder = true;
+      activeTrades[newerIndex].isOlder = false;
+      
+      Print("UNLIMITED MODE: Trade classification: Older=", activeTrades[olderIndex].ticket, 
+            " (", activeTrades[olderIndex].lots, " lots), Newer=", activeTrades[newerIndex].ticket,
+            " (", activeTrades[newerIndex].lots, " lots)");
+   }
+   else
+   {
+      Print("Lot size validation failed in standard mode - flip disabled");
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Check for unlimited breakeven flip opportunity                  |
+//+------------------------------------------------------------------+
+void CheckUnlimitedBreakevenFlip()
+{
+   // Skip if flip is already in progress
+   if(currentFlip.state != FLIP_IDLE)
+   {
+      return;
+   }
+   
+   // Skip during server error cooldown (unless unlimited mode overrides)
+   if(serverErrorCooldown && !EnableUnlimitedFlips)
+   {
+      return;
+   }
+   
+   // Enhanced validation before checking flip conditions
+   if(activeTradeCount != 2)
+   {
+      return;
+   }
+   
+   // Find older trade with proper validation
+   int olderIndex = -1;
+   int newerIndex = -1;
+   
+   for(int i = 0; i < activeTradeCount; i++)
+   {
+      if(activeTrades[i].isOlder && activeTrades[i].verified)
+      {
+         olderIndex = i;
+         newerIndex = (i == 0) ? 1 : 0;
+         break;
+      }
+   }
+   
+   if(olderIndex == -1)
+   {
+      return;
+   }
+   
+   // Check if price has returned to breakeven of older trade
+   bool atBreakeven = false;
+   double currentPrice = (activeTrades[olderIndex].type == OP_BUY) ? Bid : Ask;
+   double threshold = 10 * Point; // 10 point tolerance
+   double priceDifference = MathAbs(currentPrice - activeTrades[olderIndex].openPrice);
+   
+   if(priceDifference <= threshold)
+   {
+      atBreakeven = true;
+   }
+   
+   if(atBreakeven)
+   {
+      // Check if newer trade is not in profit
+      double newerProfit = GetTradeProfit(activeTrades[newerIndex].ticket);
+      
+      if(newerProfit <= 0)
+      {
+         // Calculate new lot size for unlimited mode
+         double newLotSize = CalculateUnlimitedFlipLotSize(activeTrades[newerIndex].lots);
+         
+         // Unlimited mode validation
+         if(EnableUnlimitedFlips)
+         {
+            bool canFlip = ValidateUnlimitedFlip(newLotSize);
+            
+            if(canFlip)
+            {
+               Print("✅ UNLIMITED FLIP CONDITIONS MET - Flip #", totalFlipCount + 1);
+               Print("New lot size: ", newLotSize, " (", NormalizeDouble(newLotSize/activeTrades[newerIndex].lots, 2), "x)");
+               StartProtectedBreakevenFlip(olderIndex, newerIndex);
+            }
+            else
+            {
+               Print("❌ Unlimited flip validation failed");
+            }
+         }
+         else
+         {
+            // Standard validation
+            if(newLotSize <= MaxLotSize)
+            {
+               double newMarginRequired = MarketInfo(Symbol(), MODE_MARGINREQUIRED) * newLotSize;
+               double freeMargin = AccountFreeMargin();
+               
+               if(freeMargin >= newMarginRequired * 2.0)
+               {
+                  Print("✅ Standard flip conditions met");
+                  StartProtectedBreakevenFlip(olderIndex, newerIndex);
+               }
+               else
+               {
+                  Print("❌ Insufficient margin for standard flip");
+               }
+            }
+            else
+            {
+               Print("❌ Lot size exceeds maximum in standard mode");
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Calculate lot size for unlimited flip                           |
+//+------------------------------------------------------------------+
+double CalculateUnlimitedFlipLotSize(double currentLots)
+{
+   if(!EnableUnlimitedFlips || !EnableLotSizeGrowth)
+   {
+      return currentLots * RecoveryMultiplier; // Standard calculation
+   }
+   
+   // Unlimited mode: Aggressive lot size growth with NO limits
+   double newLots = currentLots * RecoveryMultiplier;
+   
+   // Log the calculation
+   Print("🚀 UNLIMITED LOT SIZE CALCULATION:");
+   Print("- Current lots: ", currentLots);
+   Print("- Recovery multiplier: ", RecoveryMultiplier);
+   Print("- New lots: ", newLots);
+   
+   // In FORCE unlimited mode, don't apply any limits
+   if(ForceUnlimitedFlips)
+   {
+      Print("⚡ FORCE UNLIMITED MODE: No lot size limits applied!");
+      return newLots; // Return whatever size is calculated
+   }
+   
+   // Apply dynamic maximum based on account (but make it very large)
+   double dynamicMaxLot = AccountEquity() / 100.0 * MaxLotSizeMultiplier; // More aggressive
+   double brokerMaxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+   
+   Print("- Dynamic max lot: ", dynamicMaxLot);
+   Print("- Broker max lot: ", brokerMaxLot);
+   
+   // In unlimited mode, we try to ignore broker limits if configured
+   if(IgnoreBrokerLotLimits)
+   {
+      Print("⚠️ IGNORING BROKER LOT LIMITS - Using calculated size: ", newLots);
+      return newLots; // Ignore broker maximum
+   }
+   
+   double effectiveMaxLot = MathMax(dynamicMaxLot, brokerMaxLot); // Use the larger limit
+   
+   if(newLots > effectiveMaxLot && EnableUnlimitedFlips)
+   {
+      Print("WARNING: Flip lot size ", newLots, " exceeds calculated maximum ", effectiveMaxLot);
+      Print("Unlimited mode: Using requested size anyway...");
+      return newLots; // Don't limit in unlimited mode
+   }
+   
+   return newLots;
+}
+
+//+------------------------------------------------------------------+
+//| Validate unlimited flip conditions                              |
+//+------------------------------------------------------------------+
+bool ValidateUnlimitedFlip(double newLotSize)
+{
+   if(!EnableUnlimitedFlips)
+   {
+      return false;
+   }
+   
+   Print("🔍 VALIDATING UNLIMITED FLIP:");
+   Print("- New lot size: ", newLotSize);
+   Print("- Force unlimited: ", ForceUnlimitedFlips);
+   Print("- Ignore broker limits: ", IgnoreBrokerLotLimits);
+   Print("- Ignore margin checks: ", IgnoreMarginChecks);
+   
+   // FORCE mode bypasses ALL validations
+   if(ForceUnlimitedFlips)
+   {
+      Print("⚡ FORCE MODE ACTIVE - All validations bypassed!");
+      return true;
+   }
+   
+   // Check broker limits only if not ignoring them
+   if(!IgnoreBrokerLotLimits)
+   {
+      double brokerMaxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+      if(newLotSize > brokerMaxLot)
+      {
+         Print("❌ Lot size ", newLotSize, " exceeds broker maximum: ", brokerMaxLot);
+         Print("⚠️ Enable 'IgnoreBrokerLotLimits' to bypass this check");
+         return false;
+      }
+   }
+   else
+   {
+      Print("⚠️ BROKER LOT LIMITS IGNORED!");
+   }
+   
+   // Skip margin checks if configured
+   if(!IgnoreMarginChecks)
+   {
+      double newMarginRequired = MarketInfo(Symbol(), MODE_MARGINREQUIRED) * newLotSize;
+      double freeMargin = AccountFreeMargin();
+      
+      Print("- Margin required: ", newMarginRequired);
+      Print("- Free margin: ", freeMargin);
+      
+      // Very minimal margin buffer for unlimited mode
+      if(freeMargin < newMarginRequired * 1.01) // Only 1% buffer
+      {
+         Print("❌ Insufficient margin for unlimited flip");
+         Print("Required: ", newMarginRequired, " Available: ", freeMargin);
+         Print("⚠️ Enable 'IgnoreMarginChecks' to bypass this validation");
+         return false;
+      }
+   }
+   else
+   {
+      Print("⚠️ MARGIN CHECKS COMPLETELY DISABLED!");
+   }
+   
+   // Check recovery depth (but make it very high)
+   if(recoveryDepth >= MaxRecoveryDepth)
+   {
+      Print("❌ Maximum recovery depth reached: ", recoveryDepth, "/", MaxRecoveryDepth);
+      return false;
+   }
+   
+   Print("✅ UNLIMITED FLIP VALIDATION PASSED!");
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Continue flip validation phase (unlimited mode)                 |
+//+------------------------------------------------------------------+
+void ContinueFlipValidation()
+{
+   Print("🔍 Validating TRULY unlimited flip conditions...");
+   
+   // Verify old trade still exists
+   if(!VerifyTradeExists(currentFlip.oldTicket))
+   {
+      Print("❌ Old trade no longer exists. Flip cancelled.");
+      currentFlip.state = FLIP_FAILED;
+      return;
+   }
+   
+   Print("📊 FLIP VALIDATION DETAILS:");
+   Print("- Old ticket: ", currentFlip.oldTicket);
+   Print("- Old lots: ", currentFlip.oldLots);
+   Print("- New lots: ", currentFlip.newLots);
+   Print("- Force unlimited: ", ForceUnlimitedFlips);
+   
+   // FORCE UNLIMITED MODE - Skip all validations
+   if(ForceUnlimitedFlips)
+   {
+      Print("⚡ FORCE UNLIMITED MODE - Skipping ALL validations!");
+      Print("✅ Proceeding directly to close old trade");
+      currentFlip.state = FLIP_CLOSING_OLD;
+      return;
+   }
+   
+   // Unlimited mode: Very relaxed validation
+   if(EnableUnlimitedFlips)
+   {
+      bool validationPassed = true;
+      
+      // Only check margin if not disabled
+      if(!IgnoreMarginChecks)
+      {
+         double newMarginRequired = MarketInfo(Symbol(), MODE_MARGINREQUIRED) * currentFlip.newLots;
+         double freeMargin = AccountFreeMargin();
+         
+         Print("- Margin required: ", newMarginRequired);
+         Print("- Free margin: ", freeMargin);
+         
+         if(freeMargin < newMarginRequired * 1.01) // Minimal 1% buffer
+         {
+            Print("⚠️ Low margin detected but continuing in unlimited mode");
+            Print("Required: ", newMarginRequired, " Available: ", freeMargin);
+            // Don't fail, just warn
+         }
+      }
+      else
+      {
+         Print("⚠️ MARGIN VALIDATION COMPLETELY BYPASSED!");
+      }
+      
+      // Only check broker limits if not disabled
+      if(!IgnoreBrokerLotLimits)
+      {
+         double brokerMaxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+         Print("- Broker max lot: ", brokerMaxLot);
+         
+         if(currentFlip.newLots > brokerMaxLot)
+         {
+            Print("⚠️ Lot size ", currentFlip.newLots, " exceeds broker maximum ", brokerMaxLot);
+            Print("⚠️ Will attempt anyway in unlimited mode!");
+            // Don't fail, attempt anyway
+         }
+      }
+      else
+      {
+         Print("⚠️ BROKER LOT LIMITS COMPLETELY BYPASSED!");
+      }
+      
+      Print("✅ UNLIMITED validation completed - Proceeding with flip!");
+      currentFlip.state = FLIP_CLOSING_OLD;
+   }
+   else
+   {
+      // Standard validation (should not reach here if unlimited is enabled)
+      double newMarginRequired = MarketInfo(Symbol(), MODE_MARGINREQUIRED) * currentFlip.newLots;
+      double freeMargin = AccountFreeMargin();
+      
+      if(freeMargin < newMarginRequired * 2.0)
+      {
+         Print("❌ Insufficient margin for standard flip. Required: ", newMarginRequired, " Available: ", freeMargin);
+         currentFlip.state = FLIP_FAILED;
+         return;
+      }
+      
+      if(currentFlip.newLots > MaxLotSize)
+      {
+         Print("❌ New lot size exceeds maximum. Required: ", currentFlip.newLots, " Max: ", MaxLotSize);
+         currentFlip.state = FLIP_FAILED;
+         return;
+      }
+      
+      Print("✅ Standard flip validation successful. Proceeding to close old trade.");
+      currentFlip.state = FLIP_CLOSING_OLD;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Complete flip operation (unlimited mode)                        |
+//+------------------------------------------------------------------+
+void CompleteFlipOperation()
+{
+   totalFlipCount++;
+   
+   Print("=== UNLIMITED FLIP OPERATION COMPLETED SUCCESSFULLY ===");
+   Print("Flip #", totalFlipCount, " - Old trade ", currentFlip.oldTicket, " closed, new trade ", currentFlip.newTicket, " opened");
+   Print("New lot size: ", currentFlip.newLots, " (", NormalizeDouble(currentFlip.newLots/currentFlip.oldLots, 2), "x growth)");
+   Print("Recovery depth: ", recoveryDepth, " -> ", recoveryDepth + 1);
+   
+   // Update recovery depth
+   recoveryDepth++;
+   
+   // Reset consecutive server errors on success
+   consecutiveServerErrors = 0;
+   
+   // Log unlimited mode statistics
+   if(EnableUnlimitedFlips)
+   {
+      double currentEquity = AccountEquity();
+      double drawdownPercent = (initialEquity - currentEquity) / initialEquity * 100.0;
+      
+      Print("UNLIMITED MODE STATS:");
+      Print("- Total Flips: ", totalFlipCount);
+      Print("- Recovery Depth: ", recoveryDepth);
+      Print("- Current Drawdown: ", NormalizeDouble(drawdownPercent, 2), "%");
+      Print("- Current Lot Size: ", currentFlip.newLots);
+      
+      // Log milestone achievements
+      if(totalFlipCount % 10 == 0)
+      {
+         Print("🎯 MILESTONE: ", totalFlipCount, " flips completed in unlimited mode!");
+      }
+   }
+   
+   // Reset flip operation
+   ResetFlipOperation();
+   
+   // Return to recovery state
+   currentState = STATE_RECOVERY_ACTIVE;
+   
+   Print("Flip completed. Ready for next unlimited flip opportunity.");
+}
+
+//+------------------------------------------------------------------+
+//| Handle recovery active state (unlimited mode)                   |
+//+------------------------------------------------------------------+
+void HandleRecoveryActive()
+{
+   // Validate trade count
+   if(activeTradeCount < 2)
+   {
+      if(activeTradeCount == 1 && AutoRestoreHedge)
+      {
+         RestoreHedge();
+      }
+      else if(activeTradeCount == 0)
+      {
+         currentState = STATE_WAITING_FIRST_TRADE;
+         lastRecoveryTime = TimeCurrent();
+         recoveryDepth = 0;
+         Print("No trades remaining. Resetting to WAITING state after ", totalFlipCount, " flips");
+      }
+      return;
+   }
+   
+   // Check if combined profit meets recovery target
+   double totalProfit = 0;
+   for(int i = 0; i < activeTradeCount; i++)
+   {
+      totalProfit += GetTradeProfit(activeTrades[i].ticket);
+   }
+   
+   if(totalProfit >= RecoveryProfitTarget)
+   {
+      // Close both trades and restart
+      CloseAllTrades();
+      currentState = STATE_WAITING_FIRST_TRADE;
+      lastRecoveryTime = TimeCurrent();
+      
+      Print("🎉 RECOVERY COMPLETE AFTER ", totalFlipCount, " FLIPS!");
+      Print("Final profit: $", NormalizeDouble(totalProfit, 2));
+      Print("Recovery depth reached: ", recoveryDepth);
+      
+      // Reset counters
+      recoveryDepth = 0;
+      totalFlipCount = 0;
+      return;
+   }
+   
+   // Check for unlimited breakeven flip opportunity
+   CheckUnlimitedBreakevenFlip();
+}
+
+// Include all other original functions with minimal modifications for unlimited mode...
+// [The rest of the original functions remain largely the same, with some parameters adjusted for unlimited operation]
+
+//+------------------------------------------------------------------+
+//| Verify trade exists and is accessible                           |
+//+------------------------------------------------------------------+
+bool VerifyTradeExists(int ticket)
+{
+   bool exists = OrderSelect(ticket, SELECT_BY_TICKET);
+   if(!exists)
+   {
+      int error = GetLastError();
+      Print("Trade verification failed for ticket ", ticket, ". Error: ", ErrorToString(error));
+      HandleServerError(error);
+   }
+   return exists;
+}
+
+//+------------------------------------------------------------------+
+//| Handle server errors with consecutive error tracking            |
+//+------------------------------------------------------------------+
+void HandleServerError(int error)
+{
+   if(IsServerError(error))
+   {
+      consecutiveServerErrors++;
+      lastServerErrorTime = TimeCurrent();
+      
+      Print("Server error detected: ", ErrorToString(error), 
+            " (Consecutive: ", consecutiveServerErrors, "/", MaxConsecutiveErrors, ")");
+      
+      if(consecutiveServerErrors >= MaxConsecutiveErrors)
+      {
+         Print("Maximum consecutive server errors reached. Entering cooldown mode.");
+         serverErrorCooldown = true;
+         
+         if(currentFlip.state != FLIP_IDLE)
+         {
+            currentFlip.rollbackRequired = true;
+            Print("Flip operation marked for rollback due to server errors.");
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Check if error is a server-related error                        |
+//+------------------------------------------------------------------+
+bool IsServerError(int error)
+{
+   switch(error)
+   {
+      case ERR_SERVER_BUSY:
+      case ERR_NO_CONNECTION:
+      case ERR_TOO_FREQUENT_REQUESTS:
+      case ERR_TRADE_TIMEOUT:
+      case ERR_PRICE_CHANGED:
+      case ERR_OFF_QUOTES:
+      case ERR_BROKER_BUSY:
+      case ERR_REQUOTE:
+      case ERR_TOO_MANY_REQUESTS:
+         return true;
+      default:
+         return false;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Handle ongoing flip operation with full error protection        |
+//+------------------------------------------------------------------+
+void HandleFlipOperation()
+{
+   // Check if rollback is required due to server errors
+   if(currentFlip.rollbackRequired && EnableFlipRecovery)
+   {
+      Print("Initiating flip rollback due to server errors...");
+      RollbackFlipOperation();
+      return;
+   }
+   
+   // Extended timeout for unlimited mode (10 minutes instead of 5)
+   int flipTimeout = EnableUnlimitedFlips ? 600 : 300;
+   if(TimeCurrent() - currentFlip.startTime > flipTimeout)
+   {
+      Print("Flip operation timeout after ", flipTimeout, " seconds. Initiating recovery...");
+      if(EnableFlipRecovery)
+      {
+         RollbackFlipOperation();
+      }
+      else
+      {
+         ResetFlipOperation();
+         currentState = STATE_ERROR_RECOVERY;
+      }
+      return;
+   }
+   
+   switch(currentFlip.state)
+   {
+      case FLIP_VALIDATING:
+         ContinueFlipValidation();
+         break;
+         
+      case FLIP_CLOSING_OLD:
+         ContinueClosingOldTrade();
+         break;
+         
+      case FLIP_OPENING_NEW:
+         ContinueOpeningNewTrade();
+         break;
+         
+      case FLIP_VERIFYING:
+         ContinueFlipVerification();
+         break;
+         
+      case FLIP_COMPLETE:
+         CompleteFlipOperation();
+         break;
+         
+      case FLIP_FAILED:
+         HandleFlipFailure();
+         break;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Start protected breakeven flip operation (unlimited mode)       |
+//+------------------------------------------------------------------+
+bool StartProtectedBreakevenFlip(int olderIndex, int newerIndex)
+{
+   Print("=== STARTING UNLIMITED PROTECTED BREAKEVEN FLIP ===");
+   
+   // Reset flip operation
+   ResetFlipOperation();
+   
+   // Calculate new lot size for unlimited mode
+   double newLots = CalculateUnlimitedFlipLotSize(activeTrades[newerIndex].lots);
+   
+   // Initialize flip parameters
+   currentFlip.state = FLIP_VALIDATING;
+   currentFlip.oldTicket = activeTrades[olderIndex].ticket;
+   currentFlip.oldType = activeTrades[olderIndex].type;
+   currentFlip.oldLots = activeTrades[olderIndex].lots;
+   currentFlip.newLots = newLots;
+   currentFlip.startTime = TimeCurrent();
+   currentFlip.retryCount = 0;
+   
+   Print("UNLIMITED FLIP #", totalFlipCount + 1, " initialized:");
+   Print("- Old ticket: ", currentFlip.oldTicket, " (", currentFlip.oldLots, " lots)");
+   Print("- New lots: ", currentFlip.newLots, " (", NormalizeDouble(newLots/currentFlip.oldLots, 2), "x growth)");
+   Print("- Recovery depth: ", recoveryDepth, " -> ", recoveryDepth + 1);
+   
+   // Change EA state
+   currentState = STATE_FLIP_IN_PROGRESS;
+   
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Continue closing old trade phase                                 |
+//+------------------------------------------------------------------+
+void ContinueClosingOldTrade()
+{
+   // Enhanced retry limits for unlimited mode
+   int maxRetries = EnableUnlimitedFlips ? MaxFlipRetries : (MaxFlipRetries / 2);
+   
+   if(currentFlip.retryCount >= maxRetries)
+   {
+      Print("Maximum flip retries reached for closing old trade: ", maxRetries);
+      currentFlip.state = FLIP_FAILED;
+      return;
+   }
+   
+   int retryDelay = EnableUnlimitedFlips ? (FlipRetryDelayMs / 1000) : (FlipRetryDelayMs / 1000 * 2);
+   if(currentFlip.retryCount > 0 && TimeCurrent() - currentFlip.lastRetryTime < retryDelay)
+   {
+      return; // Wait for retry delay
+   }
+   
+   Print("Attempting to close old trade (Unlimited Mode). Attempt: ", currentFlip.retryCount + 1);
+   
+   bool closed = false;
+   int error = 0;
+   
+   if(OrderSelect(currentFlip.oldTicket, SELECT_BY_TICKET))
+   {
+      RefreshRates();
+      double closePrice = (OrderType() == OP_BUY) ? Bid : Ask;
+      
+      // Increased slippage tolerance for unlimited mode
+      int slippage = EnableUnlimitedFlips ? (MaxSlippagePoints * 3) : (MaxSlippagePoints * 2);
+      closed = OrderClose(OrderTicket(), OrderLots(), closePrice, slippage);
+      
+      if(!closed)
+      {
+         error = GetLastError();
+         Print("Failed to close old trade. Ticket: ", currentFlip.oldTicket, " Error: ", ErrorToString(error));
+      }
+   }
+   else
+   {
+      error = GetLastError();
+      Print("Cannot select old trade for closing. Ticket: ", currentFlip.oldTicket, " Error: ", ErrorToString(error));
+   }
+   
+   if(closed)
+   {
+      Print("✅ Old trade closed successfully in unlimited mode. Proceeding to open new trade.");
+      currentFlip.state = FLIP_OPENING_NEW;
+      currentFlip.retryCount = 0; // Reset retry counter for next phase
+   }
+   else
+   {
+      HandleFlipError(error);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Continue opening new trade phase                                 |
+//+------------------------------------------------------------------+
+void ContinueOpeningNewTrade()
+{
+   // Enhanced retry limits for unlimited mode
+   int maxRetries = EnableUnlimitedFlips ? MaxFlipRetries : (MaxFlipRetries / 2);
+   
+   if(currentFlip.retryCount >= maxRetries)
+   {
+      Print("Maximum flip retries reached for opening new trade: ", maxRetries);
+      Print("CRITICAL: Old trade closed but new trade failed to open in unlimited mode!");
+      currentFlip.state = FLIP_FAILED;
+      currentFlip.rollbackRequired = true;
+      return;
+   }
+   
+   int retryDelay = EnableUnlimitedFlips ? (FlipRetryDelayMs / 1000) : (FlipRetryDelayMs / 1000 * 2);
+   if(currentFlip.retryCount > 0 && TimeCurrent() - currentFlip.lastRetryTime < retryDelay)
+   {
+      return; // Wait for retry delay
+   }
+   
+   Print("Attempting to open new unlimited trade. Attempt: ", currentFlip.retryCount + 1);
+   Print("Target lot size: ", currentFlip.newLots);
+   
+   int ticket = OpenTradeForFlip(currentFlip.oldType, currentFlip.newLots);
+   
+   if(ticket > 0)
+   {
+      currentFlip.newTicket = ticket;
+      Print("✅ New unlimited trade opened successfully. Ticket: ", ticket, " Proceeding to verification.");
+      currentFlip.state = FLIP_VERIFYING;
+      currentFlip.retryCount = 0; // Reset for verification phase
+   }
+   else
+   {
+      int error = GetLastError();
+      Print("❌ Failed to open new unlimited trade. Error: ", ErrorToString(error));
+      
+      // This is critical - old trade is already closed
+      currentFlip.rollbackRequired = true;
+      HandleFlipError(error);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Continue flip verification phase                                 |
+//+------------------------------------------------------------------+
+void ContinueFlipVerification()
+{
+   Print("Verifying unlimited flip completion...");
+   
+   // Verify new trade exists and has correct parameters
+   if(OrderSelect(currentFlip.newTicket, SELECT_BY_TICKET))
+   {
+      bool lotSizeMatch = EnableUnlimitedFlips ? 
+         (MathAbs(OrderLots() - currentFlip.newLots) < 0.01) : // More tolerance in unlimited mode
+         (MathAbs(OrderLots() - currentFlip.newLots) < 0.001); // Standard tolerance
+      
+      if(OrderMagicNumber() == MagicNumber && 
+         OrderSymbol() == Symbol() && 
+         OrderType() == currentFlip.oldType &&
+         lotSizeMatch)
+      {
+         Print("✅ Unlimited flip verification successful!");
+         currentFlip.state = FLIP_COMPLETE;
+      }
+      else
+      {
+         Print("❌ Unlimited flip verification failed - trade parameters don't match!");
+         Print("Expected: Type=", currentFlip.oldType, " Lots=", currentFlip.newLots);
+         Print("Actual: Type=", OrderType(), " Lots=", OrderLots(), " Magic=", OrderMagicNumber());
+         currentFlip.state = FLIP_FAILED;
+      }
+   }
+   else
+   {
+      int error = GetLastError();
+      Print("Cannot verify new unlimited trade. Ticket: ", currentFlip.newTicket, " Error: ", ErrorToString(error));
+      
+      currentFlip.retryCount++;
+      int maxVerifyRetries = EnableUnlimitedFlips ? 10 : 3; // More retries in unlimited mode
+      
+      if(currentFlip.retryCount >= maxVerifyRetries)
+      {
+         currentFlip.state = FLIP_FAILED;
+         currentFlip.rollbackRequired = true;
+      }
+      else
+      {
+         currentFlip.lastRetryTime = TimeCurrent();
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Handle flip failure                                              |
+//+------------------------------------------------------------------+
+void HandleFlipFailure()
+{
+   Print("=== UNLIMITED FLIP OPERATION FAILED ===");
+   Print("Failed flip would have been #", totalFlipCount + 1);
+   
+   if(currentFlip.rollbackRequired && EnableFlipRecovery)
+   {
+      Print("Attempting rollback recovery in unlimited mode...");
+      RollbackFlipOperation();
+   }
+   else
+   {
+      Print("Flip failed without rollback. Entering error recovery state.");
+      ResetFlipOperation();
+      currentState = STATE_ERROR_RECOVERY;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Handle flip error with appropriate retry logic                  |
+//+------------------------------------------------------------------+
+void HandleFlipError(int error)
+{
+   currentFlip.lastError = error;
+   currentFlip.retryCount++;
+   currentFlip.lastRetryTime = TimeCurrent();
+   
+   if(IsServerError(error))
+   {
+      HandleServerError(error);
+      
+      // Shorter delay for unlimited mode
+      int delay = EnableUnlimitedFlips ? (ServerErrorRetryDelayMs / 2) : ServerErrorRetryDelayMs;
+      Sleep(delay);
+   }
+   else
+   {
+      // Shorter retry delay for unlimited mode
+      int delay = EnableUnlimitedFlips ? (FlipRetryDelayMs / 2) : FlipRetryDelayMs;
+      Sleep(delay);
+   }
+   
+   Print("Unlimited flip error handled. Retry count: ", currentFlip.retryCount, "/", MaxFlipRetries);
+}
+
+//+------------------------------------------------------------------+
+//| Rollback flip operation                                          |
+//+------------------------------------------------------------------+
+void RollbackFlipOperation()
+{
+   Print("=== EXECUTING UNLIMITED FLIP ROLLBACK ===");
+   
+   bool rollbackSuccess = false;
+   
+   // If new trade was opened but old trade was closed, try to restore old trade
+   if(currentFlip.newTicket > 0 && currentFlip.state >= FLIP_OPENING_NEW)
+   {
+      Print("Attempting to close new trade and restore old trade in unlimited mode...");
+      
+      // Close the new trade first
+      if(OrderSelect(currentFlip.newTicket, SELECT_BY_TICKET))
+      {
+         double closePrice = (OrderType() == OP_BUY) ? Bid : Ask;
+         int slippage = EnableUnlimitedFlips ? (MaxSlippagePoints * 2) : MaxSlippagePoints;
+         bool newTradeClosed = OrderClose(OrderTicket(), OrderLots(), closePrice, slippage);
+         
+         if(newTradeClosed)
+         {
+            Print("New trade closed during unlimited rollback.");
+            
+            // Try to restore the old trade
+            int restoredTicket = OpenTradeForFlip(currentFlip.oldType, currentFlip.oldLots);
+            
+            if(restoredTicket > 0)
+            {
+               Print("✅ Old trade restored successfully in unlimited mode. Ticket: ", restoredTicket);
+               rollbackSuccess = true;
+            }
+            else
+            {
+               Print("❌ Failed to restore old trade during unlimited rollback!");
+            }
+         }
+         else
+         {
+            Print("❌ Failed to close new trade during unlimited rollback!");
+         }
+      }
+   }
+   
+   if(rollbackSuccess)
+   {
+      Print("✅ Unlimited rollback completed successfully.");
+      ResetFlipOperation();
+      currentState = STATE_RECOVERY_ACTIVE;
+   }
+   else
+   {
+      Print("❌ Unlimited rollback failed. Entering error recovery state.");
+      ResetFlipOperation();
+      currentState = STATE_ERROR_RECOVERY;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Open trade specifically for flip operations                     |
+//+------------------------------------------------------------------+
+int OpenTradeForFlip(int type, double lots)
+{
+   Print("🚀 OPENING UNLIMITED FLIP TRADE:");
+   Print("- Requested lot size: ", lots);
+   Print("- Trade type: ", (type == OP_BUY ? "BUY" : "SELL"));
+   
+   // Get broker limits
+   double minLot = MarketInfo(Symbol(), MODE_MINLOT);
+   double maxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+   double lotStep = MarketInfo(Symbol(), MODE_LOTSTEP);
+   
+   Print("- Broker min lot: ", minLot);
+   Print("- Broker max lot: ", maxLot);
+   Print("- Lot step: ", lotStep);
+   
+   double originalLots = lots;
+   
+   // In FORCE unlimited mode, try the exact lot size first
+   if(ForceUnlimitedFlips)
+   {
+      Print("⚡ FORCE MODE: Attempting exact lot size without normalization");
+      
+      RefreshRates();
+      double price = (type == OP_BUY) ? Ask : Bid;
+      
+      // Try with maximum slippage
+      int ticket = OrderSend(Symbol(), type, lots, price, MaxSlippagePoints * 5, 0, 0, 
+                            "FORCE Unlimited Flip", MagicNumber, 0, 
+                            (type == OP_BUY) ? clrBlue : clrRed);
+      
+      if(ticket > 0)
+      {
+         Print("✅ FORCE MODE SUCCESS: Exact lot size ", lots, " opened! Ticket: ", ticket);
+         return ticket;
+      }
+      else
+      {
+         int error = GetLastError();
+         Print("⚠️ FORCE MODE: Exact size failed (", ErrorToString(error), "), trying normalized...");
+      }
+   }
+   
+   // If broker lot limits should be ignored, try anyway
+   if(IgnoreBrokerLotLimits && lots > maxLot)
+   {
+      Print("⚠️ IGNORING BROKER LIMITS: Attempting lot size ", lots, " > broker max ", maxLot);
+      
+      RefreshRates();
+      double price = (type == OP_BUY) ? Ask : Bid;
+      
+      int ticket = OrderSend(Symbol(), type, lots, price, MaxSlippagePoints * 3, 0, 0, 
+                            "Unlimited Override", MagicNumber, 0, 
+                            (type == OP_BUY) ? clrBlue : clrRed);
+      
+      if(ticket > 0)
+      {
+         Print("✅ BROKER LIMIT OVERRIDE SUCCESS: ", lots, " lots opened! Ticket: ", ticket);
+         return ticket;
+      }
+      else
+      {
+         int error = GetLastError();
+         Print("⚠️ Override failed (", ErrorToString(error), "), normalizing lot size...");
+      }
+   }
+   
+   // Standard normalization (fallback)
+   if(lots > maxLot)
+   {
+      Print("⚠️ Lot size ", lots, " exceeds broker maximum ", maxLot);
+      if(EnableUnlimitedFlips)
+      {
+         Print("🎯 UNLIMITED MODE: Using broker maximum instead of failing");
+         lots = maxLot;
+      }
+      else
+      {
+         lots = maxLot;
+      }
+   }
+   
+   lots = MathMax(minLot, MathMin(maxLot, NormalizeDouble(lots / lotStep, 0) * lotStep));
+   
+   Print("- Normalized lot size: ", lots);
+   Print("- Original requested: ", originalLots);
+   Print("- Size reduction: ", NormalizeDouble((originalLots - lots) / originalLots * 100, 2), "%");
+   
+   RefreshRates();
+   double price = (type == OP_BUY) ? Ask : Bid;
+   double sl = 0; // No stop loss for flip trades
+   double tp = 0; // No take profit for flip trades
+   
+   // Enhanced slippage for unlimited mode
+   int slippage = EnableUnlimitedFlips ? (MaxSlippagePoints * 4) : (MaxSlippagePoints * 2);
+   
+   int ticket = OrderSend(Symbol(), type, lots, price, slippage, sl, tp, 
+                         EnableUnlimitedFlips ? "Unlimited Flip Trade" : "Flip Trade", 
+                         MagicNumber, 0, 
+                         (type == OP_BUY) ? clrBlue : clrRed);
+   
+   if(ticket > 0)
+   {
+      Print("✅ Unlimited flip trade opened successfully:");
+      Print("- Ticket: ", ticket);
+      Print("- Final lot size: ", lots);
+      Print("- Price: ", price);
+      
+      if(lots < originalLots)
+      {
+         Print("⚠️ WARNING: Lot size was reduced from ", originalLots, " to ", lots);
+         Print("💡 TIP: Enable 'ForceUnlimitedFlips' and 'IgnoreBrokerLotLimits' for truly unlimited flips");
+      }
+   }
+   else
+   {
+      int error = GetLastError();
+      Print("❌ Failed to open unlimited flip trade:");
+      Print("- Error: ", error, " - ", ErrorToString(error));
+      Print("- Attempted lot size: ", lots);
+      Print("- Price: ", price);
+      
+      // In unlimited mode, provide more detailed error analysis
+      if(EnableUnlimitedFlips)
+      {
+         Print("🔍 UNLIMITED MODE ERROR ANALYSIS:");
+         Print("- Free margin: ", AccountFreeMargin());
+         Print("- Required margin: ", MarketInfo(Symbol(), MODE_MARGINREQUIRED) * lots);
+         Print("- Account equity: ", AccountEquity());
+         Print("- Current spread: ", (Ask - Bid) / Point, " points");
+         
+         if(error == ERR_NOT_ENOUGH_MONEY)
+         {
+            Print("💡 Insufficient funds - consider enabling 'IgnoreMarginChecks'");
+         }
+         else if(error == ERR_INVALID_TRADE_VOLUME)
+         {
+            Print("💡 Invalid volume - try enabling 'IgnoreBrokerLotLimits'");
+         }
+      }
+   }
+   
+   return ticket;
+}
+
+//+------------------------------------------------------------------+
+//| Handle error recovery state                                      |
+//+------------------------------------------------------------------+
+void HandleErrorRecovery()
+{
+   Print("In unlimited error recovery state. Analyzing situation...");
+   
+   // Shorter wait for cooldown in unlimited mode
+   int cooldownTime = EnableUnlimitedFlips ? (ErrorCooldownSeconds / 2) : ErrorCooldownSeconds;
+   if(TimeCurrent() - lastServerErrorTime < cooldownTime)
+   {
+      return;
+   }
+   
+   // Attempt to restore normal operation
+   if(activeTradeCount == 0)
+   {
+      // No trades remaining, reset to waiting state
+      currentState = STATE_WAITING_FIRST_TRADE;
+      lastRecoveryTime = TimeCurrent();
+      
+      Print("Error recovery: No trades found after ", totalFlipCount, " flips, resetting to WAITING state");
+      recoveryDepth = 0;
+      totalFlipCount = 0; // Reset flip counter on complete recovery
+   }
+   else if(activeTradeCount == 1)
+   {
+      // Single trade remaining, try to restore hedge if in recovery mode
+      if(recoveryDepth > 0 && AutoRestoreHedge)
+      {
+         RestoreHedge();
+      }
+      currentState = STATE_RECOVERY_ACTIVE;
+      Print("Error recovery: Single trade found, returning to RECOVERY state");
+   }
+   else if(activeTradeCount == 2)
+   {
+      // Two trades found, return to recovery state
+      currentState = STATE_RECOVERY_ACTIVE;
+      Print("Error recovery: Two trades found, returning to RECOVERY state");
+   }
+   else
+   {
+      // Unexpected number of trades, close all and reset
+      Print("Error recovery: Unexpected trade count (", activeTradeCount, "), closing all");
+      CloseAllTrades();
+      currentState = STATE_WAITING_FIRST_TRADE;
+      lastRecoveryTime = TimeCurrent();
+      recoveryDepth = 0;
+      totalFlipCount = 0;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Check risk controls (original function for compatibility)       |
+//+------------------------------------------------------------------+
+bool CheckRiskControls()
+{
+   // Check maximum equity drawdown
+   double currentEquity = AccountEquity();
+   double drawdownPercent = (initialEquity - currentEquity) / initialEquity * 100.0;
+   
+   if(drawdownPercent > MaxEquityDrawdownPercent)
+   {
+      Print("Maximum equity drawdown reached: ", drawdownPercent, "%");
+      CloseAllTrades();
+      emergencyMode = true;
+      return false;
+   }
+   
+   // Check maximum recovery depth
+   if(recoveryDepth > MaxRecoveryDepth)
+   {
+      Print("Maximum recovery depth reached: ", recoveryDepth);
+      CloseAllTrades();
+      emergencyMode = true;
+      return false;
+   }
+   
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Check market conditions (original function for compatibility)   |
+//+------------------------------------------------------------------+
+bool CheckMarketConditions()
+{
+   // Don't trade in emergency mode
+   if(emergencyMode)
+   {
+      return false;
+   }
+   
+   // Check spread
+   double spread = (Ask - Bid) / Point;
+   if(spread > MaxSpreadPoints)
+   {
+      return false;
+   }
+   
+   // Check news filter (simplified - you can enhance this)
+   if(UseNewsFilter)
+   {
+      // Implementation depends on your news feed
+      // For now, just a placeholder
+   }
+   
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Validate all trade entry conditions                             |
+//+------------------------------------------------------------------+
+bool ValidateTradeEntryConditions(string tradeType)
+{
+   Print("=== Validating ", tradeType, " trade entry conditions (Unlimited Mode) ===");
+   
+   // Check basic market conditions
+   if(emergencyMode)
+   {
+      Print("❌ Emergency mode active - no trading allowed");
+      return false;
+   }
+   
+   double spread = (Ask - Bid) / Point;
+   if(spread > MaxSpreadPoints)
+   {
+      Print("❌ Spread too high: ", spread, " > ", MaxSpreadPoints);
+      return false;
+   }
+   
+   // Reduced cooldown for unlimited mode
+   int cooldownTime = EnableUnlimitedFlips ? (CooldownSeconds / 2) : CooldownSeconds;
+   if(tradeType == "FIRST" && TimeCurrent() - lastRecoveryTime < cooldownTime)
+   {
+      Print("❌ Cooldown active: ", (cooldownTime - (TimeCurrent() - lastRecoveryTime)), " seconds remaining");
+      return false;
+   }
+   
+   // Check ADX filter for first trades
+   if(tradeType == "FIRST" && UseADXFilter)
+   {
+      double adx = iADX(Symbol(), 0, ADXPeriod, PRICE_HIGH, MODE_MAIN, 1);
+      if(adx < MinADXLevel)
+      {
+         Print("❌ ADX filter failed: ", adx, " < ", MinADXLevel);
+         return false;
+      }
+      else
+      {
+         Print("✅ ADX filter passed: ", adx, " >= ", MinADXLevel);
+      }
+   }
+   
+   // Modified margin check for unlimited mode
+   if(!IgnoreMarginChecks)
+   {
+      double freeMargin = AccountFreeMargin();
+      double marginRequired = MarketInfo(Symbol(), MODE_MARGINREQUIRED) * InitialLotSize;
+      
+      // Reduced margin buffer for unlimited mode
+      double marginBuffer = EnableUnlimitedFlips ? 1.2 : 2.0;
+      if(freeMargin < marginRequired * marginBuffer)
+      {
+         Print("❌ Insufficient margin: Required ", marginRequired, ", Available ", freeMargin);
+         return false;
+      }
+   }
+   else if(EnableUnlimitedFlips)
+   {
+      Print("⚠️ MARGIN CHECKS DISABLED in unlimited mode!");
+   }
+   
+   Print("✅ All ", tradeType, " trade conditions validated for unlimited mode");
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Handle waiting for first trade state                            |
+//+------------------------------------------------------------------+
+void HandleWaitingFirstTrade()
+{
+   // Comprehensive validation of entry conditions
+   if(!ValidateTradeEntryConditions("FIRST"))
+   {
+      return;
+   }
+   
+   // Reset emergency mode after extended cooldown
+   int extendedCooldown = EnableUnlimitedFlips ? CooldownSeconds : (CooldownSeconds * 2);
+   if(emergencyMode && TimeCurrent() - lastRecoveryTime >= extendedCooldown)
+   {
+      emergencyMode = false;
+      Print("Emergency mode reset after extended cooldown in unlimited mode");
+   }
+   
+   // Log current market conditions
+   Print("=== Opening First Trade (Unlimited Mode Ready) ===");
+   Print("Current time: ", TimeToString(TimeCurrent()));
+   Print("Spread: ", (Ask - Bid) / Point, " points");
+   Print("Free margin: ", AccountFreeMargin());
+   Print("Initial lot size: ", InitialLotSize);
+   if(EnableUnlimitedFlips)
+   {
+      Print("🚀 UNLIMITED FLIP MODE: Ready for unlimited breakeven flips");
+   }
+   
+   // Open random direction trade with enhanced logging
+   int direction = MathRand() % 2; // 0 = Buy, 1 = Sell
+   string directionStr = (direction == 0) ? "BUY" : "SELL";
+   Print("Selected direction: ", directionStr);
+   
+   int ticket = -1;
+   
+   if(direction == 0)
+   {
+      ticket = OpenTradeWithRetry(OP_BUY, InitialLotSize, true);
+   }
+   else
+   {
+      ticket = OpenTradeWithRetry(OP_SELL, InitialLotSize, true);
+   }
+   
+   if(ticket > 0)
+   {
+      currentState = STATE_FIRST_TRADE_ACTIVE;
+      Print("✅ First trade opened successfully. Ticket: ", ticket, " State: FIRST_TRADE_ACTIVE");
+      if(EnableUnlimitedFlips)
+      {
+         Print("🎯 Unlimited flip system now monitoring for hedge trigger...");
+      }
+   }
+   else
+   {
+      Print("❌ Failed to open first trade after all retries");
+      Print("Will retry on next tick if conditions remain favorable");
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Handle first trade active state                                  |
+//+------------------------------------------------------------------+
+void HandleFirstTradeActive()
+{
+   if(activeTradeCount == 0)
+   {
+      // First trade was closed (probably by TP or trailing stop)
+      currentState = STATE_WAITING_FIRST_TRADE;
+      lastRecoveryTime = TimeCurrent();
+      Print("✅ First trade closed successfully. Returning to WAITING state");
+      return;
+   }
+   
+   if(activeTradeCount == 1)
+   {
+      // Monitor first trade status
+      double tradeProfit = GetTradeProfit(activeTrades[0].ticket);
+      string tradeTypeStr = (activeTrades[0].type == OP_BUY) ? "BUY" : "SELL";
+      
+      // Log current trade status periodically
+      static datetime lastStatusLog = 0;
+      int logInterval = EnableUnlimitedFlips ? 5 : 10; // More frequent logging in unlimited mode
+      
+      if(TimeCurrent() - lastStatusLog >= logInterval)
+      {
+         Print("First trade status - Ticket: ", activeTrades[0].ticket, 
+               " Type: ", tradeTypeStr, " Lots: ", activeTrades[0].lots, 
+               " Profit: $", NormalizeDouble(tradeProfit, 2));
+         if(EnableUnlimitedFlips)
+         {
+            Print("🎯 Unlimited flip system ready for hedge activation");
+         }
+         lastStatusLog = TimeCurrent();
+      }
+      
+      // Check if first trade loss exceeds threshold for hedge trigger
+      if(tradeProfit <= -LossThresholdUSD)
+      {
+         Print("=== UNLIMITED HEDGE TRIGGER ACTIVATED ===");
+         Print("First trade loss: $", NormalizeDouble(tradeProfit, 2), " exceeds threshold: $", LossThresholdUSD);
+         
+         // Validate conditions before opening hedge
+         if(!ValidateTradeEntryConditions("HEDGE"))
+         {
+            Print("❌ Hedge trade conditions not met - will retry next tick");
+            return;
+         }
+         
+         // Calculate hedge trade parameters
+         int oppositeType = (activeTrades[0].type == OP_BUY) ? OP_SELL : OP_BUY;
+         double hedgeLots = activeTrades[0].lots * RecoveryMultiplier;
+         string hedgeTypeStr = (oppositeType == OP_BUY) ? "BUY" : "SELL";
+         
+         Print("Unlimited hedge parameters: Type=", hedgeTypeStr, " Lots=", hedgeLots, 
+               " (Original: ", activeTrades[0].lots, " x ", RecoveryMultiplier, ")");
+         
+         // Enhanced validation for unlimited mode
+         bool canOpenHedge = false;
+         
+         if(EnableUnlimitedFlips)
+         {
+            // Unlimited mode: more flexible validation
+            double brokerMaxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+            if(hedgeLots <= brokerMaxLot)
+            {
+               if(!IgnoreMarginChecks)
+               {
+                  double hedgeMarginRequired = MarketInfo(Symbol(), MODE_MARGINREQUIRED) * hedgeLots;
+                  double freeMargin = AccountFreeMargin();
+                  
+                  if(freeMargin >= hedgeMarginRequired * 1.1) // Minimal buffer
+                  {
+                     canOpenHedge = true;
+                  }
+                  else
+                  {
+                     Print("❌ Insufficient margin for unlimited hedge");
+                     Print("Required: ", hedgeMarginRequired, " Available: ", freeMargin);
+                  }
+               }
+               else
+               {
+                  canOpenHedge = true; // Margin checks disabled
+                  Print("⚠️ Opening hedge without margin validation!");
+               }
+            }
+            else
+            {
+               Print("❌ Cannot open unlimited hedge - exceeds broker maximum: ", brokerMaxLot);
+            }
+         }
+         else
+         {
+            // Standard validation
+            if(hedgeLots <= MaxLotSize)
+            {
+               double hedgeMarginRequired = MarketInfo(Symbol(), MODE_MARGINREQUIRED) * hedgeLots;
+               double freeMargin = AccountFreeMargin();
+               
+               if(freeMargin >= hedgeMarginRequired * 1.5)
+               {
+                  canOpenHedge = true;
+               }
+               else
+               {
+                  Print("❌ Insufficient margin for standard hedge");
+                  Print("Required: ", hedgeMarginRequired, " Available: ", freeMargin);
+               }
+            }
+            else
+            {
+               Print("❌ Cannot open standard hedge - lot size ", hedgeLots, " exceeds maximum ", MaxLotSize);
+            }
+         }
+         
+         if(canOpenHedge)
+         {
+            Print("✅ Opening unlimited hedge trade...");
+            int hedgeTicket = OpenTradeWithRetry(oppositeType, hedgeLots, false);
+            
+            if(hedgeTicket > 0)
+            {
+               currentState = STATE_RECOVERY_ACTIVE;
+               recoveryDepth = 1;
+               
+               Print("🚀 UNLIMITED RECOVERY MODE ACTIVATED!");
+               Print("Hedge trade opened - Ticket: ", hedgeTicket);
+               Print("Recovery depth: ", recoveryDepth);
+               Print("State changed to: RECOVERY_ACTIVE");
+               if(EnableUnlimitedFlips)
+               {
+                  Print("🎯 System ready for unlimited breakeven flips!");
+               }
+            }
+            else
+            {
+               Print("❌ CRITICAL: Failed to open hedge trade after retries!");
+               Print("Will retry on next tick");
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Restore missing hedge trade                                      |
+//+------------------------------------------------------------------+
+void RestoreHedge()
+{
+   if(activeTradeCount == 1)
+   {
+      Print("Attempting to restore missing hedge trade in unlimited mode...");
+      
+      int oppositeType = (activeTrades[0].type == OP_BUY) ? OP_SELL : OP_BUY;
+      double hedgeLots = activeTrades[0].lots * RecoveryMultiplier;
+      
+      // Check if we can open the hedge with unlimited mode considerations
+      bool canRestore = false;
+      
+      if(EnableUnlimitedFlips)
+      {
+         double brokerMaxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+         if(hedgeLots <= brokerMaxLot)
+         {
+            canRestore = true;
+         }
+         else
+         {
+            Print("Cannot restore hedge in unlimited mode - exceeds broker maximum: ", brokerMaxLot);
+         }
+      }
+      else
+      {
+         if(hedgeLots <= MaxLotSize)
+         {
+            canRestore = true;
+         }
+         else
+         {
+            Print("Cannot restore hedge - lot size ", hedgeLots, " exceeds maximum ", MaxLotSize);
+         }
+      }
+      
+      if(canRestore)
+      {
+         int hedgeTicket = OpenTradeWithRetry(oppositeType, hedgeLots, false);
+         if(hedgeTicket > 0)
+         {
+            Print("✅ Emergency hedge restored successfully in unlimited mode. Ticket: ", hedgeTicket);
+         }
+         else
+         {
+            Print("❌ Failed to restore hedge after retries. Will try again next tick.");
+         }
+      }
+      else
+      {
+         // In unlimited mode, if we can't restore hedge, consider closing remaining trade
+         if(EnableUnlimitedFlips)
+         {
+            Print("⚠️ Cannot restore hedge in unlimited mode - considering trade closure");
+            CloseAllTrades();
+            currentState = STATE_WAITING_FIRST_TRADE;
+            lastRecoveryTime = TimeCurrent();
+            recoveryDepth = 0;
+            totalFlipCount = 0;
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Open trade with retry mechanism                                  |
+//+------------------------------------------------------------------+
+int OpenTradeWithRetry(int type, double lots, bool isFirstTrade)
+{
+   int ticket = -1;
+   
+   // Enhanced retries for unlimited mode
+   int maxRetries = EnableUnlimitedFlips ? (TradeOpenRetries * 2) : TradeOpenRetries;
+   
+   for(int attempt = 1; attempt <= maxRetries; attempt++)
+   {
+      ticket = OpenTrade(type, lots, isFirstTrade);
+      
+      if(ticket > 0)
+      {
+         if(attempt > 1)
+         {
+            Print("Unlimited trade opened successfully on attempt ", attempt);
+         }
+         break;
+      }
+      else
+      {
+         int error = GetLastError();
+         Print("Unlimited trade open attempt ", attempt, " failed. Error: ", error);
+         
+         // Handle server errors appropriately
+         if(IsServerError(error))
+         {
+            HandleServerError(error);
+            int delay = EnableUnlimitedFlips ? (ServerErrorRetryDelayMs / 2) : ServerErrorRetryDelayMs;
+            Sleep(delay);
+         }
+         else
+         {
+            // Don't retry for certain permanent errors
+            if(error == ERR_NOT_ENOUGH_MONEY || error == ERR_TRADE_NOT_ALLOWED || 
+               error == ERR_MARKET_CLOSED)
+            {
+               Print("Permanent error detected. Stopping retries.");
+               break;
+            }
+            
+            // Wait before retry (except on last attempt)
+            if(attempt < maxRetries)
+            {
+               int delay = EnableUnlimitedFlips ? (RetryDelayMs / 2) : RetryDelayMs;
+               Sleep(delay);
+            }
+         }
+      }
+   }
+   
+   if(ticket <= 0)
+   {
+      Print("Failed to open unlimited trade after ", maxRetries, " attempts");
+   }
+   
+   return ticket;
+}
+
+//+------------------------------------------------------------------+
+//| Open a trade                                                     |
+//+------------------------------------------------------------------+
+int OpenTrade(int type, double lots, bool isFirstTrade)
+{
+   // Normalize lot size
+   double minLot = MarketInfo(Symbol(), MODE_MINLOT);
+   double maxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+   double lotStep = MarketInfo(Symbol(), MODE_LOTSTEP);
+   
+   // In unlimited mode, handle large lot sizes more gracefully
+   if(EnableUnlimitedFlips && lots > maxLot)
+   {
+      Print("WARNING: Requested lot size ", lots, " exceeds broker maximum ", maxLot);
+      lots = maxLot; // Use broker maximum instead of failing
+   }
+   
+   lots = MathMax(minLot, MathMin(maxLot, NormalizeDouble(lots / lotStep, 0) * lotStep));
+   
+   double price = (type == OP_BUY) ? Ask : Bid;
+   double sl = 0; // No stop loss
+   double tp = 0;
+   
+   // Set take profit only for first trade
+   if(isFirstTrade && TakeProfit > 0)
+   {
+      if(type == OP_BUY)
+         tp = price + TakeProfit * Point;
+      else
+         tp = price - TakeProfit * Point;
+   }
+   
+   // Refresh quotes before opening
+   RefreshRates();
+   price = (type == OP_BUY) ? Ask : Bid;
+   
+   // Enhanced slippage for unlimited mode
+   int slippage = EnableUnlimitedFlips ? (MaxSlippagePoints * 2) : MaxSlippagePoints;
+   
+   string comment = EnableUnlimitedFlips ? "Unlimited Breakeven EA" : "Protected Breakeven Flipper EA";
+   
+   int ticket = OrderSend(Symbol(), type, lots, price, slippage, sl, tp, 
+                         comment, MagicNumber, 0, 
+                         (type == OP_BUY) ? clrBlue : clrRed);
+   
+   if(ticket > 0)
+   {
+      Print("Trade opened: Ticket=", ticket, " Type=", type, " Lots=", lots, " Price=", price);
+      if(EnableUnlimitedFlips)
+      {
+         Print("🚀 Unlimited mode trade opened successfully");
+      }
+   }
+   else
+   {
+      int error = GetLastError();
+      Print("Failed to open trade. Error: ", error, " - ", ErrorToString(error));
+   }
+   
+   return ticket;
+}
+
+//+------------------------------------------------------------------+
+//| Handle trailing stop                                             |
+//+------------------------------------------------------------------+
+void HandleTrailingStop()
+{
+   if(activeTradeCount != 1) return;
+   
+   if(OrderSelect(activeTrades[0].ticket, SELECT_BY_TICKET))
+   {
+      double profit = OrderProfit() + OrderSwap() + OrderCommission();
+      
+      if(profit >= TrailingStart * MarketInfo(Symbol(), MODE_TICKVALUE) * OrderLots())
+      {
+         double newSL = 0;
+         bool modify = false;
+         
+         if(OrderType() == OP_BUY)
+         {
+            newSL = Bid - TrailingDistance * Point;
+            if(newSL > OrderStopLoss() + TrailingStep * Point)
+            {
+               modify = true;
+            }
+         }
+         else if(OrderType() == OP_SELL)
+         {
+            newSL = Ask + TrailingDistance * Point;
+            if(newSL < OrderStopLoss() - TrailingStep * Point || OrderStopLoss() == 0)
+            {
+               modify = true;
+            }
+         }
+         
+         if(modify)
+         {
+            bool result = OrderModify(OrderTicket(), OrderOpenPrice(), newSL, OrderTakeProfit(), 0);
+            if(result)
+            {
+               Print("Trailing stop updated for ticket ", OrderTicket(), " New SL: ", newSL);
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Get trade profit                                                 |
+//+------------------------------------------------------------------+
+double GetTradeProfit(int ticket)
+{
+   if(OrderSelect(ticket, SELECT_BY_TICKET))
+   {
+      return OrderProfit() + OrderSwap() + OrderCommission();
+   }
+   return 0;
+}
+
+//+------------------------------------------------------------------+
+//| Close all trades                                                 |
+//+------------------------------------------------------------------+
+void CloseAllTrades()
+{
+   Print("Closing all trades in unlimited mode...");
+   
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      if(OrderSelect(i, SELECT_BY_POS) && OrderMagicNumber() == MagicNumber && OrderSymbol() == Symbol())
+      {
+         double closePrice = (OrderType() == OP_BUY) ? Bid : Ask;
+         
+         // Enhanced slippage for unlimited mode
+         int slippage = EnableUnlimitedFlips ? (MaxSlippagePoints * 2) : MaxSlippagePoints;
+         bool closed = OrderClose(OrderTicket(), OrderLots(), closePrice, slippage);
+         
+         if(closed)
+         {
+            Print("Trade closed: Ticket=", OrderTicket());
+         }
+         else
+         {
+            Print("Failed to close trade: Ticket=", OrderTicket(), " Error: ", GetLastError());
+         }
+      }
+   }
+   
+   // Log final statistics if we had flips
+   if(totalFlipCount > 0)
+   {
+      Print("🏁 UNLIMITED FLIP SESSION ENDED:");
+      Print("- Total flips performed: ", totalFlipCount);
+      Print("- Maximum recovery depth reached: ", recoveryDepth);
+      Print("- Session equity change: $", NormalizeDouble(AccountEquity() - initialEquity, 2));
+   }
+   
+   // Reset recovery depth when all trades are closed
+   recoveryDepth = 0;
+}
+
+//+------------------------------------------------------------------+
+//| Convert error code to string                                     |
+//+------------------------------------------------------------------+
+string ErrorToString(int error)
+{
+   switch(error)
+   {
+      case ERR_NO_ERROR: return "No error";
+      case ERR_NO_RESULT: return "No result";
+      case ERR_COMMON_ERROR: return "Common error";
+      case ERR_INVALID_TRADE_PARAMETERS: return "Invalid trade parameters";
+      case ERR_SERVER_BUSY: return "Server busy";
+      case ERR_OLD_VERSION: return "Old version";
+      case ERR_NO_CONNECTION: return "No connection";
+      case ERR_NOT_ENOUGH_RIGHTS: return "Not enough rights";
+      case ERR_TOO_FREQUENT_REQUESTS: return "Too frequent requests";
+      case ERR_MALFUNCTIONAL_TRADE: return "Malfunctional trade";
+      case ERR_ACCOUNT_DISABLED: return "Account disabled";
+      case ERR_INVALID_ACCOUNT: return "Invalid account";
+      case ERR_TRADE_TIMEOUT: return "Trade timeout";
+      case ERR_INVALID_PRICE: return "Invalid price";
+      case ERR_INVALID_STOPS: return "Invalid stops";
+      case ERR_INVALID_TRADE_VOLUME: return "Invalid trade volume";
+      case ERR_MARKET_CLOSED: return "Market closed";
+      case ERR_TRADE_DISABLED: return "Trade disabled";
+      case ERR_NOT_ENOUGH_MONEY: return "Not enough money";
+      case ERR_PRICE_CHANGED: return "Price changed";
+      case ERR_OFF_QUOTES: return "Off quotes";
+      case ERR_BROKER_BUSY: return "Broker busy";
+      case ERR_REQUOTE: return "Requote";
+      case ERR_ORDER_LOCKED: return "Order locked";
+      case ERR_LONG_POSITIONS_ONLY_ALLOWED: return "Long positions only allowed";
+      case ERR_TOO_MANY_REQUESTS: return "Too many requests";
+      default: return "Unknown error " + IntegerToString(error);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| END OF UNLIMITED BREAKEVEN FLIPPER EA                           |
+//+------------------------------------------------------------------+

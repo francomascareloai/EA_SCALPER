@@ -1,0 +1,46 @@
+{
+  "id": "EA_MCCForexBulls_v1.0_MULTI",
+  "nome": "EA_MCCForexBulls_v1.0_MULTI.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "autor": "MCC Forex",
+  "descricao": "Expert Advisor MCC Forex Bull's com gestão automática de SL/TP para posições abertas. Inclui biblioteca de trading e parâmetros configuráveis para Pips, LotSize e período de Moving Average.",
+  "parametros_principais": [
+    "Pips: Configuração de SL/TP em pips",
+    "LotSize: Tamanho do lote para negociação",
+    "MA_Period: Período da Moving Average",
+    "Gestão automática de SL/TP ausentes"
+  ],
+  "indicadores_utilizados": [
+    "Moving Average (MA)",
+    "Sistema de gestão de posições"
+  ],
+  "ftmo_compliance": {
+    "score": 6,
+    "status": "Moderado",
+    "observacoes": "EA com gestão de SL/TP automática é positivo para FTMO. Uso de MA sugere estratégia de tendência. Necessária análise completa para validar gestão de risco."
+  },
+  "riscos_identificados": [
+    "Parâmetros de risco dependem da configuração",
+    "MA pode gerar sinais falsos em lateralização",
+    "Gestão automática pode não ser otimizada",
+    "Necessária validação dos cálculos de SL/TP"
+  ],
+  "tags": [
+    "#EA",
+    "#Trend",
+    "#Moving_Average",
+    "#Auto_SLTP",
+    "#Position_Management",
+    "#Moderado",
+    "#MCC_Forex"
+  ],
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "status": "Classificado",
+  "observacoes_tecnicas": "EA com estrutura básica incluindo biblioteca de trading. Gestão automática de SL/TP é recurso útil. Código parece bem organizado com parâmetros claros."
+}

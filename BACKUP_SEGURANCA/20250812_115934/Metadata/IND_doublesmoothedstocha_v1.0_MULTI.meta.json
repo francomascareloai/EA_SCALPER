@@ -1,0 +1,31 @@
+{
+  "id": "9a7400ed7e21288e",
+  "arquivo": "double_smoothed_stochastic_@fxsignalspot.com.mq5",
+  "hash": "9a7400ed7e21288e",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 50,
+  "riscos_detectados": [
+    "No Stop Loss detected",
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 70,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

@@ -1,0 +1,113 @@
+{
+  "id": "IND_ShvedSupplyDemand_v1.3_MULTI",
+  "arquivo": "shved_supply_and_demand_v1.3.mq5",
+  "hash": "shved_supply_demand_v1_3",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "SMC_ICT",
+  "subestrategias": ["Supply_Demand", "Support_Resistance", "Fractal_Analysis", "Zone_Detection"],
+  "mercados": ["MULTI"],
+  "timeframes": ["MULTI"],
+  "funcoes_chave": [
+    "OnInit",
+    "OnCalculate",
+    "OnDeinit",
+    "OnChartEvent",
+    "FastFractalsUp",
+    "FastFractalsDown",
+    "SlowFractalsUp",
+    "SlowFractalsDown",
+    "CheckZoneHit",
+    "DrawZones",
+    "ZoneAlert",
+    "HistoryMode"
+  ],
+  "dependencias_includes": [
+    "Standard MQL5 Libraries"
+  ],
+  "parametros_expostos": [
+    {
+      "nome": "BackLimit",
+      "tipo": "int",
+      "default": 1000,
+      "descricao": "Back Limit for analysis"
+    },
+    {
+      "nome": "HistoryMode",
+      "tipo": "bool",
+      "default": false,
+      "descricao": "History Mode (with double click)"
+    },
+    {
+      "nome": "zone_show_weak",
+      "tipo": "bool",
+      "default": false,
+      "descricao": "Show Weak Zones"
+    },
+    {
+      "nome": "zone_show_untested",
+      "tipo": "bool",
+      "default": true,
+      "descricao": "Show Untested Zones"
+    },
+    {
+      "nome": "zone_show_turncoat",
+      "tipo": "bool",
+      "default": true,
+      "descricao": "Show Broken Zones"
+    },
+    {
+      "nome": "zone_fuzzfactor",
+      "tipo": "double",
+      "default": 0.75,
+      "descricao": "Zone ATR Factor"
+    },
+    {
+      "nome": "fractal_fast_factor",
+      "tipo": "double",
+      "default": 3.0,
+      "descricao": "Fractal Fast Factor"
+    },
+    {
+      "nome": "fractal_slow_factor",
+      "tipo": "double",
+      "default": 6.0,
+      "descricao": "Fractal Slow Factor"
+    },
+    {
+      "nome": "zone_show_alerts",
+      "tipo": "bool",
+      "default": false,
+      "descricao": "Trigger alert when entering a zone"
+    },
+    {
+      "nome": "zone_send_notification",
+      "tipo": "bool",
+      "default": false,
+      "descricao": "Send notification when entering a zone"
+    }
+  ],
+  "ftmo_score": 10,
+  "riscos_detectados": [
+    "nenhum_risco_detectado",
+    "indicador_puro_sem_trading",
+    "excelente_para_analise_smc"
+  ],
+  "qualidade_codigo_score": 9,
+  "compilacao": {
+    "status": "ok",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Nenhum ajuste necessário",
+    "Indicador pronto para uso",
+    "Excelente para análise SMC"
+  ],
+  "licenca_autor": "Behzad.mvr@gmail.com - MQL5 version of Shved Supply and Demand",
+  "tags": ["#Indicator", "#SMC_ICT", "#Supply_Demand", "#Support_Resistance", "#MULTI", "#FTMO_Ready", "#Fractal", "#Zone_Detection"],
+  "caminho_origem": "All_MQ5/shved_supply_and_demand_v1.3.mq5",
+  "caminho_final": "Indicators/SMC_ICT/IND_ShvedSupplyDemand_v1.3_MULTI.mq5",
+  "data_classificacao": "2025-01-27",
+  "observacoes": "Excelente indicador de Supply and Demand baseado em fractais. Identifica zonas de suporte e resistência com alta precisão. Muito útil para estratégias SMC/ICT. Inclui modo histórico e alertas."
+}

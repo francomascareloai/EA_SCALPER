@@ -1,0 +1,26 @@
+//@version=4
+study(title="Support and Resistance Key Levels with Confirmation", overlay=true)
+
+len = input(50, title='Length')
+thresh = input(0.01, title='Threshold')
+
+src = close
+
+highest_high = highest(src, len)
+lowest_low = lowest(src, len)
+
+res_level = highest_high - thresh * (highest_high - lowest_low)
+sup_level = lowest_low + thresh * (highest_high - lowest_low)
+
+plot(res_level, title='Resistance', color=color.red, linewidth=2, style=plot.style_linebr)
+plot(sup_level, title='Support', color=color.green, linewidth=2, style=plot.style_linebr)
+
+buy_signal = crossover(close, sup_level)
+sell_signal = crossunder(close, res_level)
+
+// Plot only the last buy and sell signals
+last_buy_bar = barssince(buy_signal)
+last_sell_bar = barssince(sell_signal)
+
+plotshape(last_buy_bar == 0 ? buy_signal : na, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, text="Buy")
+plotshape(last_sell_bar == 0 ? sell_signal : na, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, text="Sell")

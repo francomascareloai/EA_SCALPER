@@ -1,0 +1,45 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Shyam_Trades_152
+
+//@version=5
+indicator(title="HMA Breakout - Shyam", shorttitle="BO-HMA", overlay=true)
+
+var bool bcn = false
+var bool scn = false
+var int hma1 = 10
+var int hma2 = 20
+var int hma3 = 100
+
+t_type = input.string("Scalping","Trade Type",options = ["Scalping","Intraday"])
+
+if t_type == "Scalping"
+    hma1 := 10
+    hma2 := 20
+    hma3 := 100
+if t_type == "Intraday"
+    hma1 := 20
+    hma2 := 50
+    hma3 := 100
+
+ma1 = ta.hma(close,hma1)
+ma2 = ta.hma(close,hma2)
+ma3 = ta.hma(close,hma3)
+l_avg = math.avg(ma1,ma2,ma3)
+l_col = color.gray
+
+
+//---------------------------- Buy Condition ----------------------------//
+
+if ma3 < ma2 and ma3 < ma1 and ma1 > ma2
+    bcn := true
+    l_col := color.rgb(7, 249, 15)
+    
+
+//---------------------------- Sell Condition ----------------------------//
+
+if ma3 > ma2 and ma3 > ma1 and ma2 > ma1
+    scn := true
+    l_col :=color.rgb(247, 8, 8)
+    
+
+plot(ma3,color = l_col,linewidth = 2)

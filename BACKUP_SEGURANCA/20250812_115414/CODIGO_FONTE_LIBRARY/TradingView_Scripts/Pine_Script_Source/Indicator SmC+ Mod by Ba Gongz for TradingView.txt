@@ -1,0 +1,707 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+ 
+//@version= 5
+indicator("SmC+ Mod by Ba Gongz",overlay=true,max_bars_back=5000,max_labels_count=500,max_lines_count=500)
+
+
+// ~~ Tooltips {
+string t1 = "Set the pivot period"
+string t2 = "Set the response period. A low value returns a short-term structure and a high value returns a long-term structure. If you disable this option the pivot length above will be used."
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Inputs {
+prd    = input.int(20,minval=1,title="Structure Period",tooltip=t1)
+s1     = input.bool(true,title="Structure Response  ", inline="resp")
+resp   = input.int(7,minval=1,title="",inline="resp",tooltip=t2)
+bull   = input.bool(true,"Bullish Structure     ",inline="Bullish"), bull2 = input.color(color.rgb(0,149, 116),"",inline="Bullish"), bull3 = input.color(color.rgb(0, 149, 116),"",inline="Bullish")
+bear   = input.bool(true,"Bearish Structure    ",inline="Bearish"), bear2 = input.color(color.rgb(255, 34, 34),"",inline="Bearish"), bear3 = input.color(color.rgb(255, 34, 34),"",inline="Bearish")
+showPD = input.bool(true,"Premium & Discount",inline="pd"), prem = input.color(color.new(color.rgb(255, 34, 34),80),"",inline="pd"), disc = input.color(color.new(color.rgb(8, 236, 126),80),"",inline="pd")
+hlloc  = input.string("Right","", options=["Left","Right"],inline="pd")
+var bool [] alert_bool  = array.from(
+ input.bool(true,title="Ticker ID",group="Any alert() function call"),
+ input.bool(true,title="Timeframe",group="Any alert() function call"),
+ input.bool(true,title="Probability Percentage",group="Any alert() function call"))
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Variables {
+b       = bar_index
+var Up  = float(na)
+var Dn  = float(na)
+var iUp = int(na)
+var iDn = int(na)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Matrix & Array {
+var vals          = matrix.new<float>(9,4,0.0)
+var string [] txt = array.new<string>(2,"")
+var tbl           = matrix.new<table>(1,1,table.new(position.top_right,2,3,
+ frame_color      =color.new(color.gray,50),frame_width=3,
+ border_color     =chart.bg_color,border_width=-2))
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Functions {
+//Labels
+CreateLabel(x,y,txt,col,z)=>
+    label.new(x,y,txt,textcolor=col,style=z?label.style_label_down:label.style_label_up,color=color(na))
+//Lines
+CreateLine(x1,x2,y,col)=>
+    line.new(x1,x2,b,y,color=col)
+//Current
+Current(v)=>
+    str = ""
+    val1 = float(na)
+    val2 = float(na)
+    if v>=0
+        if v==1
+            str  := "ˢᴹˢ: "
+            val1 := matrix.get(vals,0,1)
+            val2 := matrix.get(vals,0,3) 
+        else if v==2
+            str  := "ᴮᴹˢ: "
+            val1 := matrix.get(vals,1,1)
+            val2 := matrix.get(vals,1,3) 
+        else if v>2
+            str  := "ᴮᴹˢ : "
+            val1 := matrix.get(vals,2,1)
+            val2 := matrix.get(vals,2,3) 
+    else if v<=0
+        if v==-1
+            str  := "ˢᴹˢ: "
+            val1 := matrix.get(vals,3,1)
+            val2 := matrix.get(vals,3,3) 
+        else if v==-2
+            str  := "ᴮᴹˢ: "
+            val1 := matrix.get(vals,4,1)
+            val2 := matrix.get(vals,4,3) 
+        else if v<-2
+            str  := "ᴮᴹˢ: "
+            val1 := matrix.get(vals,5,1)
+            val2 := matrix.get(vals,5,3)
+    [str,val1,val2]
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Pivots {
+Up   := math.max(Up[1],high)
+Dn   := math.min(Dn[1],low)
+pvtHi = ta.pivothigh(high,prd,prd)
+pvtLo = ta.pivotlow(low,prd,prd)
+if pvtHi
+    Up := pvtHi
+if pvtLo
+    Dn := pvtLo
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Structure {
+var pos = 0
+if Up>Up[1]
+    iUp := b
+    centerBull = math.round(math.avg(iUp[1],b))
+    if pos<=0
+        if bull
+            CreateLabel(centerBull,Up[1],"ᶜᴴᵒᶜᴴ",bull3,true)
+            CreateLine(iUp[1],Up[1],Up[1],bull2)
+        pos := 1
+        matrix.set(vals,6,0,matrix.get(vals,6,0)+1)
+    else if pos==1 and Up>Up[1] and Up[1]==Up[s1?resp:prd]
+        if bull
+            CreateLabel(centerBull,Up[1],"ˢᴹˢ",bull3,true)
+            CreateLine(iUp[1],Up[1],Up[1],bull2)
+        pos := 2
+        matrix.set(vals,6,1,matrix.get(vals,6,1)+1)
+    else if pos>1 and Up>Up[1] and Up[1]==Up[s1?resp:prd]
+        if bull
+            CreateLabel(centerBull,Up[1],"ᴮᴹˢ",bull3,true)
+            CreateLine(iUp[1],Up[1],Up[1],bull2)
+        pos := pos + 1
+        matrix.set(vals,6,2,matrix.get(vals,6,2)+1)
+else if Up<Up[1]
+    iUp := b-prd
+if Dn<Dn[1]
+    iDn := b
+    centerBear = math.round(math.avg(iDn[1],b))
+    if pos>=0
+        if bear
+            CreateLabel(centerBear,Dn[1],"ᶜᴴᵒᶜᴴ ",bear3,false)
+            CreateLine(iDn[1],Dn[1],Dn[1],bear2)
+        pos := -1
+        matrix.set(vals,7,0,matrix.get(vals,7,0)+1)
+    else if pos==-1 and Dn<Dn[1] and Dn[1]==Dn[s1?resp:prd]
+        if bear
+            CreateLabel(centerBear,Dn[1],"ˢᴹˢ",bear3,false)
+            CreateLine(iDn[1],Dn[1],Dn[1],bear2)
+        pos := -2
+        matrix.set(vals,7,1,matrix.get(vals,7,1)+1)
+    else if pos<-1 and Dn<Dn[1] and Dn[1]==Dn[s1?resp:prd]
+        if bear
+            CreateLabel(centerBear,Dn[1],"ᴮᴹˢ",bear3,false)
+            CreateLine(iDn[1],Dn[1],Dn[1],bear2)
+        pos := pos - 1
+        matrix.set(vals,7,2,matrix.get(vals,7,2)+1)
+else if Dn>Dn[1]
+    iDn := b-prd
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Probability Calculation {
+if ta.change(pos)
+    //Results
+    if pos>0 and pos[1]>0 or pos<0 and pos[1]<0
+        if  matrix.get(vals,8,0)<matrix.get(vals,8,1)
+            matrix.set(vals,8,2,matrix.get(vals,8,2)+1)
+        else
+            matrix.set(vals,8,3,matrix.get(vals,8,3)+1)
+    else
+        if  matrix.get(vals,8,0)>matrix.get(vals,8,1)
+            matrix.set(vals,8,2,matrix.get(vals,8,2)+1)
+        else
+            matrix.set(vals,8,3,matrix.get(vals,8,3)+1)
+
+    //Score Calulation
+    //Variables
+    buC0 = matrix.get(vals,0,0)
+    buC1 = matrix.get(vals,0,2)
+    buS0 = matrix.get(vals,1,0)
+    buS1 = matrix.get(vals,1,2)
+    buB0 = matrix.get(vals,2,0)
+    buB1 = matrix.get(vals,2,2)
+    beC0 = matrix.get(vals,3,0)
+    beC1 = matrix.get(vals,3,2)
+    beS0 = matrix.get(vals,4,0)
+    beS1 = matrix.get(vals,4,2)
+    beB0 = matrix.get(vals,5,0)
+    beB1 = matrix.get(vals,5,2)
+    tbuC = matrix.get(vals,6,0)
+    tbuS = matrix.get(vals,6,1)
+    tbuB = matrix.get(vals,6,2)
+    tbeC = matrix.get(vals,7,0)
+    tbeS = matrix.get(vals,7,1)
+    tbeB = matrix.get(vals,7,2)
+
+    //Bull
+    if (pos[1]==1 or pos[1]==0) and pos<0
+        matrix.set(vals,0,0,buC0+1)
+        matrix.set(vals,0,1,math.round(((buC0+1)/tbuC)*100,2))
+    if (pos[1]==1 or pos[1]==0) and pos==2
+        matrix.set(vals,0,2,buC1+1)
+        matrix.set(vals,0,3,math.round(((buC1+1)/tbuC)*100,2))
+    if pos[1]==2 and pos<0
+        matrix.set(vals,1,0,buS0+1)
+        matrix.set(vals,1,1,math.round(((buS0+1)/tbuS)*100,2))
+    if pos[1]==2 and pos>2
+        matrix.set(vals,1,2,buS1+1)
+        matrix.set(vals,1,3,math.round(((buS1+1)/tbuS)*100,2))
+    if pos[1]>2 and pos<0
+        matrix.set(vals,2,0,buB0+1)
+        matrix.set(vals,2,1,math.round(((buB0+1)/tbuB)*100,2))
+    if pos[1]>2 and pos>pos[1]
+        matrix.set(vals,2,2,buB1+1)
+        matrix.set(vals,2,3,math.round(((buB1+1)/tbuB)*100,2))
+    //Bear
+    if (pos[1]==-1 or pos[1]==0) and pos>0
+        matrix.set(vals,3,0,beC0+1)
+        matrix.set(vals,3,1,math.round(((beC0+1)/tbeC)*100,2))
+    if (pos[1]==-1 or pos[1]==0) and pos==-2
+        matrix.set(vals,3,2,beC1+1)
+        matrix.set(vals,3,3,math.round(((beC1+1)/tbeC)*100,2))
+    if pos[1]==-2 and pos>0
+        matrix.set(vals,4,0,beS0+1)
+        matrix.set(vals,4,1,math.round(((beS0+1)/tbeS)*100,2))
+    if pos[1]==-2 and pos<-2
+        matrix.set(vals,4,2,beS1+1)
+        matrix.set(vals,4,3,math.round(((beS1+1)/tbeS)*100,2))
+    if pos[1]<-2 and pos>0
+        matrix.set(vals,5,0,beB0+1)
+        matrix.set(vals,5,1,math.round(((beB0+1)/tbeB)*100,2))
+    if pos[1]<-2 and pos<pos[1]
+        matrix.set(vals,5,2,beB1+1)
+        matrix.set(vals,5,3,math.round(((beB1+1)/tbeB)*100,2))
+    [str,val1,val2] = Current(pos)
+    array.set(txt,0,"ᶜᴴᵒᶜᴴ:"+str.tostring(val1,format.percent))
+    array.set(txt,1,str+str.tostring(val2,format.percent))
+    matrix.set(vals,8,0,val1)
+    matrix.set(vals,8,1,val2)
+    //Alerts
+    if array.includes(alert_bool,true)
+        st1 = syminfo.ticker
+        st2 = timeframe.period 
+        st3 = str.tostring(array.join(txt,'\n'))
+        string [] str_vals = array.from(st1,st2,st3)
+        output = array.new_string()
+        for x=0 to array.size(alert_bool)-1
+            if array.get(alert_bool,x)
+                array.push(output,array.get(str_vals,x))
+        alert(array.join(output,'\n'),alert.freq_once_per_bar_close)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Premium & Discount {
+var hi       = line.new(na,na,na,na,color=bear2)
+var lo       = line.new(na,na,na,na,color=bull2)
+var fill     = linefill.new(hi,lo,na)
+var premium  = box.new(na,na,na,na,na,bgcolor=prem)
+var discount = box.new(na,na,na,na,na,bgcolor=disc)
+var mid      = box.new(na,na,na,na,na,bgcolor=color.new(color.gray,80))
+
+PremiumTop   = Up-(Up-Dn)*.1
+PremiumBot   = Up-(Up-Dn)*.25
+DiscountTop  = Dn+(Up-Dn)*.25
+DiscountBot  = Dn+(Up-Dn)*.1
+MidTop       = Up-(Up-Dn)*.45
+MidBot       = Dn+(Up-Dn)*.45
+
+if barstate.islast and showPD
+    loc = hlloc=="Left"?math.min(iUp,iDn):math.max(iUp,iDn)
+    //High & Low
+    line.set_xy1(hi,loc,Up)
+    line.set_xy2(hi,b,Up)
+    line.set_xy1(lo,loc,Dn)
+    line.set_xy2(lo,b,Dn)
+    linefill.set_color(fill,color.new(color.gray,90))
+    //Premium & Mid & Discount
+    box.set_lefttop(premium,loc,PremiumTop)
+    box.set_rightbottom(premium,b,PremiumBot)
+    box.set_lefttop(discount,loc,DiscountTop)
+    box.set_rightbottom(discount,b,DiscountBot)
+    box.set_lefttop(mid,loc,MidTop)
+    box.set_rightbottom(mid,b,MidBot)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Probability {
+var prob1 = label.new(na,na,na,color=color(na),textcolor=chart.fg_color,style=label.style_label_left)
+var prob2 = label.new(na,na,na,color=color(na),textcolor=chart.fg_color,style=label.style_label_left)
+
+if barstate.islast
+    str1 = pos<0?array.get(txt,0):array.get(txt,1)
+    str2 = pos>0?array.get(txt,0):array.get(txt,1)
+    label.set_xy(prob1,b,Up)
+    label.set_text(prob1,str1)
+    label.set_xy(prob2,b,Dn)
+    label.set_text(prob2,str2)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+// ~~ Table {
+if barstate.islast
+    //Calulate WinRatio
+    W  = matrix.get(vals,8,2)
+    L  = matrix.get(vals,8,3)
+    WR = math.round(W/(W+L)*100,2)
+    string [] tbl_vals = array.from("🟢: "+str.tostring(W),
+     "🔴: "+str.tostring(L),
+     "Profitability: "+str.tostring(WR,format.percent))
+    color [] tbl_col = array.from(color.teal,color.red,chart.fg_color)
+    for i=0 to 2
+        table.cell(matrix.get(tbl,0,0),0,i,array.get(tbl_vals,i),
+         text_halign=text.align_center,bgcolor=chart.bg_color,
+         text_color=array.get(tbl_col,i),text_size=size.auto)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
+if not timeframe.isminutes
+    runtime.error("Timeframe must be intera day.")
+
+type key
+    int m = minute
+    int h = hour
+
+type tod
+    key TIME
+    float[] v
+
+type data
+    float source
+    tod[] rel
+
+type settings
+    data relative_rstdev
+    data relative_delta
+    data relative_position
+    key TIME
+    float multiplier_1
+    bool enable_1
+    float multiplier_2
+    bool enable_2
+    float multiplier_3
+    bool enable_3
+    bool extrapolate
+    string project_price
+    int sensitivity
+    int max_length
+    string center_style
+    int center_width
+    color center_color
+    string project_style
+    int projection_width
+    color projection_color
+    string dev_1_style
+    int dev_color_1_width
+    color dev_color_1
+    string dev_2_style
+    int dev_color_2_width
+    color dev_color_2
+    string dev_3_style
+    int dev_color_3_width
+    color dev_color_3
+    int alpha
+
+key_to_hash(key TIME)=>
+    int hash = TIME.h * 60 + TIME.m
+
+method advance_key(key self, int forward)=>
+    int period = forward * timeframe.multiplier
+    int advanced_minute = self.m + period
+    int minute_rotations = math.floor(advanced_minute / 60)
+    int new_minute = advanced_minute % 60
+    int hour_rotations = self.h + minute_rotations
+    int new_hour = hour_rotations % 24
+    key.new(new_minute, new_hour)
+
+local_vol(float source)=> 
+    if session.isfirstbar or session.isfirstbar_regular or session.islastbar_regular[1]
+        1
+    else
+        math.sqrt(math.pow(source - source[1], 2.0)) + 1 
+
+clamp(float source, float top = 1, float bottom = 0)=>
+    math.min(1, math.max(0, source))
+
+abs_range(float source)=>
+    math.abs(clamp(source) - 0.5) * 2
+
+abs_percent(float end, float start)=>
+    math.abs(end - start) / math.min(end, start)
+
+add_percent(float source, float percent, bool sign)=>
+    if sign
+        source + source * percent
+    else
+        source - source * percent
+
+trash(self, int length)=>
+    if self.size() >= length and length > 0
+        self.pop()
+
+dump(source)=>
+    if source.size() > 0
+        for i = source.size() - 1 to 0
+            source.remove(i).delete()
+
+method add_element(tod[] self, float source, int period)=>
+    if not na(source)
+        if not na(self.get(key_to_hash(key.new())))
+            tod key_value = self.get(key_to_hash(key.new()))
+            key t = key_value.TIME
+            float[] v = key_value.v
+            trash(v, period)
+            v.unshift(source)
+        else
+            float[] v = array.new<float>()
+            v.unshift(source)
+            self.set(key_to_hash(key.new()), tod.new(key.new(), v))
+
+method get_average(data self, key TIME)=>
+    float vols = na
+    if not na(self.rel.get(key_to_hash(TIME)))
+        vols := self.rel.get(key_to_hash(TIME)).v.avg()
+    else
+        vols := self.source
+
+relative(float source = volume, int period = 0)=>
+    var tod[] minute_time_frame = array.new<tod>(1440)
+    minute_time_frame.add_element(source, period)
+    data.new(source, minute_time_frame)
+
+line_style(string style)=>
+    switch style
+        "Solid" => line.style_solid
+        "Dashed" => line.style_dashed
+        "Dotted" => line.style_dotted
+        => line.style_solid
+
+make_projection(float source, int current_sample, int length, bool session, settings s)=>
+    chart.point[] middle = array.new<chart.point>()
+    chart.point[] top_1 = array.new<chart.point>()
+    chart.point[] bottom_1 = array.new<chart.point>()
+    chart.point[] top_2 = array.new<chart.point>()
+    chart.point[] bottom_2 = array.new<chart.point>()
+    chart.point[] top_3 = array.new<chart.point>()
+    chart.point[] bottom_3 = array.new<chart.point>()
+    chart.point[] projection_points = array.new<chart.point>()
+    chart.point[] projection_points_2 = array.new<chart.point>()
+    chart.point[] confidence_points = array.new<chart.point>()
+
+    var polyline[] extrapolations = array.new<polyline>()
+
+    int remaining = length - current_sample + 1
+
+    dump(extrapolations)
+
+    if remaining >= 0 and s.extrapolate and session and barstate.islast
+        bool direction = source > source[math.ceil(current_sample / s.sensitivity)]
+        int projection_range = math.min(s.max_length, remaining)
+        float prev = source
+
+        for i = 0 to projection_range
+            key new_key = advance_key(s.TIME, i)
+            int idx = bar_index + i
+
+            if current_sample == 0
+                float dev = s.relative_rstdev.get_average(new_key)
+
+                middle.push(chart.point.new(na, bar_index + i, source))
+
+                if s.enable_1
+                    top_1.push(chart.point.new(na, idx, source + dev * s.multiplier_1))
+                    bottom_1.unshift(chart.point.new(na, idx, source - dev * s.multiplier_1))
+                if s.enable_2
+                    top_2.push(chart.point.new(na, idx, source + dev * s.multiplier_2))
+                    bottom_2.unshift(chart.point.new(na, idx, source - dev * s.multiplier_2))
+                if s.enable_3
+                    top_3.push(chart.point.new(na, idx, source + dev * s.multiplier_3))
+                    bottom_3.unshift(chart.point.new(na, idx, source - dev * s.multiplier_3))
+
+                if s.project_price != "None"
+                    float project = s.relative_position.get_average(new_key)
+                    bool polarity = open < close
+                    if s.project_price == "Polar"
+                        projection_points.push(chart.point.new(na, idx, source + nz((polarity ? 1 : -1) * project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                    else
+                        projection_points.push(chart.point.new(na, idx, source + nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                        projection_points_2.push(chart.point.new(na, idx, source - nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+            else
+                float percent = s.relative_delta.get_average(new_key)
+                float dev = s.relative_rstdev.get_average(new_key)
+
+                middle.push(chart.point.new(na, idx, prev))
+
+                if s.enable_1
+                    top_1.push(chart.point.new(na, idx, prev + dev * s.multiplier_1))
+                    bottom_1.unshift(chart.point.new(na, idx, prev - dev * s.multiplier_1))
+                if s.enable_2
+                    top_2.push(chart.point.new(na, idx, prev + dev * s.multiplier_2))
+                    bottom_2.unshift(chart.point.new(na, idx, prev - dev * s.multiplier_2))
+                if s.enable_3
+                    top_3.push(chart.point.new(na, idx, prev + dev * s.multiplier_3))
+                    bottom_3.unshift(chart.point.new(na, idx, prev - dev * s.multiplier_3))
+
+                if s.project_price != "None"
+                    float project = s.relative_position.get_average(new_key)
+                    if s.project_price == "Polar"
+                        projection_points.push(chart.point.new(na, idx, prev + nz((direction ? 1 : -1) * project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                    else
+                        projection_points.push(chart.point.new(na, idx, prev + nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                        projection_points_2.push(chart.point.new(na, idx, prev - nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+
+                prev := add_percent(prev, percent, direction)
+
+        extrapolations.push(polyline.new(middle, false, false, xloc.bar_index, s.center_color, line_style = line_style(s.center_style), line_width = s.center_width))
+
+        bool curved = s.project_style == "Solid"
+
+        if s.enable_1
+            extrapolations.push(polyline.new(top_1.concat(bottom_1), false, false, xloc.bar_index, s.dev_color_1, color.new(s.dev_color_1, s.alpha), line_style(s.dev_1_style), s.dev_color_1_width))
+        if s.enable_2
+            extrapolations.push(polyline.new(top_2.concat(bottom_2), false, false, xloc.bar_index, s.dev_color_2, color.new(s.dev_color_2, s.alpha), line_style(s.dev_2_style), s.dev_color_2_width))
+        if s.enable_3
+            extrapolations.push(polyline.new(top_3.concat(bottom_3), false, false, xloc.bar_index, s.dev_color_3, color.new(s.dev_color_3, s.alpha), line_style(s.dev_3_style), s.dev_color_3_width))
+
+        if s.project_price != "None"
+            extrapolations.push(polyline.new(projection_points, curved, false, xloc.bar_index, s.projection_color, line_style = line_style(s.project_style), line_width = s.projection_width))
+
+            if s.project_price == "Both"
+                extrapolations.push(polyline.new(projection_points_2, curved, false, xloc.bar_index, s.projection_color, line_style = line_style(s.project_style), line_width = s.projection_width))
+
+const string group_1 = "Settings"
+float source = input.source(hlc3, "Source", group = group_1)
+string weight = input.string("Volume", "Weighting Style", ["Volume", "Time", "Volatility", "None"], group = group_1)
+int max_size = input.int(0, "Average Period", minval = 0, tooltip = "The number of days you want to take the average at time over. When set to 0 it will use all of the available data.", group = group_1)
+float multiplier_1 = input.float(1, "Multiplier 1          ", minval = 0, step = 0.125, inline = "1", group = group_1)
+bool enable_1 = input.bool(true, "", inline = "1", group = group_1)
+float multiplier_2 = input.float(2, "Multiplier 2          ", minval = 0, step = 0.125, inline = "2", group = group_1)
+bool enable_2 = input.bool(true, "", inline = "2", group = group_1)
+float multiplier_3 = input.float(3, "Multiplier 3          ", minval = 0, step = 0.125, inline = "3", group = group_1)
+bool enable_3 = input.bool(true, "", inline = "3", group = group_1)
+const string group_2 = "Extrapolation"
+bool extrapolate = input.bool(true, "Extrapolate     ", inline = "EXT", group = group_2)
+int max_length = input.int(500, "", minval = 1, maxval = 500, inline = "EXT", tooltip = "Adjust the number of candles to extrapolate into the future.", group = group_2)
+int sensitivity = input.int(3, "Direction Sensitivity", minval = 1, maxval = 10, tooltip = "Adjust this to make the estimation more sensitive to price movents. A higher number will force the estimation to change directions easier.", group = group_2)
+string project_price = input.string("Both", "Project Price", ["Polar", "Both", "None"], tooltip = "Display the average location of the price at a given time. Polar will display the projection in the direction of the average while both will display both sides.", group = group_2)
+const string group_3 = "Style"
+string center_style = input.string("Solid", "Center Style    ", ["Solid", "Dashed", "Dotted"], inline = "cen", group = group_3)
+int center_width = input.int(1, "", minval = 1, maxval = 5, inline = "cen", group = group_3)
+color center_color = input.color(color.blue, "", inline = "cen", group = group_3)
+string project_style = input.string("Dashed", "Projection Style ", ["Solid", "Dashed", "Dotted"], inline = "pro", group = group_3)
+int projection_width = input.int(3, "", minval = 1, maxval = 5, inline = "pro", group = group_3)
+color projection_color = input.color(#8c3bf5, "", inline = "pro", group = group_3)
+string dev_1_style = input.string("Solid", "Deviation 1 Style", ["Solid", "Dashed", "Dotted"], inline = "d1", group = group_3)
+int dev_color_1_width = input.int(1, "", minval = 1, maxval = 5, inline = "d1", group = group_3)
+color dev_color_1 = input.color(color.green, "", inline = "d1", group = group_3)
+string dev_2_style = input.string("Solid", "Deviation 2 Style", ["Solid", "Dashed", "Dotted"], inline = "d2", group = group_3)
+int dev_color_2_width = input.int(1, "", minval = 1, maxval = 5, inline = "d2", group = group_3)
+color dev_color_2 = input.color(color.olive, "", inline = "d2", group = group_3)
+string dev_3_style = input.string("Solid", "Deviation 3 Style", ["Solid", "Dashed", "Dotted"], inline = "d3", group = group_3)
+int dev_color_3_width = input.int(1, "", minval = 1, maxval = 5, inline = "d3", group = group_3)
+color dev_color_3 = input.color(color.teal, "", inline = "d3", group = group_3)
+int alpha = input.int(95, "Fill Alpha", minval = 0, maxval = 100, group = group_3)
+
+key TIME = key.new()
+
+var float rvwap = na
+var float up_1 = na
+var float down_1 = na
+var float up_2 = na
+var float down_2 = na
+var float up_3 = na
+var float down_3 = na
+var float sum = 0
+var float w = 0
+var float vari = 0
+var float delta = 0
+var int samples = -1
+var int[] day_length = array.new<int>()
+var int[] premarket_length = array.new<int>()
+var int[] postmarket_length = array.new<int>()
+
+float lvol = local_vol(source)
+
+float weights = switch weight
+    "Volume" => volume
+    "Time" => samples + 2
+    "Volatility" => lvol
+    "None" => 1
+
+data relative_volume = relative(weights, max_size)
+float average_volume = relative_volume.get_average(TIME)
+
+if (session.islastbar_regular or session.isfirstbar or session.islastbar) and samples > -1 and not na(rvwap)
+    float max_range = math.max(up_1, up_2, up_3)
+    float min_range = math.min(down_1, down_2, down_3)
+
+    if session.ismarket
+        trash(day_length, max_size)
+        day_length.unshift(samples)
+
+    if session.ispremarket
+        trash(premarket_length, max_size)
+        premarket_length.unshift(samples)
+
+    if session.ispostmarket
+        trash(postmarket_length, max_size)
+        postmarket_length.unshift(samples)
+
+if session.isfirstbar or session.isfirstbar_regular or session.islastbar_regular[1]
+    sum := 0
+    w := 0
+    vari := 0
+    samples := -1
+
+sum += source * average_volume
+w += average_volume
+
+rvwap := sum / w
+
+vari += math.pow(source - rvwap, 2)
+samples += 1
+
+float stdev = nz(math.sqrt(vari / samples))
+data relative_rstdev = relative(stdev, max_size)
+float rstdev = relative_rstdev.get_average(TIME)
+
+up_1 := rvwap + rstdev * multiplier_1
+down_1 := rvwap - rstdev * multiplier_1
+up_2 := rvwap + rstdev * multiplier_2
+down_2 := rvwap - rstdev * multiplier_2
+up_3 := rvwap + rstdev * multiplier_3
+down_3 := rvwap - rstdev * multiplier_3
+
+float max_range = math.max(up_1, up_2, up_3)
+float min_range = math.min(down_1, down_2, down_3)
+data relative_position = relative(abs_range((source - min_range) / (max_range - min_range)), max_size)
+
+delta := abs_percent(rvwap, rvwap[1])
+
+if session.isfirstbar or session.isfirstbar_regular or session.islastbar_regular[1]
+    delta := 0
+
+data relative_delta = relative(delta, max_size)
+
+int average_day_length = math.floor(day_length.avg())
+int average_pre_length = math.floor(premarket_length.avg())
+int average_post_length = math.floor(postmarket_length.avg())
+
+settings s = settings.new(
+   relative_rstdev
+ , relative_delta
+ , relative_position
+ , TIME
+ , multiplier_1
+ , enable_1
+ , multiplier_2
+ , enable_2
+ , multiplier_3
+ , enable_3
+ , extrapolate
+ , project_price
+ , sensitivity
+ , max_length
+ , center_style
+ , center_width
+ , center_color
+ , project_style
+ , projection_width
+ , projection_color
+ , dev_1_style
+ , dev_color_1_width
+ , dev_color_1
+ , dev_2_style
+ , dev_color_2_width
+ , dev_color_2
+ , dev_3_style
+ , dev_color_3_width
+ , dev_color_3
+ , alpha)
+
+make_projection( // regular market
+   rvwap
+ , samples
+ , average_day_length
+ , session.ismarket
+ , s
+ )
+
+make_projection( // premarket
+   rvwap
+ , samples
+ , average_pre_length
+ , session.ispremarket
+ , s
+ )
+
+make_projection( // postmarket
+   rvwap
+ , samples
+ , average_post_length
+ , session.ispostmarket
+ , s
+ )
+
+vwap = plot(rvwap, "RVWAP", center_color, center_width)
+um1 = plot(enable_1 ? up_1 : na, "RSTDEV 1", dev_color_1, dev_color_1_width, display = enable_1 ? display.all : display.none)
+dm1 = plot(enable_1 ? down_1 : na, "RSTDEV 1", dev_color_1, dev_color_1_width, display = enable_1 ? display.all : display.none)
+um2 = plot(enable_2 ? up_2 : na, "RSTDEV 2", dev_color_2, dev_color_2_width, display = enable_2 ? display.all : display.none)
+dm2 = plot(enable_2 ? down_2 : na, "RSTDEV 2", dev_color_2, dev_color_2_width, display = enable_2 ? display.all : display.none)
+um3 = plot(enable_3 ? up_3 : na, "RSTDEV 3", dev_color_3, dev_color_3_width, display = enable_3 ? display.all : display.none)
+dm3 = plot(enable_3 ? down_3 : na, "RSTDEV 3", dev_color_3, dev_color_3_width, display = enable_3 ? display.all : display.none)
+
+fill(vwap, um1, color.new(dev_color_1, alpha), "RSTDEV 1")
+fill(vwap, dm1, color.new(dev_color_1, alpha), "RSTDEV 1")
+fill(vwap, um2, color.new(dev_color_2, alpha), "RSTDEV 2")
+fill(vwap, dm2, color.new(dev_color_2, alpha), "RSTDEV 2")
+fill(vwap, um3, color.new(dev_color_3, alpha), "RSTDEV 3")
+fill(vwap, dm3, color.new(dev_color_3, alpha), "RSTDEV 3")
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

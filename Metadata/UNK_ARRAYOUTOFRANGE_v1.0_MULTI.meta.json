@@ -1,0 +1,31 @@
+{
+  "id": "711c406e8fc1e1c6",
+  "arquivo": "ARRAY OUT OF RANGE.mq5",
+  "hash": "711c406e8fc1e1c6",
+  "tipo": "Unknown",
+  "linguagem": "MQL5",
+  "estrategia": "Custom",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 45,
+  "riscos_detectados": [
+    "No Stop Loss detected",
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 65,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

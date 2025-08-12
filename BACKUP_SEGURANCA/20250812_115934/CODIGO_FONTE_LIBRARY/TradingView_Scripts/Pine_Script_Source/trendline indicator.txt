@@ -1,0 +1,129 @@
+
+//@version=5
+
+indicator('Trend Line', overlay=true, max_bars_back=4000)
+
+_period = input.int(defval=24, title='Pivot _period', minval=10, maxval=50)
+PivotPointNumber = input.int(defval=6, title='Number of Pivots to be controlled', minval=2, maxval=6)
+up_trend_color = input.color(defval=color.lime, title='Up Trend Colors', inline='tcol')
+down_trend_color = input.color(defval=color.red, title='Down Trend Colors', inline='tcol')
+
+float pivot_high = ta.pivothigh(_period, _period)
+float pivot_low = ta.pivotlow(_period, _period)
+
+var trend_top_values = array.new_float(PivotPointNumber)  //high pivot point
+var trend_top_position = array.new_int(PivotPointNumber)  //pivot position
+var trend_bottom_values = array.new_float(PivotPointNumber)  //low pivot point
+var trend_bottom_position = array.new_int(PivotPointNumber)  //pivot position
+
+add_to_array(apointer1, apointer2, val) =>
+    array.unshift(apointer1, val)
+    array.unshift(apointer2, bar_index)
+    array.pop(apointer1)
+    array.pop(apointer2)
+
+if pivot_high
+    add_to_array(trend_top_values, trend_top_position, pivot_high)
+
+if pivot_low
+    add_to_array(trend_bottom_values, trend_bottom_position, pivot_low)
+
+// line definitions
+maxline = 3
+var bottom_lines = array.new_line(maxline, na)
+var top_lines = array.new_line(maxline, na)
+//var ticksize = syminfo.mintick
+
+// Pivot point loop to control the existence of a trend line 
+count_line_low = 0
+count_line_high = 0
+starttime = timestamp(0, 0, 0, 0, 0, 0)
+
+// bottom trend line calc
+if time >= starttime
+    for x = 0 to maxline - 1 by 1
+        line.delete(array.get(bottom_lines, x))
+        line.delete(array.get(top_lines, x))
+    for pivot1 = 0 to PivotPointNumber - 2 by 1
+        up_val1 = 0.0
+        up_val2 = 0.0
+        up1 = 0
+        up2 = 0
+
+        if count_line_low <= maxline
+            for pivot2 = PivotPointNumber - 1 to pivot1 + 1 by 1
+                value1 = array.get(trend_bottom_values, pivot1)
+                value2 = array.get(trend_bottom_values, pivot2)
+                position1 = array.get(trend_bottom_position, pivot1)
+                position2 = array.get(trend_bottom_position, pivot2)
+
+                if value1 > value2
+                    different = (value1 - value2) / (position1 - position2)
+                    high_line = value2 + different
+                    low_location = bar_index
+                    low_value = low
+                    valid = true
+
+                    for x = position2 + 1 - _period to bar_index by 1
+                        if close[bar_index - x] < high_line
+                            valid := false
+                            break
+                        low_location := x
+                        low_value := high_line
+                        high_line += different
+                        high_line
+
+                    if valid
+                        up_val1 := high_line - different
+                        up_val2 := value2
+                        up1 := low_location
+                        up2 := position2
+                        break
+
+        d_value1 = 0.0
+        d_value2 = 0.0
+        d_position1 = 0
+        d_position2 = 0
+
+        //top trend line calc
+        if count_line_high <= maxline
+            for pivot2 = PivotPointNumber - 1 to pivot1 + 1 by 1
+                value1 = array.get(trend_top_values, pivot1)
+                value2 = array.get(trend_top_values, pivot2)
+                position1 = array.get(trend_top_position, pivot1)
+                position2 = array.get(trend_top_position, pivot2)
+                if value1 < value2
+                    different = (value2 - value1) / float(position1 - position2)
+                    high_line = value2 - different
+                    low_location = bar_index
+                    low_value = high
+                    valid = true
+                    for x = position2 + 1 - _period to bar_index by 1
+                        if close[bar_index - x] > high_line
+                            valid := false
+                            break
+                        low_location := x
+                        low_value := high_line
+                        high_line -= different
+                        high_line
+
+
+                    if valid
+                        d_value1 := high_line + different
+                        d_value2 := value2
+                        d_position1 := low_location
+                        d_position2 := position2
+                        break
+
+
+        // if there is continues uptrend line then draw it
+        if up1 != 0 and up2 != 0 and count_line_low < maxline
+            count_line_low += 1
+            array.set(bottom_lines, count_line_low - 1, line.new(up2 - _period, up_val2, up1, up_val1, color=up_trend_color))
+
+        // if there is continues downtrend line then draw it
+        if d_position1 != 0 and d_position2 != 1 and count_line_high < maxline
+            count_line_high += 1
+            array.set(top_lines, count_line_high - 1, line.new(d_position2 - _period, d_value2, d_position1, d_value1, color=down_trend_color))
+
+

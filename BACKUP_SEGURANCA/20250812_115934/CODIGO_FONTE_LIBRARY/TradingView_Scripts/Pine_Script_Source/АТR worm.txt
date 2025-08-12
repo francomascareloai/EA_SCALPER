@@ -1,0 +1,180 @@
+
+//@version=5
+indicator("<<*АТR_СуперМуквишиЧервь*>>", overlay = true, precision = 1)
+
+// входные данные                                  
+len = input.int(20, "Длина", 1)
+
+upCnd = input.color(#00ff00, "Цвета Свечей", inline = "1")
+dnCnd = input.color(#ff0000, "",              inline = "1")
+
+colMod = input.string("Легкость", "Цветовой режим", ["Легкость", "Насыщенность"])
+colRev = input.bool(true, "Режим обратного цвета")
+corChk = input.bool(true, "Показать ядро")
+                             
+colorLab(R, G, B, sigma) =>
+
+    // +++++++++++++++++ RGB TO HSL
+    r1 = R / 255, g1 = G / 255, b1 = B / 255
+
+    cMax = math.max(r1, g1, b1)
+    cMin = math.min(r1, g1, b1)
+    dlta = cMax - cMin
+
+    h = 0.0
+    if dlta != 0
+        if cMax == r1
+            h := ((g1 - b1) / dlta) % 6
+        else if cMax == g1
+            h := (b1 - r1) / dlta + 2
+        else if cMax == b1
+            h := (r1 - g1) / dlta + 4
+        
+        h := h < 0 ? (h * 60) + 360 : h * 60
+
+    // легкость
+    l = (cMax + cMin) / 2
+
+    //насыщенность
+    s = dlta != 0 ? dlta / (1 - math.abs(2 * l - 1)) : 0.0
+
+
+    // +++++++++++++++++ Цветовой режим
+    if colMod == "Lightness"
+        l := colRev ? (35.0 / 3.0 * sigma + 115.0 / 3.0) / 100 : (-35 / 3 * sigma + 185.0 / 3.0) / 100 
+    else
+        s := colRev ? (-15 * sigma + 70) / 100 : (15 * sigma + 40) / 100 
+
+
+    // +++++++++++++++++ HSL TO RGB
+    c = (1 - math.abs(2 * l - 1)) * s
+    x = c * (1 - math.abs(h / 60 % 2 - 1))
+    m = l - c / 2
+
+    r2 = 0.0, g2 = 0.0, b2 = 0.0
+    if h >= 0 and h < 60
+        r2 := c, g2 := x, b2 := 0
+    else if h >= 60 and h < 120
+        r2 := x, g2 := c, b2 := 0
+    else if h >= 120 and h < 180
+        r2 := 0, g2 := c, b2 := x
+    else if h >= 180 and h < 240
+        r2 := 0, g2 := x, b2 := c
+    else if h >= 240 and h < 300
+        r2 := x, g2 := 0, b2 := c
+    else if h >= 300 and h < 360
+        r2 := c, g2 := 0, b2 := x
+
+    [(r2 + m) * 255, (g2 + m) * 255, (b2 + m) * 255]
+
+sigma = na(volume) ? 0 : math.round((volume - ta.sma(volume, len)) / ta.stdev(volume, len), 1)
+
+// Цвета Свечей
+[upR, upG, upB] = colorLab(color.r(upCnd), color.g(upCnd), color.b(upCnd), sigma)
+[dnR, dnG, dnB] = colorLab(color.r(dnCnd), color.g(dnCnd), color.b(dnCnd), sigma)
+
+barcolor(open <= close ? color.rgb(upR, upG, upB, 0) : color.rgb(dnR, dnG, dnB, 0))
+
+plot(sigma, "значение сигмы", open <= close ? color.new(upCnd, 100) : color.new(dnCnd, 100), display = display.status_line)
+
+// Основные цвета
+[cUpR, cUpG, cUpB] = colorLab(color.r(upCnd), color.g(upCnd), color.b(upCnd), 0)
+[cDnR, cDnG, cDnB] = colorLab(color.r(dnCnd), color.g(dnCnd), color.b(dnCnd), 0)
+
+plotchar((close + open)/2 , "Ядро", corChk ? "?" : "", location.absolute, 
+     open <= close ? color.rgb(cUpB, cUpG, cUpB, 0) : color.rgb(cDnR, cDnG, cDnB, 0), 
+     size = size.auto, display = display.pane)
+
+// Входные параметры
+var float pips = input(0.5, title="Пипсы")
+var int atrLength = input(14, title="ATR Длина")
+var int multiple = input(2, title="Множитель для monATR2")
+
+// Расчет ATR
+monATR = ta.atr(atrLength)
+monATR2 = ta.atr(atrLength) * multiple
+
+// Расчет уровней
+up1 = low[1] - pips * syminfo.mintick + monATR
+up2 = low - pips * syminfo.mintick + monATR
+up3 = low[1] - pips * syminfo.mintick + monATR2
+up4 = low - pips * syminfo.mintick + monATR2
+
+dn1 = high[1] + pips * syminfo.mintick - monATR
+dn2 = high + pips * syminfo.mintick - monATR
+dn3 = high[1] + pips * syminfo.mintick - monATR2
+dn4 = high + pips * syminfo.mintick - monATR2
+
+// Отображение уровней
+plot(series=up3, color=#f80404, style=plot.style_line, linewidth=2, title="Верхняя линия")
+plot(series=up4, color=#05ff19, style=plot.style_line, linewidth=2, title="Верхняя линия")
+
+plot(series=dn3, color=#f80404, style=plot.style_line, linewidth=2, title="Нижняя линия")
+plot(series=dn4, color=#05ff19, style=plot.style_line, linewidth=2, title="Нижняя линия")
+
+//
+isMode = input.string('Вверх/Вниз/Нейтрально', 'Режим', options=['Вверх/Вниз/Нейтрально', 'Вверх/Вниз'])
+isDisplayMarketDelta = input(true, 'Показать Чистая дельта объема')
+colorDeltaVolUpVal = input.color(#03fc0c, 'Чистая дельта +', inline='Дельта Число Цвет')
+colorDeltaVolDnVal = input.color(#fa0505, 'Чистая дельта -', inline='Дельта Число Цвет')
+colorDeltaVolNtVal = input.color(#787b86, 'Чистая дельта 0', inline='Дельта Число Цвет')
+scaleDownFactor = input.int(1, 'Коэффициент Масштабирования', options=[1, 10, 100, 1000, 10000], tooltip='Отображение значения Чистая дельта масштабированного для лучшей читаемости')
+
+UPDOWNNEUTRAL_MODE = 1
+UPDOWN_MODE = 2
+
+iMode = isMode == 'Вверх/Вниз/Нейтрально' ? UPDOWNNEUTRAL_MODE : UPDOWN_MODE
+
+f_upDnNtVolume(_mode) =>
+    varip float _prevClose = open
+    varip float _prevVolume = 0.
+    varip float _newVolume = 0.
+    varip float _volUp = 0.
+    varip float _volDn = 0.
+    varip float _volNt = 0.
+    varip int _prevPolarity = 0
+
+    if barstate.isnew
+        _volUp := 0.
+        _volDn := 0.
+        _volNt := 0.
+        _prevClose := nz(close[1])
+        _prevVolume := 0.
+        _prevPolarity := nz(_prevPolarity[1])
+
+    _newVolume := volume - _prevVolume
+
+    if close > _prevClose
+        _prevPolarity := 1
+        _volUp += _newVolume
+    else if close < _prevClose
+        _prevPolarity := -1
+        _volDn += _newVolume
+    else
+        if _mode == UPDOWN_MODE
+            if _prevPolarity == 1
+                _volUp += _newVolume
+            else if _prevPolarity == -1
+                _volDn += _newVolume
+            else
+                _volNt += _newVolume
+        else
+            _volNt += _newVolume
+
+    _prevClose := close
+    _prevVolume := volume
+    [_volUp, _volDn, _volNt]
+
+var bool isbarConsidered = false
+[volUp, volDn, volNt] = f_upDnNtVolume(iMode)
+
+isbarConsidered := barstate.isrealtime ? true : isbarConsidered
+
+if isbarConsidered
+    if isDisplayMarketDelta
+        text_color = volUp - volDn > 0 ? colorDeltaVolUpVal : volUp - volDn < 0 ? colorDeltaVolDnVal : colorDeltaVolNtVal
+        label.new(x=bar_index, y=volUp - volDn, yloc=yloc.abovebar, textcolor=color.new(text_color, 0), style=label.style_none, text=str.tostring(int((volUp - volDn) / scaleDownFactor)))
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, 'DM', text_size=size.normal, text_color=#00897b)   

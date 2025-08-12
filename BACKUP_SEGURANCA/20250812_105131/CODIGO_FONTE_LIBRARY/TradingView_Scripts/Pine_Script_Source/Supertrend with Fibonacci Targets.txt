@@ -1,0 +1,329 @@
+﻿//@version=5
+indicator("Supertrend Bands", overlay=true, max_bars_back = 500)
+
+import Electrified/MovingAverages/2 as MA
+import Electrified/SupportResitanceAndTrend/2 as SRT
+
+ATR = "Average True Range", CONFIRM = "Confirmation", DISPLAY = "Display"
+STB = input.bool(true, title = "SuperTrend+ Cleaned Bands", group = ATR)
+atrPeriod = input.int(1440, "Period", group=ATR, tooltip="The number of bars to use in calculating the ATR value.")
+atrM1 = input.float(0.618, "Multiplier", step=0.5, group=ATR, tooltip="The multiplier used when defining the super trend limits.")
+atrM2 = input.float(2.618, "Multiplier", step=0.5, group=ATR, tooltip="The multiplier used when defining the super trend limits.")
+atrM3 = input.float(3.618, "Multiplier", step=0.5, group=ATR, tooltip="The multiplier used when defining the super trend limits.")
+atrM4 = input.float(4.618, "Multiplier", step=0.5, group=ATR, tooltip="The multiplier used when defining the super trend limits.")
+maxDev = input.float(2, "Maximum Deviation", minval=0, group=ATR, tooltip="The maximum true range (volatility) before considered an outlier.")
+devM = input.float(1, "StdDev Multilplier", minval=0, group=ATR, tooltip="The amount of standard deviation added to the true range.")
+
+closeBars = input.int(10, "Closed Bars", minval = 0, group=CONFIRM, tooltip="The number of closed bars that have to exceed the super-trend value before the trend reversal is confirmed.")
+
+//showsignals = input(false, title="Show Buy/Sell Signals ?", group=DISPLAY)
+//highlighting = input(true, "Highlighter On/Off ?", group=DISPLAY)
+
+superTrend(m, p, closeBars) =>
+    [t, u, d, un, w, r] = SRT.superTrendCleaned(m, p, closeBars, devM, maxDev)
+    [t, u, d, un]
+///
+
+[trend1, STCup1, STCdn1, unconfirmed1] = superTrend(atrM1, atrPeriod, closeBars)
+[trend2, STCup2, STCdn2, unconfirmed2] = superTrend(atrM2, atrPeriod, closeBars)
+[trend3, STCup3, STCdn3, unconfirmed3] = superTrend(atrM3, atrPeriod, closeBars)
+[trend4, STCup4, STCdn4, unconfirmed4] = superTrend(atrM4, atrPeriod, closeBars)
+
+//inputs
+tf = input.string('Current', '🕒 Indicator Timeframe', options=['Current', '5min', '15min', '30min', '1H', '2H', '3H', '4H', '12H', '1D', '2D', '3D', '4D', '1W', '2W', '1M', '2M', '3M'], tooltip='This is designed for looking at higher timeframes. Choosing lower timeframes may give inaccurate results')
+
+tfmenu = tf == 'Current' ? '' : tf == '5min' ? '5' : tf == '15min' ? '15' : tf == '30min' ? '30' : tf == '1H' ? '60' : tf == '2H' ? '120' : tf == '3H' ? '180' : tf == '4H' ? '240' : tf == '12H' ? '720' : tf == '1D' ? 'D' : tf == '2D' ? '2D' : tf == '3D' ? '3D' : tf == '4D' ? '4D' : tf == '1W' ? 'W' : tf == '2W' ? '2W' : tf == '1M' ? 'M' : tf == '2M' ? '2M' : tf == '3M' ? '3M' : na
+fills = true //input.bool(true, 'Fills? | ', inline='opts')
+anti = true //input.bool(true, 'Remove Anti-trend? | ', inline='opts')
+lwidth = '3' //input.string('1', 'Linewidth', options=['1', '2', '3', '4'], inline='opts')
+
+var stwidth = lwidth == '1' ? 1 : lwidth == '2' ? 2 : lwidth == '3' ? 3 : lwidth == '4' ? 4 : na
+
+b1 = STB //input.bool(true, 'Band 1 | ', inline='b1', group='Lengths and Multipliers 🔨')
+len1 = 1440 //input.int(10, 'Length', inline='b1', group='Lengths and Multipliers 🔨')
+mult1 = 1.0 //input.float(1, 'Mult', inline='b1', group='Lengths and Multipliers 🔨')
+
+b2 = STB //input.bool(true, 'Band 2 | ', inline='b2', group='Lengths and Multipliers 🔨')
+len2 = 1440 //input.int(11, 'Length', inline='b2', group='Lengths and Multipliers 🔨')
+mult2 = 2 //input.float(1.25, 'Mult', inline='b2', group='Lengths and Multipliers 🔨')
+
+b3 = STB //input.bool(true, 'Band 3 | ', inline='b3', group='Lengths and Multipliers 🔨')
+len3 = 1440 //input.int(12, 'Length', inline='b3', group='Lengths and Multipliers 🔨')
+mult3 = 3 //input.float(1.5, 'Mult', inline='b3', group='Lengths and Multipliers 🔨')
+
+b4 = STB //input.bool(true, 'Band 4 | ', inline='b4', group='Lengths and Multipliers 🔨')
+len4 = 1440 //input.int(13, 'Length', inline='b4', group='Lengths and Multipliers 🔨')
+mult4 = 4 //input.float(1.75, 'Mult', inline='b4', group='Lengths and Multipliers 🔨')
+
+// colors b1
+dcol1 = input.color(color.new(#e20404, 0), 'Band 1 Color', inline='c1', group='Colors and Fills 🎨')
+ucol1 = input.color(color.new(#00cc9c, 0), '', inline='c1', group='Colors and Fills 🎨')
+
+dfill1 = input.color(color.new(#e20404, 90), ' | Fills', inline='c1', group='Colors and Fills 🎨')
+ufill1 = input.color(color.new(#00cc9c, 90), '', inline='c1', group='Colors and Fills 🎨')
+
+//colors b2
+dcol2 = input.color(color.new(#fb3131, 0), 'Band 2 Color', inline='c2', group='Colors and Fills 🎨')
+ucol2 = input.color(color.new(#00e3ff, 0), '', inline='c2', group='Colors and Fills 🎨')
+
+dfill2 = input.color(color.new(#fb3131, 90), ' | Fills', inline='c2', group='Colors and Fills 🎨')
+ufill2 = input.color(color.new(#00e3ff, 90), '', inline='c2', group='Colors and Fills 🎨')
+
+//colors b3
+dcol3 = input.color(color.new(#f5459e, 0), 'Band 3 Color', inline='c3', group='Colors and Fills 🎨')
+ucol3 = input.color(color.new(#008dff, 0), '', inline='c3', group='Colors and Fills 🎨')
+
+dfill3 = input.color(color.new(#f5459e, 90), ' | Fills', inline='c3', group='Colors and Fills 🎨')
+ufill3 = input.color(color.new(#008dff, 90), '', inline='c3', group='Colors and Fills 🎨')
+
+//colors b4
+dcol4 = input.color(color.new(#e02dff, 0), 'Band 4 Color', inline='c4', group='Colors and Fills 🎨')
+ucol4 = input.color(color.new(#5000ff, 0), '', inline='c4', group='Colors and Fills 🎨')
+
+colorUp = input.color(#00ffbb, title="Up Color")
+colorDown = input.color(#ff1100, title="Down Color")
+
+dfill4 = input.color(color.new(#e02dff, 90), ' | Fills', inline='c4', group='Colors and Fills 🎨')
+ufill4 = input.color(color.new(#5000ff, 90), '', inline='c4', group='Colors and Fills 🎨')
+
+i_bc = input.bool(false, 'Bar Colors?', inline='bc', group='Bar Colors 📊')
+i_bt = input.int(30, '| Transparency', inline='bc', group='Bar Colors 📊')
+
+//[st1, dir11] = request.security(syminfo.tickerid, tfmenu, STCup1, barmerge.gaps_off, barmerge.lookahead_on)
+res11 = trend1 == 1 and trend1 == trend1[1]
+sup1 = trend1 == -1 and trend1 == trend1[1]
+
+//[st2, dir2] = request.security(syminfo.tickerid, tfmenu, STCup2, barmerge.gaps_off, barmerge.lookahead_on)
+res12 = trend2 == 1 and trend2 == trend2[1]
+sup2 = trend2 == -1 and trend2 == trend2[1]
+
+//[st3, dir3] = request.security(syminfo.tickerid, tfmenu, STCup3, barmerge.gaps_off, barmerge.lookahead_on)
+res13 = trend3 == 1 and trend3 == trend3[1]
+sup3 = trend3 == -1 and trend3 == trend3[1]
+
+//[st4, dir4] = request.security(syminfo.tickerid, tfmenu, STCup4, barmerge.gaps_off, barmerge.lookahead_on)
+res14 = trend4 == 1 and trend4 == trend4[1]
+sup4 = trend4 == -1 and trend4 == trend4[1]
+
+cond1 = anti ? close < STCdn4 : res11 and b1
+cond2 = anti ? close > STCup4 : sup1 and b1
+
+cond3 = anti ? close < STCdn4 : res12 and b1
+cond4 = anti ? close > STCup4 : sup2 and b1
+
+cond5 = anti ? close < STCdn4 : res13 and b1
+cond6 = anti ? close > STCup4 : sup3 and b1
+
+hl = plot(ohlc4, display=display.none, editable=false)
+
+b1p1 = plot(STB and res11 and b1 and cond2 ? STCup1 : na, color=unconfirmed1==0?ucol1:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(hl, b1p1, color=fills ? ufill1 : na, editable=false, transp=90)
+fill(b1p1, hl, close, STCup1, color.new(chart.bg_color, 5000), color.lime)
+
+b1p2 = plot(STB and sup1 and b1 and cond1 ? STCdn1 : na, color=unconfirmed1==0?dcol1:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(hl, b1p2, color=fills ? dfill1 : na, editable=false, transp=90)
+fill(b1p2, hl, close, STCdn1, color.new(chart.bg_color, 5000), #fe0100)
+
+//
+b2p1 = plot(STB and res12 and b2 and cond4 ? STCup2 : na, color=unconfirmed2==0?ucol2:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(b1p1, b2p1, color=fills ? ufill2 : na, editable=false, transp=90)
+//fill(b1p1, b2p1, close, STCup1, color.new(chart.bg_color, 1000), color.lime)
+
+b2p2 = plot(STB and sup2 and b2 and cond3 ? STCdn2 : na, color=unconfirmed2==0?dcol2:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(b1p2, b2p2, color=fills ? dfill2 : na, editable=false, transp=90)
+//fill(b1p2, b2p2, close, STCdn1, color.new(chart.bg_color, 1000), #fe0100)
+
+//
+//b3p1 = plot(STB and res13 and b3 and cond6 ? STCup3 : na, color=unconfirmed3==0?ucol3:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(b1p1, b3p1, color=fills ? ufill3 : na, editable=false, transp=90)
+
+//b3p2 = plot(STB and sup3 and b3 and cond5 ? STCdn3 : na, color=unconfirmed3==0?dcol3:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(b1p2, b3p2, color=fills ? dfill3 : na, editable=false, transp=90)
+
+//
+//b4p1 = plot(STB and res14 and b4 ? STCup4 : na, color=unconfirmed4==0?ucol4:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(b3p1, b4p1, color=fills ? ufill4 : na, editable=false, transp=90)
+//fill(b4p1, hl, close, STCup4, color.new(chart.bg_color, 1000), trend4 == -1 ? #fe0100 : trend4 == 1 ? color.lime : na)
+
+//b4p2 = plot(STB and sup4 and b4 ? STCdn4 : na, color=unconfirmed4==0?dcol4:color.yellow, linewidth=stwidth, style=plot.style_linebr, editable=false)
+//fill(b3p2, b4p2, color=fills ? dfill4 : na, editable=false, transp=90)
+//fill(b4p2, hl, close, STCdn4, color.new(chart.bg_color, 1000), trend4 == -1 ? #fe0100 : trend4 == 1 ? color.lime : na)
+
+// barcolor
+c1 = input.color(#ff0000, '🔴 Bear Colors', inline='bear')
+c2 = input.color(#ed5300, '', inline='bear')
+c3 = input.color(#fb9c2d, '', inline='bear')
+c4 = input.color(#ffec44, '', inline='bear')
+
+c5 = input.color(#00e983, '🟢 Bull Colors', inline='bull')
+c6 = input.color(#00eed8, '', inline='bull')
+c7 = input.color(#008dff, '', inline='bull')
+c8 = input.color(#5000ff, '', inline='bull')
+
+cc = trend1 == 1 and trend2 == -1 ? color.new(color.lime, 50) : trend1 == -1 and trend2 == 1 ? color.new(color.red, 50) : trend2 == 1 or trend1 == 1? c5 : trend2 == -1 or trend1 == -1 ? c1 : na
+barcolor(cc)
+barcolor(color=close > STCup1 or close < STCdn1 ?color.fuchsia : na)
+//bc1 = close < st1 and close < st4 ? color.new(c1, i_bt) : close > st1 and close <st2 and close <st4 ? color.new(c2, i_bt) : close > st1 and  close > st2 and close < st3 and close < st4 ? color.new(c3, i_bt) : close < st4 and close > st3 ? color.new(c4, i_bt) : na
+//bc2 = close > st4 and close > st1 ? color.new(c5, i_bt) : close > st4 and close > st2 and close < st1 ? color.new(c6, i_bt) : close > st4 and close > st3 and close < st2 ? color.new(c7, i_bt) : close >st4 and close <st3 ? color.new(c8, i_bt) : bc1
+//barcolor(i_bc ? bc2 : na)
+is_crossup = trend1 == 1 and trend1[1] == -1
+is_crossdn = trend1 == -1 and trend1[1] == 1
+//plotshape(is_cross ? STCup1 : na, "Circle", shape.circle, location.absolute, color.lime)
+//plotshape(is_cross ? STCdn1 : na, "Circle", shape.circle, location.absolute, color.red)
+
+plotchar(is_crossup and STB ? STCup1 : na , char='•',location=location.absolute,color=#00e676,size=size.small)
+plotchar(is_crossdn and STB ? STCdn1 : na , char='•',location=location.absolute,color=#ff5252,size=size.small)
+
+plotchar(is_crossup and STB ? STCup1 : na , char='○',location=location.absolute,color=#00e676,size=size.small)
+plotchar(is_crossdn and STB ? STCdn1 : na , char='○',location=location.absolute,color=#ff5252,size=size.small)
+
+//indicator(title="[JL] Supertrend Zone Pivot Point with zigzag fib", overlay=true,max_labels_count=500,max_bars_back = 4900)
+show_zigzag = input(true, "Show zigzag", group="Show")
+show_fib = input(true, "Show fibonacci", group="Show")
+
+colorGroupTitle = "Text Color / Label Color"
+
+textColorH = input(title="Pivot High", defval=color.white, inline="Pivot High", group=colorGroupTitle)
+labelColorH = input(title="", defval=color.red, inline="Pivot High", group=colorGroupTitle)
+
+textColorL = input(title="Pivot Low", defval=color.white, inline="Pivot Low", group=colorGroupTitle)
+labelColorL = input(title="", defval=color.green, inline="Pivot Low", group=colorGroupTitle)
+
+turnGreen = ta.change(trend2) > 0
+turnRed   = ta.change(trend2) < 0
+
+barsturngreen = bar_index - ta.valuewhen(turnGreen, bar_index, 0)
+barsturnred = bar_index - ta.valuewhen(turnRed, bar_index, 0)
+
+barsg = barsturngreen>0 ? barsturngreen : 1
+h1 = ta.highest(high,barsg)
+//plot(h1)
+barsr = barsturnred>0 ? barsturnred : 1
+l2 = ta.lowest(low,barsr) 
+//plot(l2)
+
+barsh = bar_index - ta.valuewhen(ta.change(h1),bar_index,0)
+barsl = bar_index - ta.valuewhen(ta.change(l2),bar_index,0)
+barsh2 = bar_index - ta.valuewhen(ta.change(h1),bar_index,1)
+barsl2 = bar_index - ta.valuewhen(ta.change(l2),bar_index,1)  
+h1Index = 0
+l2Index = 0
+var label h1label = na
+var label l2label = na
+drawLabel(_offset, _pivot, _style, _color, _textColor) =>
+    if not na(_pivot)
+        label.new(bar_index-_offset, _pivot, str.tostring(_pivot, format.mintick), style=_style, color=_color, textcolor=_textColor)
+if turnRed    
+    h1label:=drawLabel(barsh, h1, label.style_label_down, labelColorH, textColorH)
+    if show_zigzag
+        line.new(bar_index - barsh, h1, bar_index-barsl2, l2[1], width = 3, color=color.lime)
+
+if turnGreen
+    l2label:=drawLabel(barsl, l2, label.style_label_up, labelColorL, textColorL)
+    if show_zigzag
+        line.new(bar_index - barsh2, h1[1], bar_index-barsl, l2, width = 3,color = color.fuchsia)
+
+hh = ta.valuewhen(turnRed, h1, 0)
+ll = ta.valuewhen(turnGreen, l2, 0)
+
+mid_val = (hh + ll) / 2
+
+// Plot lines for highest high and lowest low
+var line hhLine = na
+var line llLine = na
+var line midline = na
+var label fibLabelh = na
+var label fibLabell = na
+var label fibLabelm = na
+var label fibLabel1 = na
+var label fibLabel2 = na
+var label fibLabel3 = na
+var label fibLabel4 = na
+var label fibLabel5 = na
+var label fibLabel6 = na
+var line fibLine1 = na
+var line fibLine2 = na
+var line fibLine3 = na
+var line fibLine4 = na
+var line fibLine5 = na
+var line fibLine6 = na
+if barstate.islast and show_fib
+    while high[h1Index] != h1[1]
+        h1Index := h1Index + 1
+
+    while low[l2Index] != l2[1] 
+        l2Index := l2Index + 1
+
+    n = math.max(h1Index,l2Index)
+    if not na(hhLine)
+        line.delete(hhLine)
+    if not na(llLine)
+        line.delete(llLine)
+    if not na(midline)
+        line.delete(midline)
+    if not na(fibLabelh)
+        label.delete(fibLabelh)
+    if not na(fibLabell)
+        label.delete(fibLabell)
+    
+    if not na(fibLabelm)
+        label.delete(fibLabelm)
+    if not na(fibLabel1)
+        label.delete(fibLabel1) 
+    if not na(fibLabel2)
+        label.delete(fibLabel2)
+    if not na(fibLabel3)
+        label.delete(fibLabel3)
+
+    if not na(fibLabel4)
+        label.delete(fibLabel4)
+    if not na(fibLabel5)
+        label.delete(fibLabel5)
+
+    if not na(fibLabel6)
+        label.delete(fibLabel6)
+    if not na(fibLine1)
+        line.delete(fibLine1)
+    if not na(fibLine2)
+        line.delete(fibLine2)
+    if not na(fibLine3)
+        line.delete(fibLine3)
+    if not na(fibLine4)
+        line.delete(fibLine4)
+    if not na(fibLine5)
+        line.delete(fibLine5)
+    if not na(fibLine6)
+        line.delete(fibLine6)
+    hhLine := line.new(x1=bar_index-n+1, y1=hh, x2=bar_index, y2=hh, color=color.purple, width=1)
+    fibLabelh := label.new(x=bar_index + 10, y=hh , text="1 - ("+str.tostring(hh,"#.##" )+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+
+    llLine := line.new(x1=bar_index-n+1, y1=ll, x2=bar_index, y2=ll, color=color.purple, width=1)
+    fibLabell := label.new(x=bar_index + 10, y=ll , text="0 - ("+str.tostring(ll,"#.##" )+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+
+    midline := line.new(bar_index-n+1, mid_val, bar_index, mid_val, color=color.purple, width=1)
+    fibLabelm := label.new(x=bar_index + 10, y=mid_val , text="0.5 - ("+str.tostring(mid_val,"#.##" )+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+
+    fibLabel1 := label.new(x=bar_index + 10, y=ll + 0.236*(hh-ll), text="0.236 - ("+str.tostring(ll + 0.236*(hh-ll),"#.##")+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+    
+    fibLine1 := line.new(x1 = bar_index-n+1,y1 = ll + 0.236*(hh-ll),x2 = bar_index,y2 = ll + 0.236*(hh-ll),color = color.purple,width = 1)
+
+//    fibLabel2 := label.new(x=bar_index + 10, y=ll + 0.382*(hh-ll), text="0.382("+str.tostring(ll + 0.382*(hh-ll),"#")+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+    
+//    fibLine2 := line.new(x1 = bar_index-n+1,y1 = ll + 0.382*(hh-ll),x2 = bar_index,y2 = ll + 0.382*(hh-ll),color = color.purple,width = 1)
+
+//    fibLabel3 := label.new(x=bar_index + 10, y=ll + 0.618*(hh-ll), text="0.618("+str.tostring(ll + 0.618*(hh-ll),"#")+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+    
+//    fibLine3 := line.new(x1 = bar_index-n+1,y1 = ll + 0.618*(hh-ll),x2 = bar_index,y2 = ll + 0.618*(hh-ll),color = color.purple,width = 1)
+
+    fibLabel4 := label.new(x=bar_index + 10, y=ll + 0.786*(hh-ll), text="0.786 - ("+str.tostring(ll + 0.786*(hh-ll),"#.##")+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+    
+    fibLine4 := line.new(x1 = bar_index-n+1,y1 = ll + 0.786*(hh-ll),x2 = bar_index,y2 = ll + 0.786*(hh-ll),color = color.purple,width = 1)
+
+    if close>STCup2
+        fibLabel5 := label.new(x=bar_index + 10, y=ll + 1.618*(hh-ll), text="1.618 - ("+str.tostring(ll + 1.618*(hh-ll),"#.##")+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+        
+        fibLine5 := line.new(x1 = bar_index-n+1,y1 = ll + 1.618*(hh-ll),x2 = bar_index,y2 = ll + 1.618*(hh-ll),color = color.purple,width = 1)
+    if close<STCdn2
+        fibLabel6 := label.new(x=bar_index + 10, y=ll - 0.618*(hh-ll), text="-1.618 - ("+str.tostring(ll - 0.618*(hh-ll),"#.##")+")", style = label.style_none,xloc=xloc.bar_index, yloc=yloc.price, color=color.white, textcolor=color.gray)
+        
+        fibLine6 := line.new(x1 = bar_index-n+1,y1 = ll - 0.618*(hh-ll),x2 = bar_index,y2 = ll - 0.618*(hh-ll),color = color.purple,width = 1)

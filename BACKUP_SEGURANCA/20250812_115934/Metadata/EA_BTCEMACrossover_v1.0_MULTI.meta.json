@@ -1,0 +1,49 @@
+{
+  "arquivo": "BTC_EMA_Crossover_TSL_EA.mq5",
+  "nome_padronizado": "EA_BTCEMACrossover_v1.0_MULTI",
+  "tipo": "EA",
+  "categoria": "Trend",
+  "estrategia": "EMA_Crossover",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "descricao": "EA EMA Crossover v1.0 gerado por ChatGPT. Sistema de cruzamento de EMAs rápida (5) e lenta (8) com trailing stop de 10 pips. Inclui opções para SL e TP configuráveis.",
+  "funcoes_principais": [
+    "OnInit() - Inicialização dos handles das EMAs",
+    "OnTick() - Detecção de cruzamentos e abertura de ordens",
+    "OpenOrder() - Função para abertura de posições",
+    "Trailing Stop Logic - Sistema de trailing stop"
+  ],
+  "parametros_expostos": [
+    "FastEMAPeriod (int): Período da EMA rápida - padrão 5",
+    "SlowEMAPeriod (int): Período da EMA lenta - padrão 8",
+    "TrailingStopPips (double): Trailing stop em pips - padrão 10",
+    "StopLossPips (double): Stop loss em pips - padrão 0 (desabilitado)",
+    "TakeProfitPips (double): Take profit em pips - padrão 0 (desabilitado)"
+  ],
+  "ftmo_score": 6,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Sem daily loss limit implementado",
+    "Sem controle de maximum drawdown",
+    "Sem filtro de sessão de trading",
+    "Sem gestão de risco por trade",
+    "Trailing stop pode ser muito agressivo",
+    "Sem controle de spread",
+    "Magic number fixo pode causar conflitos"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Implementar daily loss limit de 5%",
+    "Adicionar maximum drawdown de 10%",
+    "Implementar filtro de sessão (evitar news)",
+    "Adicionar gestão de risco por trade (1-2%)",
+    "Implementar controle de spread máximo",
+    "Adicionar filtro de volatilidade",
+    "Tornar magic number configurável",
+    "Implementar break-even após X pips"
+  ],
+  "tags": ["#EA", "#EMA_Crossover", "#Trend", "#Trailing_Stop", "#ChatGPT", "#BTC", "#MULTI", "#Nao_FTMO"],
+  "caminho_origem": "All_MQ5/BTC_EMA_Crossover_TSL_EA.mq5",
+  "caminho_final": "EAs/Trend/EA_BTCEMACrossover_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "EA funcional com lógica básica de cruzamento de EMAs. Precisa de melhorias significativas em gestão de risco para conformidade FTMO. Código limpo e bem estruturado."
+}

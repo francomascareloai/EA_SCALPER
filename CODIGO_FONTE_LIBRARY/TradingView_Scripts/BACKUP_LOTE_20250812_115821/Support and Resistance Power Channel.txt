@@ -1,0 +1,139 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ChartPrime
+
+//@version=5
+indicator("Support and Resistance Power Channel [ChartPrime]", "S&R Power [ChartPrime]", overlay = true, max_labels_count = 12, max_bars_back = 500)
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙐𝙎𝙀𝙍 𝙄𝙉𝙋𝙐𝙏𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+
+int length = input.int(130)
+int extend = input.int(30, minval = 20, maxval = 100)
+
+color t_col = input.color(color.fuchsia, "Top", inline = "col")
+color b_col = input.color(color.lime, "Bottom", inline = "col")
+
+type data
+    line sup      = na
+    line res      = na
+    box  sup_area = na 
+    box  res_area = na 
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙄𝙉𝘿𝙄𝘾𝘼𝙏𝙊𝙍 𝘾𝘼𝙇𝘾𝙐𝙇𝘼𝙏𝙄𝙊𝙉𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+
+max_min(length, d)=>
+    var max = array.new<float>(length) 
+    var min = array.new<float>(length) 
+
+    if barstate.islast
+        for i = 0 to length - 1
+            max.set(i,high[i])
+            min.set(i,low[i]) 
+
+        if max.size() > length*2
+            max.shift()
+            min.shift()
+
+        float max_ = max.max()
+        float min_ = min.min()
+        float mid_ = math.avg(max_, min_)
+
+        label.delete(
+         label.new(bar_index+extend+15, max_, str.tostring(max_, "🡅 #.##"), color = color(na), style = label.style_label_center, textcolor = chart.fg_color)[1]
+         )
+        label.delete(        
+         label.new(bar_index+extend+15, min_, str.tostring(min_, "🡇 #.##"), color = color(na), style = label.style_label_center, textcolor = chart.fg_color)[1]
+         )
+        label.delete(        
+         label.new(bar_index+extend, mid_, str.tostring(mid_, "🡆 #.##"), color = color(na), style = label.style_label_left, textcolor = color.gray)[1]
+         )
+        line.delete(
+         line.new(bar_index-length, mid_, bar_index+extend, mid_, color = color.gray, style = line.style_dotted)[1]
+         )
+
+        index_of_max = max.indexof(max_)
+        index_of_min = min.indexof(min_)
+
+        label.delete( 
+         label.new(bar_index[index_of_max], max_, "✖", color = color(na), textcolor = t_col, size = size.normal, style = label.style_label_center)[1]
+         )
+        label.delete( 
+         label.new(bar_index[index_of_min], min_, "✖", color = color(na), textcolor = b_col, size = size.normal, style = label.style_label_center)[1]
+         )
+    [max.max(), min.min()]
+
+
+delte_(data d)=>
+    line.delete(d.sup[1])
+    line.delete(d.res[1])
+    box.delete(d.sup_area[1])
+    box.delete(d.res_area[1])
+
+power(d)=>
+    int buy  = 0
+    int sell = 0
+
+    if barstate.islast
+        for i = 0 to length - 1
+            buy += (close[i] > open[i] ? 1 : 0)
+            sell += (close[i] < open[i] ? 1 : 0)
+
+    d.sup_area.set_text(str.tostring(buy, "            Buy Power: #"))
+    d.res_area.set_text(str.tostring(sell, "            Sell Power: #"))
+
+    d.res_area.set_text_color(chart.fg_color)
+    d.sup_area.set_text_color(chart.fg_color)
+    d.res_area.set_text_halign(text.align_left)
+    d.sup_area.set_text_halign(text.align_left)
+    d.res_area.set_text_size(size.normal)
+    d.sup_area.set_text_size(size.normal)
+
+
+signals(d)=>
+    if barstate.islast
+        for i = 0 to length -1
+
+            low_1 = low[i]
+            low_2 = low[i>0 ? i+1 : i]
+
+            high_1 = high[i]
+            high_2 = high[i>0 ? i+1 : i]
+                    
+            index = bar_index-i
+            top = d.sup_area.get_top()
+            bot = d.res_area.get_bottom()
+
+            if low_1 > top and low_2 <= top
+                label.new(index, low_2, "◈", textcolor = b_col, color = color(na), style = label.style_label_up, size = size.large)
+
+            if high_1 < bot and high_2 >= bot
+                label.new(index, high_2, "◈", textcolor = t_col, color = color(na), style = label.style_label_down, size = size.large)
+
+run_indicator()=>
+    float  atr = ta.atr(200)*0.5
+    var data d = data.new(line(na), line(na), box(na), box(na))
+
+    [max, min] = max_min(length, d)
+    if barstate.islast
+        d.sup := line.new(bar_index-length, max+atr, bar_index+extend+30, max+atr, color = t_col, style = line.style_solid)
+        d.res := line.new(bar_index-length, min-atr, bar_index+extend+30, min-atr, color = b_col, style = line.style_solid)
+
+        d.res_area := box.new(bar_index-length, max+atr, bar_index+extend, max-atr, na, bgcolor = color.new(t_col, 80))
+        d.sup_area := box.new(bar_index-length, min+atr, bar_index+extend, min-atr, na, bgcolor = color.new(b_col, 80))
+
+    delte_(d)
+    signals(d)
+    power(d)
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 𝙑𝙄𝙎𝙐𝘼𝙇𝙄𝙕𝘼𝙏𝙄𝙊𝙉
+// --------------------------------------------------------------------------------------------------------------------{
+
+run_indicator()
+
+// --------------------------------------------------------------------------------------------------------------------}
+

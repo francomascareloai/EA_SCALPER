@@ -1,0 +1,356 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Deewithme
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © MabIggo
+
+//@version=5
+strategy("Tp_SL Template [Mab_iggo] V0.0.0", shorttitle = "Tp_SL Temp [Mab_iggo] V0.0.0", overlay=true, max_lines_count = 500, max_labels_count = 500, max_bars_back=5000)
+
+// ---------------------------------------------------------------------------------------------------------------------
+// CLASSES and METHODS
+// ---------------------------------------------------------------------------------------------------------------------
+// Define custom types for various parameters and signals
+type TpSlParams
+    string  limitMethod
+    float   atrValue
+    float   rcmValue
+    float   multiple
+    float   ratioW
+    float   ratioL
+
+type BuySellSignal
+    bool    isAct
+    bool    isBuySignal
+    bool    isSellSignal
+
+type SignalPrices
+    float   EP
+    float   SL
+    float   TP
+    float   TP1
+
+type SignalLevels
+    line    lineLevel
+    label   labelLevel
+
+type Alerts
+    bool    Long = false
+    bool    Short = false
+
+// Define methods for signal qualification and level management
+method qualify(BuySellSignal this, bool cond)   =>
+    this.isAct              := true
+    this.isBuySignal        := cond
+    this.isSellSignal       := not cond
+
+method libLevel(SignalLevels this, float price, string TxT, color col, int width) =>
+    this.lineLevel          := line.new(bar_index, price, bar_index + 1, price, color = col, width = width)
+    this.labelLevel         := label.new(bar_index + 1, price, TxT + str.tostring(price, format.mintick), color = col, style = label.style_label_left, size = size.small)
+
+method deleteItem(SignalLevels this)            =>
+    label.delete(this.labelLevel)
+
+method extendLevel(SignalLevels this)           =>
+    if not na(this)
+        line.set_x2(this.lineLevel, bar_index  + 2)
+        label.set_x(this.labelLevel, bar_index + 2)
+
+method resetLevels(SignalLevels this)           =>
+    this.lineLevel := na
+
+// ---------------------------------------------------------------------------------------------------------------------
+// FUNCTIONS
+// ---------------------------------------------------------------------------------------------------------------------
+// -------------------------------
+// // Take Profit/ Stop Loss
+// -------------------------------
+// Function to label buy/sell signals
+labelBuySell(string signalText, color col, bool pos)    =>
+    label.new(
+         bar_index, close, signalText,
+         yloc = pos ? yloc.belowbar : yloc.abovebar,
+         style = pos ? label.style_label_up : label.style_label_down,
+         color = color.new(col, 50), textcolor = chart.fg_color
+         )
+
+// Function to reset stop loss and take profit levels
+hit_sl_tp_reset(EP, SL, TP, TP1)                        =>
+    EP.deleteItem()
+    SL.deleteItem()
+    TP.deleteItem()
+    TP1.deleteItem()
+    EP.lineLevel                    := na
+    SL.lineLevel                    := na
+    TP.lineLevel                    := na
+    TP1.lineLevel                   := na
+
+// Function to label stop loss and take profit hits
+sl_tp_label(bool isLong, bool isTP)                     =>
+    string hitText                  = isTP ? "✪" : "☒"
+    label.new(
+         bar_index, close,
+         text       = hitText,
+         yloc       = isLong == isTP ? yloc.abovebar : yloc.belowbar,
+         style      = label.style_label_center,
+         color      = #00000003,
+         size       = size.large,
+         textcolor  = isTP ? color.lime : color.red
+         )
+
+// Function to calculate limit for stop loss and take profit
+f_calc_limit(TpSlParams params, bool direction, bool isTP) =>
+    ratioA          = isTP ? params.ratioW / params.ratioL  : params.ratioL
+    ratioP          = isTP ? params.ratioW / 100            : params.ratioL / 100
+
+    limit = switch params.limitMethod
+        "ATR" =>
+            direction ? close - ((params.atrValue * params.multiple) * ratioA)
+                      : close + ((params.atrValue * params.multiple) * ratioA)
+        "RCM" =>
+            direction ? close - ((params.rcmValue * params.multiple) * ratioA)
+                      : close + ((params.rcmValue * params.multiple) * ratioA)
+        "Percentage" =>
+            direction ? close * (1 - ratioP)
+                      : close * (1 + ratioP)
+
+// Function to calculate percentage change
+pct_Calc(float newValue, float oldValue) =>
+    ((newValue - oldValue) / oldValue) * 100
+
+// ---------------------------------------------------------------------------------------------------------------------
+// USER INPUTS
+// ---------------------------------------------------------------------------------------------------------------------
+// User inputs for signal methods, filters, and settings
+bool    signalSetting       = input.bool    (false,         "Signal Settings")
+string  signalMethod        = input.string  ("M-01",        "", inline = "0",       options = ["M-01", "M-02", "M-03", "M-04", "M-05"], tooltip = "01 - Signal Methods\n02 - Signal Filter")
+string  signalFilter        = input.string  ("St-01",       "", inline = "0",       options = ["St-01", "St-02", "St-03", "St-04", "St-05", "St-06", "St-07", "None"])
+
+string  limitCalculation    = "TP/SL Settings"
+string  limitMethod         = input.string  ("RCM",         "", inline = "6",       options = ["RCM", "ATR", "Percentage", "Volatility"], group = limitCalculation)
+float   RcmAtrM             = input.float   (2.00,          "", inline = "6",       minval = 1, maxval = 20, step = 0.1, group = limitCalculation,  tooltip = "01 - TP/SL Base\n02 - Multiple")
+float   ratioL              = input.float   (1.00,          "", inline = "7",       minval = 0, group = limitCalculation)
+float   ratioW              = input.float   (2.00,          "", inline = "7",       minval = 0, group = limitCalculation,                           tooltip = "01 - SL Ratio\n02 - TP Ratio")
+
+color   L_Color             = #00ffaa
+color   S_Color             = #ff0000
+// ---------------------------------------------------------------------------------------------------------------------
+// VARIABLES
+// ---------------------------------------------------------------------------------------------------------------------
+// Initialize variables for strategy and alerts
+var bool    strategyLong    = false
+var bool    strategyShort   = false
+var int     lastSignalState = 0
+var Alerts  Alert           = Alerts.new()
+
+lastSignalState             := nz(lastSignalState[1])
+
+// Initialize variables for stop loss and take profit
+var string  lastSignal      = 'None'
+var string  buySignalText   = "▲"
+var string  sellSignalText  = "▼"
+
+var         signal          = BuySellSignal.new(false, false, false)
+var         prices          = SignalPrices.new(0, 0, 0, 0)
+
+var SignalLevels    EP      = SignalLevels.new(na, na)
+var SignalLevels    SL      = SignalLevels.new(na, na)
+var SignalLevels    TP      = SignalLevels.new(na, na)
+var SignalLevels    TP1     = SignalLevels.new(na, na)
+
+// ---------------------------------------------------------------------------------------------------------------------
+// INDICATOR CALCULATION
+// ---------------------------------------------------------------------------------------------------------------------
+// Calculate ATR and RCM values
+rcmValue                    = ta.cum(high - low) / (bar_index + 1)
+atrValue                    = ta.atr(207)
+
+fastEma                     = ta.ema(close, 9)
+slowEma                     = ta.ema(close, 21)
+
+rsi_val                     = ta.rsi(close, 14)
+
+var int rsi_bias = na
+if ta.crossover(rsi_val, 60)
+    rsi_bias := 1
+if ta.crossunder(rsi_val, 40)
+    rsi_bias := -1
+
+// ---------------------------------------------------------------------------------------------------------------------
+// SIGNALS CALCULATION
+// ---------------------------------------------------------------------------------------------------------------------
+
+emaL                            = ta.crossover(fastEma, slowEma)
+emaS                            = ta.crossunder(fastEma, slowEma)
+
+rsiL                            = ta.crossover(rsi_val, 60)
+rsiS                            = ta.crossunder(rsi_val, 40)
+
+// Function to determine signal method
+f_SignalMethod(signalMethod)            =>
+    switch signalMethod
+        "M-01"                  => [emaL, emaS] 
+        "M-02"                  => [rsiL, rsiS]
+        "M-03"                  => [na, na]
+        "M-04"                  => [na, na]
+        "M-05"                  => [na, na]
+        => [na, na]
+
+// Function to apply signal filter
+f_signalFilter(signalFilter)    =>
+    switch signalFilter
+        "St-01"                 => [fastEma > slowEma   , fastEma < slowEma]
+        "St-02"                 => [rsi_bias ==  1      , rsi_bias == -1] 
+        "St-03"                 => [true, true]
+        "St-04"                 => [true, true]
+        "St-05"                 => [true, true]
+        "St-06"                 => [true, true]
+        "None" => [true, true]
+
+[isBuy, isSell]                 = f_SignalMethod(signalMethod)
+[sLong, sShort]                 = f_signalFilter(signalFilter)
+
+lastSignalState                 := isBuy ? 1 : isSell ? -1 : nz(lastSignalState[1])
+Long                            = isBuy and nz(lastSignalState[1]) == -1
+Short                           = isSell and nz(lastSignalState[1]) == 1
+
+if signalSetting
+    if Long and sLong and not signal.isBuySignal 
+        strategy.entry("Long", strategy.long)
+        labelBuySell(buySignalText, L_Color, true)
+        signal.qualify(true) 
+        Alert.Long  := true
+        Alert.Short := false
+    
+    if Short and sShort and not signal.isSellSignal
+        strategy.entry("Short", strategy.short)
+        labelBuySell(sellSignalText, S_Color, false)
+        signal.qualify(false) 
+        Alert.Short := true      
+        Alert.Long  := false
+
+// ---------------------------------------------------------------------------------------------------------------------
+// TP/SL CALCULATION
+// ---------------------------------------------------------------------------------------------------------------------
+if signal.isAct
+    EP.deleteItem()
+    SL.deleteItem()
+    TP.deleteItem()
+    TP1.deleteItem()
+
+    prices.EP := close
+    TpSlParams params   = TpSlParams.new(limitMethod, atrValue, rcmValue, RcmAtrM, ratioW, ratioL)
+
+    if signal.isBuySignal
+        prices.SL       := f_calc_limit(params, true, false)
+        prices.TP       := f_calc_limit(params, false, true)
+        prices.TP1      := close + ((prices.TP - close) / 2) 
+    if signal.isSellSignal
+        prices.SL       := f_calc_limit(params, false, false)
+        prices.TP       := f_calc_limit(params, true, true)
+        prices.TP1      := close - ((close - prices.TP) / 2)
+
+    SLpct               = "SL (" + str.tostring(pct_Calc(prices.SL, prices.EP), format.percent) + ") = "
+    TPpct               = "TP2(" + str.tostring(pct_Calc(prices.TP, prices.EP), format.percent) + ") = " 
+    TP2pct              = "TP1(" + str.tostring(pct_Calc(prices.TP1, prices.EP), format.percent) + ") = " 
+
+    EP.libLevel(prices.EP,  "EP = ", color.blue,   1)
+    SL.libLevel(prices.SL,   SLpct,  color.red,    2)
+    TP.libLevel(prices.TP,   TPpct,  color.green,  2)
+    TP1.libLevel(prices.TP1, TP2pct, color.yellow, 2)
+
+    linefill.new(EP.lineLevel, SL.lineLevel, color = color.new(color.red, 90))
+    linefill.new(EP.lineLevel, TP.lineLevel, color = color.new(color.lime, 90))
+
+    signal.isAct := false
+
+else
+    EP.extendLevel()
+    SL.extendLevel()
+    TP.extendLevel()
+    TP1.extendLevel()
+
+// ---------------------------------------------------------------------------------------------------------------------
+// SIGNALS HIT TP/SL
+// ---------------------------------------------------------------------------------------------------------------------
+long_tp             = ta.crossover(high, prices.TP)
+long_sl             = ta.crossunder(hlc3, prices.SL)
+
+short_tp            = ta.crossunder(low, prices.TP) 
+short_sl            = ta.crossover(hlc3, prices.SL)
+
+if signal.isBuySignal
+    if long_tp or long_sl   
+        strategy.close("Long")
+        signal.isBuySignal  := false
+        hit_sl_tp_reset(EP, SL, TP, TP1)
+        sl_tp_label(true, long_tp)
+        Alert.Long          := false
+        Alert.Short         := false
+if signal.isSellSignal
+    if short_tp or short_sl
+        strategy.close("Short")
+        signal.isSellSignal := false
+        hit_sl_tp_reset(EP, SL, TP, TP1)
+        sl_tp_label(false, short_tp) 
+        Alert.Long          := false
+        Alert.Short         := false
+
+// ---------------------------------------------------------------------------------------------------------------------
+// VISUALIZATION
+// ---------------------------------------------------------------------------------------------------------------------
+
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Alerts
+// ---------------------------------------------------------------------------------------------------------------------
+// Trigger alerts for buy/sell signals
+if Alert.Long
+    alert("Buy Now!", alert.freq_once_per_bar_close)
+    Alert.Long := false
+if Alert.Short
+    alert("Sell Now!", alert.freq_once_per_bar_close)
+    Alert.Short := false
+
+/////////
+/////////
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Deewithme
+//@version=5
+//indicator('सत्यानाश', overlay=true, format=format.price, precision=2, timeframe='')
+
+Periods = input(title='इसको मत छेड़ो', defval=20)
+src = input(hl2, title='इसको मत छेड़ो')
+Multiplier = input.float(title='इसको मत छेड़ो', step=0.1, defval=2.0)
+changeATR = input(title='इसको मत छेड़ो ?', defval=true)
+showsignals = input(title=' बहुत बढेगा/बहुत गिरेगा Signals ?', defval=true)
+highlighting = input(title='इसको मत छेड़ो ?', defval=true)
+atr2 = ta.sma(ta.tr, Periods)
+atr = changeATR ? ta.atr(Periods) : atr2
+up = src - Multiplier * atr
+up1 = nz(up[1], up)
+up := close[1] > up1 ? math.max(up, up1) : up
+dn = src + Multiplier * atr
+dn1 = nz(dn[1], dn)
+dn := close[1] < dn1 ? math.min(dn, dn1) : dn
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+upPlot = plot(trend == 1 ? up : na, title='Up Trend', style=plot.style_linebr, linewidth=2, color=#4caf4f00)
+buySignal = trend == 1 and trend[1] == -1
+plotshape(buySignal ? up : na, title='UpTrend Begins', location=location.absolute, style=shape.circle, size=size.tiny, color=#4caf4f00, transp=100)
+plotshape(buySignal and showsignals ? up : na, title='बहुत बढेगा', text='बहुत बढेगा', location=location.absolute, style=shape.labelup, size=size.normal, color=color.new(color.white, 0), textcolor=color.new(color.black, 0))
+dnPlot = plot(trend == 1 ? na : dn, title='Down Trend', style=plot.style_linebr, linewidth=2, color=#ff525200)
+sellSignal = trend == -1 and trend[1] == 1
+plotshape(sellSignal ? dn : na, title='DownTrend Begins', location=location.absolute, style=shape.circle, size=size.tiny, color=#ff525200, transp=100)
+plotshape(sellSignal and showsignals ? dn : na, title='बहुत गिरेगा', text='बहुत गिरेगा', location=location.absolute, style=shape.labeldown, size=size.normal, color=color.new(color.white, 0), textcolor=color.new(color.black, 0))
+mPlot = plot(ohlc4, title='', style=plot.style_circles, linewidth=0)
+longFillColor = highlighting ? trend == 1 ? #4caf4f00 : color.white : color.white
+shortFillColor = highlighting ? trend == -1 ? #ff525200 : color.white : color.white
+fill(mPlot, upPlot, title='UpTrend Highligter', color=longFillColor, transp=90)
+fill(mPlot, dnPlot, title='DownTrend Highligter', color=shortFillColor, transp=90)
+alertcondition(buySignal, title=' बहुत बढेगा', message=' बहुत बढेगा!')
+alertcondition(sellSignal, title=' बहुत गिरेगा', message=' बहुत गिरेगा!')
+changeCond = trend != trend[1]
+alertcondition(changeCond, title=' Direction Change', message=' has changed direction!')
+

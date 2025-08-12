@@ -1,0 +1,722 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © VP(Maps)[LuskAglo]+OB[pmk07]+S&R[jordanfray]
+ 
+
+
+/////////////////////////////
+//    ∧＿∧
+//   (・◦・) ✧･ﾟ:*      MoonLuna
+//   /づ~ ♡･ﾟ:*:･★‧₊˚
+/////////////////////////////
+
+
+
+//@version=5
+indicator("VP(Maps)+OB+S&R", shorttitle="Volume Profile (Maps) + Orderblocks", max_lines_count = 500, max_boxes_count = 500, max_bars_back=2000, overlay=true)
+
+//------------------------------------------------------------------------------
+// Settings
+//-----------------------------------------------------------------------------{
+sp1      ='                                          '              , sp2 =                         '                                     '
+src      = input.source(          close              ,              'source'                                                              )
+mtV      = input.bool  (          false     , sp2    +         'Volume * currency'                                                        
+ ,tooltip=                                             'Example BTCUSD -> volume in USD'                                                  )
+barsBack = input.int   (           5000              ,          'Amount of bars'                            , maxval=50000                )
+maxLines = input.int   (           500               ,             'Max lines'              , minval= 100   , maxval= 1000                
+ ,tooltip=                                                         'max 1000'                                                             )
+iStep    = input.string(         'Round'             ,                 ''                   , group ='Round', options=['Round', 'Step'])
+mlt      = input.int   (            0                ,              'Round'                 , group ='Round', minval=  -8    , maxval=  4  
+ ,tooltip=                'Example: 123456.789 \n  0->123456.789\n  1->123456.79\n  2->123456.8\n  3->123457\n-1->123460\n-2->123500'     ) 
+step     = input.float (            1                                                       , group ='Round'                              )
+offset   = input.int   (           200               ,              'Offset'                , group ='display Volume Profile', maxval=500 ) 
+width    = input.int   (           205               ,       'Max width Volume Profile'     , group ='display Volume Profile'             ) 
+cReg     = input.color(color.rgb(178, 181, 190, 50),                sp1                   , group ='display Volume Profile', inline='c' ) 
+cH_1     = input.color(color.rgb(255,   0,   0, 25),                 ''                   , group ='display Volume Profile', inline='c' ) 
+cH_2     = input.color(color.rgb(255, 153,   0, 25),                 ''                   , group ='display Volume Profile', inline='c' ) 
+sTab     = input.bool (           false     , sp1    +         '   Show table'              , group ='display Volume Profile'             )
+
+m        =                                         mlt > 0 ? math.pow  (10, mlt) : 1
+src     := iStep == 'Step' ? math.round(src / step) * step : mlt > 0 ? math.round(src / m) * m : math.round(src, math.round(math.abs(math.log10(syminfo.mintick)) +mlt)) 
+
+
+//------------------------------------------------------------------------------
+// Methods
+//-----------------------------------------------------------------------------{
+method  set (line ln, int x, float y, int o)   => 
+    ln  .set_xy1        (math.max(0, bar_index + o        ), y)
+    ln  .set_xy2        (math.max(0, bar_index + o - nz(x)), y) 
+
+method  set (box  bx, int x, float y, int o)   => 
+    bx  .set_lefttop    (math.max(0, bar_index + o        ), y)
+    bx  .set_rightbottom(math.max(0, bar_index + o - nz(x)), y) 
+
+method inOut(int  [] a, int   val) => a.unshift(val), a.pop()
+method inOut(float[] a, float val) => a.unshift(val), a.pop()
+
+//------------------------------------------------------------------------------
+// Variables
+//-----------------------------------------------------------------------------{
+var originalMap = map.new <float, float>()                                    // key: close, value: volume
+var lines       = array.new < line       >()                                    // array of lines
+var boxes       = array.new < box        >()                                    // array of boxes
+var tab         = table.new(position.top_right, 2, 7, chart.bg_color, chart.bg_color, 1, chart.bg_color, 1)
+
+//------------------------------------------------------------------------------
+// Execution
+//-----------------------------------------------------------------------------{
+n               =                            bar_index 
+barsBack       := math.min  (barsBack , last_bar_index)                         // minimum of ['Amount of bars' - total available bars]
+mxLines2        = math.round(maxLines / 2)
+
+if barstate.isfirst 
+    for i = 0 to math.min(500,             maxLines           )                 // fill line array till "maxLines" or "500" reached
+        lines.unshift(line.new(na, na, na, na,        width=2))
+    for i = 0 to math.min(500, math.max(0, maxLines   -   500))                 // fill  box array till "maxLines" or "500" reached (only after line array is filled)
+        boxes.unshift(box .new(na, na, na, na, border_width=1))
+
+if last_bar_index - n == barsBack 
+    line.new(n, close, n, close+ syminfo.mintick, extend=extend.both)
+
+if last_bar_index - n <= barsBack
+    if  originalMap.contains(src)
+        originalMap.put(src, originalMap.get(src) + (volume * (mtV ? src : 1))) // if originalMap already contains the close value, add volume on that same key level (instead of replace)
+    else 
+        originalMap.put(src,                        (volume * (mtV ? src : 1))) // key (close) :value (volume) 
+
+if barstate.islast 
+    maxVol = 0.
+    for ln in lines 
+        ln.set_color(cReg)                                                      // set colour of all lines to default
+    for bx in boxes 
+        bx.set_border_color(color.new(cReg, 70))                                // set colour of all boxes to default
+
+    if originalMap.size() > 1
+        copyK = originalMap.keys().copy()                                       // make a copy of the keys -> array
+        copyK.sort()                                                            // sort (ascending)
+        idx = copyK.binary_search_leftmost(src)                                 // look for position of 'current' src in copyK
+        szL = idx, szR = copyK.size() -1 - idx                                  // check how many left (lower) and right (higher) of idx (size: left - idx - right)
+        sml = math.min(szL, szR)                                                // smallest side 
+        if szR == sml 
+            szL := math.min(maxLines - math.min(mxLines2, szR), szL)            // if R side has 'unused' lines -> give them to L side
+            szR := math.min(mxLines2, szR)
+        else 
+            szL := math.min(mxLines2, szL)            
+            szR := math.min(maxLines - math.min(mxLines2, szL), szR)            // if L side has 'unused' lines -> give them to R side
+
+        sliceK = copyK.slice(idx - szL, idx + szR)                              // grab (max. 500) keys around 'current' close
+
+        newMap = map.new<float, float>()                                        // new map
+        for i = 0 to sliceK.size() -1                                           // all keys from sliceK : values from originalMap
+            getKey = sliceK.get(i)                                              // key      from sliceK 
+            getVal = originalMap.get(getKey)                                    // values   from originalMap 
+            if getVal > maxVol                                                  // get max volume of the set
+                maxVol := getVal
+            newMap.put(getKey, getVal)                                          // put in 'newMap'
+
+        w = width / maxVol                                                      // make sure lines don't exceed 'max width Volume Profile'
+
+        aMaxI = array.from(0 , 0 )                                              // index of largest and second largest volume
+        aMaxV = array.from(0., 0.)                                              // value of largest and second largest volume
+
+        max  = 0., keys = newMap.keys(), vals = newMap.values()
+
+        for i = 0 to keys.size()-1
+            clo = keys.get(i)
+            vol = vals.get(i)
+            if vol > max                                                        // when        largest volume is found -> set index so line can be coloured later
+                max  :=     vol 
+                aMaxI.inOut( i )
+                aMaxV.inOut(vol)
+            else if vol > aMaxV.get(1)                                          // when second largest volume is found -> set index so line can be coloured later
+                aMaxI.set(1, i )
+                aMaxV.set(1,vol)
+            if i < 500
+                lines.get(i      ).set(math.round(vol * w), clo, offset)       // update 'lines' array
+            else
+                boxes.get(i - 500).set(math.round(vol * w), clo, offset)       // update 'boxes' array (line array is full -> box array)
+
+        uno = aMaxI.first( ), duo = aMaxI.get  (1)
+        if uno < 500
+            lines .get(uno) .set_color(cH_1)                                   // colour line       with        largest volume 
+        else 
+            boxes .get(uno - 500) .set_border_color(cH_1)                      // colour line (box) with        largest volume 
+        if duo < 500
+            lines .get(duo) .set_color(cH_2)                                   // colour line       with second largest volume 
+        else 
+            boxes .get(duo - 500) .set_border_color(cH_2)                      // colour line (box) with second largest volume 
+
+
+
+
+
+
+// map.put(originalMap, price,  volume)
+// or
+// originalMap.put(price,  volume)
+
+
+// if  originalMap.contains(price)
+//     originalMap.put(price, originalMap.get(price) + volume)
+
+// copyK = originalMap.keys().copy()
+// copyK.sort()                                                            
+// idx = copyK.binary_search_leftmost(src)
+
+// newMap = map.new<float, float>()
+
+
+
+
+
+
+
+//------------------------------------------------------------------------------
+// Table
+//-----------------------------------------------------------------------------{
+        if sTab
+            tab.cell(0, 0, text='size originalMap'                    , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(1, 0, text=str.tostring(originalMap.size())      , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(0, 1, text=    '# higher'                        , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(1, 1, text=str.tostring(originalMap.size() - idx), text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(0, 2, text=  'index "close"'                     , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(1, 2, text=str.tostring(       idx        )      , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(0, 3, text=      '   '                           , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(0, 4, text=   'size newMap'                      , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(1, 4, text=str.tostring(   newMap.size()  )      , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(0, 5, text=    '# higher'                        , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(1, 5, text=str.tostring(       szR        )      , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(0, 6, text=    '# lower'                         , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+            tab.cell(1, 6, text=str.tostring(       szL        )      , text_font_family=font.family_monospace, text_color=chart.fg_color, height=2)
+
+//-----------------------------------------------------------------------------}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool        pv2_sv          = input.bool        (true,                          title='Plot 2nd order pivots')
+bool        msb_sv          = input.bool        (true,                          title='Plot MSB lines')
+bool        box_sv          = input.bool        (true,                          title='Plot Orderblocks')
+bool        m_sv            = input.bool        (true,                          title='Plot Breakerblocks')
+bool        range_sv        = input.bool        (true,                          title='Plot Range')
+bool        range_eq_sv     = input.bool        (true,                          title='Plot Range 0.5 Line')
+bool        range_q_sv      = input.bool        (true,                          title='Plot Range 0.25 and 0.75 Lines')
+bool        log_sv          = input.bool        (true,                          title='Use Log Scale')
+bool        msb_a_sv        = input.bool        (true,                          title='Alert MSB')
+bool        ob_a_sv         = input.bool        (true,                          title='Alert Orderblock test')
+bool        bb_a_sv         = input.bool        (true,                          title='Alert Breakerblock test')
+bool        r_a_sv          = input.bool        (true,                          title='Alert New Range')
+bool        rt_a_sv         = input.bool        (true,                          title='Alert Range test')
+color       u_s             = input.color       (color.rgb(192, 192, 192, 80),  title='Untested Supply Color')
+color       t_s             = input.color       (color.rgb(255, 0, 0, 80),      title='Tested Supply Color')
+color       u_d             = input.color       (color.rgb(192, 192, 192, 80),  title='Untested Demand Color')
+color       t_d             = input.color       (color.rgb(0, 255, 0, 80),      title='Tested Demand Color')
+color       u_b             = input.color       (color.rgb(192, 192, 192, 80),  title='Untested Breaker Color')
+color       t_b             = input.color       (color.new(color.blue, 80),     title='Tested Breaker Color')
+
+var float[] pvh1_price      = array.new_float   (30, na)            // high
+var int[]   pvh1_time       = array.new_int     (30, na)
+var float[] pvl1_price      = array.new_float   (30, na)            // low
+var int[]   pvl1_time       = array.new_int     (30, na)
+var float[] pvh2_price      = array.new_float   (10, na)            // higher high
+var int[]   pvh2_time       = array.new_int     (10, na)
+var float[] pvl2_price      = array.new_float   (10, na)            // lower low
+var int[]   pvl2_time       = array.new_int     (10, na)
+var float   htcmrll_price   = na                                    // high that created most recent ll
+var int     htcmrll_time    = na
+var float   ltcmrhh_price   = na                                    // low that created most recent hh
+var int     ltcmrhh_time    = na
+var box[]   long_boxes      = array.new_box()                       // orderblocks
+var box[]   short_boxes     = array.new_box()
+var box[]   m_long_boxes    = array.new_box()                       // breakerblocks
+var box[]   m_short_boxes   = array.new_box()
+var line[]  bull_bos_lines  = array.new_line()                      // MSB lines
+var line[]  bear_bos_lines  = array.new_line()
+var line[]  range_h_lines   = array.new_line()                      // Range lines
+var line[]  range_25_lines  = array.new_line()
+var line[]  range_m_lines   = array.new_line()
+var line[]  range_75_lines  = array.new_line()
+var line[]  range_l_lines   = array.new_line()
+var label[] la_ph2          = array.new_label()                     // 2nd order pivots
+var label[] la_pl2          = array.new_label()
+var float   temp_pv_0       = na
+var float   temp_pv_1       = na
+var float   temp_pv_2       = na
+var int     temp_time       = na
+var float   last_range_h    = na
+var float   last_range_l    = na
+var line    range_m         = na
+var line    range_25        = na
+var line    range_75        = na
+var float   box_top         = na
+var float   box_bottom      = na
+var int     h_a_time        = 0
+var int     l_a_time        = 0
+var int     mh_a_time       = 0
+var int     ml_a_time       = 0
+var int     rh_a_time       = 0
+var int     rl_a_time       = 0
+bool        pvh             = high < high[1] and high[1] > high[2]
+bool        pvl             = low > low[1] and low[1] < low[2]
+int         pv1_time        = bar_index[1]
+float       pv1_high        = high[1]
+float       pv1_low         = low[1]
+bool        new_ph_2nd      = false
+bool        new_pl_2nd      = false
+string      alert           = na
+
+if barstate.isconfirmed
+    if pvh
+        array.pop(pvh1_price)
+        array.pop(pvh1_time)
+        array.unshift(pvh1_price, pv1_high)
+        array.unshift(pvh1_time, pv1_time)
+        if array.size(pvh1_price) > 2
+            temp_pv_0 := array.get(pvh1_price, 0)
+            temp_pv_1 := array.get(pvh1_price, 1)
+            temp_pv_2 := array.get(pvh1_price, 2)
+            if temp_pv_0 < temp_pv_1 and temp_pv_1 > temp_pv_2
+                array.pop(pvh2_price)
+                array.pop(pvh2_time)
+                array.unshift(pvh2_price, temp_pv_1)
+                array.unshift(pvh2_time, array.get(pvh1_time, 1))
+                new_ph_2nd := true
+                if temp_pv_1 > array.get(pvh2_price, 1)
+                    for i = 0 to array.size(pvl2_time) - 1 by 1
+                        temp_ltcmrhh_time = array.get(pvl2_time, i)
+                        if temp_ltcmrhh_time < array.get(pvh2_time, 0)
+                            ltcmrhh_price := array.get(pvl2_price, i)
+                            ltcmrhh_time := temp_ltcmrhh_time
+                            break
+            if temp_pv_0 < ltcmrhh_price
+                if msb_sv
+                    array.push(bear_bos_lines, line.new(x1=ltcmrhh_time, y1=ltcmrhh_price, x2=bar_index, y2=ltcmrhh_price, color=color.green, width=2))
+                box_top := array.get(pvh2_price, 0)
+                box_bottom := math.max(low[bar_index - array.get(pvh2_time, 0)], low[bar_index - array.get(pvh2_time, 0) + 1])
+                array.push(short_boxes, box.new(left=array.get(pvh2_time, 0), top=box_top, right=bar_index, bottom=box_bottom, bgcolor= box_sv ? u_s : na , border_color=na, extend=extend.right))
+                if msb_a_sv
+                    alert := alert + 'Bearish MSB @ ' + str.tostring(ltcmrhh_price) + '\n' + 'New Supply Zone : '+ str.tostring(box_top) + ' - ' + str.tostring(box_bottom) + '\n'
+                ltcmrhh_price := na
+    if pvl
+        array.pop(pvl1_price)
+        array.pop(pvl1_time)
+        array.unshift(pvl1_price, pv1_low)
+        array.unshift(pvl1_time, pv1_time)
+        if array.size(pvl1_price) > 2
+            temp_pv_0 := array.get(pvl1_price, 0)
+            temp_pv_1 := array.get(pvl1_price, 1)
+            temp_pv_2 := array.get(pvl1_price, 2)
+            if temp_pv_0 > temp_pv_1 and temp_pv_1 < temp_pv_2
+                array.pop(pvl2_price)
+                array.pop(pvl2_time)
+                array.unshift(pvl2_price, temp_pv_1)
+                array.unshift(pvl2_time, array.get(pvl1_time, 1))
+                new_pl_2nd := true
+                if temp_pv_1 < array.get(pvl2_price, 1)
+                    for i = 0 to array.size(pvh2_time) - 1 by 1
+                        temp_htcmrll_time = array.get(pvh2_time, i)
+                        if temp_htcmrll_time < array.get(pvl2_time, 0)
+                            htcmrll_price := array.get(pvh2_price, i)
+                            htcmrll_time := temp_htcmrll_time
+                            break
+            if temp_pv_0 > htcmrll_price
+                if msb_sv
+                    array.push(bull_bos_lines, line.new(x1=htcmrll_time, y1=htcmrll_price, x2=bar_index, y2=htcmrll_price, color=color.red, width=2))
+                box_top := math.min(high[bar_index - array.get(pvl2_time, 0)], high[bar_index - array.get(pvl2_time, 0) + 1])
+                box_bottom := array.get(pvl2_price, 0)
+                array.push(long_boxes, box.new(left=array.get(pvl2_time, 0), top=box_top, right=bar_index, bottom=box_bottom, bgcolor= box_sv ? u_d : na, border_color=na, extend=extend.right))
+                if msb_a_sv
+                    alert := alert + 'Bullish MSB @ ' + str.tostring(htcmrll_price) + '\n' + 'New Demand Zone : '+ str.tostring(box_bottom) + ' - ' + str.tostring(box_top) + '\n'
+                htcmrll_price := na
+    if array.size(short_boxes) > 0
+        for i = array.size(short_boxes) - 1 to 0 by 1
+            tbox = array.get(short_boxes, i)
+            top = box.get_top(tbox)
+            bottom = box.get_bottom(tbox)
+            ago = box.get_left(tbox)
+            if array.get(pvh1_price, 0) > bottom 
+                if box_sv
+                    box.set_bgcolor(tbox, t_s)    
+                if ob_a_sv and close < bottom
+                    if array.get(pvh1_time, 0) != h_a_time
+                        h_a_time := array.get(pvh1_time, 0)
+                        alert := alert + 'Supply Zone Test @ ' + str.tostring(array.get(pvh1_price, 0)) + ' (age = ' + str.tostring(bar_index-ago) + ' bars) \n'
+            if array.get(pvl1_price, 0) > top
+                if m_sv
+                    box.set_bgcolor(tbox, u_b)
+                    array.push(m_long_boxes, tbox)
+                else
+                    box.delete(tbox)
+                array.remove(short_boxes, i)
+                if msb_sv    
+                    line.delete(array.get(bear_bos_lines, i))
+                    array.remove(bear_bos_lines, i)
+    if array.size(long_boxes) > 0
+        for i = array.size(long_boxes) - 1 to 0 by 1
+            lbox = array.get(long_boxes, i)
+            top = box.get_top(lbox)
+            bottom = box.get_bottom(lbox)
+            ago = box.get_left(lbox)
+            if array.get(pvl1_price, 0) < top
+                if box_sv
+                    box.set_bgcolor(lbox, t_d)
+                if ob_a_sv and close > top
+                    if array.get(pvl1_time, 0) != l_a_time
+                        l_a_time := array.get(pvl1_time, 0)
+                        alert := alert + 'Demand Zone Test @ ' + str.tostring(array.get(pvl1_price, 0)) + ' (age = ' + str.tostring(bar_index-ago) + ' bars) \n'
+            if array.get(pvh1_price, 0) < bottom
+                if m_sv
+                    box.set_bgcolor(lbox, u_b)
+                    array.push(m_short_boxes, lbox)
+                else
+                    box.delete(lbox)
+                array.remove(long_boxes, i)
+                if msb_sv
+                    line.delete(array.get(bull_bos_lines, i))
+                    array.remove(bull_bos_lines, i)
+    if array.size(m_short_boxes) > 0
+        for i = array.size(m_short_boxes) - 1 to 0 by 1
+            tbox = array.get(m_short_boxes, i)
+            top = box.get_top(tbox)
+            bottom = box.get_bottom(tbox)
+            ago = box.get_left(tbox)
+            if array.get(pvh1_price, 0) > bottom 
+                box.set_bgcolor(tbox, t_b)
+                if bb_a_sv and close < bottom
+                    if array.get(pvh1_time, 0) != mh_a_time
+                        mh_a_time := array.get(pvh1_time, 0)
+                        alert := alert + 'Breakerblock Test Up @ ' + str.tostring(array.get(pvh1_price, 0)) + ' (age = ' + str.tostring(bar_index-ago) + ' bars) \n'
+            if array.get(pvl1_price, 0) > top
+                box.delete(tbox)
+                array.remove(m_short_boxes, i)
+    if array.size(m_long_boxes) > 0
+        for i = array.size(m_long_boxes) - 1 to 0 by 1
+            lbox = array.get(m_long_boxes, i)
+            top = box.get_top(lbox)
+            bottom = box.get_bottom(lbox)
+            ago = box.get_left(lbox)
+            if array.get(pvl1_price, 0) < top
+                box.set_bgcolor(lbox, t_b)
+                if bb_a_sv and close > top
+                    if array.get(pvl1_time, 0) != ml_a_time
+                        ml_a_time := array.get(pvl1_time, 0)
+                        alert := alert + 'Breakerblock Test Down @ ' + str.tostring(array.get(pvl1_price, 0)) + ' (age = ' + str.tostring(bar_index-ago) + ' bars) \n'
+            if array.get(pvh1_price, 0) < bottom
+                box.delete(lbox)
+                array.remove(m_long_boxes, i)
+    if range_sv and (new_ph_2nd or new_pl_2nd) and (array.get(pvh2_price, 0) < array.get(pvh2_price, 1) and array.get(pvl2_price, 0) > array.get(pvl2_price, 1) and array.get(pvh2_price, 0) > array.get(pvl2_price, 1) and array.get(pvl2_price, 0) < array.get(pvh2_price, 1)) and (array.get(pvl2_price, 1) > nz(last_range_h) or na(last_range_l)? true : (array.get(pvh2_price, 1) < last_range_l))
+        temp_time := math.min(array.get(pvh2_time, 1), array.get(pvl2_time, 1))
+        last_range_h    := array.get(pvh2_price, 1)
+        last_range_l    := array.get(pvl2_price, 1)
+        temp_pv_0 := log_sv ? math.exp((math.log(last_range_h) + math.log(last_range_l))/2) : (last_range_h + last_range_l)/2
+        temp_pv_1 := log_sv ? math.exp((math.log(last_range_h) + math.log(temp_pv_0))/2) : (last_range_h + temp_pv_0)/2
+        temp_pv_2 := log_sv ? math.exp((math.log(last_range_l) + math.log(temp_pv_0))/2) : (last_range_l + temp_pv_0)/2
+        array.push(range_h_lines, line.new(x1=temp_time, y1=last_range_h, x2=bar_index, y2=last_range_h, color=color.gray, width=1, extend=extend.right))
+        array.push(range_l_lines, line.new(x1=temp_time, y1=last_range_l, x2=bar_index, y2=last_range_l, color=color.gray, width=1, extend=extend.right))
+        if range_eq_sv
+            array.push(range_m_lines, line.new(x1=temp_time, y1=temp_pv_0, x2=bar_index, y2=temp_pv_0, color=color.gray, width=1, extend=extend.right))
+        if range_q_sv
+            array.push(range_25_lines, line.new(x1=temp_time, y1=temp_pv_1, x2=bar_index, y2=temp_pv_1, style=line.style_dashed, color=color.gray, width=1, extend=extend.right))
+            array.push(range_75_lines, line.new(x1=temp_time, y1=temp_pv_2, x2=bar_index, y2=temp_pv_2, style=line.style_dashed, color=color.gray, width=1, extend=extend.right))
+        if r_a_sv
+            alert := alert + 'New Range : ' + str.tostring(last_range_h) + ' - ' +  str.tostring(last_range_l) + '. Mean = ' +  str.tostring(temp_pv_0) + '\n'
+    if array.size(range_h_lines) > 0
+        for i = array.size(range_h_lines) - 1 to 0 by 1
+            range_h = array.get(range_h_lines, i)
+            top = line.get_y1(range_h)
+            range_l = array.get(range_l_lines, i)
+            bottom = line.get_y1(range_l)
+            temp_time := line.get_x1(range_h)
+            if array.get(pvh1_price, 0) > top
+                if rt_a_sv and close < top
+                    if array.get(pvh1_time, 0) != rh_a_time
+                        rh_a_time := array.get(pvh1_time, 0)
+                        alert := alert + 'Range High Test @ ' + str.tostring(array.get(pvh1_price, 0)) + ' \n'
+            if array.get(pvl1_price, 0) < bottom
+                if rt_a_sv and close > bottom
+                    if array.get(pvl1_time, 0) != rl_a_time
+                        rl_a_time := array.get(pvl1_time, 0)
+                        alert := alert + 'Range Low Test @ ' + str.tostring(array.get(pvl1_price, 0)) + ' \n'
+            if range_eq_sv
+                range_m := array.get(range_m_lines, i)
+            if range_q_sv
+                range_25 := array.get(range_25_lines, i)
+                range_75 := array.get(range_75_lines, i)
+            if array.get(pvh1_price, 0) < bottom or array.get(pvl1_price, 0) > top
+                line.delete(range_h)
+                array.remove(range_h_lines, i)
+                line.delete(range_l)
+                array.remove(range_l_lines, i)
+                if range_eq_sv
+                    line.delete(range_m)                
+                    array.remove(range_m_lines, i)
+                if range_q_sv
+                    line.delete(range_25)                
+                    array.remove(range_25_lines, i)
+                    line.delete(range_75)                
+                    array.remove(range_75_lines, i)
+                last_range_h    := na
+                last_range_l    := na
+    if pv2_sv
+        if new_ph_2nd
+            array.push(la_ph2, label.new(x = array.get(pvh2_time, 0), y = array.get(pvh2_price, 0), xloc = xloc.bar_index, style = label.style_label_down,    color = #770000FF, size = size.tiny))
+        if new_pl_2nd
+            array.push(la_pl2, label.new(x = array.get(pvl2_time, 0), y = array.get(pvl2_price, 0), xloc = xloc.bar_index, style = label.style_label_up,      color = #007700FF, size = size.tiny))
+
+alert := not na(alert) ? (alert + 'Current price = ' + str.tostring(close) + '\n') : na
+exec = not na(alert) ? true : false
+if exec==true 
+    alert(alert, alert.freq_once_per_bar_close)
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	// Colors - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+green                                   = color.new(#2DBD85,0)
+lightGreen                              = color.new(#2DBD85,80)
+red                                     = color.new(#E02A4A,0)
+lightRed                                = color.new(#E02A4A,80)
+white                                   = color.new(#ffffff,0)
+transparent                             = color.new(#ffffff,100)
+
+
+//  Strategy Settings - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+supportLookBack                         = input.int(defval=22, title = "Support Look Back", group="Support & Resistance Settings")
+supportLookAhead                        = input.int(defval=26, title = "Support Look Ahead", group="Support & Resistance Settings")
+resistanceLookBack                      = input.int(defval=30, title = "Reistance Look Back", group="Support & Resistance Settings")
+resistanceLookAhead                     = input.int(defval=27, title = "Reistance Look Ahead", group="Support & Resistance Settings")
+
+timeframe1                              = input.timeframe(defval="60", title="Timeframe 1", group="Support & Resistance 1")
+enableSrRanges1                         = input.bool(defval=true, title="Enable Support & Resistance Ranges", group="Support & Resistance 1")
+supportRange1                           = input.float(defval=.25, title="     Support Range (%)       ", inline="support1", group="Support & Resistance 1")
+supportRange1Color                      = input.color(defval=green, title="", inline="support1", group="Support & Resistance 1")
+resistanceRange1                        = input.float(defval=.25, title="     Resistance Range (%)    ", inline="resistance1", group="Support & Resistance 1")
+resistanceRange1Color                   = input.color(defval=red, title="", inline="resistance1", group="Support & Resistance 1")
+
+// timeframe2                              = input.timeframe(defval="120", title="Timeframe 2", group="Support & Resistance 2")
+// enableSrRanges2                         = input.bool(defval=true, title="Enable Support & Resistance Ranges", group="Support & Resistance 2")
+// supportRange2                           = input.float(defval=.25, title="     Support Range (%)       ", inline="support2", group="Support & Resistance 2")
+// supportRange2Color                      = input.color(defval=green, title="", inline="support2", group="Support & Resistance 2")
+// resistanceRange2                        = input.float(defval=.25, title="     Resistance Range (%)    ", inline="resistance2", group="Support & Resistance 2")
+// resistanceRange2Color                   = input.color(defval=red, title="", inline="resistance2", group="Support & Resistance 2")
+
+//  Support and Resistance Functions - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+getSupport(lookback, lookahead) =>
+    support = fixnan(ta.pivotlow(lookback, lookahead)[1])
+
+    support
+
+getResistance(lookback, lookahead) =>
+    resistance = fixnan(ta.pivothigh(lookback, lookahead)[1])
+
+    resistance
+
+
+//  Support and Resistance 1
+support1                                = request.security(syminfo.ticker, timeframe1, getSupport(supportLookBack, supportLookAhead))
+resistance1                             = request.security(syminfo.ticker, timeframe1, getResistance(resistanceLookBack, resistanceLookAhead))
+var float mostRecentResistance1         = na
+var float mostRecentSupport1            = na
+mostRecentResistance1                   := ta.change(resistance1) ? resistance1 : mostRecentResistance1
+mostRecentSupport1                      := ta.change(support1) ? support1 : mostRecentSupport1
+var line resistance1Line                = na
+var line support1Line                   = na
+line.delete(resistance1Line)
+line.delete(support1Line)
+resistance1Line                         := line.new(x1=bar_index[10], y1=mostRecentResistance1, x2=bar_index, y2=mostRecentResistance1, color=resistanceRange1Color, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+support1Line                            := line.new(x1=bar_index[10], y1=mostRecentSupport1, x2=bar_index, y2=mostRecentSupport1, color=supportRange1Color, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+resistance1Price                        = plot(series=mostRecentResistance1, title="Resistance Price", color=red, editable=false, display=display.price_scale)
+support1Price                           = plot(series=mostRecentSupport1, title="Support Price", color=green, editable=false, display=display.price_scale)
+
+var label support1label                 = na
+var label resistance1label                 = na
+label.delete(support1label)
+label.delete(resistance1label)
+
+
+
+support1label                           := label.new(x=bar_index+30, y=mostRecentSupport1, color=supportRange1Color, textcolor=white, style=label.style_label_down)
+resistance1label                        := label.new(x=bar_index+30, y=mostRecentResistance1, color=resistanceRange1Color, textcolor=white, style=label.style_label_down)
+
+
+
+
+
+
+
+
+
+
+
+
+// //  Support and Resistance 2
+// support2                                = request.security(syminfo.ticker, timeframe2, getSupport(supportLookBack, supportLookAhead))
+// resistance2                             = request.security(syminfo.ticker, timeframe2, getResistance(resistanceLookBack, resistanceLookAhead))
+// var float mostRecentResistance2         = na
+// var float mostRecentSupport2            = na
+// mostRecentResistance2                   := ta.change(resistance2) ? resistance2 : mostRecentResistance2
+// mostRecentSupport2                      := ta.change(support2) ? support2 : mostRecentSupport2
+// var line resistance2Line                = na
+// var line support2Line                   = na
+// line.delete(resistance2Line)
+// line.delete(support2Line)
+// resistance2Line                         := line.new(x1=bar_index[10], y1=mostRecentResistance2, x2=bar_index, y2=mostRecentResistance2, color=resistanceRange2Color, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+// support2Line                            := line.new(x1=bar_index[10], y1=mostRecentSupport2, x2=bar_index, y2=mostRecentSupport2, color=supportRange2Color, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+// resistance2Price                        = plot(series=mostRecentResistance2, title="Resistance Price", color=red, editable=false, display=display.price_scale)
+// support2Price                           = plot(series=mostRecentSupport2, title="Support Price", color=green, editable=false, display=display.price_scale)
+
+// var label support2label                 = na
+// var label resistance2label              = na
+// label.delete(support2label)
+// label.delete(resistance2label)
+
+
+
+
+
+
+
+
+
+
+
+// support2label                           := label.new(x=bar_index+30, y=mostRecentSupport2, color=supportRange2Color, textcolor=white, style=label.style_label_down)
+// resistance2label                        :=  label.new(x=bar_index+30, y=mostRecentResistance2, color=resistanceRange2Color, textcolor=white, style=label.style_label_down)
+
+
+
+
+
+
+
+
+
+
+
+if enableSrRanges1
+    support1RangeTop                    = support1 + (support1 * (supportRange1/100))
+    support1RangeBottom                 = support1 - (support1 * (supportRange1/100))
+    resistance1RangeTop                 = resistance1 + (resistance1 * (resistanceRange1/100))
+    resistance1RangeBottom              = resistance1 - (resistance1 * (resistanceRange1/100))
+    
+    var line support1RangeTopLine       = na
+    var line support1RangeBottomLine    = na
+    var line resistance1RangeTopLine    = na
+    var line resistance1RangeBottomLine = na
+    
+    line.delete(support1RangeTopLine)
+    line.delete(support1RangeBottomLine)
+    line.delete(resistance1RangeTopLine)
+    line.delete(resistance1RangeBottomLine)
+
+    support1RangeTopLine                := line.new(x1=bar_index[10], y1=support1RangeTop, x2=bar_index, y2=support1RangeTop, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+    support1RangeBottomLine             := line.new(x1=bar_index[10], y1=support1RangeBottom, x2=bar_index, y2=support1RangeBottom, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+    linefill.new(line1=support1RangeTopLine, line2=support1RangeBottomLine, color=lightGreen)
+    
+    resistance1RangeTopLine             := line.new(x1=bar_index[10], y1=resistance1RangeTop, x2=bar_index, y2=resistance1RangeTop, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+    resistance1RangeBottomLine          := line.new(x1=bar_index[10], y1=resistance1RangeBottom, x2=bar_index, y2=resistance1RangeBottom, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+    linefill.new(line1=resistance1RangeTopLine, line2=resistance1RangeBottomLine, color=lightRed)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+// if enableSrRanges2
+//     support2RangeTop                    = support2 + (support2 * (supportRange2/100))
+//     support2RangeBottom                 = support2 - (support2 * (supportRange2/100))
+//     resistance2RangeTop                 = resistance2 + (resistance2 * (resistanceRange2/100))
+//     resistance2RangeBottom              = resistance2 - (resistance2 * (resistanceRange2/100))
+    
+//     var line support2RangeTopLine       = na
+//     var line support2RangeBottomLine    = na
+//     var line resistance2RangeTopLine    = na
+//     var line resistance2RangeBottomLine = na
+    
+//     line.delete(support2RangeTopLine)
+//     line.delete(support2RangeBottomLine)
+//     line.delete(resistance2RangeTopLine)
+//     line.delete(resistance2RangeBottomLine)
+
+//     support2RangeTopLine                := line.new(x1=bar_index[10], y1=support2RangeTop, x2=bar_index, y2=support2RangeTop, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+//     support2RangeBottomLine             := line.new(x1=bar_index[10], y1=support2RangeBottom, x2=bar_index, y2=support2RangeBottom, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+//     linefill.new(line1=support2RangeTopLine, line2=support2RangeBottomLine, color=lightGreen)
+    
+//     resistance2RangeTopLine             := line.new(x1=bar_index[10], y1=resistance2RangeTop, x2=bar_index, y2=resistance2RangeTop, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+//     resistance2RangeBottomLine          := line.new(x1=bar_index[10], y1=resistance2RangeBottom, x2=bar_index, y2=resistance2RangeBottom, color=transparent, width=1, xloc=xloc.bar_index, style=line.style_solid, extend=extend.both)
+//     linefill.new(line1=resistance2RangeTopLine, line2=resistance2RangeBottomLine, color=lightRed)
+    

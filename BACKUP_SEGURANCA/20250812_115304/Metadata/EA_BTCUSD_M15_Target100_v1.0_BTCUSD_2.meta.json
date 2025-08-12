@@ -1,0 +1,42 @@
+{
+  "arquivo": "EA_BTCUSD_M15_Target100_v1.0_BTCUSD_2.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Misc",
+  "mercado": "BTCUSD",
+  "timeframe": "M15",
+  "versao": "1.0",
+  "autor": "Akhtar + ChatGPT",
+  "descricao": "Arquivo incompleto - apenas comentários sobre EA para BTCUSD M15 com target de $100",
+  "funcoes_principais": [],
+  "parametros_expostos": [],
+  "conformidade_ftmo": {
+    "score": 0,
+    "observacoes": "Arquivo incompleto - apenas comentários, sem código funcional",
+    "riscos_detectados": [
+      "Arquivo incompleto",
+      "Sem implementação de código",
+      "Apenas comentários"
+    ],
+    "ajustes_necessarios": [
+      "Implementar código completo do EA",
+      "Adicionar todas as funções necessárias",
+      "Implementar gerenciamento de risco FTMO"
+    ]
+  },
+  "qualidade_codigo": {
+    "score": 1,
+    "observacoes": "Arquivo incompleto com apenas 2 linhas de comentário"
+  },
+  "tags": [
+    "#EA",
+    "#Misc",
+    "#BTCUSD",
+    "#M15",
+    "#Incomplete",
+    "#NeedsImplementation",
+    "#NotFTMO"
+  ],
+  "data_criacao": "2024-12-19T10:33:00Z",
+  "caminho_completo": "CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/Misc/EA_BTCUSD_M15_Target100_v1.0_BTCUSD_2.mq5"
+}

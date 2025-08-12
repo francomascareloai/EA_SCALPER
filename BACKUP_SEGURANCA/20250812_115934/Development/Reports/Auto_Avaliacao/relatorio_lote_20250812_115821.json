@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-08-12T11:58:21.762351",
+  "execution_time": 0.2552053928375244,
+  "backup_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL5_Source\\BACKUP_LOTE_20250812_115821",
+  "statistics": {
+    "total_files": 10,
+    "processed": 1451,
+    "successful": 1451,
+    "errors": 0,
+    "skipped": 0,
+    "start_time": 1755010701.5071366,
+    "end_time": 1755010701.762342,
+    "categories": {
+      "Unknown": 1451
+    },
+    "quality_distribution": {
+      "Unknown": 1451
+    },
+    "ftmo_distribution": {
+      "Unknown": 1451
+    },
+    "errors_list": []
+  },
+  "performance": {
+    "files_per_second": 5685.616529756383,
+    "success_rate": 100.0,
+    "error_rate": 0.0
+  },
+  "recommendations": [
+    "🔍 1451 arquivos não classificados (100.0%) - melhorar padrões de detecção"
+  ],
+  "top_categories": [
+    [
+      "Unknown",
+      1451
+    ]
+  ],
+  "quality_summary": {
+    "Unknown": 1451
+  },
+  "ftmo_summary": {
+    "Unknown": 1451
+  }
+}

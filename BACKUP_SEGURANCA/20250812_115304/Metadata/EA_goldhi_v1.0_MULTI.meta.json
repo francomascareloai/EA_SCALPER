@@ -1,0 +1,30 @@
+{
+  "id": "dfa2765e068ce1db",
+  "arquivo": "gold hi.mq5",
+  "hash": "dfa2765e068ce1db",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "H1"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 55,
+  "riscos_detectados": [
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 75,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

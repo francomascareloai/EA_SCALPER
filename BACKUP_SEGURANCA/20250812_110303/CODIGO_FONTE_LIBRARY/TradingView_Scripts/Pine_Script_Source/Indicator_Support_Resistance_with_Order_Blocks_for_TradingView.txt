@@ -1,0 +1,331 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=6
+indicator("Support Resistance with Order Blocks", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+// User inputs
+displayType = input.string("Boxes", "Display Type", options=["Boxes", "Lines"], inline="display")
+showOB = input.bool(false, "Show Order Block", inline="OB")
+obbscolor = input.color(#194afdc8, "Bull OB Border ", inline="obborder")
+obbrcolor = input.color(#ec9812ca, "Bear OB Border", inline="obborder")
+obscolor = input.color(#1c3ff03c, "Bull OB Fill ", inline="obColor")
+obrcolor = input.color(#ff52521f, "Bear OB Fill", inline="obColor")
+
+showSR = input.bool(true, "Show S/R", inline="max")
+hshow = input.bool(false, "Show Historical S/R ", inline="max")
+highlow = input.int(5, "Detection (S/R) or OB After Candles:",minval=4, maxval=50, inline="m")
+maxsr = input.int(10, "Max Active (S/R) or OB",minval=4, maxval=50, inline="m")
+scolor = input.color(#4caf4f60, "Active Support ", inline="Color")
+rcolor = input.color(#e1212194, "Resistance", inline="Color")
+bscolor = input.color(#4caf4f51, "Br Support ", inline="Color")
+brcolor = input.color(#ff52524d, "Br Resistance", inline="Color")
+srLineWidth = input.int(2, "S/R Line Width", minval=1, maxval=5, inline="LineW")
+obLineWidth = input.int(2, "OB Line Width", minval=1, maxval=5, inline="LineW")
+
+// Adjust pivot lookback based on timeframe
+var int barback = 20
+if timeframe.isdaily or timeframe.isweekly
+    barback := 40
+
+pivotHigh = ta.pivothigh(barback, highlow)  // Higher High check
+pivotLow = ta.pivotlow(barback, highlow)    // Lower Low check
+var highBox = array.new<box>(0)  // Array for resistance boxes
+var lowBox = array.new<box>(0)   // Array for support boxes
+var highLine = array.new<line>(0) // Array for resistance lines
+var lowLine = array.new<line>(0)  // Array for support lines
+
+// Order Block variables
+bool ob_short = false
+bool ob_long = false
+var int obhdx = na
+var int obldx = na
+var longObBox = array.new<box>(0)
+var shortObBox = array.new<box>(0)
+var longObLine = array.new<line>(0)
+var shortObLine = array.new<line>(0)
+var box drawlongBox = na
+var box drawShortBox = na
+var float obhLow = 0.0
+var float obhHigh = 0.0
+var float oblLow = 0.0
+var float oblHigh = 0.0
+
+// Calculate OB condition
+OB = (open - open[4]) / open[5] * 100
+if ta.crossunder(OB, -0.3)
+    ob_short := true
+    ob_long := false
+    obhHigh := high
+    obhLow := low
+    obhdx := bar_index
+if ta.crossover(OB, 0.3)
+    ob_long := true
+    ob_short := false
+    oblHigh := high
+    oblLow := low
+    obldx := bar_index
+
+// Bearish OB Creation
+if ob_short and obhdx - obhdx[1] > 10 and showOB
+    float bullOb = 0
+    valid = true
+    for i = 4 to 15 by 1
+        if close[i] > open[i]
+            bullOb := i
+            break
+    for [index, item] in shortObBox
+        top = item.get_top()
+        bottom = item.get_bottom()
+        if (high[bullOb] < top and low[bullOb] > bottom) or
+           (high[bullOb] > top and low[bullOb] < top) or
+           (high[bullOb] > bottom and low[bullOb] < bottom)
+            valid := false
+    for [index, item] in shortObLine
+        price = item.get_price(bar_index)
+        if (high[bullOb] <= price and low[bullOb] >= price)
+            valid := false
+    if valid
+        if displayType == "Boxes"
+            drawShortBox := box.new(left=bar_index[bullOb], top=high[bullOb], 
+             bottom=low[bullOb], right=bar_index[bullOb], bgcolor=obrcolor, 
+             border_color=obbrcolor,text="Bear OB",text_halign=text.align_center, text_size=size.small)
+            array.push(shortObBox, drawShortBox)
+        else
+            newLine = line.new(bar_index[bullOb], (high[bullOb] + low[bullOb]) / 2, 
+             bar_index[bullOb], (high[bullOb] + low[bullOb]) / 2, 
+             color=obbrcolor, width=obLineWidth)
+            array.push(shortObLine, newLine)
+
+// Bullish OB Creation
+if ob_long and obldx - obldx[1] > 10 and showOB
+    float bearOb = 0
+    valid = true
+    for i = 4 to 15 by 1
+        if close[i] < open[i]
+            bearOb := i
+            break
+    for [index, item] in longObBox
+        top = item.get_top()
+        bottom = item.get_bottom()
+        if (high[bearOb] < top and low[bearOb] > bottom) or 
+           (high[bearOb] > top and low[bearOb] < top) or
+           (high[bearOb] > bottom and low[bearOb] < bottom)
+            valid := false
+    for [index, item] in longObLine
+        price = item.get_price(bar_index)
+        if (high[bearOb] <= price and low[bearOb] >= price)
+            valid := false
+    if valid
+        if displayType == "Boxes"
+            drawlongBox := box.new(left=bar_index[bearOb], top=high[bearOb], 
+             bottom=low[bearOb], right=bar_index[bearOb], bgcolor=obscolor, 
+             border_color=obbscolor,text="Bull OB",text_halign=text.align_center, text_size=size.small)
+            array.push(longObBox, drawlongBox)
+        else
+            newLine = line.new(bar_index[bearOb], (high[bearOb] + low[bearOb]) / 2, 
+             bar_index[bearOb], (high[bearOb] + low[bearOb]) / 2, 
+             color=obbscolor, width=obLineWidth)
+            array.push(longObLine, newLine)
+
+// Manage OB boxes
+if array.size(shortObBox) > 0
+    for i = array.size(shortObBox) - 1 to 0 by 1
+        sbox = array.get(shortObBox, i)
+        top = box.get_top(sbox)
+        bot = box.get_bottom(sbox)
+        item = shortObBox.get(i)
+        item.set_right(bar_index)
+        if high > top
+            array.remove(shortObBox, i)
+            box.delete(sbox)
+    if shortObBox.size() > maxsr
+        shortObBox.shift().delete()
+
+if array.size(longObBox) > 0
+    for i = array.size(longObBox) - 1 to 0 by 1
+        sbox = array.get(longObBox, i)
+        bot = box.get_bottom(sbox)
+        top = box.get_top(sbox)
+        item = longObBox.get(i)
+        item.set_right(bar_index)
+        if low < bot
+            array.remove(longObBox, i)
+            box.delete(sbox)
+    if longObBox.size() > maxsr
+        longObBox.shift().delete()
+
+// Manage OB lines
+if array.size(shortObLine) > 0
+    for i = array.size(shortObLine) - 1 to 0 by 1
+        sline = array.get(shortObLine, i)
+        price = sline.get_price(bar_index)
+        item = shortObLine.get(i)
+        item.set_x2(bar_index)
+        if high > price
+            array.remove(shortObLine, i)
+            line.delete(sline)
+    if shortObLine.size() > maxsr
+        shortObLine.shift().delete()
+
+if array.size(longObLine) > 0
+    for i = array.size(longObLine) - 1 to 0 by 1
+        sline = array.get(longObLine, i)
+        price = sline.get_price(bar_index)
+        item = longObLine.get(i)
+        item.set_x2(bar_index)
+        if low < price
+            array.remove(longObLine, i)
+            line.delete(sline)
+    if longObLine.size() > maxsr
+        longObLine.shift().delete()
+
+// Support/Resistance Creation
+if not na(pivotHigh) and showSR
+    boxWidth = high[highlow] - (high[highlow] - low[highlow]) / 4
+    valid = true
+    for [index, item] in longObBox
+        obTop = item.get_top()
+        obBottom = item.get_bottom()
+        if (high[highlow] < obTop and high[highlow] > obBottom) or
+           (low[highlow] < obTop and low[highlow] > obBottom)
+            valid := false
+            break
+    for [index, item] in shortObBox
+        obTop = item.get_top()
+        obBottom = item.get_bottom()
+        if (high[highlow] < obTop and high[highlow] > obBottom) or
+           (low[highlow] < obTop and low[highlow] > obBottom)
+            valid := false
+            break
+    for [index, item] in highBox
+        top = item.get_top()
+        bottom = item.get_bottom()
+        if (high[highlow] < top and high[highlow] > bottom) or
+           (high[highlow] > top and low[highlow] < top) or
+           (high[highlow] > bottom and low[highlow] < bottom)
+            valid := false
+    for [index, item] in highLine
+        price = item.get_price(bar_index)
+        if (high[highlow] <= price and low[highlow] >= price)
+            valid := false
+    if valid
+        if displayType == "Boxes"
+            hBox = box.new(bar_index[highlow], high[highlow], bar_index,
+             boxWidth, bgcolor=rcolor, text="Resistance", 
+             text_halign=text.align_center, text_size=size.small, border_color=rcolor)
+            array.push(highBox, hBox)
+        else
+            hLine = line.new(bar_index[highlow], high[highlow], bar_index, high[highlow],
+             color=rcolor, style=line.style_solid, width=srLineWidth)
+            array.push(highLine, hLine)
+        if array.size(highBox) > maxsr
+            array.shift(highBox).delete()
+        if array.size(highLine) > maxsr
+            array.shift(highLine).delete()
+
+if array.size(highBox) > 0
+    for index = array.size(highBox) - 1 to 0 by 1
+        item = array.get(highBox, index)
+        item.set_right(bar_index)
+        if high >= item.get_top()
+            item.set_border_color(brcolor)
+            item.set_bottom(item.get_top())
+            item.set_border_width(1)
+            item.set_text("R")
+            if hshow
+                array.remove(highBox, index)
+            else
+                array.remove(highBox, index).delete()
+
+if array.size(highLine) > 0
+    for index = array.size(highLine) - 1 to 0 by 1
+        item = array.get(highLine, index)
+        item.set_x2(bar_index)
+        if high >= item.get_price(bar_index)
+            item.set_color(brcolor)
+            if hshow
+                label.new(bar_index, item.get_price(bar_index), "Br R", 
+                 color=brcolor, style=label.style_label_down, textcolor=color.white, size=size.tiny)
+                array.remove(highLine, index)
+            else
+                array.remove(highLine, index).delete()
+
+if not na(pivotLow) and showSR
+    boxWidth = low[highlow] + (high[highlow] - low[highlow]) / 4
+    valid = true
+    for [index, item] in longObBox
+        obTop = item.get_top()
+        obBottom = item.get_bottom()
+        if (low[highlow] < obTop and low[highlow] > obBottom) or
+           (high[highlow] > obTop and low[highlow] < obTop) or
+           (high[highlow] > obBottom and low[highlow] < obBottom)
+            valid := false
+            break
+    for [index, item] in shortObBox
+        obTop = item.get_top()
+        obBottom = item.get_bottom()
+        if (low[highlow] < obTop and low[highlow] > obBottom) or
+           (high[highlow] > obTop and low[highlow] < obTop) or
+           (high[highlow] > obBottom and low[highlow] < obBottom)
+            valid := false
+            break
+    for [index, item] in lowBox
+        top = item.get_top()
+        bottom = item.get_bottom()
+        if (low[highlow] > top and low[highlow] < bottom) or 
+           (high[highlow] > top and low[highlow] < top) or
+           (high[highlow] > bottom and low[highlow] < bottom)
+            valid := false
+    for [index, item] in lowLine
+        price = item.get_price(bar_index)
+        if (low[highlow] <= price and high[highlow] >= price)
+            valid := false
+    if valid
+        if displayType == "Boxes"
+            lBox = box.new(bar_index[highlow], low[highlow], bar_index,
+             boxWidth, bgcolor=scolor, text="Support", 
+             text_halign=text.align_center, text_size=size.small, border_color=scolor)
+            array.push(lowBox, lBox)
+        else
+            lLine = line.new(bar_index[highlow], low[highlow], bar_index, low[highlow],
+             color=scolor, style=line.style_solid, width=srLineWidth)
+            array.push(lowLine, lLine)
+        if array.size(lowBox) > maxsr
+            array.shift(lowBox).delete()
+        if array.size(lowLine) > maxsr
+            array.shift(lowLine).delete()
+
+if array.size(lowBox) > 0
+    for index = array.size(lowBox) - 1 to 0 by 1
+        item = array.get(lowBox, index)
+        item.set_right(bar_index)
+        if low <= item.get_top()
+            item.set_border_color(bscolor)
+            item.set_bottom(item.get_top())
+            item.set_border_width(1)
+            item.set_text("S")
+            if hshow
+                array.remove(lowBox, index)
+            else
+                array.remove(lowBox, index).delete()
+
+if array.size(lowLine) > 0
+    for index = array.size(lowLine) - 1 to 0 by 1
+        item = array.get(lowLine, index)
+        item.set_x2(bar_index)
+        if low <= item.get_price(bar_index)
+            item.set_color(bscolor)
+            if hshow
+                label.new(bar_index, item.get_price(bar_index), "Br S", 
+                 color=bscolor, style=label.style_label_up, textcolor=color.white, size=size.tiny)
+                array.remove(lowLine, index)
+            else
+                array.remove(lowLine, index).delete()
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

@@ -1,0 +1,159 @@
+{
+  "timestamp": "2025-08-12T09:47:29.384071",
+  "total_testes": 25,
+  "sucessos": 25,
+  "falhas": 0,
+  "taxa_sucesso": 100.0,
+  "resultados": [
+    {
+      "teste": "Arquivo .kilocodemodes",
+      "status": true,
+      "detalhes": "Encontrado em C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.kilocodemodes",
+      "emoji": "✅"
+    },
+    {
+      "teste": "JSON Válido",
+      "status": true,
+      "detalhes": "Sintaxe JSON correta",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Estrutura customModes",
+      "status": true,
+      "detalhes": "Encontrados 1 modo(s)",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Modo Classificador_Trading",
+      "status": true,
+      "detalhes": "Modo 'Classificador_Trading' encontrado",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade slug",
+      "status": true,
+      "detalhes": "Presente: classificador-trading...",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade name",
+      "status": true,
+      "detalhes": "Presente: Classificador_Trading...",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade roleDefinition",
+      "status": true,
+      "detalhes": "Presente: Você é o Classificador_Trading, especialista de el...",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade groups",
+      "status": true,
+      "detalhes": "Presente: ['read', 'edit', 'mcp']...",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade description",
+      "status": true,
+      "detalhes": "Presente e configurada",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade whenToUse",
+      "status": true,
+      "detalhes": "Presente e configurada",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade customInstructions",
+      "status": true,
+      "detalhes": "Presente e configurada",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Propriedade apiConfiguration",
+      "status": true,
+      "detalhes": "Presente e configurada",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Suporte MCP",
+      "status": true,
+      "detalhes": "Grupo 'mcp' incluído",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Modelo Qwen3-Coder",
+      "status": true,
+      "detalhes": "Configurado: qwen/qwen3-coder",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Comandos MCP",
+      "status": true,
+      "detalhes": "Encontrados: PROCESSAR_ARQUIVO, PROCESSAR_LOTE, VALIDAR_FTMO, GERAR_METADATA",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Configuração MCP",
+      "status": true,
+      "detalhes": "Arquivo mcp.json válido",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Servidores MCP",
+      "status": true,
+      "detalhes": "Todos os 5 servidores configurados",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Diretório MCP_Integration",
+      "status": true,
+      "detalhes": "Presente",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Diretório MCP_Integration/servers",
+      "status": true,
+      "detalhes": "Presente",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Diretório .kilocode",
+      "status": true,
+      "detalhes": "Presente",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Servidor mcp_file_analyzer",
+      "status": true,
+      "detalhes": "Arquivo presente",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Servidor mcp_code_classifier",
+      "status": true,
+      "detalhes": "Arquivo presente",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Servidor mcp_ftmo_validator",
+      "status": true,
+      "detalhes": "Arquivo presente",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Servidor mcp_metadata_generator",
+      "status": true,
+      "detalhes": "Arquivo presente",
+      "emoji": "✅"
+    },
+    {
+      "teste": "Servidor mcp_batch_processor",
+      "status": true,
+      "detalhes": "Arquivo presente",
+      "emoji": "✅"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "id": "EA_AndromedaNebula_v1.002_MULTI",
+  "nome_original": "Andromeda Nebula.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.002",
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "caminho": "CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/Grid_Martingale/EA_AndromedaNebula_v1.002_MULTI.mq5",
+  "descricao": "Expert Advisor com sistema de grid e martingale, usando stop loss e take profit virtuais",
+  "funcoes_principais": [
+    "OnInit",
+    "OnTick",
+    "OnDeinit"
+  ],
+  "parametros_expostos": [
+    "Virtual_SL",
+    "Virtual_TP",
+    "Start_Lots",
+    "Martingale_coeff",
+    "Print_log",
+    "Deviation",
+    "Magic"
+  ],
+  "ftmo_score": 3,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Sistema de martingale",
+    "Sistema de grid",
+    "Alto risco de drawdown",
+    "Sem proteção de perda diária",
+    "Stop loss virtual pode falhar"
+  ],
+  "qualidade_codigo": 6,
+  "ajustes_ftmo_sugeridos": [
+    "Remover sistema de martingale",
+    "Implementar stop loss real",
+    "Adicionar proteção de perda diária",
+    "Limitar número de posições",
+    "Implementar filtro de sessão",
+    "Reduzir risco por trade para 1%"
+  ],
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#VirtualSL",
+    "#VirtualTP",
+    "#HighRisk",
+    "#MULTI",
+    "#Nao_FTMO"
+  ]
+}

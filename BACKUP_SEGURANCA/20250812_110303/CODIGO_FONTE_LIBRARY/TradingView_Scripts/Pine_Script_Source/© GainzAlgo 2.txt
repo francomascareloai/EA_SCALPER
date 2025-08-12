@@ -1,0 +1,87 @@
+/// © GainzAlgo
+
+//@version=5
+indicator('GainzAlgo V2 [Essential]', overlay=true, max_labels_count=500)
+
+show_tp_sl = input.bool(true, 'Display TP & SL', group='Techical', tooltip='Display the exact TP & SL price levels for BUY & SELL signals.')
+rrr = input.string('1:2', 'Risk to Reward Ratio', group='Techical', options=['1:1', '2:3', '1:2', '1:4'], tooltip='Set a risk to reward ratio (RRR).')
+tp_sl_multi = input.float(1, 'TP & SL Multiplier', 1, group='Techical',  tooltip='Multiplies both TP and SL by a chosen index. Higher - higher risk.')
+tp_sl_prec = input.int(2, 'TP & SL Precision', 0, group='Techical')
+
+candle_stability_index_param = 0.5
+rsi_index_param = 70
+candle_delta_length_param  = 4
+disable_repeating_signals_param = input.bool(true, 'Disable Repeating Signals', group='Techical', tooltip='Removes repeating signals. Useful for removing clusters of signals and general clarity.')
+
+GREEN = color.rgb(29, 255, 40)
+RED = color.rgb(255, 0, 0)
+TRANSPARENT = color.rgb(0, 0, 0, 100)
+
+label_size = input.string('huge', 'Label Size', options=['huge', 'large', 'normal', 'small', 'tiny'], group='Cosmetic')
+label_style = input.string('text bubble', 'Label Style', ['text bubble', 'triangle', 'arrow'], group='Cosmetic')
+buy_label_color = input(GREEN, 'BUY Label Color', inline='Highlight', group='Cosmetic')
+sell_label_color = input(RED, 'SELL Label Color', inline='Highlight', group='Cosmetic')
+label_text_color = input(color.white, 'Label Text Color', inline='Highlight', group='Cosmetic')
+
+stable_candle = math.abs(close - open) / ta.tr > candle_stability_index_param
+rsi = ta.rsi(close, 14)
+atr = ta.atr(14)
+
+bullish_engulfing = close[1] < open[1] and close > open and close > open[1]
+rsi_below = rsi < rsi_index_param
+decrease_over = close < close[candle_delta_length_param]
+
+var last_signal = ''
+var tp = 0.
+var sl = 0.
+
+bull_state = bullish_engulfing and stable_candle and rsi_below and decrease_over and barstate.isconfirmed
+bull = bull_state and (disable_repeating_signals_param ? (last_signal != 'buy' ? true : na) : true)
+
+bearish_engulfing = close[1] > open[1] and close < open and close < open[1]
+rsi_above = rsi > 100 - rsi_index_param
+increase_over = close > close[candle_delta_length_param]
+
+bear_state = bearish_engulfing and stable_candle and rsi_above and increase_over and barstate.isconfirmed
+bear = bear_state and (disable_repeating_signals_param ? (last_signal != 'sell' ? true : na) : true)
+
+round_up(number, decimals) =>
+    factor = math.pow(10, decimals)
+    math.ceil(number * factor) / factor
+
+if bull
+    last_signal := 'buy'
+    dist = atr * tp_sl_multi
+    tp_dist = rrr == '2:3' ? dist / 2 * 3 : rrr == '1:2' ? dist * 2 : rrr == '1:4' ? dist * 4 : dist
+    tp := round_up(close + tp_dist, tp_sl_prec)
+    sl := round_up(close - dist, tp_sl_prec)
+
+    if label_style == 'text bubble'
+        label.new(bar_index, low, 'BUY', color=buy_label_color, style=label.style_label_up, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(bar_index, low, 'BUY', yloc=yloc.belowbar, color=buy_label_color, style=label.style_triangleup, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(bar_index, low, 'BUY', yloc=yloc.belowbar, color=buy_label_color, style=label.style_arrowup, textcolor=TRANSPARENT, size=label_size)
+
+    label.new(show_tp_sl ? bar_index : na, low, 'TP: ' + str.tostring(tp) + '\nSL: ' + str.tostring(sl), yloc=yloc.price, color=color.gray, style=label.style_label_down, textcolor=label_text_color)
+
+if bear
+
+    last_signal := 'sell'
+    dist = atr * tp_sl_multi
+    tp_dist = rrr == '2:3' ? dist / 2 * 3 : rrr == '1:2' ? dist * 2 : rrr == '1:4' ? dist * 4 : dist
+    tp := round_up(close - tp_dist, tp_sl_prec)
+    sl := round_up(close + dist, tp_sl_prec)
+
+    if label_style == 'text bubble'
+        label.new(bear ? bar_index : na, high, 'SELL', color=sell_label_color, style=label.style_label_down, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(bear ? bar_index : na, high, 'SELL', yloc=yloc.abovebar, color=sell_label_color, style=label.style_triangledown, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(bear ? bar_index : na, high, 'SELL', yloc=yloc.abovebar, color=sell_label_color, style=label.style_arrowdown, textcolor=TRANSPARENT, size=label_size)
+
+    label.new(show_tp_sl ? bar_index : na, low, 'TP: ' + str.tostring(tp) + '\nSL: ' + str.tostring(sl), yloc=yloc.price, color=color.gray, style=label.style_label_up, textcolor=label_text_color)
+
+alertcondition(bull or bear, 'BUY & SELL Signals', 'New signal!')
+alertcondition(bull, 'BUY Signals (Only)', 'New signal: BUY')
+alertcondition(bear, 'SELL Signals (Only)', 'New signal: SELL')

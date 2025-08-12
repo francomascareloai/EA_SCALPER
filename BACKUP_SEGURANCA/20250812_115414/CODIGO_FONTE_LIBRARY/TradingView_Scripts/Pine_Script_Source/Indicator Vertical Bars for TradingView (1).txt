@@ -1,0 +1,450 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=6
+indicator("Vertical Bars", overlay=true, max_bars_back=3000)
+
+// ─────────────────────────────────────────────────────────────
+// Inputs
+// ─────────────────────────────────────────────────────────────
+
+// Zigzag group
+groupZZ = "Zigzag"
+hideRepainted    = input(true, "Hide repainted", group=groupZZ)
+price            = input(close, "Price", group=groupZZ)
+priceH           = input(high, "Price High", group=groupZZ)
+priceL           = input(low, "Price Low", group=groupZZ)
+atrReversalFac   = input(3.2, "ATR Reversal Factor", group=groupZZ)
+showZZLines      = input(false, "Show ZigZag Lines", group=groupZZ) // Turned OFF
+showVertPivots   = input.bool(true, "Show Vertical Lines at Pivots", group=groupZZ) // Turned ON
+maxVLines        = input(10, "Max Vertical Lines on Chart", group=groupZZ)
+bullPivotColor   = input.color(color.rgb(0, 128, 0), "Pivot Low", inline="vertical", group=groupZZ)
+bearPivotColor   = input.color(color.rgb(255, 0, 0), "Pivot High", inline="vertical", group=groupZZ)
+zzLineWidth      = input.int(3, "Zigzag Line Width", group=groupZZ)
+pivotLineWidth   = input.int(2, "Vertical Pivot Line Width", group=groupZZ)
+
+// Donchian Channel group
+groupDCC = "Donchian Channel"
+showChannel  = input(false, "Show Channel", group=groupDCC) // Turned OFF
+displace     = input(0, "Displace", group=groupDCC)
+length       = input(20, "Length", group=groupDCC)
+bubbleOffset = input(0.50, "Bubble Displaced", group=groupDCC)
+
+// ─────────────────────────────────────────────────────────────
+// ATR & Reversal Calculation
+// ─────────────────────────────────────────────────────────────
+atrValue       = ta.rma(ta.tr, 5)
+reversalAmount = atrReversalFac * atrValue
+
+// ─────────────────────────────────────────────────────────────
+// Zigzag State & Pivot Detection
+// ─────────────────────────────────────────────────────────────
+var string state      = "init"
+var float  minMaxPrice = na
+
+if state == "init"
+    minMaxPrice := price
+    state := "undefined"
+else if state == "undefined"
+    if price <= minMaxPrice - reversalAmount
+        state := "downtrend"
+        minMaxPrice := priceL
+    else if price >= minMaxPrice + reversalAmount
+        state := "uptrend"
+        minMaxPrice := priceH
+    else
+        minMaxPrice := minMaxPrice[1]
+else if state == "uptrend"
+    if price <= minMaxPrice - reversalAmount
+        state := "downtrend"
+        minMaxPrice := priceL
+    else
+        minMaxPrice := math.max(priceH, minMaxPrice[1])
+else  // state == "downtrend"
+    if price >= minMaxPrice + reversalAmount
+        state := "uptrend"
+        minMaxPrice := priceH
+    else
+        minMaxPrice := math.min(priceL, minMaxPrice[1])
+
+newState   = state != state[1]
+highPivot  = state == "uptrend" and priceH == minMaxPrice
+lowPivot   = state == "downtrend" and priceL == minMaxPrice
+
+// ─────────────────────────────────────────────────────────────
+// Zigzag Pivot & Line Calculation
+// ─────────────────────────────────────────────────────────────
+var int prevStateBar   = na
+var int lastHBar       = na
+var int prevLastHBar   = na
+var int lastLBar       = na
+var int prevLastLBar   = na
+var float lastHVal     = na
+var float prevLastHVal = na
+var float lastLVal     = na
+var float prevLastLVal = na
+
+if newState
+    prevStateBar := bar_index
+
+// For uptrend pivots
+if (newState or barstate.islast) and state[1] == "uptrend"
+    prevLastHBar := lastHBar
+    for i = 1 to (bar_index - prevStateBar[1])
+        if highPivot[i]
+            lastHBar := bar_index - i
+            break
+    lastHVal     := priceH[bar_index - lastHBar]
+    prevLastHVal := priceH[bar_index - prevLastHBar]
+
+// For downtrend pivots
+if (newState or barstate.islast) and state[1] == "downtrend"
+    prevLastLBar := lastLBar
+    for i = 1 to (bar_index - prevStateBar[1])
+        if lowPivot[i]
+            lastLBar := bar_index - i
+            break
+    lastLVal     := priceL[bar_index - lastLBar]
+    prevLastLVal := priceL[bar_index - prevLastLBar]
+
+// Manage vertical pivot lines array
+var array<line> vLines = array.new_line()
+if newState and state[4] == "uptrend"
+    if showZZLines
+        line.new(lastHBar, lastHVal, lastLBar, lastLVal, width=zzLineWidth, color=color.green)
+    if showVertPivots
+        // Use solid line for confirmed pivot that won't be repainted
+        array.push(vLines, line.new(lastLBar, priceH, lastLBar, priceL, extend=extend.both, color=bullPivotColor, width=pivotLineWidth, style=line.style_solid))
+else if newState and state[4] == "downtrend"
+    if showZZLines
+        line.new(lastHBar, lastHVal, lastLBar, lastLVal, width=zzLineWidth, color=color.red)
+    if showVertPivots
+        // Use solid line for confirmed pivot that won't be repainted
+        array.push(vLines, line.new(lastHBar, priceH, lastHBar, priceL, extend=extend.both, color=bearPivotColor, width=pivotLineWidth, style=line.style_solid))
+
+if array.size(vLines) > maxVLines
+    line.delete(array.shift(vLines))
+
+// Draw final zigzag lines on the last bar
+var line finalZZLine      = line.new(na, na, na, na)
+var line finalPivotLine1  = line.new(na, na, na, na, extend=extend.both, width=pivotLineWidth)
+var line finalPivotLine2  = line.new(na, na, na, na, extend=extend.both, width=pivotLineWidth)
+
+if barstate.islast
+    if showZZLines
+        if lastLBar < lastHBar
+            line.set_xy1(finalZZLine, lastLBar, lastLVal)
+            line.set_xy2(finalZZLine, lastHBar, lastHVal)
+            line.set_color(finalZZLine, color.green)
+        else
+            line.set_xy1(finalZZLine, lastHBar, lastHVal)
+            line.set_xy2(finalZZLine, lastLBar, lastLVal)
+            line.set_color(finalZZLine, color.red)
+            
+    if showVertPivots
+        // Determine which pivot is the most recent one
+        bool isLowMostRecent = lastLBar > lastHBar
+        
+        if lastLBar < lastHBar
+            // Low pivot came first (older bull)
+            line.set_xy1(finalPivotLine1, lastLBar, lastLVal)
+            line.set_xy2(finalPivotLine1, lastLBar, lastHVal)
+            line.set_color(finalPivotLine1, bullPivotColor)
+            line.set_style(finalPivotLine1, line.style_dashed)
+            
+            // High pivot is most recent
+            line.set_xy1(finalPivotLine2, lastHBar, lastLVal)
+            line.set_xy2(finalPivotLine2, lastHBar, lastHVal)
+            line.set_color(finalPivotLine2, bearPivotColor)  // Special color for most recent pivot
+            line.set_style(finalPivotLine2, line.style_dotted)
+            line.set_width(finalPivotLine2, pivotLineWidth)  
+        else
+            // High pivot came first (older bear)
+            line.set_xy1(finalPivotLine1, lastHBar, lastLVal)
+            line.set_xy2(finalPivotLine1, lastHBar, lastHVal)
+            line.set_color(finalPivotLine1, bearPivotColor)
+            line.set_style(finalPivotLine1, line.style_dashed)
+            
+            // Low pivot is most recent
+            line.set_xy1(finalPivotLine2, lastLBar, lastLVal)
+            line.set_xy2(finalPivotLine2, lastLBar, lastHVal)
+            line.set_color(finalPivotLine2, bullPivotColor)  // Special color for most recent pivot
+            line.set_style(finalPivotLine2, line.style_dotted)
+            line.set_width(finalPivotLine2, pivotLineWidth)  
+
+// ─────────────────────────────────────────────────────────────
+// Donchian Channel Calculation & Plotting
+// ─────────────────────────────────────────────────────────────
+upperBand  = ta.highest(high[displace], length)
+lowerBand  = ta.lowest(low[displace], length)
+middleBand = (upperBand + lowerBand) / 2
+
+plot(showChannel ? upperBand : na, "Upper Band", color.red)
+plot(showChannel ? lowerBand : na, "Lower Band", color.green)
+plot(showChannel ? middleBand : na, "Middle Band", color.yellow)
+
+// ─────────────────────────────────────────────────────────────
+// Combined ZZ & Donchian Scenarios
+// ─────────────────────────────────────────────────────────────
+longEntry  = low > low[1] and low[1] <= lowerBand[1]
+shortEntry = high < high[1] and high[1] >= upperBand[1]
+
+var float nonRepaintZz = na
+nonRepaintZz := highPivot ? priceH : lowPivot ? priceL : nonRepaintZz
+
+arrDown = highPivot[1] and not highPivot and shortEntry and not longEntry and nonRepaintZz[1] == upperBand
+arrUp   = lowPivot[1] and not lowPivot and longEntry and not shortEntry and nonRepaintZz[1] == lowerBand
+
+plotshape(arrDown, "Down", shape.triangledown, location=location.abovebar, color=color.black, size=size.small, 
+     display = hideRepainted ? display.none : display.all)
+plotshape(arrUp, "Up", shape.triangleup, location=location.belowbar, color=color.black, size=size.small, 
+     display = hideRepainted ? display.none : display.all)
+
+// ─────────────────────────────────────────────────────────────
+// Arrow & Label Drawing
+// ─────────────────────────────────────────────────────────────
+upLabelStyle = label.style_label_upper_left
+dnLabelStyle = label.style_label_lower_left
+
+// Immediate labels on new state conditions
+if newState and state[1] == "uptrend" and shortEntry[bar_index - lastHBar - 1] and not longEntry[bar_index - lastHBar - 1] and 
+   high[bar_index - lastHBar] == upperBand[bar_index - lastHBar - 1]
+    label.new(lastHBar + 1, high[bar_index - lastHBar - 1] + bubbleOffset * syminfo.mintick, 
+       style=label.style_triangledown, color=color.rgb(255, 0, 0), size=size.small, yloc=yloc.abovebar)
+ 
+if newState and state[1] == "downtrend" and longEntry[bar_index - lastLBar - 1] and not shortEntry[bar_index - lastLBar - 1] and 
+   low[bar_index - lastLBar] == lowerBand[bar_index - lastLBar - 1]
+    label.new(lastLBar + 1, low[bar_index - lastLBar - 1] - bubbleOffset * syminfo.mintick, 
+       style=label.style_triangleup, color=color.rgb(0, 128, 0), size=size.small, yloc=yloc.belowbar)
+
+// Persistent arrow labels
+var label downArrow    = label.new(na, na, style=dnLabelStyle, color=color.rgb(255, 0, 0), text="")
+var label upArrow      = label.new(na, na, style=upLabelStyle, color=color.rgb(0, 128, 0), text="")
+var label downArrow2   = label.new(na, na, style=label.style_triangledown, color=color.rgb(255, 0, 0), size=size.small, yloc=yloc.abovebar)
+var label upArrow2     = label.new(na, na, style=label.style_triangleup, color=color.rgb(0, 128, 0), size=size.small, yloc=yloc.belowbar)
+
+if barstate.islast and state == "uptrend" and priceH < lastHVal and priceH[1] < lastHVal and 
+   shortEntry[bar_index - lastHBar - 1] and not longEntry[bar_index - lastHBar - 1] and 
+   high[bar_index - lastHBar] == upperBand[bar_index - lastHBar - 1]
+    label.set_color(downArrow2, color.rgb(255, 0, 0))
+    label.set_xy(downArrow2, lastHBar + 1, high[bar_index - lastHBar - 1] + bubbleOffset)
+    
+if barstate.islast and state == "downtrend" and priceL > lastLVal and priceL[1] > lastLVal and 
+   longEntry[bar_index - lastLBar - 1] and not shortEntry[bar_index - lastLBar - 1] and 
+   low[bar_index - lastLBar] == lowerBand[bar_index - lastLBar - 1]
+    label.set_color(upArrow2, color.rgb(0, 128, 0))
+    label.set_xy(upArrow2, lastLBar + 1, low[bar_index - lastLBar - 1] - bubbleOffset)
+
+invisibleColor = color.new(color.white, 100)
+if barstate.islast and state == "uptrend" and priceH > lastHVal
+    label.set_color(downArrow, invisibleColor)
+    label.set_color(downArrow2, invisibleColor)
+if barstate.islast and state == "downtrend" and priceL < lastLVal
+    label.set_color(upArrow, invisibleColor)
+    label.set_color(upArrow2, invisibleColor)
+
+// ─────────────────────────────────────────────────────────────
+// Alerts
+// ─────────────────────────────────────────────────────────────
+alertcondition(highPivot[1] and not highPivot, "Down Arrow", "Down arrow")
+alertcondition(lowPivot[1] and not lowPivot, "Up Arrow", "Up arrow")
+
+if highPivot[1] and not highPivot
+    alert(syminfo.ticker + " reversal down arrow", alert.freq_once_per_bar_close)
+if lowPivot[1] and not lowPivot
+    alert(syminfo.ticker + " reversal up arrow", alert.freq_once_per_bar_close)
+
+// TrendMarker - CoffeeKiller code
+
+// =================== COLORS ===================
+// Define custom colors for bullish and bearish conditions
+var GreenFluorescent = color.rgb(0, 128, 0)
+var RedFluorescent = color.rgb(255, 0, 0)
+
+// =================== SUPERTREND INPUTS ===================
+atrPeriod = input.int(title = 'ATR Period', defval = 4, minval = 1, maxval = 100, 
+     tooltip = 'Period for Average True Range calculation', group = 'SuperTrend')
+factor = input.float(title = 'Factor', defval = 1.0, minval = 0.5, step = 0.1, 
+     tooltip = 'Multiplier for ATR to determine band width', group = 'SuperTrend')
+showSline = input.bool(title = 'Show SuperTrend Line', defval = false, 
+     tooltip = 'Display Supertrend Line on chart', group = 'SuperTrend') // Turned OFF
+
+// =================== PARABOLIC SAR INPUTS ===================
+var groupPSAR = "Parabolic SAR Settings"
+start = input.float(0.02, 'Start', minval = 0.001, group = groupPSAR)
+increment = input.float(0.02, 'Increment', minval = 0.001, group = groupPSAR)
+maximum = input.float(0.2, 'Max Value', minval = 0.01, group = groupPSAR)
+showPsarPlot = input.bool(false, 'Show Parabolic SAR Points', group = groupPSAR) // Turned OFF
+highlightTrend = input.bool(title = 'Parabolic SAR Trend Highlight', defval = false, 
+     tooltip = 'Highlight Parabolic SAR with SuperTrend direction with background color', group = groupPSAR) // Turned OFF
+bgTransparency = input.int(95, 'Background Transparency', minval = 0, maxval = 100, group = groupPSAR)
+
+// =================== MARKER LINES INPUTS ===================
+showOpenLines      = input.bool(false,  title="Show Marker Lines",             group="Marker Lines") // Turned OFF
+showMiddleLine     = input.bool(false, title="Show Middle Marker Line",       group="Marker Lines") // Turned OFF
+highLineColor      = input.color(color.rgb(255, 0, 255),   title="High Marker Line",     group="Marker Lines")
+midLineColor       = input.color(color.rgb(128, 128, 255), title="Middle Marker Line",   group="Marker Lines")
+lowLineColor       = input.color(color.rgb(0, 255, 255),   title="Low Marker Line",      group="Marker Lines")
+showOpenPriceLine  = input.bool(false, title="Show Open Line and Fill",       group="Open Line and Fill with Labels") // Turned OFF
+showRangeLabels    = input.bool(false,  title="Show Range Labels",             group="Open Line and Fill with Labels") // Turned OFF
+showPositionMarker = input.bool(false,  title="Show Position Marker",          group="Open Line and Fill with Labels") // Turned OFF
+
+// =================== SUPERTREND CALCULATIONS ===================
+// ATR calculation
+atrValue2 = ta.atr(atrPeriod)
+// Base bands
+upperBand2 = (high + low) / 2 + factor * atrValue2
+lowerBand2 = (high + low) / 2 - factor * atrValue2
+// Persistent variables
+var float upperTrend = na
+var float lowerTrend = na
+var int superTrendDirection = 1
+var float superTrend = na
+// Update upper/lower trend
+upperTrend := na(upperTrend[1]) ? upperBand2 : close[1] > upperTrend[1] ? math.max(lowerBand2, upperTrend[1]) : lowerBand2
+lowerTrend := na(lowerTrend[1]) ? lowerBand2 : close[1] < lowerTrend[1] ? math.min(upperBand2, lowerTrend[1]) : upperBand2
+// Update direction
+superTrendDirection := close > lowerTrend[1] ? 1 : close < upperTrend[1] ? -1 : superTrendDirection[1]
+// Assign superTrend value
+superTrend := superTrendDirection == 1 ? upperTrend : lowerTrend
+// Determine uptrend/downtrend for supertrend
+isUptrend = superTrendDirection == 1
+
+// =================== PARABOLIC SAR CALCULATIONS ===================
+// Calculate Parabolic SAR values
+psar = ta.sar(start, increment, maximum)
+isPsarBullish = close > psar  // PSAR direction (true when price is above PSAR)
+
+// =================== MARKER LINES CALCULATIONS ===================
+// PERSISTENT VARIABLES FOR HIGH/LOW VALUES
+var float highestOpen = na
+var float lowestOpen  = na
+
+// MODIFIED RESET LOGIC: Reset based on SuperTrend direction changes
+var int prevSuperTrendDirection = na
+resetHigh = (superTrendDirection == 1 and prevSuperTrendDirection == -1) or barstate.isfirst
+resetLow = (superTrendDirection == -1 and prevSuperTrendDirection == 1) or barstate.isfirst
+
+if resetHigh or na(highestOpen)
+    highestOpen := na
+
+if resetLow or na(lowestOpen)
+    lowestOpen := na
+    
+prevSuperTrendDirection := superTrendDirection
+
+// UPDATE HIGH/LOW WITH CURRENT OPEN VALUE
+highestOpen := na(highestOpen) ? open : math.max(highestOpen, open)
+lowestOpen  := na(lowestOpen)  ? open : math.min(lowestOpen, open)
+
+// PLOT MAIN MARKER LINES
+plotHigh = showOpenLines ? highestOpen : na
+plotLow  = showOpenLines ? lowestOpen  : na
+plot(plotHigh, color=highLineColor, style=plot.style_stepline, title="High Marker Line", linewidth=2)
+plot(plotLow,  color=lowLineColor,  style=plot.style_stepline, title="Low Marker Line",  linewidth=2)
+
+// CALCULATE AND PLOT MIDDLE LINE
+midRange = na(highestOpen) or na(lowestOpen) ? na : (highestOpen + lowestOpen) / 2
+plotMid  = showOpenLines and showMiddleLine ? midRange : na
+plot(plotMid, color=midLineColor, style=plot.style_stepline, title="Middle Marker Line", linewidth=2)
+
+// DOTTED LINES FOR FUTURE PROJECTIONS
+var line highDotted = na
+var line lowDotted  = na
+var line midDotted  = na
+
+if showOpenLines
+    // High dotted line
+    if na(highDotted)
+        highDotted := line.new(bar_index, highestOpen, bar_index + 60, highestOpen, width=2, color=highLineColor, style=line.style_dotted)
+    else
+        line.set_xy1(highDotted, bar_index, highestOpen)
+        line.set_xy2(highDotted, bar_index + 60, highestOpen)
+    // Low dotted line
+    if na(lowDotted)
+        lowDotted := line.new(bar_index, lowestOpen, bar_index + 60, lowestOpen, width=2, color=lowLineColor, style=line.style_dotted)
+    else
+        line.set_xy1(lowDotted, bar_index, lowestOpen)
+        line.set_xy2(lowDotted, bar_index + 60, lowestOpen)
+    // Mid dotted line
+    if showMiddleLine
+        if na(midDotted)
+            midDotted := line.new(bar_index, midRange, bar_index + 60, midRange, width=2, color=midLineColor, style=line.style_dotted)
+        else
+            line.set_xy1(midDotted, bar_index, midRange)
+            line.set_xy2(midDotted, bar_index + 60, midRange)
+    else
+        line.delete(midDotted)
+        midDotted := na
+else
+    line.delete(highDotted)
+    line.delete(lowDotted)
+    line.delete(midDotted)
+    highDotted := na
+    lowDotted := na
+    midDotted := na
+
+// OPEN PRICE STEP LINE (for fill purposes only)
+plotOpenPrice = plot(showOpenPriceLine ? open : na, color=color.new(color.rgb(255, 255, 0), 0), linewidth=2, style=plot.style_stepline, display=display.none, title="Open Price Step Line")
+fill(plotOpenPrice, plot(showOpenLines ? highestOpen : na, display=display.none), color=color.new(color.red, 80))
+fill(plotOpenPrice, plot(showOpenLines ? lowestOpen  : na, display=display.none), color=color.new(color.green, 80))
+
+// RANGE AND POSITION CALCULATIONS
+rangeVal       = highestOpen - lowestOpen
+percentInRange = rangeVal != 0 ? (close - lowestOpen) / rangeVal * 100 : 0
+
+// LABELS FOR MARKER VALUES
+var label lblHigh = na
+var label lblMid  = na
+var label lblLow  = na
+var label lblPos  = na
+
+if showOpenLines and showRangeLabels and barstate.islast
+    if not na(lblHigh)
+        label.delete(lblHigh)
+    if not na(lblMid)
+        label.delete(lblMid)
+    if not na(lblLow)
+        label.delete(lblLow)
+    lblHigh := label.new(bar_index + 2, highestOpen, "100%", style=label.style_label_left, color=color.new(color.black, 0), textcolor=highLineColor)
+    
+    // Only show middle line label if middle line is enabled
+    if showMiddleLine
+        lblMid := label.new(bar_index + 2, midRange, "50%", style=label.style_label_left, color=color.new(color.black, 0), textcolor=midLineColor)
+    else if not na(lblMid)
+        label.delete(lblMid)
+        lblMid := na
+        
+    lblLow := label.new(bar_index + 2, lowestOpen, "0%", style=label.style_label_left, color=color.new(color.black, 0), textcolor=lowLineColor)
+
+if showOpenLines and showPositionMarker and barstate.islast
+    if not na(lblPos)
+        label.delete(lblPos)
+    lblPos := label.new(bar_index + 2, close, str.tostring(math.round(percentInRange, 1)) + "%", style=label.style_label_left, color=color.new(color.black, 0), textcolor=color.white)
+
+// =================== PLOTTING ===================
+// Colors for SuperTrend
+bullColor = color.rgb(76, 175, 80) // Green base
+bearColor = color.rgb(255, 82, 82) // Red base
+superTrendColor = superTrendDirection == 1 ? bullColor : bearColor
+
+// Plot SuperTrend line
+plot(showSline ? superTrend : na, 'SuperTrend', color = superTrendColor, linewidth = 2)
+
+// Plot Parabolic SAR with toggle option
+plot(showPsarPlot ? psar : na, "ParabolicSAR", style=plot.style_cross, color=#2962FF)
+
+// Set background color based on Supertrend & PSAR combined conditions
+bullCondition = isUptrend and isPsarBullish
+bearCondition = not isUptrend and not isPsarBullish
+bgcolor(highlightTrend ? (bullCondition ? color.new(GreenFluorescent, bgTransparency) : 
+       bearCondition ? color.new(RedFluorescent, bgTransparency) : na) : na, 
+       title = 'Signal Background')
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

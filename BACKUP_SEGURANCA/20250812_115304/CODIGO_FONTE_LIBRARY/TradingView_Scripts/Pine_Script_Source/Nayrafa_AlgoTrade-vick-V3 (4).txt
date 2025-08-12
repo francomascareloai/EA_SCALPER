@@ -1,0 +1,3007 @@
+//@version=5
+strategy('Nayrafa_AlgoTrade-vick-V3', overlay=true, default_qty_type=strategy.cash, default_qty_value=10000, initial_capital=10000, currency='USD', commission_type=strategy.commission.percent, commission_value=0, max_bars_back=3000, max_lines_count=100, calc_on_every_tick=false, max_labels_count=100)
+
+//User has to agree to have the indi loading on the chart.
+var user_consensus = input.string(defval="", title="Please enter code", confirm = true, group="CODE")
+var icc = false
+if user_consensus == "939325"
+    icc := true
+else
+    icc := false
+
+
+
+var initialcapital = strategy.equity
+
+
+// ------------------------------------------
+asset = input.string(title = "Strategies", defval = " ### Dev Mode (FREE SETTING sensitivity AND offset) ### ", options=[" ### Dev Mode (FREE SETTING sensitivity AND offset) ### ",
+     "     ",
+     "BTC/D - 15m | Mid-Term", 
+     "ETH/USDT - 15m | Short-Term",
+     "BTC/USDT - 30m | Mid-Term",
+     "BTC/USDT - 1h | Long-Term", 
+     "BTC/USDT - 15m | Short-Term",
+     "QTUM/USDT - 15m | Short-Term",
+     "ZIL/USDT - 30m | Mid-Term",
+     "ZIL/USDT - 15m | Short-Term",
+     "AUDIO/USDT - 15m | Short-Term",
+     "AXS/USDT - 15m | Short-Term",
+     "BAND/USDT - 30m | Mid-Term",
+     "BAND/USDT - 15m | Short-Term",
+     "TRX/USDT - 30m | Mid-Term" ,
+     "OP/USDT - 15m | Short-Term",
+     "OP/USDT - 30m | Mid-Term",
+     "APE/USDT - 15m | Short-Term",
+     "APE/USDT - 30m | Mid-Term",
+     "ENS/USDT - 15m | Short-Term",
+     "BAKE/USDT - 30m | Mid-Term", 
+     "CELR/USDT - 30m | Mid-Term",
+     "1000PEPE/USDT - 15m | Short-Term",
+     "1000SHIB/USDT - 45m | Mid-Term", 
+     "CHR/USDT - 15m | Short-Term",
+     "CHR/USDT - 45m | Mid-Term",
+     "HNT/USDT - 15m | Short-Term",
+     "BLZ/USDT - 15m | Short-Term",
+     "EGLD/USDT - 15m | Short-Term",
+     "KAVA/USDT - 15m | Short-Term", 
+     "ZEN/USDT - 15m | Short-Term",
+     "FLOW/USDT - 30m | Mid-Term",
+     "YFI/USDT - 15m | Short-Term",
+     "LDO/USDT - 15m | Short-Term",
+     "MATIC/USDT - 15m | Short-Term",
+     "ANKR/USDT - 15m | Mid-Term",
+     "TOMO/USDT - 15m | Short-Term",
+     "DOT/USDT - 15m | Short-Term",
+     "DASH/USDT - 30m | Mid-Term",
+     "JASMY/USDT - 15m | Short-Term",
+     "WOO/USDT - 15m | Short-Term",
+     "SUSHI/USDT - 30m | Mid-Term",
+     "SUSHI/USDT - 15m | Short-Term",
+     "NEAR/USDT - 30m | Mid-Term",
+     "SKL/USDT - 15m | Short-Term",
+     "UNFI/USDT - 15m | Short-Term",
+     "FTM/USDT - 15m | Short-Term",
+     "SFP/USDT - 15m | Short-Term",
+     'BNB/USDT - 30m | Mid-Term',
+     'AUD/EUR - 15m | Short-Term',
+     'CAD/JPY - 15m | Short-Term',
+     'TSLA/TESLA - 15m | Short-Term',
+     'AAPL/APLE - 15m | Short-Term',
+     'AAPL/APLE - 5m | Short-Term',
+     'TSLA/TESLA - 5m | Short-Term',
+     'GOOG/GOOGLE - 15m | Short-Term',
+     'SILVER/XAGUSD - 15m | Short-Term',
+     'PLATINUM - 15m | Short-Term',
+     'XAU/USD - 15m | Mid-Term',
+     'AUD/EUR - 30m | Mid-Term',
+     'XAU/USD - 30m | Mid-Term',
+     'CHF/JPY - 15m | Short-Term',
+     'USD/JPY - 15m | Short-Term',
+     'USD/CAD - 15m | Short-Term',
+     'GBP/USD - 15m | Short-Term',
+     'EUR/USD - 15m | Short-Term',
+     'AUD/USD - 15m | Short-Term',
+     'GBP/JPY - 15m | Short-Term'
+     ])
+ 
+
+
+
+//Supertrend Indicator
+amplitude = input(title='Amplitude', defval=45,                         group = "Trendline")
+channelDeviation = input(title='Channel Deviation', defval=2,           group = "Trendline")
+showArrows = input(title='Show Arrows', defval=true,                    group = "Trendline")
+showChannels = input(title='Show Channels', defval=false,               group = "Trendline")
+tpLevel = input.int(title='Take Profit Level', defval=1, minval=1, maxval=4,    group = "Trendline")
+slLevel = input.int(title='Stop Loss Level', defval=1, minval=1, maxval=4,      group = "Trendline")
+
+var int trend2 = 0
+var int nextTrend = 0
+var float maxLowPrice = nz(low[1], low)
+var float minHighPrice = nz(high[1], high)
+
+var float up2 = 0.0
+var float down = 0.0
+float atrHigh = 0.0
+float atrLow = 0.0
+float arrowUp = na
+float arrowDown = na
+
+atr3 = ta.atr(100) / 2
+dev = channelDeviation * atr3
+
+highPrice = high[math.abs(ta.highestbars(amplitude))]
+lowPrice = low[math.abs(ta.lowestbars(amplitude))]
+highma = ta.sma(high, amplitude)
+lowma = ta.sma(low, amplitude)
+
+if nextTrend == 1
+    maxLowPrice := math.max(lowPrice, maxLowPrice)
+    if highma < maxLowPrice and close < nz(low[1], low)
+        trend2 := 1
+        nextTrend := 0
+        minHighPrice := highPrice
+        minHighPrice
+else
+    minHighPrice := math.min(highPrice, minHighPrice)
+    if lowma > minHighPrice and close > nz(high[1], high)
+        trend2 := 0
+        nextTrend := 1
+        maxLowPrice := lowPrice
+        maxLowPrice
+
+if trend2 == 0
+    if not na(trend2[1]) and trend2[1] != 0
+        up2 := na(down[1]) ? down : down[1]
+        arrowUp := up2 - atr3
+        arrowUp
+    else
+        up2 := na(up2[1]) ? maxLowPrice : math.max(maxLowPrice, up2[1])
+        up2
+    atrHigh := up2 + dev
+    atrLow := up2 - dev
+    atrLow
+else
+    if not na(trend2[1]) and trend2[1] != 1
+        down := na(up2[1]) ? up2 : up2[1]
+        arrowDown := down + atr3
+        arrowDown
+    else
+        down := na(down[1]) ? minHighPrice : math.min(minHighPrice, down[1])
+        down
+    atrHigh := down + dev
+    atrLow := down - dev
+    atrLow
+
+ht = trend2 == 0 ? up2 : down
+
+var color buyColor = color.green
+var color sellColor = color.red
+
+htColor = trend2 == 0 ? buyColor : sellColor
+htPlot = plot(ht, title='Ashish indicator', linewidth=2, color=htColor)
+
+atrHighPlot = plot(showChannels ? atrHigh : na, title='ATR High',   style=plot.style_circles, color=color.new(sellColor, 0))
+atrLowPlot  = plot(showChannels ? atrLow : na,   title='ATR Low',    style=plot.style_circles, color=color.new(buyColor, 0))
+
+fill(htPlot, atrHighPlot, title='ATR High Ribbon', color=color.new(sellColor, 90))
+fill(htPlot, atrLowPlot, title='ATR Low Ribbon', color=color.new(buyColor, 90))
+
+buySignal   = not na(arrowUp) and trend2 == 0 and trend2[1] == 1
+sellSignal  = not na(arrowDown) and trend2 == 1 and trend2[1] == 0
+
+plotshape(showArrows and buySignal ? atrLow : na, title='Trend UP', style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.new(buyColor, 0))
+plotshape(showArrows and sellSignal ? atrHigh : na, title='Trend Down', style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.new(sellColor, 0))
+
+
+
+
+
+notes = input('',title='Your_notes ',inline='set00')
+//tf = input(200, title='DC Period')
+//mult15 = input.float(1.0, minval=0.001, maxval=10, step=0.2, title='DC Mult')
+
+//Truncate Function
+truncate(number, decimals) =>
+    factor = math.pow(10, decimals)
+    int(number * factor) / factor
+
+//=======================================================================================
+// Trade Time
+daysback = input(30, title='Backtest Days, For Defining Best TF, Max: 60 Days')
+millisecondinxdays = 1000 * 60 * 60 * 24 * daysback
+leftbar = timenow - time < millisecondinxdays
+backtest = leftbar
+dpa = 8
+//=======================================================================================
+et1 = 'Supertrend'
+longside = input.bool(true, title='Long Side', group='Strategy Option')
+shortside = input.bool(true, title='Short Side', group='Strategy Option')
+filter1 = 'Filter with Atr'
+filter2 = 'Filter with RSI'
+filter3 = 'Atr or RSI'
+filter4 = 'Atr and RSI'
+filter5 = 'No Filtering'
+filter6 = 'Entry Only in flat market(By ATR or RSI)'
+filter7 = 'Entry Only in flat market(By ATR and RSI)'
+typefilter = input.string(filter5, title='Flat Filtering Input', options=[filter1, filter2, filter3, filter4, filter5, filter6, filter7], group='Strategy Options')
+withsl = input.bool(false, title='Use Dynamic SL?', group='Strategy Options')
+
+RSI = truncate(ta.rsi(close, input.int(7, group='RSI Filterring')), 2)
+BBperiod   = input.int(100,minval=1,title='Sensitivity',inline='set1',             group='RSI Filterring')
+
+BBdeviations = input.float(1.5,step=0.01,minval=0.01,title='Offset ',inline='set1', group='RSI Filterring')
+
+if asset            == 'BTC/D - 15m | Mid-Term'
+    BBperiod        := 150
+    BBdeviations    := 3.1
+
+if asset            == 'ETH/USDT - 15m | Short-Term'
+    BBperiod        := 300
+    BBdeviations    := 2
+
+if asset            == 'BTC/USDT - 30m | Mid-Term'
+    BBperiod        := 300
+    BBdeviations    := 2.5
+    
+if asset            == 'BTC/USDT - 1h | Long-Term'
+    BBperiod        := 180
+    BBdeviations    := 1
+    
+if asset            == 'BTC/USDT - 15m | Short-Term'
+    BBperiod        := 150
+    BBdeviations    := 3.1
+    
+if asset            == 'QTUM/USDT - 30m |Short-Term'
+    BBperiod        := 196
+    BBdeviations    := 1
+    
+if asset            == 'ZIL/USDT - 30m | Mid-Term'
+    BBperiod        := 140
+    BBdeviations    := 1.5
+
+if asset            == 'ZIL/USDT - 15m | Short-Term'
+    BBperiod        := 150
+    BBdeviations    := 3.5
+    
+if asset            == 'AUDIO/USDT - 15m | Short-Term'
+    BBperiod        := 320
+    BBdeviations    := 2
+    
+if asset            == 'AXS/USDT - 15m | Short-Term'
+    BBperiod        := 300
+    BBdeviations    := 3
+    
+if asset            == 'BAND/USDT - 30m | Mid-Term'
+    BBperiod        := 300
+    BBdeviations    := 2
+    
+if asset            == 'BAND/USDT - 15m | Short-Term'
+    BBperiod        := 300
+    BBdeviations    := 2    
+    
+if asset            == 'TRX/USDT - 30m | Mid-Term'
+    BBperiod        := 200
+    BBdeviations    := 2
+    
+if asset            == 'OP/USDT - 15m | Short-Term'
+    BBperiod        := 170
+    BBdeviations    := 2.8
+    
+if asset            == 'OP/USDT - 30m | Mid-Term'
+    BBperiod        := 170
+    BBdeviations    := 2.3    
+    
+if asset            == 'APE/USDT - 15m | Short-Term'
+    BBperiod        := 120
+    BBdeviations    := 1.8
+    
+if asset            == 'APE/USDT - 30m | Mid-Term'
+    BBperiod        := 170
+    BBdeviations    := 2.3 
+    
+if asset            == 'ENS/USDT - 15m | Short-Term'
+    BBperiod        := 170
+    BBdeviations    := 3.3
+    
+if asset            == 'BAKE/USDT - 30m | Mid-Term'
+    BBperiod        := 100
+    BBdeviations    := 2.6
+    
+if asset            == 'CELR/USDT - 30m | Mid-Term'
+    BBperiod        := 200
+    BBdeviations    := 0.8
+    
+if asset            == '1000PEPE/USDT - 15m | Short-Term'
+    BBperiod        := 60
+    BBdeviations    := 2
+    
+if asset            == '1000SHIB/USDT - 45m | Mid-Term'
+    BBperiod        := 50
+    BBdeviations    := 3
+    
+if asset            == 'CHR/USDT - 15m | Short-Term'
+    BBperiod        := 50
+    BBdeviations    := 3
+    
+if asset            == 'CHR/USDT - 45m | Mid-Term'
+    BBperiod        := 50
+    BBdeviations    := 3    
+    
+if asset            == 'HNT/USDT - 15m | Short-Term'
+    BBperiod        := 300
+    BBdeviations    := 2
+    
+if asset            == 'BLZ/USDT - 15m | Short-Term'
+    BBperiod        := 190
+    BBdeviations    := 1
+    
+if asset            == 'EGLD/USDT - 15m | Short-Term'
+    BBperiod        := 200
+    BBdeviations    := 3
+    
+if asset            == 'KAVA/USDT - 15m | Short-Term'
+    BBperiod        := 200
+    BBdeviations    := 2
+    
+if asset            == 'ZEN/USDT - 15m | Short-Term'
+    BBperiod        := 200
+    BBdeviations    := 2
+    
+if asset            == 'FLOW/USDT - 30m | Mid-Term'
+    BBperiod        := 20
+    BBdeviations    := 3
+    
+if asset            == 'YFI/USDT - 15m | Short-Term'
+    BBperiod        := 40
+    BBdeviations    := 3
+    
+if asset            == 'LDO/USDT - 15m | Short-Term'
+    BBperiod        := 200
+    BBdeviations    := 2
+    
+if asset            == 'MATIC/USDT - 15m | Short-Term'
+    BBperiod        := 200
+    BBdeviations    := 2.5
+    
+if asset            == 'ANKR/USDT - 15m | Short-Term'
+    BBperiod        := 20
+    BBdeviations    := 3
+    
+if asset            == 'TOMO/USDT - 15m | Short-Term'
+    BBperiod        := 20
+    BBdeviations    := 3
+    
+if asset            == 'DOT/USDT - 15m | Short-Term'
+    BBperiod        := 20
+    BBdeviations    := 2.5
+        
+if asset            == 'DASH/USDT - 30m | Mid-Term'
+    BBperiod        := 200
+    BBdeviations    := 1
+        
+if asset            == 'JASMY/USDT - 15m | Short-Term'
+    BBperiod        := 60
+    BBdeviations    := 2
+        
+if asset            == 'WOO/USDT - 15m | Short-Term'
+    BBperiod        := 40
+    BBdeviations    := 3
+        
+if asset            == 'SUSHI/USDT - 30m | Mid-Term'
+    BBperiod        := 40
+    BBdeviations    := 2
+
+if asset            == 'SUSHI/USDT - 15m | Short-Term'
+    BBperiod        := 40
+    BBdeviations    := 2    
+        
+if asset            == 'NEAR/USDT - 30m | Mid-Term'
+    BBperiod        := 60
+    BBdeviations    := 2
+        
+if asset            == 'SKL/USDT - 15m | Short-Term'
+    BBperiod        := 200
+    BBdeviations    := 2
+        
+if asset            == 'UNFI/USDT - 15m | Short-Term'
+    BBperiod        := 180
+    BBdeviations    := 2
+        
+if asset            == 'FTM/USDT - 15m | Short-Term'
+    BBperiod        := 80
+    BBdeviations    := 2.2
+        
+if asset            == 'SFP/USDT - 15m | Short-Term'
+    BBperiod        := 150
+    BBdeviations    := 2
+
+if asset            == 'BNB/USDT - 30m | Mid-Term'
+    BBperiod        := 90
+    BBdeviations    := 2.4
+
+if asset            == 'AUD/EUR - 15m | Short-Term'
+    BBperiod        := 90
+    BBdeviations    := 2.4
+
+if asset            == 'CAD/JPY - 15m | Short-Term'
+    BBperiod        := 110
+    BBdeviations    := 2
+
+if asset            == 'TSLA/TESLA - 15m | Short-Term'
+    BBperiod        := 60
+    BBdeviations    := 0.8
+
+if asset            == 'AAPL/APLE - 15m | Short-Term'
+    BBperiod        := 70
+    BBdeviations    := 0.3
+
+if asset            == 'AAPL/APLE - 5m | Short-Term'
+    BBperiod        := 210
+    BBdeviations    := 1
+
+if asset            == 'TSLA/TESLA - 5m | Short-Term'
+    BBperiod        := 35
+    BBdeviations    := 2.5
+
+if asset            == 'GOOG/GOOGLE - 15m | Short-Term'
+    BBperiod        := 90
+    BBdeviations    := 1.5
+
+if asset            == 'SILVER/XAGUSD - 15m | Short-Term'
+    BBperiod        := 90
+    BBdeviations    := 1.5
+
+if asset            == 'PLATINUM - 15m | Short-Term'
+    BBperiod        := 90
+    BBdeviations    := 1.5
+
+
+if asset            == 'XAU/USD - 15m | Mid-Term'
+    BBperiod        := 20
+    BBdeviations    := 3
+
+if asset            == 'AUD/EUR - 30m | Mid-Term'
+    BBperiod        := 120
+    BBdeviations    := 1.8
+            
+if asset            == 'XAU/USD - 30m | Mid-Term'
+    BBperiod        := 250
+    BBdeviations    := 2
+
+if asset            == 'CHF/JPY - 15m | Short-Term'
+    BBperiod        := 300
+    BBdeviations    := 1.5
+            
+if asset            == 'USD/JPY - 15m | Short-Term'
+    BBperiod        := 50
+    BBdeviations    := 2.5
+            
+if asset            == 'USD/CAD - 15m | Short-Term'
+    BBperiod        := 100
+    BBdeviations    := 2.6
+            
+if asset            == 'GBP/USD - 15m | Short-Term'
+    BBperiod        := 80
+    BBdeviations    := 3
+                
+if asset            == 'EUR/USD - 15m | Short-Term'
+    BBperiod        := 200
+    BBdeviations    := 2
+                
+if asset            == 'AUD/USD - 15m | Short-Term'
+    BBperiod        := 400
+    BBdeviations    := 1.5
+                
+if asset            == 'GBP/JPY - 15m | Short-Term'
+    BBperiod        := 100
+    BBdeviations    := 2
+
+
+
+
+toplimitrsi = input.int(45, title='TOP Limit', group='RSI Filterring')
+botlimitrsi = input.int(10, title='BOT Limit', group='RSI Filterring')
+
+
+
+
+
+
+// Support & Resistance
+enableSR          = input(true, "SUPPORT & RESISTANCE ON/Off", group="SUPPORT & RESISTANCE")
+colorSup          = input(#00ff7791, "SUPPORT", group="SUPPORT & RESISTANCE")
+colorRes          = input(#e91e1e9a, "RESISTANCE", group="SUPPORT & RESISTANCE")
+strengthSR        = input.int(6, "S/R STRENGTH", 1, group="SUPPORT & RESISTANCE")
+lineStyle1        = input.string("Solid", "LINE STYLE", ["Solid", "Dotted", "Dashed"], group="SUPPORT & RESISTANCE")
+lineWidth1        = input.int(2, "LINE WIDTH", 1, group="SUPPORT & RESISTANCE")
+expandSR          = input(true, "EXTEND LINES", group = "SUPPORT & RESISTANCE")
+useZones          = input(true, "ZONE ON/OFF", group="SUPPORT & RESISTANCE")
+useHLZones        = input(true, "HIGH LOW ZONES ON/OFF", group="SUPPORT & RESISTANCE")
+zoneWidth         = input.int(4, "ZONE WIDTH %", 0, tooltip="it's calculated using % of the distance between highest/lowest in last 300 bars", group="SUPPORT & RESISTANCE")
+//===================================================================
+//===================================================================
+// TP SL Option
+ex1 = 'TP & SL by Percentage Price'
+ex2 = 'TP & SL by atr Value'
+et = input.string(ex2, title='TP SL Type', options=[ex1, ex2], group='Strategy Options')
+ST = false
+period = 15
+mult = 5
+atrLen = input.int(5, minval=1, title='atr Length', group='Sideways Filtering Input')
+atrMaType = input.string('EMA', options=['SMA', 'EMA'], group='Sideways Filtering Input', title='atr Moving Average Type')
+atrMaLen = input.int(5, minval=1, title='atr MA Length', group='Sideways Filtering Input')
+adxLen = input.float(5, minval = 1, maxval = 50, title = "ADX SMOOTHing", group='Sideways Filtering Input')
+diLen = input.float(14, minval = 1, title = "DI Length", group='Sideways Filtering Input')
+adxLim = input.float(22, minval = 1, title = "ADX Limit", group='Sideways Filtering Input')
+SMOOTH = input.float(3, minval = 1, maxval = 5, title = "SMOOTHing Factor", group='Sideways Filtering Input')
+lag = input.float(8, minval = 0, maxval = 15, title = "Lag", group='Sideways Filtering Input')
+
+
+TP1 = input.float(1.5, title='TP1 Multiplier', group='TP/SL by ATR')
+TP2 = input.int(3, title='TP2 Multiplier', group='TP/SL by ATR')
+TP3 = input.int(5, title='TP3 Multiplier', group='TP/SL by ATR')
+TP4 = input.float(title='TP 4 Multiplier', minval=0.0, step=0.1, defval=9, group='TP/SL by ATR')
+SL = input.int(6, title='SL Atr Multiplier', group='TP/SL by ATR')
+ptp1 = input.float(2, title='Take Profit 1 (%)', minval=0.0, step=0.1, defval=3, group='TP/SL Percentage Price') * 0.01
+ptp2 = input.float(4, title='Take Profit 2 (%)', minval=0.0, step=0.1, defval=5, group='TP/SL Percentage Price') * 0.01
+ptp3 = input.float(6, title='Take Profit 3 (%)', minval=0.0, step=0.1, defval=7, group='TP/SL Percentage Price') * 0.01
+ptp4 = input.float(12, title='Take Profit 4 (%)', minval=0.0, step=0.1, defval=8, group='TP/SL Percentage Price') * 0.01
+psl = input.float(3, title='StopLoss (%)', minval=0.0, step=0.1, defval=2) * 0.01
+
+qtytp1 = input.int(30, title='QTY TP 1', group='Qty for TP')
+qtytp2 = input.int(30, title='QTY TP 2', group='Qty for TP')
+qtytp3 = input.int(30, title='QTY TP 3', group='Qty for TP')
+qtytp4 = input.int(10, title='QTY TP 4', group='Qty for TP')
+Qtytp1 = qtytp1 / 100
+Qtytp2 = qtytp2 / 100
+Qtytp3 = qtytp3 / 100
+Qtytp4 = qtytp4 / 100
+///
+
+//===================================================================
+//===================================================================
+//Timeframe 
+//Supertrend Indicator
+
+src = hl2
+atr2 = ta.sma(ta.tr, period)
+atr = request.security(syminfo.ticker, '', ta.atr(period))
+up = src - mult * atr
+up1 = nz(up[1], up)
+up := close[1] > up1 ? math.max(up, up1) : up
+dn = src + mult * atr
+dn1 = nz(dn[1], dn)
+dn := close[1] < dn1 ? math.min(dn, dn1) : dn
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+st = trend == 1 ? up : dn
+
+//Buy-Sell Indicator
+
+
+
+BBUpper = ta.sma(close,BBperiod)+ta.stdev(close,BBperiod)*BBdeviations
+BBLower = ta.sma(close,BBperiod)-ta.stdev(close,BBperiod)*BBdeviations
+
+oc2 = (close+open)/2
+UP_trend = close>BBUpper and oc2>BBUpper
+DN_trend = close<BBLower and oc2<BBLower
+FLAT = close<BBUpper and close>BBLower
+
+//TrendLine = ta.sma(ohlc4,BBperiod)
+
+//plot(TrendLine, color=UP_trend ? color.new(color.green,0) : DN_trend ? color.new(color.red,0) : color.new(color.gray,0) ,style=plot.style_line,linewidth=3, title="Trend Line") 
+//p1 = plot(BBUpper, color=color.lime ,style=plot.style_line,linewidth=1, title="Trend Line")
+//p2 = plot(BBLower, color=color.red ,style=plot.style_line,linewidth=1, title="Trend Line")
+//fill(p1,p2,color=UP_trend ? color.new(color.green,50) : DN_trend ? color.new(color.red,50) : color.new(color.gray,50))
+
+
+
+
+UseATRfilter = false
+
+
+
+ATR1period = 5
+
+
+
+hl = false
+
+
+
+//
+
+
+
+
+
+
+
+//
+
+
+
+TrendLine = 0.0
+
+
+
+iTrend = 0.0
+
+
+
+long_final = 0.0
+
+
+
+short_final = 0.0
+
+
+
+//
+
+
+
+BBSignal = close > BBUpper ? 1 : close < BBLower ? -1 : 0
+
+
+
+// 
+
+
+
+if BBSignal == 1 and UseATRfilter == 1
+
+
+
+    TrendLine := low - ta.atr(ATR1period)
+
+
+
+    if TrendLine < TrendLine[1]
+
+
+
+        TrendLine := TrendLine[1]
+        TrendLine
+
+
+
+if BBSignal == -1 and UseATRfilter == 1
+
+
+
+    TrendLine := high + ta.atr(ATR1period)
+
+
+
+    if TrendLine > TrendLine[1]
+
+
+
+        TrendLine := TrendLine[1]
+        TrendLine
+
+
+
+if BBSignal == 0 and UseATRfilter == 1
+
+
+
+    TrendLine := TrendLine[1]
+    TrendLine
+
+
+
+//
+
+
+
+if BBSignal == 1 and UseATRfilter == 0
+
+
+
+    TrendLine := low
+
+
+
+    if TrendLine < TrendLine[1]
+
+
+
+        TrendLine := TrendLine[1]
+        TrendLine
+
+
+
+if BBSignal == -1 and UseATRfilter == 0
+
+
+
+    TrendLine := high
+
+
+
+    if TrendLine > TrendLine[1]
+
+
+
+        TrendLine := TrendLine[1]
+        TrendLine
+
+
+
+if BBSignal == 0 and UseATRfilter == 0
+
+
+
+    TrendLine := TrendLine[1]
+    TrendLine
+
+
+
+//
+
+
+
+iTrend := iTrend[1]
+
+
+
+if TrendLine > TrendLine[1]
+
+
+
+    iTrend := 1
+    iTrend
+
+
+
+if TrendLine < TrendLine[1]
+
+
+
+    iTrend := -1
+    iTrend
+
+
+
+//
+
+
+
+long_final := iTrend[1] == -1 and iTrend == 1 ? 1 : na
+
+
+
+short_final := iTrend[1] == 1 and iTrend == -1 ? 1 : na
+
+
+
+//
+
+
+
+//plot(TrendLine, color=iTrend > 0 ? color.green : color.red, style=plot.style_line, linewidth=3, title='Trend Line', transp=0)
+
+
+
+
+
+
+
+
+
+
+i_entryPriceSrc = input.source(title='Entry Price Calculation Src', defval=ohlc4, group='?? Risk Reward Ratio ??')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//filtering
+atra = request.security(syminfo.tickerid, '', ta.atr(atrLen))
+atrMa = atrMaType == 'EM' ? ta.ema(atra, atrMaLen) : ta.sma(atra, atrMaLen)
+updm = ta.change(high)
+downdm = -ta.change(low)
+plusdm = na(updm) ? na : updm > downdm and updm > 0 ? updm : 0
+minusdm = na(downdm) ? na : downdm > updm and downdm > 0 ? downdm : 0
+//trur = rma(tr, diLen)                                    
+//plus = fixnan(100 * rma(plusdm, diLen) / trur)    
+//minus = fixnan(100 * rma(minusdm, diLen) / trur)
+//sum = plus + minus
+//adx = 100 * rma(abs(plus - minus) / (sum == 0 ? 1 : sum), adxLen)            
+
+cndSidwayss1 = atra >= atrMa
+cndSidwayss2 = RSI > toplimitrsi or RSI < botlimitrsi
+cndSidways = cndSidwayss1 or cndSidwayss2
+cndSidways1 = cndSidwayss1 and cndSidwayss2
+Sidwayss1 = atra <= atrMa
+Sidwayss2 = RSI < toplimitrsi and RSI > botlimitrsi
+Sidways = Sidwayss1 or Sidwayss2
+Sidways1 = Sidwayss1 and Sidwayss2
+
+trendType = typefilter == filter1 ? cndSidwayss1 : typefilter == filter2 ? cndSidwayss2 : typefilter == filter3 ? cndSidways : typefilter == filter4 ? cndSidways1 : typefilter == filter5 ? RSI > 0 : typefilter == filter6 ? Sidways : typefilter == filter7 ? Sidways1 : na
+
+
+
+// Conditions
+
+//buysignal1 = bool(na)
+//sellsignal1 = bool(na)
+//buysignal1 = ta.crossover(z, 100)
+//sellsignal1 = ta.crossunder(z, -100)
+
+
+// Entry FIX
+//buysignal1 = ta.crossover(close, st)
+//sellsignal1 = ta.crossunder(close, st)
+
+
+
+
+buy = long_final and longside and backtest and trendType
+sell = short_final and shortside and backtest and trendType
+
+showZones = input(true, title='Show Bullish/Bearish Zones')
+
+ruleState = 0
+ruleState := buy ? 1 : sell ? -1 : nz(ruleState[1])
+bgcolor(showZones ? ruleState == 1 ? color.rgb(116, 239, 143, 66) : ruleState == -1 ? color.rgb(255, 82, 82, 67) : color.gray : na, title=' Bullish/Bearish Zones', transp=90)
+//bgcolor(buy ? color.blue : sell ? color.red : na, transp=80)
+
+plotshape(buy, style=shape.labelup, location=location.belowbar, color=color.new(color.blue, 0), size=size.tiny, title='buy label', text='BUY', textcolor=color.new(color.white, 0))
+
+
+plotshape(sell, style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), size=size.tiny, title='sell label', text='SELL', textcolor=color.new(color.white, 0))
+
+
+plotshape(buy == 1 and hl == false ? TrendLine - ta.atr(8) : na, text='Get ready to long', style=shape.labelup, location=location.absolute, color=color.new(color.green, 0), textcolor=color.new(color.white, 0), offset=0, size=size.auto, show_last = 2)
+
+
+plotshape(sell == 1 and hl == false ? TrendLine + ta.atr(8) : na, text='Get ready to short', style=shape.labeldown, location=location.absolute, color=color.new(color.red, 0), textcolor=color.new(color.white, 0), offset=0, size=size.auto, show_last = 2)
+
+
+
+
+use_atr = input.bool(true, title='ATR OR STDEV', group='TP/SL by ATR')
+sl_trendline = input.bool(false, title='SL = TRENDLINE', group='TP/SL by ATR')
+stdev = input.int(28, minval = 1, maxval = 50, title = "STDEV TP PERIOD", group='TP/SL by ATR')
+atrper = input.int(14, minval = 1, maxval = 50, title = "ATR TP AND SL PERIOD", group='TP/SL by ATR')
+//Tp & Sl by atr Mult
+ratr = use_atr ? ta.valuewhen(buy, ta.atr(atrper), 0) : ta.valuewhen(buy, ta.stdev(close,stdev), 0)
+ratrs = use_atr ? ta.valuewhen(buy, ta.atr(atrper), 0) : ta.valuewhen(buy, ta.stdev(close,stdev), 0)
+cb = ta.valuewhen(buy, close, 0)
+//if (use_atr)
+  //  ratr := ta.valuewhen(buy, ta.atr(14), 0)
+//else
+    //ratr := ta.valuewhen(buy, ta.stdev(close,14), 0)
+tpb1 = cb + ratr * TP1
+tpb2 = cb + ratr * TP2
+tpb3 = cb + ratr * TP3
+tpb4 = cb + ratr * TP4
+slb = sl_trendline ? TrendLine : cb - ta.valuewhen(buy, ta.atr(atrper), 0) * SL  //withsl?up:valuewhen(buy, up,0)
+
+cs = ta.valuewhen(sell, close, 0)
+
+tps1 = cs - ratrs * TP1
+tps2 = cs - ratrs * TP2
+tps3 = cs - ratrs * TP3
+tps4 = cs - ratrs * TP4
+sls = sl_trendline ? TrendLine : cs + ta.valuewhen(buy, ta.atr(atrper), 0) * SL  //withsl?dn:valuewhen(sell, dn, 0)
+
+Ptpb1 = cb * (1 + ptp1)
+Ptpb2 = cb * (1 + ptp2)
+Ptpb3 = cb * (1 + ptp3)
+Ptpb4 = et == ex1 ? cb * (1 + ptp4) : tpb4
+Pslb = cb * (1 - psl)
+
+Ptps1 = cs * (1 - ptp1)
+Ptps2 = cs * (1 - ptp2)
+Ptps3 = cs * (1 - ptp3)
+Ptps4 = et == ex1 ? cs * (1 - ptp4) : tps4
+Psls = cs * (1 + psl)
+
+// —————— Move Stop to Breakeven
+//slbecheck = (tpBEnumber==1 and ontake1) or (tpBEnumber==2 and ontake2) or (tpBEnumber==3 and ontake3) or (tpBEnumber==4 and ontake4) or (tpBEnumber==5 and ontake5)
+//if ontpBE and slbecheck and not DynamicStops
+    //slbe     = TypeStop ? CheckLevels(BuildLeveles(tpPrice, tpBEnumber-1), true) : CheckLevels(BuildLeveles(slPrice, tpBEnumber-1), false)
+    //slPrice := slbe > 0 ? slbe : slPrice
+   // stop0   := slPrice == entry ? slPrice : stop0
+
+
+//Variable Fix TP SL
+tpb1t = et == ex1 ? Ptpb1 : tpb1
+tpb2t = et == ex1 ? Ptpb2 : tpb2
+tpb3t = et == ex1 ? Ptpb3 : tpb3
+tpb4t = Ptpb4
+slbt = et == ex1 ? Pslb : slb
+tps1t = et == ex1 ? Ptps1 : tps1
+tps2t = et == ex1 ? Ptps2 : tps2
+tps3t = et == ex1 ? Ptps3 : tps3
+tps4t = Ptps4
+slst = et == ex1 ? Psls : sls
+
+//===================================================================
+//Input Zignaly Settings
+z1 = 'Copy trading / Profit Sharing'
+z2 = 'Signal Providing'
+z3 = 'Telegram Notification'
+ZZ = input.string(z3, title='BOT Type', options=[z1, z2, z3], group='Zignaly Settings')
+
+P1 = 'Pair 1'
+P2 = 'Pair 2'
+P3 = 'Pair 3'
+pair = input.string(defval=P1, title='Pair Trade', options=[P1, P2, P3], group='Zignaly Settings')
+apikey = input.string('xxx', title='Api Key', group='Zignaly Settings')
+margin = input.int(10, title='Margin % (Use it Only if you use copytrading or profit sharing)', group='Zignaly Settings')
+lev = input.int(30, group='Zignaly Settings')
+qty = margin / close
+
+slbm = et == ex1 ? Psls : slb
+slsm = et == ex1 ? Psls : sls
+slbmessage = '","stopLossPriority":"price","stopLossPrice":"' + str.tostring(slbm)
+slsmessage = '","stopLossPriority":"price","stopLossPrice":"' + str.tostring(slsm)
+
+// Zignaly Settings
+pair1 = input.string('btcusdt', group='Pair & Signalid, Gunakan Huruf Kecil')
+signal1 = input.string('btc', group='Pair & Signalid, Gunakan Huruf Kecil')
+pair2 = input.string('ethusdt', group='Pair & Signalid, Gunakan Huruf Kecil')
+signal2 = input.string('eth', group='Pair & Signalid, Gunakan Huruf Kecil')
+pair3 = input.string('xxxusdt', group='Pair & Signalid, Gunakan Huruf Kecil')
+signal3 = input.string('xxx', group='Pair & Signalid, Gunakan Huruf Kecil')
+
+PAIR = pair == P1 ? pair1 : pair == P2 ? pair2 : pair3
+signal = pair == P1 ? signal1 : pair == P2 ? signal2 : signal3
+
+//alert command, copytrader/profitsharing
+longct = '{"key":"' + str.tostring(apikey) + '","type":"reverse","exchange":"binance","exchangeAccountType":"futures","pair":"' + str.tostring(PAIR) + '","exitOrderType":"market","entryOrderType":"market","exitSide":"short","entrySide":"long","entryLeverage":"' + str.tostring(lev) + str.tostring(slbmessage) + '","takeProfitPriority":"price","takeProfitAmountPercentage1":"' + str.tostring(qtytp1) + '","takeProfitPrice1":"' + str.tostring(tpb1t) + '","takeProfitAmountPercentage2":"' + str.tostring(qtytp2) + '","takeProfitPrice2":"' + str.tostring(tpb2t) + '","takeProfitAmountPercentage3":"' + str.tostring(qtytp3) + '","takeProfitPrice3":"' + str.tostring(tpb3t) + '","takeProfitAmountPercentage4":"' + str.tostring(qtytp4) + '","takeProfitPrice4":"' + str.tostring(tpb4t) + '","positionSizePercentage":"' + str.tostring(margin) + '","signalId":"' + str.tostring(signal) + '"}'
+shortct = '{"key":"' + str.tostring(apikey) + '","type":"reverse","exchange":"binance","exchangeAccountType":"futures","pair":"' + str.tostring(PAIR) + '","exitOrderType":"market","entryOrderType":"market","exitSide":"long","entrySide":"short","entryLeverage":"' + str.tostring(lev) + str.tostring(slsmessage) + '","takeProfitPriority":"price","takeProfitAmountPercentage1":"' + str.tostring(qtytp1) + '","takeProfitPrice1":"' + str.tostring(tps1t) + '","takeProfitAmountPercentage2":"' + str.tostring(qtytp2) + '","takeProfitPrice2":"' + str.tostring(tps2t) + '","takeProfitAmountPercentage3":"' + str.tostring(qtytp3) + '","takeProfitPrice3":"' + str.tostring(tps3t) + '","takeProfitAmountPercentage4":"' + str.tostring(qtytp4) + '","takeProfitPrice4":"' + str.tostring(tps4t) + '","positionSizePercentage":"' + str.tostring(margin) + '","signalId":"' + str.tostring(signal) + '"}'
+slcommand = '{"key":"' + str.tostring(apikey) + '","pair":"' + str.tostring(PAIR) + '","exchange":"binance","exchangeAccountType":"futures","type":"exit","signalId":"' + str.tostring(signal) + '"}'
+//signal provider
+tpb1tsp = et == ex1 ? ptp1 * 100 : truncate((tpb1 - cb) * 100 / cb, 2)
+tpb2tsp = et == ex1 ? ptp2 * 100 : truncate((tpb2 - cb) * 100 / cb, 2)
+tpb3tsp = et == ex1 ? ptp3 * 100 : truncate((tpb3 - cb) * 100 / cb, 2)
+tpb4tsp = ptp4 * 100
+slbtsp = truncate((cb - slb) * 100 / cb, 2)
+
+tps1tsp = et == ex1 ? ptp1 * 100 : truncate((cs - tps1) * 100 / cs, 2)
+tps2tsp = et == ex1 ? ptp2 * 100 : truncate((cs - tps2) * 100 / cs, 2)
+tps3tsp = et == ex1 ? ptp3 * 100 : truncate((cs - tps3) * 100 / cs, 2)
+tps4tsp = ptp4 * 100
+slstsp = truncate((sls - cs) * 100 / cs, 2)
+
+slbmsp = et == ex1 ? psl * 100 : slbtsp
+slsmsp = et == ex1 ? psl * 100 : slstsp
+slbmessagesp = '","stopLossPercentage":"-' + str.tostring(slbmsp)
+slsmessagesp = '","stopLossPercentage":"-' + str.tostring(slsmsp)
+
+longsp = '{"key":"' + str.tostring(apikey) + '","type":"reverse","exchange":"binance","exchangeAccountType":"futures","pair":"' + str.tostring(PAIR) + '","exitOrderType":"market","entryOrderType":"limit","exitSide":"short","entrySide":"long","entryLimitPrice":"' + str.tostring(cb) + '","entryLeverage":"\n' + str.tostring(lev) + str.tostring(slbmessagesp) + '","takeProfitAmountPercentage1":"' + str.tostring(qtytp1) + '","takeProfitPercentage1":"' + str.tostring(tpb1tsp) + '","takeProfitAmountPercentage2":"' + str.tostring(qtytp2) + '","takeProfitPercentage2":"' + str.tostring(tpb2tsp) + '","takeProfitAmountPercentage3":"' + str.tostring(qtytp3) + '","takeProfitPercentage3":"' + str.tostring(tpb3tsp) + '","takeProfitAmountPercentage4":"' + str.tostring(qtytp4) + '","takeProfitPercentage4":"' + str.tostring(tpb4tsp) + '","positionSizePercentage":"' + str.tostring(margin) + '","signalId":"' + str.tostring(signal) + '"}'
+shortsp = '{"key":"' + str.tostring(apikey) + '","type":"reverse","exchange":"binance","exchangeAccountType":"futures","pair":"' + str.tostring(PAIR) + '","exitOrderType":"market","entryOrderType":"limit","exitSide":"long","entrySide":"short","entryLimitPrice":"' + str.tostring(cs) + '","entryLeverage":"\n' + str.tostring(lev) + str.tostring(slsmessagesp) + '","takeProfitAmountPercentage1":"' + str.tostring(qtytp1) + '","takeProfitPercentage1":"' + str.tostring(tps1tsp) + '","takeProfitAmountPercentage2":"' + str.tostring(qtytp2) + '","takeProfitPercentage2":"' + str.tostring(tps2tsp) + '","takeProfitAmountPercentage3":"' + str.tostring(qtytp3) + '","takeProfitPercentage3":"' + str.tostring(tps3tsp) + '","takeProfitAmountPercentage4":"' + str.tostring(qtytp4) + '","takeProfitPercentage4":"' + str.tostring(tps4tsp) + '","positionSizePercentage":"' + str.tostring(margin) + '","signalId":"' + str.tostring(signal) + '"}'
+
+//===================================================================
+//MTF Analysis
+//===================================================================
+//===================================================================
+
+
+//Source MTF
+tf1 = input.timeframe('15', group='MTF Analysis')
+tf2 = input.timeframe('30', group='MTF Analysis')
+tf3 = input.timeframe('45', group='MTF Analysis')
+tf4 = input.timeframe('60', group='MTF Analysis')
+
+
+hl2A = request.security(syminfo.tickerid, tf1, hl2)
+hl2B = request.security(syminfo.tickerid, tf2, hl2)
+hl2C = request.security(syminfo.tickerid, tf3, hl2)
+hl2D = request.security(syminfo.tickerid, tf4, hl2)
+
+trA = request.security(syminfo.tickerid, tf1, ta.tr)
+trB = request.security(syminfo.tickerid, tf2, ta.tr)
+trC = request.security(syminfo.tickerid, tf3, ta.tr)
+trD = request.security(syminfo.tickerid, tf4, ta.tr)
+
+highA = request.security(syminfo.tickerid, tf1, high)
+highB = request.security(syminfo.tickerid, tf2, high)
+highC = request.security(syminfo.tickerid, tf3, high)
+highD = request.security(syminfo.tickerid, tf4, high)
+
+lowA = request.security(syminfo.tickerid, tf1, low)
+lowB = request.security(syminfo.tickerid, tf2, low)
+lowC = request.security(syminfo.tickerid, tf3, low)
+lowD = request.security(syminfo.tickerid, tf4, low)
+
+closeA = request.security(syminfo.tickerid, tf1, close)
+closeB = request.security(syminfo.tickerid, tf2, close)
+closeC = request.security(syminfo.tickerid, tf3, close)
+closeD = request.security(syminfo.tickerid, tf4, close)
+
+//===================================================================
+//===================================================================
+//Timeframe A
+//Supertrend Indicator
+
+srcA = hl2A
+atr2A = ta.sma(trA, period)
+atrA = request.security(syminfo.tickerid, tf1, ta.atr(period))
+upA = srcA - mult * atrA
+up1A = nz(upA[1], upA)
+upA := closeA[1] > up1A ? math.max(upA, up1A) : upA
+dnA = srcA + mult * atrA
+dn1A = nz(dnA[1], dnA)
+dnA := closeA[1] < dn1A ? math.min(dnA, dn1A) : dnA
+trendA = 1
+trendA := nz(trendA[1], trendA)
+trendA := trendA == -1 and closeA > dn1A ? 1 : trendA == 1 and closeA < up1A ? -1 : trendA
+stA = trendA == 1 ? upA : dnA
+
+//filtering
+atraA = request.security(syminfo.tickerid, tf1, ta.atr(atrLen))
+atrMaA = atrMaType == 'EMA' ? ta.ema(atraA, atrMaLen) : ta.sma(atraA, atrMaLen)
+updmA = ta.change(highA)
+downdmA = -ta.change(lowA)
+plusdmA = na(updmA) ? na : updmA > downdmA and updmA > 0 ? updmA : 0
+minusdmA = na(downdmA) ? na : downdmA > updmA and downdmA > 0 ? downdmA : 0
+//trurA = rma(trA, diLen)                                    
+//plusA = fixnan(100 * rma(plusdmA, diLen) / trurA)    
+//minusA = fixnan(100 * rma(minusdmA, diLen) / trurA)
+//sumA = plusA + minusA
+//adxA = 100 * rma(abs(plusA - minusA) / (sumA == 0 ? 1 : sumA), adxLen)            
+
+cndSidwayss1A = atraA >= atrMaA
+cndSidwayss2A = RSI > toplimitrsi or RSI < botlimitrsi
+cndSidwaysA = cndSidwayss1A or cndSidwayss2A
+cndSidways1A = cndSidwayss1A and cndSidwayss2A
+Sidwayss1A = atraA <= atrMaA
+Sidwayss2A = RSI < toplimitrsi and RSI > botlimitrsi
+SidwaysA = Sidwayss1A or Sidwayss2A
+Sidways1A = Sidwayss1A and Sidwayss2A
+
+trendTypeA = typefilter == filter1 ? cndSidwayss1A : typefilter == filter2 ? cndSidwayss2A : typefilter == filter3 ? cndSidwaysA : typefilter == filter4 ? cndSidways1A : typefilter == filter5 ? RSI > 0 : typefilter == filter6 ? SidwaysA : typefilter == filter7 ? Sidways1A : na
+
+
+// Entry FIX
+buysignal1A = ta.crossover(closeA, stA) and backtest and trendTypeA
+sellsignal1A = ta.crossunder(closeA, stA) and backtest and trendTypeA
+
+buyA = buysignal1A and longside
+sellA = sellsignal1A and shortside
+
+//Tp & Sl by atr Mult
+cbA = ta.valuewhen(buyA, closeA, 0)
+ratrA = ta.valuewhen(buyA, request.security(syminfo.tickerid, tf1, ta.atr(14)), 0)
+
+tpb1A = cbA + ratrA * TP1
+tpb2A = cbA + ratrA * TP2
+tpb3A = cbA + ratrA * TP3
+tpb4A = cbA + ratrA * TP4
+slbA = cbA - ratrA * SL  //withsl?upA:valuewhen(buyA, upA,0)
+
+csA = ta.valuewhen(sellA, closeA, 0)
+ratrsA = ta.valuewhen(sellA, request.security(syminfo.tickerid, tf1, ta.atr(14)), 0)
+tps1A = csA - ratrsA * TP1
+tps2A = csA - ratrsA * TP2
+tps3A = csA - ratrsA * TP3
+tps4A = csA - ratrsA * TP4
+slsA = csA + ratrsA * SL  //withsl?dnA:valuewhen(sellA, dnA, 0)
+
+Ptpb1A = cbA * (1 + ptp1)
+Ptpb2A = cbA * (1 + ptp2)
+Ptpb3A = cbA * (1 + ptp3)
+Ptpb4A = et == ex1 ? cbA * (1 + ptp4) : tpb4A
+PslbA = cbA * (1 - psl)
+
+Ptps1A = csA * (1 - ptp1)
+Ptps2A = csA * (1 - ptp2)
+Ptps3A = csA * (1 - ptp3)
+Ptps4A = et == ex1 ? csA * (1 - ptp4) : tps4A
+PslsA = csA * (1 + psl)
+
+
+//Variable Fix TP SL
+tpb1tA = et == ex1 ? Ptpb1A : tpb1A
+tpb2tA = et == ex1 ? Ptpb2A : tpb2A
+tpb3tA = et == ex1 ? Ptpb3A : tpb3A
+tpb4tA = Ptpb4A
+slbtA = et == ex1 ? PslbA : slbA
+tps1tA = et == ex1 ? Ptps1A : tps1A
+tps2tA = et == ex1 ? Ptps2A : tps2A
+tps3tA = et == ex1 ? Ptps3A : tps3A
+tps4tA = Ptps4A
+slstA = et == ex1 ? PslsA : slsA
+
+sinceentrybA = int(math.max(1, nz(ta.barssince(buyA))))
+openedbA = ta.barssince(buyA) >= 0 and trendA[1] == 1 and longside
+highestbarbA = ta.highest(sinceentrybA)
+lowestbarbA = ta.lowest(sinceentrybA)
+stillopenb1A = ta.barssince(buyA) == 1 ? true : highestbarbA[1] < tpb1tA and lowestbarbA[1] > slbtA
+stillopenb2A = ta.barssince(buyA) == 1 ? true : highestbarbA[1] < tpb2tA and lowestbarbA[1] > slbtA
+stillopenb3A = ta.barssince(buyA) == 1 ? true : highestbarbA[1] < tpb3tA and lowestbarbA[1] > slbtA
+stillopenb4A = ta.barssince(buyA) == 1 ? true : highestbarbA[1] < tpb4tA and lowestbarbA[1] > slbtA
+
+hittpb1A = ta.cross(highA, tpb1tA) and stillopenb1A and openedbA
+plotshape(hittpb1A)
+hittpb2A = ta.cross(highA, tpb2tA) and stillopenb2A and openedbA
+hittpb3A = ta.cross(highA, tpb3tA) and stillopenb3A and openedbA
+hittpb4A = ta.cross(highA, tpb4tA) and stillopenb4A and openedbA
+hitslbA = lowA < slbtA and stillopenb4A and openedbA
+winreversebA = closeA > cbA and backtest and ta.crossunder(closeA, stA) and stillopenb4A and trendA == -1 and openedbA
+losereversebA = closeA < cbA and backtest and ta.crossunder(closeA, stA) and stillopenb4A and trendA == -1 and openedbA
+
+
+sinceentrysA = int(math.max(1, nz(ta.barssince(sellA))))
+openedsA = ta.barssince(sellA) >= 0 and trendA[1] == -1 and shortside
+highestbarsA = ta.highest(sinceentrysA)
+lowestbarsA = ta.lowest(sinceentrysA)
+stillopens1A = ta.barssince(sellA) == 1 ? true : highestbarsA[1] < slstA and lowestbarsA[1] > tps1tA
+stillopens2A = ta.barssince(sellA) == 1 ? true : highestbarsA[1] < slstA and lowestbarsA[1] > tps2tA
+stillopens3A = ta.barssince(sellA) == 1 ? true : highestbarsA[1] < slstA and lowestbarsA[1] > tps3tA
+stillopens4A = ta.barssince(sellA) == 1 ? true : highestbarsA[1] < slstA and lowestbarsA[1] > tps4tA
+
+hittps1A = ta.cross(lowA, tps1tA) and stillopens1A and openedsA
+hittps2A = ta.cross(lowA, tps2tA) and stillopens2A and openedsA
+hittps3A = ta.cross(lowA, tps3tA) and stillopens3A and openedsA
+hittps4A = ta.cross(lowA, tps4tA) and stillopens4A and openedsA
+hitslsA = highA > slstA and stillopens4A and openedsA
+winreversesA = closeA <= csA and backtest and ta.crossover(closeA, stA) and stillopens4A and trendA == 1 and openedsA
+losereversesA = closeA >= csA and backtest and ta.crossover(closeA, stA) and stillopens4A and trendA == 1 and openedsA
+
+//============================================
+cumbuyA = ta.cum(buyA ? 1 : 0)
+cumsellA = ta.cum(sellA ? 1 : 0)
+cumsignalA = cumbuyA + cumsellA
+
+//net profit
+sisaqtybA = stillopenb1A ? 1 : stillopenb2A ? 1 - Qtytp1 : stillopenb3A ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+sisaqtysA = stillopens1A ? 1 : stillopens2A ? 1 - Qtytp1 : stillopens3A ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+
+ptpb1A = (tpb1tA - cbA) * 100 / cbA * Qtytp1  //-0.06
+ptpb2A = (tpb2tA - cbA) * 100 / cbA * Qtytp2  //-0.06
+ptpb3A = (tpb3tA - cbA) * 100 / cbA * Qtytp3  //-0.06
+ptpb4A = (tpb4tA - cbA) * 100 / cbA * Qtytp4  //-0.06
+pslbA = (closeA - cbA) * 100 / cbA * sisaqtybA  //-0.06
+prbA = (closeA - cbA) * 100 / cbA * sisaqtybA  //-0.06
+
+ptps1A = (csA - tps1tA) * 100 / csA * Qtytp1  //-0.06
+ptps2A = (csA - tps2tA) * 100 / csA * Qtytp2  //-0.06
+ptps3A = (csA - tps3tA) * 100 / csA * Qtytp3  //-0.06
+ptps4A = (csA - tps4tA) * 100 / csA * Qtytp4  //-0.06
+pslsA = (csA - closeA) * 100 / csA * sisaqtysA  //-0.06
+prsA = (csA - closeA) * 100 / csA * sisaqtysA  //-0.06
+
+prtpb1A = ta.cum(hittpb1A ? ptpb1A : 0)
+prtpb2A = ta.cum(hittpb2A ? ptpb2A : 0)
+prtpb3A = ta.cum(hittpb3A ? ptpb3A : 0)
+prtpb4A = ta.cum(hittpb4A ? ptpb4A : 0)
+prslbA = ta.cum(hitslbA ? pslbA : 0)
+prwrbA = ta.cum(winreversebA ? prbA : 0)
+prlrbA = ta.cum(losereversebA ? prbA : 0)
+
+prtps1A = ta.cum(hittps1A ? ptps1A : 0)
+prtps2A = ta.cum(hittps2A ? ptps2A : 0)
+prtps3A = ta.cum(hittps3A ? ptps3A : 0)
+prtps4A = ta.cum(hittps4A ? ptps4A : 0)
+prslsA = ta.cum(hitslsA ? pslsA : 0)
+prwrsA = ta.cum(winreversesA ? prsA : 0)
+prlrsA = ta.cum(losereversesA ? prsA : 0)
+
+netcapitalgainA = prtpb1A + prtpb2A + prtpb3A + prtpb4A + prslbA + prtps1A + prtps2A + prtps3A + prtps4A + prslsA + prwrbA + prlrbA + prwrsA + prlrsA
+
+///winrate
+wintpb1A = ta.cum(hittpb1A ? 1 : 0)
+wintpb2A = ta.cum(hittpb2A ? 1 : 0)
+wintpb3A = ta.cum(hittpb3A ? 1 : 0)
+wintpb4A = ta.cum(hittpb4A ? 1 : 0)
+wrslbA = ta.cum(hitslbA ? 1 : 0)
+
+wintps1A = ta.cum(hittps1A ? 1 : 0)
+wintps2A = ta.cum(hittps2A ? 1 : 0)
+wintps3A = ta.cum(hittps3A ? 1 : 0)
+wintps4A = ta.cum(hittps4A ? 1 : 0)
+wrslsA = ta.cum(hitslsA ? 1 : 0)
+
+cumtp1A = wintpb1A + wintps1A
+cumtp2A = wintpb2A + wintps2A
+cumtp3A = wintpb3A + wintps3A
+cumtp4A = wintpb4A + wintps4A
+cumslA = wrslbA + wrslsA
+cumpositionA = cumtp1A + cumtp2A + cumtp3A + cumtp4A + cumslA  //+cumwinreverseA//+cumlosereverseA
+
+wrtp1A = truncate(cumtp1A * 100 / cumsignalA, 0)
+wrtp2A = truncate(cumtp2A * 100 / cumsignalA, 0)
+wrtp3A = truncate(cumtp3A * 100 / cumsignalA, 0)
+wrtp4A = truncate(cumtp4A * 100 / cumsignalA, 0)
+wrslA = truncate(cumslA * 100 / cumsignalA, 0)
+
+winallA = cumtp1A + cumtp2A + cumtp3A + cumtp4A  //+cumwinreverseA
+wrallA = winallA * 100 / cumpositionA
+
+//===================================================================
+//===================================================================
+//===================================================================
+//===================================================================
+//Timeframe B
+//Supertrend Indicator
+
+srcB = hl2B
+atr2B = ta.sma(trB, period)
+atrB = request.security(syminfo.tickerid, tf2, ta.atr(period))
+upB = srcB - mult * atrB
+up1B = nz(upB[1], upB)
+upB := closeB[1] > up1B ? math.max(upB, up1B) : upB
+dnB = srcB + mult * atrB
+dn1B = nz(dnB[1], dnB)
+dnB := closeB[1] < dn1B ? math.min(dnB, dn1B) : dnB
+trendB = 1
+trendB := nz(trendB[1], trendB)
+trendB := trendB == -1 and closeB > dn1B ? 1 : trendB == 1 and closeB < up1B ? -1 : trendB
+stB = trendB == 1 ? upB : dnB
+
+//filtering
+atraB = request.security(syminfo.tickerid, tf2, ta.atr(atrLen))
+atrMaB = atrMaType == 'EMB' ? ta.ema(atraB, atrMaLen) : ta.sma(atraB, atrMaLen)
+updmB = ta.change(highB)
+downdmB = -ta.change(lowB)
+plusdmB = na(updmB) ? na : updmB > downdmB and updmB > 0 ? updmB : 0
+minusdmB = na(downdmB) ? na : downdmB > updmB and downdmB > 0 ? downdmB : 0
+//trurB = rma(trB, diLen)                                    
+//plusB = fixnan(100 * rma(plusdmB, diLen) / trurB)    
+//minusB = fixnan(100 * rma(minusdmB, diLen) / trurB)
+//sumB = plusB + minusB
+//adxB = 100 * rma(abs(plusB - minusB) / (sumB == 0 ? 1 : sumB), adxLen)            
+
+cndSidwayss1B = atraB >= atrMaB
+cndSidwayss2B = RSI > toplimitrsi or RSI < botlimitrsi
+cndSidwaysB = cndSidwayss1B or cndSidwayss2B
+cndSidways1B = cndSidwayss1B and cndSidwayss2B
+Sidwayss1B = atraB <= atrMaB
+Sidwayss2B = RSI < toplimitrsi and RSI > botlimitrsi
+SidwaysB = Sidwayss1B or Sidwayss2B
+Sidways1B = Sidwayss1B and Sidwayss2B
+
+trendTypeB = typefilter == filter1 ? cndSidwayss1B : typefilter == filter2 ? cndSidwayss2B : typefilter == filter3 ? cndSidwaysB : typefilter == filter4 ? cndSidways1B : typefilter == filter5 ? RSI > 0 : typefilter == filter6 ? SidwaysB : typefilter == filter7 ? Sidways1B : na
+
+
+// Entry FIX
+buysignal1B = ta.crossover(closeB, stB) and backtest and trendTypeB
+sellsignal1B = ta.crossunder(closeB, stB) and backtest and trendTypeB
+
+buyB = buysignal1B and longside
+sellB = sellsignal1B and shortside
+
+//Tp & Sl by atr Mult
+cbB = ta.valuewhen(buyB, closeB, 0)
+ratrB = ta.valuewhen(buyB, request.security(syminfo.tickerid, tf2, ta.atr(14)), 0)
+
+tpb1B = cbB + ratrB * TP1
+tpb2B = cbB + ratrB * TP2
+tpb3B = cbB + ratrB * TP3
+tpb4B = cbB + ratrB * TP4
+slbB = cbB - ratrB * SL  //withsl?upB:valuewhen(buyB, upB,0)
+
+csB = ta.valuewhen(sellB, closeB, 0)
+ratrsB = ta.valuewhen(sellB, request.security(syminfo.tickerid, tf2, ta.atr(14)), 0)
+tps1B = csB - ratrsB * TP1
+tps2B = csB - ratrsB * TP2
+tps3B = csB - ratrsB * TP3
+tps4B = csB - ratrsB * TP4
+slsB = csB + ratrsB * SL  //withsl?dnB:valuewhen(sellB, dnB, 0)
+
+Ptpb1B = cbB * (1 + ptp1)
+Ptpb2B = cbB * (1 + ptp2)
+Ptpb3B = cbB * (1 + ptp3)
+Ptpb4B = et == ex1 ? cbB * (1 + ptp4) : tpb4B
+PslbB = cbB * (1 - psl)
+
+Ptps1B = csB * (1 - ptp1)
+Ptps2B = csB * (1 - ptp2)
+Ptps3B = csB * (1 - ptp3)
+Ptps4B = et == ex1 ? csB * (1 - ptp4) : tps4B
+PslsB = csB * (1 + psl)
+
+
+//Variable Fix TP SL
+tpb1tB = et == ex1 ? Ptpb1B : tpb1B
+tpb2tB = et == ex1 ? Ptpb2B : tpb2B
+tpb3tB = et == ex1 ? Ptpb3B : tpb3B
+tpb4tB = Ptpb4B
+slbtB = et == ex1 ? PslbB : slbB
+tps1tB = et == ex1 ? Ptps1B : tps1B
+tps2tB = et == ex1 ? Ptps2B : tps2B
+tps3tB = et == ex1 ? Ptps3B : tps3B
+tps4tB = Ptps4B
+slstB = et == ex1 ? PslsB : slsB
+
+sinceentrybB = int(math.max(1, nz(ta.barssince(buyB))))
+openedbB = ta.barssince(buyB) >= 0 and trendB[1] == 1 and longside
+highestbarbB = ta.highest(sinceentrybB)
+lowestbarbB = ta.lowest(sinceentrybB)
+stillopenb1B = ta.barssince(buyB) == 1 ? true : highestbarbB[1] < tpb1tB and lowestbarbB[1] > slbtB
+stillopenb2B = ta.barssince(buyB) == 1 ? true : highestbarbB[1] < tpb2tB and lowestbarbB[1] > slbtB
+stillopenb3B = ta.barssince(buyB) == 1 ? true : highestbarbB[1] < tpb3tB and lowestbarbB[1] > slbtB
+stillopenb4B = ta.barssince(buyB) == 1 ? true : highestbarbB[1] < tpb4tB and lowestbarbB[1] > slbtB
+
+hittpb1B = ta.cross(highB, tpb1tB) and stillopenb1B and openedbB
+plotshape(hittpb1B)
+hittpb2B = ta.cross(highB, tpb2tB) and stillopenb2B and openedbB
+hittpb3B = ta.cross(highB, tpb3tB) and stillopenb3B and openedbB
+hittpb4B = ta.cross(highB, tpb4tB) and stillopenb4B and openedbB
+hitslbB = lowB < slbtB and stillopenb4B and openedbB
+winreversebB = closeB > cbB and backtest and ta.crossunder(closeB, stB) and stillopenb4B and trendB == -1 and openedbB
+losereversebB = closeB < cbB and backtest and ta.crossunder(closeB, stB) and stillopenb4B and trendB == -1 and openedbB
+
+
+sinceentrysB = int(math.max(1, nz(ta.barssince(sellB))))
+openedsB = ta.barssince(sellB) >= 0 and trendB[1] == -1 and shortside
+highestbarsB = ta.highest(sinceentrysB)
+lowestbarsB = ta.lowest(sinceentrysB)
+stillopens1B = ta.barssince(sellB) == 1 ? true : highestbarsB[1] < slstB and lowestbarsB[1] > tps1tB
+stillopens2B = ta.barssince(sellB) == 1 ? true : highestbarsB[1] < slstB and lowestbarsB[1] > tps2tB
+stillopens3B = ta.barssince(sellB) == 1 ? true : highestbarsB[1] < slstB and lowestbarsB[1] > tps3tB
+stillopens4B = ta.barssince(sellB) == 1 ? true : highestbarsB[1] < slstB and lowestbarsB[1] > tps4tB
+
+hittps1B = ta.cross(lowB, tps1tB) and stillopens1B and openedsB
+hittps2B = ta.cross(lowB, tps2tB) and stillopens2B and openedsB
+hittps3B = ta.cross(lowB, tps3tB) and stillopens3B and openedsB
+hittps4B = ta.cross(lowB, tps4tB) and stillopens4B and openedsB
+hitslsB = highB > slstB and stillopens4B and openedsB
+winreversesB = closeB <= csB and backtest and ta.crossover(closeB, stB) and stillopens4B and trendB == 1 and openedsB
+losereversesB = closeB >= csB and backtest and ta.crossover(closeB, stB) and stillopens4B and trendB == 1 and openedsB
+
+//============================================
+cumbuyB = ta.cum(buyB ? 1 : 0)
+cumsellB = ta.cum(sellB ? 1 : 0)
+cumsignalB = cumbuyB + cumsellB
+
+//net profit
+sisaqtybB = stillopenb1B ? 1 : stillopenb2B ? 1 - Qtytp1 : stillopenb3B ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+sisaqtysB = stillopens1B ? 1 : stillopens2B ? 1 - Qtytp1 : stillopens3B ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+
+ptpb1B = (tpb1tB - cbB) * 100 / cbB * Qtytp1  //-0.06
+ptpb2B = (tpb2tB - cbB) * 100 / cbB * Qtytp2  //-0.06
+ptpb3B = (tpb3tB - cbB) * 100 / cbB * Qtytp3  //-0.06
+ptpb4B = (tpb4tB - cbB) * 100 / cbB * Qtytp4  //-0.06
+pslbB = (closeB - cbB) * 100 / cbB * sisaqtybB  //-0.06
+prbB = (closeB - cbB) * 100 / cbB * sisaqtybB  //-0.06
+
+ptps1B = (csB - tps1tB) * 100 / csB * Qtytp1  //-0.06
+ptps2B = (csB - tps2tB) * 100 / csB * Qtytp2  //-0.06
+ptps3B = (csB - tps3tB) * 100 / csB * Qtytp3  //-0.06
+ptps4B = (csB - tps4tB) * 100 / csB * Qtytp4  //-0.06
+pslsB = (csB - close) * 100 / csB * sisaqtysB  //-0.06
+prsB = (csB - closeB) * 100 / csB * sisaqtysB  //-0.06
+
+prtpb1B = ta.cum(hittpb1B ? ptpb1B : 0)
+prtpb2B = ta.cum(hittpb2B ? ptpb2B : 0)
+prtpb3B = ta.cum(hittpb3B ? ptpb3B : 0)
+prtpb4B = ta.cum(hittpb4B ? ptpb4B : 0)
+prslbB = ta.cum(hitslbB ? pslbB : 0)
+prwrbB = ta.cum(winreversebB ? prbB : 0)
+prlrbB = ta.cum(losereversebB ? prbB : 0)
+
+prtps1B = ta.cum(hittps1B ? ptps1B : 0)
+prtps2B = ta.cum(hittps2B ? ptps2B : 0)
+prtps3B = ta.cum(hittps3B ? ptps3B : 0)
+prtps4B = ta.cum(hittps4B ? ptps4B : 0)
+prslsB = ta.cum(hitslsB ? pslsB : 0)
+prwrsB = ta.cum(winreversesB ? prsB : 0)
+prlrsB = ta.cum(losereversesB ? prsB : 0)
+
+netcapitalgainB = prtpb1B + prtpb2B + prtpb3B + prtpb4B + prslbB + prtps1B + prtps2B + prtps3B + prtps4B + prslsB + prwrbB + prlrbB + prwrsB + prlrsB
+
+///winrate
+wintpb1B = ta.cum(hittpb1B ? 1 : 0)
+wintpb2B = ta.cum(hittpb2B ? 1 : 0)
+wintpb3B = ta.cum(hittpb3B ? 1 : 0)
+wintpb4B = ta.cum(hittpb4B ? 1 : 0)
+wrslbB = ta.cum(hitslbB ? 1 : 0)
+
+wintps1B = ta.cum(hittps1B ? 1 : 0)
+wintps2B = ta.cum(hittps2B ? 1 : 0)
+wintps3B = ta.cum(hittps3B ? 1 : 0)
+wintps4B = ta.cum(hittps4B ? 1 : 0)
+wrslsB = ta.cum(hitslsB ? 1 : 0)
+
+cumtp1B = wintpb1B + wintps1B
+cumtp2B = wintpb2B + wintps2B
+cumtp3B = wintpb3B + wintps3B
+cumtp4B = wintpb4B + wintps4B
+cumslB = wrslbB + wrslsB
+cumpositionB = cumtp1B + cumtp2B + cumtp3B + cumtp4B + cumslB  //+cumwinreverseB//+cumlosereverseB
+
+wrtp1B = truncate(cumtp1B * 100 / cumsignalB, 0)
+wrtp2B = truncate(cumtp2B * 100 / cumsignalB, 0)
+wrtp3B = truncate(cumtp3B * 100 / cumsignalB, 0)
+wrtp4B = truncate(cumtp4B * 100 / cumsignalB, 0)
+wrslB = truncate(cumslB * 100 / cumsignalB, 0)
+
+winallB = cumtp1B + cumtp2B + cumtp3B + cumtp4B  //+cumwinreverseB
+wrallB = winallB * 100 / cumpositionB
+
+//===================================================================
+//===================================================================
+//===================================================================
+//===================================================================
+//Timeframe C
+//Supertrend Indicator
+
+srcC = hl2C
+atr2C = ta.sma(trC, period)
+atrC = request.security(syminfo.tickerid, tf3, ta.atr(period))
+upC = srcC - mult * atrC
+up1C = nz(upC[1], upC)
+upC := closeC[1] > up1C ? math.max(upC, up1C) : upC
+dnC = srcC + mult * atrC
+dn1C = nz(dnC[1], dnC)
+dnC := closeC[1] < dn1C ? math.min(dnC, dn1C) : dnC
+trendC = 1
+trendC := nz(trendC[1], trendC)
+trendC := trendC == -1 and closeC > dn1C ? 1 : trendC == 1 and closeC < up1C ? -1 : trendC
+stC = trendC == 1 ? upC : dnC
+
+//filtering
+atraC = request.security(syminfo.tickerid, tf3, ta.atr(atrLen))
+atrMaC = atrMaType == 'EMC' ? ta.ema(atraC, atrMaLen) : ta.sma(atraC, atrMaLen)
+updmC = ta.change(highC)
+downdmC = -ta.change(lowC)
+plusdmC = na(updmC) ? na : updmC > downdmC and updmC > 0 ? updmC : 0
+minusdmC = na(downdmC) ? na : downdmC > updmC and downdmC > 0 ? downdmC : 0
+//trurC = rma(trC, diLen)                                    
+//plusC = fixnan(100 * rma(plusdmC, diLen) / trurC)    
+//minusC = fixnan(100 * rma(minusdmC, diLen) / trurC)
+//sumC = plusC + minusC
+//adxC = 100 * rma(abs(plusC - minusC) / (sumC == 0 ? 1 : sumC), adxLen)            
+
+cndSidwayss1C = atraC >= atrMaC
+cndSidwayss2C = RSI > toplimitrsi or RSI < botlimitrsi
+cndSidwaysC = cndSidwayss1C or cndSidwayss2C
+cndSidways1C = cndSidwayss1C and cndSidwayss2C
+Sidwayss1C = atraC <= atrMaC
+Sidwayss2C = RSI < toplimitrsi and RSI > botlimitrsi
+SidwaysC = Sidwayss1C or Sidwayss2C
+Sidways1C = Sidwayss1C and Sidwayss2C
+
+trendTypeC = typefilter == filter1 ? cndSidwayss1C : typefilter == filter2 ? cndSidwayss2C : typefilter == filter3 ? cndSidwaysC : typefilter == filter4 ? cndSidways1C : typefilter == filter5 ? RSI > 0 : typefilter == filter6 ? SidwaysC : typefilter == filter7 ? Sidways1C : na
+
+
+// Entry FIX
+buysignal1C = ta.crossover(closeC, stC) and backtest and trendTypeC
+sellsignal1C = ta.crossunder(closeC, stC) and backtest and trendTypeC
+
+buyC = buysignal1C and longside
+sellC = sellsignal1C and shortside
+
+//Tp & Sl by atr Mult
+cbC = ta.valuewhen(buyC, closeC, 0)
+ratrC = ta.valuewhen(buyC, request.security(syminfo.tickerid, tf3, ta.atr(14)), 0)
+
+tpb1C = cbC + ratrC * TP1
+tpb2C = cbC + ratrC * TP2
+tpb3C = cbC + ratrC * TP3
+tpb4C = cbC + ratrC * TP4
+slbC = cbC - ratrC * SL  //withsl?upC:valuewhen(buyC, upC,0)
+
+csC = ta.valuewhen(sellC, closeC, 0)
+ratrsC = ta.valuewhen(sellC, request.security(syminfo.tickerid, tf3, ta.atr(14)), 0)
+tps1C = csC - ratrsC * TP1
+tps2C = csC - ratrsC * TP2
+tps3C = csC - ratrsC * TP3
+tps4C = csC - ratrsC * TP4
+slsC = csC + ratrsC * SL  //withsl?dnC:valuewhen(sellC, dnC, 0)
+
+Ptpb1C = cbC * (1 + ptp1)
+Ptpb2C = cbC * (1 + ptp2)
+Ptpb3C = cbC * (1 + ptp3)
+Ptpb4C = et == ex1 ? cbC * (1 + ptp4) : tpb4C
+PslbC = cbC * (1 - psl)
+
+Ptps1C = csC * (1 - ptp1)
+Ptps2C = csC * (1 - ptp2)
+Ptps3C = csC * (1 - ptp3)
+Ptps4C = et == ex1 ? csC * (1 - ptp4) : tps4C
+PslsC = csC * (1 + psl)
+
+
+//Variable Fix TP SL
+tpb1tC = et == ex1 ? Ptpb1C : tpb1C
+tpb2tC = et == ex1 ? Ptpb2C : tpb2C
+tpb3tC = et == ex1 ? Ptpb3C : tpb3C
+tpb4tC = Ptpb4C
+slbtC = et == ex1 ? PslbC : slbC
+tps1tC = et == ex1 ? Ptps1C : tps1C
+tps2tC = et == ex1 ? Ptps2C : tps2C
+tps3tC = et == ex1 ? Ptps3C : tps3C
+tps4tC = Ptps4C
+slstC = et == ex1 ? PslsC : slsC
+
+sinceentrybC = int(math.max(1, nz(ta.barssince(buyC))))
+openedbC = ta.barssince(buyC) >= 0 and trendC[1] == 1 and longside
+highestbarbC = ta.highest(sinceentrybC)
+lowestbarbC = ta.lowest(sinceentrybC)
+stillopenb1C = ta.barssince(buyC) == 1 ? true : highestbarbC[1] < tpb1tC and lowestbarbC[1] > slbtC
+stillopenb2C = ta.barssince(buyC) == 1 ? true : highestbarbC[1] < tpb2tC and lowestbarbC[1] > slbtC
+stillopenb3C = ta.barssince(buyC) == 1 ? true : highestbarbC[1] < tpb3tC and lowestbarbC[1] > slbtC
+stillopenb4C = ta.barssince(buyC) == 1 ? true : highestbarbC[1] < tpb4tC and lowestbarbC[1] > slbtC
+
+hittpb1C = ta.cross(highC, tpb1tC) and stillopenb1C and openedbC
+plotshape(hittpb1C)
+hittpb2C = ta.cross(highC, tpb2tC) and stillopenb2C and openedbC
+hittpb3C = ta.cross(highC, tpb3tC) and stillopenb3C and openedbC
+hittpb4C = ta.cross(highC, tpb4tC) and stillopenb4C and openedbC
+hitslbC = lowC < slbtC and stillopenb4C and openedbC
+winreversebC = closeC > cbC and backtest and ta.crossunder(closeC, stC) and stillopenb4C and trendC == -1 and openedbC
+losereversebC = closeC < cbC and backtest and ta.crossunder(closeC, stC) and stillopenb4C and trendC == -1 and openedbC
+
+
+sinceentrysC = int(math.max(1, nz(ta.barssince(sellC))))
+openedsC = ta.barssince(sellC) >= 0 and trendC[1] == -1 and shortside
+highestbarsC = ta.highest(sinceentrysC)
+lowestbarsC = ta.lowest(sinceentrysC)
+stillopens1C = ta.barssince(sellC) == 1 ? true : highestbarsC[1] < slstC and lowestbarsC[1] > tps1tC
+stillopens2C = ta.barssince(sellC) == 1 ? true : highestbarsC[1] < slstC and lowestbarsC[1] > tps2tC
+stillopens3C = ta.barssince(sellC) == 1 ? true : highestbarsC[1] < slstC and lowestbarsC[1] > tps3tC
+stillopens4C = ta.barssince(sellC) == 1 ? true : highestbarsC[1] < slstC and lowestbarsC[1] > tps4tC
+
+hittps1C = ta.cross(lowC, tps1tC) and stillopens1C and openedsC
+hittps2C = ta.cross(lowC, tps2tC) and stillopens2C and openedsC
+hittps3C = ta.cross(lowC, tps3tC) and stillopens3C and openedsC
+hittps4C = ta.cross(lowC, tps4tC) and stillopens4C and openedsC
+hitslsC = highC > slstC and stillopens4C and openedsC
+winreversesC = closeC <= csC and backtest and ta.crossover(closeC, stC) and stillopens4C and trendC == 1 and openedsC
+losereversesC = closeC >= csC and backtest and ta.crossover(closeC, stC) and stillopens4C and trendC == 1 and openedsC
+
+//============================================
+cumbuyC = ta.cum(buyC ? 1 : 0)
+cumsellC = ta.cum(sellC ? 1 : 0)
+cumsignalC = cumbuyC + cumsellC
+
+//net profit
+sisaqtybC = stillopenb1C ? 1 : stillopenb2C ? 1 - Qtytp1 : stillopenb3C ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+sisaqtysC = stillopens1C ? 1 : stillopens2C ? 1 - Qtytp1 : stillopens3C ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+
+ptpb1C = (tpb1tC - cbC) * 100 / cbC * Qtytp1  //-0.06
+ptpb2C = (tpb2tC - cbC) * 100 / cbC * Qtytp2  //-0.06
+ptpb3C = (tpb3tC - cbC) * 100 / cbC * Qtytp3  //-0.06
+ptpb4C = (tpb4tC - cbC) * 100 / cbC * Qtytp4  //-0.06
+pslbC = (closeC - cbC) * 100 / cbC * sisaqtybC  //-0.06
+prbC = (closeC - cbC) * 100 / cbC * sisaqtybC  //-0.06
+
+ptps1C = (csC - tps1tC) * 100 / csC * Qtytp1  //-0.06
+ptps2C = (csC - tps2tC) * 100 / csC * Qtytp2  //-0.06
+ptps3C = (csC - tps3tC) * 100 / csC * Qtytp3  //-0.06
+ptps4C = (csC - tps4tC) * 100 / csC * Qtytp4  //-0.06
+pslsC = (csC - closeC) * 100 / csC * sisaqtysC  //-0.06
+prsC = (csC - closeC) * 100 / csC * sisaqtysC  //-0.06
+
+prtpb1C = ta.cum(hittpb1C ? ptpb1C : 0)
+prtpb2C = ta.cum(hittpb2C ? ptpb2C : 0)
+prtpb3C = ta.cum(hittpb3C ? ptpb3C : 0)
+prtpb4C = ta.cum(hittpb4C ? ptpb4C : 0)
+prslbC = ta.cum(hitslbC ? pslbC : 0)
+prwrbC = ta.cum(winreversebC ? prbC : 0)
+prlrbC = ta.cum(losereversebC ? prbC : 0)
+
+prtps1C = ta.cum(hittps1C ? ptps1C : 0)
+prtps2C = ta.cum(hittps2C ? ptps2C : 0)
+prtps3C = ta.cum(hittps3C ? ptps3C : 0)
+prtps4C = ta.cum(hittps4C ? ptps4C : 0)
+prslsC = ta.cum(hitslsC ? pslsC : 0)
+prwrsC = ta.cum(winreversesC ? prsC : 0)
+prlrsC = ta.cum(losereversesC ? prsC : 0)
+
+netcapitalgainC = prtpb1C + prtpb2C + prtpb3C + prtpb4C + prslbC + prtps1C + prtps2C + prtps3C + prtps4C + prslsC + prwrbC + prlrbC + prwrsC + prlrsC
+
+///winrate
+wintpb1C = ta.cum(hittpb1C ? 1 : 0)
+wintpb2C = ta.cum(hittpb2C ? 1 : 0)
+wintpb3C = ta.cum(hittpb3C ? 1 : 0)
+wintpb4C = ta.cum(hittpb4C ? 1 : 0)
+wrslbC = ta.cum(hitslbC ? 1 : 0)
+
+wintps1C = ta.cum(hittps1C ? 1 : 0)
+wintps2C = ta.cum(hittps2C ? 1 : 0)
+wintps3C = ta.cum(hittps3C ? 1 : 0)
+wintps4C = ta.cum(hittps4C ? 1 : 0)
+wrslsC = ta.cum(hitslsC ? 1 : 0)
+
+cumtp1C = wintpb1C + wintps1C
+cumtp2C = wintpb2C + wintps2C
+cumtp3C = wintpb3C + wintps3C
+cumtp4C = wintpb4C + wintps4C
+cumslC = wrslbC + wrslsC
+cumpositionC = cumtp1C + cumtp2C + cumtp3C + cumtp4C + cumslC  //+cumwinreverseC//+cumlosereverseC
+
+wrtp1C = truncate(cumtp1C * 100 / cumsignalC, 0)
+wrtp2C = truncate(cumtp2C * 100 / cumsignalC, 0)
+wrtp3C = truncate(cumtp3C * 100 / cumsignalC, 0)
+wrtp4C = truncate(cumtp4C * 100 / cumsignalC, 0)
+wrslC = truncate(cumslC * 100 / cumsignalC, 0)
+
+winallC = cumtp1C + cumtp2C + cumtp3C + cumtp4C  //+cumwinreverseC
+wrallC = winallC * 100 / cumpositionC
+
+//===================================================================
+//===================================================================
+//===================================================================
+//===================================================================
+//Timeframe D
+//Supertrend Indicator
+
+srcD = hl2D
+atr2D = ta.sma(trD, period)
+atrD = request.security(syminfo.tickerid, tf4, ta.atr(period))
+upD = srcD - mult * atrD
+up1D = nz(upD[1], upD)
+upD := closeD[1] > up1D ? math.max(upD, up1D) : upD
+dnD = srcD + mult * atrD
+dn1D = nz(dnD[1], dnD)
+dnD := closeD[1] < dn1D ? math.min(dnD, dn1D) : dnD
+trendD = 1
+trendD := nz(trendD[1], trendD)
+trendD := trendD == -1 and closeD > dn1D ? 1 : trendD == 1 and closeD < up1D ? -1 : trendD
+stD = trendD == 1 ? upD : dnD
+
+//filtering
+atraD = request.security(syminfo.tickerid, tf4, ta.atr(atrLen))
+atrMaD = atrMaType == 'EMD' ? ta.ema(atraD, atrMaLen) : ta.sma(atraD, atrMaLen)
+updmD = ta.change(highD)
+downdmD = -ta.change(lowD)
+plusdmD = na(updmD) ? na : updmD > downdmD and updmD > 0 ? updmD : 0
+minusdmD = na(downdmD) ? na : downdmD > updmD and downdmD > 0 ? downdmD : 0
+//trurD = rma(trD, diLen)                                    
+//plusD = fixnan(100 * rma(plusdmD, diLen) / trurD)    
+//minusD = fixnan(100 * rma(minusdmD, diLen) / trurD)
+//sumD = plusD + minusD
+//adxD = 100 * rma(abs(plusD - minusD) / (sumD == 0 ? 1 : sumD), adxLen)            
+
+cndSidwayss1D = atraD >= atrMaD
+cndSidwayss2D = RSI > toplimitrsi or RSI < botlimitrsi
+cndSidwaysD = cndSidwayss1D or cndSidwayss2D
+cndSidways1D = cndSidwayss1D and cndSidwayss2D
+Sidwayss1D = atraD <= atrMaD
+Sidwayss2D = RSI < toplimitrsi and RSI > botlimitrsi
+SidwaysD = Sidwayss1D or Sidwayss2D
+Sidways1D = Sidwayss1D and Sidwayss2D
+
+trendTypeD = typefilter == filter1 ? cndSidwayss1D : typefilter == filter2 ? cndSidwayss2D : typefilter == filter3 ? cndSidwaysD : typefilter == filter4 ? cndSidways1D : typefilter == filter5 ? RSI > 0 : typefilter == filter6 ? SidwaysD : typefilter == filter7 ? Sidways1D : na
+
+
+// Entry FIX
+buysignal1D = ta.crossover(closeD, stD) and backtest and trendTypeD
+sellsignal1D = ta.crossunder(closeD, stD) and backtest and trendTypeD
+
+buyD = buysignal1D and longside
+sellD = sellsignal1D and shortside
+
+//Tp & Sl by atr Mult
+cbD = ta.valuewhen(buyD, closeD, 0)
+ratrD = ta.valuewhen(buyD, request.security(syminfo.tickerid, tf4, ta.atr(14)), 0)
+
+tpb1D = cbD + ratrD * TP1
+tpb2D = cbD + ratrD * TP2
+tpb3D = cbD + ratrD * TP3
+tpb4D = cbD + ratrD * TP4
+slbD = cbD - ratrD * SL  //withsl?upD:valuewhen(buyD, upD,0)
+
+csD = ta.valuewhen(sellD, closeD, 0)
+ratrsD = ta.valuewhen(sellD, request.security(syminfo.tickerid, tf4, ta.atr(14)), 0)
+tps1D = csD - ratrsD * TP1
+tps2D = csD - ratrsD * TP2
+tps3D = csD - ratrsD * TP3
+tps4D = csD - ratrsD * TP4
+slsD = csD + ratrsD * SL  //withsl?dnD:valuewhen(sellD, dnD, 0)
+
+Ptpb1D = cbD * (1 + ptp1)
+Ptpb2D = cbD * (1 + ptp2)
+Ptpb3D = cbD * (1 + ptp3)
+Ptpb4D = et == ex1 ? cbD * (1 + ptp4) : tpb4D
+PslbD = cbD * (1 - psl)
+
+Ptps1D = csD * (1 - ptp1)
+Ptps2D = csD * (1 - ptp2)
+Ptps3D = csD * (1 - ptp3)
+Ptps4D = et == ex1 ? csD * (1 - ptp4) : tps4D
+PslsD = csD * (1 + psl)
+
+
+//Variable Fix TP SL
+tpb1tD = et == ex1 ? Ptpb1D : tpb1D
+tpb2tD = et == ex1 ? Ptpb2D : tpb2D
+tpb3tD = et == ex1 ? Ptpb3D : tpb3D
+tpb4tD = Ptpb4D
+slbtD = et == ex1 ? PslbD : slbD
+tps1tD = et == ex1 ? Ptps1D : tps1D
+tps2tD = et == ex1 ? Ptps2D : tps2D
+tps3tD = et == ex1 ? Ptps3D : tps3D
+tps4tD = Ptps4D
+slstD = et == ex1 ? PslsD : slsD
+
+sinceentrybD = int(math.max(1, nz(ta.barssince(buyD))))
+openedbD = ta.barssince(buyD) >= 0 and trendD[1] == 1 and longside
+highestbarbD = ta.highest(sinceentrybD)
+lowestbarbD = ta.lowest(sinceentrybD)
+stillopenb1D = ta.barssince(buyD) == 1 ? true : highestbarbD[1] < tpb1tD and lowestbarbD[1] > slbtD
+stillopenb2D = ta.barssince(buyD) == 1 ? true : highestbarbD[1] < tpb2tD and lowestbarbD[1] > slbtD
+stillopenb3D = ta.barssince(buyD) == 1 ? true : highestbarbD[1] < tpb3tD and lowestbarbD[1] > slbtD
+stillopenb4D = ta.barssince(buyD) == 1 ? true : highestbarbD[1] < tpb4tD and lowestbarbD[1] > slbtD
+
+hittpb1D = ta.cross(highD, tpb1tD) and stillopenb1D and openedbD
+plotshape(hittpb1D)
+hittpb2D = ta.cross(highD, tpb2tD) and stillopenb2D and openedbD
+hittpb3D = ta.cross(highD, tpb3tD) and stillopenb3D and openedbD
+hittpb4D = ta.cross(highD, tpb4tD) and stillopenb4D and openedbD
+hitslbD = lowD < slbtD and stillopenb4D and openedbD
+winreversebD = closeD > cbD and backtest and ta.crossunder(closeD, stD) and stillopenb4D and trendD == -1 and openedbD
+losereversebD = closeD < cbD and backtest and ta.crossunder(closeD, stD) and stillopenb4D and trendD == -1 and openedbD
+
+
+sinceentrysD = int(math.max(1, nz(ta.barssince(sellD))))
+openedsD = ta.barssince(sellD) >= 0 and trendD[1] == -1 and shortside
+highestbarsD = ta.highest(sinceentrysD)
+lowestbarsD = ta.lowest(sinceentrysD)
+stillopens1D = ta.barssince(sellD) == 1 ? true : highestbarsD[1] < slstD and lowestbarsD[1] > tps1tD
+stillopens2D = ta.barssince(sellD) == 1 ? true : highestbarsD[1] < slstD and lowestbarsD[1] > tps2tD
+stillopens3D = ta.barssince(sellD) == 1 ? true : highestbarsD[1] < slstD and lowestbarsD[1] > tps3tD
+stillopens4D = ta.barssince(sellD) == 1 ? true : highestbarsD[1] < slstD and lowestbarsD[1] > tps4tD
+
+hittps1D = ta.cross(lowD, tps1tD) and stillopens1D and openedsD
+hittps2D = ta.cross(lowD, tps2tD) and stillopens2D and openedsD
+hittps3D = ta.cross(lowD, tps3tD) and stillopens3D and openedsD
+hittps4D = ta.cross(lowD, tps4tD) and stillopens4D and openedsD
+hitslsD = highD > slstD and stillopens4D and openedsD
+winreversesD = closeD <= csD and backtest and ta.crossover(closeD, stD) and stillopens4D and trendD == 1 and openedsD
+losereversesD = closeD >= csD and backtest and ta.crossover(closeD, stD) and stillopens4D and trendD == 1 and openedsD
+
+//============================================
+cumbuyD = ta.cum(buyD ? 1 : 0)
+cumsellD = ta.cum(sellD ? 1 : 0)
+cumsignalD = cumbuyD + cumsellD
+
+//net profit
+sisaqtybD = stillopenb1D ? 1 : stillopenb2D ? 1 - Qtytp1 : stillopenb3D ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+sisaqtysD = stillopens1D ? 1 : stillopens2D ? 1 - Qtytp1 : stillopens3D ? 1 - (Qtytp1 + Qtytp2) : 1 - (Qtytp1 + Qtytp2 + Qtytp3)
+
+ptpb1D = (tpb1tD - cbD) * 100 / cbD * Qtytp1  //-0.06
+ptpb2D = (tpb2tD - cbD) * 100 / cbD * Qtytp2  //-0.06
+ptpb3D = (tpb3tD - cbD) * 100 / cbD * Qtytp3  //-0.06
+ptpb4D = (tpb4tD - cbD) * 100 / cbD * Qtytp4  //-0.06
+pslbD = (closeD - cbD) * 100 / cbD * sisaqtybD  //-0.06
+prbD = (closeD - cbD) * 100 / cbD * sisaqtybD  //-0.06
+
+ptps1D = (csD - tps1tD) * 100 / csD * Qtytp1  //-0.06
+ptps2D = (csD - tps2tD) * 100 / csD * Qtytp2  //-0.06
+ptps3D = (csD - tps3tD) * 100 / csD * Qtytp3  //-0.06
+ptps4D = (csD - tps4tD) * 100 / csD * Qtytp4  //-0.06
+pslsD = (csD - closeD) * 100 / csD * sisaqtysD  //-0.06
+prsD = (csD - closeD) * 100 / csD * sisaqtysD  //-0.06
+
+prtpb1D = ta.cum(hittpb1D ? ptpb1D : 0)
+prtpb2D = ta.cum(hittpb2D ? ptpb2D : 0)
+prtpb3D = ta.cum(hittpb3D ? ptpb3D : 0)
+prtpb4D = ta.cum(hittpb4D ? ptpb4D : 0)
+prslbD = ta.cum(hitslbD ? pslbD : 0)
+prwrbD = ta.cum(winreversebD ? prbD : 0)
+prlrbD = ta.cum(losereversebD ? prbD : 0)
+
+prtps1D = ta.cum(hittps1D ? ptps1D : 0)
+prtps2D = ta.cum(hittps2D ? ptps2D : 0)
+prtps3D = ta.cum(hittps3D ? ptps3D : 0)
+prtps4D = ta.cum(hittps4D ? ptps4D : 0)
+prslsD = ta.cum(hitslsD ? pslsD : 0)
+prwrsD = ta.cum(winreversesD ? prsD : 0)
+prlrsD = ta.cum(losereversesD ? prsD : 0)
+
+netcapitalgainD = prtpb1D + prtpb2D + prtpb3D + prtpb4D + prslbD + prtps1D + prtps2D + prtps3D + prtps4D + prslsD + prwrbD + prlrbD + prwrsD + prlrsD
+
+///winrate
+wintpb1D = ta.cum(hittpb1D ? 1 : 0)
+wintpb2D = ta.cum(hittpb2D ? 1 : 0)
+wintpb3D = ta.cum(hittpb3D ? 1 : 0)
+wintpb4D = ta.cum(hittpb4D ? 1 : 0)
+wrslbD = ta.cum(hitslbD ? 1 : 0)
+
+wintps1D = ta.cum(hittps1D ? 1 : 0)
+wintps2D = ta.cum(hittps2D ? 1 : 0)
+wintps3D = ta.cum(hittps3D ? 1 : 0)
+wintps4D = ta.cum(hittps4D ? 1 : 0)
+wrslsD = ta.cum(hitslsD ? 1 : 0)
+
+cumtp1D = wintpb1D + wintps1D
+cumtp2D = wintpb2D + wintps2D
+cumtp3D = wintpb3D + wintps3D
+cumtp4D = wintpb4D + wintps4D
+cumslD = wrslbD + wrslsD
+cumpositionD = cumtp1D + cumtp2D + cumtp3D + cumtp4D + cumslD  //+cumwinreverseD//+cumlosereverseD
+
+wrtp1D = truncate(cumtp1D * 100 / cumsignalD, 0)
+wrtp2D = truncate(cumtp2D * 100 / cumsignalD, 0)
+wrtp3D = truncate(cumtp3D * 100 / cumsignalD, 0)
+wrtp4D = truncate(cumtp4D * 100 / cumsignalD, 0)
+wrslD = truncate(cumslD * 100 / cumsignalD, 0)
+
+winallD = cumtp1D + cumtp2D + cumtp3D + cumtp4D  //+cumwinreverseD
+wrallD = winallD * 100 / cumpositionD
+
+//===================================================================
+//===================================================================
+
+
+
+//=======================================================================================
+//Trend Panel
+
+
+smoothKsrsi = input.int(3, 'K', minval=1)
+smoothDsrsi = input.int(3, 'D', minval=1)
+lengthRSIsrsi = input.int(42, 'RSI Length', minval=1)
+lengthStochsrsi = input.int(14, 'Stochastic Length', minval=1)
+srcsrsi = input(close, title='RSI Source')
+rsi1srsi = ta.rsi(srcsrsi, lengthRSIsrsi)
+ksrsi = truncate(ta.sma(ta.stoch(rsi1srsi, rsi1srsi, rsi1srsi, lengthStochsrsi), smoothKsrsi), dpa)
+dsrsi = ta.sma(ksrsi, smoothDsrsi)
+
+fast_lengthm = input(title='Fast Length', defval=12)
+slow_lengthm = input(title='Slow Length', defval=26)
+srcm = input(title='Source', defval=close)
+signal_lengthm = input.int(title='Signal Smoothing', minval=1, maxval=50, defval=9)
+sma_sourcem = input.string(title='Oscillator MA Type', defval='EMA', options=['SMA', 'EMA'])
+sma_signalm = input.string(title='Signal Line MA Type', defval='EMA', options=['SMA', 'EMA'])
+
+fast_mam = sma_sourcem == 'SMA' ? ta.sma(srcm, fast_lengthm) : ta.ema(srcm, fast_lengthm)
+slow_mam = sma_sourcem == 'SMA' ? ta.sma(srcm, slow_lengthm) : ta.ema(srcm, slow_lengthm)
+macd = fast_mam - slow_mam
+signalm = sma_signalm == 'SMA' ? ta.sma(macd, signal_lengthm) : ta.ema(macd, signal_lengthm)
+histm = macd - signalm
+
+trenddir = RSI > 55 ? 'Bullish🚀' : RSI < 45 ? 'Bearish🩸' : 'Flat🤼🏻‍♂️'
+
+//Tele Notif
+ep = trend == 1 ? cb : cs
+winrate = truncate(strategy.wintrades / strategy.closedtrades * 100, 0)
+capitalgain = 100 * strategy.netprofit / initialcapital
+closedtrades = strategy.closedtrades
+
+//Gathers User Inputs
+//Dashboard
+sideentry = strategy.position_size > 0 ? 'LONG' : strategy.position_size < 0 ? 'SHORT' : 'No Position'
+epp = strategy.position_size > 0 ? cb : strategy.position_size < 0 ? cs : na
+tp1p = truncate(strategy.position_size > 0 ? tpb1t : strategy.position_size < 0 ? tps1t : na, dpa)
+tp2p = truncate(strategy.position_size > 0 ? tpb2t : strategy.position_size < 0 ? tps2t : na, dpa)
+tp3p = truncate(strategy.position_size > 0 ? tpb3t : strategy.position_size < 0 ? tps3t : na, dpa)
+tp4p = truncate(strategy.position_size > 0 ? tpb4t : strategy.position_size < 0 ? tps4t : na, dpa)
+slp = truncate(strategy.position_size > 0 ? slbt : strategy.position_size < 0 ? slst : na, dpa)
+dashDist = input.int(150, 'Dashboard Distance', group='Dashboard Settings')
+dashColor = input.color(color.new(#080808, 0), 'Dashboard Color', inline='Dash Line', group='Dashboard Settings')
+dashTextColor = input.color(color.new(#ffffff, 0), 'Text Color', inline='Dash Line', group='Dashboard Settings')
+
+
+sinceentryb = int(math.max(1, nz(ta.barssince(buy and backtest and trendType))))
+highestbarb = ta.highest(high[1], sinceentryb)
+lowestbarb = ta.lowest(low[1], sinceentryb)
+sinceentrys = int(math.max(1, nz(ta.barssince(sell and backtest and trendType))))
+highestbars = ta.highest(high[1], sinceentrys)
+lowestbars = ta.lowest(low[1], sinceentrys)
+
+hittp1 = strategy.position_size > 0 ? highestbars > tpb1t : strategy.position_size < 0 ? lowestbars < tps1t : na
+hittp1t = hittp1 ? ' ✅' : na
+hittp2 = strategy.position_size > 0 ? highestbars > tpb2t : strategy.position_size < 0 ? lowestbars < tps2t : na
+hittp2t = hittp2 ? ' ✅' : na
+hittp3 = strategy.position_size > 0 ? highestbars > tpb3t : strategy.position_size < 0 ? lowestbars < tps3t : na
+hittp3t = hittp3 ? ' ✅' : na
+hittp4 = strategy.position_size > 0 ? highestbars > tpb4t : strategy.position_size < 0 ? lowestbars < tps4t : na
+hittp4t = hittp4 ? ' ✅' : na
+
+longnotif = '_____________________________' + '\n                             ' + '\n 🤖Signals Nayrafa_Algotrade' + '\n_____________________________' + '\n                             ' + '\nCoin            : ' + syminfo.ticker + '\nPosition        : 🔺 LONG' + '\nOpen Price      : ' + str.tostring(truncate(ep, 0)) + '\nTake Profit 1   : ' + str.tostring(truncate(tpb1t, 0)) + '\nTake Profit 2   : ' + str.tostring(truncate(tpb2t, 0)) + '\nTake Profit 3   : ' + str.tostring(truncate(tpb3t, 0)) + '\nTake Profit 4   : ' + str.tostring(truncate(tpb4t, 0)) + '\nStoploss        : ' + str.tostring(truncate(slbt, 0)) + '\n_____________________________' + '\n                             ' + '\n Backtest Days ' + 'On ' + str.tostring(truncate(daysback, 2)) + ' Days 💰' + '\n_____________________________' + '\n                             ' + '\nNayrafa_Algotrade Winrate : ' + str.tostring(winrate) + ' % 🌟' + '\n💰 Net Profits : ' + str.tostring(truncate(capitalgain, 2)) + '% 💰' + '\n📌 Total Trades : ' + str.tostring(closedtrades) + ' 📌' + '\n_____________________________'
+    //+ '\n\n🎯 TAKE PROFITS RATINGS (%) 🎯'
+    //+ '\n_____________________________'     
+    //+ '\n\nTake Profits 1 : '+tostring(wrtp1A)+' %'
+    //+ '\nTake Profits 2 : ' +tostring(wrtp2A)+' %'
+    //+ '\nTake Profits 3 : ' +tostring(wrtp3A)+' %'
+    //+ '\nTake Profits 4 : ' +tostring(wrtp4A)+' %'     
+    //+ '\n_______________________________'
+    //+ '\n                               '
+    //+ '\n🧾Panel 🤖Signals Nayrafa_Algotrade'
+    //+ '\n_______________________________'
+    //+ '\n                               '
+    //+ '\nRSI : ' + tostring(RSI)
+    //+ '\nSRSI : ' + tostring(ksrsi)
+    //+ '\nCurrent Sentiment = ' + tostring(trenddir)
+    //+ '\n_____________________________'
+    //+ '\n                             '
+    //+ '\n🚨 Notes 🚨'
+    //+ '\n• Disclaimer On !' 
+    //+ '\n• Future USD-M Coin Mode.'
+    //+ '\n• Trade with high risk.' 
+    //+ '\n• Stay wise & disciplined.'
+    //+ '\n• Risk Management.'
+    //+ '\n• Use 1-3% of the total Wallet Future.\n'
+    //+ '\n_____________________________' 
+    //+ '\n                             '
+    //+ '\n 🎉 Happy Profit 🎉'
+    //+ '\n_____________________________'  
+
+shortnotif = '_______________________________' + '\n                             ' + '\n🤖Signals Nayrafa_Algotrade' + '\n_____________________________' + '\n                             ' + '\nCoin            : ' + syminfo.ticker + '\nPosition        : 🔻 SHORT' + '\nOpen Price      : ' + str.tostring(truncate(ep, dpa)) + '\nTake Profit 1   : ' + str.tostring(truncate(tps1t, dpa)) + '\nTake Profit 2   : ' + str.tostring(truncate(tps2t, dpa)) + '\nTake Profit 3   : ' + str.tostring(truncate(tps3t, dpa)) + '\nTake Profit 4   : ' + str.tostring(truncate(tps4t, dpa)) + '\nStoploss        : ' + str.tostring(truncate(slst, dpa)) + '\n_____________________________' + '\n                             ' + '\n Backtest Days ' + 'On ' + str.tostring(truncate(daysback, 2)) + ' Days 💰' + '\n_____________________________' + '\n                             ' + '\n🤖Signals Nayrafa_Algotrade Winrate : ' + str.tostring(winrate) + ' % 🌟' + '\n💰 Net Profits : ' + str.tostring(truncate(capitalgain, 2)) + '% 💰' + '\n📌 Total Trades : ' + str.tostring(closedtrades) + ' 📌' + '\n_____________________________'
+    //+ '\n\n🎯 TAKE PROFITS RATINGS (%) 🎯'
+    //+ '\n_____________________________'     
+    //+ '\n\nTake Profits 1 : '+tostring(wrtp1A)+' %'
+    //+ '\nTake Profits 2 : ' +tostring(wrtp2A)+' %'
+    //+ '\nTake Profits 3 : ' +tostring(wrtp3A)+' %'
+    //+ '\nTake Profits 4 : ' +tostring(wrtp4A)+' %'     
+    //+ '\n_______________________________'
+    //+ '\n                               '
+    //+ '\n🤖Signals Nayrafa_Algotrade'
+    //+ '\n_______________________________'
+    //+ '\n                               '
+    //+ '\nRSI : ' + tostring(RSI)
+    //+ '\nSRSI : ' + tostring(ksrsi)
+    //+ '\nCurrent Sentiment = ' + tostring(trenddir)
+    //+ '\n_____________________________'
+    //+ '\n                             '
+    //+ '\n🚨 Notes 🚨'
+    //+ '\n• Disclaimer On !' 
+    //+ '\n• Future USD-M Coin Mode.'
+    //+ '\n• Trade with high risk.' 
+    //+ '\n• Stay wise & disciplined.'
+    //+ '\n• Risk Management.'
+    //+ '\n• Use 1-3% Wallet Future.\n'
+    //+ '\n_____________________________' 
+    //+ '\n                             '
+    // + '\n🎉 Happy Profit 🎉'
+    // + '\n_____________________________'   
+
+exitziglong1 = '⚠Position Status⚠\n\nTake Profit 1 ✅ From 🔺 Long Signal\n' + 'at Price : ' + str.tostring(tpb1t) + ' in ' + syminfo.ticker  // + tostring(exitpricelong1)
+exitzigshort1 = '⚠Position Status⚠\n\nTake Profit 1 ✅ From 🔻 Short Signal\n' + 'at Price : ' + str.tostring(tps1t) + ' in ' + syminfo.ticker  //+ tostring(exitpriceshort1)
+exitziglong2 = '⚠Position Status⚠\n\nTake Profit 2 ✅ From 🔺 Long Signal\n' + 'at Price : ' + str.tostring(tpb2t) + ' in ' + syminfo.ticker  // + tostring(exitpricelong2)
+exitzigshort2 = '⚠Position Status⚠\n\nTake Profit 2 ✅ From 🔻 Short Signal\n' + 'at Price : ' + str.tostring(tps2t) + ' in ' + syminfo.ticker  // + tostring(exitpriceshort2)
+exitziglong3 = '⚠Position Status⚠\n\nTake Profit 3 ✅ From 🔺 Long Signal\n' + 'at Price : ' + str.tostring(tpb3t) + ' in ' + syminfo.ticker  // + tostring(exitpricelong3)
+exitzigshort3 = '⚠Position Status⚠\n\nTake Profit 3 ✅ From 🔻 Short Signal\n' + 'at Price : ' + str.tostring(tps3t) + ' in ' + syminfo.ticker  // + tostring(exitpriceshort3)
+exitziglong4 = '⚠Position Status⚠\n\nTake Profit 4 ✅ From 🔺 Long Signal\n' + 'at Price : ' + str.tostring(tpb4t) + ' in ' + syminfo.ticker  // + tostring(exitpricelong3)
+exitzigshort4 = '⚠Position Status⚠\n\nTake Profit 4 ✅ From 🔻 Short Signal\n' + 'at Price : ' + str.tostring(tps4t) + ' in ' + syminfo.ticker  // + tostring(exitpriceshort3)
+
+sllong = '⚠Position Status⚠\n\nHit SL 💋 From 🔺 Long Signal\n' + ' Price : ' + str.tostring(slbt) + ' in ' + syminfo.ticker  // + tostring(exitpricelong4)
+slshort = '⚠Position Status⚠\n\nHit SL 💋 From 🔻 Short Signal\n' + ' Price : ' + str.tostring(slst) + ' in ' + syminfo.ticker  // + tostring(exitpriceshort4)
+
+longbotcommand = ZZ == z1 ? longct : ZZ == z2 ? longsp : longnotif
+shortbotcommand = ZZ == z1 ? shortct : ZZ == z2 ? shortsp : shortnotif
+exitbotcommandl1 = ZZ == z3 ? exitziglong1 : na
+exitbotcommands1 = ZZ == z3 ? exitzigshort1 : na
+exitbotcommandl2 = ZZ == z3 ? exitziglong2 : na
+exitbotcommands2 = ZZ == z3 ? exitzigshort2 : na
+exitbotcommandl3 = ZZ == z3 ? exitziglong3 : na
+exitbotcommands3 = ZZ == z3 ? exitzigshort3 : na
+exitbotcommandl4 = ZZ == z3 ? exitziglong4 : na
+exitbotcommands4 = ZZ == z3 ? exitzigshort4 : na
+sllongcommand = ZZ == z3 ? sllong : slcommand
+slshortcommand = ZZ == z3 ? slshort : slcommand
+
+
+/////////////////////////////////////////////////////////////////////////////////
+// Alerts
+// to automate put this in trendinview message:     {{strategy.order.alert_message}}
+//long = input.text_area(defval = "zalupa", title = "Long Entry Message", group = "Alerts")
+//short = input.text_area(defval = "zalupa", title = "Short Entry Message", group = "Alerts")
+
+//
+if long_final and backtest and trendType and longside
+    strategy.entry('Buy', direction=strategy.long, comment='LONG', alert_message=longbotcommand)
+    alert(message= '________💯Signal BOT AI Nayrafa_Algotrade_________' + '\n                             ' + '\n 💯Signal BOT AI Nayrafa_Algotrade' + '\n_____________________________' + '\n                             ' + '\nCoin            : ' + syminfo.ticker + '\nPosition        : 📈 LONG(20X)' + '\nEntry Target      : ' + str.tostring(truncate(ep, 0)) + '\nTake Profit1   : ' + str.tostring(truncate(tpb1t, 0)) + '\nTake Profit2   : ' + str.tostring(truncate(tpb2t, 0)) + '\nTake Profit3   : ' + str.tostring(truncate(tpb3t, 0)) + '\nTake Profit4   : ' + str.tostring(truncate(tpb4t, 0)) + '\nStoploss        : ' + str.tostring(truncate(slbt, 0)) + '\n_____________________________' + '\n                             ' + '\n Backtest Days ' + 'On ' + str.tostring(truncate(daysback, 2)) + ' Days 💰' + '\n_____________________________' + '\n                             ' + '\n🌟 💯Nayrafa_Algotrade💸 Winrate : ' + str.tostring(winrate) + ' % 🌟' + '\n💰 Net Profits : ' + str.tostring(truncate(capitalgain, 2)) + '% 💰'    + '\n🚨 Notes 🚨'+ '\n• Disclaimer On !' + '\n• Future USD-M Coin Mode.'+ '\n• Trade with high risk.' + '\n• Stay wise & disciplined.'+ '\n• Risk Management.'+ '\n• Use 1-3% Wallet Future.\n'+ '\n_____________________________' + '\n'+ '\n🎉 💯Signal BOT AI Nayrafa_Algotrade 🎉'+ '\n_____________________________'+ '\n')
+
+
+if short_final and backtest and trendType and shortside
+    strategy.entry('Sell', direction=strategy.short, comment='SHORT', alert_message=shortbotcommand)
+    alert(message='_______💯Signal BOT AI Nayrafa_Algotrade________' + '\n                             ' + '\n💯Signal BOT AI Nayrafa_Algotrade' + '\n_____________________________' + '\n                             ' + '\nCoin            : ' + syminfo.ticker + '\nPosition        : 📉 SHORT(20X)' + '\nEntry Target      : ' + str.tostring(truncate(ep, dpa)) + '\nTake Profit1   : ' + str.tostring(truncate(tps1t, dpa)) + '\nTake Profit2   : ' + str.tostring(truncate(tps2t, dpa)) + '\nTake Profit3   : ' + str.tostring(truncate(tps3t, dpa)) + '\nTake Profit4   : ' + str.tostring(truncate(tps4t, dpa)) + '\nStoploss        : ' + str.tostring(truncate(slst, dpa)) + '\n_____________________________' + '\n                             ' + '\n Backtest Days ' + 'On ' + str.tostring(truncate(daysback, 2)) + ' Days 💰' + '\n_____________________________' + '\n                             ' + '\n🌟 💯Nayrafa_Algotrade💸 Winrate : ' + str.tostring(winrate) + ' % 🌟' + '\n💰 Net Profits : ' + str.tostring(truncate(capitalgain, 2)) + '% 💰'    + '\n🚨 Notes 🚨'+ '\n• Disclaimer On !' + '\n• Future USD-M Coin Mode.'+ '\n• Trade with high risk.' + '\n• Stay wise & disciplined.'+ '\n• Risk Management.'+ '\n• Use 1-3% Wallet Future.\n'+ '\n_____________________________' + '\n'+ '\n🎉 💯Signal BOT AI Nayrafa_Algotrade 🎉'+'\n_____________________________' + '\n')
+  
+    //alert(short)
+
+
+strategy.exit('TP 1', 'Buy', qty_percent=qtytp1, limit=tpb1t, alert_message=exitbotcommandl1)
+strategy.exit('TP 2', 'Buy', qty_percent=qtytp2, limit=tpb2t, alert_message=exitbotcommandl2)
+strategy.exit('TP 3', 'Buy', qty_percent=qtytp3, limit=tpb3t, alert_message=exitbotcommandl3)
+strategy.exit('TP 4', 'Buy', qty_percent=qtytp4, limit=tpb4t, alert_message=exitbotcommandl4)
+
+
+slbclose = short_final or low < slbt
+strategy.close('Buy', when=slbclose, comment='SL', alert_message=sllongcommand)
+
+strategy.exit('TP 1', 'Sell', qty_percent=qtytp1, limit=tps1t, alert_message=exitbotcommands1)
+strategy.exit('TP 2', 'Sell', qty_percent=qtytp2, limit=tps2t, alert_message=exitbotcommands1)
+strategy.exit('TP 3', 'Sell', qty_percent=qtytp3, limit=tps3t, alert_message=exitbotcommands1)
+strategy.exit('TP 4', 'Sell', qty_percent=qtytp4, limit=tps4t, alert_message=exitbotcommands1)
+
+slsclose = long_final or high > slst
+strategy.close('Sell', when=slsclose, comment='SL', alert_message=slshortcommand)
+
+leverage = input.int(title="Leverage", defval=20, minval=1, maxval=125, group='Strategy Option')
+var label pre_entry_label_long = na
+var label positionMaxLabel_long = na
+var firstOrderPlaced_long = false
+var ath = high
+var peak_profit_long = 0.0
+var string peak_profit_string_long = na
+
+var drawdown_long = close
+var peak_drawdown_long = 0.0
+if (ta.crossover(strategy.position_size, 0))
+    ath := high
+    peak_profit_long := (((ath - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage 
+    peak_profit_string_long := str.tostring(math.round(peak_profit_long, 2))
+    positionMaxLabel_long := label.new(bar_index , ath, text ="Maximum Profit " + peak_profit_string_long + "%", textcolor = color.rgb(243, 239, 239), color = color.rgb(124, 131, 127, 76), style = label.style_label_down)
+    firstOrderPlaced_long := true
+    
+    drawdown_long := close
+    peak_drawdown_long := (((drawdown_long - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+
+else if strategy.position_size > 0
+    if (ath < high)
+        ath := high
+        peak_profit_long := (((ath - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage // The last value is the leverage
+        peak_profit_string_long := str.tostring(math.round(peak_profit_long, 2))
+        if (firstOrderPlaced_long)
+            label.set_x(positionMaxLabel_long, bar_index)
+            label.set_y(positionMaxLabel_long, ath)
+            label.set_text(positionMaxLabel_long, "Maximum Profit " + peak_profit_string_long + "%")
+        
+    if drawdown_long > low
+        drawdown_long := low
+        peak_drawdown_long := (((drawdown_long - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+
+var label pre_entry_label_short = na
+var label positionMaxLabel_short = na
+var firstOrderPlaced_short = false
+var atl = low
+var peak_profit_short = 0.0
+var string peak_profit_string_short = na
+
+var drawdown_short = close
+var peak_drawdown_short = 0.0
+
+if (ta.crossunder(strategy.position_size, 0))
+    atl := low
+    peak_profit_short := -(((atl - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+    peak_profit_string_short := str.tostring(math.round(peak_profit_short, 2))
+    positionMaxLabel_short := label.new(bar_index , atl, text ="Maximum Profit " + peak_profit_string_short + "%", textcolor = color.rgb(250, 247, 247), color = color.rgb(85, 88, 86, 76), style = label.style_label_up)
+    firstOrderPlaced_short := true
+    
+    drawdown_short := close
+    peak_drawdown_short := -(((drawdown_short - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+    
+else if strategy.position_size < 0
+    if (atl > low)
+        atl := low
+        peak_profit_short := -(((atl - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+        peak_profit_string_short := str.tostring(math.round(peak_profit_short, 2))
+        if (firstOrderPlaced_short)
+            label.set_x(positionMaxLabel_short, bar_index)
+            label.set_y(positionMaxLabel_short, atl)
+            label.set_text(positionMaxLabel_short, "Maximum Profit " + peak_profit_string_short + "%")
+        
+    if drawdown_short < high
+        drawdown_short := high
+        peak_drawdown_short := -(((drawdown_short - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+//plot(strategy.position_size <= 0 ? na : tpb1t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 1 Buy', show_last=5)
+//plot(strategy.position_size <= 0 ? na : tpb2t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 2 Buy', show_last=5)
+//plot(strategy.position_size <= 0 ? na : tpb3t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 3 Buy', show_last=5)
+//plot(strategy.position_size >= 0 ? na : tps1t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 1 Sell', show_last=5)
+//plot(strategy.position_size >= 0 ? na : tps2t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 2 Sell', show_last=5)
+//plot(strategy.position_size >= 0 ? na : tps3t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 3 Sell', show_last=5)
+//plot(strategy.position_size >= 0 ? na : tps4t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 4 Sell', show_last=5)
+//plot(strategy.position_size <= 0 ? na : tpb4t, color=color.new(#0e6d61, 0), style=plot.style_line, linewidth=1, title='TP 4 Sell', show_last=5)
+
+//plot(strategy.position_size >= 0 ? na : slst, color=color.new(color.red, 0), style=plot.style_line, linewidth=1, title='TP 4 Sell', show_last=5)
+//plot(strategy.position_size <= 0 ? na : slbt, color=color.new(color.red, 0), style=plot.style_line, linewidth=1, title='TP 4 Sell', show_last=5)
+
+//plot(strategy.position_size == 0 ? na : ep, color=color.new(#fb962a, 0), style=plot.style_line, linewidth=1, title='Entry Buy', show_last=5)
+
+
+bt = time - time[1]
+label TP1b = label.new(time + 0 * bt, strategy.position_size <= 0 ? na : tpb1t, xloc=xloc.bar_time, text= 'Target 1: ' + str.tostring(truncate(tpb1t, dpa)) + str.tostring(hittp1t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP1b[1])
+label TP2b = label.new(time + 0 * bt, strategy.position_size <= 0 ? na : tpb2t, xloc=xloc.bar_time, text= 'Target 2: ' + str.tostring(truncate(tpb2t, dpa)) + str.tostring(hittp2t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP2b[1])
+label TP3b = label.new(time + 0 * bt, strategy.position_size <= 0 ? na : tpb3t, xloc=xloc.bar_time, text= 'Target 3: ' + str.tostring(truncate(tpb3t, dpa)) + str.tostring(hittp3t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP3b[1])
+label TP4b = label.new(time + 0 * bt, strategy.position_size <= 0 ? na : tpb4t, xloc=xloc.bar_time, text= 'Target 4: ' + str.tostring(truncate(tpb4t, dpa)) + str.tostring(hittp4t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP4b[1])
+label SLB = label.new(time + 0 * bt, strategy.position_size <= 0 ? na : slbt, xloc=xloc.bar_time, text= 'StopLoss: ' + str.tostring(truncate(slbt, dpa)), color=color.red, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(SLB[1])
+label EP = label.new(time + 0 * bt, epp, xloc=xloc.bar_time, text= 'Entry: ' + str.tostring(truncate(epp, dpa)), color=#fb962a, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(EP[1])
+
+label TP1s = label.new(time + 0 * bt, strategy.position_size >= 0 ? na : tps1t, xloc=xloc.bar_time, text= 'Target 1: ' + str.tostring(truncate(tps1t, dpa)) + str.tostring(hittp1t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP1s[1])
+label TP2s = label.new(time + 0 * bt, strategy.position_size >= 0 ? na : tps2t, xloc=xloc.bar_time, text= 'Target 2: ' + str.tostring(truncate(tps2t, dpa)) + str.tostring(hittp2t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP2s[1])
+label TP3s = label.new(time + 0 * bt, strategy.position_size >= 0 ? na : tps3t, xloc=xloc.bar_time, text= 'Target 3: ' + str.tostring(truncate(tps3t, dpa)) + str.tostring(hittp3t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP3s[1])
+label TP4s = label.new(time + 0 * bt, strategy.position_size >= 0 ? na : tps4t, xloc=xloc.bar_time, text= 'Target 4: ' + str.tostring(truncate(tps4t, dpa)) + str.tostring(hittp4t), color=#0e6d61, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(TP4s[1])
+label SLS = label.new(time + 0 * bt, strategy.position_size >= 0 ? na : slst, xloc=xloc.bar_time, text= 'StopLoss: ' + str.tostring(truncate(slst, dpa)), color=color.red, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.delete(SLS[1])
+//
+besttf = math.max(netcapitalgainA, netcapitalgainB, netcapitalgainC, netcapitalgainD)
+besttft = besttf == netcapitalgainA ? tf1 : besttf == netcapitalgainB ? tf2 : besttf == netcapitalgainC ? tf3 : besttf == netcapitalgainD ? tf4 : na
+accesstf = timeframe.period
+
+wrtp1 = accesstf == str.tostring(3) ? besttf == netcapitalgainA ? wrtp1A : besttf == netcapitalgainB ? wrtp1B : besttf == netcapitalgainC ? wrtp1C : besttf == netcapitalgainD ? wrtp1D : na : na
+wrtp2 = accesstf == str.tostring(3) ? besttf == netcapitalgainA ? wrtp2A : besttf == netcapitalgainB ? wrtp2B : besttf == netcapitalgainC ? wrtp2C : besttf == netcapitalgainD ? wrtp2D : na : na
+wrtp3 = accesstf == str.tostring(3) ? besttf == netcapitalgainA ? wrtp3A : besttf == netcapitalgainB ? wrtp3B : besttf == netcapitalgainC ? wrtp3C : besttf == netcapitalgainD ? wrtp3D : na : na
+wrtp4 = accesstf == str.tostring(3) ? besttf == netcapitalgainA ? wrtp4A : besttf == netcapitalgainB ? wrtp4B : besttf == netcapitalgainC ? wrtp4C : besttf == netcapitalgainD ? wrtp4D : na : na
+wrsl = accesstf == str.tostring(3) ? besttf == netcapitalgainA ? wrslA : besttf == netcapitalgainB ? wrslB : besttf == netcapitalgainC ? wrslC : besttf == netcapitalgainD ? wrslD : na : na
+Besttf = accesstf == str.tostring(3) ? besttft : 'NaN'
+
+mtfanalysis = accesstf == str.tostring(3) ? str.tostring(Besttf) : 'NaN'
+
+//CALCULATION FOR DASHBOARD//
+
+// // // Market Section
+
+csatr = ta.atr(14)
+
+csstdAtr = 2 * ta.stdev(csatr, 20)
+
+cssmaAtr = ta.sma(csatr, 20)
+
+cstopAtrDev = cssmaAtr + csstdAtr
+
+csbottomAtrDev = cssmaAtr - csstdAtr
+
+cscalcDev = (csatr - csbottomAtrDev) / (cstopAtrDev - csbottomAtrDev)
+
+cspercentVol = 40 * cscalcDev + 30
+
+
+
+
+
+
+
+//Gathers User Inputs
+voidLines = input(true, 'Void Lines On / Off')
+dashOn = input(true, 'Dashboard On / Off')
+colorBar = input(true, 'Signal Bars On / Off')
+srLines = input(false, 'Support & Resistance Lines On / Off')
+emaLines = input(false, 'EMA (8, 200) On / Off')
+bsSignals = input(true, 'Buy & Sell Signals On / Off')
+afibOn = input(false, 'Fibonacci Retracement On / Off')
+dashDist11 = input(13, 'Dashboard Distance')
+dashColor11 = input.color(color.new(#696969, 80), 'Dashboard Color', inline='Dash Line')
+dashTextColor11 = input.color(color.new(#ffffff, 0), 'Text Color', inline='Dash Line')
+
+//Calculates Volatility for Dashboard
+atr11 = ta.atr(14)
+stdAtr = 2 * ta.stdev(atr11, 20)
+smaAtr = ta.sma(atr11, 20)
+topAtrDev = smaAtr + stdAtr
+bottomAtrDev = smaAtr - stdAtr
+calcDev = (atr - bottomAtrDev) / (topAtrDev - bottomAtrDev)
+percentVol = 40 * calcDev + 30
+
+//Calculates Volume for Dashboard
+volumeDash = volume
+
+//RSI for Dashboard
+rsiDash = ta.rsi(close, 14)
+
+//Calculates Sentiment for Dashboard
+ema9 = ta.ema(close, 9)
+totalSentTxt = ema9 > ema9[2] ? 'Bullish' : ema9 < ema9[2] ? 'Bearish' : 'Flat'
+
+//Defines Each Timeframe for Trend Panel
+sma = ta.sma(close, 50)
+oneM = request.security(syminfo.tickerid, '1', sma, barmerge.gaps_off, barmerge.lookahead_off)
+fiveM = request.security(syminfo.tickerid, '5', sma, barmerge.gaps_off, barmerge.lookahead_off)
+fifteenM = request.security(syminfo.tickerid, '15', sma, barmerge.gaps_off, barmerge.lookahead_off)
+thirtyM = request.security(syminfo.tickerid, '30', sma, barmerge.gaps_off, barmerge.lookahead_off)
+oneH = request.security(syminfo.tickerid, '60', sma, barmerge.gaps_off, barmerge.lookahead_off)
+twoH = request.security(syminfo.tickerid, '120', sma, barmerge.gaps_off, barmerge.lookahead_off)
+fourH = request.security(syminfo.tickerid, '240', sma, barmerge.gaps_off, barmerge.lookahead_off)
+weekly = request.security(syminfo.tickerid, 'W', sma, barmerge.gaps_off, barmerge.lookahead_off)
+monthly = request.security(syminfo.tickerid, 'M', sma, barmerge.gaps_off, barmerge.lookahead_off)
+daily = request.security(syminfo.tickerid, 'D', sma, barmerge.gaps_off, barmerge.lookahead_off)
+
+//Defines An Uptrend for Trend Panel
+oneMUp = oneM > oneM[1]
+fiveMUp = fiveM > fiveM[1]
+fifteenMUp = fifteenM > fifteenM[1]
+thirtyMUp = thirtyM > thirtyM[1]
+oneHUp = oneH > oneH[1]
+twoHUp = twoH > twoH[1]
+fourHUp = fourH > fourH[1]
+weeklyUp = weekly > weekly[1]
+monthlyUp = monthly > monthly[1]
+dailyUp = daily > daily[1]
+
+//Checks if the Current State is an Uptrend or Downtrend for the Trend Panel
+up11 = '📈'
+down11 = '📉'
+oneMTrend = oneMUp ? up11 : down11
+fiveMTrend = fiveMUp ? up11 : down11
+fifteenMTrend = fifteenMUp ? up11 : down11
+thirtyMTrend = thirtyMUp ? up11 : down11
+oneHTrend = oneHUp ? up11 : down11
+twoHTrend = twoHUp ? up11 : down11
+fourHTrend = fourHUp ? up11 : down11
+weeklyTrend = weeklyUp ? up11 : down11
+monthlyTrend = monthlyUp ? up11 : down11
+dailyTrend = dailyUp ? up11 : down11
+
+
+
+dashboardtext = '_______________________________' + '\n                               ' + '\nCoin : ' + syminfo.ticker + '\nExchanges : '+ syminfo.prefix + '\nPosition : ' + str.tostring(sideentry) + '\nOpen Price  : ' + str.tostring(truncate(ep, dpa)) + '\nTake Profit 1 : ' + str.tostring(truncate(tp1p, dpa)) + str.tostring(hittp1t) + '\nTake Profit 2 : ' + str.tostring(truncate(tp2p, dpa)) + str.tostring(hittp2t) + '\nTake Profit 3 : ' + str.tostring(truncate(tp3p, dpa)) + str.tostring(hittp3t) + '\nTake Profit 4 : ' + str.tostring(truncate(tp4p, dpa)) + str.tostring(hittp4t) + '\nStop Target   : ' + str.tostring(truncate(slp, dpa)) + '\n_______________________________ ' + '\n🏆 Winrate : ' + str.tostring(winrate) + ' %'  + '\n💰 Net Profits : ' + str.tostring(truncate(capitalgain, 0)) + '%' + '\n✍️ Total Trades : ' + str.tostring(closedtrades) + '\n_____________________________ ' + '\n\n☁️ Nayrafa_AlgoTrade Dashboard ☁️' + '\n━━━━━━━━━━━━━━━━━' + '\n🤹 Market Information 🤹' + '\n━━━━━━━━━━━━━━━━━' + '\n🎈Volatility| ' + str.tostring(percentVol, '##.##') + '%' + '\n🎈Volume| ' + str.tostring(volumeDash, '##.##') + '\n🎈RSI| ' + str.tostring(rsiDash, '##.##') + '\n🎈 Current Sentiment | ' + totalSentTxt + '\n━━━━━━━━━━━━━━━━━' + '\n🎪 Trend Panel 🎪' + '\n━━━━━━━━━━━━━━━━━' + '\n     1 Minute | ' + oneMTrend + '         2 Hour | ' + twoHTrend + '\n     5 Minute | ' + fiveMTrend + '         4 Hour | ' + fourHTrend + '\n        15 Minute | ' + fifteenMTrend + '         Weekly | ' + weeklyTrend + '\n        30 Minute | ' + thirtyMTrend + '       Monthly |     ' + monthlyTrend + '\n        1 Hour | ' + oneHTrend + '                Daily | ' + dailyTrend + '\n━━━━━━━━━━━━━━━━━' + '\n                        official Telegram, - @fian_trader'
+
+
+
+
+
+
+
+
+
+
+
+
+
+//if strategy.position_size>0?strategy.position_size>0:strategy.position_size<0
+label lemonLabel = label.new(time, close, text=dashboardtext, color=dashColor, xloc=xloc.bar_time, style=label.style_label_left, textcolor=dashTextColor, textalign=text.align_center)
+label.set_x(lemonLabel, label.get_x(lemonLabel) + math.round(ta.change(time) * dashDist))
+label.delete(lemonLabel[1])
+
+//PLOTTING
+//bodyMiddle = plot(ST ? (open + close) / 2 : na, display=display.none)
+//uptrend = plot(ST ? trend < 0 ? na : up : na, 'Up trend', color=color.new(color.green, 0), style=plot.style_linebr, linewidth=2)
+//downtrend = plot(ST ? trend < 0 ? dn : na : na, 'Down trend', color=color.new(color.red, 0), style=plot.style_linebr, linewidth=2)
+
+
+//RISOVALKA
+bton(b) =>
+    b ? 1 : 0
+//plotchar(longCondition, title='buy alert', color=color.new(color.green, 0), textcolor=color.new(color.green, 0), location=location.belowbar, size=size.small, text='', offset=0, char='🚀')
+
+//plotchar(shortCondition, title='sell alert', color=color.new(color.red, 0), textcolor=color.new(color.red, 0), location=location.abovebar, size=size.small, text='', offset=0, char='🧨')
+
+
+//BJORGUM//
+import              Bjorgum/BjCandlePatterns/2 as bj
+
+// ================================== //
+// ------------> Tips <-------------- //
+// ================================== //
+
+leftTip         =   "Look left for swing high/low in x number of bars to form pivot. The higher the number, the higher the script looks to the left for the highest/lowest point before drawing pivot"        
+rightTip        =   "Look right for swing high/low in x number of bars to form pivot. The higher the number, the higher the script looks to the right for the highest/lowest point before drawing pivot"       
+nPivTip         =   "This sets the array size, or the number of pivots to track at a time (x highs, and x number of lows)" 
+atrLenTip       =   "Number of bars to average. ATR is used to standardize zone width between assets and timeframes"     
+multTip         =   "ATR multiplier to set zone width. Default is half of one ATR from box bottom to box top"     
+perTip          =   "Max zone size as a percent of price. Some assets can be too volatile at low prices creating an unreasonably sized zone"
+maxTip          =   "Number of boxes for candlestick patterns to track historically. Note: the higher the number the less pivot zones will be tracked when looking back in time due to the limitation on the number of box elements allowed at once"
+futTip          =   "Number of bars to offset labels for price levels"
+srcTip          =   "Source input for pivots. Default tracks the highest and lowest bodies of HA candles to average price action, which can result in a level that sits in the overlap of support and resistance"     
+alignZonesTip   =   "Aligns recurring zones who's edges overlap an existing zone creating a zone that ages in time and intensifies visually"     
+extendTip       =   "Extends current zones right"
+lLabTip         =   "Show labels for price levels extended off Key Levels"
+
+dhighsTip       =   "Disabling will prevent highs from being tracked"          
+dlowsTip        =   "Disabling will prevent lows from being tracked"         
+detectBOTip     =   "Show points that price action breaks above all pivots. An arrow from below is displayed"        
+detectBDTip     =   "Show points that price action breaks below all pivots. An arrow from above is displayed"         
+breakUpTip      =   "Show points that price action breaks above resistance. An arrow from below is displayed"         
+breakDnTip      =   "Show points that price action breaks below support. An arrow from above is displayed"          
+falseBullTip    =   "Show points that price action initially breaks below support before reversing. False moves can lead to fast moves in the opposite direction (bear trap). A large arrow from below is displayed"          
+falseBearTip    =   "Show points that price action initially breaks above resistance before reversing. False moves can lead to fast moves in the opposite direction (bull trap). A large arrow from above is displayed"           
+supPushTip      =   "Show up candles that are detected within a support zone. Can show points support is being respected. A triangle from below is displayed"          
+resPushTip      =   "Show down candles that are detected within a resistance zone. Can show points resistance is being respected. A triangle from above is displayed"           
+curlTip         =   "Show Bjorgum TSI 'curl' when candles are detected in the range of a key zone. Can show momentum shift at Key Levels. (Correlates to Bjorgum TSI indicator)" 
+
+repaintTip      =   "Wait for candles end before detecting patterns. False will show potential patterns forming before they are confirmed."
+labelsTip       =   "Show a label for detected candle patterns"
+sBoxTip         =   "Show a box around detected candle patterns"
+dTip            =   "Detect Doji candle patterns"      
+beTip           =   "Detect Engulfing patterns"     
+hsTip           =   "Detect Hammers and Shooting Star patterns"     
+dgTip           =   "Detect Dragonfly Doji and Gravestone Doji patterns"     
+twTip           =   "Detect Tweezer Top and Tweezer Bottom patterns"     
+stTip           =   "Detect Spinning Top patterns"     
+pcTip           =   "Detect Piercing and Dark Cloud Cover patterns"     
+bhTip           =   "Detect Harami candle patterns"     
+lsTip           =   "Detect Long Upper Shadow and Long Lower Shadow patterns"     
+
+ecWickTip       =   "Determines if engulfing candles must engulf the wick or just the body of the preceding candle"     
+colorMatchTip   =   "Determines if hammers must be up candles and shooting stars must be down candles"     
+closeHalfTip    =   "Determines if Tweezer patterns must close beyond the half way point of the preceding candle"     
+atrMaxTip       =   "Maximum size of setup candles (as a multiplier of the current ATR)"     
+rejectWickTip   =   "The maximum wick size as a percentage of body size allowable for a rejection wick on the resolution candle of the pattern. 0 disables the filter"
+hammerFibTip    =   "The relationship of body to candle size for hammers and stars. (ie. body is 33% of total candle size)."     
+hsShadowPercTip =   "The maximum allowable opposing wick size as a percent of body size (ex. top wick for a hammer pattern etc.)"     
+hammerSizeTip   =   "The minimum size of hammers, stars, or long shadows as a multiplier of ATR. (To filter out tiny setups)"     
+dojiSizeTip     =   "The relationship of body to candle size (ie. body is 5% of total candle size)."     
+dojiWickSizeTip =   "Maximum wick size comparative to the opposite wick. (eg. 2 = bottom wick must be less than or equal to 2x the top wick)."     
+luRatioTip      =   "A relationship of the upper wick to the overall candle size expressed as a percent."     
+
+lookbackTip     =   "Number of candles that can be included in a false break signal"        
+swingTip        =   "Swing detection is used to filter signals on breakout type signals. A higher number will mean more significant points, but less of them"        
+reflectTip      =   "Filter to ensure a setup is a significant swing point. Look back this far"
+offsetTip       =   "Candle pattern high/low distance from absolute swing high/low. Example: 0 would filter patterns that are only the highest/lowest, 1 filters second highest over the significant length, etc."
+
+bullPivotTip    =   "Color of bullish Key Levels\n(border, background)"            
+bearPivotTip    =   "Color of bearish Key Levels\n(border, background)"            
+breakoutTip     =   "Color of breakout arrows\n(bull, bear,)"           
+SnRTip          =   "Color of triangles for broken support or resistance\n(bull, bear)"   
+falseBreakTip   =   "Color of arrows for false breaks\n(bull, bear, arrow max height in pixels)"            
+moveTip         =   "Color of triangles for candles that are detected within zones\n(bull, bear)"    
+patTip          =   "Color of boxes that wrap candestick patterns\nBackgrounds: (bull, neutral, bear)\nBorders: (bull, neutral, bear)"    
+labTip          =   "Color of labels that mark candestick patterns\nText: (bull, neutral, bear)\nLabels: (bull, neutral, bear)"    
+stratTip        =   "TSI speed control presets. Both speeds correlate to the Bjorgum TSI indicator"
+
+// ================================== //
+// ---------> User Input <----------- //
+// ================================== //
+
+left            =   input.int       (50     ,   "Look Left"                     ,   group= "Zones"                , tooltip= leftTip            )    
+right           =   input.int       (50     ,   "Look Right"                    ,   group= "Zones"                , tooltip= rightTip           )    
+nPiv            =   input.int       (3      ,   "Number of Pivots"              ,   group= "Zones"                , tooltip= nPivTip            )
+atrLen15          =   input.int       (30     ,   "ATR Length"                    ,   group= "Zones"                , tooltip= atrLenTip          )
+mult16            =   input.float     (0.2    ,   "Zone Width (ATR)"              ,   group= "Zones"                , tooltip= multTip            ,   step   = 0.1)
+per             =   input.float     (5      ,   "Max Zone Percent"              ,   group= "Zones"                , tooltip= perTip             )
+max             =   input.float     (10     ,   "Max Boxes for Patterns"        ,   group= "Zones"                , tooltip= maxTip             )
+fut             =   input.int       (30     ,   "Offset For Labels"             ,   group= "Zones"                , tooltip= futTip             )
+src16             =   input.string    ("High/Low"   ,   "Source For Pivots"             ,   group= "Zones"                , tooltip= srcTip             ,   options= ["HA", "High/Low Body", "High/Low"])
+alignZones      =   input.bool      (true   ,   "Align Zones"                   ,   group= "Zones"                , tooltip= alignZonesTip      )
+extend          =   input.bool      (false  ,   "Extend Right"                  ,   group= "Zones"                , tooltip= extendTip          )
+lLab            =   input.bool      (false  ,   "Show Level Labels"             ,   group= "Zones"                , tooltip= lLabTip            )
+
+dhighs          =   input.bool      (true   ,   "Detect Pivot Highs"            ,   group= "Detection"            , tooltip= dhighsTip          )
+dlows           =   input.bool      (true   ,   "Detect Pivot Lows"             ,   group= "Detection"            , tooltip= dlowsTip           )
+detectBO        =   input.bool      (false  ,   "Detect Breakout"               ,   group= "Detection"            , tooltip= detectBOTip        )
+detectBD        =   input.bool      (false  ,   "Detect Breakdown"              ,   group= "Detection"            , tooltip= detectBDTip        )
+breakUp         =   input.bool      (false  ,   "Detect Resistance Break"       ,   group= "Detection"            , tooltip= breakUpTip         )
+breakDn         =   input.bool      (false  ,   "Detect Support Break"          ,   group= "Detection"            , tooltip= breakDnTip         ) 
+falseBull       =   input.bool      (false  ,   "Detect False Breakdown"        ,   group= "Detection"            , tooltip= falseBullTip       )
+falseBear       =   input.bool      (false  ,   "Detect False Breakup"          ,   group= "Detection"            , tooltip= falseBearTip       ) 
+supPush         =   input.bool      (false  ,   "Detect Moves Off Support"      ,   group= "Detection"            , tooltip= supPushTip         )
+resPush         =   input.bool      (false  ,   "Detect Moves Off Resistance"   ,   group= "Detection"            , tooltip= resPushTip         ) 
+curl            =   input.bool      (false  ,   "Detect TSI Curl"               ,   group= "Detection"            , tooltip= curlTip            ) 
+
+repaint         =   input.bool      (true   ,   "Wait For Confirmed Bar"        ,   group= "Candle Patterns"      , tooltip= repaintTip         )
+labels          =   input.bool      (false  ,   "Show Label"                    ,   group= "Candle Patterns"      , tooltip= labelsTip          )
+sBox            =   input.bool      (false  ,   "Show Boxes Around Patterns"    ,   group= "Candle Patterns"      , tooltip= sBoxTip            )
+d_              =   input.bool      (false  ,   "Detect Doji"                   ,   group= "Candle Patterns"      , tooltip= dTip               )
+be_             =   input.bool      (false  ,   "Detect Engulfing"              ,   group= "Candle Patterns"      , tooltip= beTip              )
+hs_             =   input.bool      (false  ,   "Detect Hammers and Stars"      ,   group= "Candle Patterns"      , tooltip= hsTip              )
+dg_             =   input.bool      (false  ,   "Detect Dragons and Graves"     ,   group= "Candle Patterns"      , tooltip= dgTip              )
+tw_             =   input.bool      (false  ,   "Detect Tweezers"               ,   group= "Candle Patterns"      , tooltip= twTip              )
+st_             =   input.bool      (false  ,   "Detect Spinning Top"           ,   group= "Candle Patterns"      , tooltip= stTip              )
+pc_             =   input.bool      (false  ,   "Detect Piercing and Clouds"    ,   group= "Candle Patterns"      , tooltip= pcTip              )
+bh_             =   input.bool      (false  ,   "Detect Harami"                 ,   group= "Candle Patterns"      , tooltip= bhTip              )
+ls_             =   input.bool      (false  ,   "Detect Long Shadows"           ,   group= "Candle Patterns"      , tooltip= lsTip              )
+
+alertMode       =   input.string    (alert.freq_once_per_bar_close              ,   "Alerts Mode"                 , group  = "Alert Frequency"  ,   options= [alert.freq_once_per_bar, alert.freq_once_per_bar_close]) 
+
+ecWick          =   input.bool      (false  ,   "Engulfing Must Engulf Wick"    ,   group= "Candle Filters"       , tooltip= ecWickTip          )
+colorMatch      =   input.bool      (false  ,   "H&S Must Match Color"          ,   group= "Candle Filters"       , tooltip= colorMatchTip      )
+closeHalf       =   input.bool      (false  ,   "Tweezer Close Over Half"       ,   group= "Candle Filters"       , tooltip= closeHalfTip       )
+atrMax          =   input.float     (0.0    ,   "Max Candle Size (× ATR)"       ,   group= "Candle Filters"       , tooltip= atrMaxTip          ,   step= 0.1 )
+rejectWickMax   =   input.float     (0.0    ,   "[EC] Max Reject Wick Size"     ,   group= "Candle Filters"       , tooltip= rejectWickTip      ,   step= 1   )  
+hammerFib       =   input.float     (33     ,   "[HS] H&S Ratio (%)"            ,   group= "Candle Filters"       , tooltip= hammerFibTip       ,   step= 1   ) 
+hsShadowPerc    =   input.float     (5      ,   "[HS] H&S Opposing Shadow (%)"  ,   group= "Candle Filters"       , tooltip= hsShadowPercTip    ,   step= 1   ) 
+hammerSize      =   input.float     (0.1    ,   "[HS] H&S Min Size (× ATR)"     ,   group= "Candle Filters"       , tooltip= hammerSizeTip      ,   step= 0.1 ) 
+dojiSize        =   input.float     (5      ,   "[DJ] Doji Size (%)"            ,   group= "Candle Filters"       , tooltip= dojiSizeTip        ,   step= 1   )
+dojiWickSize    =   input.float     (2      ,   "[DJ] Max Doji Wick Size"       ,   group= "Candle Filters"       , tooltip= dojiWickSizeTip    ,   step= 1   )
+luRatio         =   input.float     (75     ,   "[LS] Long Shadow (%)"          ,   group= "Candle Filters"       , tooltip= luRatioTip         ,   step= 1   ) 
+
+lookback15        =   input.int       (2      ,   "Lookback For Breaks"           ,   group= "Lookback"             , tooltip= lookbackTip        )
+swing           =   input.int       (5      ,   "swing High/Low"                ,   group= "Lookback"             , tooltip= swingTip           )
+reflect         =   input.int       (10     ,   "Significant High/Low"          ,   group= "Lookback"             , tooltip= reflectTip         )
+offset          =   input.int       (1      ,   "Consider Bar From High/Low"    ,   group= "Lookback"             , tooltip= offsetTip          )
+
+bullBorder      =   input.color     (color.new  (#64b5f6, 60), "", inline= "0"  ,   group= "Pivot Color"                                        )
+bullBgCol       =   input.color     (color.new  (#64b5f6, 95), "", inline= "0"  ,   group= "Pivot Color"          , tooltip= bullPivotTip       )
+bearBorder      =   input.color     (color.new  (#ffeb3b, 60), "", inline= "1"  ,   group= "Pivot Color"                                        )   
+bearBgCol       =   input.color     (color.new  (#ffeb3b, 95), "", inline= "1"  ,   group= "Pivot Color"          , tooltip= bearPivotTip       )
+
+upCol           =   input.color     (color.new  (#ff6d00, 25), "", inline= "2"  ,   group= "Breakout Color"                                     )
+dnCol           =   input.color     (color.new  (#ff00ff, 25), "", inline= "2"  ,   group= "Breakout Color"       , tooltip= breakoutTip        ) 
+
+supCol          =   input.color     (color.new  (#17ff00, 25), "", inline= "3"  ,   group= "S&R Break Color"                                    )
+resCol          =   input.color     (color.new  (#ff0000, 25), "", inline= "3"  ,   group= "S&R Break Color"      , tooltip= SnRTip             ) 
+
+fBull           =   input.color     (color.new  (#17ff00, 25), "", inline= "4"  ,   group= "False Break Color"                                  )
+fBear           =   input.color     (color.new  (#ff0000, 25), "", inline= "4"  ,   group= "False Break Color"                                  )
+arrowMax        =   input.int       (75                      , "", inline= "4"  ,   group= "False Break Color"    , tooltip= falseBreakTip      )
+
+moveBullCol     =   input.color     (color.new  (#64b5f6, 25), "", inline= "5"  ,   group= "Moves From S&R Color"                               )
+moveBearCol     =   input.color     (color.new  (#ffeb3b, 25), "", inline= "5"  ,   group= "Moves From S&R Color" , tooltip= moveTip            ) 
+
+curlBullCol     =   input.color     (color.new  (#17ff00, 40), "", inline= "6"  ,   group= "Momentum Curl Color"                                )
+curlBearCol     =   input.color     (color.new  (#f3ff00, 40), "", inline= "6"  ,   group= "Momentum Curl Color"  , tooltip= curlTip            ) 
+
+patBullBg       =   input.color     (color.new  (#17ff00, 90), "", inline= "7"  ,   group= "Pattern Box Color"                                  )
+patNeutBg       =   input.color     (color.new  (#b2b5be, 90), "", inline= "7"  ,   group= "Pattern Box Color"                                  )
+patBearBg       =   input.color     (color.new  (#ff0000, 90), "", inline= "7"  ,   group= "Pattern Box Color"                                  )
+patBullBo       =   input.color     (color.new  (#17ff00, 80), "", inline= "8"  ,   group= "Pattern Box Color"                                  )
+patNeutBo       =   input.color     (color.new  (#b2b5be, 80), "", inline= "8"  ,   group= "Pattern Box Color"                                  )
+patBearBo       =   input.color     (color.new  (#ff0000, 80), "", inline= "8"  ,   group= "Pattern Box Color"    , tooltip= patTip             ) 
+
+textBullCol     =   input.color     (color.new  (#17ff00,  0), "", inline= "9"  ,   group= "Label Color (Text/Bg)"                              )
+textNeutCol     =   input.color     (color.new  (#b2b5be,  0), "", inline= "9"  ,   group= "Label Color (Text/Bg)"                              )
+textBearCol     =   input.color     (color.new  (#ff0000,  0), "", inline= "9"  ,   group= "Label Color (Text/Bg)"                              )
+labBullCol      =   input.color     (color.new  (#17ff00, 80), "", inline= "10" ,   group= "Label Color (Text/Bg)"                              )
+labNeutCol      =   input.color     (color.new  (#b2b5be, 80), "", inline= "10" ,   group= "Label Color (Text/Bg)"                              )
+labBearCol      =   input.color     (color.new  (#ff0000, 80), "", inline= "10" ,   group= "Label Color (Text/Bg)", tooltip= labTip             ) 
+
+strat           =   input.string    ("Fast" ,   "Select a Speed"                ,   group= "TSI Speed Control"    , tooltip= stratTip           ,   options= ["Fast", "Slow"])
+    
+longf           =   input.int       (25     ,   "Long Length"                   ,   group= "TSI Fast Settings"                                  )
+shortf          =   input.int       (5      ,   "Short Length"                  ,   group= "TSI Fast Settings"                                  )
+signalf         =   input.int       (14     ,   "Signal Length"                 ,   group= "TSI Fast Settings"                                  )
+
+longs           =   input.int       (25     ,   "Long Length"                   ,   group= "TSI Slow Settings"                                  )
+shorts          =   input.int       (13     ,   "Short Length"                  ,   group= "TSI Slow Settings"                                  )
+signals         =   input.int       (13     ,   "Signal Length"                 ,   group= "TSI Slow Settings"                                  )
+
+// ================================== //
+// -----> Immutable Constants <------ //
+// ================================== //    
+ 
+sync            =   bar_index
+labUp           =   label.style_label_up
+labDn           =   label.style_label_down
+confirmed       =   barstate.isconfirmed
+extrap          =   extend ?        extend.right  : extend.none
+
+var pivotHigh   =   array.new_box   (nPiv)
+var pivotLows   =   array.new_box   (nPiv)  
+var highBull    =   array.new_bool  (nPiv)
+var lowsBull    =   array.new_bool  (nPiv)
+var boxes       =   array.new_box   ()
+
+haSrc           =   src16    ==       "HA"    
+hiLoSrc         =   src16    ==       "High/Low"
+tsifast         =   strat  ==       "Fast"
+tsislow         =   strat  ==       "Slow"
+
+// ================================== //
+// ---> Functional Declarations <---- //
+// ================================== //
+
+atr16             =   ta.atr          (atrLen15)
+perMax          =   close*          0.02
+min             =   math.min        (perMax, atr16*0.3)
+
+_haBody()       =>
+    haClose     =   (open + high  +  low  + close)    / 4
+    haOpen      =   float(na)
+    haOpen      :=  na(haOpen[1]) ? (open + close)    / 2 : 
+                   (nz(haOpen[1]) + nz(haClose[1]))   / 2
+    
+    [haOpen, haClose]
+    
+_extend(_x) =>
+    for i = 0 to               array.size       (_x)-1
+        box.set_right          (array.get       (_x, i), sync)
+        
+_arrayLoad(_x, _max, _val) =>  
+    array.unshift                               (_x,   _val)   
+    if  array.size                              (_x) > _max
+        array.pop                               (_x)
+
+_arrayBox(_x, _max, _val) =>  
+    array.unshift                               (_x,   _val)   
+    if       array.size                         (_x) > _max
+        _b = array.pop                          (_x)
+        if extend
+            box.set_extend                      (_b, extend.none)
+
+_arrayWrap(_x, _max, _val) =>  
+    array.unshift                               (_x,   _val)   
+    if  array.size                              (_x) > _max
+        box.delete(array.pop                    (_x))
+
+_delLab(_x)     =>
+    if array.size(_x) > 0 
+        label.delete           (array.pop       (_x))
+
+_delLine(_x)    =>
+    if array.size(_x) > 0 
+        line.delete            (array.pop       (_x))
+
+_delLevels(_x, _y)  =>
+    for i = 0 to array.size                     (_x)-1
+        _delLab                                 (_x)
+        _delLine                                (_y)
+
+_box(_x1, _t, _r, _b, _boCol, _bgCol, _e) =>
+    box.new(                   _x1, _t, _r, _b  , 
+     xloc        =             xloc.bar_index   ,
+     extend      =             _e               ,
+     border_color=             _boCol           ,   
+     bgcolor     =             _bgCol           ) 
+
+_wrap(_cond, _x, _bb, _bc, _bgc) =>
+    _t           =             ta.highest       (high, _bb) + min
+    _b           =             ta.lowest        (low , _bb) - min
+    _l           =             bar_index -      _bb
+    _r           =             bar_index +      1
+    if  _cond
+        _arrayWrap            (_x, max, _box    (_l, _t, _r, _b, _bc, _bgc, extend.none)) 
+
+_getBox(_x,_i)   =>
+    _box         =             array.get        (_x,_i)
+    _t           =             box.get_top      (_box)
+    _b           =             box.get_bottom   (_box)
+    [_t, _b]
+    
+_align(_x,_y)    =>
+    for i = 0 to               array.size       (_x) -1
+        [_T, _B] =             _getBox          (_y, 0)
+        [_t, _b] =             _getBox          (_x, i)
+        if _T > _b and         _T < _t or 
+           _B < _t and         _B > _b or 
+           _T > _t and         _B < _b or 
+           _B > _b and         _T < _t
+            box.set_top        (array.get       (_y, 0), _t)
+            box.set_bottom     (array.get       (_y, 0), _b)
+ 
+_color(_x, _y)     =>
+    var int _track = nPiv
+    for i = 0 to               array.size       (_x) -1
+        [t_, b_] =             _getBox          (_x, i)
+        _isBull  =             array.get        (_y, i)
+        if close > t_ and not  _isBull
+            box.set_extend(    array.get        (_x, i), extend.none)
+            array.set(_x, i,   _box             (sync  , t_, sync, b_, bullBorder, bullBgCol, extrap))
+            array.set(_y, i,   true)
+            _track += 1
+        if close < b_ and _isBull
+            box.set_extend(    array.get        (_x, i), extend.none)
+            array.set(_x, i,   _box             (sync  , t_, sync, b_, bearBorder, bearBgCol, extrap))
+            array.set(_y, i,   false)
+            _track -= 1
+    _track
+
+_detect(_x,_y)      =>
+    int  _i         = 0
+    bool _found     = false
+    bool _isBull    = na
+    while (not _found and _i < array.size       (_x)  )
+        [t_, b_] =             _getBox          (_x,_i)
+        if low < t_ and high > b_
+            _isBull :=         array.get        (_y,_i)
+            _found  :=         true
+        _i          +=         1
+    [_found, _isBull]
+
+_falseBreak(_l)     =>       
+    bool _d         = false
+    bool _u         = false
+    for i = 1 to lookback15
+        if _l[i] < _l and _l[i+1] >= _l and _l[1] < _l 
+            _d      := true
+        if _l[i] > _l and _l[i+1] <= _l and _l[1] > _l 
+            _u      := true
+    [_d, _u]
+
+_numLevel(_x,_y)    =>
+    int _above      = 0
+    int _fill       = 0
+    for i = 0 to               array.size       (_x)-1
+        _isBull     =          array.get        (_x,i)
+        if  _isBull
+            _above += 1
+        if  not na(_isBull)
+            _fill  += 1
+    for i = 0 to               array.size       (_y)-1
+        _isBull     =          array.get        (_y,i)
+        if  _isBull
+            _above += 1
+        if  not na(_isBull)
+            _fill  += 1
+    [_above, _fill]  
+
+_check(_src16,_l)     =>
+    bool _check     = false
+    for i = 0 to _l
+        if _src16[i]
+            _check := true
+    _check
+
+_count(_src16, _l)    =>
+    int _result     = 0
+    for i = 0 to _l
+        if _src16 > _src16[i]
+            _result += 1
+    _result
+
+_label(_x, _y, y, _s, _col1, _col2) =>
+    transp = math.min   (color.t(_col1),  color.t(_col2))
+    array.unshift       (_x,   label.new (sync+fut,   y                                        , 
+                                          text      = str.tostring(math.round_to_mintick(y)   ), 
+                                          color     = color.new(_col1, transp)                 , 
+                                          style     = _s                                       , 
+                                          textcolor = color.rgb(255, 255, 255)                             ))
+    if not extend and fut > 0
+        array.unshift   (_y,   line.new  (sync, y, sync+fut, y, color= color.new(_col1, transp)))
+
+_level(_x, _y)          =>
+    var label [] lab    =      array.new_label  (nPiv)
+    var line  [] lines  =      array.new_line   (nPiv)
+    if barstate.islast and lLab
+        _delLevels             (lab, lines)
+        for i = 0 to           array.size       (_x)-1
+            [_t, _b]    =      _getBox          (_x,i)
+            _isBull     =      array.get        (_y,i)
+            _col1        =     _isBull ?        bullBgCol  : bearBgCol
+            _col2        =     _isBull ?        bullBorder : bearBorder
+            if close >  _t 
+                _label  (lab, lines, _t, labUp, _col1, _col2)
+            if close <  _b 
+                _label  (lab, lines, _b, labDn, _col1, _col2)
+            if close <  _t and close >   _b
+                _label  (lab, lines, _t, labDn, _col1, _col2)
+                _label  (lab, lines, _b, labUp, _col1, _col2)
+
+_alert(_x, _y) =>
+    if _x
+        alert   (_y + timeframe.period + ' chart. Price is ' + str.tostring(close), alertMode)
+        
+// ================================== //
+// ----> Variable Calculations <----- //
+// ================================== //
+
+shortvar        =   tsifast ?           shortf  :       shorts   
+longvar         =   tsifast ?           longf   :       longs    
+signalvar       =   tsifast ?           signalf :       signals 
+
+tsi             =   ta.tsi              (close,         shortvar,   longvar)
+tsl             =   ta.ema              (tsi,           signalvar)
+
+highest         =   close ==            ta.highest      (close,     right)
+lowest          =   close ==            ta.lowest       (close,     right)
+
+closeLows       =   ta.lowest           (close,         swing)
+closeHigh       =   ta.highest          (close,         swing)
+
+numLows         =   _count              (low,           reflect)
+numHigh         =   _count              (high,          reflect)
+
+[open_, close_] =   _haBody             ()
+
+hiHaBod         =   math.max            (close_,        open_)
+loHaBod         =   math.min            (close_,        open_)
+
+hiBod           =   math.max            (close,         open)
+loBod           =   math.min            (close,         open)
+
+srcHigh         =   haSrc ?             hiHaBod :       hiLoSrc ?   high :      hiBod
+srcLow          =   haSrc ?             loHaBod :       hiLoSrc ?   low  :      loBod
+
+pivot_high      =   ta.pivothigh        (srcHigh,       left,       right)
+pivot_low       =   ta.pivotlow         (srcLow,        left,       right)
+
+perc            =   close*              (per/100)
+
+band            =   math.min            (atr16*mult16,      perc)       [right]     /2
+
+HH15              =   pivot_high+         band
+HL15              =   pivot_high-         band
+
+LH15              =   pivot_low+          band
+LL15              =   pivot_low-          band
+
+coDiff          =   close -             open
+
+// ================================== //
+// --------> Logical Order <--------- //
+// ================================== //
+
+if pivot_high and   dhighs and  confirmed
+    _arrayLoad      (highBull , nPiv,   false)      
+    _arrayBox       (pivotHigh, nPiv,   _box(sync[right], HH15, sync, HL15, bearBorder, bearBgCol, extrap))
+
+if pivot_low  and   dlows and   confirmed
+    _arrayLoad      (lowsBull , nPiv,   true)      
+    _arrayBox       (pivotLows, nPiv,   _box(sync[right], LH15, sync, LL15, bullBorder, bullBgCol, extrap))
+
+if alignZones
+    _align          (pivotHigh,         pivotHigh)
+    _align          (pivotHigh,         pivotLows)    
+    _align          (pivotLows,         pivotLows)
+    _align          (pivotLows,         pivotHigh)
+
+_extend             (pivotHigh)
+_extend             (pivotLows)
+
+trackHigh       =   _color              (pivotHigh,     highBull)
+trackLows       =   _color              (pivotLows,     lowsBull)
+
+// ================================== //
+// ----> Conditional Parameters <---- //
+// ================================== //
+
+isLows          =   closeLows      ==   close
+isHigh          =   closeHigh      ==   close
+
+wasLows         =   _check              (isLows,        lookback15)
+wasHigh         =   _check              (isHigh,        lookback15)
+
+[above, total]  =   _numLevel           (highBull,      lowsBull)
+
+moveAbove       =   trackHigh       >   trackHigh[1]
+moveBelow       =   trackLows       <   trackLows[1]
+
+resBreak        =   (trackLows      >   trackLows[1]    or  moveAbove) 
+supBreak        =   (trackHigh      <   trackHigh[1]    or  moveBelow) 
+
+breakOut        =   moveAbove     and   highest and     above == total             
+breakDwn        =   moveBelow     and   lowest  and     above == 0         
+
+[dh, uh]        =   _falseBreak         (trackHigh) 
+[dl, ul]        =   _falseBreak         (trackLows) 
+
+falseBreakBull  =   wasLows       and   (dh or dl)
+falseBreakBear  =   wasHigh       and   (uh or ul)
+
+[fh,hb]         =   _detect             (pivotHigh,     highBull)
+[fl,lb]         =   _detect             (pivotLows,     lowsBull)
+
+bull15            =   (fh or fl) and      (hb or lb)
+bear15            =   (fh or fl) and not  (hb or lb)
+
+bullCheck       =   not resBreak  and   not resBreak[1] and (fh or fl) and  close > open and     (hb or lb)
+bearCheck       =   not supBreak  and   not supBreak[1] and (fh or fl) and  close < open and not (hb or lb)
+
+highrange       =   reflect-offset
+lowsrange       =   offset
+
+sigLows         =   numLows        <=   lowsrange  
+sigHigh         =   numHigh        >=   highrange 
+
+isBull1         =   sigLows       and   bull15
+isBear1         =   sigHigh       and   bear15 
+
+isBull2         =   (sigLows       or   sigLows[1]) and         (bull15 or bull15[1])
+isBear2         =   (sigHigh       or   sigHigh[1]) and         (bear15 or bear15[1])
+
+data            =   tsi > tsi[1]  and   tsi < tsl 
+dtat            =   tsi < tsi[1]  and   tsi > tsl 
+
+hMatch          =   not colorMatch or   close > open
+sMatch          =   not colorMatch or   close < open
+
+hsFilter        =   bj.barRange()  >=   hammerSize * atr16
+atrMaxSize      =   bj.barRange()  <=   atrMax     * atr16 or     atrMax == 0.0
+
+rp              =   confirmed  or not   repaint
+
+// ================================== //
+// -----> Pattern Recognition <------ //
+// ================================== //
+
+dw              =   isBull1 and rp and d_  and atrMaxSize and bj.doji              (dojiSize           = dojiSize,         dojiWickSize    = dojiWickSize)
+db              =   isBear1 and rp and d_  and atrMaxSize and bj.doji              (dojiSize           = dojiSize,         dojiWickSize    = dojiWickSize)
+bew             =   isBull2 and rp and be_ and atrMaxSize and bj.bullEngulf        (maxRejectWick      = rejectWickMax,    mustEngulfWick  = ecWick) 
+beb             =   isBear2 and rp and be_ and atrMaxSize and bj.bearEngulf        (maxRejectWick      = rejectWickMax,    mustEngulfWick  = ecWick)
+h               =   isBull1 and rp and hs_ and atrMaxSize and bj.hammer            (ratio              = hammerFib,        shadowPercent   = hsShadowPerc) and hsFilter and hMatch
+ss              =   isBear1 and rp and hs_ and atrMaxSize and bj.star              (ratio              = hammerFib,        shadowPercent   = hsShadowPerc) and hsFilter and sMatch
+dd              =   isBull1 and rp and dg_ and atrMaxSize and bj.dragonflyDoji     ()
+gd              =   isBear1 and rp and dg_ and atrMaxSize and bj.gravestoneDoji    ()
+tb              =   isBull2 and rp and tw_ and atrMaxSize and bj.tweezerBottom     (closeUpperHalf     = closeHalf)
+tt              =   isBear2 and rp and tw_ and atrMaxSize and bj.tweezerTop        (closeLowerHalf     = closeHalf)
+stw             =   isBull1 and rp and st_ and atrMaxSize and bj.spinningTop       ()
+stb             =   isBear1 and rp and st_ and atrMaxSize and bj.spinningTop       ()
+p               =   isBull1 and rp and pc_ and atrMaxSize and bj.piercing          ()
+dcc             =   isBear1 and rp and pc_ and atrMaxSize and bj.darkCloudCover    ()
+bhw             =   isBull1 and rp and bh_ and atrMaxSize and bj.haramiBull        ()  
+bhb             =   isBear1 and rp and bh_ and atrMaxSize and bj.haramiBear        ()
+ll              =   isBull1 and rp and ls_ and atrMaxSize and bj.lls               (ratio              = luRatio)          and hsFilter
+lu              =   isBear1 and rp and ls_ and atrMaxSize and bj.lus               (ratio              = luRatio)          and hsFilter
+
+// ================================== //
+// ------> Graphical Display <------- //
+// ================================== //
+
+plotFalseDn     =   falseBull     and   falseBreakBull
+plotFalseUp     =   falseBear     and   falseBreakBear
+
+falseUpCol      =   plotFalseUp     ?   upCol       :   na
+falseDnCol      =   plotFalseDn     ?   dnCol       :   na
+
+plotBreakOut    =   breakOut      and   detectBO    and not     plotFalseDn
+plotBreakDn     =   breakDwn      and   detectBD    and not     plotFalseUp
+
+plotResBreak    =   resBreak      and   breakUp     and not     (plotBreakOut or plotFalseDn)
+plotSupBreak    =   supBreak      and   breakDn     and not     (plotBreakDn  or plotFalseUp)
+
+plotBullCheck   =   bullCheck     and   supPush
+plotBearCheck   =   bearCheck     and   resPush
+
+plotCurlBull    =   curl and data and   bull15
+plotCurlBear    =   curl and dtat and   bear15
+
+plotarrow           (plotFalseUp    ?   coDiff      :   na      ,   colorup  = fBull          ,     colordown=      fBear ,         maxheight=      arrowMax)
+plotarrow           (plotFalseDn    ?   coDiff      :   na      ,   colorup  = fBull          ,     colordown=      fBear ,         maxheight=      arrowMax)
+
+plotshape           (plotBreakOut   ,   style=shape.triangleup     ,   location=location.belowbar,     color=          upCol ,         size=           size.small)
+plotshape           (plotBreakDn    ,   style=shape.triangledown   ,   location=location.abovebar,     color=          dnCol ,         size=           size.small)
+
+plotshape           (plotResBreak   ,   style=shape.triangleup     ,   location=location.belowbar,     color=          supCol,         size=           size.small)
+plotshape           (plotSupBreak   ,   style=shape.triangledown   ,   location=location.abovebar,     color=          resCol,         size=           size.small)
+
+plotshape           (plotBullCheck  ,   style=shape.triangleup  ,   location=location.belowbar,     color=          moveBullCol)
+plotshape           (plotBearCheck  ,   style=shape.triangledown,   location=location.abovebar,     color=          moveBearCol)
+
+plotshape           (plotCurlBull   ,   style=shape.triangleup  ,   location=location.belowbar,     color=          curlBullCol)
+plotshape           (plotCurlBear   ,   style=shape.triangledown,   location=location.abovebar,     color=          curlBearCol)
+
+bj.dLab             (dw  and labels, labNeutCol, textNeutCol), _wrap (dw  and sBox, boxes, 1, patNeutBo, patNeutBg)
+bj.bewLab           (bew and labels, labBullCol, textBullCol), _wrap (bew and sBox, boxes, 2, patBullBo, patBullBg)
+bj.hLab             (h   and labels, labBullCol, textBullCol), _wrap (h   and sBox, boxes, 1, patBullBo, patBullBg)
+bj.ddLab            (dd  and labels, labBullCol, textBullCol), _wrap (dd  and sBox, boxes, 1, patBullBo, patBullBg)
+bj.tbLab            (tb  and labels, labBullCol, textBullCol), _wrap (tb  and sBox, boxes, 2, patBullBo, patBullBg)
+bj.stwLab           (stw and labels, labNeutCol, textNeutCol), _wrap (stw and sBox, boxes, 1, patBullBo, patNeutBg)
+bj.pLab             (p   and labels, labBullCol, textBullCol), _wrap (p   and sBox, boxes, 2, patBullBo, patBullBg)
+bj.hwLab            (bhw and labels, labBullCol, textBullCol), _wrap (bhw and sBox, boxes, 2, patBullBo, patBullBg)
+bj.llsLab           (ll  and labels, labBullCol, textBullCol), _wrap (ll  and sBox, boxes, 1, patBullBo, patBullBg)
+
+bj.dLab             (db  and labels, labNeutCol, textNeutCol), _wrap (db  and sBox, boxes, 1, patNeutBo, patNeutBg)
+bj.bebLab           (beb and labels, labBearCol, textBearCol), _wrap (beb and sBox, boxes, 2, patBearBo, patBearBg)
+bj.ssLab            (ss  and labels, labBearCol, textBearCol), _wrap (ss  and sBox, boxes, 1, patBearBo, patBearBg)
+bj.gdLab            (gd  and labels, labBearCol, textBearCol), _wrap (gd  and sBox, boxes, 1, patBearBo, patBearBg)
+bj.ttLab            (tt  and labels, labBearCol, textBearCol), _wrap (tt  and sBox, boxes, 2, patBearBo, patBearBg)
+bj.stbLab           (stb and labels, labNeutCol, textNeutCol), _wrap (stb and sBox, boxes, 1, patBearBo, patBearBg)
+bj.dccLab           (dcc and labels, labBearCol, textBearCol), _wrap (dcc and sBox, boxes, 2, patBearBo, patBearBg)
+bj.hbLab            (bhb and labels, labBearCol, textBearCol), _wrap (bhb and sBox, boxes, 2, patBearBo, patBearBg)
+bj.lusLab           (lu  and labels, labBearCol, textBearCol), _wrap (lu  and sBox, boxes, 1, patBearBo, patBearBg)
+
+_level              (pivotHigh, highBull)
+_level              (pivotLows, lowsBull)
+
+// SUPPORT & RESISTANCE
+percWidth(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+
+percWidth1(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+
+// Get components
+rb            = 10
+prd           = 284
+ChannelW      = 10
+label_loc     = 55
+style1        = lineStyle1 == "Solid" ? line.style_solid : lineStyle1 == "Dotted" ? line.style_dotted :  line.style_dashed
+ph            = ta.pivothigh(rb, rb)
+pl            = ta.pivotlow (rb, rb)
+sr_levels     = array.new_float(21, na)
+prdhighest    = ta.highest(prd)
+prdlowest     = ta.lowest(prd)
+cwidth        = percWidth(prd, ChannelW)
+zonePerc      = percWidth(300, zoneWidth)
+aas           = array.new_bool(41, true)
+u1            = 0.0, u1 := nz(u1[1])
+d1            = 0.0, d1 := nz(d1[1])
+highestph     = 0.0, highestph := highestph[1]
+lowestpl      = 0.0, lowestpl := lowestpl[1]
+var sr_levs   = array.new_float(21, na)
+label hlabel  = na, label.delete(hlabel[1])
+label llabel  = na, label.delete(llabel[1])
+var sr_lines  = array.new_line(21, na)
+var sr_linesH = array.new_line(21, na)
+var sr_linesL = array.new_line(21, na)
+var sr_linesF = array.new_linefill(21, na)
+var sr_labels = array.new_label(21, na)
+if ph or pl
+    for x = 0 to array.size(sr_levels) - 1
+        array.set(sr_levels, x, na)
+    highestph := prdlowest
+    lowestpl := prdhighest
+    countpp = 0
+    for x = 0 to prd
+        if na(close[x])
+            break
+        if not na(ph[x]) or not na(pl[x])
+            highestph := math.max(highestph, nz(ph[x], prdlowest), nz(pl[x], prdlowest))
+            lowestpl := math.min(lowestpl, nz(ph[x], prdhighest), nz(pl[x], prdhighest))
+            countpp += 1
+            if countpp > 40
+                break
+            if array.get(aas, countpp)
+                upl = (ph[x] ? high[x + rb] : low[x + rb]) + cwidth
+                dnl = (ph[x] ? high[x + rb] : low[x + rb]) - cwidth
+                u1 := countpp == 1 ? upl : u1
+                d1 := countpp == 1 ? dnl : d1
+                tmp = array.new_bool(41, true)
+                cnt = 0
+                tpoint = 0
+                for xx = 0 to prd
+                    if na(close[xx])
+                        break
+                    if not na(ph[xx]) or not na(pl[xx])
+                        chg = false
+                        cnt += 1
+                        if cnt > 40
+                            break
+                        if array.get(aas, cnt)
+                            if not na(ph[xx])
+                                if high[xx + rb] <= upl and high[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                            if not na(pl[xx])
+                                if low[xx + rb] <= upl and low[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                        if chg and cnt < 41
+                            array.set(tmp, cnt, false)
+                if tpoint >= strengthSR
+                    for g = 0 to 40 by 1
+                        if not array.get(tmp, g)
+                            array.set(aas, g, false)
+                    if ph[x] and countpp < 21
+                        array.set(sr_levels, countpp, high[x + rb])
+                    if pl[x] and countpp < 21
+                        array.set(sr_levels, countpp, low[x + rb])
+
+// Plot
+var line highest_ = na, line.delete(highest_)
+var line lowest_  = na, line.delete(lowest_)
+var line highest_fill1 = na, line.delete(highest_fill1)
+var line highest_fill2 = na, line.delete(highest_fill2)
+var line lowest_fill1  = na, line.delete(lowest_fill1)
+var line lowest_fill2  = na, line.delete(lowest_fill2)
+hi_col = close >= highestph ? colorSup : colorRes
+lo_col = close >= lowestpl  ? colorSup : colorRes
+if enableSR
+    highest_ := line.new(bar_index - 311, highestph, bar_index, highestph, xloc.bar_index, expandSR ? extend.both : extend.right, hi_col, style1, lineWidth1)
+    lowest_  := line.new(bar_index - 311, lowestpl , bar_index, lowestpl , xloc.bar_index, expandSR ? extend.both : extend.right, lo_col, style1, lineWidth1)
+    if useHLZones
+        highest_fill1 := line.new(bar_index - 311, highestph + zonePerc, bar_index, highestph + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        highest_fill2 := line.new(bar_index - 311, highestph - zonePerc, bar_index, highestph - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill1  := line.new(bar_index - 311, lowestpl + zonePerc , bar_index, lowestpl + zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill2  := line.new(bar_index - 311, lowestpl - zonePerc , bar_index, lowestpl - zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        linefill.new(highest_fill1, highest_fill2, color.new(hi_col, 90))
+        linefill.new(lowest_fill1 , lowest_fill2 , color.new(lo_col, 90))
+if ph or pl
+    for x = 0 to array.size(sr_lines) - 1
+        array.set(sr_levs, x, array.get(sr_levels, x))
+for x = 0 to array.size(sr_lines) - 1
+    line.delete(array.get(sr_lines, x))
+    line.delete(array.get(sr_linesH, x))
+    line.delete(array.get(sr_linesL, x))
+    linefill.delete(array.get(sr_linesF, x))
+    if array.get(sr_levs, x) and enableSR
+        line_col = close >= array.get(sr_levs, x) ? colorSup : colorRes
+        array.set(sr_lines, x, line.new(bar_index - 355, array.get(sr_levs, x), bar_index, array.get(sr_levs, x), xloc.bar_index, expandSR ? extend.both : extend.right, line_col, style1, lineWidth1))
+        if useZones
+            array.set(sr_linesH, x, line.new(bar_index - 355, array.get(sr_levs, x) + zonePerc, bar_index, array.get(sr_levs, x) + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesL, x, line.new(bar_index - 355, array.get(sr_levs, x) - zonePerc, bar_index, array.get(sr_levs, x) - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesF, x, linefill.new(array.get(sr_linesH, x), array.get(sr_linesL, x), color.new(line_col, 90)))
+for x = 0 to array.size(sr_labels) - 1
+    label.delete(array.get(sr_labels, x))
+    if array.get(sr_levs, x) and enableSR
+        lab_loc = close >= array.get(sr_levs, x) ? label.style_label_up : label.style_label_down
+        lab_col = close >= array.get(sr_levs, x) ? colorSup             : colorRes
+
+alpha = 0.1 / (int(bar_index) + 1)
+
+ema = close
+ema1 = close
+ema2 = close
+ema := alpha * ema + (1 - alpha) * nz(ema[1], ema)
+ema1 := alpha * ema + (1 - alpha) * nz(ema[1], ema)
+ema2 := alpha * ema + (1 - alpha) * nz(ema[1], ema)
+
+plot(ema, title="ADEMA", linewidth=3, color=color.yellow)
+above_ema = ema[1] < ema
+plot(ema, title="ADEMA", linewidth=3, color=color.gray)
+bellow_ema = ema[1] < ema
+
+
+plot(ema, title="ADEMA", linewidth=2, color=color.rgb(85, 73, 250, 10))
+plot(ema1, title="ADEMA", linewidth=2, color=color.rgb(228, 67, 67))
+plot(ema2, title="ADEMA", linewidth=2, color=color.rgb(251, 252, 250, 10))
+
+//plot(ema, title="ADEMA", linewidth=2, color=color.rgb(85, 73, 250, 10))
+
+long = (not above_ema[3] and not above_ema[2] and not above_ema[1] and above_ema)
+plotshape(long, style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.rgb(0, 92, 230), text='BUY')
+
+short = (above_ema[3] and above_ema[2] and above_ema[1] and not above_ema)
+plotshape(short, style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.rgb(243, 11, 11), text='SELL')

@@ -1,0 +1,848 @@
+//@version=5
+//Telegram ==>> https://t.me/simpleforextools
+indicator('Money Moves [Premium Algo V2]', overlay=true)
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+//Main Algo Settings
+colors = input.string(title='Color Scheme', defval='DARK', options=['DARK', 'LIGHT'] , group = "Color Scheme")
+bullcolor = colors == 'DARK' ? #00DBFF : color.rgb(0, 255, 8) 
+bearcolor = colors == 'DARK' ? #E91E63 : color.rgb(255, 0, 0)
+
+Show_Signals   = input.bool(true, title="Show Signal", tooltip="Show Long & Short Signals" , group = "Signal's Settings")
+var int length = input(title='Period', defval=1 , group = "Signal's Settings")
+var float mult = input.float(title='TBSensitivity', step=0.1, defval=10 , group = "Signal's Settings")
+var float SFilter = input.float(title='Signal Filter', step=0.1, defval=1.0 , group = "Signal's Settings")
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+t_type = input.string("Default","Strategy",options = ["Default","Scalping","Intraday","Swing"] , group = "Signal's Settings")
+
+if t_type == "Default"
+    
+    length := length
+    mult := mult
+    SFilter := SFilter
+
+if t_type == "Scalping"
+    length := 10
+    mult := 10
+    SFilter := 0.5
+
+if t_type == "Intraday"
+    length := 2
+    mult := 15
+    SFilter := 0.5
+
+if t_type == "Swing"
+    length := 10
+    mult := 5
+    SFilter := 1.2
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Color Scheme
+
+//Trend Cloud / Theme
+ma2On = input.bool(true, title="Vortex Cloud", group = "Cloud")
+TBSENSIII = input.int(2, title="Vortex Cloud Sensitivity",group = "Cloud")
+
+
+
+plotRibsw = input(title='Show Trend Ribbon', defval=true , inline = "RIBBON" , group = "Chart Features")
+xfixtf = input(title='MTF', defval=false , inline = "RIBBON", group = "Chart Features")
+labelSwitch = input(title='Table', defval=false, inline = "RIBBON", group = "Chart Features")
+plotRibbonPos = input.string(title='Ribbon Position', options=['Top', 'Bottom'], defval='Bottom', group = "Chart Features")
+xtf = input.timeframe(title='Select MTF Ribbon', defval='D', group = "Chart Features")
+
+
+
+//SMC
+color CLEAR = color.rgb(0,0,0,100)
+showSMC = input.bool(true, 'Show Smart Money Concepts', tooltip='Show Market Structure', group='Market Structure')
+showSwing = input.bool(false, 'Show Swing Points', tooltip='Show or hide HH, LH, HL, LL' , group="Market Structure")
+swingSize = input.int(10, 'Swing Length', tooltip='The number of left and right bars checked when searching for a swing point. Higher value = less swing points plotted and lower value = more swing points plotted.' , group="Market Structure")
+bosConfType = input.string('Candle Close', 'BOS/CHoCH Confirmation', ['Candle Close', 'Wicks'], tooltip='Choose whether candle close/wick above previous swing point counts as a BOS/CHoCH.' , group="Market Structure")
+choch = true
+bosStyle = input.string('Solid', 'Line Style', ['Solid', 'Dashed', 'Dotted'], group="Market Structure")
+bosWidth = input.int(1, 'Width', minval=1, group="Market Structure")
+
+
+Show_PR   = input.bool(true, title="Show Top/Bottom", tooltip="Show's Top/Bottem - 'Don't Buy' = Green/Blue Cross | 'Don't Sell' = Red/Pink Cross " , group = "Top / Bottom")
+TBSensi   = input.int(5, title="Top/Bottom Sensitivity", tooltip="The Greater The Value The Stronger The Top/Bottom" , group = "Top / Bottom")
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+//colorSup   = input(#00DBFF, "Support Color", group="SR")
+//colorRes   = input(#E91E63, "Resistance Color", group="SR")
+//algo
+atr = mult * ta.atr(length)
+longStop = hl2 - atr * SFilter
+longStopPrev = nz(longStop[1], longStop)
+longStop := close[1] > longStopPrev ? math.max(longStop, longStopPrev) : longStop
+
+shortStop = hl2 + atr * SFilter
+shortStopPrev = nz(shortStop[1], shortStop)
+shortStop := close[1] < shortStopPrev ? math.min(shortStop, shortStopPrev) : shortStop
+
+dir = 1
+dir := nz(dir[1], dir)
+dir := dir == -1 and close > shortStopPrev ? 1 : dir == 1 and close < longStopPrev ? -1 : dir
+
+
+longColor = color.blue
+shortColor = color.blue
+
+
+////////////////////////////////////////////////////////////    
+// Conditions 1
+
+longCond = bool(na)
+shortCond = bool(na)
+longCond := ta.crossover(close[1], shortStopPrev)
+shortCond := ta.crossunder(close[1], longStopPrev)
+
+// Conditions 2
+
+longCond2 = bool(na)
+shortCond2 = bool(na)
+longCond2 := ta.crossover(close[1], shortStopPrev)
+shortCond2 := ta.crossunder(close[1], longStopPrev)
+
+// Conditions 3
+
+longCond3 = bool(na)
+shortCond3 = bool(na)
+longCond3 := ta.crossover(close[1], shortStopPrev)
+shortCond3 := ta.crossunder(close[1], longStopPrev)
+
+////////////////////////////////////////////////////////////    
+// Count your long short conditions for more control with Pyramiding
+
+sectionLongs = 0
+sectionLongs := nz(sectionLongs[1])
+sectionShorts = 0
+sectionShorts := nz(sectionShorts[1])
+
+if longCond
+    sectionLongs += 1
+    sectionShorts := 0
+    sectionShorts
+
+if shortCond
+    sectionLongs := 0
+    sectionShorts += 1
+    sectionShorts
+
+// Count your long short conditions for more control with Pyramiding 2
+
+sectionLongs2 = 0
+sectionLongs2 := nz(sectionLongs2[1])
+sectionShorts2 = 0
+sectionShorts2 := nz(sectionShorts2[1])
+
+if longCond2
+    sectionLongs2 += 1
+    sectionShorts2 := 0
+    sectionShorts2
+
+if shortCond2
+    sectionLongs2 := 0
+    sectionShorts2 += 1
+    sectionShorts2
+
+
+// Count your long short conditions for more control with Pyramiding 3
+
+sectionLongs3 = 0
+sectionLongs3 := nz(sectionLongs3[1])
+sectionShorts3 = 0
+sectionShorts3 := nz(sectionShorts3[1])
+
+if longCond3
+    sectionLongs3 += 1
+    sectionShorts3 := 0
+    sectionShorts3
+
+if shortCond3
+    sectionLongs3 := 0
+    sectionShorts3 += 1
+    sectionShorts3
+
+////////////////////////////////////////////////////////////    
+// Pyramiding
+
+pyrl = 1
+
+
+// Pyramiding 2
+
+pyr2 = 1
+
+// Pyramiding 3
+
+pyr3 = 1
+////////////////////////////////////////////////////////////    
+
+// These check to see your signal and cross references it against the pyramiding settings above
+
+
+longCondition = longCond and sectionLongs <= pyrl
+shortCondition = shortCond and sectionShorts <= pyrl
+
+// These check to see your signal and cross references it against the pyramiding settings above 2
+
+
+longCondition2 = longCond2 and sectionLongs2 <= pyr2
+shortCondition2 = shortCond2 and sectionShorts2 <= pyr2
+
+// These check to see your signal and cross references it against the pyramiding settings above 3
+
+
+longCondition3 = longCond3 and sectionLongs3 <= pyr3
+shortCondition3 = shortCond3 and sectionShorts3 <= pyr3
+
+////////////////////////////////////////////////////////////    
+// Get the price of the last opened long or short
+
+last_open_longCondition = float(na)
+last_open_shortCondition = float(na)
+last_open_longCondition := longCondition ? open : nz(last_open_longCondition[1])
+last_open_shortCondition := shortCondition ? open : nz(last_open_shortCondition[1])
+
+// Get the price of the last opened long or short 2
+
+last_open_longCondition2 = float(na)
+last_open_shortCondition2 = float(na)
+last_open_longCondition2 := longCondition2 ? open : nz(last_open_longCondition2[1])
+last_open_shortCondition2 := shortCondition2 ? open : nz(last_open_shortCondition2[1])
+
+// Get the price of the last opened long or short 3
+
+last_open_longCondition3 = float(na)
+last_open_shortCondition3 = float(na)
+last_open_longCondition3 := longCondition3 ? open : nz(last_open_longCondition3[1])
+last_open_shortCondition3 := shortCondition3 ? open : nz(last_open_shortCondition3[1])
+
+
+////////////////////////////////////////////////////////////    
+// Check if your last postion was a long or a short
+
+last_longCondition = float(na)
+last_shortCondition = float(na)
+last_longCondition := longCondition ? time : nz(last_longCondition[1])
+last_shortCondition := shortCondition ? time : nz(last_shortCondition[1])
+
+in_longCondition = last_longCondition > last_shortCondition
+in_shortCondition = last_shortCondition > last_longCondition
+
+// Check if your last postion was a long or a short 2
+
+last_longCondition2 = float(na)
+last_shortCondition2 = float(na)
+last_longCondition2 := longCondition2 ? time : nz(last_longCondition2[1])
+last_shortCondition2 := shortCondition2 ? time : nz(last_shortCondition2[1])
+
+in_longCondition2 = last_longCondition2 > last_shortCondition2
+in_shortCondition2 = last_shortCondition2 > last_longCondition2
+
+// Check if your last postion was a long or a short 3
+
+last_longCondition3 = float(na)
+last_shortCondition3 = float(na)
+last_longCondition3 := longCondition3 ? time : nz(last_longCondition3[1])
+last_shortCondition3 := shortCondition3 ? time : nz(last_shortCondition3[1])
+
+in_longCondition3 = last_longCondition3 > last_shortCondition3
+in_shortCondition3 = last_shortCondition3 > last_longCondition3
+
+// Money Management
+////////////////////////////////////////////////////////////    
+// TP
+Show_SL_TP   = input.bool(false, title="Show TP/SL Points" , group = "AUTO RISK MANAGEMENT v1" , tooltip="Show Take Profit | Stop Loss Points")
+
+isTPl = input(true, 'TP - 1' , group = "AUTO RISK MANAGEMENT v1" , inline = "ARM")
+isTPs = isTPl
+tp = input(0.25, 'Take Profit % - 1')
+long_tp = isTPl and Show_SL_TP and ta.crossover(high, (1 + tp / 100) * last_open_longCondition) and longCondition == 0 and in_longCondition == 1
+short_tp = isTPs  and Show_SL_TP  and ta.crossunder(low, (1 - tp / 100) * last_open_shortCondition) and shortCondition == 0 and in_shortCondition == 1
+
+// TP 2
+
+isTP2 = input(true, 'TP - 2', group = "AUTO RISK MANAGEMENT v1" , inline = "ARM")
+isTPs2 = isTP2
+tp2 = input(0.75, 'Take Profit % - 2')
+long_tp2 = isTP2  and Show_SL_TP  and ta.crossover(high, (1 + tp2 / 100) * last_open_longCondition2) and longCondition2 == 0 and in_longCondition2 == 1
+short_tp2 = isTPs2  and Show_SL_TP  and ta.crossunder(low, (1 - tp2 / 100) * last_open_shortCondition2) and shortCondition2 == 0 and in_shortCondition2 == 1
+
+// TP 3
+
+isTP3 = input(true, 'TP - 3', group = "AUTO RISK MANAGEMENT v1" , inline = "ARM")
+isTPs3 = isTP3
+tp3 = input.float(1.0, 'Take Profit % - 3')
+long_tp3 = isTP3  and Show_SL_TP  and ta.crossover(high, (1 + tp3 / 100) * last_open_longCondition) and longCondition == 0 and in_longCondition == 1
+short_tp3 = isTPs3 and Show_SL_TP and   ta.crossunder(low, (1 - tp3 / 100) * last_open_shortCondition) and shortCondition == 0 and in_shortCondition == 1
+
+
+////////////////////////////////////////////////////////////    
+// BreakEven
+
+isSLl = input(false, 'Breakeven', group = "AUTO RISK MANAGEMENT v1" , inline = "ARM2")
+isSLs = isSLl
+sl = 0.0
+sl := input.float(0.4, 'Break Even %')
+long_sl = isSLl  and Show_SL_TP and ta.crossunder(low, (1 - sl / 100) * last_open_longCondition) and longCondition == 0 and in_longCondition == 1
+short_sl = isSLs  and Show_SL_TP and ta.crossover(high, (1 + sl / 100) * last_open_shortCondition) and shortCondition == 0 and in_shortCondition == 1
+
+// Stop Loss 2
+
+isSLl2 = input(false, 'Stop Loss', group = "AUTO RISK MANAGEMENT v1" , inline = "ARM2")
+isSLs2 = isSLl2
+sl2 = 0.0
+sl2 := input.float(0.4, 'Stop Loss %')
+long_sl2 = isSLl2  and Show_SL_TP and ta.crossunder(low, (1 - sl2 / 100) * last_open_longCondition2) and longCondition2 == 0 and in_longCondition2 == 1
+short_sl2 = isSLs2  and Show_SL_TP and ta.crossover(high, (1 + sl2 / 100) * last_open_shortCondition2) and shortCondition2 == 0 and in_shortCondition2 == 1
+
+
+// Auto Risk Management V2
+
+levels      = input.bool(false, "Show TP/SL Levels" , group = "AUTO RISK MANAGEMENT v2")
+lvlLines    = input.bool(false, "Show Lines ", inline="levels", group = "AUTO RISK MANAGEMENT v2")
+linesStyle  = input.string("SOLID", "", ["SOLID", "DASHED", "DOTTED"], inline="levels", group = "AUTO RISK MANAGEMENT v2")
+lvlDistance = input.int(1, "Distance", 1, inline="levels2", group = "AUTO RISK MANAGEMENT v2")
+lvlDecimals = input.int(2, "   Decimals", 1, 8, inline="levels2", group = "AUTO RISK MANAGEMENT v2")
+atrRisk     = input.int(1, "Risk % ", 1, group = "AUTO RISK MANAGEMENT v2" , inline="levels3")
+atrLen      = input.int(14, "  ATR Length", 1, group = "AUTO RISK MANAGEMENT v2" , inline="levels3")
+decimals  = lvlDecimals == 1 ? "#.#" : lvlDecimals == 2 ? "#.##" : lvlDecimals == 3 ? "#.###" : lvlDecimals == 4 ? "#.####" : lvlDecimals == 5 ? "#.#####" : lvlDecimals == 6 ? "#.######" : lvlDecimals == 7 ? "#.#######" : "#.########"
+
+
+////////////////////////////////////////////////////////////    
+// Create a single close for all the different closing conditions.
+
+long_close = long_tp or long_sl ? 1 : 0
+short_close = short_tp or short_sl ? 1 : 0
+
+
+// Create a single close for all the different closing conditions 2
+
+long_close2 = long_tp2 or long_sl2 ? 1 : 0
+short_close2 = short_tp2 or short_sl2 ? 1 : 0
+
+// Create a single close for all the different closing conditions. 3
+
+long_close3 = long_tp3 ? 1 : 0
+short_close3 = short_tp3 ? 1 : 0
+
+
+////////////////////////////////////////////////////////////    
+// Get the time of the last close
+
+last_long_close = float(na)
+last_short_close = float(na)
+last_long_close := long_close ? time : nz(last_long_close[1])
+last_short_close := short_close ? time : nz(last_short_close[1])
+
+// Get the time of the last close 2
+
+last_long_close2 = float(na)
+last_short_close2 = float(na)
+last_long_close2 := long_close2 ? time : nz(last_long_close2[1])
+last_short_close2 := short_close2 ? time : nz(last_short_close2[1])
+
+// Get the time of the last close 3
+
+last_long_close3 = float(na)
+last_short_close3 = float(na)
+last_long_close3 := long_close3 ? time : nz(last_long_close3[1])
+last_short_close3 := short_close3 ? time : nz(last_short_close3[1])
+
+////////////////////////////////////////////////////////////    
+//Signals 
+
+bton(b) =>
+    b ? 1 : 0
+//
+plotchar(long_tp and last_longCondition > nz(last_long_close[1]), char='✅', text='TP1 LONG', title='TP Long', size=size.tiny, location=location.abovebar, color=color.new(color.green, 0))
+plotchar(long_tp2 and last_longCondition2 > nz(last_long_close2[1]), char='✅', text='TP2 LONG', title='TP Long 2', size=size.tiny, location=location.abovebar, color=color.new(color.green, 0))
+//
+plotchar(short_tp and last_shortCondition > nz(last_short_close[1]), char='✅', text='TP1 SHORT', title='TP Short', size=size.tiny, location=location.belowbar, color=color.new(color.red, 0))
+plotchar(short_tp2 and last_shortCondition2 > nz(last_short_close2[1]), char='✅', text='TP2 SHORT', title='TP Short 2', size=size.tiny, location=location.belowbar, color=color.new(color.red, 0))
+//
+plotchar(long_tp3 and last_longCondition3 > nz(last_long_close3[1]), char='✅', text='TP3 LONG', title='TP Long', size=size.tiny, location=location.abovebar, color=color.new(color.green, 0))
+plotchar(short_tp3 and last_shortCondition3 > nz(last_short_close3[1]), char='✅', text='TP3 SHORT', title='TP Short', size=size.tiny, location=location.belowbar, color=color.new(color.red, 0))
+//
+//ltp = long_tp and last_longCondition > nz(last_long_close[1]) ? (1 + tp / 100) * last_open_longCondition : na
+//plot(ltp, title="series" ,  color=color.new(color.green, 0), trackprice=true, style=plot.style_linebr, linewidth=2)
+
+//stp = short_tp and last_shortCondition > nz(last_short_close[1]) ? (1 - tp / 100) * last_open_shortCondition : na
+//plot(stp, style=plot.style_linebr, trackprice=true, linewidth=3, color=color.new(color.white, 0))
+//
+//ltp2 = long_tp2 and last_longCondition2 > nz(last_long_close2[1]) ? (1 + tp2 / 100) * last_open_longCondition2 : na
+//plot(ltp2, color=color.new(color.green, 0), trackprice=true, style=plot.style_linebr, linewidth=2)
+//stp2 = short_tp2 and last_shortCondition2 > nz(last_short_close2[1]) ? (1 - tp2 / 100) * last_open_shortCondition2 : na
+//plot(stp2, style=plot.style_linebr, trackprice=true, linewidth=3, color=color.new(color.white, 0))
+//
+//ltp3 = long_tp3 and last_longCondition3 > nz(last_long_close3[1]) ? (1 + tp3 / 100) * last_open_longCondition3 : na
+//plot(ltp3, color=color.new(color.green, 0), trackprice=true, style=plot.style_linebr, linewidth=2)
+//stp3 = short_tp3 and last_shortCondition3 > nz(last_short_close3[1]) ? (1 - tp3 / 100) * last_open_shortCondition3 : na
+//plot(stp3, style=plot.style_linebr, trackprice=true, linewidth=3, color=color.new(color.white, 0))
+//
+
+//Stoploss 1 plotchar
+plotchar(long_sl and last_longCondition > nz(last_long_close[1]) and isSLl, char='🟢', text='BE LONG', title='Break Even Long', size=size.tiny, location=location.abovebar, color=color.new(color.green, 0))
+plotchar(short_sl and last_shortCondition > nz(last_short_close[1]) and isSLl , char='🔴', text='BE SHORT', title='Break Even Short', size=size.tiny, location=location.belowbar, color=color.new(#fd4d4d, 0))
+
+//lsl = long_sl and last_longCondition > nz(last_long_close[1]) ? (1 - sl / 100) * last_open_longCondition : na
+//plot(lsl, style=plot.style_linebr, linewidth=3, color=color.new(color.white, 0))
+//ssl = short_sl and last_shortCondition > nz(last_short_close[1]) ? (1 + sl / 100) * last_open_shortCondition : na
+//plot(ssl, style=plot.style_linebr, linewidth=3, color=color.new(color.white, 0))
+
+//Stoploss 2 plotchar
+plotchar(long_sl2 and last_longCondition2 > nz(last_long_close2[1]), char='⛔', text='SL LONG', title='Stop Loss Long ', size=size.tiny, location=location.abovebar, color=color.new(color.red, 0))
+plotchar(short_sl2 and last_shortCondition2 > nz(last_short_close2[1]), char='⛔', text='SL SHORT', title='Stop Loss Short ', size=size.tiny, location=location.belowbar, color=color.new(color.red, 0))
+
+lsl2 = long_sl2 and last_longCondition2 > nz(last_long_close2[1]) ? (1 - sl2 / 100) * last_open_longCondition2 : na
+//plot(lsl2, style=plot.style_linebr, linewidth=3, color=color.new(color.white, 0))
+ssl2 = short_sl2 and last_shortCondition2 > nz(last_short_close2[1]) ? (1 + sl2 / 100) * last_open_shortCondition2 : na
+//plot(ssl2, style=plot.style_linebr, linewidth=3, color=color.new(color.white, 0))
+
+//plot for trend
+//plot(dir == 1 ? longStop : na, title="BuyLine", style=plot.style_linebr, linewidth=2, color=longColor)
+plotshape(dir == 1 and dir[1] == -1 and Show_Signals ? longStop : na, title='BUY', style=shape.labelup, location=location.belowbar, size=size.small, text='LONG', textcolor=color.new(color.white, 0), color=bullcolor)
+//plot(dir == 1 ? na : shortStop, title="SellLine", style=plot.style_linebr, linewidth=2, color=shortColor)
+plotshape(dir == -1 and dir[1] == 1 and Show_Signals ? shortStop : na, title='SELL', style=shape.labeldown, location=location.abovebar, size=size.small, text='SHORT', textcolor=color.new(color.white, 0), color=bearcolor)
+
+//kumo plots
+//plot(conversionLine, color=#0496ff, title="Conversion Line")
+//plot(baseLine, color=#991515, title="Base Line")
+//plot(close, offset = -displacement, color=#459915, title="Lagging Span")
+//K1 = plot(leadLine1, offset=displacement, color=color.new(color.green, 0), title='Lead 1')
+//K2 = plot(leadLine2, offset=displacement, color=color.new(color.red, 0), title='Lead 2')
+//fill(K1, K2, leadLine1 > leadLine2 ? color.green : color.red, transp=90)
+
+barcolor(dir == 1 ? bullcolor : bearcolor)
+
+
+
+bull = dir == 1 and dir[1] == -1 and Show_Signals ? longStop : na
+bear = dir == -1 and dir[1] == 1 and Show_Signals ? shortStop : na
+
+trigger = bull ? 1 : 0
+countBull = ta.barssince(bull)
+countBear = ta.barssince(bear)
+atrBand = ta.atr(atrLen) * atrRisk
+atrStop = trigger == 1 ? low - atrBand : high + atrBand
+
+
+lastTrade(src) => ta.valuewhen(dir == 1 and dir[1] == -1 and Show_Signals ? longStop : na or dir == -1 and dir[1] == 1 and Show_Signals ? shortStop : na , src, 0)
+
+
+entry = levels ? label.new(time, close, "ENTRY " + str.tostring(lastTrade(close), decimals), xloc.bar_time, yloc.price, color.gray, label.style_label_left, color.white, size.normal) : na
+label.set_x(entry, label.get_x(entry) + math.round(ta.change(time) * lvlDistance))
+label.set_y(entry, lastTrade(close))
+label.delete(entry[1])
+
+
+
+stop_y = lastTrade(atrStop)
+stop  = levels ? label.new(time, close, "SL " + str.tostring(stop_y, decimals), xloc.bar_time, yloc.price, bearcolor, label.style_label_left, color.white, size.normal) : na
+label.set_x(stop, label.get_x(stop) + math.round(ta.change(time) * lvlDistance))
+label.set_y(stop, stop_y)
+label.delete(stop[1])
+plot( stop_y , title="SL" ,editable = false , color = #ffffff00)
+
+
+tp1Rl_y = (lastTrade(close)-lastTrade(atrStop))*1 + lastTrade(close)
+tp1Rl   = levels ? label.new(time, close, "1:1 TP " + str.tostring(tp1Rl_y, decimals), xloc.bar_time, yloc.price, bullcolor, label.style_label_left, color.white, size.normal ) : na
+label.set_x(tp1Rl, label.get_x(tp1Rl) + math.round(ta.change(time) * lvlDistance))
+label.set_y(tp1Rl, tp1Rl_y)
+label.delete(tp1Rl[1])
+plot( tp1Rl_y , title="TP1" ,editable = false , color = #ffffff00)
+
+tp2RL_y = (lastTrade(close)-lastTrade(atrStop))*2 + lastTrade(close)
+tp2RL   = levels ? label.new(time, close, "2:1 TP " + str.tostring(tp2RL_y, decimals), xloc.bar_time, yloc.price, bullcolor, label.style_label_left, color.white, size.normal) : na
+label.set_x(tp2RL, label.get_x(tp2RL) + math.round(ta.change(time) * lvlDistance))
+label.set_y(tp2RL, tp2RL_y)
+label.delete(tp2RL[1])
+plot( tp2RL_y , title="TP2" ,editable = false , color = #ffffff00)
+
+
+tp3RL_y = (lastTrade(close)-lastTrade(atrStop))*3 + lastTrade(close)
+tp3RL   = levels ? label.new(time, close, "3:1 TP " + str.tostring(tp3RL_y, decimals), xloc.bar_time, yloc.price, bullcolor, label.style_label_left, color.white, size.normal) : na
+label.set_x(tp3RL, label.get_x(tp3RL) + math.round(ta.change(time) * lvlDistance))
+label.set_y(tp3RL, tp3RL_y)
+label.delete(tp3RL[1])
+plot( tp3RL_y , title="TP3" ,editable = false , color = #ffffff00)
+
+style = linesStyle == "SOLID" ? line.style_solid : linesStyle == "DASHED" ? line.style_dashed : line.style_dotted
+lineEntry = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), lastTrade(close), bar_index + lvlDistance, lastTrade(close), xloc.bar_index, extend.none, color.gray, style, 2) : na, line.delete(lineEntry[1])
+lineStop  = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), stop_y, bar_index + lvlDistance, stop_y, xloc.bar_index, extend.none, #CC0000, style, 2) : na, line.delete(lineStop[1])
+lineTp1Rl   = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp1Rl_y, bar_index + lvlDistance, tp1Rl_y, xloc.bar_index, extend.none, bullcolor, style, 2) : na, line.delete(lineTp1Rl[1])
+lineTp2RL   = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp2RL_y, bar_index + lvlDistance, tp2RL_y, xloc.bar_index, extend.none, bullcolor, style, 2) : na, line.delete(lineTp2RL[1])
+lineTp3RL   = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp3RL_y, bar_index + lvlDistance, tp3RL_y, xloc.bar_index, extend.none, bullcolor, style, 2) : na, line.delete(lineTp3RL[1])
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+//SMC v2
+/////////////////////////////////////////////////////////////////////////////////////////
+
+// Functions
+lineStyle(x) =>
+    switch x
+        'Solid' => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+
+
+// Calculations
+
+//Finding high and low pivots
+pivHi = ta.pivothigh(high, swingSize, swingSize)
+pivLo = ta.pivotlow(low, swingSize, swingSize)
+
+
+//Tracking the previous swing levels to determine hh lh hl ll
+var float prevHigh = na
+var float prevLow = na
+var int prevHighIndex = na
+var int prevLowIndex = na
+
+//Tracking whether previous levels have been breached
+var bool highActive = false
+var bool lowActive = false
+
+bool hh = false
+bool lh = false
+bool hl = false
+bool ll = false
+
+//Variable to track the previous swing type, used later on to draw 0.5 Retracement Levels (HH = 2, LH = 1, HL = -1, LL = -2)
+var int prevSwing = 0
+
+if not na(pivHi)
+    if pivHi >= prevHigh
+        hh := true
+        prevSwing := 2
+    else
+        lh := true
+        prevSwing := 1
+    prevHigh := pivHi
+    highActive := true
+    prevHighIndex := bar_index - swingSize
+
+if not na(pivLo)
+    if pivLo >= prevLow
+        hl := true
+        prevSwing := -1
+    else
+        ll := true
+        prevSwing := -2
+    prevLow := pivLo
+    lowActive := true
+    prevLowIndex := bar_index - swingSize
+
+//Generating the breakout signals
+bool highBroken = false
+bool lowBroken = false
+
+//Tracking prev breakout
+var int prevBreakoutDir = 0
+
+float highSrc = bosConfType == 'Candle Close' ? close : high
+float lowSrc = bosConfType == 'Candle Close' ? close : low
+
+if highSrc > prevHigh and highActive
+    highBroken := true
+    highActive := false
+if lowSrc < prevLow and lowActive
+    lowBroken := true
+    lowActive := false
+
+
+// Visual Output
+
+//Swing level labels
+if hh and showSwing
+    label.new(bar_index - swingSize, pivHi, 'HH', color=CLEAR, style=label.style_label_down, textcolor=chart.fg_color)
+if lh and showSwing
+    label.new(bar_index - swingSize, pivHi, 'LH', color=CLEAR, style=label.style_label_down, textcolor=chart.fg_color)
+if hl and showSwing
+    label.new(bar_index - swingSize, pivLo, 'HL', color=CLEAR, style=label.style_label_up, textcolor=chart.fg_color)
+if ll and showSwing
+    label.new(bar_index - swingSize, pivLo, 'LL', color=CLEAR, style=label.style_label_up, textcolor=chart.fg_color)
+ 
+
+//Generating the BOS/CHoCH Lines
+if highBroken and showSMC
+    line.new(prevHighIndex, prevHigh, bar_index, prevHigh, color= bullcolor, style=lineStyle(bosStyle), width=bosWidth)
+    label.new(math.floor(bar_index - (bar_index - prevHighIndex) / 2), prevHigh, prevBreakoutDir == -1 and choch ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bullcolor, size=size.tiny)
+    prevBreakoutDir := 1
+
+if lowBroken and showSMC
+    line.new(prevLowIndex, prevLow, bar_index, prevLow, color=bearcolor, style=lineStyle(bosStyle), width=bosWidth)
+    label.new(math.floor(bar_index - (bar_index - prevLowIndex) / 2), prevLow, prevBreakoutDir == 1 and choch ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bearcolor, style=label.style_label_up, size=size.tiny)
+    prevBreakoutDir := -1
+
+////////////////////////////////////////////////////////////////////////////////////////////
+//Trend Cloud
+///////////////////////////////////////////////////////////////////////////////////////////
+length2 = 10*(TBSENSIII / 2)
+source2 = close
+aboveColor2 = color.rgb(70, 219, 255, 100)
+belowColor2 = color.rgb(233, 30, 99, 100)
+
+ma3On = true
+length3 = 40*(TBSENSIII / 2)
+source3 = close
+aboveColor3 = color.rgb(70, 219, 255, 100)
+belowColor3 = color.rgb(233, 30, 99, 100)
+
+//Combined Moving Averages Calculations
+
+sma2 = ta.sma(source2, length2)
+ema2 = ta.ema(source2, length2)
+wma2 = ta.wma(source2, length2)
+vwma2 = ta.vwma(source2, length2)
+hma2 = ta.hma(source2, length2)
+rma2 = ta.rma(source2, length2)
+
+ma2 = (sma2 + ema2 + wma2 + vwma2 + hma2 + rma2) / 6
+
+sma3 = ta.sma(source3, length3)
+ema3 = ta.ema(source3, length3)
+wma3 = ta.wma(source3, length3)
+vwma3 = ta.vwma(source3, length3)
+hma3 = ta.hma(source3, length3)
+rma3 = ta.rma(source3, length3)
+
+ma3 = (sma3 + ema3 + wma3 + vwma3 + hma3 + rma3) / 6
+
+//Volume Spike Signals
+volumeMedian = ta.median(volume, 10)
+volumeBuy  = false
+highVolumeBuy = false
+
+if volume > volumeMedian and volume < volumeMedian*2
+    volumeBuy := true
+if volume > volumeMedian*2
+    highVolumeBuy := true
+
+//Line & Cloud Colors
+redCloud = false
+greenCloud = false
+
+if ma2 > ma3
+    greenCloud := true
+else
+    redCloud := true
+
+ma50 = plot(ma2On ? ma2 : na, title="Moving Average #2", color=greenCloud ? aboveColor2 : belowColor2, style=plot.style_line, linewidth=1 , editable = false)
+ma100 = plot(ma3On ? ma3 : na, title="Moving Average #3", color=greenCloud ? aboveColor3 : belowColor3, style=plot.style_line, linewidth=1 , editable = false)
+
+fill(ma50, ma100, color=greenCloud and highVolumeBuy ? color.new(bullcolor , 10) : greenCloud and volumeBuy ? color.new(bullcolor , 50) : greenCloud ? color.new(bullcolor , 80) : redCloud and highVolumeBuy ? color.new(bearcolor , 10) : redCloud and volumeBuy ? color.new(bearcolor , 50) : redCloud ? color.new(bearcolor , 80) : na)
+
+
+/////////////////////////////////////////////////////////
+//  Trap Detector
+////////////////////////////////////////////////////////
+// Functions
+wavetrend(src, chlLen, avgLen) =>
+    esa = ta.ema(src, chlLen)
+    d = ta.ema(math.abs(src - esa), chlLen)
+    ci = (src - esa) / (0.015 * d)
+    wt1 = ta.ema(ci, avgLen)
+    wt2 = ta.sma(wt1, 3)
+    [wt1, wt2]
+f_top_fractal(src) => src[4] < src[2] and src[3] < src[2] and src[2] > src[1] and src[2] > src[0]
+f_bot_fractal(src) => src[4] > src[2] and src[3] > src[2] and src[2] < src[1] and src[2] < src[0]
+f_fractalize (src) => f_top_fractal(src) ? 1 : f_bot_fractal(src) ? -1 : 0
+f_findDivs(src, topLimit, botLimit) =>
+    fractalTop = f_fractalize(src) > 0 and src[2] >= topLimit ? src[2] : na
+    fractalBot = f_fractalize(src) < 0 and src[2] <= botLimit ? src[2] : na
+    highPrev = ta.valuewhen(fractalTop, src[2], 0)[2]
+    highPrice = ta.valuewhen(fractalTop, high[2], 0)[2]
+    lowPrev = ta.valuewhen(fractalBot, src[2], 0)[2]
+    lowPrice = ta.valuewhen(fractalBot, low[2], 0)[2]
+    bearSignal = fractalTop and high[1] > highPrice and src[1] < highPrev
+    bullSignal = fractalBot and low[1] < lowPrice and src[1] > lowPrev
+    [bearSignal, bullSignal]
+
+// Get components
+[wt1, wt2] = wavetrend(close, 5*TBSensi, 10*TBSensi)
+[wtDivBear1, wtDivBull1] = f_findDivs(wt2, 15, -40)
+[wtDivBear2, wtDivBull2] = f_findDivs(wt2, 45, -65)
+wtDivBull = wtDivBull1 or wtDivBull2
+wtDivBear = wtDivBear1 or wtDivBear2
+
+plotshape(ta.crossover(wt1, wt2) and Show_PR and wt2 <= -53, "Don't Sell/Bottom" , shape.xcross, location.belowbar, color(bullcolor), size=size.tiny)
+plotshape(ta.crossunder(wt1, wt2) and Show_PR and wt2 >= 53, "Don't Buy/Top", shape.xcross, location.abovebar, color(bearcolor), size=size.tiny)
+
+
+
+ShowTrailingSl   = input.bool(false, title="Show Trailing Stoploss", tooltip="Show Trailing Stoploss" , group = "Trailing Stoploss")
+sl_type = input.string('%', title = "Trailing SL Type" ,options=['%', 'ATR', 'Absolute'], group = "Trailing Stoploss")
+sl_perc = input.float(title='Trailing Sl - %', step=0.1, defval=0.4 , group = "Trailing Stoploss")
+atr_length = input(14, title='Trailing Sl - Atr Length' , group = "Trailing Stoploss")
+atr_mult = input.float(2, title='Trailing Sl - Atr Multiplier' , group = "Trailing Stoploss")
+sl_absol = input.float(10, title='Trailing Sl - Absolute  ', group = "Trailing Stoploss" )
+
+
+//////////////////
+// CALCULATIONS //
+
+// SL values
+sl_val = sl_type == 'ATR' ? atr_mult * ta.atr(atr_length) : sl_type == 'Absolute' ? sl_absol : close * sl_perc / 100
+
+// Init Variables
+pos = 0
+trailing_sl = 0.0 
+
+// Trailing Signals Type
+
+long_signal = bull and ShowTrailingSl
+short_signal = bear and ShowTrailingSl
+
+// Calculate SL
+trailing_sl := short_signal ? high + sl_val : long_signal ? low - sl_val : nz(pos[1]) == 1 ? math.max(low - sl_val, nz(trailing_sl[1])) : nz(pos[1]) == -1 ? math.min(high + sl_val, nz(trailing_sl[1])) : nz(trailing_sl[1]) 
+
+// Position var               
+pos  := long_signal ? 1 : short_signal ? -1 : nz(pos[1]) 
+
+//////////////
+// PLOTINGS //
+
+plot(ShowTrailingSl ? trailing_sl : na , title = "Trailing StopLoss" , linewidth=2, color=pos == 1 ? bullcolor : bearcolor)
+
+
+
+
+//Alerts
+
+alertcondition(dir == 1 and dir[1] == -1 ? longStop : na, title='BUY', message= 'Pair : {{ticker}} | Type: Long 🟢 | TimeFrame : {{interval}} | Entry Price - {{close}} |||||||||||||||||||| StopLoss - {{plot("SL")}} ||||||||||||||||| TP1 Price - {{plot("TP1")}} |||||||||||||||| TP2 Price - {{plot("TP2")}} ||||||||||||||||  TP3 Price - {{plot("TP3")}} |||||||||||||||| '  )
+
+
+alertcondition(dir == -1 and dir[1] == 1 ? shortStop : na, title='SELL', message='"Pair : {{ticker}} | Type: Short 🔴 | TimeFrame : {{interval}} | Entry Price - {{close}} |||||||||||||||||||| StopLoss - {{plot("SL")}} ||||||||||||||||| TP1 Price - {{plot("TP1")}} |||||||||||||||| TP2 Price - {{plot("TP2")}} ||||||||||||||||  TP3 Price - {{plot("TP3")}} |||||||||||||||| ')
+//TP1 & TP2 & TP3
+
+//alertcondition(bton(long_tp and last_longCondition > nz(last_long_close[1])), title='TP1 LONG - DYNAMIC')
+//alertcondition(bton(short_tp and last_shortCondition > nz(last_short_close[1])), title='TP1 SHORT - DYNAMIC')
+
+alertcondition(bton(long_sl2 and last_longCondition2 > nz(last_long_close2[1])) or bton(long_sl2 and last_longCondition2 > nz(last_long_close2[1])), title='SL Hit - DYNAMIC')
+
+alertcondition(bton(short_sl and last_shortCondition > nz(last_short_close[1])) or bton(long_sl and last_longCondition > nz(last_long_close[1])), title='BREAKEVEN - DYNAMIC')
+
+alertcondition(bton(short_tp and last_shortCondition > nz(last_short_close[1])) or bton(long_tp and last_longCondition > nz(last_long_close[1])), title='Target 1 Hit - DYNAMIC')
+
+//alertcondition(bton(long_tp2 and last_longCondition2 > nz(last_long_close2[1])), title='TP2 LONG - DYNAMIC' )
+//alertcondition(bton(short_tp2 and last_shortCondition2 > nz(last_short_close2[1])), title='TP2 SHORT - DYNAMIC')
+
+alertcondition(bton(short_tp2 and last_shortCondition2 > nz(last_short_close2[1])) or bton(long_tp2 and last_longCondition2 > nz(last_long_close2[1])), title='Target 2 Hit - DYNAMIC')
+
+//alertcondition(bton(long_tp3 and last_longCondition3 > nz(last_long_close3[1])), title='TP3 LONG - DYNAMIC')
+//alertcondition(bton(short_tp3 and last_shortCondition3 > nz(last_short_close3[1])), title='TP3 SHORT - DYNAMIC')
+
+alertcondition(bton(short_tp3 and last_shortCondition3 > nz(last_short_close3[1])) or bton(long_tp3 and last_longCondition3 > nz(last_long_close3[1])) , title='Target 3 Hit - DYNAMIC')
+
+//alertcondition(bton(long_sl and last_longCondition > nz(last_long_close[1])), title='BREAKEVEN LONG - DYNAMIC')
+//alertcondition(bton(short_sl and last_shortCondition > nz(last_short_close[1])), title='BREAKEVEN SHORT - DYNAMIC')
+
+
+
+//alertcondition(bton(long_sl2 and last_longCondition2 > nz(last_long_close2[1])), title='SL HIT LONG - DYNAMIC')
+//alertcondition(bton(short_sl2 and last_shortCondition2 > nz(last_short_close2[1])), title='SL HIT SHORT - DYNAMIC')
+
+////////////
+// Alerts //
+
+//alertcondition(long_signal, 'Trailing SL Long', 'SL Long')
+//alertcondition(short_signal, 'Trailing SL Short', 'SL Short')
+
+alertcondition(short_signal or long_signal, 'Trailing SL', 'Trailing SL')
+
+
+tst(x)=> str.tostring(x)
+var int dec = str.length(str.tostring(syminfo.mintick))-2
+trc(number) =>
+    factor = math.pow(10, dec)
+    int(number * factor) / factor
+trc_(number) =>
+    factor = math.pow(10, 0)
+    int(number * factor) / factor
+
+
+
+
+xsrc = close
+xprd1 = 12
+xsrc2 = close
+xprd2 = 26
+xsmooth = 1
+
+xPrice = ta.ema(xsrc, xsmooth)
+FastMA = xfixtf ? ta.ema(request.security(syminfo.tickerid, xtf, ta.ema(xsrc, xprd1)), xsmooth) : ta.ema(xPrice, xprd1)
+xPrice2 = ta.ema(xsrc2, xsmooth)
+SlowMA = xfixtf ? ta.ema(request.security(syminfo.tickerid, xtf, ta.ema(xsrc2, xprd2)), xsmooth) : ta.ema(xPrice2, xprd2)
+BullTribbon = FastMA > SlowMA
+Tribbon = FastMA < SlowMA
+
+//****************************************************************************//
+// Define Color Zones
+
+Green = BullTribbon and xPrice > FastMA  // Buy
+Blue = Tribbon and xPrice > FastMA and xPrice > SlowMA  //Pre Buy 2 (Strong dip) Consider adding long position
+LBlue = Tribbon and xPrice > FastMA and xPrice < SlowMA  //Pre Buy 1 (Weak Dip)
+
+Red = Tribbon and xPrice < FastMA  // Sell
+Orange = BullTribbon and xPrice < FastMA and xPrice < SlowMA  // Pre Sell 2 (Strong Rally) Consider adding short position
+Yellow = BullTribbon and xPrice < FastMA and xPrice > SlowMA  // Pre Sell 1 (Weak Rally)
+
+
+//****************************************************************************//
+// Define Buy and Sell condition
+// This is only for thebasic usage of CDC Actionzone (EMA Crossover) 
+// ie. Buy on first green bar and sell on first red bar
+
+buycond = Green and Green[1] == 0
+sellcond = Red and Red[1] == 0
+
+bullTribbonish = ta.barssince(buycond) < ta.barssince(sellcond)
+Tribbonish = ta.barssince(sellcond) < ta.barssince(buycond)
+
+
+bColor_BullTribbonTribbon = bullTribbonish ? bullcolor : Tribbonish ? bearcolor : na
+
+
+plotshape(plotRibsw ? plotRibbonPos == 'Top' ? close : na : na, style=shape.square, title='Buy/Sell Ribbon', location=location.top, color=bColor_BullTribbonTribbon , editable = false)
+plotshape(plotRibsw ? plotRibbonPos == 'Bottom' ? close : na : na, style=shape.square, title='Buy/Sell Ribbon', location=location.bottom, color=bColor_BullTribbonTribbon , editable = false)
+
+
+
+
+len2 = 20  //input(20, minval=1, title="Smooth")
+src = close
+out = ta.vwma(src, len2)
+
+
+buy = Tribbonish[1] and buycond
+sell = bullTribbonish[1] and sellcond
+
+
+//****************************************************************************//
+// Label
+
+//labelstyle = label.style_label_lower_left
+labelstyle = close > SlowMA ? label.style_label_down : label.style_label_up
+labelyloc = close > SlowMA ? yloc.abovebar : yloc.belowbar
+labeltcolor = buy ? color.black : sell ? color.white : close > close[1] ? bullcolor : bearcolor 
+labelbgcolor = buy ? bullcolor  : sell ? bearcolor : color.silver
+labeltext = buy ? 'Long on next bar\n' : sell ? 'Short on next bar\n' : ' '
+trendText = bullTribbonish ? 'Bullish' : Tribbonish ? 'Bearish' : 'Sideways'
+
+
+l1 = label.new(bar_index, na, text=labeltext + syminfo.ticker + ' ' + str.tostring(close) + ' ' + syminfo.currency + '\n Currently in a ' + trendText + ' Trend \n', color=labelbgcolor, textcolor=labeltcolor, yloc=labelyloc, style=labelstyle)
+
+label.delete(labelSwitch ? l1[1] : l1)

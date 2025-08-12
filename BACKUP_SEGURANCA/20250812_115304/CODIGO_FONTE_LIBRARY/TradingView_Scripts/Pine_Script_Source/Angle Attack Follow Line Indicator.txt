@@ -1,0 +1,346 @@
+// © Dreadblitz
+//@version=4
+study(shorttitle="AAFLI", title="Angle Attack Follow Line Indicator ", overlay=false, max_bars_back=1000)
+
+//INPUTS ————————————————————————————————————————————————————————————
+FL            = input(title  = "🔰🔰🔰🔰 FOLLOW LINE CURRENT CHART RESOLUTION 🔰🔰🔰🔰", defval = true, type = input.bool)
+
+BBperiod      = input(defval = 21,   title = "Period",    type = input.integer, minval = 1)
+BBdeviations  = input(defval = 1.00, title = "Deviations",    type = input.float, minval = 0.1, step=0.05)
+UseATRfilter  = input(defval = true, title = "ATR Filter",  type = input.bool)
+ATRperiod     = input(defval = 5,    title = "ATR Period",    type = input.integer, minval = 1)
+
+FLH           = input(title  = "🔰🔰🔰🔰🔰 FOLLOW LINE HIGHER TIME FRAME 🔰🔰🔰🔰🔰", defval = true, type = input.bool)
+
+AIB           = input(defval = true, title = "Activate Indicator Background",  type = input.bool)
+TYPE          = input(title  ="Type Of MA", defval="SMA", options=["RMA", "SMA", "EMA", "WMA", "VWMA", "SMMA", "KMA", "TMA", "HullMA", "DEMA", "TEMA", "CTI"])
+RES           = input("240", type=input.resolution, title="Resolution")
+LEN           = input(21, title = "Period", type=input.integer)
+BBdeviations_ = input(defval = 1.00,title = "Deviations",    type = input.float, minval = 0.1, step=0.05)
+ATRperiod_    = input(defval = 5,title = "ATR Period",    type = input.integer, minval = 1)
+SOUR          = input(type=input.source,title = "Source", defval=close)
+
+MD            = input(title  = "🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰 MODE 🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰", defval = true, type = input.bool)
+
+MODE          = input(title  ="Type Of Mode", defval="NO FILTER HIGHER TIME FRAME", options=["NO FILTER HIGHER TIME FRAME", "FILTER HIGHER TIME FRAME"])
+
+AC            = input(title  = "🔰🔰🔰🔰🔰🔰🔰🔰 ANGLE CONFIGURATION 🔰🔰🔰🔰🔰🔰🔰", defval = true, type = input.bool)
+
+i_lookback    = input(8,     "Angle Period", input.integer, minval = 1)
+i_atrPeriod   = input(10,    "ATR Period",   input.integer, minval = 1)
+
+BSA           = input(title  = "🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰 BUY/SELL 🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰", defval = true, type = input.bool)
+
+Buy_0         = input(defval = true, title = "Buy Change Follow Line",  type = input.bool)
+Sell_0        = input(defval = true, title = "Sell Change Follow Line",  type = input.bool)
+
+OTA           = input(title  = "🔰🔰🔰🔰🔰🔰🔰🔰🔰 OPTIONS TO ADD 🔰🔰🔰🔰🔰🔰🔰🔰", defval = true, type = input.bool)
+
+Add_Buy_0     = input(defval = true, title = "Option 1 to Add Buy",  type = input.bool)
+Add_Sell_0    = input(defval = true, title = "Option 1 to Add Sell",  type = input.bool)
+Add_Buy_1     = input(defval = false, title = "Option 2 to Add Buy",  type = input.bool)
+Add_Sell_1    = input(defval = false, title = "Option 2 to Add Sell",  type = input.bool)
+Add_Buy_2     = input(defval = false, title = "Option 3 to Add Buy",  type = input.bool)
+Add_Sell_2    = input(defval = false, title = "Option 3 to Add Sell",  type = input.bool)
+
+OTR           = input(title  = "🔰🔰🔰🔰🔰🔰🔰🔰 OPTIONS TO REDUCE 🔰🔰🔰🔰🔰🔰🔰🔰", defval = true, type = input.bool)
+
+Max_level_1   = input(defval = 40,   title = "Max Angle Level 1",    type = input.integer, minval = 1)
+Max_level_2   = input(defval = 65,   title = "Max Angle Level 2",    type = input.integer, minval = 1)
+Min_level_1   = input(defval = -40,  title = "Min Angle Level 1",    type = input.integer, minval = -100)
+Min_level_2   = input(defval = -65,  title = "Min Angle Level 2",    type = input.integer, minval = -100)
+Red_Buy_0     = input(defval = true, title = "Option 1 to Reduce Buy Max Angle Level 1",  type = input.bool)
+Red_Buy_1     = input(defval = true, title = "Option 2 to Reduce Buy Max Angle Level 2",  type = input.bool)
+Red_Buy_2     = input(defval = false,title = "Option 3 to Reduce Buy 2 Bars Above Max Angle Level 2",  type = input.bool)
+Red_Buy_3     = input(defval = true, title = "Option 4 to Reduce Buy 3 Bars Above Max Angle Level 2",  type = input.bool)
+Red_Buy_4     = input(defval = false,title = "Option 5 to Reduce Buy 4 Bars Above Max Angle Level 2",  type = input.bool)
+Red_Sell_0    = input(defval = true, title = "Option 1 to Reduce Sell Min Angle Level 1",  type = input.bool)
+Red_Sell_1    = input(defval = true, title = "Option 2 to Reduce Sell Min Angle Level 1",  type = input.bool)
+Red_Sell_2    = input(defval = false,title = "Option 3 to Reduce Sell 2 bars Below Min Angle Level 2",  type = input.bool)
+Red_Sell_3    = input(defval = true, title = "Option 4 to Reduce Sell 3 bars Below Min Angle Level 2",  type = input.bool)
+Red_Sell_4    = input(defval = false,title = "Option 5 to Reduce Sell 4 bars Below Min Angle Level 2",  type = input.bool)
+
+
+OTH           = input(title  = "🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰 OTHERS 🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰🔰", defval = true, type = input.bool)
+
+i_barColor    = input(true, "Bar Color?")
+h_lables      = input(false, "Hide Labels")
+
+
+// FOLLOW LINE —————————————————————————————————————————————————————
+
+BBUpper=sma (close,BBperiod)+stdev(close, BBperiod)*BBdeviations
+BBLower=sma (close,BBperiod)-stdev(close, BBperiod)*BBdeviations
+TrendLine = 0.0
+iTrend = 0.0
+BBSignal = close>BBUpper? 1 : close<BBLower? -1 : 0
+if BBSignal == 1 and UseATRfilter == 1
+    TrendLine:=low-atr(ATRperiod)
+    if TrendLine<TrendLine[1] 
+        TrendLine:=TrendLine[1]
+if BBSignal == -1 and UseATRfilter == 1
+    TrendLine:=high+atr(ATRperiod)
+    if TrendLine>TrendLine[1]
+        TrendLine:=TrendLine[1]
+if BBSignal == 0 and UseATRfilter == 1
+    TrendLine:=TrendLine[1]
+if BBSignal == 1 and UseATRfilter == 0
+    TrendLine:=low
+    if TrendLine<TrendLine[1] 
+        TrendLine:=TrendLine[1]
+if BBSignal == -1 and UseATRfilter == 0
+    TrendLine:=high
+    if TrendLine>TrendLine[1]
+        TrendLine:=TrendLine[1]
+if BBSignal == 0 and UseATRfilter == 0
+    TrendLine:=TrendLine[1]
+iTrend:=iTrend[1]
+if TrendLine>TrendLine[1] 
+    iTrend:=1
+if TrendLine<TrendLine[1] 
+    iTrend:=-1
+
+// FOLLOW LINE HIGHER TIME FRAME ——————————————————————————————
+
+cd = 0.0
+cti(sm, src, cd) =>
+    di = (sm - 1.0) / 2.0 + 1.0
+    c1 = 2 / (di + 1.0)
+    c2 = 1 - c1
+    c3 = 3.0 * (cd * cd + cd * cd * cd)
+    c4 = -3.0 * (2.0 * cd * cd + cd + cd * cd * cd)
+    c5 = 3.0 * cd + 1.0 + cd * cd * cd + 3.0 * cd * cd
+    i1 = 0.0
+    i2 = 0.0
+    i3 = 0.0
+    i4 = 0.0
+    i5 = 0.0
+    i6 = 0.0
+    i1 := c1*src + c2*nz(i1[1])
+    i2 := c1*i1 + c2*nz(i2[1])
+    i3 := c1*i2 + c2*nz(i3[1])
+    i4 := c1*i3 + c2*nz(i4[1])
+    i5 := c1*i4 + c2*nz(i5[1])
+    i6 := c1*i5 + c2*nz(i6[1])
+        
+    bfr = -cd*cd*cd*i6 + c3*(i5) + c4*(i4) + c5*(i3)
+    bfr
+
+smma(src, len) =>
+    smma = 0.0
+    smma := na(smma[1]) ? sma(src, len) : (smma[1] * (len - 1) + src) / len
+    smma
+
+ma(smoothing, src, length) => 
+    if smoothing == "RMA"
+        rma(src, length)
+    else
+        if smoothing == "SMA"
+            sma(src, length)
+        else 
+            if smoothing == "EMA"
+                ema(src, length)
+            else 
+                if smoothing == "WMA"
+                    wma(src, length)
+				else
+					if smoothing == "VWMA"
+						vwma(src, length)
+					else
+						if smoothing == "SMMA"
+						    smma(src, length)
+						else
+							if smoothing == "HullMA"
+								wma(2 * wma(src, length / 2) - wma(src, length), round(sqrt(length)))
+							else
+								if smoothing == "LSMA"
+									src
+								else
+								    if smoothing == "KMA"
+								        xPrice = src
+                                        xvnoise = abs(xPrice - xPrice[1])
+                                        nfastend = 0.666
+                                        nslowend = 0.0645
+                                        nsignal = abs(xPrice - xPrice[length])
+                                        nnoise = sum(xvnoise, length)
+                                        nefratio = iff(nnoise != 0, nsignal / nnoise, 0)
+                                        nsmooth = pow(nefratio * (nfastend - nslowend) + nslowend, 2) 
+                                        nAMA = 0.0
+                                        nAMA := nz(nAMA[1]) + nsmooth * (xPrice - nz(nAMA[1]))
+                                        nAMA
+								    else
+								        if smoothing == "TMA"
+									        sma(sma(close, length), length)
+						                else
+							                if smoothing == "DEMA"
+							                    emaValue = ema(src, length)
+                                                2 * emaValue - ema(emaValue, length)
+							                else
+							                    if smoothing == "TEMA"
+							                        ema1 = ema(src, length)
+                                                    ema2 = ema(ema1, length)
+                                                    ema3 = ema(ema2, length)
+                                                    (3 * ema1) - (3 * ema2) + ema3
+							                    else
+						                            if smoothing == "CTI"
+                                                        cti(length, src, cd)
+	    								            else
+		    							                src
+
+MA = ma(TYPE, SOUR, LEN)
+MA_MTF = security(syminfo.tickerid, RES, MA)
+close_ = security(syminfo.tickerid, RES, close)
+low_ = security(syminfo.tickerid, RES, low)
+high_ = security(syminfo.tickerid, RES, high)
+atr_ = security(syminfo.tickerid, RES, atr(ATRperiod_))
+
+BBUpper_=MA_MTF+stdev(close_, LEN)*BBdeviations_
+BBLower_=MA_MTF-stdev(close_, LEN)*BBdeviations_
+
+TrendLine_MTF = 0.0
+iTrend_ = 0.0
+
+BBSignal_ = close_>BBUpper_? 1 : close_<BBLower_? -1 : 0
+ 
+if BBSignal_ == 1 
+    TrendLine_MTF:=low_-atr_
+    if TrendLine_MTF<TrendLine_MTF[1] 
+        TrendLine_MTF:=TrendLine_MTF[1]
+if BBSignal_ == -1 
+    TrendLine_MTF:=high_+atr_
+    if TrendLine_MTF>TrendLine_MTF[1]
+        TrendLine_MTF:=TrendLine_MTF[1]
+if BBSignal_ == 0 
+    TrendLine_MTF:=TrendLine_MTF[1]
+
+iTrend_:=iTrend_[1]
+if TrendLine_MTF>TrendLine_MTF[1] 
+    iTrend_:=1
+if TrendLine_MTF<TrendLine_MTF[1] 
+    iTrend_:=-1
+
+// ANGLE FL———————————————————————————————————————————————————————————— 
+
+f_angle(_src, _lookback, _atrPeriod) =>
+    rad2degree = 180 / 3.14159265359
+    ang = rad2degree * atan((_src[0] - _src[_lookback]) / atr(_atrPeriod))
+    ang
+    
+_angle_fl = f_angle(TrendLine, i_lookback, i_atrPeriod)
+
+
+// BUY/SELL AND NO FILTER HIGHER TIME FRAME  ————————————————————————————————————————————————————————————
+
+buy_0 = iTrend[1] < 0 and iTrend > 0 and Buy_0 and MODE == "NO FILTER HIGHER TIME FRAME" ? 1 :0 
+sell_0 = iTrend[1] > 0 and iTrend < 0 and Sell_0 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+
+// BUY/SELL AND FILTER HIGHER TIME FRAME  ————————————————————————————————————————————————————————————
+
+buy_0_A = iTrend[1] < 0 and iTrend > 0 and Buy_0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1 ? 1 :0 
+sell_0_A = iTrend[1] > 0 and iTrend < 0 and Sell_0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1? 1 :0 
+
+
+//ADD AND NO FILTER HIGHER TIME FRAME ————————————————————————————————————————————————————————————
+
+add_buy_1 = _angle_fl [2] > 0 and _angle_fl [1] == 0 and _angle_fl == 0 and iTrend > 0 and Add_Buy_0 and MODE == "NO FILTER HIGHER TIME FRAME" ? 1 :0 
+
+add_sell_1 = _angle_fl [2] < 0 and _angle_fl [1] == 0 and _angle_fl == 0 and iTrend < 0 and Add_Sell_0 and MODE == "NO FILTER HIGHER TIME FRAME" ? 1 :0 
+
+add_buy_2 = _angle_fl [5] > 0 and _angle_fl [4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and iTrend > 0 and Add_Buy_1 and MODE == "NO FILTER HIGHER TIME FRAME" ? 1 :0 
+
+add_sell_2 = _angle_fl [5] < 0 and _angle_fl [4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and iTrend < 0 and Add_Sell_1 and MODE == "NO FILTER HIGHER TIME FRAME" ? 1 :0 
+
+add_buy_3 = _angle_fl [8] > 0 and _angle_fl [7] == 0 and _angle_fl[6] == 0 and _angle_fl[5] == 0 and _angle_fl[4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and iTrend > 0 and Add_Buy_2 and MODE == "NO FILTER HIGHER TIME FRAME" ? 1 :0 
+
+add_sell_3 = _angle_fl [8] < 0 and _angle_fl [7] == 0 and _angle_fl[6] == 0 and _angle_fl[5] == 0 and _angle_fl[4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and iTrend < 0 and Add_Sell_2 and MODE == "NO FILTER HIGHER TIME FRAME" ? 1 :0 
+
+//ADD AND FILTER HIGHER TIME FRAME ————————————————————————————————————————————————————————————
+
+add_buy_1_A = _angle_fl [2] > 0 and _angle_fl [1] == 0 and _angle_fl == 0 and iTrend > 0 and Add_Buy_0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1? 1 :0 
+
+add_sell_1_A = _angle_fl [2] < 0 and _angle_fl [1] == 0 and _angle_fl == 0 and iTrend < 0 and Add_Sell_0 and MODE == "FILTER HIGHER TIME FRAME"and iTrend_==-1? 1 :0 
+
+add_buy_2_A = _angle_fl [5] > 0 and _angle_fl [4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1 and Add_Buy_1? 1 :0 
+
+add_sell_2_A = _angle_fl [5] < 0 and _angle_fl [4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1 and Add_Sell_1 ? 1 :0 
+
+add_buy_3_A = _angle_fl [8] > 0 and _angle_fl [7] == 0 and _angle_fl[6] == 0 and _angle_fl[5] == 0 and _angle_fl[4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1 and Add_Buy_2? 1 :0 
+
+add_sell_3_A = _angle_fl [8] < 0 and _angle_fl [7] == 0 and _angle_fl[6] == 0 and _angle_fl[5] == 0 and _angle_fl[4] == 0 and _angle_fl[3] == 0 and _angle_fl[2] == 0 and _angle_fl[1] == 0 and _angle_fl == 0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1 and Add_Sell_2 ? 1 :0 
+
+
+//REDUCE AND NO FILTER HIGHER TIME FRAME ————————————————————————————————————————————————————————————
+
+Redu_buy_1 = _angle_fl [1] < Max_level_1 and _angle_fl > Max_level_1 and Red_Buy_0 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_buy_2 = _angle_fl [1] < Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_1 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_buy_3 = _angle_fl [2] < Max_level_2 and _angle_fl [1] > Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_2 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_buy_4 = _angle_fl [3] < Max_level_2 and _angle_fl [2] > Max_level_2 and _angle_fl [1] > Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_3 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_buy_5 = _angle_fl [4] < Max_level_2 and _angle_fl [3] > Max_level_2 and _angle_fl [2] > Max_level_2 and _angle_fl [1] > Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_4 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+
+Redu_sell_1 = _angle_fl [1] > Min_level_1 and _angle_fl < Min_level_1 and Red_Sell_0 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_sell_2 = _angle_fl [1] > Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_1 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_sell_3 = _angle_fl [2] > Min_level_2 and _angle_fl [1] < Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_2 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_sell_4 = _angle_fl [3] > Min_level_2 and _angle_fl [2] < Min_level_2 and _angle_fl [1] < Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_3 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+Redu_sell_5 = _angle_fl [4] > Min_level_2 and _angle_fl [3] < Min_level_2 and _angle_fl [2] < Min_level_2 and _angle_fl [1] < Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_4 and MODE == "NO FILTER HIGHER TIME FRAME"? 1 :0 
+
+//REDUCE AND FILTER HIGHER TIME FRAME ————————————————————————————————————————————————————————————
+
+Redu_buy_1_A = _angle_fl [1] < Max_level_1 and _angle_fl > Max_level_1 and Red_Buy_0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1? 1 :0 
+Redu_buy_2_A = _angle_fl [1] < Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_1 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1? 1 :0 
+Redu_buy_3_A = _angle_fl [2] < Max_level_2 and _angle_fl [1] > Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_2 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1? 1 :0 
+Redu_buy_4_A = _angle_fl [3] < Max_level_2 and _angle_fl [2] > Max_level_2 and _angle_fl [1] > Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_3 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1? 1 :0 
+Redu_buy_5_A = _angle_fl [4] < Max_level_2 and _angle_fl [3] > Max_level_2 and _angle_fl [2] > Max_level_2 and _angle_fl [1] > Max_level_2 and _angle_fl > Max_level_2 and Red_Buy_4 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==1? 1 :0 
+
+Redu_sell_1_A = _angle_fl [1] > Min_level_1 and _angle_fl < Min_level_1 and Red_Sell_0 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1? 1 :0 
+Redu_sell_2_A = _angle_fl [1] > Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_1 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1? 1 :0 
+Redu_sell_3_A = _angle_fl [2] > Min_level_2 and _angle_fl [1] < Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_2 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1? 1 :0 
+Redu_sell_4_A = _angle_fl [3] > Min_level_2 and _angle_fl [2] < Min_level_2 and _angle_fl [1] < Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_3 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1? 1 :0 
+Redu_sell_5_A = _angle_fl [4] > Min_level_2 and _angle_fl [3] < Min_level_2 and _angle_fl [2] < Min_level_2 and _angle_fl [1] < Min_level_2 and _angle_fl < Min_level_2 and Red_Sell_4 and MODE == "FILTER HIGHER TIME FRAME" and iTrend_==-1? 1 :0 
+
+// PLOT ————————————————————————————————————————————————————————————
+
+_color_fl = iTrend > 0?color.blue:color.red
+
+plot(_angle_fl,"Angle Follow Line", _color_fl, 3, plot.style_line)
+plot(_angle_fl,"Angle Follow Line Histogram", _color_fl, 3, plot.style_histogram)
+
+hline(Max_level_1, title='Max Angle Level 1', color=color.blue, linestyle=hline.style_dotted, linewidth=1)
+hline(Max_level_2, title='Max Angle Level 2', color=color.blue, linestyle=hline.style_dotted, linewidth=1)
+hline(Min_level_1, title='Min Angle Level 1', color=color.red, linestyle=hline.style_dotted, linewidth=1)
+hline(Min_level_2, title='Min Angle Level 2', color=color.red, linestyle=hline.style_dotted, linewidth=1)
+
+
+plotshape(h_lables == false and (sell_0 or sell_0_A) ? 5 : na, title="Sell", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (buy_0 or buy_0_A)? -5 : na, title="Buy", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.blue, textcolor=color.white,transp=0)
+
+plotshape(h_lables == false and (add_sell_1 or add_sell_1_A or add_sell_2 or add_sell_3 or add_sell_2_A or add_sell_3_A) ? _angle_fl +5 : na, title="Add Sell 1", text="Add", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (add_buy_1 or add_buy_1_A or add_buy_2 or add_buy_3 or add_buy_2_A or add_buy_3_A) ? _angle_fl -5 : na, title="Add Buy 1", text="Add", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.blue, textcolor=color.white,transp=0)
+
+plotshape(h_lables == false and (Redu_buy_1 or Redu_buy_1_A)? _angle_fl +5 : na, title="Reduce Buy 1", text="Red", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.blue, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_buy_2 or Redu_buy_2_A)? _angle_fl +5 : na, title="Reduce Buy 2", text="Red", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.blue, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_buy_3 or Redu_buy_3_A)? _angle_fl +5 : na, title="Reduce Buy 3", text="Red", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.blue, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_buy_4 or Redu_buy_4_A)? _angle_fl +5 : na, title="Reduce Buy 4", text="Red", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.blue, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_buy_5 or Redu_buy_5_A)? _angle_fl +5 : na, title="Reduce Buy 5", text="Red", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.blue, textcolor=color.white,transp=0)
+
+plotshape(h_lables == false and (Redu_sell_1 or Redu_sell_1_A) ? _angle_fl -5 : na, title="Reduce Sell 1", text="Red", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.red, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_sell_2 or Redu_sell_2_A)? _angle_fl -5 : na, title="Reduce Sell 2", text="Red", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.red, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_sell_3 or Redu_sell_3_A)? _angle_fl -5 : na, title="Reduce Sell 3", text="Red", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.red, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_sell_4 or Redu_sell_4_A)? _angle_fl -5 : na, title="Reduce Sell 4", text="Red", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.red, textcolor=color.white,transp=0)
+plotshape(h_lables == false and (Redu_sell_5 or Redu_sell_5_A)? _angle_fl -5 : na, title="Reduce Sell 5", text="Red", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.red, textcolor=color.white,transp=0)
+
+bgcolor(iTrend_ > 0 and AIB? color.blue : iTrend_ < 0 and AIB? color.red:na, transp=70)
+
+barcolor(iTrend > 0?color.blue:color.red)
+
+// ALERTS————————————————————————————————————————————————————————————
+
+alertcondition(sell_0 or sell_0_A,title="Sell",message="Sell")
+alertcondition(buy_0 or buy_0_A,title="Buy",message="Buy")
+
+alertcondition(add_sell_1 or add_sell_1_A or add_sell_2 or add_sell_3 or add_sell_2_A or add_sell_3_A,title="Add Sell",message="Add Sell")
+alertcondition(add_buy_1 or add_buy_1_A or add_buy_2 or add_buy_3 or add_buy_2_A or add_buy_3_A,title="Add Buy",message="Add Buy")
+
+alertcondition(Redu_buy_1 or Redu_buy_1_A or Redu_buy_2 or Redu_buy_2_A or Redu_buy_3 or Redu_buy_3_A or Redu_buy_4 or Redu_buy_4_A or Redu_buy_5 or Redu_buy_5_A,title="Reduce Buy",message="Reduce Buy")
+alertcondition(Redu_sell_1 or Redu_sell_1_A or Redu_sell_2 or Redu_sell_2_A or Redu_sell_3 or Redu_sell_3_A or Redu_sell_4 or Redu_sell_4_A or Redu_sell_5 or Redu_sell_5_A,title="Reduce Sell",message="Reduce Sell")
+
+alertcondition(sell_0 or sell_0_A or buy_0 or buy_0_A or add_sell_1 or add_sell_1_A or add_sell_2 or add_sell_3 or add_sell_2_A or add_sell_3_A or add_buy_1 or add_buy_1_A or add_buy_2 or add_buy_3 or add_buy_2_A or add_buy_3_A or Redu_buy_1 or Redu_buy_1_A or Redu_buy_2 or Redu_buy_2_A or Redu_buy_3 or Redu_buy_3_A or Redu_buy_4 or Redu_buy_4_A or Redu_buy_5 or Redu_buy_5_A or Redu_sell_1 or Redu_sell_1_A or Redu_sell_2 or Redu_sell_2_A or Redu_sell_3 or Redu_sell_3_A or Redu_sell_4 or Redu_sell_4_A or Redu_sell_5 or Redu_sell_5_A ,title="Buy/Sell/Add/Reduce",message="Buy/Sell/Add/Reduce")

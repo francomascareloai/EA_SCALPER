@@ -1,0 +1,1232 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © iCryptoScalper
+//@version=5
+ 
+strategy(title="iCS Backtest Tool", 
+     shorttitle="iCSb Tool",  
+     overlay=true,
+     pyramiding=0, 
+     commission_type=strategy.commission.percent,  
+     commission_value=0.0, 
+     slippage=0, 
+     initial_capital=100000,
+     default_qty_type=strategy.percent_of_equity,
+     default_qty_value=100,
+     calc_on_every_tick=false) 
+ 
+// ------------------------------------------
+// GLOBAL INPUTS
+// ------------------------------------------
+asset = input.string(title="Strategies", defval = " ### Dev Mode ### ", options=[
+     " ### Dev Mode ### ",
+     "     ",
+     " ===== Crypto ===== ", 
+     "    ",
+     "_____ 30 min _____",
+     "BNBUSDTPERP 30m | Binance - v1.1", 
+     "BTCUSDTPERP 30m | Binance - v1.2",
+     "ETHUSDTPERP 30m | Binance - v1.2",
+     "  ", " _____ 15 min _____ ",
+     "ADAUSDTPERP 15m | Binance - v1.4",
+     "ATOMUSDTPERP 15m | Binance - v1.3",
+     "AUDIOUSDTPERP 15m | Binance - v1.1",
+     "AXSUSDTPERP 15m | Binance - v1.5",
+     "BELUSDTPERP 15m | Binance - v1.1" ,
+     "COMPUSDTPERP 15m | Binance - v1.4",
+     "CRVUSDTPERP 15m | Binance - v1.2",
+     "DOTUSDTPERP 15m | Binance - v1.4",
+     "DYDXUSDTPERP 15m | Binance - v1.2", 
+     "EGLDUSDTPERP 15m | Binance - v1.3",
+     "ENJUSDTPERP 15m | Binance - v1.4",
+     "FTMUSDTPERP 15m | Binance - v1.3", 
+     "GRTUSDTPERP 15m | Binance - v1.2",
+     "MANAUSDTPERP 15m | Binance - v1.3",
+     "MATICUSDTPERP 15m | Binance - v1.3",
+     "NEARUSDTPERP 15m | Binance - v1.3",
+     "ONEUSDTPERP 15m | Binance - v1.3", 
+     "RUNEUSDTPERP 15m | Binance - v1.3",
+     "SANDUSDTPERP 15m | Binance - v1.2",
+     "SOLUSDTPERP 15m | Binance - v1.4",
+     "UNFIUSDTPERP 15m | Binance - v1.1",
+     "WAVESUSDTPERP 15m | Binance - v1.1",
+     "XRPUSDTPERP 15m | Binance - v1.4",
+     "YFIUSDTPERP 15m | Binance - v1.3",
+     "   ",
+     " ===== Commodities ===== ",
+     "GOLD 15m (US$/OZ) | CFD TVC - v1.2",
+     "USOIL 15m (WTI CRUDE OIL) | CFD TVC - v1.0"
+     ])
+ 
+ma_choice = input.string(title="MA Choice", defval = "EMA", options=["EMA", "HMA", "RMA", "SMA", "VWAP", "VWMA", "WMA"])
+ma_period = input.int(title='MA Period', defval=300, minval=0, maxval=10000)
+leverage = input.int(title="Leverage", defval=20, minval=1, maxval=125)
+renorm_coeff_comm = input.float(title="Renormalization", defval=1.0, minval=1.0, maxval=20.0)
+
+number_trades_statistics = input.int(title='Number Trades Statistics', defval=25, minval=1, maxval=50, group = "Long/Short Input")
+num_cum1 = input.int(title='Number Trades Cumulative 1', defval=25, minval=1, maxval=49, group = "Cumulative Input")
+num_cum2 = input.int(title='Number Trades Cumulative 2', defval=50, minval=26, maxval=99, group = "Cumulative Input")
+num_cum3 = input.int(title='Number Trades Cumulative 3', defval=75, minval=51, maxval=124, group = "Cumulative Input")
+num_cum4 = input.int(title='Number Trades Cumulative 4', defval=100, minval=76, maxval=150, group = "Cumulative Input")
+
+
+// ------------------------------------------
+// LONG INPUTS
+// ------------------------------------------
+std_deviation_period_long = input.int(title='Stdev Period', defval=14, minval=1, maxval=1000, group="Long")
+std_deviation_coefficient_long = input.float(title='Stdev Coeff', defval=0.5, minval=0, maxval=100, group="Long")
+atr_period_long = input.int(title='ATR Period', defval=14, minval=1, maxval=1000, group="Long")
+atr_parameter_long = input.float(title='ATR Coeff', defval=0.5, minval=0.0, maxval=10, group = "Long")
+long_entry_ma_distance_perc = input.float(title='MA Delta %', defval=0.5, minval=0.0, maxval=100.0, group="Long")
+long_stop_price_perc = input.float(title="Stop Loss %", defval=4.5, minval=0, maxval=100, group="Long")
+ 
+// ------------------------------------------
+// SHORT INPUTS
+// ------------------------------------------
+std_deviation_period_short = input.int(title='Stdev Period', defval=14, minval=1, maxval=1000, group="Short")
+std_deviation_coefficient_short = input.float(title='Stdev Coeff', defval=0.5, minval=0, maxval=100, group="Short")
+atr_period_short = input.int(title='ATR Period', defval=14, minval=0, maxval=1000, group="Short")
+atr_parameter_short = input.float(title='ATR Coeff', defval=0.5, minval=0.0, maxval=10, group = "Short")
+short_entry_ma_distance_perc = input.float(title='MA Delta %', defval=0.5, minval=0.0, maxval=100.0, group="Short")
+short_stop_price_perc = input.float(title="Stop Loss %", defval=4.5, minval=0, maxval=100, group="Short")
+
+table_txt_bg_color = input.color(color.new(color.gray, 80), "Text Background Color", inline = "2", group = "Table Parameters")
+table_txt_color = input.color( color.new(color.white, 25), "Text Color", inline = "2", group = "Table Parameters")
+table_txt_size = input.string("auto", "Text Size", inline = "2", options = ["auto", "tiny", "small", "normal", "large", "huge"], group = "Table Parameters")
+
+ 
+// ---------------------------------------------------
+// CRYPTO
+// ---------------------------------------------------
+ 
+if asset == "ADAUSDTPERP 15m | Binance - v1.4" 
+    ma_period := 1
+    ma_choice := "VWAP"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 0.8
+    atr_period_long := 14
+    atr_parameter_long := 1.4
+    long_entry_ma_distance_perc := 1.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.8
+    atr_period_short := 14
+    atr_parameter_short := 1.4
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+if asset == "ATOMUSDTPERP 15m | Binance - v1.3" 
+    ma_period := 350
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1
+    atr_period_long := 14
+    atr_parameter_long := 1.3
+    long_entry_ma_distance_perc := 1.1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 2
+    atr_period_short := 14
+    atr_parameter_short := 1.7
+    short_entry_ma_distance_perc := 1.7
+    short_stop_price_perc := 4.5
+ 
+if asset == "AUDIOUSDTPERP 15m | Binance - v1.1" 
+    ma_period := 200
+    ma_choice := "SMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.2
+    atr_period_long := 14
+    atr_parameter_long := 1.1
+    long_entry_ma_distance_perc := 1.1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 7
+    std_deviation_coefficient_short := 1
+    atr_period_short := 14
+    atr_parameter_short := 1
+    short_entry_ma_distance_perc := 1
+    short_stop_price_perc := 4.5
+ 
+if asset == "AXSUSDTPERP 15m | Binance - v1.5"  
+    ma_period := 350
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 7
+    std_deviation_coefficient_long := 0.8
+    atr_period_long := 7
+    atr_parameter_long := 1.3
+    long_entry_ma_distance_perc := 1.3
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 8
+    std_deviation_coefficient_short := 1
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+if asset == "BELUSDTPERP 15m | Binance - v1.1" 
+	ma_period := 1
+    ma_choice := "VWAP"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 0.8
+    atr_period_long := 14
+    atr_parameter_long := 1.6
+    long_entry_ma_distance_perc := 1.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.8
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.4
+    short_stop_price_perc := 4.5
+ 
+if asset == "BNBUSDTPERP 30m | Binance - v1.1" 
+    ma_period := 230
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.3
+    atr_period_long := 9
+    atr_parameter_long := 1
+    long_entry_ma_distance_perc := 1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 13
+    std_deviation_coefficient_short := 1.3
+    atr_period_short := 9
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.3
+    short_stop_price_perc := 4.5
+ 
+if asset == "BTCUSDTPERP 30m | Binance - v1.2" 
+    ma_period := 300
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 17
+    std_deviation_coefficient_long := 1.6
+    atr_period_long := 11
+    atr_parameter_long := 2
+    long_entry_ma_distance_perc := 2.1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 12
+    std_deviation_coefficient_short := 1.2
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1
+    short_stop_price_perc := 4.5
+ 
+if asset == "COMPUSDTPERP 15m | Binance - v1.4" 
+    ma_period := 400
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.5
+    atr_period_long := 10
+    atr_parameter_long := 1.5
+    long_entry_ma_distance_perc := 1.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 10
+    std_deviation_coefficient_short := 1.7
+    atr_period_short := 14
+    atr_parameter_short := 1.7
+    short_entry_ma_distance_perc := 1.3
+    short_stop_price_perc := 4.5
+ 
+if asset == "CRVUSDTPERP 15m | Binance - v1.2" 
+    ma_period := 300
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 9
+    std_deviation_coefficient_long := 0.9
+    atr_period_long := 7
+    atr_parameter_long := 1
+    long_entry_ma_distance_perc := 0.7
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 1
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+if asset == "DOTUSDTPERP 15m | Binance - v1.4" 
+    ma_period := 400
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.2
+    atr_period_long := 14
+    atr_parameter_long := 1
+    long_entry_ma_distance_perc := 1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 10
+    std_deviation_coefficient_short := 1.7
+    atr_period_short := 14
+    atr_parameter_short := 1.7
+    short_entry_ma_distance_perc := 1.3
+    short_stop_price_perc := 4.5
+ 
+if asset == "DYDXUSDTPERP 15m | Binance - v1.2" 
+    ma_period := 400
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 13
+    std_deviation_coefficient_long := 0.7
+    atr_period_long := 14
+    atr_parameter_long := 0.7
+    long_entry_ma_distance_perc := 0.6
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 1
+    atr_period_short := 14
+    atr_parameter_short := 1.1
+    short_entry_ma_distance_perc := 1
+    short_stop_price_perc := 4.5
+ 
+if asset == "EGLDUSDTPERP 15m | Binance - v1.3" 
+    ma_period := 120
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1
+    atr_period_long := 14
+    atr_parameter_long := 1.6
+    long_entry_ma_distance_perc := 1.6
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 2
+    atr_period_short := 14
+    atr_parameter_short := 2.4
+    short_entry_ma_distance_perc := 1.9
+    short_stop_price_perc := 4.5
+ 
+if asset == "ENJUSDTPERP 15m | Binance - v1.4" 
+    ma_period := 300
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 7
+    std_deviation_coefficient_long := 0.5
+    atr_period_long := 14
+    atr_parameter_long := 1
+    long_entry_ma_distance_perc := 1.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.5
+    atr_period_short := 10
+    atr_parameter_short := 0.9
+    short_entry_ma_distance_perc := 0.9
+    short_stop_price_perc := 4.5
+ 
+if asset == "ETHUSDTPERP 30m | Binance - v1.2" 
+    ma_period := 300
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1
+    atr_period_long := 14
+    atr_parameter_long := 1
+    long_entry_ma_distance_perc := 1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 11
+    std_deviation_coefficient_short := 0.5
+    atr_period_short := 14
+    atr_parameter_short := 1.1
+    short_entry_ma_distance_perc := 1.4
+    short_stop_price_perc := 4.5
+ 
+if asset == "FTMUSDTPERP 15m | Binance - v1.3" 
+    ma_period := 300
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 11
+    std_deviation_coefficient_long := 0.8
+    atr_period_long := 7
+    atr_parameter_long := 1.1
+    long_entry_ma_distance_perc := 1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.4
+    atr_period_short := 13
+    atr_parameter_short := 1.1
+    short_entry_ma_distance_perc := 1.3
+    short_stop_price_perc := 4.5
+ 
+if asset == "GRTUSDTPERP 15m | Binance - v1.2" 
+    ma_period := 200
+    ma_choice := "SMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 0.4
+    atr_period_long := 14
+    atr_parameter_long := 2.8
+    long_entry_ma_distance_perc := 2.6
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 1.3
+    atr_period_short := 14
+    atr_parameter_short := 1.3
+    short_entry_ma_distance_perc := 1
+    short_stop_price_perc := 4.5
+ 
+if asset == "MANAUSDTPERP 15m | Binance - v1.3"
+	ma_period := 300
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1
+    atr_period_long := 14
+    atr_parameter_long := 1.3
+    long_entry_ma_distance_perc := 0.8
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.9
+    atr_period_short := 14
+    atr_parameter_short := 1.2
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+if asset == "MATICUSDTPERP 15m | Binance - v1.3" 
+    ma_period := 300
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 12
+    std_deviation_coefficient_long := 0.5
+    atr_period_long := 10
+    atr_parameter_long := 0.6
+    long_entry_ma_distance_perc := 0.9
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 13
+    std_deviation_coefficient_short := 1.3
+    atr_period_short := 11
+    atr_parameter_short := 1.2
+    short_entry_ma_distance_perc := 1
+    short_stop_price_perc := 4.5
+ 
+if asset == "NEARUSDTPERP 15m | Binance - v1.3" 
+    ma_period := 1
+    ma_choice := "VWAP"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 0.8
+    atr_period_long := 14
+    atr_parameter_long := 1.6
+    long_entry_ma_distance_perc := 1.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 10
+    std_deviation_coefficient_short := 1.2
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+if asset == "ONEUSDTPERP 15m | Binance - v1.3" 
+    ma_period := 1
+    ma_choice := "VWAP"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 0.8
+    atr_period_long := 14
+    atr_parameter_long := 1.6
+    long_entry_ma_distance_perc := 1.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 10
+    std_deviation_coefficient_short := 0.8
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+if asset == "RUNEUSDTPERP 15m | Binance - v1.3" 
+    ma_period := 1
+    ma_choice := "VWAP"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 0.8
+    atr_period_long := 14
+    atr_parameter_long := 1.5
+    long_entry_ma_distance_perc := 1.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.8
+    atr_period_short := 14
+    atr_parameter_short := 1.2
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+
+if asset == "SANDUSDTPERP 15m | Binance - v1.2" 
+    ma_period := 250
+    ma_choice := "VWMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.1
+    atr_period_long := 14
+    atr_parameter_long := 1.2
+    long_entry_ma_distance_perc := 1.2
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 1
+    atr_period_short := 14
+    atr_parameter_short := 1.1
+    short_entry_ma_distance_perc := 1
+    short_stop_price_perc := 4.5    
+ 
+if asset == "SOLUSDTPERP 15m | Binance - v1.4" 
+    ma_period := 350
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 11
+    std_deviation_coefficient_long := 1
+    atr_period_long := 14
+    atr_parameter_long := 1.3
+    long_entry_ma_distance_perc := 1.4
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 12
+    std_deviation_coefficient_short := 1
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.1
+    short_stop_price_perc := 4.5
+ 
+if asset == "UNFIUSDTPERP 15m | Binance - v1.1" 
+    ma_period := 400
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.8
+    atr_period_long := 8
+    atr_parameter_long := 1.4
+    long_entry_ma_distance_perc := 1.1
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 11
+    std_deviation_coefficient_short := 1
+    atr_period_short := 7
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.1
+    short_stop_price_perc := 4.5
+ 
+if asset == "WAVESUSDTPERP 15m | Binance - v1.1"
+	ma_period := 380
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 7
+    std_deviation_coefficient_long := 1.2
+    atr_period_long := 14
+    atr_parameter_long := 1.4
+    long_entry_ma_distance_perc := 1.2
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 1.6
+    atr_period_short := 14
+    atr_parameter_short := 1.6
+    short_entry_ma_distance_perc := 1.4
+    short_stop_price_perc := 4.5
+ 
+if asset == "XRPUSDTPERP 15m | Binance - v1.4" 
+    ma_period := 1
+    ma_choice := "VWAP"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.5
+    atr_period_long := 14
+    atr_parameter_long := 1.6
+    long_entry_ma_distance_perc := 1.6
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.8
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+if asset == "YFIUSDTPERP 15m | Binance - v1.3" 
+	ma_period := 1
+    ma_choice := "VWAP"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 1.1
+    atr_period_long := 11
+    atr_parameter_long := 1.5
+    long_entry_ma_distance_perc := 1.6
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0.8
+    atr_period_short := 14
+    atr_parameter_short := 1.5
+    short_entry_ma_distance_perc := 1.5
+    short_stop_price_perc := 4.5
+ 
+ 
+
+
+ 
+// ---------------------------------------------------
+// COMMODITIES
+// ---------------------------------------------------
+ 
+if asset == "GOLD 15m (US$/OZ) | CFD TVC - v1.2" 
+    renorm_coeff_comm := 5
+    ma_period := 300
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 14
+    std_deviation_coefficient_long := 0.2
+    atr_period_long := 14
+    atr_parameter_long := 0.4
+    long_entry_ma_distance_perc := 0.5
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 14
+    std_deviation_coefficient_short := 0
+    atr_period_short := 7
+    atr_parameter_short := 0.4
+    short_entry_ma_distance_perc := 0.6
+    short_stop_price_perc := 4.5
+ 
+if asset == "USOIL 15m (WTI CRUDE OIL) | CFD TVC - v1.0" 
+    renorm_coeff_comm := 1.9
+    ma_period := 270
+    ma_choice := "HMA"
+ 
+    std_deviation_period_long := 10
+    std_deviation_coefficient_long := 1
+    atr_period_long := 7
+    atr_parameter_long := 1.5
+    long_entry_ma_distance_perc := 1.2
+    long_stop_price_perc := 4.5
+ 
+    std_deviation_period_short := 12
+    std_deviation_coefficient_short := 0.5
+    atr_period_short := 12
+    atr_parameter_short := 1.2
+    short_entry_ma_distance_perc := 1.1
+    short_stop_price_perc := 4.5
+ 
+
+
+// ------------------------------------------
+// GLOBAL CALCULATIONS
+// ------------------------------------------
+ma_value = 0.0
+
+if ma_choice == "EMA" 
+    ma_value := ta.ema(close, ma_period) 
+if ma_choice == "HMA" 
+    ma_value := ta.hma(close, ma_period) 
+if ma_choice == "RMA"
+    ma_value := ta.rma(close, ma_period) 
+if ma_choice == "SMA"
+    ma_value := ta.sma(close, ma_period)
+if ma_choice == "VWAP"
+    ma_value := ta.vwap(close) 
+if ma_choice == "VWMA"
+    ma_value := ta.vwma(close, ma_period) 
+if ma_choice == "WMA"
+    ma_value := ta.wma(close, ma_period)
+
+// ------------------------------------------
+// LONG CALCULATIONS
+// ------------------------------------------
+stdev_long = ta.stdev(close, std_deviation_period_long)
+stdev_long_value = stdev_long * std_deviation_coefficient_long
+atr_long_value = ta.atr(atr_period_long) * atr_parameter_long
+long_entry_ma_value_trigger = ma_value * (1 + (long_entry_ma_distance_perc / 100)) + atr_long_value + stdev_long_value
+
+tp1_price_long = strategy.position_avg_price * (1 + 0.005/renorm_coeff_comm)
+tp2_price_long = strategy.position_avg_price * (1 + 0.008/renorm_coeff_comm)
+tp3_price_long = strategy.position_avg_price * (1 + 0.013/renorm_coeff_comm)
+tp4_price_long = strategy.position_avg_price * (1 + 0.021/renorm_coeff_comm)
+tp5_price_long = strategy.position_avg_price * (1 + 0.034/renorm_coeff_comm)
+tp6_price_long = strategy.position_avg_price * (1 + 0.055/renorm_coeff_comm)
+tp7_price_long = strategy.position_avg_price * (1 + 0.089/renorm_coeff_comm)
+tp8_price_long = strategy.position_avg_price * (1 + 0.144/renorm_coeff_comm)
+
+ 
+long_stop_price = strategy.position_avg_price * (1 - (long_stop_price_perc / 100)/renorm_coeff_comm)
+long_stop_trade = close <= long_stop_price
+long_start_trade = close >= long_entry_ma_value_trigger 
+
+
+ 
+// ------------------------------------------
+// SHORT CALCULATIONS
+// ------------------------------------------
+stdev_short = ta.stdev(close, std_deviation_period_short)
+stdev_short_value = stdev_short * std_deviation_coefficient_short
+atr_short_value = ta.atr(atr_period_short) * atr_parameter_short
+short_entry_ma_value_trigger = ma_value * (1 - (short_entry_ma_distance_perc / 100)) - atr_short_value - stdev_short_value
+
+tp1_price_short = strategy.position_avg_price * (1 - 0.005/renorm_coeff_comm)
+tp2_price_short = strategy.position_avg_price * (1 - 0.008/renorm_coeff_comm)
+tp3_price_short = strategy.position_avg_price * (1 - 0.013/renorm_coeff_comm)
+tp4_price_short = strategy.position_avg_price * (1 - 0.021/renorm_coeff_comm)
+tp5_price_short = strategy.position_avg_price * (1 - 0.034/renorm_coeff_comm)
+tp6_price_short = strategy.position_avg_price * (1 - 0.055/renorm_coeff_comm)
+tp7_price_short = strategy.position_avg_price * (1 - 0.089/renorm_coeff_comm)
+tp8_price_short = strategy.position_avg_price * (1 - 0.144/renorm_coeff_comm)
+ 
+ 
+short_stop_price = strategy.position_avg_price * (1 + (short_stop_price_perc / 100)/renorm_coeff_comm)
+short_stop_trade = close >= short_stop_price
+short_start_trade = close <= short_entry_ma_value_trigger
+
+// ------------------------------------------
+// LONG TRADE
+// ------------------------------------------
+
+var label pre_entry_label_long = na
+var label positionMaxLabel_long = na
+var firstOrderPlaced_long = false
+var ath = high
+var peak_profit_long = 0.0
+var string peak_profit_string_long = na
+
+var drawdown_long = close
+var peak_drawdown_long = 0.0
+
+
+if close >= long_entry_ma_value_trigger * 0.8  
+    strategy.entry("operation_long", strategy.long, stop=long_entry_ma_value_trigger, comment="Long")
+    
+
+if (ta.crossover(strategy.position_size, 0))
+    ath := high
+    peak_profit_long := (((ath - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage 
+    peak_profit_string_long := str.tostring(math.round(peak_profit_long, 2))
+    positionMaxLabel_long := label.new(bar_index , ath, text ="Maximum Profit " + peak_profit_string_long + "%", textcolor = color.white, color = color.rgb(70, 130, 255, 30), style = label.style_label_down)
+    firstOrderPlaced_long := true
+    
+    drawdown_long := close
+    peak_drawdown_long := (((drawdown_long - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+
+else if strategy.position_size > 0
+    if (ath < high)
+        ath := high
+        peak_profit_long := (((ath - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage // The last value is the leverage
+        peak_profit_string_long := str.tostring(math.round(peak_profit_long, 2))
+        if (firstOrderPlaced_long)
+            label.set_x(positionMaxLabel_long, bar_index)
+            label.set_y(positionMaxLabel_long, ath)
+            label.set_text(positionMaxLabel_long, "Maximum Profit " + peak_profit_string_long + "%")
+        
+    if drawdown_long > low
+        drawdown_long := low
+        peak_drawdown_long := (((drawdown_long - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+        
+    strategy.exit("operation_long", stop = long_stop_price, comment = "Long Closed")
+
+
+// ------------------------------------------
+// SHORT TRADE
+// ------------------------------------------
+
+var label pre_entry_label_short = na
+var label positionMaxLabel_short = na
+var firstOrderPlaced_short = false
+var atl = low
+var peak_profit_short = 0.0
+var string peak_profit_string_short = na
+
+var drawdown_short = close
+var peak_drawdown_short = 0.0
+
+
+if close <= short_entry_ma_value_trigger * 1.2
+    strategy.entry("operation_short", strategy.short, stop=short_entry_ma_value_trigger, comment="Short")
+
+if (ta.crossunder(strategy.position_size, 0))
+    atl := low
+    peak_profit_short := -(((atl - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+    peak_profit_string_short := str.tostring(math.round(peak_profit_short, 2))
+    positionMaxLabel_short := label.new(bar_index , atl, text ="Maximum Profit " + peak_profit_string_short + "%", textcolor = color.white, color = color.rgb(70, 130, 255, 30), style = label.style_label_up)
+    firstOrderPlaced_short := true
+    
+    drawdown_short := close
+    peak_drawdown_short := -(((drawdown_short - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+    
+else if strategy.position_size < 0
+    if (atl > low)
+        atl := low
+        peak_profit_short := -(((atl - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+        peak_profit_string_short := str.tostring(math.round(peak_profit_short, 2))
+        if (firstOrderPlaced_short)
+            label.set_x(positionMaxLabel_short, bar_index)
+            label.set_y(positionMaxLabel_short, atl)
+            label.set_text(positionMaxLabel_short, "Maximum Profit " + peak_profit_string_short + "%")
+        
+    if drawdown_short < high
+        drawdown_short := high
+        peak_drawdown_short := -(((drawdown_short - strategy.position_avg_price) / strategy.position_avg_price) * 100) * leverage
+
+    strategy.exit("operation_short", stop = short_stop_price, comment = "Short Closed")
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+ 
+// ------------------------------------------
+// PLOT
+// ------------------------------------------
+// Plot Entry Short/Long Points
+plot((barstate.islast or barstate.islastconfirmedhistory) and strategy.position_size >= 0 ? short_entry_ma_value_trigger : na, title = "Next Entry Short",  style=plot.style_cross, color=color.red, linewidth=6, offset=1, show_last=1) // plot_0 --> 1° Plot
+plot((barstate.islast or barstate.islastconfirmedhistory) and strategy.position_size <= 0 ? long_entry_ma_value_trigger : na, title = "Next Entry Long", style=plot.style_cross, color=color.green, linewidth=6, offset=1, show_last=1) 
+ 
+// Plot EMA
+//plot(ma_value, color=color.blue)
+ 
+// Plot Relevant Levels
+color_stop_loss_price = strategy.position_size < 0 ? short_stop_price : long_stop_price
+plot(color_stop_loss_price, style=plot.style_circles, color=color.red, linewidth=1)
+
+plot(strategy.position_size > 0 ? tp1_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size > 0 ? tp2_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size > 0 ? tp3_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size > 0 ? tp4_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1)
+plot(strategy.position_size > 0 ? tp5_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size > 0 ? tp6_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size > 0 ? tp7_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size > 0 ? tp8_price_long : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+
+plot(strategy.position_size < 0 ? tp1_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size < 0 ? tp2_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size < 0 ? tp3_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size < 0 ? tp4_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1)
+plot(strategy.position_size < 0 ? tp5_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size < 0 ? tp6_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size < 0 ? tp7_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1) 
+plot(strategy.position_size < 0 ? tp8_price_short : na, style=plot.style_circles, color=color.new(color.green, 40), linewidth=1)
+
+//plot(short_stop_price == 999999.99 ? na: short_stop_price, style=plot.style_circles, color=color.blue, linewidth=1)
+//plot(long_stop_price == 0 ? na : long_stop_price, style=plot.style_circles, color=color.blue, linewidth=1)
+plot(strategy.position_avg_price, style=plot.style_circles, color=color.yellow, linewidth=1)
+ 
+// Background Color 
+backgroundColor = strategy.position_size < 0 ? color.new(color.red, 85) : strategy.position_size > 0 ? color.new(color.green, 85) : na
+bgcolor(backgroundColor)
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// STATISTICS
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// ------------------------------------------------------------------
+// Cumulative (Long AND Short)
+// ------------------------------------------------------------------
+
+// Function for defining the Peak Profit Percentage of a specific past closed trade
+tradePercentPossible(trade_num) =>
+    endP = strategy.closedtrades.entry_price(trade_num) * math.abs(strategy.closedtrades.size(trade_num))
+    prof = strategy.closedtrades.max_runup(trade_num)
+    possibleInPercent = prof / endP *100
+
+
+// Function for defining the Peak Drawdown Percentage of a specific past closed trade
+drawdownPercentPossible(trade_num) =>
+    money = strategy.closedtrades.entry_price(trade_num) * math.abs(strategy.closedtrades.size(trade_num))
+    dd = strategy.closedtrades.max_drawdown(trade_num)
+    dd_possibleInPercent = dd / money *100
+
+
+// Function for defining the average Peak Profit of the last N trades
+average_max_profit(N, leverage) =>
+    start = strategy.closedtrades
+    float sum_peak = 0.0
+    float result = 0.0
+    
+    if barstate.islast or barstate.islastconfirmedhistory
+        for i = (start - 1) to (start - N)
+            sum_peak := sum_peak + tradePercentPossible(i)
+        result := sum_peak * leverage / N
+            
+    math.round(result,2)
+
+
+// Function for defining the average Peak Drawdown of the last N trades
+average_max_drawdown(N, leverage) =>
+    start = strategy.closedtrades
+    float sum_peak = 0.0
+    float result = 0.0
+    
+    if barstate.islast or barstate.islastconfirmedhistory
+        for i = (start - 1) to (start - N)
+            sum_peak := sum_peak + drawdownPercentPossible(i)
+        result := sum_peak * leverage / N
+            
+    math.round(result,2)
+    
+
+// Function which gives the % of times a certain Peak Profit Percentage has been achieved for the last N trades
+tpWinRate(_numTrade, _prof)=>
+    float perc  = 0
+    int count   = 0
+    start       = strategy.closedtrades
+    if barstate.islast or barstate.islastconfirmedhistory
+        for i = start - 1 to (start - _numTrade)
+            prof    = tradePercentPossible(i)
+            if prof >= _prof 
+                count += 1
+            perc := count*100 / _numTrade 
+    perc
+
+
+
+    
+
+// ------------------------------------------------------------------
+// Specific (Long OR Short)
+// ------------------------------------------------------------------
+
+// Function computing the winrate for a specific %TP and a specific kind of position (L or S)
+tp_winrate(type, tp_perc, num_tr) =>
+    start = strategy.closedtrades
+    float perc  = 0
+    int count   = 0
+    int short_counted = 0
+    int long_counted = 0
+    
+    if barstate.islast or barstate.islastconfirmedhistory
+        for i = start - 1 to 0
+            if type == "short" and strategy.closedtrades.size(i) < 0 and short_counted < num_tr 
+                prof = tradePercentPossible(i)
+                short_counted += 1
+                if prof >= tp_perc 
+                    count += 1
+                
+                perc := count*100 / num_tr 
+            
+            if type == "long" and strategy.closedtrades.size(i) > 0 and long_counted < num_tr
+                prof = tradePercentPossible(i)
+                long_counted += 1
+                if prof >= tp_perc 
+                    count += 1
+                
+                perc := count*100 / num_tr
+    math.round(perc, 0)
+
+
+// Function computing the max profit for N specific positions (L or S)
+max_profit(type, num_tr, leverage) =>
+    start = strategy.closedtrades
+    float sum_peak = 0.0
+    float result = 0.0
+    int short_counted = 0
+    int long_counted = 0
+    
+    if barstate.islast or barstate.islastconfirmedhistory
+        for i = start - 1 to 0
+            if type == "short" and strategy.closedtrades.size(i) < 0 and short_counted < num_tr
+                sum_peak := sum_peak + tradePercentPossible(i)
+                short_counted += 1
+            
+            if type == "long" and strategy.closedtrades.size(i) > 0 and long_counted < num_tr
+                sum_peak := sum_peak + tradePercentPossible(i)
+                long_counted += 1
+            
+        result := sum_peak * leverage / num_tr
+            
+    math.round(result,2)        
+ 
+
+// Function computing the max drawdown for N specific positions (L or S)
+max_drawdown(type, num_tr, leverage) =>
+    start = strategy.closedtrades
+    float sum_peak = 0.0
+    float result = 0.0
+    int short_counted = 0
+    int long_counted = 0
+    
+    if barstate.islast or barstate.islastconfirmedhistory
+        for i = start - 1 to 0
+            if type == "short" and strategy.closedtrades.size(i) < 0 and short_counted < num_tr
+                sum_peak := sum_peak + drawdownPercentPossible(i)
+                short_counted += 1
+            
+            if type == "long" and strategy.closedtrades.size(i) > 0 and long_counted < num_tr
+                sum_peak := sum_peak + drawdownPercentPossible(i)
+                long_counted += 1
+            
+        result := sum_peak * leverage / num_tr
+            
+    math.round(result,2)  
+ 
+
+// ------------------------------------------------------------------
+// Cumulative Results
+// ------------------------------------------------------------------
+
+N100=average_max_profit(num_cum4, leverage)
+N75=average_max_profit(num_cum3, leverage)
+N50=average_max_profit(num_cum2, leverage)
+N25=average_max_profit(num_cum1, leverage)
+
+D100=average_max_drawdown(num_cum4, leverage)
+D75=average_max_drawdown(num_cum3, leverage)
+D50=average_max_drawdown(num_cum2, leverage)
+D25=average_max_drawdown(num_cum1, leverage)
+
+tp1WR_100 = tpWinRate(num_cum4, 0.5/renorm_coeff_comm)
+tp2WR_100= tpWinRate(num_cum4, 0.8/renorm_coeff_comm)
+tp3WR_100 = tpWinRate(num_cum4, 1.3/renorm_coeff_comm)
+tp4WR_100= tpWinRate(num_cum4, 2.1/renorm_coeff_comm)
+tp5WR_100 = tpWinRate(num_cum4, 3.4/renorm_coeff_comm)
+tp6WR_100= tpWinRate(num_cum4, 5.5/renorm_coeff_comm)
+tp7WR_100 = tpWinRate(num_cum4, 8.9/renorm_coeff_comm)
+tp8WR_100= tpWinRate(num_cum4, 14.4/renorm_coeff_comm)
+
+tp1WR_75 = tpWinRate(num_cum3, 0.5/renorm_coeff_comm)
+tp2WR_75= tpWinRate(num_cum3, 0.8/renorm_coeff_comm)
+tp3WR_75 = tpWinRate(num_cum3, 1.3/renorm_coeff_comm)
+tp4WR_75= tpWinRate(num_cum3, 2.1/renorm_coeff_comm)
+tp5WR_75 = tpWinRate(num_cum3, 3.4/renorm_coeff_comm)
+tp6WR_75= tpWinRate(num_cum3, 5.5/renorm_coeff_comm)
+tp7WR_75 = tpWinRate(num_cum3, 8.9/renorm_coeff_comm)
+tp8WR_75= tpWinRate(num_cum3, 14.4/renorm_coeff_comm)
+
+tp1WR_50 = tpWinRate(num_cum2, 0.5/renorm_coeff_comm)
+tp2WR_50= tpWinRate(num_cum2, 0.8/renorm_coeff_comm)
+tp3WR_50 = tpWinRate(num_cum2, 1.3/renorm_coeff_comm)
+tp4WR_50= tpWinRate(num_cum2, 2.1/renorm_coeff_comm)
+tp5WR_50 = tpWinRate(num_cum2, 3.4/renorm_coeff_comm)
+tp6WR_50= tpWinRate(num_cum2, 5.5/renorm_coeff_comm)
+tp7WR_50 = tpWinRate(num_cum2, 8.9/renorm_coeff_comm)
+tp8WR_50= tpWinRate(num_cum2, 14.4/renorm_coeff_comm)
+
+tp1WR_25 = tpWinRate(num_cum1, 0.5/renorm_coeff_comm)
+tp2WR_25= tpWinRate(num_cum1, 0.8/renorm_coeff_comm)
+tp3WR_25 = tpWinRate(num_cum1, 1.3/renorm_coeff_comm)
+tp4WR_25= tpWinRate(num_cum1, 2.1/renorm_coeff_comm)
+tp5WR_25 = tpWinRate(num_cum1, 3.4/renorm_coeff_comm)
+tp6WR_25= tpWinRate(num_cum1, 5.5/renorm_coeff_comm)
+tp7WR_25 = tpWinRate(num_cum1, 8.9/renorm_coeff_comm)
+tp8WR_25= tpWinRate(num_cum1, 14.4/renorm_coeff_comm)
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------------
+// TABLE LONG vs SHORT
+// ------------------------------------------------------------------
+
+stats_table  = table.new(position.middle_right, 4, 20, border_width=1)
+ 
+
+// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+table.cell(stats_table, 0, 5, text="PROBABILITY TABLES" + "\n" + "(Last " + str.tostring(number_trades_statistics) + " Trades Each)", 
+ width=10, height=7, text_valign=text.align_center, text_halign=text.align_center, bgcolor=color.new(#BCBCBC, 80), text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 1, 5, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 2, 5, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 3, 5, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.merge_cells(stats_table, 0,5,3,5)
+
+// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+table.cell(stats_table, 0, 6, text="LONG", width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=color.new(#6ECE44, 80), text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 1, 6, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 2, 6, text="SHORT", width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=color.new(#E06666, 80), text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 3, 6, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.merge_cells(stats_table, 0,6,1,6)
+table.merge_cells(stats_table, 2,6,3,6)
+
+
+// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Long/Short Probabilities
+// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+table.cell(stats_table, 0, 7, text=
+     "TP 1: " + str.tostring(tp_winrate("long", 0.5/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 2: " + str.tostring(tp_winrate("long", 0.8/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 3: " + str.tostring(tp_winrate("long", 1.3/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 4: " + str.tostring(tp_winrate("long", 2.1/renorm_coeff_comm, number_trades_statistics)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 1, 7, text=
+     "TP 5: " + str.tostring(tp_winrate("long", 3.4/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 6: " + str.tostring(tp_winrate("long", 5.5/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 7: " + str.tostring(tp_winrate("long", 8.9/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 8: " + str.tostring(tp_winrate("long", 14.4/renorm_coeff_comm, number_trades_statistics)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 2, 7, text=
+     "TP 1: " + str.tostring(tp_winrate("short", 0.5/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 2: " + str.tostring(tp_winrate("short", 0.8/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 3: " + str.tostring(tp_winrate("short", 1.3/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 4: " + str.tostring(tp_winrate("short", 2.1/renorm_coeff_comm, number_trades_statistics)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 3, 7, text=
+     "TP 5: " + str.tostring(tp_winrate("short", 3.4/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 6: " + str.tostring(tp_winrate("short", 5.5/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 7: " + str.tostring(tp_winrate("short", 8.9/renorm_coeff_comm, number_trades_statistics)) +  "%" + "\n" +
+     "TP 8: " + str.tostring(tp_winrate("short", 14.4/renorm_coeff_comm, number_trades_statistics)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 0, 8, text=
+     "Avg Max Profit: " + str.tostring(max_profit("long", number_trades_statistics, leverage)) + "%" + "\n" + 
+     "Avg Drawdown: " + str.tostring(-max_drawdown("long", number_trades_statistics, leverage)) + "%" + "\n" + 
+     "Avg R/R Factor: " + str.tostring(math.round(max_profit("long", number_trades_statistics, leverage)/max_drawdown("long", number_trades_statistics, leverage),2)), 
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 1, 8, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 2, 8, text=
+     "Avg Max Profit: " + str.tostring(max_profit("short", number_trades_statistics, leverage)) + "%" + "\n" + 
+     "Avg Drawdown: " + str.tostring(-max_drawdown("short", number_trades_statistics, leverage)) + "%" + "\n" + 
+     "Avg R/R Factor: " + str.tostring(math.round(max_profit("short", number_trades_statistics, leverage)/max_drawdown("short", number_trades_statistics, leverage),2)), 
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 3, 8, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.merge_cells(stats_table, 0,8,1,8)
+table.merge_cells(stats_table, 2,8,3,8)
+
+
+
+// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+table.cell(stats_table, 0, 10, text="CUMULATIVE RESULTS", width=10, height=7, text_valign=text.align_center, text_halign=text.align_center, bgcolor=color.new(#BCBCBC, 80), text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 1, 10, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 2, 10, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 3, 10, text="", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.merge_cells(stats_table, 0,10,3,10)
+
+
+// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Cumulative Probabilities
+// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+table.cell(stats_table, 0, 12, text=str.tostring(num_cum4) + " TRADES", width=10, height=4, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 1, 12, text=str.tostring(num_cum3) + " TRADES", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 2, 12, text=str.tostring(num_cum2) + " TRADES", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+table.cell(stats_table, 3, 12, text=str.tostring(num_cum1) + " TRADES", width=10, height=5, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 0, 13, text=
+     "TP 1: " + str.tostring(math.round(tp1WR_100,0)) +  "%" + "\n" +
+     "TP 2: " + str.tostring(math.round(tp2WR_100,0)) +  "%" + "\n" +
+     "TP 3: " + str.tostring(math.round(tp3WR_100,0)) +  "%" + "\n" +
+     "TP 4: " + str.tostring(math.round(tp4WR_100,0)) +  "%" + "\n" +
+     "TP 5: " + str.tostring(math.round(tp5WR_100,0)) +  "%" + "\n" +
+     "TP 6: " + str.tostring(math.round(tp6WR_100,0)) +  "%" + "\n" +
+     "TP 7: " + str.tostring(math.round(tp7WR_100,0)) +  "%" + "\n" +
+     "TP 8: " + str.tostring(math.round(tp8WR_100,0)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 1, 13, text=
+     "TP 1: " + str.tostring(math.round(tp1WR_75,0)) +  "%" + "\n" +
+     "TP 2: " + str.tostring(math.round(tp2WR_75,0)) +  "%" + "\n" +
+     "TP 3: " + str.tostring(math.round(tp3WR_75,0)) +  "%" + "\n" +
+     "TP 4: " + str.tostring(math.round(tp4WR_75,0)) +  "%" + "\n" +
+     "TP 5: " + str.tostring(math.round(tp5WR_75,0)) +  "%" + "\n" +
+     "TP 6: " + str.tostring(math.round(tp6WR_75,0)) +  "%" + "\n" +
+     "TP 7: " + str.tostring(math.round(tp7WR_75,0)) +  "%" + "\n" +
+     "TP 8: " + str.tostring(math.round(tp8WR_75,0)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 2, 13, text=
+     "TP 1: " + str.tostring(math.round(tp1WR_50,0)) +  "%" + "\n" +
+     "TP 2: " + str.tostring(math.round(tp2WR_50,0)) +  "%" + "\n" +
+     "TP 3: " + str.tostring(math.round(tp3WR_50,0)) +  "%" + "\n" +
+     "TP 4: " + str.tostring(math.round(tp4WR_50,0)) +  "%" + "\n" +
+     "TP 5: " + str.tostring(math.round(tp5WR_50,0)) +  "%" + "\n" +
+     "TP 6: " + str.tostring(math.round(tp6WR_50,0)) +  "%" + "\n" +
+     "TP 7: " + str.tostring(math.round(tp7WR_50,0)) +  "%" + "\n" +
+     "TP 8: " + str.tostring(math.round(tp8WR_50,0)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 3, 13, text=
+     "TP 1: " + str.tostring(math.round(tp1WR_25,0)) +  "%" + "\n" +
+     "TP 2: " + str.tostring(math.round(tp2WR_25,0)) +  "%" + "\n" +
+     "TP 3: " + str.tostring(math.round(tp3WR_25,0)) +  "%" + "\n" +
+     "TP 4: " + str.tostring(math.round(tp4WR_25,0)) +  "%" + "\n" +
+     "TP 5: " + str.tostring(math.round(tp5WR_25,0)) +  "%" + "\n" +
+     "TP 6: " + str.tostring(math.round(tp6WR_25,0)) +  "%" + "\n" +
+     "TP 7: " + str.tostring(math.round(tp7WR_25,0)) +  "%" + "\n" +
+     "TP 8: " + str.tostring(math.round(tp8WR_25,0)) +  "%",
+     width=10, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+
+table.cell(stats_table, 0, 14, text=
+     "Avg Peak: " + str.tostring(math.round(N100, 2)) + "%" + "\n" +
+     "Avg Down: " + str.tostring(-math.round(D100, 2)) + "%", 
+ width=10, height=7, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+ 
+table.cell(stats_table, 1, 14, text=
+     "Avg Peak: " + str.tostring(math.round(N75, 2)) + "%" + "\n" +
+     "Avg Down: " + str.tostring(-math.round(D75, 2)) + "%",
+ width=10, height=7, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+ 
+table.cell(stats_table, 2, 14, text=
+     "Avg Peak: " + str.tostring(math.round(N50, 2)) + "%" + "\n" +
+     "Avg Down: " + str.tostring(-math.round(D50, 2)) + "%",
+ width=10, height=7, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size)
+ 
+table.cell(stats_table, 3, 14, text=
+     "Avg Peak: " + str.tostring(math.round(N25, 2)) + "%" + "\n" +
+     "Avg Down: " + str.tostring(-math.round(D25, 2)) + "%",
+ width=10, height=7, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size) 
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// TEST TABLE
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//test_table  = table.new(position.bottom_right, 1, 1, border_width=1)
+//
+//table.cell(test_table, 0, 0, text=
+//     "Avg DD Long: " + str.tostring(max_drawdown("long", number_trades_statistics, leverage)) + "%" + "\n" +
+//     "Avg DD Short: " + str.tostring(max_drawdown("short", number_trades_statistics, leverage)) + "%",
+// width=10, height=7, text_valign=text.align_center, text_halign=text.align_center, bgcolor=table_txt_bg_color, text_color=table_txt_color, text_size=table_txt_size) 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

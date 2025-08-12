@@ -1,0 +1,499 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator(title='Brahmos', shorttitle='Brahmos', overlay=false)
+swa = input(false, title='AROON')
+length = input.int(14, minval=1)
+upper = 100 * (ta.highestbars(high, length + 1) + length) / length
+lower = 100 * (ta.lowestbars(low, length + 1) + length) / length
+midp = 0
+oscillator = upper - lower
+osc = plot(swa ? oscillator : na, color=color.new(color.red, 0))
+mp = plot(swa ? midp : na)
+top = plot(swa ? 85 : na)
+bottom = plot(swa ? -85 : na)
+co = oscillator >= 95 and oscillator[1] >= oscillator ? color.red : oscillator <= -88 ? color.green : na
+bgcolor(swa ? co : na, transp=70)
+fill(osc, mp, transp=90)
+fill(top, bottom, transp=90)
+//rsi
+swr = input(true, title='RSI')
+src = close
+len = input.int(50, minval=1, title='Length RSI')
+srs = input.int(50, minval=1, title='Length sma RSI')
+up = ta.rma(math.max(ta.change(src), 0), len)
+down = ta.rma(-math.min(ta.change(src), 0), len)
+rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)
+mr = ta.sma(rsi, srs)
+plot(swr ? rsi : na, title='RSI', color=color.new(color.purple, 0))
+plot(swr ? mr : na, title='sma RSI', color=color.new(color.red, 0))
+//macd
+swm = input(false, title='MACD')
+source = close
+fastLength = input.int(12, minval=1)
+slowLength = input.int(26, minval=1)
+signalLength = input.int(9, minval=1)
+fastMA = ta.ema(source, fastLength)
+slowMA = ta.ema(source, slowLength)
+macd = fastMA - slowMA
+signal = ta.ema(macd, signalLength)
+hist = macd - signal
+plot(swm ? hist : na, color=color.new(color.red, 0), style=plot.style_histogram)
+plot(swm ? macd : na, color=color.new(color.blue, 0))
+plot(swm ? signal : na, color=color.new(color.orange, 0))
+//stoc
+sws = input(false, title='STOCHASTIC')
+periodK = input.int(14, title='K', minval=1)
+periodD = input.int(3, title='D', minval=1)
+smoothK = input.int(3, title='Smooth', minval=1)
+k = ta.sma(ta.stoch(close, high, low, periodK), smoothK)
+d = ta.sma(k, periodD)
+plot(sws ? k : na, title='%K', color=color.new(color.blue, 0))
+plot(sws ? d : na, title='%D', color=color.new(color.orange, 0))
+h0 = plot(sws or swr ? 80 : na)
+h1 = plot(sws or swr ? 20 : na)
+fill(h0, h1, color=color.new(color.purple, 75))
+//ADX
+swx = input(false, title='ADX DI')
+
+lenx = input.int(14, minval=1, title='DI Length')
+lensig = input.int(14, title='ADX Smoothing', minval=1, maxval=50)
+th = input(title='threshold', defval=25)
+
+upx = ta.change(high)
+downx = -ta.change(low)
+plusDM = na(upx) ? na : upx > downx and upx > 0 ? upx : 0
+minusDM = na(downx) ? na : downx > upx and downx > 0 ? downx : 0
+trur = ta.rma(ta.tr, lenx)
+plus = fixnan(100 * ta.rma(plusDM, lenx) / trur)
+minus = fixnan(100 * ta.rma(minusDM, lenx) / trur)
+sum = plus + minus
+adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
+
+plot(swx ? plus : na, color=color.new(color.blue, 0), title='+DI')
+plot(swx ? minus : na, color=color.new(color.orange, 0), title='-DI')
+plot(swx ? adx : na, color=color.new(color.red, 0), title='ADX')
+plot(swx ? th : na, color=color.new(color.black, 0), title='th')
+//Vijayalakshmi
+
+len1 = input(10)
+o = ta.ema(open, len1)
+c = ta.ema(close, len1)
+h = ta.ema(high, len1)
+l = ta.ema(low, len1)
+
+haclose = (o + h + l + c) / 4  // [smoothing]
+var float haopen = (o + c) / 2
+haopen := (haopen + haclose) / 2
+hahigh = math.max(h, math.max(haopen, haclose))
+halow = math.min(l, math.min(haopen, haclose))
+
+len2 = input(10)
+o2 = ta.ema(haopen, len2)
+c2 = ta.ema(haclose, len2)
+h2 = ta.ema(hahigh, len2)
+l2 = ta.ema(halow, len2)
+
+col = o2 > c2 ? color.red : color.lime
+//plotcandle(o2, h2, l2, c2, title='heikin smoothed', color=col, force_overlay = true)
+
+//--------------------Trend colour ema------------------------------------------------// 
+src0 = close
+len0 = input.int(13, minval=1, title='EMA 1')
+ema0 = ta.ema(src0, len0)
+direction = ta.rising(ema0, 2) ? +1 : ta.falling(ema0, 2) ? -1 : 0
+plot_color = direction > 0 ? color.lime : direction < 0 ? color.red : na
+plot(ema0, title='EMA', linewidth=1, color=plot_color, force_overlay = true)
+//--------------------Trend colour ema 2------------------------------------------------//
+src02 = close
+len02 = input.int(21, minval=1, title='EMA 2')
+ema02 = ta.ema(src02, len02)
+direction2 = ta.rising(ema02, 2) ? +1 : ta.falling(ema02, 2) ? -1 : 0
+plot_color2 = direction2 > 0 ? color.lime : direction2 < 0 ? color.red : na
+plot(ema02, title='EMA Signal 2', linewidth=1, color=plot_color2, force_overlay = true)
+//
+//--Modified vyacheslav.shindin-------------------------------------------------//           Signal 1
+//Configured ema signal output
+fast = input.int(5, minval=1, title='Signal Generator')
+slow = input.int(8, minval=1)
+vh1 = ta.ema(ta.highest(math.avg(low, close), fast), 5)
+vl1 = ta.ema(ta.lowest(math.avg(high, close), slow), 8)
+//
+e_ema1 = ta.ema(close, 1)
+e_ema2 = ta.ema(e_ema1, 1)
+e_ema3 = ta.ema(e_ema2, 1)
+tema = 1 * (e_ema1 - e_ema2) + e_ema3
+//
+e_e1 = ta.ema(close, 8)
+e_e2 = ta.ema(e_e1, 5)
+dema = 2 * e_e1 - e_e2
+signal1 = tema > dema ? math.max(vh1, vl1) : math.min(vh1, vl1)
+is_call = tema > dema and signal1 > low and signal1 - signal1[1] > signal1[1] - signal1[2]
+is_put = tema < dema and signal1 < high and signal1[1] - signal1 > signal1[2] - signal1[1]
+plotshape(is_call and direction > 0 ? 1 : na, title='BUY ARROW', color=color.new(color.aqua, 0), text='Buy', style=shape.labelup, location=location.belowbar, force_overlay = true)
+plotshape(is_put and direction < 0 ? -1 : na, title='SELL ARROW', color=color.new(color.red, 0), text='Sell', style=shape.labeldown, force_overlay = true)
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+//@version=5
+
+//indicator(title='Om Namah Shivay+', shorttitle='Om Namah Shivay', overlay=false)
+showpivot = input(defval=false, title='Show CPR')
+showVWAP = input(title='Show VWAP', defval=false)
+showEMA9 = input(title='Show EMA-9', defval=false)
+showEMA20 = input(title='Show EMA-20', defval=false)
+showEMA50 = input(title='Show EMA-50', defval=false)
+showEMA100 = input(title='Show EMA-100', defval=false)
+showEMA200 = input(title='Show EMA-200', defval=false)
+SST = input(true, title='Buy Sell Arrow')
+
+// Long and Short Strategy
+
+[superTrend, dir] = ta.supertrend(3, 10)
+
+// Continuous BUY SELL Signal CONDITIONS
+
+Long = close > ta.ema(close, 21) and close > ta.ema(close, 9) and ta.rsi(close, 14) > 55 and close > ta.vwap and dir == -1 and volume > ta.sma(volume, 300) and close > open
+Short = close < ta.ema(close, 21) and close < ta.ema(close, 9) and ta.rsi(close, 14) < 45 and close < ta.vwap and dir == 1 and volume > ta.sma(volume, 300) and close < open
+
+plotshape(SST and Long ? Long : na, title='Long Strategy', style=shape.triangleup, location=location.belowbar, color=color.new(#4ebb53, 0), size=size.small, force_overlay = true)
+plotshape(SST and Short ? Short : na, title='Short Strategy', style=shape.triangledown, location=location.abovebar, color=color.new(#FF5252, 0), size=size.small, force_overlay = true)
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////// EMA - 5/20/50/100/200 ///////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+EMA9_Len = input.int(9, minval=1, title='EMA9_Length')
+//EMA5_src      = input(close, title="EMA9_Source")
+//EMA5_offset   = input(title="EMA9_Offset", type=input.integer, defval=0, minval=-500, maxval=500)
+EMA9_out = ta.ema(close, EMA9_Len)
+plot(showEMA9 ? EMA9_out : na, title='EMA9', color=color.new(color.green, 0), offset=0, linewidth=2, force_overlay = true)
+
+EMA20_Len = input.int(20, minval=1, title='EMA20_Length')
+//EMA20_src     = input(close, title="EMA20_Source")
+//EMA20_offset  = input(title="EMA20_Offset", type=input.integer, defval=0, minval=-500, maxval=500)
+EMA20_out = ta.ema(close, EMA20_Len)
+plot(showEMA20 ? EMA20_out : na, title='EMA20', color=color.new(color.red, 0), offset=0, linewidth=2, force_overlay = true)
+
+EMA50_Len = input.int(50, minval=1, title='EMA50_Length')
+//EMA50_src     = input(close, title="EMA50_Source")
+//EMA50_offset  = input(title="EMA50_Offset", type=input.integer, defval=0, minval=-500, maxval=500)
+EMA50_out = ta.ema(close, EMA50_Len)
+plot(showEMA50 ? EMA50_out : na, title='EMA50', color=color.new(color.blue, 0), offset=0, linewidth=2, force_overlay = true)
+
+EMA100_Len = input.int(100, minval=1, title='EMA100_Length')
+//EMA100_src     = input(close, title="EMA100_Source")
+//EMA100_offset  = input(title="EMA100_Offset", type=input.integer, defval=0, minval=-500, maxval=500)
+EMA100_out = ta.ema(close, EMA100_Len)
+plot(showEMA100 ? EMA100_out : na, title='EMA100', color=color.new(color.aqua, 0), offset=0, force_overlay = true)
+
+EMA200_Len = input.int(200, minval=1, title='EMA200_Length')
+//EMA200_src     = input(close, title="EMA200_Source")
+//EMA200_offset  = input(title="EMA200_Offset", type=input.integer, defval=0, minval=-500, maxval=500)
+EMA200_out = ta.ema(close, EMA200_Len)
+plot(showEMA200 ? EMA200_out : na, title='EMA200', color=color.new(color.yellow, 0), offset=0, linewidth=2, force_overlay = true)
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////// VWAP /////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//vwaplength    = input(title="VWAP Length", type=input.integer, defval=1)
+//cvwap         = ema(vwap,vwaplength)
+cvwap1 = ta.vwap(hlc3)
+plotvwap = plot(showVWAP ? cvwap1 : na, title='VWAP', color=color.new(color.black, 0), linewidth=2, force_overlay = true)
+[dvwap, dupper, dlower] = ta.vwap(hlc3, timeframe.change('D'), 1)
+
+plot(ta.valuewhen(timeframe.change('D'), dvwap[1], 0), color=color.black, force_overlay = true)
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////// CENTRAL PIVOT RANGE (CPR) //////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+res = input.timeframe(title='Resolution', defval='D')
+res1 = input.timeframe(title='Resolution', defval='W')
+res2 = input.timeframe(title='Resolution', defval='M')
+H = request.security(syminfo.tickerid, res, high[1], barmerge.gaps_off, barmerge.lookahead_on)
+L = request.security(syminfo.tickerid, res, low[1], barmerge.gaps_off, barmerge.lookahead_on)
+C = request.security(syminfo.tickerid, res, close[1], barmerge.gaps_off, barmerge.lookahead_on)
+WH = request.security(syminfo.tickerid, res1, high[1], barmerge.gaps_off, barmerge.lookahead_on)
+WL = request.security(syminfo.tickerid, res1, low[1], barmerge.gaps_off, barmerge.lookahead_on)
+WC = request.security(syminfo.tickerid, res1, close[1], barmerge.gaps_off, barmerge.lookahead_on)
+//MH = request.security(syminfo.tickerid, res2, high[1], barmerge.gaps_off, barmerge.lookahead_on)
+//ML = request.security(syminfo.tickerid, res2, low[1], barmerge.gaps_off, barmerge.lookahead_on)
+//MC = request.security(syminfo.tickerid, res2, close[1], barmerge.gaps_off, barmerge.lookahead_on)
+TTH = request.security(syminfo.tickerid, res, high, barmerge.gaps_off, barmerge.lookahead_on)
+TTL = request.security(syminfo.tickerid, res, low, barmerge.gaps_off, barmerge.lookahead_on)
+TTC = request.security(syminfo.tickerid, res, close, barmerge.gaps_off, barmerge.lookahead_on)
+
+PP = (H + L + C) / 3
+TC = (H + L) / 2
+BC = PP - TC + PP
+R1 = PP * 2 - L
+R2 = PP + H - L
+R3 = H + 2 * (PP - L)
+R4 = PP * 3 + H - 3 * L
+S1 = PP * 2 - H
+S2 = PP - (H - L)
+S3 = L - 2 * (H - PP)
+S4 = PP * 3 - (3 * H - L)
+WPP = (WH + WL + WC) / 3
+WTC = (WH + WL) / 2
+WBC = WPP - WTC + WPP
+TOPP = (TTH + TTL + TTC) / 3
+TOTC = (TTH + TTL) / 2
+TOBC = TOPP - TOTC + TOPP
+TR1 = TOPP * 2 - TTL
+TR2 = TOPP + TTH - TTL
+TS1 = TOPP * 2 - TTH
+TS2 = TOPP - (TTH - TTL)
+plot(showpivot ? PP : na, title='PP', style=plot.style_stepline, color=color.new(color.blue, 0), linewidth=2, force_overlay = true)
+plot(showpivot ? TC : na, title='TC', style=plot.style_circles, color=color.new(color.blue, 0), linewidth=1, force_overlay = true)
+plot(showpivot ? BC : na, title='BC', style=plot.style_circles, color=color.new(color.blue, 0), linewidth=1, force_overlay = true)
+
+plot(showpivot ? WPP : na, title='WPP', style=plot.style_stepline, color=color.new(color.black, 0), linewidth=2, force_overlay = true)
+plot(showpivot ? WTC : na, title='WTC', style=plot.style_stepline, color=color.new(color.black, 0), linewidth=2, force_overlay = true)
+plot(showpivot ? WBC : na, title='WBC', style=plot.style_stepline, color=color.new(color.black, 0), linewidth=2, force_overlay = true)
+
+//plot(showpivot ? MPP : na, title='MPP', style=plot.style_stepline, color=color.new(color.black, 0), linewidth=2, force_overlay = true)
+//plot(showpivot ? MTC : na, title='MTC', style=plot.style_stepline, color=color.new(color.black, 0), linewidth=2, force_overlay = true)
+//plot(showpivot ? MBC : na, title='MBC', style=plot.style_stepline, color=color.new(color.black, 0), linewidth=2, force_overlay = true)
+
+
+plot(showpivot ? S1 : na, title='S1', style=plot.style_stepline, color=color.new(color.green, 0), linewidth=1, force_overlay = true)
+plot(showpivot ? S2 : na, title='S2', style=plot.style_stepline, color=color.new(color.green, 0), linewidth=1, force_overlay = true)
+plot(showpivot ? S3 : na, title='S3', style=plot.style_stepline, color=color.new(color.green, 0), linewidth=1, force_overlay = true)
+//plot(showpivot ? S4 : na, title='S4', style=plot.style_stepline, color=color.new(color.green, 0), linewidth=1, force_overlay = true)
+
+plot(showpivot ? R1 : na, title='R1', style=plot.style_stepline, color=color.new(color.red, 0), linewidth=1, force_overlay = true)
+plot(showpivot ? R2 : na, title='R2', style=plot.style_stepline, color=color.new(color.red, 0), linewidth=1, force_overlay = true)
+plot(showpivot ? R3 : na, title='R3', style=plot.style_stepline, color=color.new(color.red, 0), linewidth=1, force_overlay = true)
+//plot(showpivot ? R4 : na, title='R4', style=plot.style_stepline, color=color.new(color.red, 0), linewidth=1, force_overlay = true)
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////// PREVIOUS DAY /////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+prevDayHigh = request.security(syminfo.tickerid, 'D', high[1], lookahead=barmerge.lookahead_on)
+prevDayLow = request.security(syminfo.tickerid, 'D', low[1], lookahead=barmerge.lookahead_on)
+plot(prevDayHigh, title='Prev Day High', style=plot.style_cross, linewidth=2, color=color.new(color.black, 0), force_overlay = true)
+plot(prevDayLow, title='Prev Day Low', style=plot.style_cross, linewidth=2, color=color.new(color.red, 0), force_overlay = true)
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////// PREVIOUS WEEKLY  ///////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+prevWeekHigh = request.security(syminfo.tickerid, 'W', high[1], lookahead=barmerge.lookahead_on)
+prevWeekLow = request.security(syminfo.tickerid, 'W', low[1], lookahead=barmerge.lookahead_on)
+plot(showpivot and prevWeekHigh ? prevWeekHigh : na, title='Prev Week High', style=plot.style_stepline, linewidth=2, color=color.new(color.red, 0), force_overlay = true)
+plot(showpivot and prevWeekLow ? prevWeekLow : na, title='Prev Week Low', style=plot.style_stepline, linewidth=2, color=color.new(color.green, 0), force_overlay = true)
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////// PREVIOUS MONTH /////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//prevMonthHigh = request.security(syminfo.tickerid, 'M', high[1], lookahead=barmerge.lookahead_on)
+//prevMonthLow = request.security(syminfo.tickerid, 'M', low[1], lookahead=barmerge.lookahead_on)
+//plot(showpivot and prevMonthHigh ? prevMonthHigh : na, title='Prev Month High', style=plot.style_stepline, linewidth=2, color=color.new(color.red, 0), force_overlay = true)
+//plot(showpivot and prevMonthLow ? prevMonthLow : na, title='Prev Month Low', style=plot.style_stepline, linewidth=2, color=color.new(color.green, 0), force_overlay = true)
+
+//HAlftrend
+amplitude = input(title='Amplitude', defval=4)
+channelDeviation = input(title='Channel Deviation', defval=1)
+showArrows = input(title='Show Arrows', defval=true)
+showChannels = input(title='Show Channels', defval=false)
+
+var int trend1 = 0
+var int nextTrend = 0
+var float maxLowPrice = nz(low[1], low)
+var float minHighPrice = nz(high[1], high)
+
+var float Up = 0.0
+var float Down = 0.0
+float atrHigh = 0.0
+float atrLow = 0.0
+float arrowUp = na
+float arrowDown = na
+
+atr2 = ta.atr(100) / 2
+dev1 = channelDeviation * atr2
+
+highPrice = high[math.abs(ta.highestbars(amplitude))]
+lowPrice = low[math.abs(ta.lowestbars(amplitude))]
+highma = ta.sma(high, amplitude)
+lowma = ta.sma(low, amplitude)
+
+if nextTrend == 1
+    maxLowPrice := math.max(lowPrice, maxLowPrice)
+
+    if highma < maxLowPrice and close < nz(low[1], low)
+        trend1 := 1
+        nextTrend := 0
+        minHighPrice := highPrice
+        minHighPrice
+else
+    minHighPrice := math.min(highPrice, minHighPrice)
+
+    if lowma > minHighPrice and close > nz(high[1], high)
+        trend1 := 0
+        nextTrend := 1
+        maxLowPrice := lowPrice
+        maxLowPrice
+
+if trend1 == 0
+    if not na(trend1[1]) and trend1[1] != 0
+        Up := na(Down[1]) ? Down : Down[1]
+        arrowUp := Up - atr2
+        arrowUp
+    else
+        Up := na(Up[1]) ? maxLowPrice : math.max(maxLowPrice, Up[1])
+        Up
+    atrHigh := Up + dev1
+    atrLow := Up - dev1
+    atrLow
+else
+    if not na(trend1[1]) and trend1[1] != 1
+        Down := na(Up[1]) ? Up : Up[1]
+        arrowDown := Down + atr2
+        arrowDown
+    else
+        Down := na(Down[1]) ? minHighPrice : math.min(minHighPrice, Down[1])
+        Down
+    atrHigh := Down + dev1
+    atrLow := Down - dev1
+    atrLow
+
+ht = trend1 == 0 ? Up : Down
+
+var color buyColor = color.green
+var color sellColor = color.red
+
+htColor = trend1 == 0 ? buyColor : sellColor
+htPlot = plot(ht, title='HalfTrend', linewidth=2, color=htColor, force_overlay = true)
+
+//atrHighPlot = plot(showChannels ? atrHigh : na, title="ATR High", style=plot.style_circles, color=sellColor)
+//atrLowPlot = plot(showChannels ? atrLow : na, title="ATR Low", style=plot.style_circles, color=buyColor)
+
+//fill(htPlot, atrHighPlot, title="ATR High Ribbon", color=sellColor)
+//fill(htPlot, atrLowPlot, title="ATR Low Ribbon", color=buyColor)
+
+buySignal = not na(arrowUp) and trend1 == 0 and trend1[1] == 1
+sellSignal = not na(arrowDown) and trend1 == 1 and trend1[1] == 0
+
+plotshape(showArrows and buySignal ? atrLow : na, title='BUY', text='BUY', style=shape.labelup, color=color.new(color.green, 0), textcolor=color.new(color.white, 0), location=location.absolute, size=size.small, force_overlay = true)
+plotshape(showArrows and sellSignal ? atrHigh : na, title='SELL', text='SELL', color=color.new(color.red, 0), textcolor=color.new(color.white, 0), style=shape.labeldown, location=location.absolute, size=size.small, force_overlay = true)
+
+//Filter function 
+f_filt9x(_a, _s, _i) =>
+    int _m2 = 0
+    int _m3 = 0
+    int _m4 = 0
+    int _m5 = 0
+    int _m6 = 0
+    int _m7 = 0
+    int _m8 = 0
+    int _m9 = 0
+    float _f = .0
+    _x = 1 - _a
+    // Weights. 
+    // Initial weight _m1 is a pole number and equal to _i
+    _m2 := _i == 9 ? 36 : _i == 8 ? 28 : _i == 7 ? 21 : _i == 6 ? 15 : _i == 5 ? 10 : _i == 4 ? 6 : _i == 3 ? 3 : _i == 2 ? 1 : 0
+    _m3 := _i == 9 ? 84 : _i == 8 ? 56 : _i == 7 ? 35 : _i == 6 ? 20 : _i == 5 ? 10 : _i == 4 ? 4 : _i == 3 ? 1 : 0
+    _m4 := _i == 9 ? 126 : _i == 8 ? 70 : _i == 7 ? 35 : _i == 6 ? 15 : _i == 5 ? 5 : _i == 4 ? 1 : 0
+    _m5 := _i == 9 ? 126 : _i == 8 ? 56 : _i == 7 ? 21 : _i == 6 ? 6 : _i == 5 ? 1 : 0
+    _m6 := _i == 9 ? 84 : _i == 8 ? 28 : _i == 7 ? 7 : _i == 6 ? 1 : 0
+    _m7 := _i == 9 ? 36 : _i == 8 ? 8 : _i == 7 ? 1 : 0
+    _m8 := _i == 9 ? 9 : _i == 8 ? 1 : 0
+    _m9 := _i == 9 ? 1 : 0
+    // filter
+    _f := math.pow(_a, _i) * nz(_s) + _i * _x * nz(_f[1]) - (_i >= 2 ? _m2 * math.pow(_x, 2) * nz(_f[2]) : 0) + (_i >= 3 ? _m3 * math.pow(_x, 3) * nz(_f[3]) : 0) - (_i >= 4 ? _m4 * math.pow(_x, 4) * nz(_f[4]) : 0) + (_i >= 5 ? _m5 * math.pow(_x, 5) * nz(_f[5]) : 0) - (_i >= 6 ? _m6 * math.pow(_x, 6) * nz(_f[6]) : 0) + (_i >= 7 ? _m7 * math.pow(_x, 7) * nz(_f[7]) : 0) - (_i >= 8 ? _m8 * math.pow(_x, 8) * nz(_f[8]) : 0) + (_i == 9 ? _m9 * math.pow(_x, 9) * nz(_f[9]) : 0)
+    _f
+
+//9 var declaration fun
+f_pole(_a, _s, _i) =>
+    _f1 = f_filt9x(_a, _s, 1)
+    _f2 = _i >= 2 ? f_filt9x(_a, _s, 2) : 0
+    _f3 = _i >= 3 ? f_filt9x(_a, _s, 3) : 0
+    _f4 = _i >= 4 ? f_filt9x(_a, _s, 4) : 0
+    _f5 = _i >= 5 ? f_filt9x(_a, _s, 5) : 0
+    _f6 = _i >= 6 ? f_filt9x(_a, _s, 6) : 0
+    _f7 = _i >= 2 ? f_filt9x(_a, _s, 7) : 0
+    _f8 = _i >= 8 ? f_filt9x(_a, _s, 8) : 0
+    _f9 = _i == 9 ? f_filt9x(_a, _s, 9) : 0
+    _fn = _i == 1 ? _f1 : _i == 2 ? _f2 : _i == 3 ? _f3 : _i == 4 ? _f4 : _i == 5 ? _f5 : _i == 6 ? _f6 : _i == 7 ? _f7 : _i == 8 ? _f8 : _i == 9 ? _f9 : na
+    [_fn, _f1]
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Inputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Source
+srcc = input(defval=hlc3, title='Source')
+
+//Poles
+int N = input.int(defval=2, title='Poles', minval=1, maxval=9)
+
+//Period
+int per = input.int(defval=100, title='Sampling Period', minval=2)
+
+//True Range Multiplier
+float mult = input.float(defval=0.414, title='Filtered True Range Multiplier', minval=0)
+
+//Lag Reduction
+bool modeLag = input(defval=false, title='Reduced Lag Mode')
+bool modeFast = input(defval=false, title='Fast Response Mode')
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Definitions
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Beta and Alpha Components
+beta = (1 - math.cos(4 * math.asin(1) / per)) / (math.pow(1.414, 2 / N) - 1)
+alpha = -beta + math.sqrt(math.pow(beta, 2) + 2 * beta)
+
+//Lag
+lag = (per - 1) / (2 * N)
+
+//Data
+srcdata = modeLag ? srcc + srcc - srcc[lag] : srcc
+trdata = modeLag ? ta.tr(true) + ta.tr(true) - ta.tr(true)[lag] : ta.tr(true)
+
+//Filtered Values
+[filtn, filt1] = f_pole(alpha, srcdata, N)
+[filtntr, filt1tr] = f_pole(alpha, trdata, N)
+
+//Lag Reduction
+filt = modeFast ? (filtn + filt1) / 2 : filtn
+filttr = modeFast ? (filtntr + filt1tr) / 2 : filtntr
+
+//Bands
+hband = filt + filttr * mult
+lband = filt - filttr * mult
+
+// Colors
+color1 = #0aff68
+color2 = color.orange
+color3 = #ff0a5a
+color4 = #990032
+fcolor = filt > filt[1] ? #0aff68 : filt < filt[1] ? #ff0a5a : #cccccc
+barcolor = srcc > srcc[1] and srcc > filt and srcc < hband ? #0aff68 : srcc > srcc[1] and srcc >= hband ? #0aff1b : srcc <= srcc[1] and srcc > filt ? color.orange : srcc < srcc[1] and srcc < filt and srcc > lband ? #ff0a5a : srcc < srcc[1] and srcc <= lband ? #ff0a11 : srcc >= srcc[1] and srcc < filt ? #990032 : #cccccc
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Outputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Filter Plot
+filtplot = plot(filt, title='Filter', color=fcolor, linewidth=3, force_overlay = true)
+
+//Band Plots
+hbandplot = plot(hband, title='Filtered True Range High Band', color=fcolor, force_overlay = true)
+lbandplot = plot(lband, title='Filtered True Range Low Band', color=fcolor, force_overlay = true)
+
+//Channel Fill
+fill(hbandplot, lbandplot, title='Channel Fill', color=fcolor, transp=80)
+
+//Bar Color
+barcolor(barcolor)
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

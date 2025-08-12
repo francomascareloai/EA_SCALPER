@@ -1,0 +1,22 @@
+
+🤖 RELATÓRIO DE CLASSIFICAÇÃO AUTOMÁTICA
+==================================================
+
+📊 ESTATÍSTICAS GERAIS:
+• Arquivos processados: 3
+• Arquivos movidos: 3
+• Erros encontrados: 0
+• EAs FTMO-Ready: 1
+
+📈 DISTRIBUIÇÃO POR CATEGORIA:
+• Scalping: 2 arquivos
+• Custom: 1 arquivos
+
+
+✅ PROCESSO CONCLUÍDO
+Data: 2025-08-12 09:45:26
+
+Próximos passos:
+1. Revisar arquivos em Misc/
+2. Validar metadados gerados
+3. Atualizar índices principais

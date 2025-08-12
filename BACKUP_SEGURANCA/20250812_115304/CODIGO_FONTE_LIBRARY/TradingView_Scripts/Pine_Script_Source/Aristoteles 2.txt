@@ -1,0 +1,68 @@
+//@version=5
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © HPotter
+//A script that helps you navigate the current price and the latest highs and lows
+//IMPORTANT: For the script to work correctly, you must enable "On every tick" in Preoperties
+//
+// Throw it on any chart.
+// On the right appears:
+//  white - last transaction price
+//  green - current high that has not been reached (looks at bars in history)
+//  red - current low that has not been reached (looks at bars in history)
+//  yellow - new high or low installed
+/////////////////////////////////////////////////////////////
+
+indicator("HPotter:LastPrice", shorttitle = "HPLP", overlay=true)
+widjetShift = input.int(3, "Widjet Shift")
+lookBack = input.int(50, "Look back for HH|LL")
+
+var label labelLL = na
+var label labelHH = na
+var label labelLast = na
+var label labelHigh = na
+var label labelLow = na
+var label labelRange = na
+varip currentH = 1 
+varip currentL = 1 
+varip timer = 0
+
+if barstate.isnew and bar_index > 1
+    currentH :=  1
+    currentL :=  1
+
+h=high[currentH]
+l=low[currentL]      
+
+if l >= low and bar_index > lookBack
+    l := low
+    timer := 10
+    for i = 1 to  lookBack
+        if low[i] < low
+            currentL :=  i
+            break
+
+if h <= high and bar_index > lookBack
+    h := high 
+    timer := 10
+    for i = 1 to  lookBack
+        if high[i] > high
+            currentH :=  i
+            break
+
+hs=str.tostring(h, format.mintick)
+ls=str.tostring(l, format.mintick)       
+
+hh = ""
+ll = ""
+
+if timer > 0 
+    timer := timer - 1
+    hh:=str.tostring(high, format.mintick)
+    ll:=str.tostring(low, format.mintick) 
+
+//Draw
+label.delete(labelLast)
+labelLast := label.new(x=bar_index + widjetShift, y=close, text="\n\n"+ str.tostring(close, format.mintick)+"\n"+" "+"\n", color=color.new(#000000, 100), textcolor = color.white, size=size.large, style=label.style_label_left, xloc=xloc.bar_index, yloc=yloc.price)      
+
+
+

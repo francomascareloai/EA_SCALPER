@@ -1,0 +1,280 @@
+//@version=5
+indicator("Bay and selly Ssssion ", "S&D Profile [TFO]", true, max_boxes_count = 500, max_labels_count = 500)
+
+// -------------------------------------------------- Inputs --------------------------------------------------
+var g_KZS           = "Killzones" 
+as_am               = input.session(title="Asia", defval="2000-0300", inline = "ASKZ", group = g_KZS)
+askz_color          = input.color(color.new(color.blue, 80), "", inline = "ASKZ", group = g_KZS)
+lo_am               = input.session(title="London", defval="0300-0830", inline = "LOKZ", group = g_KZS)
+ldkz_color          = input.color(color.new(color.yellow, 80), "", inline = "LOKZ", group = g_KZS)
+ny_am               = input.session(title="New York", defval="0830-1600", inline = "NYKZ", group = g_KZS)
+nykz_color          = input.color(color.new(color.green, 80), "", inline = "NYKZ", group = g_KZS)
+
+var g_CRT = "Success Criteria"
+crt_inside_day      = input.bool(true, "NY Stays Within London Range", tooltip = "The New York range is contained within the London range", group = g_CRT)
+crt_outside_day     = input.bool(true, "NY Exceeds London High & Low", tooltip = "The New York range exceeds both the high and low of the London range", group = g_CRT)
+crt_close_in_lo     = input.bool(true, "NY Closes Within London Range", tooltip = "The New York range closes within the London range", group = g_CRT)
+crt_sd_limit        = input.bool(true, "NY Range Too Small", tooltip = "The New York range will be compared to the standard deviation of its historical ranges, multiplied by this factor", inline = "SD", group = g_CRT)
+sd_limit            = input.float(1.0, "", inline = "SD", group = g_CRT)
+
+var g_SND = "Labels"
+show_snd_pre        = input.bool(true, "Potential S&D Day", inline = "PRE", tooltip = "If London took both sides of the Asian range, this label will be generated", group = g_SND)
+snd_pre_color       = input.color(title="", defval = #f23645, inline = "PRE", group = g_SND)
+show_snd_day        = input.bool(true, "Successful S&D Day", inline = "POST", tooltip = "If New York met any of the selected success criteria, this label will populate", group = g_SND)
+snd_day_color       = input.color(title="", defval = #089981, inline = "POST", group = g_SND)
+
+var g_WRN = "Warning"
+show_wrn_table      = input.bool(true, "Show Warning", tooltip = "Display the custom warning message when it is a potential S&D day (for the duration of the NY session)", group = g_WRN)
+wrn_msg             = input.string("Potential S&D Day", "Warning Message", group = g_WRN)
+wrn_text            = input.color(color.white, "Text Color", group = g_WRN)
+wrn_bg              = input.color(#f23645, "Table Background", group = g_WRN)
+
+var g_STY = "Statistics"
+show_stat_table     = input.bool(true, "Show Statistics Table", group = g_STY)
+table_position      = input.string('Top Right', "Table Position", options = ['Bottom Center', 'Bottom Left', 'Bottom Right', 'Middle Center', 'Middle Left', 'Middle Right', 'Top Center', 'Top Left', 'Top Right'], group = g_STY)
+table_size          = input.string('Auto', "Text Size", options = ['Auto', 'Tiny', 'Small', 'Normal', 'Large', 'Huge'], group = g_STY)
+table_text          = input.color(color.black, "Text", group = g_STY)
+table_bg            = input.color(color.white, "Table Background", group = g_STY)
+table_frame         = input.color(color.black, "Table Frame", group = g_STY)
+table_border        = input.color(color.black, "Table Border", group = g_STY)
+table_border_width  = input.int(1, "Table Border Width", group = g_STY)
+table_frame_width   = input.int(2, "Table Frame Width", group = g_STY)
+// -------------------------------------------------- Inputs --------------------------------------------------
+
+
+// -------------------------------------------------- Constants & Variables --------------------------------------------------
+nykz = not na(time(timeframe.period, ny_am, "America/New_York"))
+lokz = not na(time(timeframe.period, lo_am, "America/New_York"))
+askz = not na(time(timeframe.period, as_am, "America/New_York"))
+
+var int sessions = 0
+
+var int last_snd_pre = 0
+var int last_snd_day = 0
+
+var int total_snd_wrn = 0
+var int total_snd_day = 0
+
+var box nykz_box = na
+var box lokz_box = na
+var box askz_box = na
+
+var int last_new_ny = na
+var float last_ny_high = na
+var float last_ny_low = na
+var float last_ny_close = na
+
+var int last_new_lo = na
+var float last_lo_high = na
+var float last_lo_low = na
+var float last_lo_close = na
+
+var int last_new_as = na
+var float last_as_high = na
+var float last_as_low = na
+var float last_as_close = na
+
+var ny_range = array.new_float()
+// -------------------------------------------------- Constants & Variables --------------------------------------------------
+
+
+// -------------------------------------------------- Functions --------------------------------------------------
+manual_stdev() =>
+    mean = ny_range.avg()
+    accum = 0.0
+    size = ny_range.size()
+    if size > 0
+        for i = 0 to size - 1
+            accum += math.pow((ny_range.get(i) - mean), 2)
+    sd = math.sqrt(accum / size)
+
+get_table_position(pos) =>
+    result = switch pos
+        "Bottom Center" => position.bottom_center
+        "Bottom Left" => position.bottom_left
+        "Bottom Right" => position.bottom_right
+        "Middle Center" => position.middle_center
+        "Middle Left" => position.middle_left
+        "Middle Right" => position.middle_right
+        "Top Center" => position.top_center
+        "Top Left" => position.top_left
+        "Top Right" => position.top_right
+
+get_text_size(size) =>
+    result = switch size
+        'Auto' => size.auto
+        'Tiny' => size.tiny
+        'Small' => size.small
+        'Normal' => size.normal
+        'Large' => size.large
+        'Huge' => size.huge
+// -------------------------------------------------- Functions --------------------------------------------------
+
+
+// -------------------------------------------------- Core Logic --------------------------------------------------
+if nykz 
+    if not nykz[1]
+        nykz_box := box.new(bar_index, high, bar_index, low, text = "New York", text_color = nykz_color, bgcolor = nykz_color, border_color = nykz_color)
+        sessions += 1
+    else
+        top = box.get_top(nykz_box)
+        bot = box.get_bottom(nykz_box)
+        if high > top
+            top := high
+        if low < bot
+            bot := low
+        box.set_rightbottom(nykz_box, bar_index, bot)
+        box.set_top(nykz_box, top)
+
+if lokz 
+    if not lokz[1]
+        lokz_box := box.new(bar_index, high, bar_index, low, text = "London", text_color = ldkz_color, bgcolor = ldkz_color, border_color = ldkz_color)
+    else
+        top = box.get_top(lokz_box)
+        bot = box.get_bottom(lokz_box)
+        if high > top
+            top := high
+        if low < bot
+            bot := low
+        box.set_rightbottom(lokz_box, bar_index, bot)
+        box.set_top(lokz_box, top)
+
+if askz 
+    if not askz[1]
+        askz_box := box.new(bar_index, high, bar_index, low, text = "Asia", text_color = askz_color, bgcolor = askz_color, border_color = askz_color)
+    else
+        top = box.get_top(askz_box)
+        bot = box.get_bottom(askz_box)
+        if high > top
+            top := high
+        if low < bot
+            bot := low
+        box.set_rightbottom(askz_box, bar_index, bot)
+        box.set_top(askz_box, top)
+
+if not nykz and nykz[1]
+    last_ny_high := box.get_top(nykz_box[1])
+    last_ny_low := box.get_bottom(nykz_box[1])
+    last_ny_close := close[1]
+    last_new_ny := bar_index
+    ny_range.push(last_ny_high - last_ny_low)
+    
+if not lokz and lokz[1]
+    last_lo_high := box.get_top(lokz_box[1])
+    last_lo_low := box.get_bottom(lokz_box[1])
+    last_lo_close := close[1]
+    last_new_lo := bar_index
+    
+if not askz and askz[1]
+    last_as_high := box.get_top(askz_box[1])
+    last_as_low := box.get_bottom(askz_box[1])
+    last_as_close := close[1]
+    last_new_as := bar_index
+
+snd_day_wrn = false
+if last_new_lo > last_new_as and last_lo_high > last_as_high and last_lo_low < last_as_low and last_snd_pre < last_new_lo
+    snd_day_wrn := true
+    last_snd_pre := bar_index
+    total_snd_wrn += 1
+
+snd_day_valid = false
+if last_new_ny > last_new_lo and last_snd_pre > last_new_as and last_snd_day < last_new_ny
+    outside_day = crt_outside_day ? last_ny_high >= last_lo_high and last_ny_low <= last_lo_low : false
+    inside_day = crt_inside_day ? last_ny_high < last_lo_high and last_ny_low > last_lo_low : false
+    close_inside_lo = crt_close_in_lo ? last_ny_close < last_lo_high and last_ny_close > last_lo_low : false
+    stdev = crt_sd_limit ? last_ny_high - last_ny_low <= manual_stdev() * sd_limit : false
+
+    if outside_day or inside_day or close_inside_lo or stdev
+        snd_day_valid := true
+        last_snd_day := bar_index
+        total_snd_day += 1
+
+if show_snd_pre and snd_day_wrn
+    label.new(bar_index, last_lo_high, "Potential S&D Day", color = snd_pre_color, textcolor = wrn_text)
+if show_snd_day and snd_day_valid
+    label.new(bar_index, last_ny_high, "Valid S&D Day", color = snd_day_color, textcolor = wrn_text)
+// -------------------------------------------------- Core Logic --------------------------------------------------
+
+
+// -------------------------------------------------- Table --------------------------------------------------
+var stats = table.new(get_table_position(table_position), 10, 10, bgcolor = table_bg, frame_color = table_frame, border_color = table_border, frame_width = table_frame_width, border_width = table_border_width)
+table_text_size = get_text_size(table_size)
+
+if barstate.islast
+    if show_stat_table
+        table.cell(stats, 0, 1, "Seek & Destroy Profile", text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 0, 2, "Total Sessions", text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 1, 2, str.tostring(sessions), text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 0, 3, "Warnings Given", text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 1, 3, str.tostring(total_snd_wrn), text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 0, 4, "Warning Success", text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 1, 4, str.tostring(total_snd_day), text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 0, 5, "Warning Success Rate", text_color = table_text, text_size = table_text_size)
+        table.cell(stats, 1, 5, str.tostring(math.round(total_snd_day / total_snd_wrn * 100)) + "%", text_color = table_text, text_size = table_text_size)
+        
+    if show_wrn_table
+        if last_snd_pre > last_new_ny
+            table.cell(stats, 0, 1, wrn_msg, text_color = wrn_text, bgcolor = wrn_bg, text_size = table_text_size)
+// -------------------------------------------------- Table --------------------------------------------------
+
+//----SGHU--------
+//indicator(title=" USE HEIKIN ASHI CANDLE buy Sell 1 min timeframe", overlay=true, format=format.price, precision=2)
+
+// Source input
+source = input(defval=close, title="Source")
+
+// Inputs
+Periods = input.int(title="ATR Period", defval=5)
+Multiplier = input.float(title="ATR Multiplier", step=0.1, defval=1.5)
+changeATR = input.bool(title="Calculation Method", defval=true)
+showsignals = input.bool(title="Buy/Sell Signals", defval=true)
+highlighting = input.bool(title="Highlighter", defval=true)
+
+// Heikin Ashi Calculations (using the selected 'source' input)
+haClose = (open + high + low + source) / 4
+var float haOpen = na
+haOpen := na(haOpen[1]) ? (open + source) / 2 : (haOpen[1] + haClose[1]) / 2
+haHigh = math.max(high, math.max(haClose, haOpen))
+haLow = math.min(low, math.min(haClose, haOpen))
+
+// ATR Calculation
+atr2 = ta.sma(ta.tr, Periods)
+atr = changeATR ? ta.atr(Periods) : atr2
+
+// Supertrend Calculation
+up = haClose - (Multiplier * atr)
+up1 = ta.valuewhen(haClose[1] > up[1], up[1], 0)
+up := haClose[1] > up1 ? math.max(up, up1) : up
+
+dn = haClose + (Multiplier * atr)
+dn1 = ta.valuewhen(haClose[1] < dn[1], dn[1], 0)
+dn := haClose[1] < dn1 ? math.min(dn, dn1) : dn
+
+// Trend Calculation
+var int trend = na
+trend := na(trend[1]) ? 1 : trend
+trend := trend == -1 and haClose > dn1 ? 1 : trend == 1 and haClose < up1 ? -1 : trend
+
+// Plotting
+buySignal = trend == 1 and trend[1] == -1
+plotshape(series=buySignal ? up : na, title="Up", location=location.belowbar, style=shape.labelup, size=size.tiny, color=#00ff08, textcolor=#ffffff, text="BUY", offset=-1)
+
+sellSignal = trend == -1 and trend[1] == 1
+plotshape(series=sellSignal ? dn : na, title="Down", location=location.abovebar, style=shape.labeldown, size=size.tiny, color=#ff0000, textcolor=#ffffff, text="SELL", offset=-1)
+
+// Alerts
+alertcondition(buySignal, title="Buy", message="Buy!")
+alertcondition(sellSignal, title="Sell", message="Sell!")
+changeCond = trend != trend[1]
+alertcondition(changeCond, title="Direction Change", message="changed direction!")
+
+// Script settings
+emaLength = input.int(title="Length", defval=9, minval=2)
+emaSource = input.source(title="Source", defval=close)
+
+// Get EMA and plot it
+ema = ta.ema(emaSource, emaLength)
+plot(ema, color=close[1] > ema and close > ema ? #00ff08 : #ff0000, linewidth=2)
+
+// Add bar color based on EMA
+barcolor(close > ema ? #00ff08 : #ff0000)

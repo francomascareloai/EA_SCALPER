@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+
+# Large binary files (optional)
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test outputs
+test_output/
+*.test
+
+# Reports (keep structure but ignore large outputs)
+Reports/Test_Results/*.json
+Reports/Performance/*.json
+
+# Cache
+.cache/
+*.cache
+
+# Node modules (if any)
+node_modules/
+
+# Compiled files
+*.ex4
+*.ex5
+
+# MetaTrader files
+*.set
+*.tpl
+*.hst
+*.fxt
+
+# Large data files
+*.csv
+*.xlsx
+*.xls
+
+# Sensitive information
+*.key
+*.pem
+*.p12
+config.ini
+secrets.json

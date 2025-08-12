@@ -1,0 +1,240 @@
+// Telegram Join Us >> https://t.me/eyops
+//...................../´¯¯/)
+//...................,/¯.../
+//.................../..../
+//.............../´¯/'..'/´¯¯`·¸
+//.........../'/.../..../....../¨¯\
+//..........('(....´...´... ¯~/'..')
+//...........\..............'...../
+//............\....\.........._.·´
+//.............\..............(
+//..............\..............\
+//----
+//---------
+// Telegram Join Us >> https://t.me/eyops
+//@version=5
+indicator ("Fibonacci TP/SL (Automatic)", overlay=true, max_lines_count = 500  ,max_labels_count=500, max_bars_back=4000)
+ 
+
+    
+//                     
+//      Pre-DEFINE     
+//                     
+//---------------------------------------------------
+var COLOR_TRANSP        = color.new(#ffffff,100)
+var COLOR_BLACK         = color.new(#000000,0)  
+//---------------------------------------------------
+var basicgr             = "Swing Settings" 
+
+
+
+//     INPUT                                                                                                                                                                     
+fb_depth            = input.int   (10   ,minval=1,maxval=20     ,title = "Trend Adjuster"                     ,inline='FBR1'       ,group=basicgr)
+fb_dev_ratio        = input.float (3.0  ,minval=1,step=0.5      ,title = "Trend Size"                     ,inline='FBR2'       ,group=basicgr)
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+fb_dev_threshold    = (ta.atr(20)/close) * 100 * fb_dev_ratio
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+fb236=true
+fb382=true
+fb500=true
+fb618=true
+fb786=true
+fb886=true
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+view_gr = 'Display Settings'
+
+draw_pmark_c       = color.new(#ffffff,0)
+draw_pmark         = true
+
+draw_tline_c       = color.new(#ffffff,0)
+draw_tline         = true
+
+fb_guide_color      = color.green
+fb_guide_draw       = true
+
+
+fb_color2           = color.orange
+fb_color1           = color.orange
+fb_label_position   = 23
+draw_simplelabel   = true
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+ 
+
+
+
+
+
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------------------------
+[k_volume,k_open,k_close,k_high,k_low,k_hlc3,k_hlcc4,k_ohlc4,k_hl2,k_close_mintick,k_trtrue,k_atr14,k_atr14_mintick,k_rsipvt14] 
+     = request.security(syminfo.tickerid ,'', [volume,open,close,high,low,hlc3,hlcc4,ohlc4,hl2,str.tostring(close,format.mintick),ta.tr(true),ta.atr(14),str.tostring(ta.atr(14),format.mintick),ta.rsi(ta.pvt,14)] )
+
+
+
+
+
+
+//                                                                                                                                                                                                                     
+//       Background                                                                                                                                                                                                    
+//                                                                                                                                                                                                                     
+//bgcolor(color.new(#000000,0) ,title='Background' ,editable=true)
+
+
+
+
+
+
+
+//                                                                                                                                                                                                                     
+//      Fibonacci Retracement  - Logic Performance Tuned & Re-Designed Fresh-Drawing, Automatic Line on/off                                                                                                            
+//                                                                                                                                                                                                                     
+
+
+// pre-define --------------------------------------------------------------------------------------
+var line  fb_lineLast           = na
+var label fb_label_start_last   = na
+var label fb_label_end_last     = na
+var int   fb_iLast              = 0
+var int   fb_iPrev              = 0
+var float fb_pLast              = 0
+var fb_isHighLast               = false     // otherwise the last pivot is a low pivot
+// pivot --------------------------------------------------------------------------------------
+high_none   = ta.highest(high,fb_depth) > nz(high[fb_depth/2])
+fb_iH       = high_none ?   int(na) : bar_index[fb_depth/2]    
+fb_pH       = high_none ? float(na) :   nz(high[fb_depth/2])
+low_none    = ta.lowest (low ,fb_depth) < nz(low [fb_depth/2])
+fb_iL       = low_none  ?   int(na) : bar_index[fb_depth/2]
+fb_pL       = low_none  ? float(na) :   nz(low [fb_depth/2])
+//--------------------------------------------------------------------------------------
+calc_dev(_base_price, _price) => 100 * (_price - _base_price) / _price
+//--------------------------------------------------------------------------------------
+
+
+
+
+
+pivotFound(dev, isHigh, index, price) =>
+    if fb_isHighLast == isHigh and not na(fb_lineLast) 
+        // same direction
+        if fb_isHighLast ? price > fb_pLast : price < fb_pLast
+            line.set_xy2(fb_lineLast, index, price)
+            label.set_xy(fb_label_end_last, index, price)
+            [fb_lineLast, fb_isHighLast,fb_label_start_last,fb_label_end_last]
+        else
+            [line(na), bool(na), label(na), label(na)]
+    else // reverse the direction (or create the very first line)
+        if math.abs(dev) > fb_dev_threshold 
+            // price move is significant
+            id_fb_line = line.new(fb_iLast, fb_pLast, index, price, color=color.new(draw_tline_c,draw_tline?0:100), width=1, style=line.style_dashed)       // ------  FBR start -> end ; slopped line
+            id_fb_label_start = label.new(fb_iLast, fb_pLast ,color=COLOR_TRANSP, size=size.huge ,style=label.style_label_center, textcolor=color.new(draw_pmark_c,draw_pmark?0:100)  ,text= '◯' )    
+            id_fb_label_end   = label.new(index   , price    ,color=COLOR_TRANSP, size=size.huge ,style=label.style_label_center, textcolor=color.new(draw_pmark_c,draw_pmark?0:100)  ,text= '◯' )    
+            [id_fb_line, isHigh, id_fb_label_start, id_fb_label_end]
+        else
+            [line(na), bool(na),label(na),label(na)]
+//--------------------------------------------------------------------------------------
+fb_new_line = false
+if not na(fb_iH) 
+    fb_dev = calc_dev(fb_pLast, fb_pH)
+    [fb_id, fb_isHigh, fb_la_s_id, fb_la_e_id] = pivotFound(fb_dev, true, fb_iH, fb_pH)
+    if not na(fb_id)
+        if fb_id != fb_lineLast
+            line.delete (fb_lineLast)
+            label.delete(fb_label_start_last)
+            label.delete(fb_label_end_last)
+            fb_new_line     := true
+        fb_lineLast         := fb_id
+        fb_label_start_last := fb_la_s_id
+        fb_label_end_last   := fb_la_e_id
+        fb_isHighLast       := fb_isHigh
+        fb_iPrev            := fb_iLast
+        fb_iLast            := fb_iH
+        fb_pLast            := fb_pH
+else if not na(fb_iL) 
+    fb_dev = calc_dev(fb_pLast, fb_pL)
+    [fb_id, fb_isHigh, fb_la_s_id, fb_la_e_id] = pivotFound(fb_dev, false, fb_iL, fb_pL)
+    if not na(fb_id)
+        if fb_id != fb_lineLast
+            line.delete (fb_lineLast)
+            label.delete(fb_label_start_last)
+            label.delete(fb_label_end_last)
+            fb_new_line     := true
+        fb_lineLast         := fb_id
+        fb_label_start_last := fb_la_s_id
+        fb_label_end_last   := fb_la_e_id                
+        fb_isHighLast       := fb_isHigh
+        fb_iPrev            := fb_iLast
+        fb_iLast            := fb_iL
+        fb_pLast            := fb_pL
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+fb_retracement (_show, _fib_level, _col ,_switch) =>
+    _price   = fb_pLast + ((line.get_y1(fb_lineLast)-fb_pLast))* _fib_level
+    _fbfb_id_line_show = false
+    _position           = bar_index -  line.get_x2(fb_lineLast)
+    _fbr_max_highest    = math.max( ta.highest(high, nz(math.max(1,_position),1))  , fb_pLast)
+    _fbr_min_lowest     = math.min( ta.lowest (low , nz(math.max(1,_position),1))  , fb_pLast)
+    _fbr_max            = fb_pLast < close ? _fbr_max_highest : fb_pLast > close  ? _fbr_min_lowest : fb_pLast
+    _fbr_line_max       = fb_pLast < _price? _fbr_max_highest : fb_pLast > _price ? _fbr_min_lowest : fb_pLast
+    _fbfb_id_line_show  := fb_pLast < _price and _price-(k_atr14/4) <= _fbr_line_max  ? true 
+                         : fb_pLast > _price and _price+(k_atr14/4) >= _fbr_line_max  ? true 
+                         : false 
+    
+    if _show and _switch ==''
+        var fbfb_id      = line.new(fb_iLast, _price, bar_index, _price, color=color.new(_col,0) , width=1, extend=extend.none  ,style=line.style_solid )     //--- FBR | line = start to now 
+        var fbfb_id_ext  = line.new(fb_iLast, _price, bar_index, _price, color=color.new(_col,0) , width=1, extend=extend.none)     //--- FBR | line = now to label position
+        //var fb_label     = label.new(x=bar_index ,y=_price, text=''  ,textcolor=COLOR_TRANSP ,style=label.style_label_left  ,textalign=text.align_left , color=#00000000, size=size.normal)
+        var fb_label     = label.new(x=bar_index ,y=_price, text=''  ,textcolor=COLOR_TRANSP ,style=label.style_label_left  ,textalign=text.align_left , color=COLOR_TRANSP, size=size.normal)
+        if not na(fb_lineLast)
+            line.set_xy1  (fbfb_id  ,_fib_level==1.0? line.get_x1(fb_lineLast): _fib_level == 0.0 ? line.get_x2(fb_lineLast):bar_index+10, _price)             
+            line.set_xy2  (fbfb_id  ,_fib_level==1.0 or _fib_level==0.0? bar_index + fb_label_position-4 : bar_index + 100           , _price)                           
+            line.set_color(fbfb_id  ,color.new(_col, _fib_level==0.0?0:_fib_level==1.0?0:_fbfb_id_line_show ? 30 : 100))
+            // line.set_style(fbfb_id  ,_fib_level==0.0 or _fib_level==1.0 ? line.style_dashed : line.style_solid)
+            //---------------------------------------------------------------------------------------------------    
+            line.set_xy1   (fbfb_id_ext    ,bar_index+fb_label_position-25  ,_price)                        
+            line.set_xy2   (fbfb_id_ext    ,bar_index+fb_label_position+1  ,_price)
+            line.set_width (fbfb_id_ext    ,1)
+            //---------------------------------------------------------------------------------------------------    
+            label.set_xy        (fb_label ,bar_index+fb_label_position+1  ,_price)
+            label.set_text      (fb_label ,str.tostring(_price, format.mintick))
+            // label.set_tooltip   (fb_label ,str.tostring(((_price - fb_pLast)/fb_pLast)*100,format.percent ))
+            label.set_style(fb_label, label.style_label_left)
+            label.set_textcolor (fb_label ,color.new(_col,30))    
+            
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+fb_new = fb_pLast[1] != fb_pLast or fb_new_line or fb_iLast[1] != fb_iLast
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+fb_over_1618    = false
+fb_over_1       = false
+fb_over_0786    = false
+fb_under_0      = false
+fb_under_0382   = false
+fb_under_0618   = false
+fb_under_m1     = false
+//-------------------------
+fb_height       = line.get_y1(fb_lineLast) - fb_pLast
+
+fb_k_low_cr     = ta.lowest (k_low,2)
+fb_k_high_cr    = ta.highest(k_high,2)
+
+fb_over_1618   := (fb_height < 0 and fb_k_low_cr < (fb_height  * 1.618) + fb_pLast  ) or (fb_height > 0 and fb_k_high_cr > (fb_height  * 1.618) + fb_pLast   ) 
+fb_over_1      := (fb_height < 0 and fb_k_low_cr < line.get_y1(fb_lineLast)         ) or (fb_height > 0 and fb_k_high_cr > line.get_y1(fb_lineLast)          ) 
+fb_over_0786   := (fb_height < 0 and fb_k_low_cr < (fb_height  * 0.786) + fb_pLast  ) or (fb_height > 0 and fb_k_high_cr > (fb_height  * 0.786) + fb_pLast   ) 
+fb_under_0     := (fb_height < 0 and fb_k_low_cr > fb_pLast                         ) or (fb_height > 0 and fb_k_high_cr < fb_pLast                          )
+fb_under_0382  := (fb_height < 0 and fb_k_low_cr > (fb_height  *-0.382) + fb_pLast  ) or (fb_height > 0 and fb_k_high_cr < (fb_height  *-0.382) + fb_pLast   )
+fb_under_0618  := (fb_height < 0 and fb_k_low_cr > (fb_height  *-0.618) + fb_pLast  ) or (fb_height > 0 and fb_k_high_cr < (fb_height  *-0.618) + fb_pLast   )
+fb_under_m1    := (fb_height < 0 and fb_k_low_cr > (fb_height  *-1    ) + fb_pLast  ) or (fb_height > 0 and fb_k_high_cr < (fb_height  *-1    ) + fb_pLast   ) 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+fb_retracement (true          , 0.000 ,color.green ,''    )
+fb_retracement (fb618         , 0.618 ,color.orange ,''    )
+fb_retracement (fb786         , 0.786 ,color.orange ,''    )
+fb_retracement (true, 0.702, color.orange, '')
+
+fb_retracement (true                          , 1.000 ,color.red ,''    )
+

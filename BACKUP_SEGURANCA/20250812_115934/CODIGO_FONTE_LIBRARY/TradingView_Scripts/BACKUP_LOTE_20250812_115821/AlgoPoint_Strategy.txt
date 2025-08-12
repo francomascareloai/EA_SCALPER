@@ -1,0 +1,1035 @@
+
+//text inputs
+var user_consensus = input.string(defval="", title="By going to algopoint.mysellix.io or by clicking on the link in the algopoint instagram bio you can get the leaked codes for all premium indicators like Elite Algo, EzAlgo and LuxAlgo. Free products are also available! algopoint.mysellix.io", confirm = true, group="AlgoPoint")
+title = 'AlgoPoint'
+subtitle = 'All Leaked Algos \n Instagram: algopoint \n Website: algopoint.mysellix.io'
+symInfoCheck = false
+symInfo = syminfo.ticker + ' | ' + timeframe.period + (timeframe.isminutes ? 'M' : na)
+date = str.tostring(dayofmonth(time_close)) + '/' + str.tostring(month(time_close)) + '/' + str.tostring(year(time_close))
+textVPosition = 'middle'
+textHPosition = 'center'
+symVPosition = 'top'
+symHPosition = 'left'
+width = 0
+height = 0
+c_title = #b2b5be80
+s_title = 'large'
+a_title = 'center'
+c_subtitle = #b2b5be80
+s_subtitle = 'normal'
+a_subtitle = 'center'
+c_bg = color.new(color.blue, 100)
+//text watermark creation
+
+
+
+
+var string VERSION                  =  ' V 3 '
+
+
+
+var string strategyName = 'AlgoPoint Strategy' +  VERSION + ''
+
+
+
+var string shortTitle = 'AlgoPoint Strategy'
+
+
+
+//@version=5
+
+strategy(title= strategyName, shorttitle= shortTitle , overlay=true, max_lines_count = 500, max_labels_count = 500, max_bars_back = 1)
+
+
+
+Watermark = table.new(position.bottom_right, 1, 4, border_width=5)
+
+table.cell(Watermark, 0, 0, text= strategyName, text_color=color.rgb(252, 0, 189), text_size=size.normal)
+
+
+
+// GLOBAL VARIABLES
+
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+
+
+var bool is_long_trend_started = false
+
+var bool is_short_trend_started = false
+
+var bool is_trend_change = na
+
+var bool is_long_trend = false
+
+var bool is_short_trend = false
+
+
+
+var bool is_long_trend_start = false
+
+var bool is_short_trend_start = false
+
+
+
+
+
+var bool redy_long = false
+
+var bool can_long = false
+
+var bool redy_short = false
+
+var bool can_short = false
+
+var bool is_long_go = false
+
+var bool is_short_go = false
+
+
+
+var float imba_entry_long_line = na
+
+var float imba_entry_short_line = na
+
+
+
+var float STLLong = na 
+
+var float STLShort = na
+
+
+
+// Inputs
+
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+
+
+// ————�? Fix Settings
+
+asset = input.string(title = "Strategies", defval = "Dev Mode (FREE SETTING)", options=["Dev Mode (FREE SETTING)",
+
+     "MATIC/USDT.P 30m | Mid Term"
+
+     ])
+
+
+
+// ————�? MAIN
+
+sensitivity = input.float(200, title = 'Sensitive', step = 1,group = "Main", inline = "1")
+
+
+
+start_date_input = input.time(defval = timestamp("1 Jan 2024"), title = "Start calculating date",group = "Main", inline = "2")
+
+
+
+// ————�? Filter
+
+filterAct = input.bool(true,title = "Atr and RSI",group = 'Sideways Filtering Input', inline = "1")
+
+filter1 = 'Filter with Atr'
+
+filter2 = 'Filter with RSI'
+
+filter3 = 'Atr or RSI'
+
+filter4 = 'Atr and RSI'
+
+filter5 = 'No Filtering'
+
+filter6 = 'Entry Only in flat market(By ATR or RSI)'
+
+filter7 = 'Entry Only in flat market(By ATR and RSI)'
+
+typefilter = input.string(filter4, title='Atr and RSI', options=[filter1, filter2, filter3, filter4, filter5, filter6, filter7], group = 'Sideways Filtering Input', inline = "1")
+
+atrLen = input.int(5, minval=1, title='atr Length', group='Sideways Filtering Input')
+
+atrMaType = input.string('SMA', options=['SMA', 'EMA'], group='Sideways Filtering Input', title='atr Moving Average Type')
+
+atrMaLen = input.int(5, minval=1, title='atr MA Length', group='Sideways Filtering Input')
+
+adxLen = input.float(5, minval = 1, maxval = 50, title = "ADX SMOOTHing", group='Sideways Filtering Input')
+
+diLen = input.float(14, minval = 1, title = "DI Length", group='Sideways Filtering Input')
+
+adxLim = input.float(22, minval = 1, title = "ADX Limit", group='Sideways Filtering Input')
+textstylist = table.new(textVPosition + '_' + textHPosition, 1, 3)
+SMOOTH = input.float(3, minval = 1, maxval = 5, title = "SMOOTHing Factor", group='Sideways Filtering Input')
+
+lag = input.float(8, minval = 0, maxval = 15, title = "Lag", group='Sideways Filtering Input')
+
+
+
+toplimitrsi = input.int(45, title='TOP Limit', group='RSI Filterring')
+
+botlimitrsi = input.int(10, title='BOT Limit', group='RSI Filterring')
+
+
+
+// ————�? Backraound Zone
+
+showZones = input(false, title='Show Bullish/Bearish Zones')
+
+
+
+// ————�? Fib LvL
+
+_236 = input.float(0.236, title = 'Final Long', step = 0.001, group='FIB LVL')
+
+_382 = input.float(0.382, title = 'Sensitive', step = 0.001, group='FIB LVL')
+
+_5 = input.float(0.5, title = 'trend line', step = 0.001, group='FIB LVL')
+
+_456 = input.float(-0.456, title = 'SL line', step = 0.001, group='FIB LVL')
+
+_618 = input.float(0.618, title = 'Sensitive', step = 0.001, group='FIB LVL')
+
+_786 = input.float(0.786, title = 'finel short', step = 0.001, group='FIB LVL')
+
+
+
+// ————�? Strategie TP SL
+
+useSession  = input.bool        (defval = false,        title = 'Sessione�?', inline = 'Sessione', group = " ⚽INPUT settings �?")
+
+session     = input.session     (defval = '0000-0000',  title = '',         inline = 'Sessione', group = " �? INPUT settings �?") + ':'
+
+   + (input.bool                (defval = true,         title = 'Lu',      inline = 'Days',    group = " �? INPUT settings �?") ? str.tostring(dayofweek.monday) : '')
+
+   + (input.bool                (defval = true,         title = 'Ma',      inline = 'Days',    group = " �? INPUT settings �?") ? str.tostring(dayofweek.tuesday) : '')
+
+   + (input.bool                (defval = true,         title = 'Me',      inline = 'Days',    group = " �? INPUT settings �?") ? str.tostring(dayofweek.wednesday) : '')
+
+   + (input.bool                (defval = true,         title = 'Gi',      inline = 'Days',    group = " �? INPUT settings �?") ? str.tostring(dayofweek.thursday) : '')
+
+   + (input.bool                (defval = true,         title = 'Ve',      inline = 'Days',    group = " �? INPUT settings �?") ? str.tostring(dayofweek.friday) : '')
+
+   + (input.bool                (defval = true,        title = 'Sa',      inline = 'Days',    group = " �? INPUT settings �?") ? str.tostring(dayofweek.saturday) : '')
+
+   + (input.bool                (defval = true,        title = 'Do',      inline = 'Days',    group = " �? INPUT settings �?") ? str.tostring(dayofweek.sunday) : '')
+
+closeAtSessionEnd = input.bool  (defval = false,        title = 'Close all sessions at the end',     group = " �? INPUT settings �?", tooltip = 'Close all positions at the market price at the end of each session')
+
+
+
+multiprofit     = input.bool(true, title="Use Multi Profit" , group = " 💰 OUTPUT settings 💰 ")
+
+dcaAct          = input.bool(true, title="Use Dollar Cost Averaging :" , group = " 💰 OUTPUT settings 💰 ", inline='DCA1')
+
+dacValue        = input.string("5", title="Number of entry", options=["2","3","5"], group = " 💰 OUTPUT settings 💰 ", inline='DCA1')
+
+
+
+TP1     =   input.float(0.9,    title="TP1 %",  step=0.1, group=" 💰 OUTPUT settings 💰 ", inline='1')
+
+TP2     =   input.float(1.8,    title="TP2 %",  step=0.1, group=" 💰 OUTPUT settings 💰 ", inline='2')
+
+TP3     =   input.float(3.6,    title="TP3 %",  step=0.1, group=" 💰 OUTPUT settings 💰 ", inline='3')
+
+TP4     =   input.float(5,      title="TP4 %",  step=0.1, group=" 💰 OUTPUT settings 💰 ", inline='4')
+
+
+
+qty1    =   input.float(30,     title="% EXIT", step=1,   group=" 💰 OUTPUT settings 💰 ", inline='1')
+
+qty2    =   input.float(30,     title="% EXIT", step=1,   group=" 💰 OUTPUT settings 💰 ", inline='2')
+
+qty3    =   input.float(15,     title="% EXIT", step=1,   group=" 💰 OUTPUT settings 💰 ", inline='3')
+
+qty4    =   input.float(15,     title="% EXIT", step=1,   group=" 💰 OUTPUT settings 💰 ", inline='4')
+
+
+
+SL      =   input.float(3,      title="Stoploss %", step=0.1, group=" 💰 OUTPUT settings 💰 ", inline='6')
+
+
+
+movestoploss    = input.bool(title="If TP1 is reached: Move Stoploss to entry price",   group=" 💰 OUTPUT settings 💰 ",  defval = false)
+
+active_trailing = input.bool(title="If TP1 is reached: Activate Trailing Stoploss ",     group=" 💰 OUTPUT settings 💰 ",  defval = false)
+
+
+
+sl_type         = input.string('ATR',   title='Tipo di Trailing', options=['ATR', '%', 'FIB LVL'],                    inline='Trailing1')
+
+atrLength       = input(14,             title='Durata ATR',                                             inline='Trailing1')
+
+stopLoss        = input.int(            title='% Trailing',                 defval=5, minval=1,         inline='Trailing2')
+
+atrMultiplier   = input(5,              title='ATR Multi Trailing',                                      inline='Trailing2')
+
+
+
+
+
+// Daschbord ans Alert Setting
+
+var bool                    plotDashboard                   = input.bool(true, group="groupBacktest", title="Plot Dashboard",inline="UX Backtest")
+
+var int                     DashLabel                       = input.int(defval=35, title='Label X Offset', minval=0, maxval=205, group="groupBacktest",inline="UX Backtest")
+
+var bool                    tradeIdeeAct                    = input.bool(true, group="groupBacktest", title="Show Trade Idee",inline="UX Backtest")
+
+var bool                    oppositeSignalACT               = input.bool(true, group="groupBacktest", title="Stop or opposite Signal",inline="UX Backtest")
+
+var bool                    trailingConfigurationACT        = input.bool(true, "Trailing Configuration ON/OFF"  ,inline = "trailing", group = "groupBacktest")
+
+var string                  trailingConfigurationType       = input.string("Breakeven","Trailing Type", options=["Breakeven","Moving Target","Moving 2-Target", "Percent Below Triggers", "Percent Below Highest"], inline = "trailing", group = "groupBacktest")
+
+var int                     movingTarget                    = input.int(1, title="Moving Target (BE)", minval=1,group="groupBacktest",inline="SignalG")
+
+// Asset Settings
+
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+
+
+if asset            == "MATIC/USDT.P 30m | Mid Term"
+
+    sensitivity     := 350
+
+    filterAct       := false
+
+    typefilter      := 'Atr or RSI'
+
+    TP1             := 1.5
+
+    TP2             := 3.5
+
+    TP3             := 5.5
+
+    TP4             := 10
+
+    SL              := 5
+
+    dcaAct          := true
+
+    dacValue        := "5"
+
+// Main
+
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+
+
+//Truncate Function
+
+truncate(number, decimals) =>
+
+    factor = math.pow(10, decimals)
+
+    int(number * factor) / factor
+
+//-----------------------------------------------------------------------------}
+
+// STRATEGY
+
+//sensitivity *= sensitivity2
+
+//sensitivity *= 10
+
+
+
+high_line = ta.highest(high, int(sensitivity))
+
+low_line = ta.lowest(low, int(sensitivity))
+
+channel_range = high_line - low_line
+
+fib_236 = high_line - channel_range * (_236)
+
+fib_382 = high_line - channel_range * _382
+
+fib_5 = high_line - channel_range * _5
+
+fib_456 = high_line - channel_range * _456
+
+fib_618 = high_line - channel_range * _618
+
+fib_786 = high_line - channel_range * (_786)
+table.cell(textstylist, 0, 0, title, width, height, c_title, a_title, text_size=s_title, bgcolor=c_bg)
+imba_trend_line = fib_5
+
+SL_Line = fib_456
+
+
+
+//filtering
+
+
+
+RSI = truncate(ta.rsi(close, input.int(14, group='RSI Filterring')), 2)
+
+
+
+atra = request.security(syminfo.tickerid, '', ta.atr(atrLen))
+
+atrMa = atrMaType == 'EM' ? ta.ema(atra, atrMaLen) : ta.sma(atra, atrMaLen)
+
+updm = ta.change(high)
+
+downdm = -ta.change(low)
+
+plusdm = na(updm) ? na : updm > downdm and updm > 0 ? updm : 0
+
+minusdm = na(downdm) ? na : downdm > updm and downdm > 0 ? downdm : 0
+
+//trur = rma(tr, diLen)                                    
+
+//plus = fixnan(100 * rma(plusdm, diLen) / trur)    
+
+//minus = fixnan(100 * rma(minusdm, diLen) / trur)
+
+//sum = plus + minus
+
+//adx = 100 * rma(abs(plus - minus) / (sum == 0 ? 1 : sum), adxLen)
+
+cndSidwayss1 = atra >= atrMa
+
+cndSidwayss2 = RSI > toplimitrsi or RSI < botlimitrsi
+
+cndSidways = cndSidwayss1 or cndSidwayss2
+
+cndSidways1 = cndSidwayss1 and cndSidwayss2
+
+Sidwayss1 = atra <= atrMa
+
+Sidwayss2 = RSI < toplimitrsi and RSI > botlimitrsi
+
+Sidways = Sidwayss1 or Sidwayss2
+
+Sidways1 = Sidwayss1 and Sidwayss2
+
+
+
+trendType = typefilter == filter1 ? cndSidwayss1 : typefilter == filter2 ? cndSidwayss2 : typefilter == filter3 ? cndSidways : typefilter == filter4 ? cndSidways1 : typefilter == filter5 ? RSI > 0 : typefilter == filter6 ? Sidways : typefilter == filter7 ? Sidways1 : na
+
+
+
+if time >= start_date_input
+
+    can_long := close >= imba_trend_line and close >= fib_236 and not is_long_trend and trendType
+
+    can_short := close <= imba_trend_line and close <= fib_786 and not is_short_trend and trendType
+
+
+
+// CAN LONG/SHORT
+
+
+
+if can_long
+
+    is_long_trend := true
+
+    is_short_trend := false
+
+    is_long_trend_started := is_long_trend_started ? false : true
+
+else if can_short
+
+    is_short_trend := true
+
+    is_long_trend := false
+
+    is_short_trend_started := is_short_trend_started ? false : true
+
+else
+
+    is_trend_change := false
+
+    can_long := false
+
+    can_short := false
+
+    is_short_trend_started := false
+
+    is_long_trend_started := false
+
+
+
+is_trend_change := is_short_trend_started or is_long_trend_started
+
+plotshape(is_long_trend and is_long_trend_started ? imba_trend_line : na, title="Long", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small)
+
+plotshape(is_short_trend and is_short_trend_started ? imba_trend_line : na, title="Short", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small)
+
+plot(imba_trend_line, color = is_long_trend[1] ? color.new(#14ca3b, 0): is_short_trend ? color.new(#ff0000, 0) : color.new(#000000, 100), linewidth = 3)
+
+
+
+ruleState = 0
+
+ruleState := can_long ? 1 : can_short ? -1 : nz(ruleState[1])
+
+bgcolor(showZones ? ruleState == 1 ? color.rgb(116, 239, 143, 66) : ruleState == -1 ? color.rgb(255, 82, 82, 67) : color.gray : na, title=' Bullish/Bearish Zones', transp=90)
+
+
+
+
+
+// Strategy
+
+if (is_long_trend and is_long_trend_started)
+
+    strategy.entry("Long", strategy.long)
+
+    imba_entry_long_line := imba_trend_line
+
+if (is_short_trend and is_short_trend_started )
+
+    strategy.entry("Short", strategy.short)
+
+    imba_entry_short_line := imba_trend_line
+
+
+
+// Add labels for TP1, TP2, TP3
+
+labelTpSl(_use, _y, _text, _color) =>
+
+    if (_use)
+
+        label.new(bar_index, _y, text=_text, color=_color, textalign=text.align_left)
+
+
+
+bool sessionFilter = useSession ? not (na(time(timeframe.period, session)) or na(time_close(timeframe.period, session))) : true
+
+
+
+
+
+percentTPSL(x) =>
+
+    strategy.position_size != 0 ? math.round(x / 100 * strategy.position_avg_price / syminfo.mintick) : float(na)
+
+
+
+sl_val = sl_type == 'ATR' ? atrMultiplier * ta.atr(atrLength) : sl_type == 'FIB LVL' ? SL_Line : sl_type == 'PERCENTAGE' ? close * stopLoss / 100 : 0.00 
+
+
+
+trailing_sl_long = 0.0
+
+trailing_sl_long := strategy.position_size > 0 ? imba_trend_line  : na
+
+
+
+trailing_sl_short = 0.0
+
+trailing_sl_short := strategy.position_size < 0 and strategy.position_size[1] >= 0 ? high + sl_val :
+
+         strategy.position_size < 0 and strategy.position_size[1] < 0 ? math.min(high + sl_val, nz(trailing_sl_short[1])) : na
+
+
+
+
+
+// Logic SL TP ----------------------------------------
+
+//
+
+bool status_long_hit_tp1 = na
+
+status_long_hit_tp1 := (strategy.position_size[1] > 0 and strategy.position_size > 0 and strategy.position_size[1] > strategy.position_size) ? true : strategy.position_size <= 0 ? false : status_long_hit_tp1[1]
+
+
+
+bool status_short_hit_tp1 = na
+
+status_short_hit_tp1 := (strategy.position_size[1] < 0 and strategy.position_size < 0 and strategy.position_size[1] < strategy.position_size) ? true : strategy.position_size >= 0 ? false : status_short_hit_tp1[1]
+
+
+
+//
+
+STLLong         := (status_long_hit_tp1 == true  and movestoploss == true) ? strategy.position_avg_price : imba_entry_long_line - percentTPSL(SL)*syminfo.mintick
+
+
+
+STLShort        := (status_short_hit_tp1 == true and movestoploss == true) ? strategy.position_avg_price : imba_entry_short_line + percentTPSL(SL)*syminfo.mintick
+
+
+
+
+
+//Calculate levels
+
+long_sl_lv      = (status_long_hit_tp1 == true      and active_trailing == true) ? trailing_sl_long     : STLLong
+
+short_sl_lv     = (status_short_hit_tp1 == true     and active_trailing == true) ? trailing_sl_short    : STLShort
+
+
+
+long_tp1_lv     = strategy.position_avg_price + percentTPSL(TP1)*syminfo.mintick
+
+long_tp2_lv     = strategy.position_avg_price + percentTPSL(TP2)*syminfo.mintick
+
+long_tp3_lv     = strategy.position_avg_price + percentTPSL(TP3)*syminfo.mintick
+
+long_tp4_lv     = strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick
+
+long_tp5_lv     = strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick
+
+
+
+short_tp1_lv    = strategy.position_avg_price - percentTPSL(TP1)*syminfo.mintick
+
+short_tp2_lv    = strategy.position_avg_price - percentTPSL(TP2)*syminfo.mintick
+
+short_tp3_lv    = strategy.position_avg_price - percentTPSL(TP3)*syminfo.mintick
+
+short_tp4_lv    = strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick
+
+short_tp5_lv    = strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick
+
+
+
+////////////////////////////////////////////////////////////////////////////////SETUP EXIT
+
+if multiprofit == true
+
+    strategy.exit("TP1", "Long", qty_percent = qty1,    profit = percentTPSL(TP1),  comment = "Tp1🎯")
+
+    strategy.exit("TP2", "Long", qty_percent = qty2,    profit = percentTPSL(TP2),  comment = "Tp2🎯")
+
+    strategy.exit("TP3", "Long", qty_percent = qty3,    profit = percentTPSL(TP3),  comment = "Tp3🎯")
+
+    strategy.exit("TP4", "Long", qty_percent = qty4,    profit = percentTPSL(TP4),  comment = "Tp4🎯")
+
+    strategy.exit("TP5", "Long", qty_percent = qty4,    profit = percentTPSL(TP4),  comment = "Tp5🎯")
+
+    strategy.close_all(when = strategy.position_size > 0 and low < long_sl_lv,          comment = "CLOSED")
+
+    strategy.exit("TP1", "Short", qty_percent = qty1,   profit = percentTPSL(TP1), comment = "Tp1🎯")
+
+    strategy.exit("TP2", "Short", qty_percent = qty2,   profit = percentTPSL(TP2), comment = "Tp2🎯")
+
+    strategy.exit("TP3", "Short", qty_percent = qty3,   profit = percentTPSL(TP3), comment = "Tp3🎯")
+
+    strategy.exit("TP4", "Short", qty_percent = qty4,   profit = percentTPSL(TP4), comment = "Tp4🎯")
+
+    strategy.exit("TP5", "Short", qty_percent = qty4,   profit = percentTPSL(TP4), comment = "Tp5🎯")
+
+    strategy.close_all(when = strategy.position_size < 0 and high > short_sl_lv,            comment = "CLOSED")
+
+
+
+//Close all positions at the end of the session
+
+strategy.close_all(when = closeAtSessionEnd and not sessionFilter, comment = 'Fine Sessione')
+
+
+
+
+
+//SETUP exit sipmle
+
+if multiprofit == false
+
+    strategy.exit("SL",     "Long",     loss = STLLong,     comment     = "SL")
+
+    strategy.exit("SL",     "Short",    loss = STLShort,    comment     = "SL")
+
+
+
+//////////////////////////////////////////////////////////////////////////////// Plot TP & SL
+
+var float entryLongTwo = 0.00
+
+var float entryLongThree = 0.00
+
+var float entryLongFour = 0.00
+
+
+
+var float entryShortTwo = 0.00
+
+var float entryShortThree = 0.00
+
+var float entryShortFour = 0.00
+
+
+
+entryLongThree := math.round_to_mintick(math.avg(strategy.position_avg_price,imba_entry_long_line))
+
+entryLongTwo := math.round_to_mintick(math.avg(strategy.position_avg_price,entryLongThree))
+
+entryLongFour := math.round_to_mintick(math.avg(entryLongThree,imba_entry_long_line))
+
+
+
+entryShortThree := math.round_to_mintick(math.avg(strategy.position_avg_price,imba_entry_short_line))
+
+entryShortTwo := math.round_to_mintick(math.avg(strategy.position_avg_price,entryShortThree))
+
+entryShortFour := math.round_to_mintick(math.avg(entryShortThree,imba_entry_short_line))
+
+
+
+
+
+plot(strategy.position_size > 0 ? long_sl_lv : na,      color=color.new(#ca14af, 20), style=plot.style_linebr, title="SL Long")
+
+plot(strategy.position_size < 0 ? short_sl_lv : na,     color=color.new(#ca14af, 20), style=plot.style_linebr, title="SL Short")
+
+
+
+plot(strategy.position_size > 0 ? strategy.position_avg_price : na,     color=color.new(#2759cd, 30), style=plot.style_linebr, title="Entrie Top")
+
+plot(strategy.position_size < 0 ? strategy.position_avg_price : na,     color=color.new(#2759cd, 30), style=plot.style_linebr, title="Entrie Bottom")
+
+
+
+
+
+plot(strategy.position_size > 0 ? dcaAct ? dacValue == "2" ? na : entryLongThree : na : na,     color=color.new(#004cff, 30), style=plot.style_linebr, title="Long Entrie 3")
+
+plot(strategy.position_size > 0 ? dcaAct ? dacValue == "2" or dacValue == "3" ? na : entryLongTwo : na : na,     color=color.new(#004cff, 30), style=plot.style_linebr, title="Long Entrie 2")
+
+plot(strategy.position_size > 0 ? dcaAct ? dacValue == "2" or dacValue == "3" ? na : entryLongFour : na : na,     color=color.new(#004cff, 30), style=plot.style_linebr, title="Long Entrie 4")
+
+
+
+plot(strategy.position_size < 0 ? dcaAct ? dacValue == "2" ? na : entryShortThree : na : na,     color=color.new(#004cff, 30), style=plot.style_linebr, title="Short Entrie 3")
+
+plot(strategy.position_size < 0 ? dcaAct ? dacValue == "2" or dacValue == "3" ? na : entryShortTwo : na : na,     color=color.new(#004cff, 30), style=plot.style_linebr, title="Short Entrie 2")
+
+plot(strategy.position_size < 0 ? dcaAct ? dacValue == "2" or dacValue == "3" ? na : entryShortFour : na : na,     color=color.new(#004cff, 30), style=plot.style_linebr, title="Short Entrie 4")
+
+
+
+plot(strategy.position_size == 0 ? na : dcaAct ? dacValue == "2" or dacValue == "3" or dacValue == "5" ? imba_entry_long_line : na : na , color = is_long_trend[1] ? color.new(#004cff, 0)  : color.new(#000000, 100), linewidth = 1, style=plot.style_linebr)
+
+plot(strategy.position_size == 0 ? na : dcaAct ? dacValue == "2" or dacValue == "3" or dacValue == "5" ? imba_entry_short_line : na : na , color = is_short_trend[1] ? color.new(#004cff, 0)  : color.new(#000000, 100), linewidth = 1, style=plot.style_linebr)
+
+
+
+
+
+plot(multiprofit == true and strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP1)*syminfo.mintick : na,     color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Long TP1")
+
+plot(multiprofit == true and strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP2)*syminfo.mintick : na,     color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Long TP2")
+
+plot(multiprofit == true and strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP3)*syminfo.mintick : na,     color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Long TP3")
+
+plot(multiprofit == true and strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick : na,     color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Long TP4")
+
+plot(multiprofit == true and strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick : na,     color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Long TP5")
+
+
+
+plot(multiprofit == true and strategy.position_size < 0 ? strategy.position_avg_price - percentTPSL(TP1)*syminfo.mintick : na,    color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Short TP1")
+
+plot(multiprofit == true and strategy.position_size < 0 ? strategy.position_avg_price - percentTPSL(TP2)*syminfo.mintick : na,    color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Short TP2")
+
+plot(multiprofit == true and strategy.position_size < 0 ? strategy.position_avg_price - percentTPSL(TP3)*syminfo.mintick : na,    color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Short TP3")
+
+plot(multiprofit == true and strategy.position_size < 0 ? strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick : na,    color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Short TP4")
+
+plot(multiprofit == true and strategy.position_size < 0 ? strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick : na,    color=color.new(#14ca3b, 30), style=plot.style_linebr, title="Short TP5")
+
+
+
+//Label TP/SL
+
+_x = timenow + math.round(ta.change(time) * 2)
+
+
+
+draw_label(y1, y2, label1, label2, percent1, percent2, _textcolor) =>
+
+    var label Label = na
+
+    label.delete(Label)
+
+    Label := label.new(_x, strategy.position_size > 0 ? y1 : y2, strategy.position_size > 0 ? '' + str.tostring(label1) + ': ' + str.tostring(math.round(y1,2)) + ' (' + str.tostring(math.round(percent1,2)) + '%)' : '' + str.tostring(label2) + ': ' + str.tostring(math.round(y2,2)) + ' (' + str.tostring(math.round(percent2,2)) + '%)'  , color=color.new(color.white, 100), textcolor=_textcolor, style=label.style_label_left, yloc=yloc.price, xloc=xloc.bar_time, size=size.small, textalign=text.align_left)
+
+    Label
+
+draw_label_entry(y1, y2, label1, label2, entry1, entry2, _textcolor) =>
+
+    var label Label = na
+
+    label.delete(Label)
+
+    Label := label.new(_x, strategy.position_size > 0 ? y1 : y2, strategy.position_size > 0 ? '' + str.tostring(label1) + ': ' + str.tostring(math.round(y1,2)) + ' (' + str.tostring(entry1) + ')' : '' + str.tostring(label2) + ': ' + str.tostring(math.round(y2,2)) + ' (' + str.tostring(entry2) + ')' , color=color.new(color.white, 100), textcolor=_textcolor, style=label.style_label_left, yloc=yloc.price, xloc=xloc.bar_time, size=size.small, textalign=text.align_left)
+
+    Label
+
+
+
+
+
+if multiprofit == true
+
+    if dcaAct == true
+
+        // 2 Rebuy
+
+        if dacValue == "2"
+
+            draw_label_entry(strategy.position_avg_price, strategy.position_avg_price,   "�? Entry Zone Long ",   "�? Entry Zone Short", "Entry 1", "Entry 1",    color.new(#004cff, 30))
+
+            draw_label_entry(imba_entry_long_line, imba_entry_short_line,   "�? Entry Zone Long ",   "�? Entry Zone Short", "Entry 2", "Entry 2",   color.new(#004cff, 30))
+
+        // 3 Rebuy
+
+        if dacValue == "3"
+
+            draw_label_entry(strategy.position_avg_price, strategy.position_avg_price,   "�? Entry Zone Long ",   "�? Entry Zone Short", "Entry 1", "Entry 1",    color.new(#004cff, 30))
+
+            draw_label_entry(entryLongThree, entryShortThree,   "",   "", "Entry 2", "Entry 2",   color.new(#004cff, 30))
+
+            draw_label_entry(imba_entry_long_line, imba_entry_short_line,   "�? Entry Zone Long ",   "�? Entry Zone Short", "Entry 3", "Entry 3",   color.new(#004cff, 30))                                                                                                                           
+
+        // 5 Rebuy
+
+        if dacValue == "5"
+
+            draw_label_entry(strategy.position_avg_price, strategy.position_avg_price,   "�? Entry Zone Long ",   "�? Entry Zone Short", "Entry 1", "Entry 1",    color.new(#004cff, 30))
+
+            draw_label_entry(entryLongTwo, entryShortTwo,   "",   "", "Entry 2", "Entry 2",   color.new(#004cff, 30))
+
+            draw_label_entry(entryLongThree, entryShortThree,   "",   "", "Entry 3", "Entry 3",   color.new(#004cff, 30))
+
+            draw_label_entry(entryLongFour, entryShortFour,   "",   "", "Entry 4", "Entry 4",   color.new(#004cff, 30))
+
+            draw_label_entry(imba_entry_long_line, imba_entry_short_line,   "�? Entry Zone Long ",   "�? Entry Zone Short", "Entry 5", "Entry 5",   color.new(#004cff, 30))
+
+    else
+
+        draw_label_entry(strategy.position_avg_price, strategy.position_avg_price,   "Entry Long ",   "Entry Short", "Entry 1", "Entry 1",    color.new(#004cff, 30))
+
+
+
+    draw_label(strategy.position_avg_price + percentTPSL(TP1)*syminfo.mintick,      strategy.position_avg_price - percentTPSL(TP1)*syminfo.mintick,   "🎯 Long TP1",   "🎯 Short TP1", TP1, TP1, color.new(#14ca3b, 30))
+
+    draw_label(strategy.position_avg_price + percentTPSL(TP2)*syminfo.mintick,      strategy.position_avg_price - percentTPSL(TP2)*syminfo.mintick,   "🎯 Long TP2",   "🎯 Short TP2", TP2, TP2, color.new(#14ca3b, 30))
+
+    draw_label(strategy.position_avg_price + percentTPSL(TP3)*syminfo.mintick,      strategy.position_avg_price - percentTPSL(TP3)*syminfo.mintick,   "🎯 Long TP3",   "🎯 Short TP3", TP3, TP3, color.new(#14ca3b, 30))
+
+    draw_label(strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick,      strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick,   "🎯 Long TP4",   "🎯 Short TP4", TP4, TP4, color.new(#14ca3b, 30))
+
+    draw_label(strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick,      strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick,   "🎯 Long TP5",   "🎯 Short TP5", TP4, TP4, color.new(#14ca3b, 30))
+
+
+
+    draw_label(long_sl_lv,short_sl_lv,"Long SL","Short SL",  (imba_entry_long_line-long_sl_lv)*100/strategy.position_avg_price, (-imba_entry_short_line+short_sl_lv)*100/strategy.position_avg_price, color.new(#ca14af, 20))
+
+    
+
+DashLabelxpos = DashLabel * (time - time[1])
+
+
+
+closedTrades = strategy.closedtrades
+
+winTrades = strategy.wintrades
+table.cell(textstylist, 0, 1, subtitle, width, height, c_subtitle, a_subtitle, text_size=s_subtitle, bgcolor=c_bg)
+lossTrades = strategy.losstrades
+
+
+
+newWin  = (strategy.wintrades  > strategy.wintrades[1]) and (strategy.losstrades == strategy.losstrades[1]) and (strategy.eventrades == strategy.eventrades[1])
+
+newLoss = (strategy.wintrades == strategy.wintrades[1]) and (strategy.losstrades  > strategy.losstrades[1]) and (strategy.eventrades == strategy.eventrades[1])
+
+
+
+varip int winRow     = 0
+
+varip int lossRow    = 0
+
+varip int maxWinRow  = 0
+
+varip int maxLossRow = 0
+
+
+
+if newWin
+
+    lossRow := 0
+
+    winRow := winRow + 1
+
+    if winRow > maxWinRow
+
+        maxWinRow := winRow
+
+        
+
+if newLoss
+
+    winRow := 0
+
+    lossRow := lossRow + 1
+
+    if lossRow > maxLossRow
+
+        maxLossRow := lossRow
+
+
+
+var int MyDate = na
+
+if strategy.opentrades == 1 and na(MyDate)
+
+    MyDate := time
+
+
+
+MTLabel(shortTitle, tradeIdeeAct, MyDate, dcaAct, dacValue, imba_entry_long_line, imba_entry_short_line, entry_Long_Three, entry_Short_Three, entry_Long_Two, entry_Short_Two, entry_Long_Four, entry_Short_Four, multiprofit, TP1, TP2, TP3, TP4, qty1, qty2, qty3, qty4, oppositeSignalACT, trailingConfigurationACT, trailingConfigurationType, movingTarget, start_date_input, asset) =>
+
+    string _text = '📊�?' + ''+ shortTitle + ' Trade Statistics' + '\n'
+
+    _text += '⚙️ Strategy:�?' + str.tostring(asset) + '\n\n'
+
+    _text += '📅 First Trade:�?' + str.tostring(dayofmonth(MyDate))+"-"+str.tostring(month(MyDate))+"-"+str.tostring(year(MyDate)) +'\n\n'
+
+    _text += '            Total📊 BUY📈 SELL📉�?' + '\n'
+
+    _text += '════════════════════════════'+ '\n'
+
+    _text += 'Total Trade:�?' + str.tostring(closedTrades, '##.##') + '\n'
+
+    _text += 'Total Win:  �?' + str.tostring(winTrades, '##.##') + '\n'
+
+    _text += 'Total Loss:  �?' + str.tostring(lossTrades, '##.##') + '\n'
+
+    _text += '════════════════════════════'+ '\n'
+
+    _text += ' Max Win in a Row:  ' + str.tostring(maxWinRow, '######')  + '\n'
+
+    _text += ' Max Loss in a Row:  ' + str.tostring(maxLossRow, '######')  + '\n'
+
+    if tradeIdeeAct == true
+
+        _text += '════════════════════════════'+ '\n\n'
+
+        _text += ''+ shortTitle + '\n'
+
+        _text += 'Trade idea'+ '\n\n'
+
+        _text += '📩�?'+ str.tostring(syminfo.ticker) + '\n'
+
+        _text += strategy.position_size > 0 ? "📈 Long \n"  : "📉 Short \n"
+
+        _text += 'Timeframe :  ⏰�?'+ str.tostring(timeframe.period ) + '\n'
+
+        _text += '💳 Leverage :' + '\n'
+
+        _text += 'Cross (5x-25x)' + '\n\n'
+
+        // DCA Activate
+
+        if dcaAct == true
+
+            _text += 'Dollar Cost Averaging :�? ✔️'+ '\n'
+
+            // 2 Rebuy
+
+            if dacValue == "2"
+
+                _text += '2 DCA Entrys' + '\n\n'
+
+                _text += '1)�?' + str.tostring(strategy.position_avg_price) + '�?-�?50%' + '\n'
+
+                _text += '2)�?' + str.tostring(strategy.position_size > 0 ? imba_entry_long_line  : imba_entry_short_line ) + '�?-�?50%' + '\n\n'
+
+            if dacValue == "3"
+
+                _text += '3 DCA Entrys' + '\n\n'
+
+                _text += '1)�?' + str.tostring(strategy.position_avg_price) + '�?-�?33.33%' + '\n'
+
+                _text += '2)�?' + str.tostring(strategy.position_size > 0 ? entry_Long_Three : entry_Short_Three) + '�?-�?33.33%' + '\n'
+
+                _text += '3)�?' + str.tostring(strategy.position_size > 0 ? imba_entry_long_line : imba_entry_short_line) + '�?-�?33.33%' + '\n\n'
+
+            if dacValue == "5"
+
+                _text += '5 DCA Entrys' + '\n\n'
+
+                _text += '1)�?' + str.tostring(strategy.position_avg_price) + '�?-�?20%' + '\n'
+
+                _text += '2)�?' + str.tostring(strategy.position_size > 0 ? entryLongTwo : entryShortTwo) + '�?-�?20%' + '\n'
+
+                _text += '3)�?' + str.tostring(strategy.position_size > 0 ? entry_Long_Three : entry_Short_Three) + '�?-�?20%' + '\n'
+
+                _text += '3)�?' + str.tostring(strategy.position_size > 0 ? entry_Long_Four : entry_Short_Four) + '�?-�?20%' + '\n'
+
+                _text += '3)�?' + str.tostring(strategy.position_size > 0 ? imba_entry_long_line : imba_entry_short_line) + '�?-�?20%' + '\n\n'
+
+        else
+
+            _text += 'Dollar Cost Averaging :�? �?'+ '\n'
+
+            _text += '1)' + str.tostring(strategy.position_avg_price) + '100%' + '\n\n'
+
+        if multiprofit == true
+
+            _text += '📤 Take-Profit Orders:' + '\n\n'
+
+            _text += '1)�?' + str.tostring(strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP1)*syminfo.mintick : strategy.position_avg_price - percentTPSL(TP1)*syminfo.mintick)
+
+            _text += '�?-�?' + str.tostring(math.round(qty1,2)) + '%' + '\n'
+
+            _text += '2)�?' + str.tostring(strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP2)*syminfo.mintick : strategy.position_avg_price - percentTPSL(TP2)*syminfo.mintick)
+
+            _text += '�?-�?' + str.tostring(math.round(qty2,2)) + '%' + '\n'
+
+            _text += '3)�?' + str.tostring(strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP3)*syminfo.mintick : strategy.position_avg_price - percentTPSL(TP3)*syminfo.mintick)
+
+            _text += '�?-�?' + str.tostring(math.round(qty3,2)) + '%' + '\n'
+
+            _text += '4)�?' + str.tostring(strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick : strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick)
+
+            _text += '�?-�?' + str.tostring(math.round(qty4,2)) + '%' + '\n\n'
+
+            _text += '5)�?' + str.tostring(strategy.position_size > 0 ? strategy.position_avg_price + percentTPSL(TP4)*syminfo.mintick : strategy.position_avg_price - percentTPSL(TP4)*syminfo.mintick)
+
+            _text += '�?-�?' + str.tostring(math.round(qty4,2)) + '%' + '\n\n'
+
+            _text += '⛔️  Stop-loss Orders:' + '\n'
+
+            _text += '1)�?'+ str.tostring(strategy.position_size > 0 ? long_sl_lv : strategy.position_size < 0 ? short_sl_lv : na) + '�?-�?' + '100%' + '\n'
+
+            if oppositeSignalACT
+
+                _text += 'or Next signal 🔀' + '\n\n'
+
+            if trailingConfigurationACT
+
+                _text += '⚙️ Trailing Configuration:' + '\n'
+
+                _text += 'Stop:' + ''+ trailingConfigurationType + '\n'
+
+                _text += 'Trigger: Target' + '�?' + str.tostring((movingTarget))
+
+
+
+    else 
+
+        _text += na
+
+
+
+label la = na
+
+label.delete(la[1])
+
+txt = MTLabel(shortTitle, tradeIdeeAct, MyDate, dcaAct, dacValue, imba_entry_long_line, imba_entry_short_line, entryLongThree, entryShortThree, entryLongTwo, entryShortTwo, entryLongFour, entryShortFour, multiprofit, TP1, TP2, TP3, TP4, qty1, qty2, qty3, qty4, oppositeSignalACT, trailingConfigurationACT, trailingConfigurationType, movingTarget, start_date_input, asset)
+
+xval = timeframe.period == "1" ? timenow + 300000 : timeframe.period == "3" ? timenow + (15*60000) : timeframe.period == "5" ? timenow + (25*60000) : timeframe.period == "15" ? timenow + (75*60000) : timeframe.period == "30" ? timenow + (150*60000) : timeframe.period == "45" ? timenow + (225*60000) : timeframe.period == "60" ? timenow + (300*60000) : timeframe.period == "180" ? timenow + (600*60000) : timeframe.period == "240" ? timenow + (1200*60000) : timeframe.period == "D" ? timenow + (7200*60000) : timenow + (50400*60000)
+
+
+
+la := plotDashboard ? label.new(x=time + DashLabelxpos, xloc=xloc.bar_time, yloc=yloc.price, y=close, text=txt, color=color.new(color.black, 50), style=label.style_label_left, textcolor=color.white, size=size.normal, textalign=text.align_left) : na
+
+

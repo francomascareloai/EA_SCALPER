@@ -1,0 +1,533 @@
+
+//@version=5
+indicator("EzAlgo V.11", shorttitle="Algo V.11 [AlgoPoint]", overlay=true, max_labels_count=500)
+
+// Get user settings
+showBuySell       = input(true, "Standard Signals", group="BUY & SELL SIGNALS")
+sensitivitysetter = input.string("Smooth", "Signal Type", ["Fast", "Smooth", "Swing"], group = "BUY & SELL SIGNALS")
+sensitivity       = (sensitivitysetter == "Fast" ? 1.7 : sensitivitysetter == "Smooth" ? 3.3 : sensitivitysetter == "Swing" ? 4.8 : na)
+offsetSignal      = input.float(2, "Signals Offset", 0, group="BUY & SELL SIGNALS")
+AiBuySell       = input(true, "AI Signals", group="BUY & SELL SIGNALS")
+aisensitivitysetter = input.string("Moderate", "AI Strength", ["Moderate", "Strong", "Strongest"], group="BUY & SELL SIGNALS")
+// MULTI-TIMEFRAME S/R
+showSR              = input.bool(false, title = "", inline = "01", group="MULTI-TIMEFRAME S/R")
+timef               = input.timeframe("", "", inline = "01", group="MULTI-TIMEFRAME S/R")
+levels              = input.int(5 , "Levels", inline = "01", group = "MULTI-TIMEFRAME S/R")
+linewidth           = input.int(1, "Width", inline = "02", group = "MULTI-TIMEFRAME S/R") * 20
+supportcolor        = input.color(color.new(#00DBFF, 75), "", inline = "02", group = "MULTI-TIMEFRAME S/R")
+resistancecolor     = input.color(color.new(#b2b5be, 75), "", inline = "02", group = "MULTI-TIMEFRAME S/R")
+labelon             = input.string("On", "Label", ["On", "Off"], inline = "03", group = "MULTI-TIMEFRAME S/R")
+labelsize           = input.string("Default", "Size", ["Small", "Default", "Large"], inline = "03", group = "MULTI-TIMEFRAME S/R")
+labelcol            = input.color(#5d606b, "", inline = "03", group = "MULTI-TIMEFRAME S/R")
+labelloc            = input.int(10, "Offset", inline = "04", group = "MULTI-TIMEFRAME S/R") + 30
+showtimef           = input.bool(true, "Show Timeframe", inline = "04", group = "MULTI-TIMEFRAME S/R")
+showtprice          = input.bool(true, "Show Price", inline = "04", group = "MULTI-TIMEFRAME S/R")
+barcoloronof        = input(true, "Show Candle Coloring", group = "TREND SETTINGS")
+showRibbon          = input(title='Show Trend Cloud',inline = 'TrendOption', defval=true, group= "TREND SETTINGS")
+trendcloudbull      = input(#00dbff, "",inline = 'TrendOption', group="TREND SETTINGS")
+trendcloudbear      = input(#b2b5be, "",inline = 'TrendOption', group="TREND SETTINGS")
+
+showEmas          = input(false, "Show EMAs", group="TREND SETTINGS")
+srcEma1           = close
+lenEma1           = input.int(8, "EMA 1", 1,group="TREND SETTINGS")
+srcEma2           = close
+lenEma2           = input.int(13, "EMA 2", 1,group="TREND SETTINGS")
+srcEma3           = close
+lenEma3           = input.int(144, "EMA 3", 1,group="TREND SETTINGS")
+
+showRevBands        = input.bool(false, "Show Reversal Bands", group="REVERSAL BANDS")
+lenRevBands         = input.int(30, "Length", group="REVERSAL BANDS")
+
+
+// Functions
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), t)
+    smoothrng = ta.ema(avrng, wper) * m
+rngfilt(x, r) =>
+    rngfilt = x
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r : x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+percWidth(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+securityNoRep(sym, res, src) => request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_on)
+swingPoints(prd) =>
+    pivHi = ta.pivothigh(prd, prd)
+    pivLo = ta.pivotlow (prd, prd)
+    last_pivHi = ta.valuewhen(pivHi, pivHi, 1)
+    last_pivLo = ta.valuewhen(pivLo, pivLo, 1)
+    hh = pivHi and pivHi > last_pivHi ? pivHi : na
+    lh = pivHi and pivHi < last_pivHi ? pivHi : na
+    hl = pivLo and pivLo > last_pivLo ? pivLo : na
+    ll = pivLo and pivLo < last_pivLo ? pivLo : na
+    [hh, lh, hl, ll]
+f_chartTfInMinutes() =>
+    float _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1                   :
+      timeframe.isminutes ? 1.                  :
+      timeframe.isdaily   ? 60. * 24            :
+      timeframe.isweekly  ? 60. * 24 * 7        :
+      timeframe.ismonthly ? 60. * 24 * 30.4375  : na)
+f_kc(src, len, sensitivity) =>
+    basis = ta.sma(src, len)
+    span  = ta.atr(len)
+    [basis + span * sensitivity, basis - span * sensitivity]
+wavetrend(src, chlLen, avgLen) =>
+    esa = ta.ema(src, chlLen)
+    d = ta.ema(math.abs(src - esa), chlLen)
+    ci = (src - esa) / (0.015 * d)
+    wt1 = ta.ema(ci, avgLen)
+    wt2 = ta.sma(wt1, 3)
+    [wt1, wt2]
+f_top_fractal(src) => src[4] < src[2] and src[3] < src[2] and src[2] > src[1] and src[2] > src[0]
+f_bot_fractal(src) => src[4] > src[2] and src[3] > src[2] and src[2] < src[1] and src[2] < src[0]
+f_fractalize (src) => f_top_fractal(src) ? 1 : f_bot_fractal(src) ? -1 : 0
+f_findDivs(src, topLimit, botLimit) =>
+    fractalTop = f_fractalize(src) > 0 and src[2] >= topLimit ? src[2] : na
+    fractalBot = f_fractalize(src) < 0 and src[2] <= botLimit ? src[2] : na
+    highPrev = ta.valuewhen(fractalTop, src[2], 0)[2]
+    highPrice = ta.valuewhen(fractalTop, high[2], 0)[2]
+    lowPrev = ta.valuewhen(fractalBot, src[2], 0)[2]
+    lowPrice = ta.valuewhen(fractalBot, low[2], 0)[2]
+    bearSignal = fractalTop and high[2] > highPrice and src[2] < highPrev
+    bullSignal = fractalBot and low[2] < lowPrice and src[2] > lowPrev
+    [bearSignal, bullSignal]
+//
+title = 'AlgoPoint'
+subtitle = 'Leaked Algos - Courses | IG: algopoint'
+// Get components
+source    = close
+smrng1    = smoothrng(source, 27, 1.5)
+smrng2    = smoothrng(source, 55, sensitivity)
+smrng     = (smrng1 + smrng2) / 2
+filt      = rngfilt(source, smrng)
+up        = 0.0, up := filt > filt[1] ? nz(up[1]) + 1 : filt < filt[1] ? 0 : nz(up[1])
+dn        = 0.0, dn := filt < filt[1] ? nz(dn[1]) + 1 : filt > filt[1] ? 0 : nz(dn[1])
+bullCond  = bool(na), bullCond := source > filt and source > source[1] and up > 0 or source > filt and source < source[1] and up > 0
+bearCond  = bool(na), bearCond := source < filt and source < source[1] and dn > 0 or source < filt and source > source[1] and dn > 0
+lastCond  = 0, lastCond := bullCond ? 1 : bearCond ? -1 : lastCond[1]
+bull      = bullCond and lastCond[1] == -1
+bear      = bearCond and lastCond[1] == 1
+countBull = ta.barssince(bull)
+countBear = ta.barssince(bear)
+trigger   = nz(countBull, bar_index) < nz(countBear, bar_index) ? 1 : 0
+rsi       = ta.rsi(close, 21)
+rsiOb     = rsi > 70 and rsi > ta.ema(rsi, 10)
+rsiOs     = rsi < 30 and rsi < ta.ema(rsi, 10)
+dHigh     = securityNoRep(syminfo.tickerid, "D", high [1])
+dLow      = securityNoRep(syminfo.tickerid, "D", low  [1])
+dClose    = securityNoRep(syminfo.tickerid, "D", close[1])
+ema = ta.ema(close, 144)
+emaBull = close > ema
+equal_tf(res) => str.tonumber(res) == f_chartTfInMinutes() and not timeframe.isseconds
+higher_tf(res) => str.tonumber(res) > f_chartTfInMinutes() or timeframe.isseconds
+too_small_tf(res) => (timeframe.isweekly and res=="1") or (timeframe.ismonthly and str.tonumber(res) < 10)
+securityNoRep1(sym, res, src) =>
+    bool bull_ = na
+    bull_ := equal_tf(res) ? src : bull_
+    bull_ := higher_tf(res) ? request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_on) : bull_
+    bull_array = request.security_lower_tf(syminfo.tickerid, higher_tf(res) ? str.tostring(f_chartTfInMinutes()) + (timeframe.isseconds ? "S" : "") : too_small_tf(res) ? (timeframe.isweekly ? "3" : "10") : res, src)
+    if array.size(bull_array) > 1 and not equal_tf(res) and not higher_tf(res)
+        bull_ := array.pop(bull_array)
+    array.clear(bull_array)
+    bull_
+TF1Bull   = securityNoRep1(syminfo.tickerid, "1"   , emaBull)
+TF3Bull   = securityNoRep1(syminfo.tickerid, "3"   , emaBull)
+TF5Bull   = securityNoRep1(syminfo.tickerid, "5"   , emaBull)
+TF15Bull  = securityNoRep1(syminfo.tickerid, "15"  , emaBull)
+TF30Bull  = securityNoRep1(syminfo.tickerid, "30"  , emaBull)
+TF60Bull  = securityNoRep1(syminfo.tickerid, "60"  , emaBull)
+TF120Bull = securityNoRep1(syminfo.tickerid, "120" , emaBull)
+TF240Bull = securityNoRep1(syminfo.tickerid, "240" , emaBull)
+TF480Bull = securityNoRep1(syminfo.tickerid, "480" , emaBull)
+TFDBull   = securityNoRep1(syminfo.tickerid, "1440", emaBull)
+[upperKC1, lowerKC1] = f_kc(close, lenRevBands, 3)
+[upperKC2, lowerKC2] = f_kc(close, lenRevBands, 4)
+[upperKC3, lowerKC3] = f_kc(close, lenRevBands, 5)
+[upperKC4, lowerKC4] = f_kc(close, lenRevBands, 6)
+[wt1, wt2] = wavetrend(hlc3, 9, 12)
+[wtDivBear1, wtDivBull1] = f_findDivs(wt2, 15, -40)
+[wtDivBear2, wtDivBull2] = f_findDivs(wt2, 45, -65)
+wtDivBull = wtDivBull1 or wtDivBull2
+wtDivBear = wtDivBear1 or wtDivBear2
+symInfoCheck = false
+symInfo = syminfo.ticker + ' | ' + timeframe.period + (timeframe.isminutes ? 'M' : na)
+date = str.tostring(dayofmonth(time_close)) + '/' + str.tostring(month(time_close)) + '/' + str.tostring(year(time_close))
+// Colors
+cyan = #00DBFF, cyan30 = color.new(cyan, 70)
+pink = #b2b5be, pink30 = color.new(pink, 70)
+red  = #b2b5be, red30  = color.new(red , 70)
+barupcolor = barcoloronof == true ? #00DBFF : na
+bardowncolor = barcoloronof == true ? #b2b5be : na
+// Plot
+
+off = percWidth(300, offsetSignal)
+plotshape(showBuySell and bull ? low  - off : na, "Buy Signal" , shape.circle  , location.absolute, cyan, 0, "" , color.white, size=size.tiny, editable = false)
+plotshape(showBuySell and bear ? high + off : na, "Sell Signal", shape.circle, location.absolute, pink, 0, "", color.white, size=size.tiny, editable = false)
+plotshape(ta.crossover(wt1, wt2) and wt2 <= -53 and AiBuySell and aisensitivitysetter == "Moderate", "AI Strong Buy", shape.triangleup, location.belowbar, cyan, size=size.tiny, editable = false)
+plotshape(ta.crossunder(wt1, wt2) and wt2 >= 53 and AiBuySell and aisensitivitysetter == "Moderate", "AI Strong Sell", shape.triangledown, location.abovebar, pink, size=size.tiny, editable = false)
+plotshape(ta.crossover(wt1, wt2) and wt2 <= -53 and AiBuySell and aisensitivitysetter == "Strong", "AI Strong Buy", shape.triangleup, location.belowbar, cyan, size=size.tiny, editable = false)
+plotshape(ta.crossunder(wt1, wt2) and wt2 >= 53 and AiBuySell and aisensitivitysetter == "Strong", "AI Strong Sell", shape.triangledown, location.abovebar, pink, size=size.tiny, editable = false)
+plotshape(wtDivBull and AiBuySell and aisensitivitysetter == "Moderate", "AI Strongest Buy ", shape.triangleup  , location.belowbar, cyan, size=size.tiny, editable = false)
+plotshape(wtDivBear and AiBuySell and aisensitivitysetter == "Moderate", "AI Strongest Sell", shape.triangledown, location.abovebar, pink, size=size.tiny, editable = false)
+plotshape(wtDivBull and AiBuySell and aisensitivitysetter == "Strongest", "AI Strongest Buy ", shape.triangleup  , location.belowbar, cyan, size=size.tiny, editable = false)
+plotshape(wtDivBear and AiBuySell and aisensitivitysetter == "Strongest", "AI Strongest Sell", shape.triangledown, location.abovebar, pink, size=size.tiny, editable = false)
+barcolor(up > dn ? barupcolor : bardowncolor)
+//aisensitivitysetter = input.string("Moderate", "AI Strength", ["Moderate", "Strong", "Strongest"], group="BUY & SELL SIGNALS")
+plot(showRevBands ? upperKC1 : na, "Rev.Zone Upper 1", red30)
+plot(showRevBands ? upperKC2 : na, "Rev.Zone Upper 2", red30)
+plot(showRevBands ? upperKC3 : na, "Rev.Zone Upper 3", red30)
+plot(showRevBands ? upperKC4 : na, "Rev.Zone Upper 4", red30)
+plot(showRevBands ? lowerKC4 : na, "Rev.Zone Lower 4", cyan30)
+plot(showRevBands ? lowerKC3 : na, "Rev.Zone Lower 3", cyan30)
+plot(showRevBands ? lowerKC2 : na, "Rev.Zone Lower 2", cyan30)
+plot(showRevBands ? lowerKC1 : na, "Rev.Zone Lower 1", cyan30)
+
+// Alerts
+alert02 = bull
+alert03 = wtDivBull
+alert04 = wtDivBear
+alert05 = bull or bear
+alert06 = ta.crossover(wt1, wt2) and wt2 <= -53
+alert07 = ta.crossunder(wt1, wt2) and wt2 >= 53
+alert09 = rsiOb or rsiOs
+alert10 = bear
+
+alerts(sym) =>
+    if alert02 or alert03 or alert04 or alert06 or alert07 or alert10
+        alert_text = alert02 ? "Buy Signal PunkAlgo" : alert03 ? "Strong Buy Signal PunkAlgo" : alert04 ? "Strong Sell Signal PunkAlgo" : alert06 ? "Mild Buy Signal PunkAlgo" : alert07 ? "Mild Sell Signal PunkAlgo" : "Sell Signal PunkAlgo"
+        alert(alert_text,  alert.freq_once_per_bar_close)
+alerts(syminfo.tickerid)
+
+alertcondition(alert02, "Buy Signal", "Buy Signal EzAlgo")
+alertcondition(alert03, "Divergence Buy Alert", "Strong Buy Signal EzAlgo, TimeFrame={{interval}}")
+alertcondition(alert04, "Divergence Sell Alert", "Strong Sell Signal EzAlgo, TimeFrame={{interval}}")
+alertcondition(alert05, "Either Buy or Sell Signal", "EzAlgo Signal")
+alertcondition(alert06, "Mild Buy Alert", "Mild Buy Signal EzAlgo, TimeFrame={{interval}}")
+alertcondition(alert07, "Mild Sell Alert", "Mild Sell Signal EzAlgo, TimeFrame={{interval}}")
+alertcondition(alert09, "Reversal Signal", "Reversal Signal")
+alertcondition(alert10, "Sell Signal", "Sell Signal EzAlgo")
+
+// Trend Cloud Module
+
+ema21 = ta.ema(close, 21)
+ema55 = ta.ema(close, 55)
+plot21EMA = plot(showRibbon ? ema21 :  na, '21 EMA', color=color.new(#000000,100))
+plot55EMA = plot(showRibbon ? ema55 :  na, '55 EMA', color=color.new(#000000,100))
+
+fill(plot21EMA, plot55EMA, color=ema21 > ema55 ? trendcloudbull : trendcloudbear, transp=80)
+
+
+// Trendlines Modules
+
+//inputs
+
+show_trendlines = input.bool(true, 'Show Trendlines', inline = 'tl_1',group='Trendlines')
+upper_trendline_color        = input.color(#9598a1, '', inline = 'tl_1',group='Trendlines')
+lower_trendline_color        = input.color(#9598a1, '', inline = 'tl_1',group='Trendlines')
+extendLine      = input.bool(true, 'Extend', inline = 'tl_1',group='Trendlines')
+
+linestyle_curr_inp = input.string(defval = 'Solid', title = "Style", options = ['Solid', 'Dotted', 'Dashed'],inline = "tl_3",group='Trendlines')
+line_width_curr          = input.int(1, 'Width', step = 1, minval = 1,maxval = 4,inline = "tl_3",group='Trendlines')
+
+pivLen_L          = input.int(20, 'Lookback', step = 1, minval = 1, inline ='tl_5',group='Trendlines')
+pivLen_R          = pivLen_L//input.int(20, '/', step = 1, minval = 1, inline ='tl_5',group='Trendlines')
+
+hideCrossed     = not(input.bool(false, 'Show Broken', inline = 'tl_2',group='Trendlines'))
+broken_color_up        = input.color(#9598a1, '', inline = 'tl_2',group='Trendlines')
+broken_color_down        = input.color(#9598a1, '', inline = 'tl_2',group='Trendlines')
+extendLine_B      = input.bool(true, 'Extend', inline = 'tl_2',group='Trendlines')
+
+show_signals     = input.bool(false, 'Show Signals', inline = 'tl_s',group='Trendlines')
+broken_color_up_signal        = input.color(color.yellow, '', inline = 'tl_s',group='Trendlines')
+broken_color_down_signal        = input.color(color.yellow, '', inline = 'tl_s',group='Trendlines')
+
+maxLines        = input.int(3, 'Max Broken', step = 1, minval = 1, maxval = 50, inline = 'tl_2_B',group='Trendlines')
+Source_tl        = input.string('Close', 'Mitigation', options = ['Close', 'High/Low'], inline ='tl_2_B',group='Trendlines')
+
+linestyle_broken_inp = input.string(defval = 'Dashed', title = "Style (Broken)", options = ['Solid', 'Dotted', 'Dashed'],inline = "tl_2-1",group='Trendlines')
+line_width_broken         = input.int(1, 'Width', step = 1, minval = 1,maxval = 4,inline = "tl_2-1",group='Trendlines')
+
+lineStyle_curr= linestyle_curr_inp == 'Solid' ?  line.style_solid : linestyle_curr_inp == 'Dotted' ?  line.style_dotted : line.style_dashed
+lineStyle_broken= linestyle_broken_inp == 'Solid' ?  line.style_solid : linestyle_broken_inp == 'Dotted' ?  line.style_dotted : line.style_dashed
+
+s_close = request.security(ticker.standard(syminfo.tickerid), timeframe.period, close)
+s_open = request.security(ticker.standard(syminfo.tickerid), timeframe.period, open)
+s_high = request.security(ticker.standard(syminfo.tickerid), timeframe.period, high)
+s_low = request.security(ticker.standard(syminfo.tickerid), timeframe.period, low)
+
+
+var line[] pivot_high_array = array.new_line(),var line[] pivot_low_array = array.new_line()
+ph2_M = ta.pivothigh(s_high, pivLen_L, pivLen_R)
+pl2_M = ta.pivotlow(s_low, pivLen_L, pivLen_R)
+ph2 = ta.pivothigh(s_high, pivLen_L, pivLen_R)
+pl2 = ta.pivotlow(s_low, pivLen_L, pivLen_R)
+
+var float prev_close_H = na, var float curr_close_H = na
+var float prev_close_L = na, var float curr_close_L = na
+
+var int X_prev_low = na, var float Y_prev_low = na, var int X_curr_low = na, var float Y_curr_low = na
+var int X_curr_high = na, var float Y_curr_high = na, var int X_prev_high = na, var float Y_prev_high = na
+
+
+maxLines        := hideCrossed ? 0 : maxLines
+tl_array_size_up    = maxLines/2
+tl_array_size_dn    = maxLines%2==0? maxLines/2 : (maxLines/2)+1
+
+//functions
+
+newTrendLine(ptype, x1, y1, x2, y2)=>
+    new_trendline = line.new(x1, y1, x2, y2, extend = extendLine ? extend.right : extend.none, color = ptype == 'ph2' ? upper_trendline_color : lower_trendline_color, width = line_width_curr,style = lineStyle_curr,xloc = xloc.bar_index)
+    if ptype == 'ph2'
+        pivot_high_array.unshift(new_trendline)
+    else
+        pivot_low_array.unshift(new_trendline)
+
+SlopeOfLine(line)=>
+    slopeph2 = (line.get_y2(line) - line.get_y1(line))/(line.get_x2(line) -line.get_x1(line))
+    extendedph2 = line.get_y2(line) - slopeph2 * (line.get_x2(line) - bar_index)
+    extendedph2
+
+up_trend_line_formed= false
+down_trend_line_formed = false
+
+if pl2
+    X_prev_low := X_curr_low, Y_prev_low := Y_curr_low, prev_close_L := curr_close_L
+    X_curr_low := bar_index[pivLen_R], Y_curr_low := s_low[pivLen_R], curr_close_L:= s_close[pivLen_R]
+    if Y_prev_low < Y_curr_low and show_trendlines and Y_curr_low > prev_close_L 
+        newTrendLine('pl2', X_prev_low, Y_prev_low, X_curr_low, Y_curr_low)
+        down_trend_line_formed:=true
+
+if ph2
+    X_prev_high := X_curr_high, Y_prev_high := Y_curr_high, prev_close_H := curr_close_H
+    X_curr_high := bar_index[pivLen_R], Y_curr_high := s_high[pivLen_R], curr_close_H:= s_close[pivLen_R]
+    
+    if Y_prev_high > Y_curr_high and show_trendlines and prev_close_H > Y_curr_high
+        newTrendLine('ph2', X_prev_high, Y_prev_high, X_curr_high, Y_curr_high)
+        up_trend_line_formed := true
+
+
+if close > Y_prev_high
+    Y_prev_high:=0.000000
+
+if close < Y_prev_low
+    Y_prev_low:= 9999999999.9999
+
+
+// alertcondition(up_trend_line_formed,'Up TrendLine Formed','Up TrendLine Formed')
+// alertcondition(down_trend_line_formed,'Down TrendLine Formed','Down TrendLine Formed')
+alertcondition(down_trend_line_formed or up_trend_line_formed,'Trendline Formed','Trendline Formed')
+
+up_trend_line_broken = false
+down_trend_line_broken = false
+
+for x in pivot_low_array
+    var line [] Down_Trend_Lines = array.new_line(tl_array_size_up)
+    var label [] Down_Trend_Labels = array.new_label(tl_array_size_up)
+    src = Source_tl == 'Close' ? s_close : s_low
+    x.set_xy2(bar_index, SlopeOfLine(x))
+    if x.get_x2() - x.get_x1() > 300
+        x.delete()
+    if src < line.get_y2(x)
+        tl_line = line.new(line.get_x1(x), line.get_y1(x), line.get_x2(x), line.get_y2(x), color = broken_color_down, style = lineStyle_broken, width = line_width_broken,xloc = xloc.bar_index, extend = extendLine_B ? extend.right : extend.none)
+        down_trend_line_broken:=true
+        Down_Trend_Lines.unshift(tl_line)
+        line.delete(x)
+    if Down_Trend_Lines.size() > (tl_array_size_up)
+        line.delete(Down_Trend_Lines.pop())
+
+for x in pivot_high_array
+    var line [] Up_Trend_Lines = array.new_line(tl_array_size_dn)
+    var label [] Up_Trend_Labels = array.new_label(tl_array_size_dn)
+    src = Source_tl == 'Close' ? s_close : s_high
+    x.set_xy2(bar_index, SlopeOfLine(x))
+    if x.get_x2() - x.get_x1() > 300
+        x.delete()
+    if src > line.get_y2(x)
+        tl_line = line.new(line.get_x1(x), line.get_y1(x), line.get_x2(x), line.get_y2(x), color = broken_color_up, style = lineStyle_broken, width = line_width_broken,xloc = xloc.bar_index, extend = extendLine_B ? extend.right : extend.none)
+        up_trend_line_broken:=true
+        Up_Trend_Lines.unshift(tl_line)
+        line.delete(x)
+    if Up_Trend_Lines.size() > (tl_array_size_dn)
+        line.delete(Up_Trend_Lines.pop())
+
+
+plotshape(show_signals and up_trend_line_broken? low : na, title='Trendline Broken Up', style=shape.xcross, textcolor=color.new(color.white, 0), size=size.small, location=location.belowbar, color=broken_color_up_signal,display=  display.all - display.status_line, editable = false)
+plotshape(show_signals and down_trend_line_broken? high : na, title='Trendline Broken Down', style=shape.xcross,  textcolor=color.new(color.white, 0), size=size.small, location=location.abovebar, color=broken_color_down_signal,display=  display.all - display.status_line, editable = false)
+// MULTI-TIMEFRAME S/R
+c_subtitle = color.new(color.black, 30)
+s_subtitle = 'normal'
+a_subtitle = 'center'
+// get data on ticker based on chosen timeframe
+src_c = request.security(syminfo.tickerid,timef,close, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+src_o = request.security(syminfo.tickerid,timef,open, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+f_resInMinutes() =>
+    _resInMinutes = timeframe.multiplier * (timeframe.isseconds ? 1. / 60 : timeframe.isminutes ? 1. : timeframe.isdaily ? 60. * 24 : timeframe.isweekly ? 60. * 24 * 7 : timeframe.ismonthly ? 60. * 24 * 30.4375 : na)
+    _resInMinutes
+f_timefResInMinutes(_res) =>
+    request.security(syminfo.tickerid, _res, f_resInMinutes())
+f_timefIsIntraday(_res) =>
+    [intraday, daily, weekly, monthly] = request.security(syminfo.tickerid, _res, [timeframe.isintraday, timeframe.isdaily, timeframe.isweekly, timeframe.ismonthly])
+    check = intraday ? "Intraday" : daily ? "Daily" : weekly ? "Weekly" : monthly ? "Monthly" : "Error" 
+    check
+mtimef_multiplier = int (f_timefResInMinutes(timef) / f_resInMinutes())
+prd = 10
+maxnumpp = 284
+ChannelW = 10
+min_strength = 2
+prd := prd * mtimef_multiplier
+float src1 = math.max(src_c, src_o) 
+float src2 = math.min(src_c, src_o)
+float src3 = math.max(close, open)  
+float src4 = math.min(close, open)   
+float ph = ta.pivothigh(src1, prd, prd)
+float pl = ta.pivotlow(src2, prd, prd)
+Lstyle = line.style_solid
+timef_res = f_timefIsIntraday(timef)
+timef_text = str.tostring(timef)
+if str.tostring(timef) == ""
+    timef_text := na(timeframe.multiplier / 60) ? timeframe.period : timeframe.multiplier < 60 ?  timeframe.period + " M |" : str.tostring(timeframe.multiplier / 60) + " H |"
+else if timef_res == "Intraday"
+    timef_text := na(str.tonumber(timef) / 60) ? str.tostring(timef) : str.tonumber(timef) < 60 ?  str.tostring(timef) + " M |" : str.tostring(str.tonumber(timef) / 60) + " H |"
+else
+    timef_text := str.tostring(timef)
+//calculate maximum S/R channel zone width
+prdhighest = request.security(syminfo.tickerid, timef, ta.highest(300))
+prdlowest = request.security(syminfo.tickerid, timef, ta.lowest(300))
+cwidth = (prdhighest - prdlowest) * ChannelW / 100
+var pivotvals = array.new_float(0)
+if ph or pl
+    array.unshift(pivotvals, ph ? ph : pl)
+    if array.size(pivotvals) > maxnumpp  // limit the array size
+        array.pop(pivotvals)
+get_sr_vals(ind) =>
+    float lo = array.get(pivotvals, ind)
+    float hi = lo
+    int numpp = 0
+    for y = 0 to array.size(pivotvals) - 1 by 1
+        float cpp = array.get(pivotvals, y)
+        float wdth = cpp <= lo ? hi - cpp : cpp - lo
+        if wdth <= cwidth  // fits the max channel width?
+            lo := cpp <= lo ? cpp : lo
+            hi := cpp > lo ? cpp : hi
+            numpp += 1
+            numpp
+    [hi, lo, numpp]
+var sr_up_level = array.new_float(0)
+var sr_dn_level = array.new_float(0)
+sr_strength = array.new_float(0)
+symVPosition = 'top'
+symHPosition = 'left'
+find_loc(strength) =>
+    ret = array.size(sr_strength)
+    for i = ret > 0 ? array.size(sr_strength) - 1 : na to 0 by 1
+        if strength <= array.get(sr_strength, i)
+            break
+        ret := i
+        ret
+    ret
+
+check_sr(hi, lo, strength) =>
+    ret = true
+    for i = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        //included?
+        if array.get(sr_up_level, i) >= lo and array.get(sr_up_level, i) <= hi or array.get(sr_dn_level, i) >= lo and array.get(sr_dn_level, i) <= hi
+            if strength >= array.get(sr_strength, i)
+                array.remove(sr_strength, i)
+                array.remove(sr_up_level, i)
+                array.remove(sr_dn_level, i)
+                ret
+            else
+                ret := false
+                ret
+            break
+    ret
+
+var sr_lines = array.new_line(11, na)
+var sr_labels = array.new_label(11, na)
+var timef_labels = array.new_label(11, na)
+c_title = color.new(color.black, 0)
+s_title = 'large'
+a_title = 'center'
+if ph or pl
+    //because of new calculation, remove old S/R levels
+    array.clear(sr_up_level)
+    array.clear(sr_dn_level)
+    array.clear(sr_strength)
+    //find S/R zones
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        [hi, lo, strength] = get_sr_vals(x)
+        if check_sr(hi, lo, strength)
+            loc = find_loc(strength)
+            // if strength is in first levels sr then insert it to the arrays 
+            if loc < levels and strength >= min_strength
+                array.insert(sr_strength, loc, strength)
+                array.insert(sr_up_level, loc, hi)
+                array.insert(sr_dn_level, loc, lo)
+                // keep size of the arrays = 5
+                if array.size(sr_strength) > levels
+                    array.pop(sr_strength)
+                    array.pop(sr_up_level)
+                    array.pop(sr_dn_level)
+
+    for x = 1 to 10 by 1
+        line.delete(array.get(sr_lines, x))
+        label.delete(array.get(sr_labels, x))
+        label.delete(array.get(timef_labels, x))
+
+    for x = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        float mid = math.round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if showSR
+            array.set(sr_lines, x + 1, line.new(x1=bar_index, y1=mid, x2=bar_index - 1, y2=mid, extend=extend.both, color=mid >= close ? resistancecolor : supportcolor, style=Lstyle, width=linewidth))
+            if labelon == "On" 
+                size = labelsize == "Small" ? size.small : labelsize == "Default" ? size.normal : size.large
+                array.set(sr_labels, x + 1, label.new(x=bar_index + labelloc, y=mid, text=(showtimef ? timef_text : na) + (showtprice ? (" " + str.tostring(mid)) : na), color=mid >= close ? #ff525200 : #00e67700, textcolor=labelcol,
+                 size = size, style=label.style_label_left))
+
+f_crossed_over() =>
+    ret = false
+    for x = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        float mid = math.round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if close[1] <= mid and close > mid
+            ret := true
+            ret
+    ret
+
+f_crossed_under() =>
+    ret = false
+    for x = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        float mid = math.round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if close[1] >= mid and close < mid
+            ret := true
+            ret
+    ret
+
+alertcondition(f_crossed_over(), title= "Price Breaks Resistance", message = "Price Breaks Resistance, TimeFrame={{interval}}")
+alertcondition(f_crossed_under(), title="Price Loses Support", message="Price Loses Support, TimeFrame={{interval}}")
+textVPosition = 'bottom'
+textHPosition = 'center'
+
+// alertcondition(up_trend_line_broken,'Up TrendLine Broken','Up TrendLine Broken')
+// alertcondition(down_trend_line_broken,'Down TrendLine Broken','Down TrendLine Broken')
+alertcondition(up_trend_line_broken or down_trend_line_broken,'Trendline Broken','Trendline Broken')
+
+// EMAs
+ema1      = ta.ema(srcEma1, lenEma1)
+ema2      = ta.ema(srcEma2, lenEma2)
+ema3      = ta.ema(srcEma3, lenEma3)
+plot(showEmas ? ema1 : na, "EMA 1", #787b86 , 1)
+plot(showEmas ? ema2 : na, "EMA 2", #787b86, 1)
+plot(showEmas ? ema3 : na, "EMA 3", #787b86, 1)
+width = 0
+height = 0
+c_symInfo = color.new(color.black, 30)
+s_symInfo = 'normal'
+a_symInfo = 'center'
+c_bg = color.new(color.blue, 100)
+textWatermark = table.new(textVPosition + '_' + textHPosition, 1, 3)
+table.cell(textWatermark, 0, 0, title, width, height, c_title, a_title, text_size=s_title, bgcolor=c_bg)
+table.cell(textWatermark, 0, 1, subtitle, width, height, c_subtitle, a_subtitle, text_size=s_subtitle, bgcolor=c_bg)
+symWatermark = table.new(symVPosition + '_' + symHPosition, 5, 5)
+if symInfoCheck == true
+    table.cell(symWatermark, 0, 1, symInfo, width, height, c_symInfo, a_symInfo, text_size=s_symInfo, bgcolor=c_bg)
+    table.cell(symWatermark, 0, 0, date, width, height, c_symInfo, a_symInfo, text_size=s_symInfo, bgcolor=c_bg)
+
+

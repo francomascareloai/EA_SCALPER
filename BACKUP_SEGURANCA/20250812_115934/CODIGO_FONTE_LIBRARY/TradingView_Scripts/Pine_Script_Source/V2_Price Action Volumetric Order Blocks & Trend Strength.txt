@@ -1,0 +1,493 @@
+//@version=5
+indicator("<*[StratifyTrade] V2_Price Action Volumetric Order Blocks & Trend Strength*>","*[StratifyTrade] V2_Price Action Volumetric Order Blocks & Trend Strength*", overlay = true, max_bars_back = 5000, max_boxes_count = 500, max_labels_count = 500, max_lines_count = 500)
+
+const color colup = #089981
+const color coldn = #f23645
+
+const string tm = "[Length] Use Length to adjust cordinate of the orderblocks\n[Full] Use whole candle body"
+const string tn = "Mitigation method for when to trigger order blocks"
+const string tj = "Order block Metrics text size" 
+const string ta = 'Display internal buy & sell activity'
+const string ts = 'Show Last number of orderblocks'
+const string gv = "Volumetric Order Blocks"
+
+obshow         = input.bool  (true                , "Show Last"                      ,                                               ts,          '1',         gv)
+oblast         = input.int   (5                   , ""                               ,  0,                   50,                 1 ,     inline = '1', group = gv)
+obupcs         = input.color (color.new(colup, 90), ""                               ,                                                   inline = '1', group = gv)
+obdncs         = input.color (color.new(coldn, 90), ""                               ,                                                   inline = '1', group = gv)
+obshowactivity = input.bool  (true                , "Show Buy/Sell Activity         ",                                               ta,          '2',         gv)
+obactup        = input.color (color.new(colup, 50), ""                               ,                                                   inline = '2', group = gv)
+obactdn        = input.color (color.new(coldn, 50), ""                               ,                                                   inline = '2', group = gv)
+obmode         = input.string("Length"            , "Construction "                  , ["Length",                           "Full"], tm,          '3',         gv)
+len            = input.int   (5                   , ""                               ,  1,                  20,                  1 ,     inline = '3', group = gv)
+obmiti         = input.string("Close"             , "Mitigation Method"              , ["Close",           "Wick",           "Avg"], tn,               group = gv)
+obtxt          = input.string("Normal"            , "Metric Size"                    , ["Tiny", "Small", "Normal", "Large", "Huge"], tj,               group = gv)
+showmetric     = input.bool  (true                , "Show Metrics"                   ,                                                                 group = gv)
+showline       = input.bool  (true                , "Show Mid-Line"                  ,                                                                 group = gv)
+overlap        = input.bool  (true                , "Hide Overlap"                   ,                                                                 group = gv, tooltip = "Most recent order block will be preserved")
+
+blcreated     = input.bool(false                  , "Bullish OB Formed      "        , inline = "Formed"                                             , group = "ANY ALERT")
+brcreated     = input.bool(false                  , "Bearish OB Formed"              , inline = "Formed"                                             , group = "ANY ALERT")
+blmitigated   = input.bool(false                  , "Bullish OB Mitigated   "        , inline = "Mitigated"                                          , group = "ANY ALERT")
+brmitigated   = input.bool(false                  , "Bearish OB Mitigated"           , inline = "Mitigated"                                          , group = "ANY ALERT")
+blinside      = input.bool(false                  , "Price Inside Bullish OB"        , inline = "Inside"                                             , group = "ANY ALERT")
+brinside      = input.bool(false                  , "Price Inside Bearish OB"        , inline = "Inside"                                             , group = "ANY ALERT")
+
+
+
+type bar
+    float o = open
+    float h = high
+    float l = low
+    float c = close
+    float v = volume
+    int   i = bar_index
+    int   t = time
+
+type ob
+    float top
+    float btm
+    float avg
+    int   loc
+    color css
+    float vol
+    int   dir
+    int   move
+    int   blPOS
+    int   brPOS
+    int   xlocbl
+    int   xlocbr
+
+type alert
+    bool created   = false
+    bool inside    = false
+    bool mitigated = false
+
+type cross
+    bool reset = false
+
+
+bar          b = bar  .new()
+alert     blal = alert.new()
+alert     bral = alert.new()
+
+var cross blIS = cross.new()
+var cross brIS = cross.new()
+
+
+method txSz(string s) =>
+    out = switch s
+        "Tiny"   => size.tiny
+        "Small"  => size.small
+        "Normal" => size.normal
+        "Large"  => size.large
+        "Huge"   => size.huge
+    out
+
+
+method display(ob id, ob[] full, int i) =>
+
+    box.new    (top = id.top, bottom = id.btm, left = id.loc, right = b.t      , border_color = na, bgcolor = id.css, xloc = xloc.bar_time)
+    box.new    (top = id.top, bottom = id.btm, left = b.t   , right = b.t + 1  , border_color = na, bgcolor = id.css, xloc = xloc.bar_time, extend = extend.right)
+
+    if obshowactivity
+
+        box.new(top = id.top, bottom = id.avg, left = id.loc, right = id.xlocbl, border_color = na, bgcolor = obactup, xloc = xloc.bar_time)
+        box.new(top = id.avg, bottom = id.btm, left = id.loc, right = id.xlocbr, border_color = na, bgcolor = obactdn, xloc = xloc.bar_time)
+
+    if showline
+
+        line.new(
+               x1 = id.loc
+             , x2 = b.t
+             , y1 = id.avg
+             , y2 = id.avg
+             , color = color.new(id.css, 0)
+             , xloc = xloc.bar_time
+             , style = line.style_dashed
+             )
+
+
+    if showmetric
+
+        if i == math.min(oblast - 1, full.size() - 1)
+
+            float   tV = 0
+            float[] dV = array.new<float>()
+
+            seq = math.min(oblast - 1, full.size() - 1)
+
+            for j = 0 to seq
+
+                cV = full.get(j)
+
+                tV += cV.vol
+
+                if j == seq
+
+                    for y = 0 to seq
+
+                        dV.push(
+                             math.floor(
+                                 (full.get(y).vol / tV) * 100)
+                         )
+
+                        id = full.get(y)
+
+                        label.new(
+                               b.i + 1
+                             , id.avg
+                             , textcolor = color.new(id.css, 0)
+                             , style = label.style_label_left
+                             , size = obtxt.txSz()
+                             , color = #ffffff00
+                             , text = 
+                                 str.tostring(
+                                     math.round(full.get(y).vol, 3), format = format.volume) + " (" + str.tostring(dV.get(y)) + "%)"
+                                 )
+
+
+method overlap(ob[] id) =>
+
+    if id.size() > 1
+
+        for i = id.size() - 1 to 1
+
+            stuff   = id.get(i)
+            current = id.get(0)
+
+            switch
+
+                stuff.btm > current.btm and stuff.btm < current.top => id.remove(i)
+                stuff.top < current.top and stuff.btm > current.btm => id.remove(i)
+                stuff.top > current.top and stuff.btm < current.btm => id.remove(i)
+                stuff.top < current.top and stuff.top > current.btm => id.remove(i)
+
+
+method umt(ob metric) =>
+
+    switch metric.dir
+
+        1 =>
+
+            switch metric.move
+
+                1 => metric.blPOS := metric.blPOS + 1, metric.move := 2
+                2 => metric.blPOS := metric.blPOS + 1, metric.move := 3
+                3 => metric.brPOS := metric.brPOS + 1, metric.move := 1
+
+        -1 =>
+
+            switch metric.move
+
+                1 => metric.brPOS := metric.brPOS + 1, metric.move := 2
+                2 => metric.brPOS := metric.brPOS + 1, metric.move := 3
+                3 => metric.blPOS := metric.blPOS + 1, metric.move := 1
+
+    if (b.t - b.t[1]) == (b.t[1] - b.t[2])
+
+        metric.xlocbl := metric.loc + (b.t - b.t[1]) * metric.blPOS
+        metric.xlocbr := metric.loc + (b.t - b.t[1]) * metric.brPOS
+
+
+fnOB() =>
+
+    var ob[] blob = array.new<ob>()
+    var ob[] brob = array.new<ob>()
+
+    var int dir = 0
+
+    up = ta.highest  (     len     )
+    dn = ta.lowest   (     len     )
+    pv = ta.pivothigh(b.v, len, len)
+
+    dir := b.h[len] > up ? -1 : b.l[len] < dn ? 1 : dir[1]
+
+    atr = ta.atr(len)
+
+    btmP =  obmode == "Length" ? (b.h[len] - 1 * atr[len]) < b.l[len] ? b.l[len] : (b.h[len] - 1 * atr[len]) : b.l[len]
+
+    topP =  obmode == "Length" ? (b.l[len] + 1 * atr[len]) > b.h[len] ? b.h[len] : (b.l[len] + 1 * atr[len]) : b.h[len]
+
+    if pv and dir == 1
+
+        blob.unshift(
+             ob.new(
+                   topP
+                 , b.l[len]
+                 , math.avg(topP, b.l[len])
+                 , b.t[len]
+                 , obupcs
+                 , b.v[len]
+                 , b.c[len] > b.o[len] ? 1 : -1
+                 , 1
+                 , 0
+                 , 0
+                 , b.t[len]
+                  )
+                 )
+
+        blal.created := true
+        blIS.reset   := false
+
+    if pv and dir == -1
+
+        brob.unshift(
+             ob.new(
+                   b.h[len]
+                 , btmP
+                 , math.avg(btmP, b.h[len])
+                 , b.t[len]
+                 , obdncs
+                 , b.v[len]
+                 , b.c[len] > b.o[len] ? 1 : -1
+                 , 1
+                 , 0
+                 , 0
+                 , b.t[len]
+                  )
+                 )
+
+        bral.created := true
+        brIS.reset   := false
+
+    if blob.size() > 0 and barstate.isconfirmed
+
+        for [i, ob] in blob
+
+            for j = 0 to len - 1
+
+                if obmiti == "Close" ? math.min(b.c[j], b.o[j]) < ob.btm : obmiti == "Wick" ? b.l < ob.btm : obmiti == "Avg" ? b.l < ob.avg : na
+
+                    blob.remove(i)
+                    blal.mitigated := true
+                    break
+
+    if brob.size() > 0 and barstate.isconfirmed
+
+        for[i, ob] in brob
+
+            for j = 0 to len - 1
+
+                if obmiti == "Close" ? math.max(b.c[j], b.o[j]) > ob.top : obmiti == "Wick" ? b.h > ob.top : obmiti == "Avg" ? b.h > ob.avg : na
+
+                    brob.remove(i)
+                    bral.mitigated := true
+                    break
+
+    if blob.size() > 0
+
+        for [i, metric] in blob
+
+            metric.umt()
+
+    if brob.size() > 0
+
+        for [i, metric] in brob
+
+            metric.umt()
+
+    if overlap
+
+        blob.overlap()
+        brob.overlap()
+
+    if barstate.isconfirmed
+
+        if blob.size() > 0
+
+            ob = blob.get(0)
+
+            if low  < ob.top and blIS.reset == false
+                blal.inside := true
+                blIS.reset  := true
+
+        if brob.size() > 0
+
+            ob = brob.get(0)
+
+            if high > ob.btm and brIS.reset == false
+                bral.inside := true
+                brIS.reset  := true
+
+    if barstate.islast
+
+        for bx in box.all
+            bx.delete()
+        
+        for ln in line.all
+            ln.delete()
+
+        for lb in label.all
+            lb.delete()
+        
+        if blob.size() > 0
+            for i = 0 to math.min(oblast - 1, blob.size() - 1)
+                blob.get(i).display(blob, i)
+
+        if brob.size() > 0
+            for i = 0 to math.min(oblast - 1, brob.size() - 1)
+                brob.get(i).display(brob, i)
+
+
+if obshow
+    fnOB()
+
+
+if blinside and blal.inside
+    alert("Price Inside Bullish OB")
+
+if blcreated and blal.created
+    alert("Bullish OB Formed")
+
+if blmitigated and blal.mitigated
+    alert("Bullish OB Mitigated")
+
+
+if brinside and bral.inside
+    alert("Price Inside Bearish OB")
+
+if brcreated and bral.created
+    alert("Bearish OB Formed")
+
+if brmitigated and bral.mitigated
+    alert("Bearish OB Mitigated")
+
+
+//indicator("Trend Strength Gauge", 'HSMA',overlay =  true)
+// Inputs
+length = input(9, "HSMA Length")
+color_up = input.color(color.teal, "Color Up", group = "Theme")
+color_dn = input.color(color.white, "Color Down", group = "Theme")
+
+// Hma
+wma  = ta.wma(close, length)
+wma1 = ta.wma(close, length)
+a = 3 * wma - 2 * wma1
+
+// Sma
+a1 = ta.sma(close, length)
+
+// Extract the difference (HMA - SMA)
+diff = a - a1
+
+// Table Function
+printTable(txt, col, row, color, txt1, col1, row1, color1) => var table t = table.new(position.bottom_center, 60, 3), 
+                                         table.cell(t, col, row, txt, bgcolor = color),
+                                         table.cell(t, col1, row1, txt1, bgcolor = color1, text_color = color.white)
+
+// Normalize
+x = diff
+length_ = 100
+xMax = ta.highest(x, length_)
+xMin = ta.lowest(x, length_)
+range_ = xMax - xMin
+y = x / range_
+
+// Convertation searies float to searies int with round()
+g = math.round(y*40)
+
+// Plot
+color1 = color.from_gradient(g, -2, 2, color_dn, color_up)
+p1 = plot(a, 'HEMA', color1, 2)
+p2 = plot(a1, 'SMA', color1, 2)
+fill(p1, p2, color = color1)
+
+// Convertation negative values to positive
+g := g < 0 ? g *- 1 : g
+
+// Plot trend strength gauge
+if barstate.islast
+    for i = 1 to 40
+        color_ = math.round(y*40) < 0 ? color_dn : color_up
+        color = color.from_gradient(i, 1, 50, color.rgb(0, 137, 123, 100), color_)
+        printTable("", i, 1, color, "V", g, 1, color.rgb(255, 255, 255, 100))
+
+//
+//indicator("Volume Orderbook (Expo)", overlay=true, max_boxes_count=500, max_lines_count=500)
+// ~~ Inputs 
+src   = input.source(close,"Source")
+rows  = input.int(10,"Rows",0,20,inline="rows")
+mult  = input.float(.5,"Width",.1,2,step=.05,inline="rows")
+poc   = input.bool(false,"POC",inline="rows")
+tbl   = input.bool(false,"Table",inline="table")
+left  = input.int(5,"Left",0,50,5,inline="table")
+tbli  = input.bool(false,"Grid",inline="table")
+
+// ~~ Variables & Arrays 
+var step = 0.0
+
+type Table
+    array<box> boxes
+    array<line> lines
+    array<label> lab
+
+var levels  = array.new<float>()
+var volumes = array.new<float>()
+var vols    = array.new<float>(rows*2+1)
+var tab     = Table.new(array.new<box>(rows*2+2), array.new<line>(rows*2+1), array.new<label>(rows*2+1))
+
+// Save first candle size
+if barstate.isfirst
+    step := (high - low) * mult
+
+// Stores each candle volume in levels
+if levels.size() <= 0
+    levels.push(src + step)
+    levels.push(src - step)
+    volumes.push(volume)
+else
+    found = false
+    for i=0 to levels.size()-2
+        lvl1 = levels.get(i)
+        lvl2 = levels.get(i+1)
+        if src < lvl1 and src > lvl2
+            volumes.set(i, volumes.get(i) + volume)
+            found := true
+            break
+    if not found
+        if src > levels.get(0)
+            lvl = levels.get(0)
+            while src > lvl
+                levels.unshift(lvl + step)
+                volumes.unshift(0)
+                lvl := lvl + step
+            levels.unshift(lvl + step)
+            volumes.unshift(volume)
+        else if src < levels.get(levels.size()-1)
+            lvl = levels.get(levels.size()-1)
+            while src < lvl
+                levels.push(lvl - step)
+                volumes.push(0)
+                lvl := lvl - step
+            levels.push(lvl - step)
+            volumes.push(volume)
+
+// Plots the orderbook
+if barstate.islast
+    for i = 0 to levels.size() - 2
+        if src < levels.get(i) and src > levels.get(i + 1)
+            for x_inner = 0 to (rows*2)
+                vols.set(x_inner, volumes.get(math.max(0, i - rows + x_inner)))
+            vol = vols.copy()
+            vols.sort()
+            for x_inner = 0 to (rows*2)
+                tab.boxes.get(x_inner).delete()
+                col = x_inner < rows ? #ff5252 : x_inner > rows ? #00e676 : #787b86
+                colgrade = color.from_gradient(vols.indexof(vol.get(x_inner)), 0, vols.size(), color.new(col, 80), color.new(col, 40))
+                tab.boxes.set(x_inner, box.new((bar_index + left + rows * 2) - vols.indexof(vol.get(x_inner)), levels.get(math.max(0, i - rows + x_inner)),
+                 (bar_index + left + rows * 2) + vols.indexof(vol.get(x_inner)), levels.get(math.max(1, i - rows + x_inner + 1)),
+                 colgrade, bgcolor = colgrade, border_style = line.style_dotted,
+                 text = str.tostring(vol.get(x_inner), format.volume), text_color = chart.fg_color,
+                 extend = poc and vols.indexof(vol.get(x_inner)) == rows * 2 ? extend.left : extend.none))
+                if tbli
+                    tab.lines.get(x_inner).delete()
+                    tab.lines.set(x_inner, line.new(bar_index + left, levels.get(i - rows + x_inner), bar_index + left + rows * 2 + vols.size() - 1, levels.get(i - rows + x_inner),
+                     color = #787b86))
+            if tbl
+                tab.boxes.get(rows * 2 + 1).delete()
+                tab.boxes.set(rows * 2 + 1, box.new(bar_index + left, box.get_top(tab.boxes.get(0)),
+                 bar_index + left + rows * 2 + vols.size() - 1, box.get_bottom(tab.boxes.get(rows * 2)),
+                 #787b86, border_width = 2, bgcolor = color(na)))
+            break
+

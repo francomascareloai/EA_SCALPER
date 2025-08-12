@@ -1,0 +1,56 @@
+{
+  "id": "EA_AK47Scalper_v1.0_MULTI_22",
+  "file_name": "EA_AK47Scalper_v1.0_MULTI_22.mq5",
+  "file_hash": "sha256_placeholder",
+  "type": "EA",
+  "language": "MQL5",
+  "strategy": "Scalping",
+  "markets": ["FOREX", "INDICES", "COMMODITIES", "CRYPTO"],
+  "timeframes": ["M1", "M5", "M15"],
+  "key_functions": [
+    "OnTick",
+    "OnInit",
+    "CTrade",
+    "CPositionInfo",
+    "CSymbolInfo"
+  ],
+  "dependencies": [
+    "Trade\\PositionInfo.mqh",
+    "Trade\\Trade.mqh",
+    "Trade\\SymbolInfo.mqh",
+    "Trade\\AccountInfo.mqh",
+    "Trade\\OrderInfo.mqh"
+  ],
+  "exposed_parameters": [
+    "InpMagicNumber",
+    "isVolume_Percent",
+    "InpRisk",
+    "Inpuser_lot",
+    "InpSL_Pips",
+    "InpTP_Pips",
+    "InpMax_slippage",
+    "InpMax_spread",
+    "InpTimeFilter",
+    "InpStartHour",
+    "InpStartMinute",
+    "InpEndHour",
+    "InpEndMinute"
+  ],
+  "ftmo_score": 9,
+  "detected_risks": [
+    "Codificação corrompida detectada",
+    "Scalping de alta frequência"
+  ],
+  "code_quality_score": 7,
+  "compilation_status": "warning",
+  "merge_readiness": "needs_review",
+  "necessary_adjustments": [
+    "Corrigir codificação de caracteres",
+    "Verificar filtros de tempo",
+    "Validar gestão de risco"
+  ],
+  "license": "Custom",
+  "author": "Hung_tthanh@yahoo.com",
+  "description": "AK-47 Scalper EA v1.0 with time filter and risk management - duplicate version 22",
+  "tags": ["#EA", "#Scalping", "#TimeFilter", "#RiskManagement", "#FTMO_Ready", "#Multi_Market", "#Multi_Timeframe", "#Duplicate"]
+}

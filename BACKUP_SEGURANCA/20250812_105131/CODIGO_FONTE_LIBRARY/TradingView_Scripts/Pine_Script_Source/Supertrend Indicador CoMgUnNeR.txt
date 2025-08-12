@@ -1,0 +1,1962 @@
+  
+
+//@version=5
+VERSION                  = 'V 1.5'
+
+indicator("Supertrend Indicador CoMgUnNeR", overlay = true
+  , max_labels_count = 500
+  , max_lines_count = 500
+  , max_boxes_count = 500
+  , max_bars_back = 500
+  , precision=4
+  , linktoseries=true
+  , max_bars_back=1000
+  , max_lines_count=800
+  //, max_labels_count=1
+  , shorttitle             = 'SuperTrend CoMgUnNeR' + VERSION)
+
+
+
+
+// Module -  UX COLOR  has been developed by ChatGPT.
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                    UX COLOR                           *
+//*********************************************************
+// Calculations
+
+groupUXCOLORS = "======= UX COLOR  ======="
+plot(na)
+
+var string ThemeUX = input.string("Cool", "UX THEME", options=["Classic", "Cool"], inline="UX THEME", group=groupUXCOLORS, tooltip="UX THEME / Colors Style")
+
+var color psar_longColor = na
+var color psar_longLight = na
+var color psar_shortColor = na
+var color psar_shortLight = na
+
+// Filter Colors
+if ThemeUX == "Classic"
+    psar_longColor :=  color.rgb(9, 116, 23,0)
+    psar_longLight := color.rgb(9, 116, 23,65)
+    psar_shortColor :=  color.rgb(151, 14, 14,0)
+    psar_shortLight := color.rgb(151, 14, 14,65)
+
+else if ThemeUX == "Cool"
+    psar_longColor := color.new(#00DBFF, 0)
+    psar_longLight := color.new(#00DBFF, 65)
+    psar_shortColor := color.new(#E91E63, 0)
+    psar_shortLight := color.new(#E91E63, 65)
+
+// Cambia el color de la vela según si es alcista o bajista
+esAlcista = close > open
+barcolor(esAlcista ? psar_longColor : psar_shortColor)
+
+
+
+// Module -   /SUPPORT AND RESISTANCE  has been developed by ChatGPT.
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*           PSAR /SUPPORT AND RESISTANCE                *
+//*********************************************************
+// Calculations
+
+groupPSAR = "=== Module - SUPPORT AND RESISTANCE ==="
+plot(na)
+
+// Support/Resistance Inputs
+psar_suppRes = input.bool(false, "Support/Resistance?", inline = "UPPORT AND RESISTANCE",group = groupPSAR)
+psar_barsLR = input.int(35, "S/R Looking Period", 1, inline = "UPPORT AND RESISTANCE",group = groupPSAR)
+
+// Support/Resistance Calculations
+psar_pivotHigh = ta.pivothigh(psar_barsLR, psar_barsLR)[1]
+psar_pivotLow = ta.pivotlow(psar_barsLR, psar_barsLR)[1]
+
+// Draw Support/Resistance
+if (psar_suppRes and not na(psar_pivotHigh))
+    line.new(x1=bar_index - psar_barsLR, y1=psar_pivotHigh, x2=bar_index, y2=psar_pivotHigh, color=psar_shortColor, width=3)
+if (psar_suppRes and not na(psar_pivotLow))
+    line.new(x1=bar_index - psar_barsLR, y1=psar_pivotLow, x2=bar_index, y2=psar_pivotLow, color=psar_longColor, width=3)
+
+
+
+//*********************************************************
+//**                    GROUPS                           **
+//*********************************************************
+//THE FIRST LINE OF THE MODULE IS COMMENTED AND TRANSFERRED HERE
+//VISUAL ORDER
+
+
+//POSITION 1
+group2 = "======= Module - SUPERTREND ======="
+plot(na)
+mostrarST = input.bool(true, "Mostrar SUPER-TREND", inline = "SUPER TREND" , group=group2, tooltip="Habilita/Deshabilita  supertrend")
+groupEnTpSl = "======= Module - Signals ======= "
+plot(na)
+
+levels_tip = "Habilita etiquetas compra/venta /SL"
+levels = input(title='Show Entry Labels/SL/TP /Mostrar Etiquetas de Entrada/SL/TP', defval=true, group=groupEnTpSl, tooltip=levels_tip) 
+
+numTP_tip = " Number of Take Profit Levels, min 1 max 10 / Número de niveles de toma de ganancias, mínimo 1 máximo 10 "
+numTP = input.int(10, "Number of Take Profit Levels 💪", minval=1, maxval=10,tooltip =numTP_tip ,group=groupEnTpSl)
+
+PercentOrATR_tip="Select the calculation method for TakeProfits / Selecciona el metodo de calculo para los TakeProfits" 
+var string PercentOrATR = input.string("PREDICTUM", "Calculation method for TakeProfit (% or ATR)", options=["ATR", "PERCENTAGE","PREDICTUM"], inline="TPS", group=groupEnTpSl,tooltip=PercentOrATR_tip)
+
+atrLen_tip = "Atr para el Calculo de Stoploss y TakeProfit"
+atrLen   = input.int(10, "ATR Length TP / SL  ", group=groupEnTpSl, tooltip=atrLen_tip)
+
+
+
+
+// Module - TOOLS AND UTILITIES by CoMgUnNeR
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                     TOOLS                             *
+//*********************************************************
+// Calculations
+//--------
+groupTools = "======= Module - TOOLS ======="
+plot(na)
+
+
+filtrado_tip = "Recommended for trend filtering, Crossovers suggested: / Se recomienda para filtrado de tendencia, Cruces sugeridos: 13/30, 10/120 , 4/120, 50/200"
+canalesPorcentaje ="Used for Short / Long channels +- 5% or more / Utilizada para Short / Long canales +- 5% o mas / CoMgUnNeR"
+ADMINVST_tip = "Recommended in 10 SMA types / Recomendada en 10 tipo SMA"
+ADMINVST_tip2 = "Recommended in 48 SMA types / Recomendada en 48 tipo SMA"
+ADMINVST_tip3 = "Recommended in 13 SMA types / Recomendada en 13 tipo SMA"
+
+
+
+// Beging Calculations for Ema ADMINVST
+mostrarADMINVST = input.bool(false, "Show EMA Step", inline = "EMA  Step", group=groupTools, tooltip=ADMINVST_tip)
+colorEmaADMINVST = input.color(color.lime, "Color Ema Step", inline = "Ema Step", group=groupTools)
+MAsourceADMINVST = input.source(close, title= "MAs Source", inline = "Ema Step", group=groupTools)
+ADMINVSTLength = input.int(title='EMA Step Length', defval=10, group=groupTools,inline = "Ema Step")
+string i_maType = input.string("SMA", "EMA Step type", options = ["SMA","EMA","RMA", "WMA","HMA"], group=groupTools, inline = "Ema Step")
+
+float emaADMINVST = switch i_maType
+    "SMA" => ta.sma(MAsourceADMINVST, ADMINVSTLength)
+    "EMA" => ta.ema(MAsourceADMINVST, ADMINVSTLength)
+    "RMA" => ta.rma(MAsourceADMINVST, ADMINVSTLength)
+    "HMA" => ta.hma(MAsourceADMINVST, ADMINVSTLength)
+
+    // Default used when the three first cases do not match.
+    => ta.wma(MAsourceADMINVST, ADMINVSTLength)
+
+
+plot(mostrarADMINVST ? emaADMINVST : na, color = colorEmaADMINVST, linewidth = 2, style = plot.style_stepline)
+
+// End Calculations for Ema ADMINVST
+
+
+// Beging Calculations for Ema ADMINVST2
+mostrarADMINVST2 = input.bool(false, "Show EMA  Type 1", inline = "EMA  TP1", group=groupTools, tooltip=ADMINVST_tip2)
+colorEmaADMINVST2 = input.color(color.yellow, "Color EMA  Type 1", inline = "EMA  Type 1", group=groupTools)
+MAsourceADMINVST2 = input.source(close, title= "MAs Source", inline = "EMA  Type 1", group=groupTools)
+ADMINVSTLength2 = input.int(title='EMA  Type 1 Length', defval=48,inline = "EMA  Type 1", group=groupTools)
+string i_maType2 = input.string("SMA", "EMA  1 type", options = ["SMA","EMA","RMA", "WMA","HMA"], group=groupTools, inline = "EMA  Type 1")
+
+float emaADMINVST2 = switch i_maType2
+    "SMA" => ta.sma(MAsourceADMINVST2, ADMINVSTLength2)
+    "EMA" => ta.ema(MAsourceADMINVST2, ADMINVSTLength2)
+    "RMA" => ta.rma(MAsourceADMINVST2, ADMINVSTLength2)
+    "HMA" => ta.hma(MAsourceADMINVST2, ADMINVSTLength2)
+
+    // Default used when the three first cases do not match.
+    => ta.wma(MAsourceADMINVST2, ADMINVSTLength2)
+
+plot(mostrarADMINVST2 ? emaADMINVST2 : na, color = colorEmaADMINVST2, linewidth = 2)
+
+// End Calculations for Ema ADMINVST2
+
+
+// Beging Calculations for Ema ADMINVST3
+mostrarADMINVST3 = input.bool(false, "Show EMA  Type 2", inline = "EMA  TP2", group=groupTools, tooltip=ADMINVST_tip3)
+colorEmaADMINVST3 = input.color(color.white, "Color EMA  Type 2", inline = "EMA  Type 2", group=groupTools)
+MAsourceADMINVST3 = input.source(close, title= "MAs Source", inline = "EMA  Type 2", group=groupTools)
+ADMINVSTLength3 = input.int(title='EMA  Type 2 Length', defval=13,inline = "EMA  Type 2", group=groupTools)
+string i_maType3 = input.string("SMA", "EMA  2 type", options = ["SMA","EMA","RMA", "WMA","HMA"], group=groupTools, inline = "EMA  Type 2")
+
+float emaADMINVST3 = switch i_maType3
+    "SMA" => ta.sma(MAsourceADMINVST3, ADMINVSTLength3)
+    "EMA" => ta.ema(MAsourceADMINVST3, ADMINVSTLength3)
+    "RMA" => ta.rma(MAsourceADMINVST3, ADMINVSTLength3)
+    "HMA" => ta.hma(MAsourceADMINVST3, ADMINVSTLength3)
+
+    // Default used when the three first cases do not match.
+    => ta.wma(MAsourceADMINVST3, ADMINVSTLength3)
+
+plot(mostrarADMINVST3 ? emaADMINVST3 : na, color = colorEmaADMINVST3, linewidth = 2)
+
+// End Calculations for Ema ADMINVST3
+
+// Cross EMA Type 1 and EMA  Type 2
+mostrarCross = input.bool(false, "Show Cross EMA Type 1 and EMA  Type 2", inline = "Cross", group=groupTools)
+plot(mostrarCross and ta.cross(emaADMINVST2, emaADMINVST3) ? emaADMINVST2 : na,color =color.orange, style = plot.style_cross, linewidth = 4)
+
+
+mostrarZLSMA = input.bool(false, "Show ZLSMA", inline = "ZLSMA CoM_gUnNeR",tooltip=canalesPorcentaje)
+length = 32
+offsetZLSMA = 0
+srcZLSMA = close
+lsma = ta.linreg(srcZLSMA, length, offsetZLSMA)
+lsma2 = ta.linreg(lsma, length, offsetZLSMA)
+eq = lsma - lsma2
+zlsma = lsma + eq
+plot(mostrarZLSMA ? zlsma : na, color=color.new(color.gray, 0), linewidth=3)
+mostrarlength_hullmas = input.bool(false, "Show Hullma`s and Cross Step", inline = "Hullma`s 50/100",tooltip=canalesPorcentaje)
+//MEDIAS HULL 50
+hullma = ta.hma(close, 50)
+//MEDIAS HULL 150
+hullma2 = ta.hma(close, 100)
+
+plot(mostrarlength_hullmas ? hullma : na, color=color.rgb(33, 149, 243, 60), linewidth = 2)
+plot(mostrarlength_hullmas ? hullma2 : na, color=color.rgb(243, 198, 0, 60),linewidth = 2)
+plot(mostrarlength_hullmas and ta.cross(hullma, hullma2) ? hullma : na,color = color.rgb(239, 176, 17), style = plot.style_cross, linewidth = 4)
+
+
+// Module - VOLATILITY by CoMgUnNeR
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                   VOLATILITY                         *
+//*********************************************************
+// Opciones del Module 
+groupVol = "======= Module - VOLATILITY ======="
+plot(na)
+
+mostrarVol_tip = "show volatility channels / Mostrar canales de volatilidad"
+mostrarSmaCon_tip = "show volatility EMA / Mostrar EMA de volatilidad"
+
+
+
+mostrarVol = input.bool(false, "Show volatility channels", inline = "VOLATILITY" , group=groupVol, tooltip=mostrarVol_tip)
+mostrarSmaCon = input.bool(false, "Show volatility EMA", inline = "VOLATILITY EMA" , group=groupVol, tooltip=mostrarSmaCon_tip)
+
+
+// Cálculos
+var fastLength_CHT_VOL = 12 //input(12)
+var slowlength_CHT_VOL = 26 //input(26)
+var deltaLength_CHT_VOL = 9 //input(9)
+
+mama_CHT_VOL = ta.ema(close, fastLength_CHT_VOL) - ta.ema(close, slowlength_CHT_VOL)
+mbmb_CHT_VOL = ta.ema(mama_CHT_VOL, deltaLength_CHT_VOL)
+delta_CHT_VOL = mama_CHT_VOL - mbmb_CHT_VOL
+
+
+// Condiciones para generar las señales de compra (long) y venta (short)
+longVol = (mama_CHT_VOL > mbmb_CHT_VOL) and (delta_CHT_VOL > 0) ? 1 : 0
+shortVol = (mama_CHT_VOL < mbmb_CHT_VOL) and (delta_CHT_VOL < 0) ? 1 : 0
+
+barColor = mostrarVol and longVol ? psar_longLight: mostrarVol and shortVol ? psar_shortLight : na 
+bgcolor(mostrarVol and longVol ? psar_longLight : mostrarVol and  shortVol ? psar_shortLight : na)
+
+// Create inputs
+mom_length = slowlength_CHT_VOL
+
+// Define MAs
+ema = ta.ema(close, mom_length)
+sma = ta.sma(close, mom_length)
+combined_ma = sma
+
+// Color the MAs
+combined_ma_color = (longVol) ? psar_shortLight
+                  //: (bull) ? color.lime
+                  : (shortVol) ? psar_shortLight
+                  //: (bear) ? color.rgb(244, 6, 6)
+                  //: (crossunderCondition) ? color.yellow
+                  //: (crossoverCondition) ? color.yellow
+                  : color.white
+
+// Plot MAs
+plot(mostrarSmaCon ? combined_ma :na, title="Combined Momentum MA", color=combined_ma_color, linewidth=3)
+
+
+
+// Module - SUPERTREND by KivancOzbilgic
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                    SUPERTREND                         *
+//*********************************************************
+// Cálculos
+
+
+// Grupo 2: Opciones del Module 
+//group2 = "Module - SUPERTREND"
+// Separación visual
+//plot(na)
+//, group=group2
+
+VolumeFilter_tip = "Enable volume filter on Long / Short signal / Habilita filtro de volumen en señal Larga / Corta"
+SMAFilterSelection_tip = "Enable SMA filter on Long / Short signal / Habilita filtro de SMA en señal Larga / Corta"
+WhaleFilterShow_tip = "Show Whale Tags Buying/Selling, abnormal percentage difference /Mostrar Etiquetas de Ballenas Comprando/Vendiendo, diferencia porcentual anormal "
+//mostrarST = input.bool(true, "Mostrar SUPER-TREND", inline = "SUPER TREND" , group=group2, tooltip="Habilita/Deshabilita  supertrend")
+showBuySell = input(title='Show Buy/Sell Labels?', defval=true, group=group2, tooltip="Habilita etiquetas compra/venta supertrend") 
+
+//DEFAULT 10 ATR Y 5 ATR M.  100 y 5 /8Zamania 1, 2
+Periods = input(title='ATR Period', defval=20, group=group2, tooltip="Default: 10 /Narvaez: 89 /8Zamania: 1 TEMP 1D")
+src = input(close, title='Source', group=group2)
+Multiplier = input.float(title='ATR Multiplier', step=0.1, defval=5, group=group2, tooltip="Default: 3 / Narvaez: 4.8 / 8Zamania: 2 TEMP 1D")
+changeATR = input(title='Change ATR Calculation Method ?', defval=true, group=group2)
+showsignals = input(title='Show Buy/Sell Signals ?', defval=true, group=group2)
+highlighting = input(title='Highlighter On/Off ?', defval=true, group=group2)
+var string RSIFilterSelection = input.string("Disable", "SuperTrend + RSI Filter", options=["Disable", "Enable"], inline="RSI FILTER", group=group2,tooltip=VolumeFilter_tip)
+rsi_lengthSPT = input(14, title="RSI Length", inline="RSI FILTER", group=group2)
+overboughtSPT = input(70, title="DON'T LONG ABOVE RSI LEVEL", inline="RSI FILTER", group=group2)
+oversoldSPT = input(30, title="DON'T SHORT BELOW RSI LEVEL", inline="RSI FILTER", group=group2)
+
+
+var string VolumeFilterSelection = input.string("Disable", "SuperTrend + Volume Filter", options=["Disable", "Enable"], inline="VOLUME FILTER", group=group2,tooltip=VolumeFilter_tip)
+i_pctChange = input.float(title='WHALE FILTER % CHANGE INCREASE / DECREASE', defval=0.25, group=group2, tooltip="% CHANGE", inline="WHALE FILTER")
+var string WhaleFilterSelection = input.string("Disable", "SuperTrend + Whale Filter", options=["Disable", "Enable"], inline="WHALE FILTER", group=group2,tooltip="PERCENTAGE CHANGE")
+WhaleFilterShow = input(title='Show Whale Tags Buying/Selling', defval=false, group=group2, tooltip=WhaleFilterShow_tip, inline="WHALE FILTER") 
+
+// Beging Calculations for SMA FILTER
+var string SMAFilterSelection = input.string("Disable", "SuperTrend + EMA Filter", options=["Disable", "Enable"], inline="EMA FILTER", group=group2,tooltip=VolumeFilter_tip)
+mostrarSMAF = input.bool(true, "Show EMA FILTER", inline = "EMA FILTER", group=group2, inline="EMA FILTER")
+colorSMAF = input.color(color.yellow, "Color EMA FILTER", group=group2, inline="EMA FILTER")
+MAsourceSMAF = input.source(close, title= "EMA Source", group=group2, inline="EMA FILTER")
+Length3SMAF = input.int(title='EMA  FILTER Length', defval=350, group=group2, inline="EMA FILTER")
+string i_SMAF = input.string("EMA", "EMA FILTER  type", options = ["SMA","EMA","RMA", "WMA","HMA"], group=group2, inline="EMA FILTER")
+
+float SMAFILTER = switch i_SMAF
+    "SMA" => ta.sma(MAsourceSMAF, Length3SMAF)
+    "EMA" => ta.ema(MAsourceSMAF, Length3SMAF)
+    "RMA" => ta.rma(MAsourceSMAF, Length3SMAF)
+    "HMA" => ta.hma(MAsourceSMAF, Length3SMAF)
+
+    // Default used when the three first cases do not match.
+    => ta.wma(MAsourceSMAF, Length3SMAF)
+
+plot(mostrarSMAF ? SMAFILTER : na, color = colorSMAF, linewidth = 2)
+
+// End Calculations for Ema 
+
+//START WHALE FILTER
+
+pctUp        = (close - open) / close * 100
+pctDn        = (open - close) / open  * 100
+whaleUp      =  close > open and pctUp > i_pctChange
+whaleDn      =  close < open and pctDn > i_pctChange
+
+l_txt        = whaleUp ? str.tostring(pctUp, '##.00') + '%\n\nWHALE BUYING\n🐳' :
+               whaleDn ? str.tostring(pctDn, '##.00') + '%\n\nWHALE SELLING\n🐳' : na
+l_whale      = WhaleFilterShow ? label.new(
+  bar_index,
+  close,
+  text       = l_txt,
+  color      = color.rgb(0, 0, 50, 50),
+  textcolor  = color.orange,
+  style      = label.style_label_down,
+  yloc       = yloc.abovebar) :na
+l_del        = whaleUp or whaleDn
+label.delete(not l_del ? l_whale : na)
+
+
+//END WHALE FILTER
+
+atr2 = ta.sma(ta.tr, Periods)
+atr = changeATR ? ta.atr(Periods) : atr2
+up = src - Multiplier * atr
+up1 = nz(up[1], up)
+up := close[1] > up1 ? math.max(up, up1) : up
+dn = src + Multiplier * atr
+dn1 = nz(dn[1], dn)
+dn := close[1] < dn1 ? math.min(dn, dn1) : dn
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+
+
+// Condiciones principales
+buyConditionF = trend == 1 and trend[1] == -1 
+sellConditionF = trend == -1 and trend[1] == 1 
+
+// BEGING RSI FILTER
+
+// Calculamos el RSI
+rsi_value = ta.rsi(close, rsi_lengthSPT)
+
+// Condiciones para long y short
+long_conditionRSI_SPT = rsi_value < overboughtSPT
+short_conditionRSI_SPT = rsi_value > oversoldSPT
+
+// END RSI FILTER
+
+
+// Variables de selección de filtro
+var string activeFilter = "None"
+
+// Variables de señales de compra y venta para cada filtro
+var bool buySignalVolume = na
+var bool sellSignalVolume = na
+
+var bool buySignalWhale = na
+var bool sellSignalWhale = na
+
+var bool buySignalSMA = na
+var bool sellSignalSMA = na
+
+var bool buySignalRSI = na
+var bool sellSignalRSI = na
+
+// Filtro de Volumen
+if VolumeFilterSelection == "Disable"
+    buySignalVolume := buyConditionF
+    sellSignalVolume := sellConditionF
+else if VolumeFilterSelection == "Enable"
+    activeFilter := "Volume"
+    buySignalVolume := buyConditionF and longVol
+    sellSignalVolume := sellConditionF and longVol
+
+// Filtro de Ballena (Whale)
+if WhaleFilterSelection == "Disable"
+    buySignalWhale := buyConditionF
+    sellSignalWhale := sellConditionF
+else if WhaleFilterSelection == "Enable"
+    activeFilter := "Whale"
+    buySignalWhale := buyConditionF and pctUp and whaleUp
+    sellSignalWhale := sellConditionF and pctDn and whaleDn
+
+// Filtro SMA
+isLongTrend = close > SMAFILTER
+isShortTrend = close < SMAFILTER
+
+if SMAFilterSelection == "Disable"
+    buySignalSMA := buyConditionF
+    sellSignalSMA := sellConditionF
+else if SMAFilterSelection == "Enable"
+    activeFilter := "SMA"
+    buySignalSMA := buyConditionF and isLongTrend
+    sellSignalSMA := sellConditionF and isShortTrend
+
+
+if RSIFilterSelection == "Disable"
+    buySignalRSI := buyConditionF
+    sellSignalRSI := sellConditionF
+else if RSIFilterSelection == "Enable"
+    activeFilter := "RSI"
+    buySignalRSI := buyConditionF and long_conditionRSI_SPT
+    sellSignalRSI := sellConditionF and short_conditionRSI_SPT
+
+// Condición principal cuando no hay filtros activos
+//Elaborar esto realmente me quebro la cabeza XD
+noActiveFilters = VolumeFilterSelection == "Disable" and WhaleFilterSelection == "Disable" and SMAFilterSelection == "Disable"  and RSIFilterSelection == "Disable" 
+
+// Combinar señales de compra y venta según el filtro activo o la condición principal
+var bool buySignal = na
+var bool sellSignal = na
+
+if noActiveFilters
+    buySignal := buyConditionF
+    sellSignal := sellConditionF
+else
+    if activeFilter == "Volume"
+        buySignal := buySignalVolume
+        sellSignal := sellSignalVolume
+    else if activeFilter == "Whale"
+        buySignal := buySignalWhale
+        sellSignal := sellSignalWhale
+    else if activeFilter == "SMA"
+        buySignal := buySignalSMA
+        sellSignal := sellSignalSMA
+    else if activeFilter == "RSI"
+        buySignal := buySignalRSI
+        sellSignal := sellSignalRSI
+
+upPlot = plot(mostrarST and trend == 1 ? up : na, title='Up Trend', style=plot.style_linebr, linewidth=2, color=psar_longLight)
+plotshape(mostrarST and buySignal ? up : na, title='UpTrend Begins', location=location.absolute, style=shape.circle, size=size.tiny, color=psar_longLight)
+plotshape(buySignal and showBuySell ? up : na, title='Buy', text='Buy', location=location.absolute, style=shape.labelup, size=size.tiny, color=psar_longLight, textcolor=color.new(color.white, 0))
+dnPlot = plot(mostrarST and trend == -1 ? dn : na, title='Down Trend', style=plot.style_linebr, linewidth=2, color=psar_shortLight)
+plotshape(mostrarST and sellSignal ? dn : na, title='DownTrend Begins', location=location.absolute, style=shape.circle, size=size.tiny, color=psar_shortLight)
+plotshape(sellSignal and showBuySell ? dn : na, title='Sell', text='Sell', location=location.absolute, style=shape.labeldown, size=size.tiny, color=psar_shortLight, textcolor=color.new(color.white, 0))
+mPlot = plot(ohlc4, title='', style=plot.style_circles, linewidth=0)
+longFillColor = highlighting ? trend == 1 ? psar_longLight : color.white : color.white
+shortFillColor = highlighting ? trend == -1 ? psar_shortLight: color.white : color.white
+
+fill(mPlot, upPlot, title='UpTrend Highligter', color=mostrarST ? longFillColor : na, transp=90)
+fill(mPlot, dnPlot, title='DownTrend Highligter', color=mostrarST ? shortFillColor : na, transp=90)
+
+changeCond = buySignal or sellSignal
+
+
+
+
+
+// Module  - Signals - SL - TPS mejora enviada por: CRIPTOMAN SPAIN @CRIPTOTR4DER
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*              Signals - SL - TPSEND                    *
+//*********************************************************
+// Cálculos
+
+//groupEnTpSl = "Module - Signals"
+//plot(na)
+
+//levels_tip = "Habilita etiquetas compra/venta /SL"
+//atrLen_tip = "Atr para el Calculo de Stoploss y TakeProfit"
+atrRisk_tip = " ATR Risk Multiplier: Recommended 1.5 or 1.9 / Multiplicador de Riesgo ATR: Recomendado 1.5 o 1.9"
+tpLen_tip = "Distance in percentage between TakeProfits / Distancia en porcentaje entre TakeProfits"
+tpSL_tip = "Distance in percentage for SL / Distancia en porcentaje para SL"
+
+//numTP_tip = " Number of Take Profit Levels, min 1 max 10 / Número de niveles de toma de ganancias, mínimo 1 máximo 10 "
+//numTP = input.int(3, "Number of Take Profit Levels 💪", minval=1, maxval=10,tooltip =numTP_tip ,group=groupEnTpSl)
+
+//PercentOrATR_tip="Select the calculation method for TakeProfits / Selecciona el metodo de calculo para los TakeProfits" 
+
+//var string PercentOrATR = input.string("PREDICTUM", "Calculation method for TakeProfit (% or ATR)", options=["ATR", "PERCENTAGE","PREDICTUM"], inline="TPS", group=groupEnTpSl,tooltip=PercentOrATR_tip)
+
+//levels = input(title='Show Entry Labels/SL/TP /Mostrar Etiquetas de Entrada/SL/TP', defval=true, group=groupEnTpSl, tooltip=levels_tip) 
+
+//atrLen   = input.int(10, "ATR Length TP / SL ", group=groupEnTpSl, tooltip=atrLen_tip)
+atrRisk  = input.float(1.9, "ATR Risk TP / SL", group=groupEnTpSl,tooltip=atrRisk_tip )
+tpLen = input.float(2.0, "TP [%] 💪", step=0.1, group=groupEnTpSl, tooltip=tpLen_tip)
+tpLenpre_tip = "Initial TP for Predictum type calculation / TP inicial para el cálculo del tipo Predictum"
+tpLenpre = input.float(1.0, "TP Initial Predictum [%] 💪", minval=0.3, step=0.1, group=groupEnTpSl, tooltip=tpLenpre_tip)
+tpSL = input.float(3.5, "SL [%] 💀️", step=0.1, group=groupEnTpSl, tooltip=tpSL_tip)
+
+lvlLines    = input.bool(false, "Show TP/SL lines ? / Mostart Lineas TP/SL? ", inline="levels2",group=groupEnTpSl)
+linesStyle  = input.string("SOLID", "", ["SOLID", "DASHED", "DOTTED"], inline="levels2",group=groupEnTpSl)
+lvlDistance = input.int(1, "Distance / Distancia", 1, inline="levels2",group=groupEnTpSl)
+stylelvl = linesStyle == "SOLID" ? line.style_solid : linesStyle == "DASHED" ? line.style_dashed : line.style_dotted
+lvlLinesw = input.int(title=' TP/SL Line Thickness / Grosor de línea TP/SL', defval=2, minval=1,inline="levels2",group=groupEnTpSl)
+
+
+
+trigger = buySignal ? 1 : 0
+atrBand = ta.atr(atrLen) * atrRisk
+atrStop = trigger == 1 ? low - atrBand : high + atrBand
+
+
+
+
+
+
+lastTrade(src) => ta.valuewhen(changeCond, src, 0 )
+
+//Nuevo, distancia de TP's
+
+DistanceTp =  close * tpLen / 100 
+Distance_CTp = trigger == 1 ? close - DistanceTp : close + DistanceTp
+
+
+DistanceSL =  close * tpSL / 100 
+Distance_CSL = trigger == 1 ? low - DistanceSL : high + DistanceSL
+
+DistanceTppre =  close * tpLenpre / 100 
+Distance_CTpre = trigger == 1 ? close - DistanceTppre : close + DistanceTppre
+
+
+
+var float atrSL = na
+
+if PercentOrATR == "ATR"
+    atrStop := atrStop
+    atrSL := atrStop
+else
+    // Lógica para las opciones "PERCENTAGE" y "PREDICTUM"
+    if PercentOrATR == "PERCENTAGE"
+        atrStop := Distance_CTp
+        atrSL := Distance_CSL
+    else if PercentOrATR == "PREDICTUM"
+        atrStop := Distance_CTpre  // Ajusta según tu lógica específica para "PREDICTUM"
+        atrSL := Distance_CSL
+        //numTP := 8
+
+//CONTADOR DE VELAS, APARTIR E LA ULTIMA ENTRADA trigger o changeCondPNL = nz(alertLongPNL, false) != nz(alertShortPNL, false)
+
+var int countOfCandles = 0
+
+if trigger
+    countOfCandles := 0
+else
+    countOfCandles := na(countOfCandles) ? 0 : countOfCandles + 1
+
+
+//ENTRADA
+entry = levels ? label.new(time, close, "ENTRY " + str.tostring(lastTrade(close), "#.#####"), xloc.bar_time, yloc.price, psar_longColor, label.style_label_left,  color.rgb(0, 0, 0), size.normal) : na
+label.set_y(entry, lastTrade(close))
+label.delete(entry[1])
+stop_y = lastTrade(atrSL)
+
+lineEntry = levels and lvlLines ? line.new(bar_index - countOfCandles, lastTrade(close), bar_index + lvlDistance ,lastTrade(close), xloc.bar_index, extend.none, psar_longColor,stylelvl, width=lvlLinesw ) : na
+line.delete(lineEntry[1])
+
+//STOPLOSS
+
+stop  = levels ? label.new(time, close, "STOP LOSS💀️" + str.tostring(stop_y, "#.#####"), xloc.bar_time, yloc.price, #92080860, label.style_label_left, color.rgb(255, 252, 252), size.normal) : na
+label.set_y(stop, stop_y)
+label.delete(stop[1])
+
+linestop = levels and lvlLines ? line.new(bar_index - countOfCandles, lastTrade(atrSL), bar_index  ,lastTrade(atrSL), xloc.bar_index, extend.none, #92080860,stylelvl, width=lvlLinesw ) : na
+line.delete(linestop[1])
+
+
+
+
+
+// Array para almacenar las etiquetas y líneas
+var label[] tpLabels = array.new_label(0)
+var line[] tpLines = array.new_line(0)
+
+//################################################################
+
+MovingTarget_tip = "Strategy to move StopLoss (BE), when it reaches a TP / Estrategia para mover StopLoss (BE), cuando alcanza un TP "
+showLabel_tip = "Show SIGNAL GENERATOR label / Mostrar etiqueta SIGNAL GENERATOR"
+MovingTarget = input.int(1, title="Moving Target (BE)", minval=1,group=groupEnTpSl,inline="SignalG",tooltip=MovingTarget_tip)
+showLabel = input(false, title="Showlabel Signal Generator",group=groupEnTpSl,inline="SignalG",tooltip=showLabel_tip)
+
+tf = timeframe.period
+miSimbolo = ticker.standard(syminfo.tickerid)
+
+//========================================================================
+
+buy_label = ' =====SIGNAL GENERATOR======\n'
+buy_label := buy_label + '=========KAKUPAKAT=========\n' 
+
+buy_label := buy_label + ' \n' 
+
+buy_label := buy_label + 'COIN 🪙 : ' + '' + str.tostring(miSimbolo)+ '\n'
+buy_label := buy_label + 'TIMEFRAME ⏰ : ' + '' + str.tostring(tf)+ '\n'
+buy_label := buy_label + ' \n' 
+buy_label := buy_label + 'Dir 🔃: ' + '' + (stop_y < lastTrade(close) ? 'LONG' : 'SHORT') + '\n'
+buy_label := buy_label + 'Entry 🚀: ' + '' + str.tostring(lastTrade(close), "#.#####") +'\n'
+
+
+//*********************************************************
+// Función para crear TP y líneas by CoMgUnNeR 
+// ¡Codigo mas simplificado da creditos al autor! me costo bastante.
+//*********************************************************
+
+// Función para crear TP y líneas
+// Función para calcular potencias
+pow(base, exponent) =>
+    var float result = 1.0
+    for i = 1 to exponent
+        result := result * base
+    result
+
+var float[] tpValues = array.new_float(0)
+
+// Función para crear TP y líneas
+createTP(level) =>
+    if levels
+        var float tp_y = na
+        var string emoji = na
+        var color textColor = na
+        var color lineColor = na
+        
+        if PercentOrATR == "PREDICTUM"
+            if level == 1
+                tp_y := (lastTrade(close) - lastTrade(atrStop)) * level + lastTrade(close)
+            else
+                tp_y := tp_y + (tp_y - lastTrade(close)) * 0.618  
+            
+            emoji := level == numTP ? "🤲💎" : "💪"
+            textColor := color.white
+            lineColor := psar_longLight
+        else
+            tp_y := (lastTrade(close) - lastTrade(atrStop)) * level + lastTrade(close)
+            emoji := level == numTP ? "🤲💎" : "💪"
+            textColor := color.white
+            lineColor := psar_longLight
+
+        tp = label.new(time, tp_y, "TP " + str.tostring(level) + " " + emoji + " " + str.tostring(tp_y, "#.#####"), xloc.bar_time, yloc.price, color=lineColor, style=label.style_label_left, textcolor=textColor, size=size.normal)
+
+        array.push(tpLabels, tp)
+
+        if lvlLines
+            tpLine = line.new(bar_index - countOfCandles, tp_y, bar_index + lvlDistance, tp_y, xloc.bar_index, extend.none, lineColor, stylelvl, width=lvlLinesw)
+            array.push(tpLines, tpLine)
+            if array.size(tpLines) > numTP
+                line.delete(array.get(tpLines, 0))
+                array.shift(tpLines)
+
+        if array.size(tpLabels) > numTP
+            label.delete(array.get(tpLabels, 0))
+            array.shift(tpLabels)
+        tp_y
+
+
+// Crear TP y líneas basado en el input del usuario
+if (bar_index > 10) // Asegurarse de que hay suficientes barras para calcular
+    for i = 1 to numTP
+        createTP(i)
+
+
+        
+
+// Función para crear TP y líneas
+createTP2(level_info) =>
+    if showLabel
+        var float tp_y2 = na
+        var string emoji = na
+
+        if PercentOrATR == "PREDICTUM"
+            if level_info == 1
+                tp_y2 := (lastTrade(close) - lastTrade(atrStop)) * level_info + lastTrade(close)
+            else
+                tp_y2 := tp_y2 + (tp_y2 - lastTrade(close)) * 0.618  
+            
+            emoji := level_info == numTP ? "🤲💎" : "💪"
+        else
+            tp_y2 := (lastTrade(close) - lastTrade(atrStop)) * level_info + lastTrade(close)
+            emoji := level_info == numTP ? "🤲💎" : "💪"
+
+        // Agregar el resultado al texto de la etiqueta
+        'TP ' + str.tostring(level_info) + ': ' + emoji + str.tostring(tp_y2, "#.#####") + '\n'
+
+if (bar_index > 10)
+    for i = 1 to numTP
+        // Llamar a la función y agregar el resultado a buy_label
+        buy_label := buy_label + createTP2(i)
+
+
+
+buy_label := buy_label + 'StopLoss 🛑: ' + '' + str.tostring(stop_y, "#.#####") +'\n'
+buy_label := buy_label + ' \n' 
+
+buy_label := buy_label + '=====Strategy======\n'
+buy_label := buy_label + ' \n' 
+buy_label := buy_label + 'Stop: Moving Target -\n'
+buy_label := buy_label + '  Trigger: Target  ' + str.tostring((MovingTarget))+ '\n'
+
+lab_buy = label.new(bar_index - 15, showLabel ? close : na, buy_label, color=color.new(color.gray, 40), textcolor=color.white, style=label.style_label_down, yloc=yloc.abovebar, textalign=text.align_left)
+
+// Mueve la etiqueta fuera del gráfico cuando no se muestra
+//label.set_x(lab_buy, bar_index - 500)
+if not showLabel
+    label.delete(lab_buy)
+
+label.delete(lab_buy[1])
+
+
+//################################################################
+
+
+        
+//*********************************************************
+// Función para crear TP y líneas by CoMgUnNeR 
+// ¡Codigo mas simplificado da creditos al autor! me costo bastante.
+//*********************************************************        
+
+// Module  - INFORMATION BOX by francrypto_
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                 INFORMATION BOX                       *
+//*********************************************************
+// Cálculos
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//// INPUTS
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Grupo : Opciones del Module INFOBOX
+groupinfbox = "=======  INFOBOX CoMgUnNeR ======= "
+// Separación visual
+plot(na)
+
+
+showInfoBox = input(true, title='Show Info Box', group="INFOBOX - UX KAKUPAKAT")
+/// TIPS
+i_offsetLabel_tip = "Ajusta posición del Toolbox / Adjust the position of the toolbox"
+
+/// TIPS
+
+
+i_offsetLabel = input.int(defval=40, title='Label Horizontal Offset', minval=0, maxval=205, group=groupinfbox ,tooltip = i_offsetLabel_tip)
+
+
+offset = i_offsetLabel * (time - time[1])
+splitter = '__________________'
+nl = '\n'
+title = ' ==== DASHBOARD ====' + nl + '==== KAKUPAKAT ====' 
+
+string dynamicText = title + nl
+var label id = na
+if showInfoBox
+    label.delete(id)
+    id := label.new(x=time + offset, y=close, xloc=xloc.bar_time, text=dynamicText, style=label.style_label_left, color=color.white, textcolor=color.black, size=size.small, textalign=text.align_center)
+else
+    label.delete(id)   
+
+DOMINANCE_tip = "Muestra Valor actual de la Dominancia de BTC y ETH / Shows Current Value of BTC and ETH Dominance "
+showMACD_tip = "Muestra si MACD esta por encima o por debajo punto 0 / shows if MACD is above or below 0 point fastlen=12, slowlen=26, siglen=9 "
+showRSI_tip = "Muestra indicardor de RSI, valor actual en 14P , SobreVenta y SobreCompra calculados con 3 temporalidades de RSI: 7, 14 y 21, coincidencia almenos en 2 de ellos / hows RSI indicator, current value at 14P, OverSold and OverBought calculated with 3 RSI timeframes: 7, 14 and 21, coincidence in at least 2 of them"
+showRSIcross_tip = "Muestra Cruce de RSI y MRSI / Shows Crossover of RSI and MRSI"
+showEstochastic_tip = "Muestra valores actuales de K/D en 14P, niveles de SobreCompra o SobreVenta calculados con 3 temporalidades de Stoch: 7, 14 y 21, coincidencia almenos en 2 de ellos / Shows current values ​​of K/D at 14P, Overbought or OverSold levels calculated with 3 Stoch timeframes: 7, 14 and 21, coincidence in at least 2 of them " 
+showADX_tip = "Muestra valores de ADX 14P en vivo, Cruces en el punto 0 y tendencia por encima o por debajo de  DI+ / DI - / Shows live ADX 14P values, 0 Point Crossovers and trend above or below DI+ / DI -"
+showSQUEEZE_tip = "Muestra valores de Squeeze Momentum, si se encuentra en el punto mas alto Verde Obscuro o Rojo granada / Shows Squeeze Momentum values, if it is at the highest point Dark Green or Pomegranate Red"
+showORB_tip = "Muestra alerta de Breakout dentro del Toolbox en vivo / Show Breakout alert inside the Live Toolbox "
+
+
+// LABEL VARIABLES
+i_showDOMINANCE = input(false, 'Show DOMINANCE // Mostrar DOMINANCE', group=groupinfbox, tooltip = DOMINANCE_tip )
+i_showMACD = input(true, 'Show MACD // Mostrar MACD', group=groupinfbox, tooltip = showMACD_tip)
+i_showRSI = input(true, 'Show RSI // Mostrar RSI', group=groupinfbox, tooltip = showRSI_tip)
+i_showRSIcross = input(true, 'Show Cross RSI // Mostrar Cruce RSI ', group=groupinfbox, tooltip=showRSIcross_tip)
+i_showEstochastic = input(true, 'Show STOCH // Mostrar STOCH', group=groupinfbox , tooltip = showEstochastic_tip)
+i_showADX = input(true, 'Show ADX // Mostrar ADX', group=groupinfbox , tooltip = showADX_tip)
+i_showSQUEEZE = input(true, 'Show SQUEEZE // Mostrar SQUEEZE', group=groupinfbox, tooltip = showSQUEEZE_tip)
+i_showcredits = input(true, 'Credits', group=groupinfbox, tooltip =showORB_tip)
+
+// ROUNDS
+f_round(_val, _decimals) =>
+    if _decimals == -1
+        _val
+    else
+        _p = math.pow(10, _decimals)
+        math.round(math.abs(_val) * _p) / _p * math.sign(_val)
+
+f_strHelp(_prefix, _var, _round) =>
+    _res = str.tostring(f_round(_var, _round))
+    _prefix + ' ' + _res + nl
+
+
+
+// DOMINANCESection
+DOMINANCETitle = splitter + nl + nl + 'Crypto Dominance🌐' + nl
+BTCDClose = request.security('BTC.D', 'M', close)
+BTCD = f_strHelp('BTC ₿ % →', BTCDClose, 1)
+ETHDClose = request.security('ETH.D', 'M', close)
+ETHD = f_strHelp('ETH ⬨ % →', ETHDClose, 1)
+DOMINANCESection = i_showDOMINANCE ? DOMINANCETitle + nl + BTCD + ETHD : na
+
+// MACDSection
+MACDTitle = splitter + nl
+[macd, macdsignal, macdhist] = ta.macd(close, fastlen=12, slowlen=26, siglen=9)
+trend3 = macdhist > 0 ? '[ Bullish 📈 Alcista ]' : '[ Bearish 📉 Bajista ]'
+MACDSection = i_showMACD ? MACDTitle + nl +  'MACD Trend 📊 :' + nl + nl + trend3 + nl : na
+
+// RSISection
+RSITitle = splitter + nl
+rsibase2 = ta.rsi(close, 7)
+rsibase = ta.rsi(close, 14)
+rsibase3 = ta.rsi(close, 21)
+
+
+Trend1 = rsibase > 80 and rsibase2 > 80 or  rsibase2 > 80 and rsibase3 > 80  or rsibase > 80 and rsibase3 > 80 ?  nl + '🚨🚨🚨🚨🚨' + '[ RSI OVERBUY📈' + nl + 'RSI SOBRECOMPRA]' : na 
+Trend2 = rsibase < 20 and rsibase2 < 20 or rsibase2 < 20 and rsibase3 < 20 or rsibase < 20 and rsibase3 < 20  ? nl + '🚨🚨🚨🚨🚨' + '[ RSI OVERSELL📉' + nl + 'RSI SOBREVENTA]' : na 
+RSISection = i_showRSI ? RSITitle  + nl + f_strHelp('RSI:', rsibase, 1) + Trend1 + Trend2 + nl : na  + nl  
+
+
+//RSISection Estrategia CoMgUnNeR
+
+// Stoch
+
+EstochasticTitle = splitter + nl
+
+//CLASICO Estrategia CoMgUnNeR
+periodK = 14
+periodD = 3
+smoothK = 3
+//TIPO1
+
+periodK2 = 7
+periodD2 = 3
+smoothK2 = 3
+
+//TIPO3
+
+periodK3 = 21
+periodD3 = 3
+smoothK3 = 3
+
+//STD
+k = ta.sma(ta.stoch(close, high, low, periodK), smoothK)
+d = ta.sma(k, periodD)
+//tp2
+k2 = ta.sma(ta.stoch(close, high, low, periodK2), smoothK2)
+d2 = ta.sma(k2, periodD2)
+//tp3
+k3 = ta.sma(ta.stoch(close, high, low, periodK3), smoothK3)
+d3 = ta.sma(k3, periodD3)
+
+
+
+Trend1stoch = k > 80 and k2 > 80 or k2 > 80 and k3 > 80 or k > 80 and k3 > 80 ? nl + nl + '🚨🚨🚨🚨🚨 ' + nl  + nl +  '[ STOCH OVERBUY 📈' + nl + 'STOCH SOBRECOMPRA]' + nl : na + nl 
+Trend2stoch = k < 20 and k2 < 20 or k2 < 20 and k3 < 20 or k < 20 and k3 < 20  ? nl + nl + '🚨🚨🚨🚨🚨 ' + nl  + nl +  '[ STOCH OVERSELL 📉' + nl + 'STOCH SOBREVENTA]' + nl : na + nl 
+EstochasticSection = i_showEstochastic ? nl + EstochasticTitle + nl +  f_strHelp('STOCH K:', k, 1) + f_strHelp('STOCH D:', d, 1) + nl + Trend1stoch + Trend2stoch + nl : na + nl 
+
+Trend1stochcrossUp = ta.crossover(k, d) ? '🟢🔼' + nl + '[Up +]' : na  + nl
+Trend2stochcrossDown = ta.crossunder(k, d) ? '🔴🔽' + nl + '[Down -]' : na + nl
+EstochasticSection2 = i_showEstochastic ? EstochasticTitle + nl +'STOCH CROSS K/D:' + Trend1stochcrossUp + Trend2stochcrossDown + nl : na + nl
+
+
+
+//CREDITOS
+
+TelegramTitle = splitter + nl
+url = "https://t.me/kakupakat_trading_oficial"  
+string linkText = "https://t.me/kakupakat_trading_oficial"
+displayText = "<a href='" + url + "'>" + linkText + "</a>"
+TelegramSection = i_showcredits ?TelegramTitle + nl + 'TELEGRAM' + nl + url + nl :na
+
+
+//INICIA ADX
+
+// Inputs ADX
+DMIlength = 14
+ATRADX = ta.atr(14)
+
+
+
+// +DM and -DM
+upMove = high - high[1]
+dnMove = low[1] - low
+plusDM = upMove > dnMove and upMove > 0 ? upMove : 0
+minusDM = dnMove > upMove and dnMove > 0 ? dnMove : 0
+
+// SMMA Wilder; SMMA(x,y) = RMA(x,y) or SMMA(x,y) = EMA(x, (2 * y - 1))
+MAcalc(x, y) =>
+    ma = ta.rma(x, y)
+    ma
+
+// +DI,-DI and ADX
+plusDI = 100 * (MAcalc(plusDM, DMIlength) / ATRADX)
+minusDI = 100 * (MAcalc(minusDM, DMIlength) / ATRADX)
+absDX = 100 * math.abs((plusDI - minusDI) / (plusDI + minusDI))
+
+
+// Calcular el ADX como se hace en el código original
+ADX = MAcalc(absDX, DMIlength)
+
+ADXTitle = splitter + nl
+Trend1ADX = ADX > 25 ? '💪'  + '[ STRONG TREND' + nl + 'TENDENCIA FUERTE ]' : na  + nl 
+Trend2ADX = ADX < 20 ? '💔'  + '[ WEAK TREND' + nl + ' TENDENCIA DEBIL ]' : na + nl
+ADXSection = i_showADX ? ADXTitle  + f_strHelp('ADX  Val:', ADX, 1) + Trend1ADX + Trend2ADX + nl : na
+ADXTitle2 = splitter + nl
+dirADX = plusDI > minusDI ? '[ Bullish 📈 Alcista ]' : '[ Bearish 📉 Bajista ]'
+ADXSection2 = i_showADX ? ADXTitle2 + 'ADX DIR:' + nl + dirADX + nl : na
+cruceLongADX = ta.crossover(plusDI, minusDI) ? '🟢🔃' + nl  + '[  CROSS + ' + ' ADX + ]' : na
+cruceShortADX = ta.crossunder(plusDI, minusDI) ? '🔴🔃' + nl  + '[ CROSS - ' + ' ADX - ]' : na
+ADXSection3 = i_showADX ? ADXTitle2 + 'ADX CROSS:' + cruceLongADX + cruceShortADX + nl : na
+
+
+//TERMINA ADX
+
+
+
+
+//SQUEEZE MOMENTUM COMGUNNER
+lengthSqueeze = 20
+multSqueeze = 2
+lengthKCSqueeze = 20
+multKCSqueeze = 1.5
+strengthSqueeze = 0.0018
+useTrueRangeSqueeze = input.bool(true, title="Use TrueRange (KC)",tooltip = "Parametro para Squeeze M / Parameter for Squeeze M")
+
+// Calculate BB
+sourceSqueeze = close
+basisSqueeze = ta.sma(sourceSqueeze, lengthSqueeze)
+devSqueeze = multKCSqueeze * ta.stdev(sourceSqueeze, lengthSqueeze)
+upperBBSqueeze = basisSqueeze + devSqueeze
+lowerBBSqueeze = basisSqueeze - devSqueeze
+
+// Calculate KC
+maSqueeze = ta.sma(sourceSqueeze, lengthKCSqueeze)
+rangeValSqueeze = useTrueRangeSqueeze ? ta.tr : (high - low)
+rangemaSqueeze = ta.sma(rangeValSqueeze, lengthKCSqueeze)
+upperKCSqueeze = maSqueeze + rangemaSqueeze * multKCSqueeze
+lowerKCSqueeze = maSqueeze - rangemaSqueeze * multKCSqueeze
+
+sqzOnSqueeze  = (lowerBBSqueeze > lowerKCSqueeze) and (upperBBSqueeze < upperKCSqueeze)
+sqzOffSqueeze = (lowerBBSqueeze < lowerKCSqueeze) and (upperBBSqueeze > upperKCSqueeze)
+noSqzSqueeze  = (sqzOnSqueeze == false) and (sqzOffSqueeze == false)
+highestSqueeze = ta.highest(high, lengthKCSqueeze)
+lowestSqueeze = ta.lowest(low, lengthKCSqueeze)
+lastsmaSqueeze = ta.sma(close,lengthKCSqueeze)
+valin = ta.linreg(sourceSqueeze  -  ta.sma((highestSqueeze + lowestSqueeze) / 2, lengthKCSqueeze), lengthKCSqueeze,0)
+
+
+// MACDSection
+SqueezeTitle = splitter + nl
+SqueezeEndLong = valin < (strengthSqueeze*-1) and valin > nz(valin[1]) ? '🔄🟢' + nl + '[DIR END ↗️↗️↗️↘️↘️↘️ ' + nl + ' FIN DIR  ↗️↗️↗️↘️↘️↘️  ]' : na  
+SqueezeEndShort = valin > strengthSqueeze and valin < nz(valin[1])  ? '🔄🔴' + nl + '[ DIR END  ↘️↘️↘️↗️↗️↗️' + nl + ' FIN DIR  ↘️↘️↘️↗️↗️↗️ ]' : na 
+SqueezeSection = i_showSQUEEZE ? SqueezeTitle + nl + 'DIR CHANGE SQUEEZE:' + SqueezeEndLong + SqueezeEndShort   + nl: na
+
+SqueezeCrossUp = ta.crossover(valin, 0)  ?  '🟢' +'[ 0  UP  ]' : na  
+SqueezeCrossDn = ta.crossunder(valin,0)  ?  '🔴' + '[ 0  DOWN ]' : na 
+SqueezeSection2 = i_showSQUEEZE ? SqueezeTitle  + nl + 'CROSS CERO SQUEEZE:' + nl + SqueezeCrossUp + SqueezeCrossDn  + nl : na
+
+//SQUEEZE MOMENTUM COMGUNNER FIN
+
+//RSI GOLDEN CROSS COMGUNNER INICIO
+
+// Grupo : Opciones del Module GOLDEN CROSS 
+groupinfboxRsi = "INFOBOX GOLDEN CROSS mRSI"
+// Separación visual
+plot(na)
+// , group=groupinfboxRsi
+// 
+
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "Bollinger Bands" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+rsiLengthInput = 14
+rsiSourceInput = input.source(close, group=groupinfboxRsi)
+
+maTypeInput = input.string("SMA", title="mrSI", group="MA Settings", group=groupinfboxRsi)
+maLengthInput = 14
+bbMultInput = 2.0
+
+uprsi = ta.rma(math.max(ta.change(rsiSourceInput), 0), rsiLengthInput)
+downrsi = ta.rma(-math.min(ta.change(rsiSourceInput), 0), rsiLengthInput)
+rsi = downrsi == 0 ? 100 : uprsi == 0 ? 0 : 100 - (100 / (1 + uprsi / downrsi))
+rsiMA = ma(rsi, maLengthInput, maTypeInput)
+isBB = maTypeInput == "Bollinger Bands"
+
+// Agregar una variable para almacenar el valor anterior del RSI
+var float prevRSI = na
+var float prevRSI2 = na
+var float prevRSI3 = na
+var float prevRSI4 = na
+// Agregar una variable para almacenar el valor anterior del rsiMA
+var float prevrsiMA = na
+var float prevrsiMA2 = na
+var float prevrsiMA3 = na
+var float prevrsiMA4 = na
+
+// Almacenar el valor anterior de RSI
+prevRSI := nz(prevRSI[1], rsi[1])
+prevRSI2 := nz(prevRSI[2], rsi[2])
+prevRSI3 := nz(prevRSI[3], rsi[3])
+prevRSI4 := nz(prevRSI[4], rsi[4])
+
+// Almacenar el valor anterior de rsiMA
+prevrsiMA := nz(prevrsiMA[1], rsiMA[1])
+prevrsiMA2 := nz(prevrsiMA[2], rsiMA[2])
+prevrsiMA3 := nz(prevrsiMA[3], rsiMA[3])
+prevrsiMA4 := nz(prevrsiMA[4], rsiMA[4])
+
+RSIcrossTitle = splitter + nl
+goldenrsiUp = ta.crossover(rsi,rsiMA) and rsiMA < prevrsiMA and rsiMA < prevrsiMA2  ? '🟢🔼' + nl + '[ Up + ' + nl + 'ARRIBA + ]' : na  + nl
+goldenrsiDn = ta.crossunder(rsi,rsiMA)  and rsiMA > prevrsiMA and rsiMA > prevrsiMA2 ? '🔴🔽' + nl + '[ Down - ' + nl + 'ABAJO  - ]' : na + nl
+RSIcrossSection = i_showRSIcross ? RSIcrossTitle +'mRSI GOLD CROSS:' + goldenrsiUp + goldenrsiDn : na + nl
+mRSItrend = rsi > rsiMA ? '[ Bullish 📈 Alcista ]' : '[ Bearish 📉 Bajista ]'
+RSIcrossSectionTrend = i_showRSIcross ? RSIcrossTitle + nl +  'mRSI Trend:' + nl + nl + mRSItrend + nl : na
+
+//RSI GOLDEN CROSS COMGUNNER INICIO FIN
+
+
+//KILLS INICIO
+
+//KILLS FIN
+
+//ESTILO Y ALERTAS CAJA INFO
+
+// STYLE
+label.set_textalign(id, text.align_left)
+label.set_color(id, color=color.rgb(0, 0, 50, 50))
+label.set_textcolor(id, textcolor=color.new(color.orange, 0))
+label.set_style(id, label.style_label_left)
+
+// DynamicText
+dynamicText := dynamicText  + DOMINANCESection  + MACDSection  +  ADXSection2 + ADXSection  +  ADXSection3 + SqueezeSection + SqueezeSection2 + RSISection + RSIcrossSection + RSIcrossSectionTrend + EstochasticSection + EstochasticSection2 + TelegramSection
+label.set_text(id, text=dynamicText)
+
+
+if Trend1 == nl + '🚨🚨🚨🚨🚨' + nl + nl + '[ RSI OVERBUY! 📈' + nl + '¡¡RSI SOBRECOMPRA!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.teal)
+
+if Trend2 == nl + '🚨🚨🚨🚨🚨' + nl + nl + '[ RSI OVERSELL! 📉' + nl + '¡¡RSI SOBREVENTA!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.maroon)
+
+if Trend1stoch == nl + '🚨🚨🚨🚨🚨' + nl + nl + '[ STOCH OVERBUY! 📈' + nl + '¡¡STOCH SOBRECOMPRA!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.teal)
+
+if Trend2stoch == nl + '🚨🚨🚨🚨🚨' + nl + nl + '[ STOCH OVERSELL! 📉' + nl + '¡¡STOCH SOBREVENTA!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.maroon)
+
+
+if Trend1ADX == nl + '🚨🚨🚨🚨🚨' + nl + nl + '[  STRONG ADX! 📈' + nl + 'ADX FUERTE!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.teal)
+
+if Trend2ADX == nl + '🚨🚨🚨🚨🚨' + nl + nl + '[ WEAK ADX! 📉' + nl + 'ADX DEBIL!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.maroon)
+
+
+if cruceLongADX == nl + '🚨⚠️🟢⚠️ 🟢⚠️ 🟢' + nl + nl + '[  CROSS ADX! 📈' + nl + 'CRUCE ADX!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.teal)
+
+if cruceShortADX == nl + '🚨⚠️🔴⚠️ 🔴⚠️ 🔴 ' + nl + nl + '[ CROSS ADX! 📉' + nl + 'CRUCE ADX!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.maroon)
+
+if SqueezeEndLong == nl + '🚨⚠️🟢⚠️ 🟢⚠️ 🟢' + nl + nl + '[  End Trend Squeeze! ↗️↗️↗️' + nl + 'Fin Tendencia Squeeze!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.teal)
+
+if SqueezeEndShort == nl + '🚨⚠️🔴⚠️ 🔴⚠️ 🔴 ' + nl + nl + '[ End Trend Squeeze! ↘️↘️↘️' + nl + 'Fin Tendencia Squeeze!]' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.maroon)
+
+if goldenrsiUp == nl + '🚨⚠️🟢⚠️ 🟢⚠️ 🟢' + nl + nl + '[  mRSI GOLD CROSS + 🔀' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.teal)
+
+if goldenrsiDn == nl + '🚨⚠️🔴⚠️ 🔴⚠️ 🔴 ' + nl + nl + '[ mRSI GOLD CROSS - 🔀' + nl 
+    label.set_textcolor(id, textcolor=color.white)
+    label.set_color(id, color.maroon)
+
+
+
+//----------//
+// END
+
+
+
+
+
+// Module - VOLUME PROFILE has been developed by kv4coins.
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                  VOLUME PROFILE                       *
+//*********************************************************
+// Cálculos
+
+// Grupo 3: Opciones del Módulo 
+groupVP = "=======  Module - VOLUME PROFILE ======= "
+plot(na)
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//// INPUTS
+///////////////////////////////////////////////////////////////////////////////////////////////////
+vp_lookback = input.int(defval=200, title='Volume Lookback Depth [10-1000]', minval=10, maxval=1000 , group=groupVP)
+
+vp_max_bars = input.int(defval=500, title='Number of Bars [10-500]', minval=10, maxval=500, group=groupVP)
+
+vp_bar_mult = input.int(defval=50, title='Bar Length Multiplier [10-100]', minval=10, maxval=100, group=groupVP)
+
+vp_bar_offset = input.int(defval=30, title='Bar Horizontal Offset [0-100]', minval=0, maxval=100, group=groupVP)
+
+vp_bar_width = input.int(defval=2, title='Bar Width [1-20]', minval=1, maxval=20, group=groupVP)
+
+// As suggested by @NXT2017 to @kv4coins
+vp_delta_type = input.string(defval='Both // Ambos', title='VP Delta Type // Variable Delta del Perfil de Volumen', options=['Both // Ambos', 'Bullish // Toros', 'Bearish // Osos'])
+
+vp_poc_show = input(defval=false, title='VP Extend POC Line // Extender Línea del Punto de Control del Perfil de Volumen')
+
+vp_bar_color = input(defval=color.new(color.aqua, 75), title='VP Bar Color // Color de la Barra del Perfil de Volumen')
+
+vp_poc_color = input(defval=color.new(color.aqua, 0), title='VP POC Color // Color del Punto de control del Perfil de Volumen')
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// VARIABLES
+///////////////////////////////////////////////////////////////////////////////////////////////////
+float vp_Vmax = 0.0
+int vp_VmaxId = 0
+int vp_N_BARS = vp_max_bars
+
+var int vp_first = time
+
+vp_a_P = array.new_float(vp_N_BARS + 1, 0.0)
+vp_a_V = array.new_float(vp_N_BARS, 0.0)
+vp_a_D = array.new_float(vp_N_BARS, 0.0)
+vp_a_W = array.new_int(vp_N_BARS, 0)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// CALCULATIONS
+///////////////////////////////////////////////////////////////////////////////////////////////////
+float vp_HH = ta.highest(high, vp_lookback)
+float vp_LL = ta.lowest(low, vp_lookback)
+
+if barstate.islast
+    float vp_HL = (vp_HH - vp_LL) / vp_N_BARS
+    for j = 1 to vp_N_BARS + 1 by 1
+        array.set(vp_a_P, j - 1, vp_LL + vp_HL * j)
+    for i = 0 to vp_lookback - 1 by 1
+        int Dc = 0
+        array.fill(vp_a_D, 0.0)
+        for j = 0 to vp_N_BARS - 1 by 1
+            float Pj = array.get(vp_a_P, j)
+            if low[i] < Pj and high[i] > Pj and (vp_delta_type == 'Bullish' ? close[i] >= open[i] : vp_delta_type == 'Bearish' ? close[i] <= open[i] : true)
+                float Dj = array.get(vp_a_D, j)
+                float dDj = Dj + nz(volume[i])
+                array.set(vp_a_D, j, dDj)
+                Dc += 1
+                Dc
+        for j = 0 to vp_N_BARS - 1 by 1
+            float Vj = array.get(vp_a_V, j)
+            float Dj = array.get(vp_a_D, j)
+            float dVj = Vj + (Dc > 0 ? Dj / Dc : 0.0)
+            array.set(vp_a_V, j, dVj)
+    vp_Vmax := array.max(vp_a_V)
+    vp_VmaxId := array.indexof(vp_a_V, vp_Vmax)
+    for j = 0 to vp_N_BARS - 1 by 1
+        float Vj = array.get(vp_a_V, j)
+        int Aj = math.round(vp_bar_mult * Vj / vp_Vmax)
+        array.set(vp_a_W, j, Aj)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// PLOTING
+///////////////////////////////////////////////////////////////////////////////////////////////////
+if barstate.isfirst
+    vp_first := time
+    vp_first
+vp_change = ta.change(time)
+vp_x_loc = timenow + math.round(vp_change * vp_bar_offset)
+
+f_setup_bar(n) =>
+    x1 = vp_VmaxId == n and vp_poc_show ? math.max(time[vp_lookback], vp_first) : timenow + math.round(vp_change * (vp_bar_offset - array.get(vp_a_W, n)))
+    ys = array.get(vp_a_P, n)
+    line.new(x1=x1, y1=ys, x2=vp_x_loc, y2=ys, xloc=xloc.bar_time, extend=extend.none, color=vp_VmaxId == n ? vp_poc_color : vp_bar_color, style=line.style_solid, width=vp_bar_width)
+
+if barstate.islast
+    for i = 0 to vp_N_BARS - 1 by 1
+        f_setup_bar(i)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// END
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// Module - SMARTCONCEPT has been developed by Leviathan
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                  SMARTCONCEPT                         *
+//*********************************************************
+// Cálculos
+
+groupSMC = "Module - SMARTCONCEPT"
+plot(na)
+
+
+// Constants
+color CLEAR = color.rgb(0,0,0,100)
+
+// Inputs
+swingSize = input.int(20, 'Swing length / Longitud del Swing', tooltip='The number of left and right bars checked when searching for a swing point. Higher value = less swing points plotted and lower value = more swing points plotted.' , group=groupSMC )
+bosConfType = input.string('Cierre de Vela', 'BOS Confirmation', ['Cierre de Vela', 'Wicks'], tooltip='Choose whether candle close/wick above previous swing point counts as a BOS.')
+choch = input.bool(true, 'Show  CHoCH/ Mostrar CHoCH', tooltip='Renames the first counter trend BOS to CHoCH' )
+showSwing = input.bool(true, ' Show Swin Pivot / Mostrar Puntos de Swing', tooltip='Show or hide HH, LH, HL, LL')
+
+showHalf = input.bool(true, ' Show Retracement Level 0.5 / Mostrar Nivel de Retroceso 0.5', group='0.5 Retracement Level', tooltip='Show a possible 0.5 retracement level between the swing highs and lows of an expansion move.')
+halfColor = input.color(color.rgb(41, 39, 176), 'Color', group='0.5 Retracement Level')
+halfStyle = input.string('Solid', 'Line Style', ['Solid', 'Dashed', 'Dotted'], group='0.5 Retracement Level')
+halfWidth = input.int(1, 'Width', minval=1, group='0.5 Retracement Level')
+
+bosColor = input.color(color.rgb(112, 114, 119), 'Color', group='BOS Settings')
+bosStyle = input.string('Dashed', 'Line Style', ['Solid', 'Dashed', 'Dotted'], group='BOS Settings')
+bosWidth = input.int(1, 'Width', minval=1, group='BOS Settings')
+
+// Functions
+lineStyle(x) =>
+    switch x
+        'Solid' => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+
+
+// Calculations
+
+//Finding high and low pivots
+pivHi = ta.pivothigh(high, swingSize, swingSize)
+pivLo = ta.pivotlow(low, swingSize, swingSize)
+
+
+//Tracking the previous swing levels to determine hh lh hl ll
+var float prevHigh = na
+var float prevLow = na
+var int prevHighIndex = na
+var int prevLowIndex = na
+
+//Tracking whether previous levels have been breached
+var bool highActive = false
+var bool lowActive = false
+
+bool hh = false
+bool lh = false
+bool hl = false
+bool ll = false
+
+//Variable to track the previous swing type, used later on to draw 0.5 Retracement Levels (HH = 2, LH = 1, HL = -1, LL = -2)
+var int prevSwing = 0
+
+if not na(pivHi)
+    if pivHi >= prevHigh
+        hh := true
+        prevSwing := 2
+    else
+        lh := true
+        prevSwing := 1
+    prevHigh := pivHi
+    highActive := true
+    prevHighIndex := bar_index - swingSize
+
+if not na(pivLo)
+    if pivLo >= prevLow
+        hl := true
+        prevSwing := -1
+    else
+        ll := true
+        prevSwing := -2
+    prevLow := pivLo
+    lowActive := true
+    prevLowIndex := bar_index - swingSize
+
+//Generating the breakout signals
+bool highBroken = false
+bool lowBroken = false
+
+//Tracking prev breakout
+var int prevBreakoutDir = 0
+
+float highSrc = bosConfType == 'Candle Close' ? close : high
+float lowSrc = bosConfType == 'Candle Close' ? close : low
+
+if highSrc > prevHigh and highActive
+    highBroken := true
+    highActive := false
+if lowSrc < prevLow and lowActive
+    lowBroken := true
+    lowActive := false
+
+
+// Visual Output
+
+//Swing level labels
+if hh and showSwing
+    label.new(bar_index - swingSize, pivHi, 'HH', color=CLEAR, style=label.style_label_down, textcolor=chart.fg_color)
+    //Detecting if it is a hh after a hl
+    if prevSwing[1] == -1 and showHalf
+        line.new(prevLowIndex, (prevLow + pivHi) / 2, bar_index - swingSize, (prevLow + pivHi) / 2, color=halfColor, style=lineStyle(halfStyle), width=halfWidth)
+if lh and showSwing
+    label.new(bar_index - swingSize, pivHi, 'LH', color=CLEAR, style=label.style_label_down, textcolor=chart.fg_color)
+if hl and showSwing
+    label.new(bar_index - swingSize, pivLo, 'HL', color=CLEAR, style=label.style_label_up, textcolor=chart.fg_color)
+if ll and showSwing
+    label.new(bar_index - swingSize, pivLo, 'LL', color=CLEAR, style=label.style_label_up, textcolor=chart.fg_color)
+    //Detecting if it is a ll after a lh
+    if prevSwing[1] == 1 and showHalf
+        line.new(prevHighIndex, (prevHigh + pivLo) / 2, bar_index - swingSize, (prevHigh + pivLo) / 2, color=halfColor, style=lineStyle(halfStyle), width=halfWidth)
+
+//Generating the BOS Lines
+if highBroken
+    line.new(prevHighIndex, prevHigh, bar_index, prevHigh, color=bosColor, style=lineStyle(bosStyle), width=bosWidth)
+    label.new(math.floor(bar_index - (bar_index - prevHighIndex) / 2), prevHigh, prevBreakoutDir == -1 and choch ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bosColor, size=size.tiny)
+    prevBreakoutDir := 1
+if lowBroken
+    line.new(prevLowIndex, prevLow, bar_index, prevLow, color=bosColor, style=lineStyle(bosStyle), width=bosWidth)
+    label.new(math.floor(bar_index - (bar_index - prevLowIndex) / 2), prevLow, prevBreakoutDir == 1 and choch ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bosColor, style=label.style_label_up, size=size.tiny)
+    prevBreakoutDir := -1
+
+// Módulo  Channel Trend and 3 EMA Stratgy civilTacos45397
+//-----------------------------------------
+//*********************************************************
+//*                     Módulo                            *
+//*      Channel Trend and 3 EMA Stratgy                  *
+//*********************************************************
+// Cálculos
+//--------
+// Grupo : Opciones del Módulo 
+groupCHT = "== Module - Channel Trend and 3 EMA Stratgy =="
+// Separación visual
+plot(na)
+// ,group=groupCHT
+
+var fastLength_CHT = 12 //input(12)
+var slowlength_CHT = 26 //input(26)
+var deltaLength_CHT = 9 //input(9)
+
+mama_CHT = ta.ema(close, fastLength_CHT) - ta.ema(close, slowlength_CHT)
+mbmb_CHT = ta.ema(mama_CHT, deltaLength_CHT)
+delta_CHT = mama_CHT - mbmb_CHT
+//--------------------------------------------------
+
+DD1_CHT       = input(true ,"────────── Channel  Setting ───────────" ,group=groupCHT)
+channel_length_CHT = input.int(100, title="Bar Distance", minval = 3, maxval = 200 ,inline = "channelsetting" ,group=groupCHT) 
+
+pss_CHT = 0
+Channel_source_CHT = close
+var float valtop_CHT = na
+var float valbtm_CHT = na
+
+UpperBound_CHT = ta.highest(Channel_source_CHT,channel_length_CHT) //representa el valor más alto alcanzado por el precio de cierre dentro del canal
+LowerBound_CHT = ta.lowest(Channel_source_CHT,channel_length_CHT) //representa el valor más bajo alcanzado por el precio de cierre dentro del canal
+pss_CHT := Channel_source_CHT[channel_length_CHT] > UpperBound_CHT ? 0 : Channel_source_CHT[channel_length_CHT] < LowerBound_CHT ? 1 : pss_CHT[1]
+
+btm_CHT = pss_CHT == 1 and pss_CHT[1] != 1
+top_CHT = pss_CHT == 0 and pss_CHT[1] != 0
+
+btm_n_CHT = ta.valuewhen(btm_CHT,bar_index,0)
+top_n_CHT = ta.valuewhen(top_CHT,bar_index,0)
+len_interval_CHT = math.abs(btm_n_CHT - top_n_CHT)
+
+if btm_CHT
+    max_diff_up_CHT = 0.
+    max_diff_dn_CHT = 0.
+    valbtm_CHT := low[channel_length_CHT]
+    
+    for i = 0 to len_interval_CHT-1
+        point_CHT = low[channel_length_CHT] + i/(len_interval_CHT-1)*(valtop_CHT - low[channel_length_CHT])
+        max_diff_up_CHT := math.max(math.max(Channel_source_CHT[channel_length_CHT+i],open[channel_length_CHT+i]) - point_CHT,max_diff_up_CHT)
+        max_diff_dn_CHT := math.max(point_CHT - math.min(Channel_source_CHT[channel_length_CHT+i],open[channel_length_CHT+i]),max_diff_dn_CHT)
+        
+    line.new(bar_index[len_interval_CHT+channel_length_CHT],valtop_CHT,bar_index[channel_length_CHT],low[channel_length_CHT],color=#ff5d00)
+    
+    line.new(bar_index[len_interval_CHT+channel_length_CHT],valtop_CHT+max_diff_up_CHT,bar_index[channel_length_CHT],low[channel_length_CHT]+max_diff_up_CHT,color=#ff1100)
+    line.new(bar_index[len_interval_CHT+channel_length_CHT],valtop_CHT-max_diff_dn_CHT,bar_index[channel_length_CHT],low[channel_length_CHT]-max_diff_dn_CHT,color=#ff1100)
+
+    label.new(bar_index[channel_length_CHT],low[channel_length_CHT],str.tostring(low[channel_length_CHT],'#.####'),color=#00000000,style=label.style_label_up,textcolor=#2157f3,textalign=text.align_left,size=size.small)
+
+if top_CHT
+    max_diff_up_CHT = 0.
+    max_diff_dn_CHT = 0.
+    valtop_CHT := high[channel_length_CHT]
+    
+    for i = 0 to len_interval_CHT-1
+        point_CHT = high[channel_length_CHT] + i/(len_interval_CHT-1)*(valbtm_CHT - high[channel_length_CHT])
+        max_diff_up_CHT := math.max(math.max(Channel_source_CHT[channel_length_CHT+i],open[channel_length_CHT+i]) - point_CHT,max_diff_up_CHT)
+        max_diff_dn_CHT := math.max(point_CHT - math.min(Channel_source_CHT[channel_length_CHT+i],open[channel_length_CHT+i]),max_diff_dn_CHT)
+    
+    line.new(bar_index[len_interval_CHT+channel_length_CHT],valbtm_CHT,bar_index[channel_length_CHT],high[channel_length_CHT],color=#ff5d00)
+    
+    line.new(bar_index[len_interval_CHT+channel_length_CHT],valbtm_CHT+max_diff_up_CHT,bar_index[channel_length_CHT],high[channel_length_CHT]+max_diff_up_CHT,color=#2157f3)
+    line.new(bar_index[len_interval_CHT+channel_length_CHT],valbtm_CHT-max_diff_dn_CHT,bar_index[channel_length_CHT],high[channel_length_CHT]-max_diff_dn_CHT,color=#2157f3)
+
+    label.new(bar_index[channel_length_CHT],high[channel_length_CHT],str.tostring(high[channel_length_CHT],'#.####'),color=#00000000,style=label.style_label_down,textcolor=#ff1100,textalign=text.align_left,size=size.small)
+
+if barstate.islast 
+    max_diff_up_CHT = 0.
+    max_diff_dn_CHT = 0.  
+    x1_CHT = 0
+    y1_CHT = 0.
+    
+    if pss_CHT == 1
+        x1_CHT := btm_n_CHT-channel_length_CHT
+        y1_CHT := valbtm_CHT
+        
+        for i = 0 to bar_index-btm_n_CHT+channel_length_CHT-1
+            point_CHT = Channel_source_CHT + i/(bar_index-btm_n_CHT+channel_length_CHT-1)*(valbtm_CHT - Channel_source_CHT)
+            max_diff_up_CHT := math.max(math.max(Channel_source_CHT[i],open[i]) - point_CHT,max_diff_up_CHT)
+            max_diff_dn_CHT := math.max(point_CHT - math.min(Channel_source_CHT[i],open[i]),max_diff_dn_CHT)
+
+    else 
+        x1_CHT := top_n_CHT-channel_length_CHT
+        y1_CHT := valtop_CHT
+        
+        for i = 0 to bar_index-top_n_CHT+channel_length_CHT-1
+            point_CHT = Channel_source_CHT + i/(bar_index-top_n_CHT+channel_length_CHT-1)*(valtop_CHT - Channel_source_CHT)
+            max_diff_up_CHT := math.max(math.max(Channel_source_CHT[i],open[i]) - point_CHT,max_diff_up_CHT)
+            max_diff_dn_CHT := math.max(point_CHT - math.min(Channel_source_CHT[i],open[i]),max_diff_dn_CHT)
+        
+    line.delete(line.new(x1_CHT,y1_CHT,bar_index,Channel_source_CHT,color=#ff5d00,extend=extend.right)[1])
+    
+    // Draw 
+    line.delete(line.new(x1_CHT,y1_CHT+max_diff_up_CHT,bar_index,Channel_source_CHT+max_diff_up_CHT,color=#2157f3,extend=extend.right)[1])
+    line.delete(line.new(x1_CHT,y1_CHT-max_diff_dn_CHT,bar_index,Channel_source_CHT-max_diff_dn_CHT,color=#2157f3,extend=extend.right)[1])
+          
+plot(btm_CHT ? low[channel_length_CHT] : top_CHT ? high[channel_length_CHT] : na,'Circles',color = btm_CHT ? #2157f3 : #ff1100,style=plot.style_circles,offset=-channel_length_CHT)
+
+
+
+
+
+// Module  - ALERTS   by CoMgUnNeR
+//-----------------------------------------
+//*********************************************************
+//*                     Module                           *
+//*                     ALERTS                           *
+//*********************************************************
+// Cálculos idea original de CoMgUnNeR
+//--------
+
+
+//TODAS JUNTAS
+
+// Grupo : Opciones del Module INFOBOX
+groupALERT = "=======  Module ALERTS - KAKUPAKAT ======= "
+// Separación visual
+plot(na)
+// Obteniendo datos de otras temporalidades
+temporalidad1 = input.string("60", "Temporality/ Temporalidad 1", options=["60", "240"], group=groupALERT)
+temporalidad2 = input.string("240", "Temporality / Temporalidad 2", options=["60", "240"], group=groupALERT)
+temporalidad3 = input.string("1D", "Temporality / Temporalidad 3", options=["60", "240", "1D"], group=groupALERT)
+
+LongMaster1H = request.security(syminfo.tickerid, temporalidad1, buySignal)
+LongMaster4H = request.security(syminfo.tickerid, temporalidad2, buySignal)
+LongMaster24H = request.security(syminfo.tickerid, temporalidad3, buySignal)
+ShortMaster1H = request.security(syminfo.tickerid, temporalidad1, sellSignal)
+ShortMaster4H = request.security(syminfo.tickerid, temporalidad2, sellSignal)
+ShortMaster24H = request.security(syminfo.tickerid, temporalidad3, sellSignal)
+changeCond1H = request.security(syminfo.tickerid, temporalidad1, sellSignal)
+changeCond4H = request.security(syminfo.tickerid, temporalidad2, sellSignal)
+changeCond24H = request.security(syminfo.tickerid, temporalidad3, sellSignal)
+
+// Condiciones para la alerta
+condicionLong = LongMaster1H  or LongMaster24H
+condicionLong2 = LongMaster4H  or LongMaster24H
+condicionShort = ShortMaster1H or ShortMaster4H
+condicionShort2 = ShortMaster4H or ShortMaster24H
+condicionCambioDir = changeCond1H or changeCond4H
+condicionCambioDir2 = changeCond4H or changeCond24H
+
+
+// Creando las alertas
+alertcondition(buySignal and sellSignal  or condicionLong or condicionShort, title="Alert: 1H y 4H BUY/SELL", message="Signal detected in / Señal detectada en {{ticker}} in temporalities / en temporalidades {{interval}}, 1H y 4H")
+alertcondition(buySignal and sellSignal  or condicionLong2 or condicionShort2, title="Alert: 1D y 4H BUY/SELL", message="Signal detected in / Señal detectada en {{ticker}} in temporalities / en temporalidades{{interval}}, 1D y 4H")
+alertcondition(buySignal  or condicionCambioDir, title="DIR CHG: 1H y 4H", message="Signal detected in / Señal detectada en {{ticker}} in temporalities / en temporalidades {{interval}}, 1H y 4H")
+alertcondition(buySignal  or condicionCambioDir2, title="DIR CHG: 4H y 1D", message="Signal detected in / Señal detectada en {{ticker}} in temporalities / en temporalidades {{interval}}, 1H y 4H")
+
+
+// Module  - Automatización BOT  by CoMgUnNeR
+//-----------------------------------------
+//*********************************************************
+//*                     Module                           *
+//*             Automatización                           *
+//*********************************************************
+// Cálculos idea original de CoMgUnNeR
+//--------
+// Grupo : Opciones del Module INFOBOX
+groupALERTBOT = "Automatización  - KAKUPAKAT"
+// Separación visual
+plot(na)
+// , group=groupALERTBOT
+//SIGNAL AUTOMATION FOR CORNIX & 3Commas &Bingx by CoM_gUnNeR
+//AUTOMATIZACION DE SEÑALES  PARA CORNIX & 3Commas &Bingx by CoM_gUnNeR
+//https://bingx.com/es-es/signalTrade/
+//https://3commas.io/?utm_source=referral&utm_medium=cabinet&c=tc1461511
+//https://dashboard.cornix.io/register/B78E1977
+//Debes utilizar :
+//https://tradingview.cornix.io/tradingview/
+//https://callback.bingx.com/callback/trading-bot/v1/signal/tradingViewAlert
+//Salidas, TP o SL desde webhook
+//Outputs, TP or SL from webhook
+
+
+automatizacionBot = "  Add the UUID or Command for the opening (reemplaza completamente / completely replaces) / Agrega el UUID o Comando para la apertura "
+automatizacionBot2 = "  /BINGX, CORNIX,3 Commas"
+
+
+alertcondition(buySignal, "Bot Alert: BUY/COMPRA", message=automatizacionBot + automatizacionBot2 )
+alertcondition(sellSignal, "Bot Alert: SELL/VENTA", message=automatizacionBot + automatizacionBot2)
+
+
+
+//*********************************************************
+
+// Module  - STRATEGY TEST / TEST ESTRATEGIA by CoMgUnNeR
+//-----------------------------------------
+//*********************************************************
+//*                     Module                            *
+//*                  STRATEGY TEST                        *
+//*********************************************************
+// Calculations
+
+
+//*********************************************************
+//***           CALCULATIONS FOR SL OR BE TP            ***
+//*********************************************************
+
+PNLpercentLabels = "======= Module - PROFIT CALCULATIONS ======="
+atrLen_tipPNL = "Atr for Stoploss and TakeProfit Calculation / Atr para el Calculo de Stoploss y TakeProfit"
+atrRisk_tipPNL = "ATR Risk Multiplier: Recommended 1.5 or 1.9 / Multiplicador de Riesgo ATR: Recomendado 1.5 o 1.9"
+breakEven_tip ="Put any value > to TP to disable it / Pon cualquier valor > a TP para deshabilitarlo"
+pricesourcePNL_tip = "It is usually at the Closing / Suele ser en el Cierre"
+levels_tipPNL = 'Show accumulated PnL label / Mostrar etiquetas del PnL acumulado'
+tpLen_tipPNL = "Distance in percentage between TakeProfits / Distancia en porcentaje entre TakeProfits"
+tpSL_tipPNL = "Distance in percentage for SL / Distancia en porcentaje para SL"
+
+
+PercentOrPNL_tip="Select the calculation method for TakeProfits / Selecciona el metodo de calculo para los TakeProfits" 
+var string PercentOrPNL = input.string("ATR", "Calculation method for TakeProfit (% or PERCENTAGE)", options=["ATR", "PERCENTAGE"], inline="TPS", group=PNLpercentLabels,tooltip=PercentOrPNL_tip)
+
+pricesourcePNL = input.source(close, title= "Price source PNL ", group=PNLpercentLabels,tooltip =pricesourcePNL_tip )
+labelsPNL = input(title='Show PnL Labels', defval=false, group=PNLpercentLabels, tooltip=levels_tipPNL) 
+
+//atrLenPNL   = input.int(10, "ATR Length SL ", tooltip=atrLen_tipPNL, group=PNLpercentLabels)
+//atrRiskPNL  = input.float(1.9, "ATR Risk SL",tooltip=atrRisk_tipPNL , group=PNLpercentLabels)
+breakEven = input.float(1.5, title='Break Even % (<TP)', step= 0.1,  group=PNLpercentLabels, tooltip=breakEven_tip) / 100
+//tpLenPNL  = input.float(2.0, "TP [%]", step=0.1, group=PNLpercentLabels, tooltip=tpLen_tipPNL)
+//tpSLPNL  = input.float(5.0, "SL [%]", step=0.1, group=PNLpercentLabels, tooltip=tpSL_tipPNL)
+
+atrLenPNL   = atrLen
+atrRiskPNL  = atrRisk
+tpLenPNL  = tpLen
+tpSLPNL  = tpSL
+
+
+
+
+
+var totalPnl = 0.0
+var pnlPos = 0
+var pnlNeg = 0
+var totalTrades = 0
+var hold = 0.0
+byh = (((close-hold)/hold)*100)        
+var S_sell = false
+var S_buy = false
+var float atrStopPNL =  na
+var float slPNL =  na
+
+
+
+//*********************************************************
+//**             SHORT AND LONG CONDITIONS              ***
+//*********************************************************
+
+alertLongPNL = buySignal
+alertShortPNL = sellSignal
+
+//********************************************************
+//**       CHANGE OF CONDITION BETWEEN LONG AND SHORT.  ***
+//********************************************************
+changeCondPNL = nz(alertLongPNL, false) != nz(alertShortPNL, false)
+//*********************************************************
+
+triggerPNL = alertLongPNL ? 1 : 0
+atrBandPNL = ta.atr(atrLenPNL) * atrRiskPNL
+atrStopSTDPNL = triggerPNL == 1 ? low - atrBandPNL : high + atrBandPNL
+
+
+
+//Nuevo, distancia de TP's
+
+DistanceTpPnl =  close * tpLenPNL / 100 
+Distance_CTpPnl = trigger == 1 ? close - DistanceTpPnl : close + DistanceTpPnl
+
+
+DistanceSLPnl =  close * tpSLPNL / 100 
+Distance_CSLPnl = trigger == 1 ? low - DistanceSLPnl : high + DistanceSLPnl
+
+
+
+//*********************************************************
+
+
+
+
+lastTradePNL(src) => ta.valuewhen(changeCondPNL, src, 0 ) 
+
+
+
+   //PercentOrPNL
+if PercentOrPNL == "ATR"
+
+    atrStopPNL := atrStopSTDPNL
+    slPNL := lastTradePNL(atrStopPNL)
+
+
+
+else if PercentOrPNL == "PERCENTAGE"
+
+    atrStopPNL := Distance_CTpPnl
+    slPNL := lastTradePNL(Distance_CSLPnl)
+
+
+
+
+
+
+//ENTRADAS
+
+
+//*********************************************************
+//**   START CALCULATION TO DETERMINE % PROFIT          ***
+//*********************************************************
+
+
+BreakevenPNL = (lastTradePNL(close)-lastTradePNL(breakEven))*1 + lastTradePNL(close)
+TakePNL =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*1 + lastTradePNL(close)
+TakePNL2 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*2 + lastTradePNL(close)
+TakePNL3 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*3 + lastTradePNL(close)
+TakePNL4 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*4 + lastTradePNL(close)
+TakePNL5 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*5 + lastTradePNL(close)
+TakePNL6 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*6 + lastTradePNL(close)
+TakePNL7 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*7 + lastTradePNL(close)
+TakePNL8 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*8 + lastTradePNL(close)
+TakePNL9 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*9 + lastTradePNL(close)
+TakePNL10 =  (lastTradePNL(close)-lastTradePNL(atrStopPNL))*10 + lastTradePNL(close)
+
+
+
+
+var tradecloseprice = 0.0
+var int buyCondition = na
+
+
+if close > 0 and not S_buy
+    // Calcular el PnL no realizado dependiendo de si la operación es larga o corta
+    pnl = triggerPNL == 1 ? (((close-tradecloseprice)/tradecloseprice)*100) : triggerPNL == 0 ? (((close-tradecloseprice)/tradecloseprice)*100*-1) :na
+    label_color = pnl >= 0 ?  psar_longLight : psar_shortLight
+    emojiPNL = pnl >= 0 ? "🚀": "📉"
+    tplabel = labelsPNL ? label.new(time, close, '<---- Unreachable PnL: ' + str.tostring(pnl, "#.##")+'%'+emojiPNL, xloc.bar_time, yloc.price,label_color,label.style_label_left,  color.rgb(248, 238, 238), size.normal) :na
+    tplabel 
+    label.delete(tplabel[1])
+    
+if alertLongPNL
+    buylabel = labelsPNL ? label.new(x=bar_index, y=low[0] - low[0]*0.02, color=psar_longLight, textcolor=color.white, style=label.style_label_up, text='Entry Long :' + str.tostring(close)) :na
+    buylabel
+    if totalPnl == 0.0
+        hold := close
+    TakePNL := (lastTradePNL(close)-lastTradePNL(atrStopPNL))*1 + lastTradePNL(close)
+    BreakevenPNL := (lastTradePNL(close)-lastTradePNL(breakEven))*1 + lastTradePNL(close)
+    tradecloseprice := close 
+    S_sell := true
+    S_buy := false
+    buyCondition := 1
+
+if alertShortPNL
+    buylabel = labelsPNL ? label.new(x=bar_index, y=high[0] + high[0]*0.02, color=psar_shortLight, textcolor=color.white, style=label.style_label_down, text='Entry Short :' + str.tostring(close)) :na
+    buylabel
+    if totalPnl == 0.0
+        hold := close
+    TakePNL := (lastTradePNL(close)-lastTradePNL(atrStopPNL))*1 + lastTradePNL(close)
+    BreakevenPNL := (lastTradePNL(close)-lastTradePNL(breakEven))*1 + lastTradePNL(close)
+    tradecloseprice := close 
+    S_sell := true
+    S_buy := false
+    buyCondition := 2
+
+var bool sellTPalert = na
+
+
+if buyCondition == 1
+    sellTPalert := not S_buy and pricesourcePNL >= TakePNL or TakePNL >= TakePNL2 or TakePNL2 >= TakePNL3 or TakePNL3 >= TakePNL4 or TakePNL4 >= TakePNL5 or TakePNL5 >= TakePNL6 or TakePNL6 >= TakePNL7 or TakePNL7 >= TakePNL8 or TakePNL8 >= TakePNL9 or TakePNL9 >= TakePNL10
+else if buyCondition == 2
+    sellTPalert := not S_buy and pricesourcePNL <= TakePNL or TakePNL <= TakePNL2 or TakePNL2 <= TakePNL3 or TakePNL3 <= TakePNL4 or TakePNL4 <= TakePNL5 or TakePNL5 <= TakePNL6 or TakePNL6 <= TakePNL7 or TakePNL7 <= TakePNL8 or TakePNL8 <= TakePNL9 or TakePNL9 <= TakePNL10
+
+
+if sellTPalert
+    // Calcular el PnL dependiendo de si la operación es larga o corta
+    pnl = buyCondition == 1 ? (((close-tradecloseprice)/tradecloseprice)*100) : buyCondition == 2 ? (((close-tradecloseprice)/tradecloseprice)*100*-1) :na
+
+    tplabel = labelsPNL ? label.new(x=bar_index[0], y=high[0] + high[0] * 0.02, color=psar_longColor, textcolor=color.black, style=label.style_label_down, text='💪 TP P/L: ' + str.tostring(pnl, "#.##")+'%'+ ' ' + '🤑') :na
+    totalPnl := totalPnl + pnl    
+    tplabel 
+    S_sell := false
+    S_buy := true
+    pnlPos := pnlPos + 1
+    totalTrades := totalTrades + 1
+
+
+var bool sellBEalert = na
+if buyCondition == 1
+    sellBEalert := not S_buy and pricesourcePNL >= BreakevenPNL and changeCondPNL
+else if buyCondition == 2
+    sellBEalert := not S_buy and pricesourcePNL >= BreakevenPNL and changeCondPNL
+    
+
+    
+if sellBEalert
+    pnl = buyCondition == 1 ? (((close-tradecloseprice)/tradecloseprice)*100) : buyCondition == 2 ? (((close-tradecloseprice)/tradecloseprice)*100*-1) :na
+    belabel = labelsPNL ? label.new(x=bar_index, y=high[0] + high[0] * 0.02, color=color.rgb(255, 153, 0, 60), textcolor=color.white, style=label.style_label_down, text='BE P/L: ' + str.tostring(pnl, "#.##")+'%') :na
+
+    totalPnl := totalPnl + pnl
+    belabel
+    S_sell := false
+    S_buy := true
+    pnlPos := pnlPos + 1
+    totalTrades := totalTrades +1
+    
+
+        
+var bool sellSLalert = na
+if buyCondition == 1
+    sellSLalert := not S_buy and close <= slPNL
+else if buyCondition == 2
+    sellSLalert := not S_buy and close >= slPNL
+    
+
+if sellSLalert 
+    pnl = buyCondition == 1 ? (((close-tradecloseprice)/tradecloseprice)*100) : buyCondition == 2 ? (((close-tradecloseprice)/tradecloseprice)*100*-1) :na
+
+    sllabel = labelsPNL ? label.new(x=bar_index, y=low[0] - low[0]*0.02, color= color.rgb(23, 23, 24, 60), textcolor=color.white, style=label.style_label_up, text='💀️ SL P/L: ' + str.tostring(pnl, "#.##")+'%') :na
+    totalPnl := totalPnl + pnl
+    sllabel
+    S_sell := false
+    S_buy := true
+    pnlNeg := pnlNeg + 1
+    totalTrades := totalTrades +1
+
+winratio = pnlPos/pnlNeg
+
+//*********************************************************
+//**                 INFORMATION BOARD                   **
+//**                  STRATEGY TEST                      **
+//*********************************************************
+groupStrategyTest = "======= INFOBOX UX STRATEGY TEST ======= "
+plot(na)
+color kakupakat =color.rgb(0, 0, 50, 50)
+
+/// BEGING TIPS
+showsmasPnl_tip = "This will display Table PNL/ Esto mostrará la tabla PNL."
+showsmasPnl = input.bool(true, title="Show Pnl Info Table", tooltip = showsmasPnl_tip, group=groupStrategyTest)
+/// TIPS END
+tablePosInput_tipPNL = "Select where you want the table to draw. / Selecciona dónde quieres que se dibuje la tabla"
+tableFontSzInput_tipPNL = "Change the font size, default to size.small, for better compatibility with mobile devices / Cambia el tamaño de la fuente, predeterminado en size.small, para mayor compatibilidad con dispositivos moviles"
+linePnl_SLorTP_tip = "Modifies the Take Profit or StopLoss Line Thickness, green and red horizontal lines of each completed trade /Modifica el Grosor de línea Take Profit o StopLoss, lineas horizontal verde y roja de cada trade completado"
+tablePosInputPNL = input.string(title="Position", defval="Bottom Left", options=["Bottom Left", "Bottom Right", "Top Left", "Top Right", "Center Left", "Center Right"], tooltip=tablePosInput_tipPNL)
+tableFontSzInputPNL = input.string(title="Font size", defval="size.normal", options=["size.normal", "size.tiny","size.small","size.large"], tooltip=tableFontSzInput_tipPNL)
+linePnl_SLorTP = input.int(title=' TP/SL Line Thickness / Grosor de línea TP/SL', defval=1, minval=1,tooltip=linePnl_SLorTP_tip)
+font_sizePNL = tableFontSzInputPNL == "size.normal" ? size.normal : tableFontSzInputPNL == "size.tiny" ? size.tiny : tableFontSzInputPNL == "size.small" ? size.small : tableFontSzInputPNL == "size.large" ? size.large : na
+
+var tablePosPNL  = tablePosInputPNL == "Bottom Left" ? position.bottom_left : tablePosInputPNL == "Bottom Right" ? position.bottom_right : tablePosInputPNL == "Top Left" ? position.top_left : tablePosInputPNL == "Top Right" ? position.top_right : tablePosInputPNL == "Center Left" ? position.middle_left : tablePosInputPNL == "Center Right" ? position.middle_right : na
+var pnlTable = table.new(position = tablePosPNL, columns = 5, rows = 6, border_color = color.white, border_width = 1)
+if showsmasPnl
+    table.cell(table_id = pnlTable, column = 0, row = 0, bgcolor = kakupakat, text_color = color.orange, text = "Closed Trades",text_size=font_sizePNL)
+    table.cell(table_id = pnlTable, column = 1, row = 0, bgcolor =kakupakat, text_color = color.orange, text = "Profit Factor",text_size=font_sizePNL)
+    table.cell(table_id = pnlTable, column = 2, row = 0, bgcolor =kakupakat, text_color = color.orange, text = "Cumulative PnL",text_size=font_sizePNL)
+    table.cell(table_id = pnlTable, column = 3, row = 0, bgcolor =kakupakat, text_color = color.orange, text = "Last Trade",text_size=font_sizePNL)
+ //*********************************************************
+    table.cell(table_id = pnlTable, column = 0, row = 1, bgcolor =kakupakat, text_color = color.orange, text_size=font_sizePNL, text = str.tostring(totalTrades))
+    table.cell(table_id = pnlTable, column = 1, row = 1, bgcolor =kakupakat, text_color = color.orange,text_size=font_sizePNL,text = str.tostring(math.round(winratio,2)))
+    table.cell(table_id = pnlTable, column = 2, row = 1, bgcolor =kakupakat, text_color = color.orange,text_size=font_sizePNL, text = str.tostring(math.round(totalPnl,2))+'%')
+    table.cell(table_id = pnlTable, column = 3, row = 1, bgcolor =color.gray, text_color = color.orange,text_size=font_sizePNL, text = buyCondition == 1 ? "LONG" : "SHORT")
+//*********************************************************
+    if totalPnl > 0
+        table.cell_set_bgcolor(pnlTable, column = 2, row = 1, bgcolor =#07680a60) 
+    else
+        table.cell_set_bgcolor(pnlTable, column = 2, row = 1, bgcolor =#92080860) 
+        
+    if buyCondition < 2
+        table.cell_set_bgcolor(pnlTable, column = 3, row = 1, bgcolor =#07680a60) 
+    else
+        table.cell_set_bgcolor(pnlTable, column = 3, row = 1, bgcolor =#92080860) 
+            
+    if winratio > 1
+        table.cell_set_bgcolor(pnlTable, column = 1, row = 1, bgcolor =#07680a60) 
+    else
+        table.cell_set_bgcolor(pnlTable, column = 1, row = 1, bgcolor = #92080860) 
+        table.cell(table_id = pnlTable, column = 0, row = 2, bgcolor =kakupakat, text_color = color.orange, text =  'PNL PROFIT %',text_size=font_sizePNL)
+        table.merge_cells(pnlTable, 0, 2, 3, 2)
+
+plot(labelsPNL and S_sell ? TakePNL : na, style=plot.style_linebr, color=psar_longLight, linewidth=linePnl_SLorTP, title=' Take Profit 1')
+//plot(labelsPNL and S_sell ? TakePNL2 : na, style=plot.style_linebr, color=#07680a60, linewidth=linePnl_SLorTP, title=' Take Profit 2')
+//plot(labelsPNL and S_sell ? TakePNL3 : na, style=plot.style_linebr, color=#07680a60, linewidth=linePnl_SLorTP, title=' Take Profit 3')
+plot(labelsPNL and S_sell ? slPNL : na, style=plot.style_linebr, color=psar_shortLight, linewidth=linePnl_SLorTP, title=' StopLoss')
+
+
+groupCREDITS = "======= CREDITS  ======= "
+plot(na)
+showsmasCreditos_tip = "This will display Table Creditos/ Esto mostrará la tabla Creditos."
+showsmasCreditos = true
+/// TIPS END
+tablePosInput_tipCreditos = "Select where you want the table to draw. / Selecciona dónde quieres que se dibuje la tabla"
+tableFontSzInput_tipCreditos = "Change the font size, default to size.small, for better compatibility with mobile devices / Cambia el tamaño de la fuente, predeterminado en size.small, para mayor compatibilidad con dispositivos moviles"
+lineCreditos_SLorTP_tip = "Modifies the Take Profit or StopLoss Line Thickness, green and red horizontal lines of each completed trade /Modifica el Grosor de línea Take Profit o StopLoss, lineas horizontal verde y roja de cada trade completado"
+tablePosInputCreditos = input.string(title="Position", defval="Top Right", options=["Bottom Left", "Bottom Right", "Top Left", "Top Right", "Center Left", "Center Right"], tooltip=tablePosInput_tipCreditos,group = groupCREDITS)
+tableFontSzInputCreditos = input.string(title="Font size", defval="size.normal", options=["size.normal", "size.tiny","size.small","size.large"], tooltip=tableFontSzInput_tipCreditos)
+font_sizeCreditos = tableFontSzInputCreditos == "size.normal" ? size.normal : tableFontSzInputCreditos == "size.tiny" ? size.tiny : tableFontSzInputCreditos == "size.small" ? size.small : tableFontSzInputCreditos == "size.large" ? size.large : na
+
+var tablePosCreditos  = tablePosInputCreditos == "Bottom Left" ? position.bottom_left : tablePosInputCreditos == "Bottom Right" ? position.bottom_right : tablePosInputCreditos == "Top Left" ? position.top_left : tablePosInputCreditos == "Top Right" ? position.top_right : tablePosInputCreditos == "Center Left" ? position.middle_left : tablePosInputCreditos == "Center Right" ? position.middle_right : na
+var creditosTable = table.new(position = tablePosCreditos, columns = 5, rows = 6, border_color = color.white, border_width = 1)
+//if showsmasCreditos
+    //table.cell(table_id = creditosTable, column = 0, row = 0, bgcolor = kakupakat, text_color = color.orange, text = "✨✨ KAKUPAKAT-TRADING ✨✨",text_size=font_sizeCreditos)
+    //table.cell(table_id = creditosTable, column = 1, row = 0, bgcolor =kakupakat, text_color = color.orange,text_size=font_sizeCreditos,text="https://t.me/kakupakat_trading_oficial")
+    
+
+
+//=======================================================================================
+//======
+//====== MODULE Fib Retracement by TradeChartist
+//====== https://www.tradingview.com/script/mWmIRNVF-Simple-Fibonacci-Retracement/
+//=======================================================================================
+
+Fibs_fibo = input.string('Plot Fibs based on Lookback', options=['Plot Fibs based on Lookback', 'Plot Fibs based on Price Input'], title='Fibonacci Plot Type')
+FIBS_fibo = Fibs_fibo == 'Plot Fibs based on Lookback' ? 1 : Fibs_fibo == 'Plot Fibs based on Price Input' ? 2 : na
+
+Foption_fibo = input.string(defval='1. Candles', title='Fibonacci Plot Lookback Type', options=['2. Days', '1. Candles'])
+FP_fibo = input(defval=100, title='Days/Candles to Lookback')
+Reverse_fibo = input(defval=false, title='Reverse Fibonacci Levels?')
+ExtraFibs_fibo = input(false, 'Show 0.886 and 1.113 Fibs')
+
+Note_fibo = input(true, '════ 𝗙𝗶𝗯𝘀 𝗯𝗮𝘀𝗲𝗱 𝗼𝗻 𝗣𝗿𝗶𝗰𝗲 𝗜𝗻𝗽𝘂𝘁 ════')
+High_fibo = input.float(0., minval=0, title='High - Enter Value')
+Low_fibo = input.float(-1., minval=-1, title='Low - Enter Value')
+
+Note2_fibo = input(true, '══════ 𝗙𝗶𝗯 𝗟𝗶𝗻𝗲/𝗟𝗮𝗯𝗲𝗹 𝗦𝘁𝘆𝗹𝗲 ══════')
+Bull_Color_fibo = input(#008000, title='Support Fibs Color')
+Bear_Color_fibo = input(#ff0000, title='Resistance Fibs Color')
+CurrentFib_fibo = input(false, 'Show Fib Level of Current Price')
+Current_Color_fibo = input(color.orange, title='Current Fib Label Color')
+LineStyle_fibo = input.string('Dotted', options=['Dotted', 'Solid'], title='Fib Line Style')
+LineWidth_fibo = input.int(1, minval=1, maxval=3, title='Fib Line Width')
+Ext_fibo = input(false, 'Extend Lines Left')
+
+BullColor_fibo = Bull_Color_fibo
+BearColor_fibo = Bear_Color_fibo
+
+FPeriod_fibo = timeframe.isintraday and Foption_fibo == '2. Days' ? 1440 / timeframe.multiplier * FP_fibo : timeframe.isdaily and Foption_fibo == '2. Days' ? FP_fibo / timeframe.multiplier : timeframe.isweekly and Foption_fibo == '2. Days' ? FP_fibo / (7 * timeframe.multiplier) : timeframe.ismonthly and Foption_fibo == '2. Days' ? FP_fibo / (28 * timeframe.multiplier) : Foption_fibo == '1. Candles' ? FP_fibo : 100
+
+Fhigh_fibo = FIBS_fibo == 1 ? ta.highest(FPeriod_fibo) : FIBS_fibo == 2 and High_fibo == 0 ? ta.highest(high, 100) : FIBS_fibo == 2 and High_fibo != 0 ? High_fibo : na
+Flow_fibo = FIBS_fibo == 1 ? ta.lowest(FPeriod_fibo) : FIBS_fibo == 2 and Low_fibo == -1 ? ta.lowest(low, 100) : FIBS_fibo == 2 and Low_fibo != -1 ? Low_fibo : na
+FH_fibo = FIBS_fibo == 1 ? ta.highestbars(high, FPeriod_fibo) : 1
+FL_fibo = FIBS_fibo == 1 ? ta.lowestbars(low, FPeriod_fibo) : 2
+revfibs_fibo = not Reverse_fibo ? FL_fibo > FH_fibo : FL_fibo < FH_fibo
+
+Fib_x_fibo(n) =>
+    revfibs_fibo ? (Fhigh_fibo - Flow_fibo) * n + Flow_fibo : Fhigh_fibo - (Fhigh_fibo - Flow_fibo) * n
+
+Current_fibo = revfibs_fibo ? (close - Flow_fibo) / (Fhigh_fibo - Flow_fibo) : (Fhigh_fibo - close) / (Fhigh_fibo - Flow_fibo)
+
+var label Current_Fib_Label_fibo = na
+label.delete(Current_Fib_Label_fibo)
+
+if CurrentFib_fibo and barstate.islast
+    Current_Fib_Label_fibo := label.new(bar_index, close, str.tostring(Current_fibo, '##.##'), textcolor=Current_Color_fibo, color=color.new(#000000, 100), style=label.style_label_left, yloc=yloc.price)
+    Current_Fib_Label_fibo
+
+EXTEND_fibo = Ext_fibo ? extend.left : extend.none
+STYLE_fibo = LineStyle_fibo == 'Dotted' ? line.style_dotted : line.style_solid
+WIDTH_fibo = LineWidth_fibo
+
+BB_fibo = FIBS_fibo == 1 ? FL_fibo < FH_fibo ? bar_index[-FL_fibo] : bar_index[-FH_fibo] : FIBS_fibo == 2 ? bar_index[50] : bar_index[50]
+
+Fib_line_fibo(x) =>
+    var line ln = na
+    line.delete(ln)
+    ln := line.new(BB_fibo, x, bar_index, x, color=close > x ? BullColor_fibo : BearColor_fibo, extend=EXTEND_fibo, style=STYLE_fibo, width=WIDTH_fibo)
+    ln
+
+Fib_label_fibo(x, _txt) =>
+    var label lbl = na
+    label.delete(lbl)
+    lbl := label.new(bar_index, x, _txt, textcolor=close > x ? BullColor_fibo : BearColor_fibo, color=color.new(#000000, 100), style=label.style_label_left, yloc=yloc.price)
+    lbl
+
+// Editar los niveles de Fibonacci según tus especificaciones
+Fib0_fibo = Fib_line_fibo(Fib_x_fibo(0))
+Fib045_fibo = Fib_line_fibo(Fib_x_fibo(0.45))
+Fib05_fibo = Fib_line_fibo(Fib_x_fibo(0.5))
+Fib072_fibo = Fib_line_fibo(Fib_x_fibo(0.72))
+Fib085_fibo = Fib_line_fibo(Fib_x_fibo(0.85))
+Fib1_fibo = Fib_line_fibo(Fib_x_fibo(1.0))
+
+Fib0_Label_fibo = Fib_label_fibo(Fib_x_fibo(0), '0')
+Fib045_Label_fibo = Fib_label_fibo(Fib_x_fibo(0.45), '0.45')
+Fib05_Label_fibo = Fib_label_fibo(Fib_x_fibo(0.5), '0.5')
+Fib072_Label_fibo = Fib_label_fibo(Fib_x_fibo(0.72), '0.72')
+Fib085_Label_fibo = Fib_label_fibo(Fib_x_fibo(0.85), '0.85')
+Fib1_Label_fibo = Fib_label_fibo(Fib_x_fibo(1.0), '1.0')
+
+
+
+
+
+

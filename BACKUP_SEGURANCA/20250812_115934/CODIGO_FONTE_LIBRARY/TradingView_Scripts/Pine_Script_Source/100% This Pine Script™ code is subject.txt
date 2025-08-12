@@ -1,0 +1,165 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join us https://t.me/traderschatroom88
+
+//@version=5
+indicator("RSI and Elder Impulse System with PDH, PDL and Exit Feature", max_lines_count=500, max_boxes_count=500, max_bars_back=3000, overlay=true)
+
+// RSI Settings for user
+rsiSource = input.source(title='RSI Source', defval=close)
+rsiLength = input.int(title='RSI Length', defval=7)
+rsiOverbought = input.int(title='RSI Overbought', defval=70, minval=50, maxval=100)
+rsiOversold = input.int(title='RSI Oversold', defval=30, minval=1, maxval=50)
+upcol = input.color(defval=color.new(color.olive, 100), title='Zig Zag 1 Up Color')
+dncol = input.color(defval=color.new(color.fuchsia, 100), title='Zig Zag 1 Down Color')
+
+// RSI value based on inbuilt RSI
+rsiValue = ta.rsi(rsiSource, rsiLength)
+
+// Get the current state
+isOverbought = rsiValue >= rsiOverbought
+isOversold = rsiValue <= rsiOversold
+
+// State of the last extreme 0 for initialization, 1 = overbought, 2 = oversold
+var laststate = 0
+
+// Highest and Lowest prices since the last state change
+var hhh = low
+var lll = high
+
+// Labels
+var label labelll = na
+var label labelhh = na
+
+// Swing lines
+var line line_up = na
+var line line_down = na
+
+// We go from overbought straight to oversold  NEW DRAWINGS CREATED HERE
+if bool(laststate == 1 and isOversold)
+    lll := low
+    labelll := label.new(bar_index, high, style=label.style_label_up, color=#32CD32, size=size.small)
+    label.set_text(labelll, "100% Accurate BUY")
+    labelhh_low = label.get_x(labelhh)
+    labelhh_pos = label.get_y(labelhh)
+    line_down := line.new(bar_index, high, labelhh_low, labelhh_pos, width=2, color=dncol)
+
+// We go from oversold straight to overbought NEW DRAWINGS CREATED HERE
+if bool(laststate == 2 and isOverbought)
+    hhh := high
+    labelhh := label.new(bar_index, high, style=label.style_label_down, color=color.new(#ff0062, 20), size=size.small)
+    label.set_text(labelhh, "100% Accurate SELL")
+    labelll_low = label.get_x(labelll)
+    labelll_pos = label.get_y(labelll)
+    line_up := line.new(bar_index, high, labelll_low, labelll_pos, width=2, color=upcol)
+
+// If we are overbought
+if bool(isOverbought)
+    if high >= hhh
+        hhh := high
+        label.set_x(labelhh, bar_index)
+        label.set_y(labelhh, high)
+        line.set_x1(line_up, bar_index)
+        line.set_y1(line_up, high)
+    laststate := 1
+
+// If we are oversold
+if bool(isOversold)
+    if low <= lll
+        lll := low
+        label.set_x(labelll, bar_index)
+        label.set_y(labelll, low)
+        line.set_x1(line_down, bar_index)
+        line.set_y1(line_down, low)
+    laststate := 2
+
+// If last state was overbought and we are overbought
+if bool(laststate == 1 and isOverbought)
+    if hhh <= high
+        hhh := high
+        label.set_x(labelhh, bar_index)
+        label.set_y(labelhh, high)
+        line.set_x1(line_up, bar_index)
+        line.set_y1(line_up, high)
+
+// If we are oversold and the last state was oversold, move the drawings to the lowest price
+if bool(laststate == 2 and isOversold)
+    if low <= lll
+        lll := low
+        label.set_x(labelll, bar_index)
+        label.set_y(labelll, low)
+        line.set_x1(line_down, bar_index)
+        line.set_y1(line_down, low)
+
+// If last state was overbought
+if bool(laststate == 1)
+    if hhh <= high
+        hhh := high
+        label.set_x(labelhh, bar_index)
+        label.set_y(labelhh, high)
+        line.set_x1(line_up, bar_index)
+        line.set_y1(line_up, high)
+
+// If last state was oversold
+if bool(laststate == 2)
+    if lll >= low
+        lll := low
+        label.set_x(labelll, bar_index)
+        label.set_y(labelll, low)
+        line.set_x1(line_down, bar_index)
+        line.set_y1(line_down, low)
+
+// Elder Impulse System
+source = close
+
+// MACD Options
+macd_length_fast = input.int(defval=12, minval=1, title="MACD Fast Length")
+macd_length_slow = input.int(defval=26, minval=1, title="MACD Slow Length")
+macd_length_signal = input.int(defval=9, minval=1, title="MACD Signal Length")
+
+// Calculate MACD
+macd_ma_fast = ta.ema(source, macd_length_fast)
+macd_ma_slow = ta.ema(source, macd_length_slow)
+macd = macd_ma_fast - macd_ma_slow
+macd_signal = ta.ema(macd, macd_length_signal)
+macd_histogram = macd - macd_signal
+
+// EMA Option
+ema_length = input.int(defval=13, minval=1, title="EMA Length")
+
+// Calculate EMA
+ema = ta.ema(source, ema_length)
+
+// Calculate Elder Impulse
+elder_bulls = (ema[0] > ema[1]) and (macd_histogram[0] > macd_histogram[1])
+elder_bears = (ema[0] < ema[1]) and (macd_histogram[0] < macd_histogram[1])
+elder_color = elder_bulls ? color.green : elder_bears ? color.red : color.blue
+
+barcolor(elder_color)
+
+// Calculate Previous Day High (PDH) and Previous Day Low (PDL)
+var float pdh = na
+var float pdl = na
+
+is_new_day = ta.change(time("D"))
+
+if bool(is_new_day)
+    pdh := high[1]
+    pdl := low[1]
+
+plot(pdh, title="Previous Day High", color=color.red, linewidth=1)
+plot(pdl, title="Previous Day Low", color=color.blue, linewidth=1)
+
+// Exit feature
+exit_condition = bool((isOverbought and elder_bears) or (isOversold and elder_bulls))
+
+// Plot the "X" symbol for exit condition
+plotshape(series=exit_condition, location=location.abovebar, color=color.yellow, style=shape.cross, text="X", size=size.small)
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @traderschatroom88", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

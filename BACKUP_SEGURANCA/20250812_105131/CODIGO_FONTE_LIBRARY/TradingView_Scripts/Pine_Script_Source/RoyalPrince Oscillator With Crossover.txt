@@ -1,0 +1,37 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Rp4000
+//@version=5
+
+indicator(title='RoyalPrince Oscillator ')
+n1 = input(10, 'Channel Length')
+n2 = input(21, 'Average Length')
+obLevel1 = input(60, 'Over Bought Level 1')
+obLevel2 = input(53, 'Over Bought Level 2')
+osLevel1 = input(-60, 'Over Sold Level 1')
+osLevel2 = input(-53, 'Over Sold Level 2')
+
+ap = hlc3
+esa = ta.ema(ap, n1)
+d = ta.ema(math.abs(ap - esa), n1)
+ci = (ap - esa) / (0.015 * d)
+tci = ta.ema(ci, n2)
+
+wt1 = tci
+wt2 = ta.sma(wt1, 4)
+
+plot(0, color=color.new(#ffffff, 43))
+ob1  = plot(obLevel1, color=color.new(#f5000085, 90))
+os1 = plot(osLevel1, color=color.new(#2ad400, 90))
+ob2 = plot(obLevel2, color=color.new(#f5000085, 90))
+os2 = plot(osLevel2, color=color.new(#2ad400, 90))
+ 
+p1 = plot(wt1, color=color.new(#2ad400, 0))
+p2 = plot(wt2, color=color.new(#f5000085, 0))
+plot(wt1 - wt2, color=wt2 - wt1 > 0 ? color.new(#f5000085, 50) : color.new(#2ad400, 50), style=plot.style_histogram)
+plot(ta.cross(wt1, wt2) ? wt2 : na, color=color.new(#000000, 0), style=plot.style_circles, linewidth=4)
+plot(ta.cross(wt1, wt2) ? wt2 : na, color=wt2 - wt1 > 0 ? color.rgb(255, 0, 0) : color.rgb(81, 245, 16), style=plot.style_circles, linewidth=4)
+
+
+fill(p1,p2,color = wt2 - wt1 > 0 ? #f5000085 : color.new(#2ad400, 50))
+fill(ob1,ob2,color = color.new(#f5000085, 20))
+fill(os1,os2,color = color.new(#2ad400, 20))

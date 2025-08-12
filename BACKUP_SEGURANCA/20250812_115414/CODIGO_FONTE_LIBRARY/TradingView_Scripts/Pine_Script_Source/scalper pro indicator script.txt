@@ -1,0 +1,45 @@
+//@version=6
+indicator("Scalper Pro", "Scalper Pro 5-15min", overlay=true)
+
+// Inputs
+h_left = input.int(title="H left", defval=10)
+h_right = input.int(title="H right", defval=10)
+sample_period = input.int(title="Sample bars for % TZ", defval=5000)
+show_ptz = input.bool(title="Show PTZ", defval=true)
+show_channel = input.bool(title="Show channel", defval=true)
+
+// PTZ Points
+h_left_low = ta.lowest(h_left)
+h_left_high = ta.highest(h_left)
+newlow = low <= h_left_low
+newhigh = high >= h_left_high
+
+// Small Arrows
+plotshape(newlow and show_ptz, style=shape.triangledown, location=location.belowbar, color=color.red, size=size.tiny)
+plotshape(newhigh and show_ptz, style=shape.triangleup, location=location.abovebar, color=color.green, size=size.tiny)
+
+// Replace Large Arrows with Labels
+central_bar_low = low[h_right + 1]
+central_bar_high = high[h_right + 1]
+full_zone_low = ta.lowest(h_left + h_right + 1)
+full_zone_high = ta.highest(h_left + h_right + 1)
+central_bar_is_highest = central_bar_high >= full_zone_high
+central_bar_is_lowest = central_bar_low <= full_zone_low
+
+if (central_bar_is_highest)
+    label.new(bar_index[h_right + 1], high[h_right + 1], text="SELL", style=label.style_label_down, color=color.red, textcolor=color.white)
+
+if (central_bar_is_lowest)
+    label.new(bar_index[h_right + 1], low[h_right + 1], text="BUY", style=label.style_label_up, color=color.green, textcolor=color.white)
+
+// Channels
+plot(show_channel ? h_left_low : na, color=color.silver)
+plot(show_channel ? h_left_high : na, color=color.silver)
+
+// Probabilities
+high_bar_tz_count = ta.cum(central_bar_is_highest ? 1 : 0)
+low_bar_tz_count = ta.cum(central_bar_is_lowest ? 1 : 0)
+percent_total_tz = ((high_bar_tz_count / sample_period) * 50) + ((low_bar_tz_count / sample_period) * 50)
+
+// Single Histogram Plot
+plot(percent_total_tz, color=color.new(color.black, 90), style=plot.style_histogram, linewidth=2)

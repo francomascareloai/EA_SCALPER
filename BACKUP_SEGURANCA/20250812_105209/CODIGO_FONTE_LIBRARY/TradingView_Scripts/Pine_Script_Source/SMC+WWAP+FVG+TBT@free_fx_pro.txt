@@ -1,0 +1,1107 @@
+//@version=6
+// © EnigmaWay
+// =================================
+// PLEASE SUPPORT THE TEAM
+// =================================
+//
+// If this project has been helpful, consider making a donation:
+// Biance UID: 36331797
+// Telegram: https://t.me/free_fx_pro
+// =================================
+
+// updated to version v6 and combined by enigma 2025.5.14
+
+//@version=6
+indicator('SMC+WWAP+FVG+TBT', overlay = true, max_bars_back = 5000, max_labels_count = 500, max_lines_count = 500)
+// ~~ Tooltips {
+string t1 = 'Set the pivot period'
+string t2 = 'Set the response period. A low value returns a short-term structure and a high value returns a long-term structure. If you disable this option the pivot length above will be used.'
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+// ~~ Inputs {
+prd = input.int(20, minval = 1, title = 'Structure Period', tooltip = t1)
+s1 = input.bool(true, title = 'Structure Response  ', inline = 'resp')
+resp = input.int(7, minval = 1, title = '', inline = 'resp', tooltip = t2)
+bull = input.bool(true, 'Bullish Structure     ', inline = 'Bullish')
+bull2 = input.color(color.rgb(0, 149, 116), '', inline = 'Bullish')
+bull3 = input.color(color.rgb(0, 149, 116), '', inline = 'Bullish')
+bear = input.bool(true, 'Bearish Structure    ', inline = 'Bearish')
+bear2 = input.color(color.rgb(255, 34, 34), '', inline = 'Bearish')
+bear3 = input.color(color.rgb(255, 34, 34), '', inline = 'Bearish')
+showPD = input.bool(true, 'Premium & Discount', inline = 'pd')
+prem = input.color(color.new(color.rgb(255, 34, 34), 80), '', inline = 'pd')
+disc = input.color(color.new(color.rgb(8, 236, 126), 80), '', inline = 'pd')
+hlloc = input.string('Right', '', options = ['Left', 'Right'], inline = 'pd')
+var array<bool> alert_bool = array.from(input.bool(true, title = 'Ticker ID', group = 'Any alert() function call'), input.bool(true, title = 'Timeframe', group = 'Any alert() function call'), input.bool(true, title = 'Probability Percentage', group = 'Any alert() function call'))
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+// ~~ Variables {
+b = bar_index
+var Up = float(na)
+var Dn = float(na)
+var iUp = int(na)
+var iDn = int(na)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+// ~~ Matrix & Array {
+var vals = matrix.new<float>(9, 4, 0.0)
+var array<string> txt = array.new<string>(2, '')
+var tbl = matrix.new<table>(1, 1, table.new(position.top_right, 2, 3, frame_color = color.new(color.gray, 50), frame_width = 3, border_color = chart.bg_color, border_width = -2))
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+// ~~ Functions {
+//Labels
+CreateLabel(x, y, txt, col, z) =>
+    label.new(x, y, txt, textcolor = col, style = z ? label.style_label_down : label.style_label_up, color = color(na))
+    //Lines
+CreateLine(x1, x2, y, col) =>
+    line.new(x1, x2, b, y, color = col)
+    //Current
+Current(v) =>
+    str = ''
+    val1 = float(na)
+    val2 = float(na)
+    if v >= 0
+        if v == 1
+            str := 'ˢᴹˢ: '
+            val1 := matrix.get(vals, 0, 1)
+            val2 := matrix.get(vals, 0, 3)
+            val2
+        else if v == 2
+            str := 'ᴮᴹˢ: '
+            val1 := matrix.get(vals, 1, 1)
+            val2 := matrix.get(vals, 1, 3)
+            val2
+        else if v > 2
+            str := 'ᴮᴹˢ : '
+            val1 := matrix.get(vals, 2, 1)
+            val2 := matrix.get(vals, 2, 3)
+            val2
+    else if v <= 0
+        if v == -1
+            str := 'ˢᴹˢ: '
+            val1 := matrix.get(vals, 3, 1)
+            val2 := matrix.get(vals, 3, 3)
+            val2
+        else if v == -2
+            str := 'ᴮᴹˢ: '
+            val1 := matrix.get(vals, 4, 1)
+            val2 := matrix.get(vals, 4, 3)
+            val2
+        else if v < -2
+            str := 'ᴮᴹˢ: '
+            val1 := matrix.get(vals, 5, 1)
+            val2 := matrix.get(vals, 5, 3)
+            val2
+    [str, val1, val2]
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+    // ~~ Pivots {
+Up := math.max(Up[1], high)
+Dn := math.min(Dn[1], low)
+pvtHi = ta.pivothigh(high, prd, prd)
+pvtLo = ta.pivotlow(low, prd, prd)
+if bool(pvtHi)
+    Up := pvtHi
+    Up
+if bool(pvtLo)
+    Dn := pvtLo
+    Dn
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+    // ~~ Structure {
+var pos = 0
+if Up > Up[1]
+    iUp := b
+    centerBull = math.round(math.avg(iUp[1], b))
+    if pos <= 0
+        if bull
+            CreateLabel(centerBull, Up[1], 'ᶜᴴᵒᶜᴴ', bull3, true)
+            CreateLine(iUp[1], Up[1], Up[1], bull2)
+        pos := 1
+        matrix.set(vals, 6, 0, matrix.get(vals, 6, 0) + 1)
+    else if pos == 1 and Up > Up[1] and Up[1] == Up[s1 ? resp : prd]
+        if bull
+            CreateLabel(centerBull, Up[1], 'ˢᴹˢ', bull3, true)
+            CreateLine(iUp[1], Up[1], Up[1], bull2)
+        pos := 2
+        matrix.set(vals, 6, 1, matrix.get(vals, 6, 1) + 1)
+    else if pos > 1 and Up > Up[1] and Up[1] == Up[s1 ? resp : prd]
+        if bull
+            CreateLabel(centerBull, Up[1], 'ᴮᴹˢ', bull3, true)
+            CreateLine(iUp[1], Up[1], Up[1], bull2)
+        pos := pos + 1
+        matrix.set(vals, 6, 2, matrix.get(vals, 6, 2) + 1)
+else if Up < Up[1]
+    iUp := b - prd
+    iUp
+if Dn < Dn[1]
+    iDn := b
+    centerBear = math.round(math.avg(iDn[1], b))
+    if pos >= 0
+        if bear
+            CreateLabel(centerBear, Dn[1], 'ᶜᴴᵒᶜᴴ ', bear3, false)
+            CreateLine(iDn[1], Dn[1], Dn[1], bear2)
+        pos := -1
+        matrix.set(vals, 7, 0, matrix.get(vals, 7, 0) + 1)
+    else if pos == -1 and Dn < Dn[1] and Dn[1] == Dn[s1 ? resp : prd]
+        if bear
+            CreateLabel(centerBear, Dn[1], 'ˢᴹˢ', bear3, false)
+            CreateLine(iDn[1], Dn[1], Dn[1], bear2)
+        pos := -2
+        matrix.set(vals, 7, 1, matrix.get(vals, 7, 1) + 1)
+    else if pos < -1 and Dn < Dn[1] and Dn[1] == Dn[s1 ? resp : prd]
+        if bear
+            CreateLabel(centerBear, Dn[1], 'ᴮᴹˢ', bear3, false)
+            CreateLine(iDn[1], Dn[1], Dn[1], bear2)
+        pos := pos - 1
+        matrix.set(vals, 7, 2, matrix.get(vals, 7, 2) + 1)
+else if Dn > Dn[1]
+    iDn := b - prd
+    iDn
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+    // ~~ Probability Calculation {
+if bool(ta.change(pos))
+    //Results
+    if pos > 0 and pos[1] > 0 or pos < 0 and pos[1] < 0
+        if matrix.get(vals, 8, 0) < matrix.get(vals, 8, 1)
+            matrix.set(vals, 8, 2, matrix.get(vals, 8, 2) + 1)
+        else
+            matrix.set(vals, 8, 3, matrix.get(vals, 8, 3) + 1)
+    else
+        if matrix.get(vals, 8, 0) > matrix.get(vals, 8, 1)
+            matrix.set(vals, 8, 2, matrix.get(vals, 8, 2) + 1)
+        else
+            matrix.set(vals, 8, 3, matrix.get(vals, 8, 3) + 1)
+    //Score Calulation
+    //Variables
+    buC0 = matrix.get(vals, 0, 0)
+    buC1 = matrix.get(vals, 0, 2)
+    buS0 = matrix.get(vals, 1, 0)
+    buS1 = matrix.get(vals, 1, 2)
+    buB0 = matrix.get(vals, 2, 0)
+    buB1 = matrix.get(vals, 2, 2)
+    beC0 = matrix.get(vals, 3, 0)
+    beC1 = matrix.get(vals, 3, 2)
+    beS0 = matrix.get(vals, 4, 0)
+    beS1 = matrix.get(vals, 4, 2)
+    beB0 = matrix.get(vals, 5, 0)
+    beB1 = matrix.get(vals, 5, 2)
+    tbuC = matrix.get(vals, 6, 0)
+    tbuS = matrix.get(vals, 6, 1)
+    tbuB = matrix.get(vals, 6, 2)
+    tbeC = matrix.get(vals, 7, 0)
+    tbeS = matrix.get(vals, 7, 1)
+    tbeB = matrix.get(vals, 7, 2)
+    //Bull
+    if (pos[1] == 1 or pos[1] == 0) and pos < 0
+        matrix.set(vals, 0, 0, buC0 + 1)
+        matrix.set(vals, 0, 1, math.round((buC0 + 1) / tbuC * 100, 2))
+    if (pos[1] == 1 or pos[1] == 0) and pos == 2
+        matrix.set(vals, 0, 2, buC1 + 1)
+        matrix.set(vals, 0, 3, math.round((buC1 + 1) / tbuC * 100, 2))
+    if pos[1] == 2 and pos < 0
+        matrix.set(vals, 1, 0, buS0 + 1)
+        matrix.set(vals, 1, 1, math.round((buS0 + 1) / tbuS * 100, 2))
+    if pos[1] == 2 and pos > 2
+        matrix.set(vals, 1, 2, buS1 + 1)
+        matrix.set(vals, 1, 3, math.round((buS1 + 1) / tbuS * 100, 2))
+    if pos[1] > 2 and pos < 0
+        matrix.set(vals, 2, 0, buB0 + 1)
+        matrix.set(vals, 2, 1, math.round((buB0 + 1) / tbuB * 100, 2))
+    if pos[1] > 2 and pos > pos[1]
+        matrix.set(vals, 2, 2, buB1 + 1)
+        matrix.set(vals, 2, 3, math.round((buB1 + 1) / tbuB * 100, 2))
+    //Bear
+    if (pos[1] == -1 or pos[1] == 0) and pos > 0
+        matrix.set(vals, 3, 0, beC0 + 1)
+        matrix.set(vals, 3, 1, math.round((beC0 + 1) / tbeC * 100, 2))
+    if (pos[1] == -1 or pos[1] == 0) and pos == -2
+        matrix.set(vals, 3, 2, beC1 + 1)
+        matrix.set(vals, 3, 3, math.round((beC1 + 1) / tbeC * 100, 2))
+    if pos[1] == -2 and pos > 0
+        matrix.set(vals, 4, 0, beS0 + 1)
+        matrix.set(vals, 4, 1, math.round((beS0 + 1) / tbeS * 100, 2))
+    if pos[1] == -2 and pos < -2
+        matrix.set(vals, 4, 2, beS1 + 1)
+        matrix.set(vals, 4, 3, math.round((beS1 + 1) / tbeS * 100, 2))
+    if pos[1] < -2 and pos > 0
+        matrix.set(vals, 5, 0, beB0 + 1)
+        matrix.set(vals, 5, 1, math.round((beB0 + 1) / tbeB * 100, 2))
+    if pos[1] < -2 and pos < pos[1]
+        matrix.set(vals, 5, 2, beB1 + 1)
+        matrix.set(vals, 5, 3, math.round((beB1 + 1) / tbeB * 100, 2))
+    [str, val1, val2] = Current(pos)
+    array.set(txt, 0, 'ᶜᴴᵒᶜᴴ:' + str.tostring(val1, format.percent))
+    array.set(txt, 1, str + str.tostring(val2, format.percent))
+    matrix.set(vals, 8, 0, val1)
+    matrix.set(vals, 8, 1, val2)
+    //Alerts
+    if array.includes(alert_bool, true)
+        st1 = syminfo.ticker
+        st2 = timeframe.period
+        st3 = str.tostring(array.join(txt, '\n'))
+        array<string> str_vals = array.from(st1, st2, st3)
+        output = array.new_string()
+        for x = 0 to array.size(alert_bool) - 1 by 1
+            if array.get(alert_bool, x)
+                array.push(output, array.get(str_vals, x))
+        alert(array.join(output, '\n'), alert.freq_once_per_bar_close)
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+        // ~~ Premium & Discount {
+var hi = line.new(na, na, na, na, color = bear2)
+var lo = line.new(na, na, na, na, color = bull2)
+var fill = linefill.new(hi, lo, na)
+var premium = box.new(na, na, na, na, na, bgcolor = prem)
+var discount = box.new(na, na, na, na, na, bgcolor = disc)
+var mid = box.new(na, na, na, na, na, bgcolor = color.new(color.gray, 80))
+PremiumTop = Up - (Up - Dn) * .1
+PremiumBot = Up - (Up - Dn) * .25
+DiscountTop = Dn + (Up - Dn) * .25
+DiscountBot = Dn + (Up - Dn) * .1
+MidTop = Up - (Up - Dn) * .45
+MidBot = Dn + (Up - Dn) * .45
+if barstate.islast and showPD
+    loc = hlloc == 'Left' ? math.min(iUp, iDn) : math.max(iUp, iDn)
+    //High & Low
+    line.set_xy1(hi, loc, Up)
+    line.set_xy2(hi, b, Up)
+    line.set_xy1(lo, loc, Dn)
+    line.set_xy2(lo, b, Dn)
+    linefill.set_color(fill, color.new(color.gray, 90))
+    //Premium & Mid & Discount
+    box.set_lefttop(premium, loc, PremiumTop)
+    box.set_rightbottom(premium, b, PremiumBot)
+    box.set_lefttop(discount, loc, DiscountTop)
+    box.set_rightbottom(discount, b, DiscountBot)
+    box.set_lefttop(mid, loc, MidTop)
+    box.set_rightbottom(mid, b, MidBot)
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+    // ~~ Probability {
+var prob1 = label.new(na, na, na, color = color(na), textcolor = chart.fg_color, style = label.style_label_left)
+var prob2 = label.new(na, na, na, color = color(na), textcolor = chart.fg_color, style = label.style_label_left)
+if barstate.islast
+    str1 = pos < 0 ? array.get(txt, 0) : array.get(txt, 1)
+    str2 = pos > 0 ? array.get(txt, 0) : array.get(txt, 1)
+    label.set_xy(prob1, b, Up)
+    label.set_text(prob1, str1)
+    label.set_xy(prob2, b, Dn)
+    label.set_text(prob2, str2)
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+watermarki_supp = input.bool(true, 'Watermark', group = 'Author Sign') //confirm=true)
+string i_tableYpos_oto_supp = input.string('bottom', 'Position', inline = '12', options = ['top', 'middle', 'bottom'])
+string i_tableXpos_oto_supp = input.string('center', '', inline = '12', options = ['left', 'center', 'right'])
+int i_height_oto_supp = input.int(7, 'Height', minval = 1, maxval = 100, inline = '13')
+int i_width_oto_supp = input.int(30, 'Width', minval = 1, maxval = 100, inline = '13a')
+color i_c_text_oto_supp = input.color(color.new(color.white, 0), '', inline = '14')
+color _bg_oto_supp = input.color(color.new(color.blue, 70), '', inline = '14')
+string i_textSize = input.string('normal', 'Size', inline = '14', options = ['tiny', 'small', 'normal', 'large', 'huge', 'auto'])
+i_text2_supp = 'EarnWithEnigma'
+i_text1_supp = 'When using the indicator EarnWithEnigma thank you'
+var table watermark_supp = table.new(i_tableYpos_oto_supp + '_' + i_tableXpos_oto_supp, 1, 1)
+if barstate.islast and watermarki_supp
+    varip bool _changeText_supp = true
+    _changeText_supp := not _changeText_supp
+    string _txt_supp = _changeText_supp ? i_text2_supp : i_text1_supp
+    table.cell(watermark_supp, 0, 0, i_text2_supp, i_width_oto_supp, i_height_oto_supp, i_c_text_oto_supp, text_size = i_textSize, bgcolor = _bg_oto_supp)
+    // ~~ Table {
+if barstate.islast
+    //Calulate WinRatio
+    W = matrix.get(vals, 8, 2)
+    L = matrix.get(vals, 8, 3)
+    WR = math.round(W / (W + L) * 100, 2)
+    array<string> tbl_vals = array.from('🟢: ' + str.tostring(W), '🔴: ' + str.tostring(L), 'Profitability: ' + str.tostring(WR, format.percent))
+    array<color> tbl_col = array.from(color.teal, color.red, chart.fg_color)
+    for i = 0 to 2 by 1
+        table.cell(matrix.get(tbl, 0, 0), 0, i, array.get(tbl_vals, i), text_halign = text.align_center, bgcolor = chart.bg_color, text_color = array.get(tbl_col, i), text_size = size.auto)
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
+if not timeframe.isminutes
+    runtime.error('Timeframe must be intera day.')
+type key
+	int m = minute
+	int h = hour
+type tod
+	key TIME
+	array<float> v
+type data
+	float source
+	array<tod> rel
+type settings
+	data relative_rstdev
+	data relative_delta
+	data relative_position
+	key TIME
+	float multiplier_1
+	bool enable_1
+	float multiplier_2
+	bool enable_2
+	float multiplier_3
+	bool enable_3
+	bool extrapolate
+	string project_price
+	int sensitivity
+	int max_length
+	string center_style
+	int center_width
+	color center_color
+	string project_style
+	int projection_width
+	color projection_color
+	string dev_1_style
+	int dev_color_1_width
+	color dev_color_1
+	string dev_2_style
+	int dev_color_2_width
+	color dev_color_2
+	string dev_3_style
+	int dev_color_3_width
+	color dev_color_3
+	int alpha
+key_to_hash(key TIME) =>
+    int hash = TIME.h * 60 + TIME.m
+    hash
+method advance_key(key self, int forward) =>
+    int period = forward * timeframe.multiplier
+    int advanced_minute = self.m + period
+    int minute_rotations = math.floor(advanced_minute / 60)
+    int new_minute = advanced_minute % 60
+    int hour_rotations = self.h + minute_rotations
+    int new_hour = hour_rotations % 24
+    key.new(new_minute, new_hour)
+local_vol(float source) =>
+    if session.isfirstbar or session.isfirstbar_regular or session.islastbar_regular[1]
+        1
+    else
+        math.sqrt(math.pow(source - source[1], 2.0)) + 1
+clamp(float source, float top = 1, float bottom = 0) =>
+    math.min(1, math.max(0, source))
+abs_range(float source) =>
+    math.abs(clamp(source) - 0.5) * 2
+abs_percent(float end, float start) =>
+    math.abs(end - start) / math.min(end, start)
+add_percent(float source, float percent, bool sign) =>
+    if sign
+        source + source * percent
+    else
+        source - source * percent
+trash(self, int length) =>
+    if self.size() >= length and length > 0
+        self.pop()
+dump(source) =>
+    if source.size() > 0
+        for i = source.size() - 1 to 0 by 1
+            source.remove(i).delete()
+method add_element(array<tod> self, float source, int period) =>
+    if not na(source)
+        if not na(self.get(key_to_hash(key.new())))
+            tod key_value = self.get(key_to_hash(key.new()))
+            key t = key_value.TIME
+            array<float> v = key_value.v
+            trash(v, period)
+            v.unshift(source)
+        else
+            array<float> v = array.new<float>()
+            v.unshift(source)
+            self.set(key_to_hash(key.new()), tod.new(key.new(), v))
+method get_average(data self, key TIME) =>
+    float vols = na
+    if not na(self.rel.get(key_to_hash(TIME)))
+        vols := self.rel.get(key_to_hash(TIME)).v.avg()
+        vols
+    else
+        vols := self.source
+        vols
+relative(float source = volume, int period = 0) =>
+    var array<tod> minute_time_frame = array.new<tod>(1440)
+    minute_time_frame.add_element(source, period)
+    data.new(source, minute_time_frame)
+line_style(string style) =>
+    switch style
+        'Solid' => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+        => line.style_solid
+make_projection(float source, int current_sample, int length, bool session, settings s) =>
+    array<chart.point> middle = array.new<chart.point>()
+    array<chart.point> top_1 = array.new<chart.point>()
+    array<chart.point> bottom_1 = array.new<chart.point>()
+    array<chart.point> top_2 = array.new<chart.point>()
+    array<chart.point> bottom_2 = array.new<chart.point>()
+    array<chart.point> top_3 = array.new<chart.point>()
+    array<chart.point> bottom_3 = array.new<chart.point>()
+    array<chart.point> projection_points = array.new<chart.point>()
+    array<chart.point> projection_points_2 = array.new<chart.point>()
+    array<chart.point> confidence_points = array.new<chart.point>()
+    var array<polyline> extrapolations = array.new<polyline>()
+    int remaining = length - current_sample + 1
+    dump(extrapolations)
+    if remaining >= 0 and s.extrapolate and session and barstate.islast
+        bool direction = source > source[math.ceil(current_sample / s.sensitivity)]
+        int projection_range = math.min(s.max_length, remaining)
+        float prev = source
+        for i = 0 to projection_range by 1
+            key new_key = advance_key(s.TIME, i)
+            int idx = bar_index + i
+            if current_sample == 0
+                float dev = s.relative_rstdev.get_average(new_key)
+                middle.push(chart.point.new(na, bar_index + i, source))
+                if s.enable_1
+                    top_1.push(chart.point.new(na, idx, source + dev * s.multiplier_1))
+                    bottom_1.unshift(chart.point.new(na, idx, source - dev * s.multiplier_1))
+                if s.enable_2
+                    top_2.push(chart.point.new(na, idx, source + dev * s.multiplier_2))
+                    bottom_2.unshift(chart.point.new(na, idx, source - dev * s.multiplier_2))
+                if s.enable_3
+                    top_3.push(chart.point.new(na, idx, source + dev * s.multiplier_3))
+                    bottom_3.unshift(chart.point.new(na, idx, source - dev * s.multiplier_3))
+                if s.project_price != 'None'
+                    float project = s.relative_position.get_average(new_key)
+                    bool polarity = open < close
+                    if s.project_price == 'Polar'
+                        projection_points.push(chart.point.new(na, idx, source + nz((polarity ? 1 : -1) * project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                    else
+                        projection_points.push(chart.point.new(na, idx, source + nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                        projection_points_2.push(chart.point.new(na, idx, source - nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+            else
+                float percent = s.relative_delta.get_average(new_key)
+                float dev = s.relative_rstdev.get_average(new_key)
+                middle.push(chart.point.new(na, idx, prev))
+                if s.enable_1
+                    top_1.push(chart.point.new(na, idx, prev + dev * s.multiplier_1))
+                    bottom_1.unshift(chart.point.new(na, idx, prev - dev * s.multiplier_1))
+                if s.enable_2
+                    top_2.push(chart.point.new(na, idx, prev + dev * s.multiplier_2))
+                    bottom_2.unshift(chart.point.new(na, idx, prev - dev * s.multiplier_2))
+                if s.enable_3
+                    top_3.push(chart.point.new(na, idx, prev + dev * s.multiplier_3))
+                    bottom_3.unshift(chart.point.new(na, idx, prev - dev * s.multiplier_3))
+                if s.project_price != 'None'
+                    float project = s.relative_position.get_average(new_key)
+                    if s.project_price == 'Polar'
+                        projection_points.push(chart.point.new(na, idx, prev + nz((direction ? 1 : -1) * project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                    else
+                        projection_points.push(chart.point.new(na, idx, prev + nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                        projection_points_2.push(chart.point.new(na, idx, prev - nz(project * dev * math.max(s.multiplier_3, s.multiplier_2, s.multiplier_1))))
+                prev := add_percent(prev, percent, direction)
+                prev
+        extrapolations.push(polyline.new(middle, false, false, xloc.bar_index, s.center_color, line_style = line_style(s.center_style), line_width = s.center_width))
+        bool curved = s.project_style == 'Solid'
+        if s.enable_1
+            extrapolations.push(polyline.new(top_1.concat(bottom_1), false, false, xloc.bar_index, s.dev_color_1, color.new(s.dev_color_1, s.alpha), line_style(s.dev_1_style), s.dev_color_1_width))
+        if s.enable_2
+            extrapolations.push(polyline.new(top_2.concat(bottom_2), false, false, xloc.bar_index, s.dev_color_2, color.new(s.dev_color_2, s.alpha), line_style(s.dev_2_style), s.dev_color_2_width))
+        if s.enable_3
+            extrapolations.push(polyline.new(top_3.concat(bottom_3), false, false, xloc.bar_index, s.dev_color_3, color.new(s.dev_color_3, s.alpha), line_style(s.dev_3_style), s.dev_color_3_width))
+        if s.project_price != 'None'
+            extrapolations.push(polyline.new(projection_points, curved, false, xloc.bar_index, s.projection_color, line_style = line_style(s.project_style), line_width = s.projection_width))
+            if s.project_price == 'Both'
+                extrapolations.push(polyline.new(projection_points_2, curved, false, xloc.bar_index, s.projection_color, line_style = line_style(s.project_style), line_width = s.projection_width))
+const string group_1 = 'Settings'
+float source = input.source(hlc3, 'Source', group = group_1)
+string weight = input.string('Volume', 'Weighting Style', ['Volume', 'Time', 'Volatility', 'None'], group = group_1)
+int max_size = input.int(0, 'Average Period', minval = 0, tooltip = 'The number of days you want to take the average at time over. When set to 0 it will use all of the available data.', group = group_1)
+float multiplier_1 = input.float(1, 'Multiplier 1          ', minval = 0, step = 0.125, inline = '1', group = group_1)
+bool enable_1 = input.bool(true, '', inline = '1', group = group_1)
+float multiplier_2 = input.float(2, 'Multiplier 2          ', minval = 0, step = 0.125, inline = '2', group = group_1)
+bool enable_2 = input.bool(true, '', inline = '2', group = group_1)
+float multiplier_3 = input.float(3, 'Multiplier 3          ', minval = 0, step = 0.125, inline = '3', group = group_1)
+bool enable_3 = input.bool(true, '', inline = '3', group = group_1)
+const string group_2 = 'Extrapolation'
+bool extrapolate = input.bool(true, 'Extrapolate     ', inline = 'EXT', group = group_2)
+int max_length = input.int(500, '', minval = 1, maxval = 500, inline = 'EXT', tooltip = 'Adjust the number of candles to extrapolate into the future.', group = group_2)
+int sensitivity = input.int(3, 'Direction Sensitivity', minval = 1, maxval = 10, tooltip = 'Adjust this to make the estimation more sensitive to price movents. A higher number will force the estimation to change directions easier.', group = group_2)
+string project_price = input.string('Both', 'Project Price', ['Polar', 'Both', 'None'], tooltip = 'Display the average location of the price at a given time. Polar will display the projection in the direction of the average while both will display both sides.', group = group_2)
+const string group_3 = 'Style'
+string center_style = input.string('Solid', 'Center Style    ', ['Solid', 'Dashed', 'Dotted'], inline = 'cen', group = group_3)
+int center_width = input.int(1, '', minval = 1, maxval = 5, inline = 'cen', group = group_3)
+color center_color = input.color(color.blue, '', inline = 'cen', group = group_3)
+string project_style = input.string('Dashed', 'Projection Style ', ['Solid', 'Dashed', 'Dotted'], inline = 'pro', group = group_3)
+int projection_width = input.int(3, '', minval = 1, maxval = 5, inline = 'pro', group = group_3)
+color projection_color = input.color(#8c3bf5, '', inline = 'pro', group = group_3)
+string dev_1_style = input.string('Solid', 'Deviation 1 Style', ['Solid', 'Dashed', 'Dotted'], inline = 'd1', group = group_3)
+int dev_color_1_width = input.int(1, '', minval = 1, maxval = 5, inline = 'd1', group = group_3)
+color dev_color_1 = input.color(color.green, '', inline = 'd1', group = group_3)
+string dev_2_style = input.string('Solid', 'Deviation 2 Style', ['Solid', 'Dashed', 'Dotted'], inline = 'd2', group = group_3)
+int dev_color_2_width = input.int(1, '', minval = 1, maxval = 5, inline = 'd2', group = group_3)
+color dev_color_2 = input.color(color.olive, '', inline = 'd2', group = group_3)
+string dev_3_style = input.string('Solid', 'Deviation 3 Style', ['Solid', 'Dashed', 'Dotted'], inline = 'd3', group = group_3)
+int dev_color_3_width = input.int(1, '', minval = 1, maxval = 5, inline = 'd3', group = group_3)
+color dev_color_3 = input.color(color.teal, '', inline = 'd3', group = group_3)
+int alpha = input.int(95, 'Fill Alpha', minval = 0, maxval = 100, group = group_3)
+key TIME = key.new()
+var float rvwap = na
+var float up_1 = na
+var float down_1 = na
+var float up_2 = na
+var float down_2 = na
+var float up_3 = na
+var float down_3 = na
+var float sum = 0
+var float w = 0
+var float vari = 0
+var float delta = 0
+var int samples = -1
+var array<int> day_length = array.new<int>()
+var array<int> premarket_length = array.new<int>()
+var array<int> postmarket_length = array.new<int>()
+float lvol = local_vol(source)
+float weights = switch weight
+    'Volume' => volume
+    'Time' => samples + 2
+    'Volatility' => lvol
+    'None' => 1
+data relative_volume = relative(weights, max_size)
+float average_volume = relative_volume.get_average(TIME)
+if (session.islastbar_regular or session.isfirstbar or session.islastbar) and samples > -1 and not na(rvwap)
+    float max_range = math.max(up_1, up_2, up_3)
+    float min_range = math.min(down_1, down_2, down_3)
+    if session.ismarket
+        trash(day_length, max_size)
+        day_length.unshift(samples)
+    if session.ispremarket
+        trash(premarket_length, max_size)
+        premarket_length.unshift(samples)
+    if session.ispostmarket
+        trash(postmarket_length, max_size)
+        postmarket_length.unshift(samples)
+if session.isfirstbar or session.isfirstbar_regular or session.islastbar_regular[1]
+    sum := 0
+    w := 0
+    vari := 0
+    samples := -1
+    samples
+sum := sum + source * average_volume
+w := w + average_volume
+rvwap := sum / w
+vari := vari + math.pow(source - rvwap, 2)
+samples := samples + 1
+float stdev = nz(math.sqrt(vari / samples))
+data relative_rstdev = relative(stdev, max_size)
+float rstdev = relative_rstdev.get_average(TIME)
+up_1 := rvwap + rstdev * multiplier_1
+down_1 := rvwap - rstdev * multiplier_1
+up_2 := rvwap + rstdev * multiplier_2
+down_2 := rvwap - rstdev * multiplier_2
+up_3 := rvwap + rstdev * multiplier_3
+down_3 := rvwap - rstdev * multiplier_3
+float max_range = math.max(up_1, up_2, up_3)
+float min_range = math.min(down_1, down_2, down_3)
+data relative_position = relative(abs_range((source - min_range) / (max_range - min_range)), max_size)
+delta := abs_percent(rvwap, rvwap[1])
+if session.isfirstbar or session.isfirstbar_regular or session.islastbar_regular[1]
+    delta := 0
+    delta
+data relative_delta = relative(delta, max_size)
+int average_day_length = math.floor(day_length.avg())
+int average_pre_length = math.floor(premarket_length.avg())
+int average_post_length = math.floor(postmarket_length.avg())
+settings s = settings.new(relative_rstdev, relative_delta, relative_position, TIME, multiplier_1, enable_1, multiplier_2, enable_2, multiplier_3, enable_3, extrapolate, project_price, sensitivity, max_length, center_style, center_width, center_color, project_style, projection_width, projection_color, dev_1_style, dev_color_1_width, dev_color_1, dev_2_style, dev_color_2_width, dev_color_2, dev_3_style, dev_color_3_width, dev_color_3, alpha)
+make_projection(rvwap, samples, average_day_length, session.ismarket, s) // regular market
+make_projection(rvwap, samples, average_pre_length, session.ispremarket, s) // premarket
+make_projection(rvwap, samples, average_post_length, session.ispostmarket, s) // postmarket
+vwap = plot(rvwap, 'RVWAP', center_color, math.max(1, center_width))
+um1 = plot(enable_1 ? up_1 : na, 'RSTDEV 1', dev_color_1, math.max(1, dev_color_1_width), display = enable_1 ? display.all : display.none)
+dm1 = plot(enable_1 ? down_1 : na, 'RSTDEV 1', dev_color_1, math.max(1, dev_color_1_width), display = enable_1 ? display.all : display.none)
+um2 = plot(enable_2 ? up_2 : na, 'RSTDEV 2', dev_color_2, math.max(1, dev_color_2_width), display = enable_2 ? display.all : display.none)
+dm2 = plot(enable_2 ? down_2 : na, 'RSTDEV 2', dev_color_2, math.max(1, dev_color_2_width), display = enable_2 ? display.all : display.none)
+um3 = plot(enable_3 ? up_3 : na, 'RSTDEV 3', dev_color_3, math.max(1, dev_color_3_width), display = enable_3 ? display.all : display.none)
+dm3 = plot(enable_3 ? down_3 : na, 'RSTDEV 3', dev_color_3, math.max(1, dev_color_3_width), display = enable_3 ? display.all : display.none)
+fill(vwap, um1, color.new(dev_color_1, alpha), 'RSTDEV 1')
+fill(vwap, dm1, color.new(dev_color_1, alpha), 'RSTDEV 1')
+fill(vwap, um2, color.new(dev_color_2, alpha), 'RSTDEV 2')
+fill(vwap, dm2, color.new(dev_color_2, alpha), 'RSTDEV 2')
+fill(vwap, um3, color.new(dev_color_3, alpha), 'RSTDEV 3')
+fill(vwap, dm3, color.new(dev_color_3, alpha), 'RSTDEV 3')
+ //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+// Display toggles for Bullish FVGs
+show_bull_fvg = input.bool(true, "Show Bullish FVGs?")
+// Input settings for Bullish FVGs
+fvg_bull_count = input.int(1, "Number of Bullish FVGs to show", minval=1)
+// Color settings for Bullish FVGs
+bullish_fvg_color = input.color(color.green, "Bullish FVG Color")
+// Bullish FVG Extend Options
+bull_fvg_extendGroup = "Bullish FVG Extend Options"
+bull_fvg_extendOption = input.string("Default", "Bullish FVG Extend Option", options=["None", "Limited", "Default"], group=bull_fvg_extendGroup)
+bull_fvg_extendCandles = input.int(8, "Bullish FVG Extend Candles (Limited Only)", minval=1, maxval=100, step=1, group=bull_fvg_extendGroup)
+
+// Display toggles for Bearish FVGs
+show_bear_fvg = input.bool(true, "Show Bearish FVGs?")
+// Input settings for Bearish FVGs
+fvg_bear_count = input.int(1, "Number of Bearish FVGs to show", minval=1)
+// Color settings for Bearish FVGs
+bearish_fvg_color = input.color(color.red, "Bearish FVG Color")
+// Bearish FVG Extend Options
+bear_fvg_extendGroup = "Bearish FVG Extend Options"
+bear_fvg_extendOption = input.string("Default", "Bearish FVG Extend Option", options=["None", "Limited", "Default"], group=bear_fvg_extendGroup)
+bear_fvg_extendCandles = input.int(8, "Bearish FVG Extend Candles (Limited Only)", minval=1, maxval=100, step=1, group=bear_fvg_extendGroup)
+
+// Display toggles for Swing Highs
+show_swing_high = input.bool(true, "Show Swing Highs?")
+// Input settings for Swing Highs
+swing_high_count = input.int(2, "Number of Swing Highs to show", minval=1)
+// Color settings for Swing Highs
+swing_high_color = input.color(color.green, "Swing High Line & Label Color")
+// Swing High Extend Options
+swing_high_extendGroup = "Swing High Extend Options"
+swing_high_extendOption = input.string("Default", "Swing High Extend Option", options=["None", "Limited", "Default"], group=swing_high_extendGroup)
+swing_high_extendCandles = input.int(8, "Swing High Extend Candles (Limited Only)", minval=1, maxval=100, step=2, group=swing_high_extendGroup)
+
+// Display toggles for Swing Lows
+show_swing_low = input.bool(true, "Show Swing Lows?")
+// Input settings for Swing Lows
+swing_low_count = input.int(2, "Number of Swing Lows to show", minval=1)
+// Color settings for Swing Lows
+swing_low_color = input.color(color.red, "Swing Low Line & Label Color")
+// Swing Low Extend Options
+swing_low_extendGroup = "Swing Low Extend Options"
+swing_low_extendOption = input.string("Default", "Swing Low Extend Option", options=["None", "Limited", "Default"], group=swing_low_extendGroup)
+swing_low_extendCandles = input.int(8, "Swing Low Extend Candles (Limited Only)", minval=1, maxval=100, step=2, group=swing_low_extendGroup)
+
+// Target Settings
+showNextTarget = input.bool(true, "Show Next Target")
+nextTargetHighColor = input.color(color.red, "Next Target High Color")
+nextTargetLowColor = input.color(color.red, "Next Target Low Color")
+
+// === Time Calculation ===
+// Calculate one bar duration in milliseconds
+barDuration = time - time[1]
+// Define reasonable extension period (4 bars into future)
+extensionPeriod = barDuration * 4
+
+// Arrays to store values with timestamps
+var bull_fvg_data = array.new<box>(0)
+var bear_fvg_data = array.new<box>(0)
+var swing_high_data = array.new<line>(0)
+var swing_low_data = array.new<line>(0)
+var bull_fvg_labels = array.new<label>(0)
+var bear_fvg_labels = array.new<label>(0)
+var swing_high_labels = array.new<label>(0)
+var swing_low_labels = array.new<label>(0)
+var bull_fvg_midlines = array.new<line>(0)
+var bear_fvg_midlines = array.new<line>(0)
+var bull_fvg_tops = array.new<float>(0)
+var bull_fvg_bottoms = array.new<float>(0)
+var bear_fvg_tops = array.new<float>(0)
+var bear_fvg_bottoms = array.new<float>(0)
+
+// Get the last bar index
+last_bar = last_bar_index + 3
+
+// Function to determine right boundary based on extend option
+get_right_boundary(option, extend_candles, default_right) =>
+    if option == "None"
+        bar_index - 2
+    else if option == "Limited"
+        bar_index - 2 + extend_candles
+    else
+        default_right
+
+// Bullish FVG Detection
+if high[2] < low and show_bull_fvg
+    right_bar = get_right_boundary(bull_fvg_extendOption, bull_fvg_extendCandles, last_bar)
+    new_box = box.new(left=bar_index-2, 
+                      top=low, 
+                      right=right_bar, 
+                      bottom=high[2], 
+                      bgcolor=color.new(bullish_fvg_color, 90),
+                      border_color=bullish_fvg_color)
+    bull_mid = (low + high[2]) / 2
+    new_midline = line.new(bar_index-2, bull_mid, right_bar, bull_mid,
+                          color=color.new(bullish_fvg_color, 50),
+                          style=line.style_dashed)
+    new_label = label.new(right_bar-1, bull_mid, "Bullish FVG",
+                         color=color.new(bullish_fvg_color, 100), 
+                         textcolor=bullish_fvg_color, 
+                         style=label.style_none,
+                         textalign=text.align_right, 
+                         size=size.small)
+    array.unshift(bull_fvg_data, new_box)
+    array.unshift(bull_fvg_midlines, new_midline)
+    array.unshift(bull_fvg_labels, new_label)
+    array.unshift(bull_fvg_tops, low)
+    array.unshift(bull_fvg_bottoms, high[2])
+    if array.size(bull_fvg_data) > fvg_bull_count
+        box.delete(array.pop(bull_fvg_data))
+        line.delete(array.pop(bull_fvg_midlines))
+        label.delete(array.pop(bull_fvg_labels))
+        array.pop(bull_fvg_tops)
+        array.pop(bull_fvg_bottoms)
+
+// Bearish FVG Detection
+if low[2] > high and show_bear_fvg
+    right_bar = get_right_boundary(bear_fvg_extendOption, bear_fvg_extendCandles, last_bar)
+    new_box = box.new(left=bar_index-2, 
+                      top=low[2], 
+                      right=right_bar, 
+                      bottom=high, 
+                      bgcolor=color.new(bearish_fvg_color, 90),
+                      border_color=bearish_fvg_color)
+    bear_mid = (low[2] + high) / 2
+    new_midline = line.new(bar_index-2, bear_mid, right_bar, bear_mid,
+                          color=color.new(bearish_fvg_color, 50),
+                          style=line.style_dashed)
+    new_label = label.new(right_bar-1, bear_mid, "Bearish FVG",
+                         color=color.new(bearish_fvg_color, 100), 
+                         textcolor=bearish_fvg_color, 
+                         style=label.style_none,
+                         textalign=text.align_right,
+                         size=size.small)
+    array.unshift(bear_fvg_data, new_box)
+    array.unshift(bear_fvg_midlines, new_midline)
+    array.unshift(bear_fvg_labels, new_label)
+    array.unshift(bear_fvg_tops, low[2])
+    array.unshift(bear_fvg_bottoms, high)
+    if array.size(bear_fvg_data) > fvg_bear_count
+        box.delete(array.pop(bear_fvg_data))
+        line.delete(array.pop(bear_fvg_midlines))
+        label.delete(array.pop(bear_fvg_labels))
+        array.pop(bear_fvg_tops)
+        array.pop(bear_fvg_bottoms)
+
+// Swing High Detection
+is_swing_high = high < high[1] and high[1] > high[2]
+if is_swing_high and show_swing_high
+    right_bar = get_right_boundary(swing_high_extendOption, swing_high_extendCandles, last_bar + 3)
+    new_line = line.new(bar_index - 1, high[1], right_bar, high[1],
+                       color=swing_high_color)
+    new_label = label.new(right_bar, high[1], "Swing High", 
+                         color=color.new(color.white, 30), 
+                         style=label.style_label_left, 
+                         textcolor=swing_high_color, 
+                         size=size.tiny)
+    array.unshift(swing_high_data, new_line)
+    array.unshift(swing_high_labels, new_label)
+    if array.size(swing_high_data) > swing_high_count
+        line.delete(array.pop(swing_high_data))
+        label.delete(array.pop(swing_high_labels))
+
+// Swing Low Detection
+is_swing_low = low > low[1] and low[1] < low[2]
+if is_swing_low and show_swing_low
+    right_bar = get_right_boundary(swing_low_extendOption, swing_low_extendCandles, last_bar + 3)
+    new_line = line.new(bar_index -1, low[1], right_bar, low[1],
+                       color=swing_low_color)
+    new_label = label.new(right_bar, low[1], "Swing Low", 
+                         color=color.new(color.white, 30), 
+                         style=label.style_label_left, 
+                         textcolor=swing_low_color, 
+                         size=size.tiny)
+    array.unshift(swing_low_data, new_line)
+    array.unshift(swing_low_labels, new_label)
+    if array.size(swing_low_data) > swing_low_count
+        line.delete(array.pop(swing_low_data))
+        label.delete(array.pop(swing_low_labels))
+
+// Clean up if toggles are turned off
+if not show_bull_fvg and array.size(bull_fvg_data) > 0
+    for i = 0 to array.size(bull_fvg_data) - 1
+        box.delete(array.get(bull_fvg_data, i))
+        line.delete(array.get(bull_fvg_midlines, i))
+        label.delete(array.get(bull_fvg_labels, i))
+    array.clear(bull_fvg_data)
+    array.clear(bull_fvg_midlines)
+    array.clear(bull_fvg_labels)
+    array.clear(bull_fvg_tops)
+    array.clear(bull_fvg_bottoms)
+
+if not show_bear_fvg and array.size(bear_fvg_data) > 0
+    for i = 0 to array.size(bear_fvg_data) - 1
+        box.delete(array.get(bear_fvg_data, i))
+        line.delete(array.get(bear_fvg_midlines, i))
+        label.delete(array.get(bear_fvg_labels, i))
+    array.clear(bear_fvg_data)
+    array.clear(bear_fvg_midlines)
+    array.clear(bear_fvg_labels)
+    array.clear(bear_fvg_tops)
+    array.clear(bear_fvg_bottoms)
+
+// === Swing High/Low Detection ===
+var float[] swingHighs = array.new<float>()
+var int[] swingHighTimes = array.new<int>()
+var float[] swingLows = array.new<float>()
+var int[] swingLowTimes = array.new<int>()
+
+var line[] swingHighLines = array.new<line>()
+var label[] swingHighLabels = array.new<label>()
+
+var line[] swingLowLines = array.new<line>()
+var label[] swingLowLabels = array.new<label>()
+
+isSwingHigh = high[1] > high[0] and high[1] > high[2]
+isSwingLow = low[1] < low[0] and low[1] < low[2]
+
+if isSwingHigh
+    array.unshift(swingHighs, high[1])
+    array.unshift(swingHighTimes, time[1])
+
+if isSwingLow
+    array.unshift(swingLows, low[1])
+    array.unshift(swingLowTimes, time[1])
+
+// === Next Target Detection ===
+var line currentTargetLine = na
+var label currentTargetLabel = na
+
+if showNextTarget
+    if not na(currentTargetLine)
+        line.delete(currentTargetLine)
+    if not na(currentTargetLabel)
+        label.delete(currentTargetLabel)
+    
+    priceRising = close > open
+    priceFalling = close < open
+    
+    // Use slightly longer extension for targets
+    targetExtension = barDuration * 8
+    
+    if priceRising and array.size(swingHighs) > 0
+        for i = 0 to array.size(swingHighs) - 1
+            target = array.get(swingHighs, i)
+            targetTime = array.get(swingHighTimes, i)
+            if target > close
+                currentTargetLine := line.new(
+                     x1=targetTime, y1=target,
+                     x2=time + targetExtension, y2=target,
+                     color=nextTargetHighColor, width=2,
+                     style=line.style_dashed,
+                     xloc=xloc.bar_time)
+                currentTargetLabel := label.new(
+                     x=time + targetExtension, y=target,
+                     text="Potential Target", size=size.tiny,
+                     style=label.style_label_left,
+                     color=nextTargetHighColor,
+                     textcolor=color.white,
+                     xloc=xloc.bar_time)
+                break
+    else if priceFalling and array.size(swingLows) > 0
+        for i = 0 to array.size(swingLows) - 1
+            target = array.get(swingLows, i)
+            targetTime = array.get(swingLowTimes, i)
+            if target < close
+                currentTargetLine := line.new(
+                     x1=targetTime, y1=target,
+                     x2=time + targetExtension, y2=target,
+                     color=nextTargetLowColor, width=2,
+                     style=line.style_dashed,
+                     xloc=xloc.bar_time)
+                currentTargetLabel := label.new(
+                     x=time + targetExtension, y=target,
+                     text="Potential Target", size=size.tiny,
+                     style=label.style_label_left,
+                     color=nextTargetLowColor,
+                     textcolor=color.white,
+                     xloc=xloc.bar_time)
+                break
+
+bool ChartTime = time > chart.left_visible_bar_time and time < chart.right_visible_bar_time
+
+string CORE = '➞ Core Settings 🔸'
+var bool TradeisON = false
+var bool LongTrade = false
+var bool ShortTrade = false
+var float TP = 0.0
+var float SL = 0.0
+int BarTIME = time - time[1]
+var line tpLine = na
+var label LAB = na
+var int UpdatedX = 0
+var float UpdatedY = 0.0
+var float UpdatedSLP = 0.0
+var int UpdatedXLow = 0
+var float UpdatedYLow = 0.0
+var float UpdatedSLPLow = 0.0
+
+
+int Period = input.int(10, title = '     Period     ➞', group = CORE, inline = '001')
+
+bool Trendtype = input.string(title = '     Type        ➞', defval = 'Wicks', options = ['Wicks', 'Body'], group = CORE, inline = '001') == 'Wicks'
+
+string Extensions = input.string(title = '     Extend    ➞', defval = '  25', options = ['  25', '  50', '  75'], group = CORE, inline = '001')
+
+
+color LineCol1 = input.color(color.rgb(109, 111, 111, 19), '', group = CORE, inline = '001')
+bool ShowTargets = input.bool(true, 'Show Targets', group = CORE, inline = '002')
+
+ExtenSwitcher(ex) =>
+    switch ex
+        '  25' => 1
+        '  50' => 2
+        => 3
+
+
+WidthSwitcher(ex) =>
+    switch ex
+        '1' => 1
+        '2' => 2
+        => 3
+
+StyleSwitcher(style) =>
+    switch style
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+        => line.style_solid
+
+
+
+
+method volAdj(int len) =>
+    math.min(ta.atr(len) * 0.3, close * (0.3 / 100))[20] / 2
+
+Zband = volAdj(30)
+
+
+
+
+method Trendlines(float src, int timeIndex, bool dir) =>
+
+    var int Start = 1
+    var int End = 0
+    var int TIME = 1
+    var float YEnd = 0
+    var float YStart = 0
+    var float Slope = 0
+    var line Line1 = line.new(na, na, na, na)
+    var line Line2 = line.new(na, na, na, na)
+    var line Line3 = line.new(na, na, na, na)
+
+    SCR = fixnan(src)
+    if ta.change(SCR) != 0
+        TIME := time[timeIndex]
+        YStart := SCR[1]
+        Start := TIME[1]
+        Slope := (SCR - YStart) / (TIME - Start)
+        Slope
+
+    EXTime = ExtenSwitcher(Extensions) * BarTIME * 25
+    End := TIME + EXTime
+    YEnd := SCR + EXTime * Slope
+
+    if ta.change(SCR) != 0 and not TradeisON[1]
+        LineCond = Slope * time < 0 ? dir ? na : color.rgb(11, 139, 7, 53) : dir ? color.rgb(212, 46, 0, 54) : na
+        if not na(LineCond) //and ChartTime
+            Line1 := line.new(Start, YStart, End, YEnd, xloc.bar_time, extend.none, color = color.new(color.white, 100))
+
+            Line2 := line.new(Start, YStart - Zband * 2, End, YEnd - Zband * 2, xloc.bar_time, extend.none, color = color.new(color.black, 100))
+
+            Line3 := line.new(Start, YStart - Zband * 1, End, YEnd - Zband * 1, xloc.bar_time, extend.none, color = color.new(color.black, 100))
+
+            linefill.new(Line3, Line2, color = LineCol1)
+            linefill.new(Line3, Line1, color = LineCond)
+            // linefill.new(Line,Line2,color= color.rgb(28, 15, 2, 76))
+
+    [Start, YStart, Slope]
+
+
+
+PH = ta.pivothigh(Trendtype ? high : close > open ? close : open, Period, Period / 2)
+PL = ta.pivotlow(Trendtype ? low : close > open ? open : close, Period, Period / 2)
+
+
+
+
+method GetlinePrice(int TIME, float Price, float SLOP, int LookB) =>
+    var float Current = 0.0
+    EsTime = time - TIME
+    Current := Price + (EsTime - LookB * BarTIME) * SLOP
+    Current
+
+
+method CheckCross(float Price, int StartTime, float StartPrice, float SLP) =>
+    var float Current = 0.0
+    var float Previous = 0.0
+    if StartPrice[Period] != StartPrice
+        Current := GetlinePrice(StartTime, StartPrice, SLP, 0)
+        Previous := GetlinePrice(StartTime, StartPrice, SLP, 1)
+        Crossover = Price[1] < Previous and Price > Current ? 1 : Price[1] > Previous - Zband * 0.1 and Price < Current - Zband * 0.1 ? -1 : 0
+        Crossover
+
+
+
+[Xx, XZ, SLPXZ] = Trendlines(PH, Period / 2, false)
+[XxL, XZL, SLPXZL] = Trendlines(PL, Period / 2, true)
+
+
+
+
+if ta.change(fixnan(PH)) != 0
+    UpdatedX := Xx
+    UpdatedY := XZ
+    UpdatedSLP := SLPXZ
+    UpdatedSLP
+
+if ta.change(fixnan(PL)) != 0
+    UpdatedXLow := XxL
+    UpdatedYLow := XZL
+    UpdatedSLPLow := SLPXZL
+    UpdatedSLPLow
+
+Long = not(UpdatedSLP * time > 0) and CheckCross(close, UpdatedX, UpdatedY, UpdatedSLP) == 1 and not TradeisON
+Short = not(UpdatedSLPLow * time < 0) and CheckCross(close, UpdatedXLow, UpdatedYLow, UpdatedSLPLow) == -1 and not TradeisON
+
+
+TradeFire = Long or Short
+
+if Long and not TradeisON
+    LongTrade := true
+    ShortTrade := false
+    ShortTrade
+
+if Short and not TradeisON
+    LongTrade := false
+    ShortTrade := true
+    ShortTrade
+
+
+if true
+    if TradeFire and not TradeisON
+        TP := switch 
+            Long => high + Zband * 20
+            Short => low - Zband * 20
+
+        SL := switch 
+            Long => low - Zband * 20
+            Short => high + Zband * 20
+
+        TradeisON := true
+        if ShowTargets
+            line.new(bar_index, Long ? high : low, bar_index, TP, width = 2, color = color.rgb(154, 103, 20), style = line.style_dashed)
+
+            tpLine := line.new(bar_index, TP, bar_index + 2, TP, style = line.style_dashed, color = color.rgb(154, 103, 20))
+            LAB := label.new(bar_index, TP, 'Target', color = color.rgb(154, 103, 20), style = label.style_label_left, size = size.small, textcolor = color.white)
+            LAB
+    if TradeisON
+        line.set_x2(tpLine, bar_index)
+        label.set_x(LAB, bar_index + 1)
+
+    if LongTrade and TradeisON
+        if high >= TP
+            label.set_color(LAB, color.rgb(6, 128, 10, 37))
+            TradeisON := false
+            TradeisON
+        if close <= SL
+            label.set_color(LAB, color.new(color.rgb(246, 7, 7), 70))
+            TradeisON := false
+            TradeisON
+
+    else if ShortTrade and TradeisON
+
+        if low <= TP
+            label.set_color(LAB, color.rgb(6, 128, 10, 37))
+            TradeisON := false
+            TradeisON
+
+        if close >= SL
+            label.set_color(LAB, color.new(color.rgb(246, 7, 7), 70))
+            TradeisON := false
+            TradeisON
+
+
+
+plotshape(Long and not TradeisON[1], size = size.small, color = color.rgb(46, 192, 6, 11), location = location.belowbar, style = shape.labelup, text = '', textcolor = color.white)
+
+plotshape(Short and not TradeisON[1], size = size.small, color = color.rgb(241, 2, 2, 11), location = location.abovebar, style = shape.labeldown, text = '', textcolor = color.white)
+
+
+// -- END -- .
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @free_fx_pro", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

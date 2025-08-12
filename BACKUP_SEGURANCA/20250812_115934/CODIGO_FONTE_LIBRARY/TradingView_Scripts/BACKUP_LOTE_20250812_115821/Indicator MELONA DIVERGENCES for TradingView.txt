@@ -1,0 +1,539 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join us https://t.me/simpleforextools
+
+//@version=5
+indicator("MELONA DIVERGENCES", overlay = true,max_labels_count = 500,max_lines_count = 500)
+
+
+//DIVERGANCE
+prd1             = input.int   (defval=5               , title='PIVOT PERIOD'                 , minval=1, maxval=50                            , group="DIVERGANCE")
+source           = input.string(defval='HIGH/LOW'      , title='SOURCE FOR PIVOT POINTS'      , options=['CLOSE', 'HIGH/LOW']                  , group="DIVERGANCE")
+searchdiv        = input.string(defval='REGULAR/HIDDEN', title='DIVERGANCE TYPE'              , options=['REGULAR', 'HIDDEN', 'REGULAR/HIDDEN'], group="DIVERGANCE")
+showindis        = input.string(defval='FULL'          , title='SHOW INDICATORS NAME'         , options=['FULL', 'FIRST LETTER', "DON'T SHOW"] , group="DIVERGANCE")
+showlimit        = input.int(1                         , title='MINIMUM NUMBER OF DIVERGANCES', minval=1, maxval=11                            , group="DIVERGANCE")
+maxpp            = input.int   (defval=20              , title='MAXIMUM PIVOT POINTS TO CHECK', minval=1, maxval=20                            , group="DIVERGANCE")
+maxbars          = input.int   (defval=200             , title='MAXIMUM BARS TO CHECK'        , minval=30, maxval=200                          , group="DIVERGANCE")
+showlast         = input       (defval=false           , title='SHOW ONLY LAST DIVERGANCE'                                                     , group="DIVERGANCE")
+dontconfirm      = input       (defval=true            , title="DON'T WAIT FOR CONFORMATION"                                                   , group="DIVERGANCE")
+showlines        = input       (defval=true            , title='SHOW DIVERGANCE LINES'                                                         , group="DIVERGANCE")
+showpivot        = input       (defval=false           , title='SHOW PIVOT POINTS'                                                             , group="DIVERGANCE")
+calcmacd         = input       (defval=true            , title='MACD'                                                                          , group="DIVERGANCE")
+calcmacda        = input       (defval=true            , title='MACD HISTOGRAM'                                                                , group="DIVERGANCE")
+calcrsi          = input       (defval=true            , title='RSI'                                                                           , group="DIVERGANCE")
+calcstoc         = input       (defval=true            , title='STOCHASTIC'                                                                    , group="DIVERGANCE")
+calccci          = input       (defval=true            , title='CCI'                                                                           , group="DIVERGANCE")
+calcmom          = input       (defval=true            , title='MOMENTUM'                                                                      , group="DIVERGANCE")
+calcobv          = input       (defval=true            , title='OBV'                                                                           , group="DIVERGANCE")
+calcvwmacd       = input       (true                   , title='VWMACD'                                                                        , group="DIVERGANCE")
+calccmf          = input       (true                   , title='CHAIKIN MONEY FLOW'                                                            , group="DIVERGANCE")
+calcmfi          = input       (true                   , title='MONEY FLOW INDEX'                                                              , group="DIVERGANCE")
+calcext          = input       (false                  , title='CHECK EXTERNAL INDICATOR'                                                      , group="DIVERGANCE")
+externalindi     = input       (defval=close           , title='EXTERNAL INDICATOR'                                                            , group="DIVERGANCE")
+pos_reg_div_col  = input       (defval=#ffffff       , title='POSITIVE REGULAR DIVERGANCE'                                                   , group="DIVERGANCE")
+neg_reg_div_col  = input       (defval=#00def6       , title='NEGATIVE REGULAR DIVERGANCE'                                                   , group="DIVERGANCE")
+pos_hid_div_col  = input       (defval=#00ff0a       , title='POSITIVE HIDDEN DIVERGANCE'                                                    , group="DIVERGANCE")
+neg_hid_div_col  = input       (defval=#ff0015       , title='NEGATIVE HIDDEN DIVERGANCE'                                                    , group="DIVERGANCE")
+reg_div_l_style_ = input.string(defval='SOLID'         , title='REGULAR DIVERGANCE LINESTYLE'   , options=['SOLID', 'DASHED', 'DOTTED']        , group="DIVERGANCE")
+hid_div_l_style_ = input.string(defval='SOLID'         , title='HIDDEN DIVERGANCE LINESTYLE'    , options=['SOLID', 'DASHED', 'DOTTED']        , group="DIVERGANCE")
+reg_div_l_width  = input.int   (defval=1               , title='REGULAR DIVERGANCE LINEWIDTH'   , minval=1, maxval=5                           , group="DIVERGANCE")
+hid_div_l_width  = input.int   (defval=1               , title='HIDDEN DIVERGANCE LINEWIDTH'    , minval=1, maxval=5                           , group="DIVERGANCE")
+showmas          = input.bool  (defval=false           , title='SHOW MOVING AVERAGES (50 & 200)', inline='MA'                                  , group="DIVERGANCE")
+cma1col          = input.color (defval=#ffffff       , title=''                               , inline='MA'                                  , group="DIVERGANCE")
+cma2col          = input.color (defval=#00def6       , title=''                               , inline='MA'                                  , group="DIVERGANCE")
+
+//PLOTS
+//plot(showmas ? ta.sma(close, 50) : na, color=showmas ? cma1col : na)
+//plot(showmas ? ta.sma(close, 200) : na, color=showmas ? cma2col : na)
+
+var reg_div_l_style = reg_div_l_style_ == 'SOLID' ? line.style_solid : reg_div_l_style_ == 'DASHED' ? line.style_dashed : line.style_dotted
+var hid_div_l_style = hid_div_l_style_ == 'SOLID' ? line.style_solid : hid_div_l_style_ == 'DASHED' ? line.style_dashed : line.style_dotted
+rsi = ta.rsi(close, 14)
+[macd, signal, deltamacd] = ta.macd(close, 12, 26, 9)
+moment = ta.mom(close, 10)
+cci = ta.cci(close, 10)
+Obv = ta.obv
+stk = ta.sma(ta.stoch(close, high, low, 14), 3)
+maFast = ta.vwma(close, 12)
+maSlow = ta.vwma(close, 26)
+vwmacd = maFast - maSlow
+Cmfm = (close - low - (high - close)) / (high - low)
+Cmfv = Cmfm * volume
+cmf = ta.sma(Cmfv, 21) / ta.sma(volume, 21)
+Mfi = ta.mfi(close, 14)
+
+var indicators_name = array.new_string(11)
+var div_colors = array.new_color(4)
+if barstate.isfirst 
+    array.set(indicators_name, 0, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 1, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 2, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 3, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 4, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 5, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 6, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 7, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 8, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 9, showindis ==  "DON'T SHOW" ? '' : '')
+    array.set(indicators_name, 10, showindis == "DON'T SHOW" ? '' : '')
+    array.set(div_colors, 0, pos_reg_div_col)
+    array.set(div_colors, 1, neg_reg_div_col)
+    array.set(div_colors, 2, pos_hid_div_col)
+    array.set(div_colors, 3, neg_hid_div_col)
+
+float ph1 = ta.pivothigh(source == 'CLOSE' ? close : high, prd1, prd1)
+float pl1 = ta.pivotlow(source == 'CLOSE' ? close : low, prd1, prd1)
+//plotshape(ph1 and showpivot, text='H', style=shape.labeldown, color=color.new(color.white, 100), textcolor=#00def6, location=location.abovebar, offset=-prd1)
+//plotshape(pl1 and showpivot, text='L', style=shape.labelup, color=color.new(color.white, 100), textcolor=#ffffff, location=location.belowbar, offset=-prd1)
+
+var int maxarraysize = 20
+var ph_positions = array.new_int(maxarraysize, 0)
+var pl_positions = array.new_int(maxarraysize, 0)
+var ph_vals = array.new_float(maxarraysize, 0.)
+var pl_vals = array.new_float(maxarraysize, 0.)
+if ph1
+    array.unshift(ph_positions, bar_index)
+    array.unshift(ph_vals, ph1)
+    if array.size(ph_positions) > maxarraysize
+        array.pop(ph_positions)
+        array.pop(ph_vals)
+if pl1
+    array.unshift(pl_positions, bar_index)
+    array.unshift(pl_vals, pl1)
+    if array.size(pl_positions) > maxarraysize
+        array.pop(pl_positions)
+        array.pop(pl_vals)
+
+positive_regular_positive_hidden_divergence(src, cond) =>
+    divlen = 0
+    prsc = source == 'CLOSE' ? close : low
+    if dontconfirm or src > src[1] or close > close[1]
+        startpoint = dontconfirm ? 0 : 1 
+        for x = 0 to maxpp - 1 by 1
+            len = bar_index - array.get(pl_positions, x) + prd1
+            if array.get(pl_positions, x) == 0 or len > maxbars
+                break
+            if len > 5 and (cond == 1 and src[startpoint] > src[len] and prsc[startpoint] < nz(array.get(pl_vals, x)) or cond == 2 and src[startpoint] < src[len] and prsc[startpoint] > nz(array.get(pl_vals, x)))
+                slope1 = (src[startpoint] - src[len]) / (len - startpoint)
+                virtual_line1 = src[startpoint] - slope1
+                slope2 = (close[startpoint] - close[len]) / (len - startpoint)
+                virtual_line2 = close[startpoint] - slope2
+                arrived = true
+                for y = 1 + startpoint to len - 1 by 1
+                    if src[y] < virtual_line1 or nz(close[y]) < virtual_line2
+                        arrived := false
+                        break
+                    virtual_line1 -= slope1
+                    virtual_line2 -= slope2
+                    virtual_line2
+                if arrived
+                    divlen := len
+                    break
+    divlen
+
+negative_regular_negative_hidden_divergence(src, cond) =>
+    divlen = 0
+    prsc = source == 'CLOSE' ? close : high
+    if dontconfirm or src < src[1] or close < close[1]
+        startpoint = dontconfirm ? 0 : 1 
+        for x = 0 to maxpp - 1 by 1
+            len = bar_index - array.get(ph_positions, x) + prd1
+            if array.get(ph_positions, x) == 0 or len > maxbars
+                break
+            if len > 5 and (cond == 1 and src[startpoint] < src[len] and prsc[startpoint] > nz(array.get(ph_vals, x)) or cond == 2 and src[startpoint] > src[len] and prsc[startpoint] < nz(array.get(ph_vals, x)))
+                slope1 = (src[startpoint] - src[len]) / (len - startpoint)
+                virtual_line1 = src[startpoint] - slope1
+                slope2 = (close[startpoint] - nz(close[len])) / (len - startpoint)
+                virtual_line2 = close[startpoint] - slope2
+                arrived = true
+                for y = 1 + startpoint to len - 1 by 1
+                    if src[y] > virtual_line1 or nz(close[y]) > virtual_line2
+                        arrived := false
+                        break
+                    virtual_line1 -= slope1
+                    virtual_line2 -= slope2
+                    virtual_line2
+                if arrived
+                    divlen := len
+                    break
+    divlen
+
+//CALCULATIONS
+calculate_divs(cond, indicator_1) =>
+    divs = array.new_int(4, 0)
+    array.set(divs, 0, cond and (searchdiv == 'REGULAR' or searchdiv ==  'REGULAR/HIDDEN') ? positive_regular_positive_hidden_divergence(indicator_1, 1) : 0)
+    array.set(divs, 1, cond and (searchdiv == 'REGULAR' or searchdiv ==  'REGULAR/HIDDEN') ? negative_regular_negative_hidden_divergence(indicator_1, 1) : 0)
+    array.set(divs, 2, cond and (searchdiv == 'HIDDEN'  or searchdiv ==  'REGULAR/HIDDEN') ? positive_regular_positive_hidden_divergence(indicator_1, 2) : 0)
+    array.set(divs, 3, cond and (searchdiv == 'HIDDEN'  or searchdiv ==  'REGULAR/HIDDEN') ? negative_regular_negative_hidden_divergence(indicator_1, 2) : 0)
+    divs
+
+var all_divergences = array.new_int(44)
+array_set_divs(div_pointer, index) =>
+    for x = 0 to 3 by 1
+        array.set(all_divergences, index * 4 + x, array.get(div_pointer, x))
+
+array_set_divs(calculate_divs(calcmacd  , macd)        , 0)
+array_set_divs(calculate_divs(calcmacda , deltamacd)   , 1)
+array_set_divs(calculate_divs(calcrsi   , rsi)         , 2)
+array_set_divs(calculate_divs(calcstoc  , stk)         , 3)
+array_set_divs(calculate_divs(calccci   , cci)         , 4)
+array_set_divs(calculate_divs(calcmom   , moment)      , 5)
+array_set_divs(calculate_divs(calcobv   , Obv)         , 6)
+array_set_divs(calculate_divs(calcvwmacd, vwmacd)      , 7)
+array_set_divs(calculate_divs(calccmf   , cmf)         , 8)
+array_set_divs(calculate_divs(calcmfi   , Mfi)         , 9)
+array_set_divs(calculate_divs(calcext   , externalindi), 10)
+
+total_div = 0
+for x = 0 to array.size(all_divergences) - 1 by 1
+    total_div += math.round(math.sign(array.get(all_divergences, x)))
+    total_div
+if total_div < showlimit
+    array.fill(all_divergences, 0)
+
+var pos_div_lines = array.new_line(0)
+var neg_div_lines = array.new_line(0)
+var pos_div_labels = array.new_label(0)
+var neg_div_labels = array.new_label(0)
+
+delete_old_pos_div_lines() =>
+    if array.size(pos_div_lines) > 0
+        for j = 0 to array.size(pos_div_lines) - 1 by 1
+            line.delete(array.get(pos_div_lines, j))
+        array.clear(pos_div_lines)
+delete_old_neg_div_lines() =>
+    if array.size(neg_div_lines) > 0
+        for j = 0 to array.size(neg_div_lines) - 1 by 1
+            line.delete(array.get(neg_div_lines, j))
+        array.clear(neg_div_lines)
+delete_old_pos_div_labels() =>
+    if array.size(pos_div_labels) > 0
+        for j = 0 to array.size(pos_div_labels) - 1 by 1
+            label.delete(array.get(pos_div_labels, j))
+        array.clear(pos_div_labels)
+delete_old_neg_div_labels() =>
+    if array.size(neg_div_labels) > 0
+        for j = 0 to array.size(neg_div_labels) - 1 by 1
+            label.delete(array.get(neg_div_labels, j))
+        array.clear(neg_div_labels)
+delete_last_pos_div_lines_label(n) =>
+    if n > 0 and array.size(pos_div_lines) >= n
+        asz = array.size(pos_div_lines)
+        for j = 1 to n by 1
+            line.delete(array.get(pos_div_lines, asz - j))
+            array.pop(pos_div_lines)
+        if array.size(pos_div_labels) > 0
+            label.delete(array.get(pos_div_labels, array.size(pos_div_labels) - 1))
+            array.pop(pos_div_labels)
+delete_last_neg_div_lines_label(n) =>
+    if n > 0 and array.size(neg_div_lines) >= n
+        asz = array.size(neg_div_lines)
+        for j = 1 to n by 1
+            line.delete(array.get(neg_div_lines, asz - j))
+            array.pop(neg_div_lines)
+        if array.size(neg_div_labels) > 0
+            label.delete(array.get(neg_div_labels, array.size(neg_div_labels) - 1))
+            array.pop(neg_div_labels)
+
+pos_reg_div_detected = false
+neg_reg_div_detected = false
+pos_hid_div_detected = false
+neg_hid_div_detected = false
+
+var last_pos_div_lines = 0
+var last_neg_div_lines = 0
+var remove_last_pos_divs = false
+var remove_last_neg_divs = false
+if pl1
+    remove_last_pos_divs := false
+    last_pos_div_lines := 0
+    last_pos_div_lines
+if ph1
+    remove_last_neg_divs := false
+    last_neg_div_lines := 0
+    last_neg_div_lines
+
+divergence_text_top = ''
+divergence_text_bottom = ''
+distances = array.new_int(0)
+dnumdiv_top = 0
+dnumdiv_bottom = 0
+top_label_col = color.white
+bottom_label_col = color.white
+old_pos_divs_can_be_removed = true
+old_neg_divs_can_be_removed = true
+startpoint = dontconfirm ? 0 : 1
+
+for x = 0 to 10 by 1
+    div_type = -1
+    for y = 0 to 3 by 1
+        if array.get(all_divergences, x * 4 + y) > 0
+            div_type := y
+            if y % 2 == 1
+                dnumdiv_top += 1
+                top_label_col := array.get(div_colors, y)
+                top_label_col
+            if y % 2 == 0
+                dnumdiv_bottom += 1
+                bottom_label_col := array.get(div_colors, y)
+                bottom_label_col
+            if not array.includes(distances, array.get(all_divergences, x * 4 + y))
+                array.push(distances, array.get(all_divergences, x * 4 + y))
+                new_line = showlines ? line.new(x1=bar_index - array.get(all_divergences, x * 4 + y), y1=source == 'CLOSE' ? close[array.get(all_divergences, x * 4 + y)] : y % 2 == 0 ? low[array.get(all_divergences, x * 4 + y)] : high[array.get(all_divergences, x * 4 + y)], x2=bar_index - startpoint, y2=source == 'CLOSE' ? close[startpoint] : y % 2 == 0 ? low[startpoint] : high[startpoint], color=array.get(div_colors, y), style=y < 2 ? reg_div_l_style : hid_div_l_style, width=y < 2 ? reg_div_l_width : hid_div_l_width,force_overlay = true) : na
+                if y % 2 == 0
+                    if old_pos_divs_can_be_removed
+                        old_pos_divs_can_be_removed := false
+                        if not showlast and remove_last_pos_divs
+                            delete_last_pos_div_lines_label(last_pos_div_lines)
+                            last_pos_div_lines := 0
+                            last_pos_div_lines
+                        if showlast
+                            delete_old_pos_div_lines()
+                    array.push(pos_div_lines, new_line)
+                    last_pos_div_lines += 1
+                    remove_last_pos_divs := true
+                    remove_last_pos_divs
+                if y % 2 == 1
+                    if old_neg_divs_can_be_removed
+                        old_neg_divs_can_be_removed := false
+                        if not showlast and remove_last_neg_divs
+                            delete_last_neg_div_lines_label(last_neg_div_lines)
+                            last_neg_div_lines := 0
+                            last_neg_div_lines
+                        if showlast
+                            delete_old_neg_div_lines()
+                    array.push(neg_div_lines, new_line)
+                    last_neg_div_lines += 1
+                    remove_last_neg_divs := true
+                    remove_last_neg_divs
+            if y == 0
+                pos_reg_div_detected := true
+                pos_reg_div_detected
+            if y == 1
+                neg_reg_div_detected := true
+                neg_reg_div_detected
+            if y == 2
+                pos_hid_div_detected := true
+                pos_hid_div_detected
+            if y == 3
+                neg_hid_div_detected := true
+                neg_hid_div_detected
+    if div_type >= 0
+        divergence_text_top += (div_type % 2 == 1 ? showindis !=    "DON'T SHOW" ? array.get(indicators_name, x) + '\n' : '' : '')
+        divergence_text_bottom += (div_type % 2 == 0 ? showindis != "DON'T SHOW" ? array.get(indicators_name, x) + '\n' : '' : '')
+        divergence_text_bottom
+if showindis != "DON'T SHOW"
+    if dnumdiv_top > 0
+        divergence_text_top += str.tostring(dnumdiv_top)
+        divergence_text_top
+    if dnumdiv_bottom > 0
+        divergence_text_bottom += str.tostring(dnumdiv_bottom)
+        divergence_text_bottom
+    if divergence_text_top != ''
+        if showlast
+            delete_old_neg_div_labels()
+        array.push(neg_div_labels, label.new(x=bar_index, y=math.max(high, high[1]), color=top_label_col, style=label.style_circle, size = size.auto,force_overlay = true))
+    if divergence_text_bottom != ''
+        if showlast
+            delete_old_pos_div_labels()
+        array.push(pos_div_labels, label.new(x=bar_index, y=math.min(low, low[1]), color=bottom_label_col, style=label.style_circle, size = size.auto,force_overlay = true))
+
+//FUNCTIONS
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), t)
+    smoothrng = ta.ema(avrng, wper) * m
+rngfilt(x, r) =>
+    rngfilt = x
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r : x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+percWidth(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+securityNoRep(sym, res, src) => request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_on)
+swingPoints(prd) =>
+    pivHi = ta.pivothigh(prd, prd)
+    pivLo = ta.pivotlow (prd, prd)
+    last_pivHi = ta.valuewhen(pivHi, pivHi, 1)
+    last_pivLo = ta.valuewhen(pivLo, pivLo, 1)
+    hh = pivHi and pivHi > last_pivHi ? pivHi : na
+    lh = pivHi and pivHi < last_pivHi ? pivHi : na
+    hl = pivLo and pivLo > last_pivLo ? pivLo : na
+    ll = pivLo and pivLo < last_pivLo ? pivLo : na
+    [hh, lh, hl, ll]
+f_chartTfInMinutes() =>
+    float _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1                   :
+      timeframe.isminutes ? 1.                  :
+      timeframe.isdaily   ? 60. * 24            :
+      timeframe.isweekly  ? 60. * 24 * 7        :
+      timeframe.ismonthly ? 60. * 24 * 30.4375  : na)
+f_kc(src, len, sensitivity) =>
+    basis = ta.sma(src, len)
+    span  = ta.atr(len)
+    [basis + span * sensitivity, basis - span * sensitivity]
+wavetrend(src, chlLen, avgLen) =>
+    esa = ta.ema(src, chlLen)
+    d = ta.ema(math.abs(src - esa), chlLen)
+    ci = (src - esa) / (0.015 * d)
+    wt1 = ta.ema(ci, avgLen)
+    wt2 = ta.sma(wt1, 3)
+    [wt1, wt2]
+f_top_fractal(src) => src[4] < src[2] and src[3] < src[2] and src[2] > src[1] and src[2] > src[0]
+f_bot_fractal(src) => src[4] > src[2] and src[3] > src[2] and src[2] < src[1] and src[2] < src[0]
+f_fractalize (src) => f_top_fractal(src) ? 1 : f_bot_fractal(src) ? -1 : 0
+f_findDivs(src, topLimit, botLimit) =>
+    fractalTop = f_fractalize(src) > 0 and src[2] >= topLimit ? src[2] : na
+    fractalBot = f_fractalize(src) < 0 and src[2] <= botLimit ? src[2] : na
+    highPrev = ta.valuewhen(fractalTop, src[2], 0)[2]
+    highPrice = ta.valuewhen(fractalTop, high[2], 0)[2]
+    lowPrev = ta.valuewhen(fractalBot, src[2], 0)[2]
+    lowPrice = ta.valuewhen(fractalBot, low[2], 0)[2]
+    bearSignal = fractalTop and high[1] > highPrice and src[1] < highPrev
+    bullSignal = fractalBot and low[1] < lowPrice and src[1] > lowPrev
+    [bearSignal, bullSignal]
+
+useAtrOffset         = input.bool(defval = false, title = "USE ATR OFFSET"       , tooltip = "Will use the ATR offset instead of the bar prediction offset."                , group="CANDLE STRENGTH")
+barPredictionsOffset = input.float(0, "BAR PREDICTION OFFSET", minval=0          , tooltip="The offset of the bar predictions as a percentage from the bar high or close."  , group="CANDLE STRENGTH")
+sensitivity          = input.float(4, "SENSITIVITY (1-20)", 0.1, 10                                                                                                         , group="CANDLE STRENGTH")
+
+import jdehorty/MLExtensions/2 as ml
+import jdehorty/KernelFunctions/2 as kernels
+type Settings
+    float source
+    int neighborsCount
+    int maxBarsBack
+    int featureCount
+    int colorCompression
+type Label
+    int long
+    int short
+    int neutral
+type FeatureArrays
+    array<float> f1
+    array<float> f2
+    array<float> f3
+    array<float> f4
+    array<float> f5
+type FeatureSeries
+    float f1
+    float f2
+    float f3
+    float f4
+    float f5
+type FilterSettings 
+    bool useVolatilityFilter
+    bool useRegimeFilter
+    bool useAdxFilter
+    float regimeThreshold
+    int adxThreshold
+type Filter
+    bool volatility
+    bool regime
+    bool adx 
+
+series_from(feature_string, _close, _high, _low, _hlc3, f_paramA, f_paramB) =>
+    switch feature_string
+        "RSI" => ml.n_rsi(_close, f_paramA, f_paramB)
+        "WT"  => ml.n_wt(_hlc3, f_paramA, f_paramB)
+        "CCI" => ml.n_cci(_close, f_paramA, f_paramB)
+        "ADX" => ml.n_adx(_high, _low, _close, f_paramA)
+
+get_lorentzian_distance(int i, int featureCount, FeatureSeries featureSeries, FeatureArrays featureArrays) =>
+    switch featureCount
+        5 => math.log(1+math.abs(featureSeries.f1 - array.get(featureArrays.f1, i))) + 
+             math.log(1+math.abs(featureSeries.f2 - array.get(featureArrays.f2, i))) + 
+             math.log(1+math.abs(featureSeries.f3 - array.get(featureArrays.f3, i))) + 
+             math.log(1+math.abs(featureSeries.f4 - array.get(featureArrays.f4, i))) + 
+             math.log(1+math.abs(featureSeries.f5 - array.get(featureArrays.f5, i)))
+        4 => math.log(1+math.abs(featureSeries.f1 - array.get(featureArrays.f1, i))) +
+             math.log(1+math.abs(featureSeries.f2 - array.get(featureArrays.f2, i))) +
+             math.log(1+math.abs(featureSeries.f3 - array.get(featureArrays.f3, i))) +
+             math.log(1+math.abs(featureSeries.f4 - array.get(featureArrays.f4, i)))
+        3 => math.log(1+math.abs(featureSeries.f1 - array.get(featureArrays.f1, i))) +
+             math.log(1+math.abs(featureSeries.f2 - array.get(featureArrays.f2, i))) +
+             math.log(1+math.abs(featureSeries.f3 - array.get(featureArrays.f3, i)))
+        2 => math.log(1+math.abs(featureSeries.f1 - array.get(featureArrays.f1, i))) +
+             math.log(1+math.abs(featureSeries.f2 - array.get(featureArrays.f2, i)))
+
+Settings settings = 
+ Settings.new(
+   input.source(title ='SOURCE'                 , defval=close                                 , group="CANDLE STRENGTH"                              , tooltip="Source of the input data"),
+   input.int   (title  ='NEIGHBORS COUNT'       , defval=8                                     , group="CANDLE STRENGTH", minval=1, maxval=100, step=1, tooltip="Number of neighbors to consider (Max 100)"),
+   input.int   (title  ="MAX BARS BACK"         , defval=2000                                  , group="CANDLE STRENGTH"),
+   input.int   (title  ="FEATURE COUNT"         , defval=2                                     , group="CANDLE STRENGTH", minval=2, maxval=5          , tooltip="Number of features to use for ML predictions."),
+   input.int   (title  ="COLOR COMPRESSION"     , defval=1                                     , group="CANDLE STRENGTH", minval=1, maxval=10         , tooltip="Compression factor for adjusting the intensity of the color scale."))
+FilterSettings filterSettings =
+ FilterSettings.new(
+   input.bool (title  ="USE VOLATILITY FILTER" , defval=false                                 , group="CANDLE STRENGTH"                              , tooltip="Whether to use the volatility filter."),
+   input.bool (title  ="USE REGIME FILTER"     , defval=false                                 , group="CANDLE STRENGTH", inline="regime"),
+   input.bool (title  ="USE ADX FILTER"        , defval=false                                 , group="CANDLE STRENGTH", inline="adx"),
+   input.float(title  ="THRESHOLD          "   , defval=-0.1, minval=-10, maxval=10 , step=0.1, group="CANDLE STRENGTH", inline="regime"             , tooltip="Whether to use the trend detection filter. Threshold for detecting Trending/Ranging markets."),
+   input.int  (title  ="THRESHOLD             ", defval=20  , minval=0  , maxval=100, step=1  , group="CANDLE STRENGTH", inline="adx"                , tooltip="Whether to use the ADX filter. Threshold for detecting Trending/Ranging markets."))
+
+Filter filter =
+ Filter.new(
+   ml.filter_volatility(1, 10, filterSettings.useVolatilityFilter), 
+   ml.regime_filter(ohlc4, filterSettings.regimeThreshold, filterSettings.useRegimeFilter),
+   ml.filter_adx(settings.source, 14, filterSettings.adxThreshold, filterSettings.useAdxFilter))
+
+f1_string            = input.string(title="FEATURE 1   ", options=["RSI", "WT", "CCI", "ADX"]                            , defval="RSI", inline = "01", tooltip="The first feature to use for ML predictions." , group="Feature Engineering")
+f1_paramA            = input.int   (title="PARAMETER A ", tooltip="The primary parameter of feature 1."                  , defval=14   , inline = "02"                                                         , group="Feature Engineering")
+f1_paramB            = input.int   (title="PARAMETER B" , tooltip="The secondary parameter of feature 2 (if applicable).", defval=1    , inline = "02"                                                         , group="Feature Engineering")
+f2_string            = input.string(title="FEATURE 2   ", options=["RSI", "WT", "CCI", "ADX"]                            , defval="WT" , inline = "03", tooltip="The second feature to use for ML predictions.", group="Feature Engineering")
+f2_paramA            = input.int   (title="PARAMETER A ", tooltip="The primary parameter of feature 2."                  , defval=10   , inline = "04"                                                         , group="Feature Engineering")
+f2_paramB            = input.int   (title="PARAMETER B" , tooltip="The secondary parameter of feature 2 (if applicable).", defval=11   , inline = "04"                                                         , group="Feature Engineering")
+f3_string            = input.string(title="FEATURE 3   ", options=["RSI", "WT", "CCI", "ADX"]                            , defval="CCI", inline = "05", tooltip="The third feature to use for ML predictions." , group="Feature Engineering")
+f3_paramA            = input.int   (title="PARAMETER A ", tooltip="The primary parameter of feature 3."                  , defval=20   , inline = "06"                                                         , group="Feature Engineering")
+f3_paramB            = input.int   (title="PARAMETER B" , tooltip="The secondary parameter of feature 3 (if applicable).", defval=1    , inline = "06"                                                         , group="Feature Engineering")
+f4_string            = input.string(title="FEATURE 4   ", options=["RSI", "WT", "CCI", "ADX"]                            , defval="ADX", inline = "07", tooltip="The fourth feature to use for ML predictions.", group="Feature Engineering")
+f4_paramA            = input.int   (title="PARAMETER A ", tooltip="The primary parameter of feature 4."                  , defval=20   , inline = "08"                                                         , group="Feature Engineering")
+f4_paramB            = input.int   (title="PARAMETER B" , tooltip="The secondary parameter of feature 4 (if applicable).", defval=2    , inline = "08"                                                         , group="Feature Engineering")
+f5_string            = input.string(title="FEATURE 5   ", options=["RSI", "WT", "CCI", "ADX"]                            , defval="RSI", inline = "09", tooltip="The fifth feature to use for ML predictions." , group="Feature Engineering")
+f5_paramA            = input.int   (title="PARAMETER A ", tooltip="The primary parameter of feature 5."                  , defval=9    , inline = "10"                                                         , group="Feature Engineering")
+f5_paramB            = input.int   (title="PARAMETER B" , tooltip="The secondary parameter of feature 5 (if applicable).", defval=1    , inline = "10"                                                         , group="Feature Engineering")
+
+featureSeries = 
+ FeatureSeries.new(
+   series_from(f1_string, close, high, low, hlc3, f1_paramA, f1_paramB),
+   series_from(f2_string, close, high, low, hlc3, f2_paramA, f2_paramB), 
+   series_from(f3_string, close, high, low, hlc3, f3_paramA, f3_paramB),
+   series_from(f4_string, close, high, low, hlc3, f4_paramA, f4_paramB),
+   series_from(f5_string, close, high, low, hlc3, f5_paramA, f5_paramB)
+ )
+
+var f1Array = array.new_float()
+var f2Array = array.new_float()
+var f3Array = array.new_float()
+var f4Array = array.new_float()
+var f5Array = array.new_float()
+array.push(f1Array, featureSeries.f1)
+array.push(f2Array, featureSeries.f2)
+array.push(f3Array, featureSeries.f3)
+array.push(f4Array, featureSeries.f4)
+array.push(f5Array, featureSeries.f5)
+
+featureArrays = 
+ FeatureArrays.new(
+  f1Array,
+  f2Array,
+  f3Array,
+  f4Array,
+  f5Array
+ )
+
+Label direction = 
+ Label.new(
+   long=1, 
+   short=-1, 
+   neutral=0
+  )
+
+maxBarsBackIndex = last_bar_index >= settings.maxBarsBack ? last_bar_index - settings.maxBarsBack : 0
+src = settings.source
+y_train_series = src[4] < src[0] ? direction.short : src[4] > src[0] ? direction.long : direction.neutral
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

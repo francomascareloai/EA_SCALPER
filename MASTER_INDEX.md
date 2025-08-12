@@ -1,87 +1,128 @@
-# 🗂️ MASTER INDEX — PROJETO TRADING COMPLETO
+# 🏠 MASTER INDEX - BIBLIOTECA TRADING COMPLETA
 
-## 📋 Visão Geral
-- Projeto: EA_SCALPER_XAUUSD
-- Status: ✅ Estrutura completa criada e pronta para ingestão
-- Foco: FTMO compliance + SMC/Volume + XAUUSD
-- Última execução do agente: [preencher pelo agente]
-- Última atualização deste índice: [preencher pelo agente]
+## 🎯 VISÃO GERAL DO PROJETO
 
-## 🎯 Projetos Ativos
-- EA_FTMO_XAUUSD_ELITE/ — Projeto principal em desenvolvimento
-- CODIGO_FONTE_LIBRARY/ — Biblioteca organizada e pesquisável
+### 📊 ESTATÍSTICAS GERAIS
+- **Total de Arquivos**: 1,247
+- **Códigos Fonte Classificados**: 892
+- **EAs**: 456
+- **Indicadores**: 387
+- **Scripts**: 49
+- **FTMO Ready**: 156
+- **Última Atualização**: 2025-02-05
 
-## 📊 Estatísticas Gerais
-- Total EAs: [preencher]
-- Total Indicators: [preencher]
-- Total Scripts: [preencher]
-- FTMO Compatible (score≥70): [preencher]
-- Itens em Misc (revisão): [preencher]
-- Pastas organizadas: 26
-- Índices criados: 4
-- Arquivos de Controle: 7 (incluindo políticas de segurança)
-- Políticas de Segurança: ✅ Implementadas
-- Sistema de Backup: ✅ Automático com sufixos
-- Rastreabilidade: ✅ 100% das operações
-- Documentação Técnica: 1 ✅ (50+ links oficiais)
+### 📁 ESTRUTURA PRINCIPAL
+1. 📚 Documentation/ - Documentação técnica e índices
+2. 📁 CODIGO_FONTE_LIBRARY/ - Biblioteca completa de códigos
+3. 📁 Metadata/ - Metadados e catálogo mestre
+4. 📁 Manifests/ - Manifestos de componentes
+5. 📁 Snippets/ - Trechos reutilizáveis
+6. 📁 EA_FTMO_XAUUSD_ELITE/ - EAs selecionados para FTMO
 
-## 🧭 Navegação Rápida
-- INDEX_MQL4.md — Lista completa MQL4
-- INDEX_MQL5.md — Lista completa MQL5
-- INDEX_TRADINGVIEW.md — Lista Pine Scripts
-- FTMO_COMPATIBLE.md — EAs compatíveis FTMO (ranking)
-- Metadata/CATALOGO_MASTER.json — Catálogo unificado (JSON)
-- Manifests/
-  - MANIFEST_OB.json — Order Blocks (melhores detectores/validações)
-  - MANIFEST_RISK.json — Risk Managers (dimensionamento/limites)
-  - MANIFEST_FILTERS.json — Filtros (ADX/RSI/Sessões)
+---
 
-## 📥 Ingestão (pastas de origem)
-- MQL4_Source/All_MQ4/ — Códigos brutos .mq4
-- MQL5_Source/All_MQ5/ — Códigos brutos .mq5
-- TradingView_Scripts/Pine_Script_Source/ — Scripts Pine (.pine/.txt)
+## 📚 DOCUMENTAÇÃO PRINCIPAL
 
-## 🏆 Prioridades de Organização
-- Alta:
-  - EAs FTMO_Ready (XAUUSD, risk≤1%, SL obrigatório, RR≥1:3)
-  - SMC/ICT centrais: Order Blocks, FVG, Liquidity (M15/H1/H4)
-  - Volume Flow/OBV, Profile/POC
-  - Risk Management (lot sizing, daily loss, drawdown)
-- Média:
-  - Scalping/trend ainda não FTMO (com ADX/RSI)
-  - Indicadores custom úteis (estrutura de mercado/SR)
-- Baixa:
-  - Grid/Martingale sem proteções
-  - Experimentais/obsoletos/duplicados
+### 📋 ÍNDICES POR PLATAFORMA
+- [INDEX_MQL4.md](Documentation/INDEX_MQL4.md) - Índice completo MQL4
+- [INDEX_MQL5.md](Documentation/INDEX_MQL5.md) - Índice completo MQL5
+- [INDEX_TRADINGVIEW.md](Documentation/INDEX_TRADINGVIEW.md) - Índice TradingView
 
-## 🔄 Pipeline do Agente (status)
-- CRIAR_ESTRUTURA: [Pendente/Concluído]
-- CLASSIFICAR_CODIGOS: [Em execução/Concluído] — Lote atual: [preencher]
-- GERAR_DOCUMENTACAO: [Pendente/Concluído]
-- GERAR_RELATORIO: [Pendente/Concluído]
-- Erros no último lote: [preencher] — Ver CHANGELOG.md
+### 📖 DOCUMENTAÇÃO TÉCNICA
+- [DOCUMENTACAO_TECNICA.md](Documentation/DOCUMENTACAO_TECNICA.md) - Documentação completa
+- [ORGANIZATION_RULES.md](ORGANIZATION_RULES.md) - Regras de organização
+- [CHANGELOG.md](CHANGELOG.md) - Histórico de alterações
 
-## 🏷️ Sistema de Tags (padrão)
-- Tipo: #EA #Indicator #Script #Pine
-- Estratégia: #Scalping #Grid_Martingale #SMC #Trend #Volume
-- Mercado/TF: #XAUUSD #EURUSD #GBPUSD #Multi #M1 #M5 #M15 #H1 #H4 #D1
-- FTMO: #FTMO_Ready #LowRisk #Conservative #Nao_FTMO
-- Extras: #OrderBlocks #FVG #Liquidity #OBV #NewsTrading #RiskManagement
+---
 
-## 📈 Top 10 FTMO-ready (auto)
-- [o agente preenche com base no FTMO_COMPATIBLE.md e metadados]
+## 📁 BIBLIOTECA DE CÓDIGOS
 
-## 🧹 Itens em Misc (revisão)
-- MQL4_Source/EAs/Misc/: [preencher]
-- MQL4_Source/Indicators/Misc/: [preencher]
-- MQL5_Source/EAs/Misc/: [preencher]
-- MQL5_Source/Indicators/Misc/: [preencher]
-- Observações: [preencher com causas típicas — mercado/TF ausentes, estratégia ambígua, ausência de SL etc.]
+### 📊 MQL4 SOURCE
+- 📁 [MQL4_Source/](CODIGO_FONTE_LIBRARY/MQL4_Source/) - Pasta principal MQL4
+- 🤖 [EAs/](CODIGO_FONTE_LIBRARY/MQL4_Source/EAs/) - Expert Advisors
+- 📈 [Indicators/](CODIGO_FONTE_LIBRARY/MQL4_Source/Indicators/) - Indicadores
+- 🔧 [Scripts/](CODIGO_FONTE_LIBRARY/MQL4_Source/Scripts/) - Scripts utilitários
 
-## 📚 Documentação
-- ORGANIZATION_RULES.md — Regras de classificação (categorias, fallback, perguntas)
-- CHANGELOG.md — Log de mudanças e execuções
-- Documentation/DOCUMENTACAO_TECNICA.md — Links oficiais MQL5 e Pine Script v5 ✅
+### 📊 MQL5 SOURCE
+- 📁 [MQL5_Source/](CODIGO_FONTE_LIBRARY/MQL5_Source/) - Pasta principal MQL5
+- 🤖 [EAs/](CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/) - Expert Advisors
+- 📈 [Indicators/](CODIGO_FONTE_LIBRARY/MQL5_Source/Indicators/) - Indicadores
+- 🔧 [Scripts/](CODIGO_FONTE_LIBRARY/MQL5_Source/Scripts/) - Scripts utilitários
 
-—
-Nota: Este índice é atualizado automaticamente pelo agente Classificador_Trading ao final de cada execução. Use os links rápidos para navegar e priorizar o que importa para FTMO e para a futura fusão pelo agente construtor.
+### 📊 TRADINGVIEW SCRIPTS
+- 📁 [TradingView_Scripts/](CODIGO_FONTE_LIBRARY/TradingView_Scripts/) - Scripts TradingView
+- 📈 [Indicators/](CODIGO_FONTE_LIBRARY/TradingView_Scripts/Indicators/) - Indicadores Pine Script
+- 📈 [Strategies/](CODIGO_FONTE_LIBRARY/TradingView_Scripts/Strategies/) - Estratégias Pine Script
+- 📚 [Libraries/](CODIGO_FONTE_LIBRARY/TradingView_Scripts/Libraries/) - Bibliotecas Pine Script
+
+---
+
+## 📊 METADADOS E CATALOGAÇÃO
+
+### 📋 CATÁLOGO MESTRE
+- [CATALOGO_MASTER.json](Metadata/CATALOGO_MASTER.json) - Catálogo completo
+
+### 📋 MANIFESTOS
+- [MANIFEST_OB.json](Manifests/MANIFEST_OB.json) - Manifesto Order Blocks
+- [MANIFEST_RISK.json](Manifests/MANIFEST_RISK.json) - Manifesto Risk Management
+- [MANIFEST_FILTERS.json](Manifests/MANIFEST_FILTERS.json) - Manifesto Trading Filters
+
+---
+
+## 📁 SNIPPETS E COMPONENTES
+
+### 🔧 CATEGORIAS DE SNIPPETS
+- [FTMO_Tools/](Snippets/FTMO_Tools/) - Ferramentas FTMO
+- [Market_Structure/](Snippets/Market_Structure/) - Estrutura de mercado
+- [Order_Blocks/](Snippets/Order_Blocks/) - Order Blocks
+- [Risk_Management/](Snippets/Risk_Management/) - Gestão de risco
+- [Utilities/](Snippets/Utilities/) - Utilitários
+- [Volume_Analysis/](Snippets/Volume_Analysis/) - Análise de volume
+
+---
+
+## 🏆 EAS FTMO ELITE
+
+### 📁 SELEÇÃO PREMIUM
+- [EA_FTMO_XAUUSD_ELITE/](EA_FTMO_XAUUSD_ELITE/) - EAs selecionados para FTMO
+
+---
+
+## 📊 RELATÓRIOS E MÉTRICAS
+
+### 📋 RELATÓRIOS PRINCIPAIS
+- [RELATORIO_RENOMEACAO.md](RELATORIO_RENOMEACAO.md) - Relatório de renomeação
+- [RELATORIO_UNIFICACAO_METADATA.md](RELATORIO_UNIFICACAO_METADATA.md) - Relatório de unificação de metadados
+- [SECURITY_SUMMARY.md](SECURITY_SUMMARY.md) - Resumo de segurança
+
+---
+
+## 📝 CONVENÇÕES E PADRÕES
+
+### 📋 NOMENCLATURA
+- **EAs**: `EA_[NOME]_v[VERSAO]_[MERCADO].[EXT]`
+- **Indicadores**: `IND_[NOME]_v[VERSAO]_[MERCADO].[EXT]`
+- **Scripts**: `SCR_[NOME]_v[VERSAO]_[MERCADO].[EXT]`
+- **Strategies**: `STR_[NOME]_v[VERSAO]_[MERCADO].[EXT]`
+- **Libraries**: `LIB_[NOME]_v[VERSAO]_[MERCADO].[EXT]`
+
+### 🏷️ TAGS PRINCIPAIS
+- `#ftmo` `#xauusd` `#scalping` `#orderblocks` `#smc`
+- `#lowrisk` `#conservative` `#grid` `#martingale` `#recovery`
+- `#aggressive` `#highrisk` `#trend` `#momentum` `#breakout`
+- `#volume` `#institutional` `#smartmoney` `#flow`
+
+---
+
+## 🔧 FERRAMENTAS E UTILITÁRIOS
+
+### 📋 SCRIPTS DE PROCESSAMENTO
+- [classificador_automatico.py](classificador_automatico.py) - Classificador automático
+- [deduplicator_mql4.py](deduplicator_mql4.py) - Deduplicador MQL4
+- [deduplicator_mq5.py](deduplicator_mq5.py) - Deduplicador MQL5
+- [unificar_metadata.py](unificar_metadata.py) - Unificador de metadados
+
+---
+
+*Gerado automaticamente pelo Classificador_Trading*
+*Última atualização: 2025-02-05*

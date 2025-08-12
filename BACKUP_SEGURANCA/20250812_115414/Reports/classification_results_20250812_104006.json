@@ -1,0 +1,654 @@
+{
+  "processed": [
+    {
+      "original_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Best-Grider.ex4",
+      "target_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_BestGrider_v1.0_Forex_1.ex4",
+      "metadata_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Metadata\\Individual\\UNK_Custom_BestGrider_v1.0_Forex_1.meta.json",
+      "analysis": {
+        "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Best-Grider.ex4",
+        "file_name": "Best-Grider.ex4",
+        "file_size": 330922,
+        "file_hash": "bf39a8da5ef14e9c3494b0113d30c7e1",
+        "analysis_timestamp": "2025-08-12T10:40:05.832071",
+        "language": "Unknown",
+        "file_type": "Unknown",
+        "strategy": "Custom",
+        "market_analysis": [
+          "Forex"
+        ],
+        "timeframe_analysis": [
+          "Multi"
+        ],
+        "ftmo_compliance": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 3,
+          "code_lines": 3,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": "Low",
+        "suggested_name": "UNK_Custom_BestGrider_v1.0_Forex.ex4",
+        "target_folder": "Unknown/Misc/Custom",
+        "tags": [
+          "#Unknown",
+          "#Custom",
+          "#Forex",
+          "#Multi",
+          "#Non_Compliant",
+          "#LowRisk",
+          "#LowQuality"
+        ],
+        "metadata": {}
+      },
+      "metadata": {
+        "file_info": {
+          "original_name": "Best-Grider.ex4",
+          "suggested_name": "UNK_Custom_BestGrider_v1.0_Forex.ex4",
+          "file_size": 330922,
+          "file_hash": "bf39a8da5ef14e9c3494b0113d30c7e1",
+          "language": "Unknown"
+        },
+        "classification": {
+          "type": "Unknown",
+          "strategy": "Custom",
+          "markets": [
+            "Forex"
+          ],
+          "timeframes": [
+            "Multi"
+          ]
+        },
+        "ftmo_analysis": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 3,
+          "code_lines": 3,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": {
+          "level": "Low",
+          "factors": []
+        },
+        "organization": {
+          "target_folder": "Unknown/Misc/Custom",
+          "tags": [
+            "#Unknown",
+            "#Custom",
+            "#Forex",
+            "#Multi",
+            "#Non_Compliant",
+            "#LowRisk",
+            "#LowQuality"
+          ]
+        },
+        "analysis_metadata": {
+          "timestamp": "2025-08-12T10:40:05.832071",
+          "analyzer_version": "1.0",
+          "confidence_score": 25
+        }
+      }
+    },
+    {
+      "original_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Boom EA.ex4",
+      "target_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_BoomEA_v1.0_Forex_1.ex4",
+      "metadata_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Metadata\\Individual\\UNK_Custom_BoomEA_v1.0_Forex_1.meta.json",
+      "analysis": {
+        "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Boom EA.ex4",
+        "file_name": "Boom EA.ex4",
+        "file_size": 287948,
+        "file_hash": "9c37ce25cd98d4c96df2b8257d55c808",
+        "analysis_timestamp": "2025-08-12T10:40:05.950570",
+        "language": "Unknown",
+        "file_type": "Unknown",
+        "strategy": "Custom",
+        "market_analysis": [
+          "Forex"
+        ],
+        "timeframe_analysis": [
+          "Multi"
+        ],
+        "ftmo_compliance": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 7,
+          "code_lines": 7,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": "Low",
+        "suggested_name": "UNK_Custom_BoomEA_v1.0_Forex.ex4",
+        "target_folder": "Unknown/Misc/Custom",
+        "tags": [
+          "#Unknown",
+          "#Custom",
+          "#Forex",
+          "#Multi",
+          "#Non_Compliant",
+          "#LowRisk",
+          "#LowQuality"
+        ],
+        "metadata": {}
+      },
+      "metadata": {
+        "file_info": {
+          "original_name": "Boom EA.ex4",
+          "suggested_name": "UNK_Custom_BoomEA_v1.0_Forex.ex4",
+          "file_size": 287948,
+          "file_hash": "9c37ce25cd98d4c96df2b8257d55c808",
+          "language": "Unknown"
+        },
+        "classification": {
+          "type": "Unknown",
+          "strategy": "Custom",
+          "markets": [
+            "Forex"
+          ],
+          "timeframes": [
+            "Multi"
+          ]
+        },
+        "ftmo_analysis": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 7,
+          "code_lines": 7,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": {
+          "level": "Low",
+          "factors": []
+        },
+        "organization": {
+          "target_folder": "Unknown/Misc/Custom",
+          "tags": [
+            "#Unknown",
+            "#Custom",
+            "#Forex",
+            "#Multi",
+            "#Non_Compliant",
+            "#LowRisk",
+            "#LowQuality"
+          ]
+        },
+        "analysis_metadata": {
+          "timestamp": "2025-08-12T10:40:05.950570",
+          "analyzer_version": "1.0",
+          "confidence_score": 25
+        }
+      }
+    },
+    {
+      "original_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Dream EA.ex4",
+      "target_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_DreamEA_v1.0_Forex_1.ex4",
+      "metadata_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Metadata\\Individual\\UNK_Custom_DreamEA_v1.0_Forex_1.meta.json",
+      "analysis": {
+        "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Dream EA.ex4",
+        "file_name": "Dream EA.ex4",
+        "file_size": 38036,
+        "file_hash": "6d0c2cb98bbaa4ac6387432ae316c28f",
+        "analysis_timestamp": "2025-08-12T10:40:06.044706",
+        "language": "Unknown",
+        "file_type": "Unknown",
+        "strategy": "Custom",
+        "market_analysis": [
+          "Forex"
+        ],
+        "timeframe_analysis": [
+          "Multi"
+        ],
+        "ftmo_compliance": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 2,
+          "code_lines": 2,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": "Low",
+        "suggested_name": "UNK_Custom_DreamEA_v1.0_Forex.ex4",
+        "target_folder": "Unknown/Misc/Custom",
+        "tags": [
+          "#Unknown",
+          "#Custom",
+          "#Forex",
+          "#Multi",
+          "#Non_Compliant",
+          "#LowRisk",
+          "#LowQuality"
+        ],
+        "metadata": {}
+      },
+      "metadata": {
+        "file_info": {
+          "original_name": "Dream EA.ex4",
+          "suggested_name": "UNK_Custom_DreamEA_v1.0_Forex.ex4",
+          "file_size": 38036,
+          "file_hash": "6d0c2cb98bbaa4ac6387432ae316c28f",
+          "language": "Unknown"
+        },
+        "classification": {
+          "type": "Unknown",
+          "strategy": "Custom",
+          "markets": [
+            "Forex"
+          ],
+          "timeframes": [
+            "Multi"
+          ]
+        },
+        "ftmo_analysis": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 2,
+          "code_lines": 2,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": {
+          "level": "Low",
+          "factors": []
+        },
+        "organization": {
+          "target_folder": "Unknown/Misc/Custom",
+          "tags": [
+            "#Unknown",
+            "#Custom",
+            "#Forex",
+            "#Multi",
+            "#Non_Compliant",
+            "#LowRisk",
+            "#LowQuality"
+          ]
+        },
+        "analysis_metadata": {
+          "timestamp": "2025-08-12T10:40:06.044706",
+          "analyzer_version": "1.0",
+          "confidence_score": 25
+        }
+      }
+    },
+    {
+      "original_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\EURO Scalper Fix MQ4 V1.0 (1).ex4",
+      "target_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Scalping_EUROScalperFixMQ4V101_v1.0_Forex_1.ex4",
+      "metadata_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Metadata\\Individual\\UNK_Scalping_EUROScalperFixMQ4V101_v1.0_Forex_1.meta.json",
+      "analysis": {
+        "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\EURO Scalper Fix MQ4 V1.0 (1).ex4",
+        "file_name": "EURO Scalper Fix MQ4 V1.0 (1).ex4",
+        "file_size": 60464,
+        "file_hash": "5f4e1a11ff2d1f74b01542c7ad2170b2",
+        "analysis_timestamp": "2025-08-12T10:40:06.061056",
+        "language": "Unknown",
+        "file_type": "Unknown",
+        "strategy": "scalping",
+        "market_analysis": [
+          "Forex"
+        ],
+        "timeframe_analysis": [
+          "Multi"
+        ],
+        "ftmo_compliance": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 1,
+          "code_lines": 1,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": "Low",
+        "suggested_name": "UNK_Scalping_EUROScalperFixMQ4V101_v1.0_Forex.ex4",
+        "target_folder": "Unknown/Misc/Custom",
+        "tags": [
+          "#Unknown",
+          "#Scalping",
+          "#Forex",
+          "#Multi",
+          "#Non_Compliant",
+          "#LowRisk",
+          "#LowQuality"
+        ],
+        "metadata": {}
+      },
+      "metadata": {
+        "file_info": {
+          "original_name": "EURO Scalper Fix MQ4 V1.0 (1).ex4",
+          "suggested_name": "UNK_Scalping_EUROScalperFixMQ4V101_v1.0_Forex.ex4",
+          "file_size": 60464,
+          "file_hash": "5f4e1a11ff2d1f74b01542c7ad2170b2",
+          "language": "Unknown"
+        },
+        "classification": {
+          "type": "Unknown",
+          "strategy": "scalping",
+          "markets": [
+            "Forex"
+          ],
+          "timeframes": [
+            "Multi"
+          ]
+        },
+        "ftmo_analysis": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 1,
+          "code_lines": 1,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": {
+          "level": "Low",
+          "factors": []
+        },
+        "organization": {
+          "target_folder": "Unknown/Misc/Custom",
+          "tags": [
+            "#Unknown",
+            "#Scalping",
+            "#Forex",
+            "#Multi",
+            "#Non_Compliant",
+            "#LowRisk",
+            "#LowQuality"
+          ]
+        },
+        "analysis_metadata": {
+          "timestamp": "2025-08-12T10:40:06.061056",
+          "analyzer_version": "1.0",
+          "confidence_score": 50
+        }
+      }
+    },
+    {
+      "original_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\EuroScalper MQ4 source code.ex4",
+      "target_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_EuroScalperMQ4sourcecode_v1.0_Multi_1.ex4",
+      "metadata_file": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Metadata\\Individual\\UNK_Custom_EuroScalperMQ4sourcecode_v1.0_Multi_1.meta.json",
+      "analysis": {
+        "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\EuroScalper MQ4 source code.ex4",
+        "file_name": "EuroScalper MQ4 source code.ex4",
+        "file_size": 81246,
+        "file_hash": "84d207cb34c32b1b229753d03ce70c7b",
+        "analysis_timestamp": "2025-08-12T10:40:06.086388",
+        "language": "Unknown",
+        "file_type": "Unknown",
+        "strategy": "Custom",
+        "market_analysis": [
+          "Multi"
+        ],
+        "timeframe_analysis": [
+          "Multi"
+        ],
+        "ftmo_compliance": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 1,
+          "code_lines": 1,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": "Low",
+        "suggested_name": "UNK_Custom_EuroScalperMQ4sourcecode_v1.0_Multi.ex4",
+        "target_folder": "Unknown/Misc/Custom",
+        "tags": [
+          "#Unknown",
+          "#Custom",
+          "#Multi",
+          "#Multi",
+          "#Non_Compliant",
+          "#LowRisk",
+          "#LowQuality"
+        ],
+        "metadata": {}
+      },
+      "metadata": {
+        "file_info": {
+          "original_name": "EuroScalper MQ4 source code.ex4",
+          "suggested_name": "UNK_Custom_EuroScalperMQ4sourcecode_v1.0_Multi.ex4",
+          "file_size": 81246,
+          "file_hash": "84d207cb34c32b1b229753d03ce70c7b",
+          "language": "Unknown"
+        },
+        "classification": {
+          "type": "Unknown",
+          "strategy": "Custom",
+          "markets": [
+            "Multi"
+          ],
+          "timeframes": [
+            "Multi"
+          ]
+        },
+        "ftmo_analysis": {
+          "risk_management": false,
+          "position_sizing": false,
+          "session_filters": false,
+          "news_filters": false,
+          "max_trades": false,
+          "stop_loss": false,
+          "drawdown_protection": false,
+          "score": 0,
+          "level": "Non_Compliant"
+        },
+        "code_quality": {
+          "total_lines": 1,
+          "code_lines": 1,
+          "comment_lines": 0,
+          "comment_ratio": 0.0,
+          "complexity_score": 0,
+          "function_count": 0,
+          "extern_params": 0,
+          "quality_score": 1,
+          "quality_level": "Low"
+        },
+        "risk_assessment": {
+          "level": "Low",
+          "factors": []
+        },
+        "organization": {
+          "target_folder": "Unknown/Misc/Custom",
+          "tags": [
+            "#Unknown",
+            "#Custom",
+            "#Multi",
+            "#Multi",
+            "#Non_Compliant",
+            "#LowRisk",
+            "#LowQuality"
+          ]
+        },
+        "analysis_metadata": {
+          "timestamp": "2025-08-12T10:40:06.086388",
+          "analyzer_version": "1.0",
+          "confidence_score": 0
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "statistics": {
+    "total_processed": 5,
+    "total_errors": 0,
+    "by_type": {
+      "Unknown": 5
+    },
+    "by_strategy": {
+      "Custom": 4,
+      "scalping": 1
+    },
+    "by_ftmo_level": {
+      "Non_Compliant": 5
+    },
+    "by_quality": {
+      "Low": 5
+    },
+    "by_risk": {
+      "Low": 5
+    },
+    "top_ftmo_ready": []
+  },
+  "moved_files": [
+    {
+      "from": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Best-Grider.ex4",
+      "to": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_BestGrider_v1.0_Forex_1.ex4",
+      "type": "Unknown",
+      "strategy": "Custom",
+      "ftmo_level": "Non_Compliant"
+    },
+    {
+      "from": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Boom EA.ex4",
+      "to": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_BoomEA_v1.0_Forex_1.ex4",
+      "type": "Unknown",
+      "strategy": "Custom",
+      "ftmo_level": "Non_Compliant"
+    },
+    {
+      "from": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\Dream EA.ex4",
+      "to": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_DreamEA_v1.0_Forex_1.ex4",
+      "type": "Unknown",
+      "strategy": "Custom",
+      "ftmo_level": "Non_Compliant"
+    },
+    {
+      "from": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\EURO Scalper Fix MQ4 V1.0 (1).ex4",
+      "to": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Scalping_EUROScalperFixMQ4V101_v1.0_Forex_1.ex4",
+      "type": "Unknown",
+      "strategy": "scalping",
+      "ftmo_level": "Non_Compliant"
+    },
+    {
+      "from": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\EuroScalper MQ4 source code.ex4",
+      "to": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\Unknown\\Misc\\Custom\\UNK_Custom_EuroScalperMQ4sourcecode_v1.0_Multi_1.ex4",
+      "type": "Unknown",
+      "strategy": "Custom",
+      "ftmo_level": "Non_Compliant"
+    }
+  ],
+  "skipped_files": []
+}

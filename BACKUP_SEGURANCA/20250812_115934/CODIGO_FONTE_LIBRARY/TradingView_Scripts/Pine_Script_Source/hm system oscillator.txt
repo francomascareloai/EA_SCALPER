@@ -1,0 +1,38 @@
+//@version=5
+
+//ishu
+
+//  RSI WMA EMA
+//  Hilega-Milega System
+
+indicator(title='HM system', overlay=false, timeframe='')
+src = input(close, title='Source')
+
+len = input.int(9, minval=1, title='RSI')
+up = ta.rma(math.max(ta.change(src), 0), len)
+down = ta.rma(-math.min(ta.change(src), 0), len)
+rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)
+
+wmaLength = input(21, title='WMA')
+emaLength = input(3, title='EMA')
+
+wma = ta.wma(rsi, wmaLength)
+ema = ta.ema(rsi, emaLength)
+
+plot(rsi, color=color.new(color.black, 0), linewidth=1, title='RSI')
+plot(wma, color=color.new(color.red, 0), linewidth=2, title='WMA')
+plot(ema, color=color.new(color.green, 0), linewidth=1, title='EMA')
+
+hline = hline(50, color=#b2b5be, linestyle=hline.style_dashed, title='Middle')
+hlin1 = hline(80, color=#b2b5be, linestyle=hline.style_dashed, title='overbought')
+hlin2 = hline(60, color=#b2b5be, linestyle=hline.style_dashed, title='overboughtmild')
+hline3 = hline(20, color=#b2b5be, linestyle=hline.style_dashed, title='oversold')
+hline4 = hline(40, color=#b2b5be, linestyle=hline.style_dashed, title='oversoldmild')
+ref = plot(50, editable=true, title='50 Line')
+obsd = plot(rsi > 50 ? rsi : 50, editable=false, title='oversold', display=display.none, transp=100)
+obbt = plot(rsi > 50 ? 50 : rsi, editable=false, title='overbought', display=display.none, transp=100)
+fill(obsd, ref, color=color.new(color.red, 90), title='Oversold')
+fill(obbt, ref, color=color.new(color.blue, 90), title='Overbought')
+fill(hline, hlin1, color=color.new(color.green, 90), title='bullzone')
+fill(hline, hline3, color=color.new(color.red, 90), title='bearzone')
+

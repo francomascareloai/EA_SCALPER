@@ -1,0 +1,186 @@
+//@version=4
+study(title="Sureshot Profit Indicator", shorttitle="Sureshot", overlay=true)
+
+//=================================================================================================
+// CORE FILTERING SYSTEM (Original Logic)
+//=================================================================================================
+
+// Multi-pole filter function with binomial coefficients
+f_multipole_filter(_alpha, _source, _poles) =>
+    var float _m2 = 0, var float _m3 = 0, var float _m4 = 0, var float _m5 = 0
+    var float _m6 = 0, var float _m7 = 0, var float _m8 = 0, var float _m9 = 0
+    var float _filtered = 0.0
+    
+    _x = (1 - _alpha)
+    
+    // Binomial coefficient weights based on poles
+    _m2 := _poles == 9 ? 36 : _poles == 8 ? 28 : _poles == 7 ? 21 : _poles == 6 ? 15 : _poles == 5 ? 10 : _poles == 4 ? 6 : _poles == 3 ? 3 : _poles == 2 ? 1 : 0
+    _m3 := _poles == 9 ? 84 : _poles == 8 ? 56 : _poles == 7 ? 35 : _poles == 6 ? 20 : _poles == 5 ? 10 : _poles == 4 ? 4 : _poles == 3 ? 1 : 0
+    _m4 := _poles == 9 ? 126 : _poles == 8 ? 70 : _poles == 7 ? 35 : _poles == 6 ? 15 : _poles == 5 ? 5 : _poles == 4 ? 1 : 0
+    _m5 := _poles == 9 ? 126 : _poles == 8 ? 56 : _poles == 7 ? 21 : _poles == 6 ? 6 : _poles == 5 ? 1 : 0
+    _m6 := _poles == 9 ? 84 : _poles == 8 ? 28 : _poles == 7 ? 7 : _poles == 6 ? 1 : 0
+    _m7 := _poles == 9 ? 36 : _poles == 8 ? 8 : _poles == 7 ? 1 : 0
+    _m8 := _poles == 9 ? 9 : _poles == 8 ? 1 : 0
+    _m9 := _poles == 9 ? 1 : 0
+    
+    // Apply multi-pole filter formula
+    _filtered := pow(_alpha, _poles) * nz(_source) + _poles * _x * nz(_filtered[1]) - (_poles >= 2 ? _m2 * pow(_x, 2) * nz(_filtered[2]) : 0) + (_poles >= 3 ? _m3 * pow(_x, 3) * nz(_filtered[3]) : 0) - (_poles >= 4 ? _m4 * pow(_x, 4) * nz(_filtered[4]) : 0) + (_poles >= 5 ? _m5 * pow(_x, 5) * nz(_filtered[5]) : 0) - (_poles >= 6 ? _m6 * pow(_x, 6) * nz(_filtered[6]) : 0) + (_poles >= 7 ? _m7 * pow(_x, 7) * nz(_filtered[7]) : 0) - (_poles >= 8 ? _m8 * pow(_x, 8) * nz(_filtered[8]) : 0) + (_poles == 9 ? _m9 * pow(_x, 9) * nz(_filtered[9]) : 0)
+    _filtered
+
+// Pole system for multiple filter outputs
+f_pole_system(_alpha, _source, _maxPoles) =>
+    _f1 = f_multipole_filter(_alpha, _source, 1)
+    _f2 = _maxPoles >= 2 ? f_multipole_filter(_alpha, _source, 2) : 0
+    _f3 = _maxPoles >= 3 ? f_multipole_filter(_alpha, _source, 3) : 0
+    _f4 = _maxPoles >= 4 ? f_multipole_filter(_alpha, _source, 4) : 0
+    _f5 = _maxPoles >= 5 ? f_multipole_filter(_alpha, _source, 5) : 0
+    _f6 = _maxPoles >= 6 ? f_multipole_filter(_alpha, _source, 6) : 0
+    _f7 = _maxPoles >= 7 ? f_multipole_filter(_alpha, _source, 7) : 0
+    _f8 = _maxPoles >= 8 ? f_multipole_filter(_alpha, _source, 8) : 0
+    _f9 = _maxPoles == 9 ? f_multipole_filter(_alpha, _source, 9) : 0
+    
+    _finalFilter = _maxPoles == 1 ? _f1 : _maxPoles == 2 ? _f2 : _maxPoles == 3 ? _f3 : _maxPoles == 4 ? _f4 : _maxPoles == 5 ? _f5 : _maxPoles == 6 ? _f6 : _maxPoles == 7 ? _f7 : _maxPoles == 8 ? _f8 : _maxPoles == 9 ? _f9 : na
+    [_finalFilter, _f1]
+
+//=================================================================================================
+// INPUT PARAMETERS
+//=================================================================================================
+
+// Core filter settings
+src = input(defval=hlc3, title="Source")
+poles = input(defval=4, title="Filter Poles", minval=1, maxval=9)
+period = input(defval=144, title="Sampling Period", minval=2)
+multiplier = input(defval=1.414, title="Band Multiplier", minval=0.1, step=0.1)
+
+// Lag reduction settings
+lagReduction = input(defval=true, title="Enable Lag Reduction")
+fastResponse = input(defval=false, title="Enable Fast Response")
+
+// Signal settings
+signalSensitivity = input(defval="Normal", title="Signal Sensitivity", options=["High", "Normal", "Low"])
+minSignalGap = input(defval=5, title="Minimum Bars Between Signals", minval=1)
+
+//=================================================================================================
+// CORE CALCULATIONS (Original Logic)
+//=================================================================================================
+
+// Calculate Alpha and Beta (original formula) - Fixed asin function
+beta = (1 - cos(4*asin(1)/period)) / (pow(1.414, 2/poles) - 1)
+alpha = -beta + sqrt(pow(beta, 2) + 2*beta)
+
+// Calculate lag for lag reduction
+lag = round((period - 1)/(2*poles))
+
+// Apply lag reduction to source data
+processedSrc = lagReduction ? src + (src - src[lag]) : src
+processedTR = lagReduction ? tr + (tr - tr[lag]) : tr
+
+// Apply multi-pole filtering
+[mainFilter, fastFilter] = f_pole_system(alpha, processedSrc, poles)
+[trFilter, trFastFilter] = f_pole_system(alpha, processedTR, poles)
+
+// Apply fast response mode
+finalFilter = fastResponse ? (mainFilter + fastFilter)/2 : mainFilter
+finalTRFilter = fastResponse ? (trFilter + trFastFilter)/2 : trFilter
+
+// Calculate dynamic bands
+upperBand = finalFilter + multiplier * finalTRFilter
+lowerBand = finalFilter - multiplier * finalTRFilter
+
+//=================================================================================================
+// SIGNAL GENERATION LOGIC
+//=================================================================================================
+
+// Trend identification
+filterSlope = finalFilter - finalFilter[2]
+trendUp = filterSlope > 0
+trendDown = filterSlope < 0
+
+// Price momentum
+priceAboveFilter = close > finalFilter
+priceBelowFilter = close < finalFilter
+priceVelocity = close - close[1]
+
+// Signal sensitivity adjustment
+sensitivityFactor = signalSensitivity == "High" ? 0.5 : signalSensitivity == "Normal" ? 1.0 : 1.5
+bandWidth = upperBand - lowerBand
+avgBandWidth = sma(bandWidth, 20)
+dynamicThreshold = avgBandWidth * 0.1 * sensitivityFactor
+
+// Core buy conditions
+buyCondition1 = crossover(close, finalFilter) and trendUp and priceVelocity > dynamicThreshold
+buyCondition2 = close <= lowerBand and close > close[1] and priceVelocity > 0 and trendUp
+buyCondition3 = priceAboveFilter and crossover(finalFilter, finalFilter[1]) and filterSlope > dynamicThreshold
+
+// Core sell conditions  
+sellCondition1 = crossunder(close, finalFilter) and trendDown and priceVelocity < -dynamicThreshold
+sellCondition2 = close >= upperBand and close < close[1] and priceVelocity < 0 and trendDown
+sellCondition3 = priceBelowFilter and crossunder(finalFilter, finalFilter[1]) and filterSlope < -dynamicThreshold
+
+// Combine conditions
+rawBuySignal = buyCondition1 or buyCondition2 or buyCondition3
+rawSellSignal = sellCondition1 or sellCondition2 or sellCondition3
+
+// Signal filtering to prevent noise
+var int lastBuyBar = 0
+var int lastSellBar = 0
+
+buySignal = rawBuySignal and (bar_index - lastBuyBar >= minSignalGap) and (bar_index - lastSellBar >= minSignalGap)
+sellSignal = rawSellSignal and (bar_index - lastSellBar >= minSignalGap) and (bar_index - lastBuyBar >= minSignalGap)
+
+// Update signal tracking
+if buySignal
+    lastBuyBar := bar_index
+if sellSignal
+    lastSellBar := bar_index
+
+//=================================================================================================
+// PLOTTING AND VISUALIZATION
+//=================================================================================================
+
+// Plot main filter and bands
+plot(finalFilter, title="Sureshot Filter", color=color.blue, linewidth=2)
+upperBandPlot = plot(upperBand, title="Upper Band", color=color.red, linewidth=1)
+lowerBandPlot = plot(lowerBand, title="Lower Band", color=color.green, linewidth=1)
+
+// Fill between bands
+fill(upperBandPlot, lowerBandPlot, color=color.blue, transp=95, title="Band Fill")
+
+// Plot signals
+plotshape(buySignal, title="BUY Signal", style=shape.labelup, location=location.belowbar, 
+          color=color.lime, text="BUY", textcolor=color.white, size=size.normal)
+plotshape(sellSignal, title="SELL Signal", style=shape.labeldown, location=location.abovebar, 
+          color=color.red, text="SELL", textcolor=color.white, size=size.normal)
+
+// Background trend indication
+bgcolor(trendUp ? color.new(color.green, 98) : trendDown ? color.new(color.red, 98) : na, title="Trend Background")
+
+// Plot small dots for filter direction changes
+plotchar(crossover(finalFilter, finalFilter[1]), title="Filter Turn Up", char="▲", location=location.bottom, 
+         color=color.green, size=size.tiny)
+plotchar(crossunder(finalFilter, finalFilter[1]), title="Filter Turn Down", char="▼", location=location.top, 
+         color=color.red, size=size.tiny)
+
+//=================================================================================================
+// ALERTS
+//=================================================================================================
+
+alertcondition(buySignal, title="Sureshot BUY Alert", 
+               message="🟢 SURESHOT BUY SIGNAL\n{{exchange}}:{{ticker}}\nPrice: {{close}}\nTime: {{time}}")
+
+alertcondition(sellSignal, title="Sureshot SELL Alert", 
+               message="🔴 SURESHOT SELL SIGNAL\n{{exchange}}:{{ticker}}\nPrice: {{close}}\nTime: {{time}}")
+
+alertcondition(buySignal or sellSignal, title="Any Sureshot Signal", 
+               message="⚡ SURESHOT SIGNAL TRIGGERED\n{{exchange}}:{{ticker}}\nPrice: {{close}}")
+
+//=================================================================================================
+// INFORMATION DISPLAY
+//=================================================================================================
+
+// Create info label
+infoText = "Poles: " + tostring(poles) + " | Period: " + tostring(period) + " | Trend: " + (trendUp ? "UP" : trendDown ? "DOWN" : "FLAT")
+
+if barstate.islast
+    label.new(bar_index, high + (high-low)*0.05, infoText, 
+              style=label.style_label_down, color=color.navy, textcolor=color.white, size=size.small)

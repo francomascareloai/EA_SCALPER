@@ -1,0 +1,446 @@
+//+------------------------------------------------------------------+
+//|                           Range Breakout EA with ADX & Time Filter |
+//|                                      Copyright 2025, Claude AI  |
+//|                                  Price Monitoring Version - MT4 |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2025, Claude AI"
+#property link      ""
+#property version   "1.10"
+#property strict
+
+//--- Input parameters
+extern string s1 = "=== Range Settings ===";
+extern int RangePeriod = 20;                    // Number of candles for range calculation
+extern string s2 = "=== ADX Filter ===";
+extern double ADXThreshold = 25.0;              // ADX threshold for trade confirmation
+extern int ADXPeriod = 14;                      // ADX calculation period
+extern string s3 = "=== Time Filter Settings ===";
+extern bool UseTimeFilter = true;               // Enable time-based trading filter
+extern int StartHourGMT = 0;                    // Trading start hour (GMT)
+extern int EndHourGMT = 16;                     // Trading end hour (GMT)
+extern bool TradeTokyoSession = true;           // Trade during Tokyo session (0-9 GMT)
+extern bool TradeLondonNYOverlap = true;        // Trade during London-NY overlap (12-16 GMT)
+extern bool TradeTokyoNYOverlap = true;         // Trade during Tokyo-NY overlap (8-12 GMT)
+extern string s4 = "=== Risk Management ===";
+extern double LotSize = 0.1;                    // Position size
+extern int StopLossPips = 50;                   // Stop Loss in pips
+extern int TakeProfitPips = 100;                // Take Profit in pips
+extern string s5 = "=== Trailing Stop ===";
+extern bool UseTrailingStop = true;             // Enable trailing stop
+extern int TrailingStart = 20;                  // Pips profit to start trailing
+extern int TrailingStep = 10;                   // Trailing step in pips
+extern int TrailingDistance = 15;               // Trailing distance in pips
+extern string s6 = "=== General Settings ===";
+extern int MagicNumber = 123456;                // Magic number for orders
+extern string CommentPrefix = "RangeBreakout";  // Comment prefix for orders
+
+//--- Global variables
+double rangeHigh = 0;
+double rangeLow = 0;
+bool rangeActive = false;
+datetime lastBarTime = 0;
+bool buyBreakoutTriggered = false;
+bool sellBreakoutTriggered = false;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Clean up any existing positions on startup
+    CloseAllPositions();
+    
+    Print("Range Breakout EA with Time Filter initialized successfully");
+    Print("Time Filter Settings:");
+    Print("- Use Time Filter: ", UseTimeFilter);
+    Print("- Tokyo Session: ", TradeTokyoSession);
+    Print("- London-NY Overlap: ", TradeLondonNYOverlap);
+    Print("- Tokyo-NY Overlap: ", TradeTokyoNYOverlap);
+    
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Clean up positions
+    CloseAllPositions();
+    
+    Print("Range Breakout EA with Time Filter deinitialized");
+}
+
+//+------------------------------------------------------------------+
+//| Expert start function                                            |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Update trailing stops for existing positions
+    if(UseTrailingStop)
+        UpdateTrailingStops();
+    
+    // Only proceed if no active trades
+    if(HasOpenPosition())
+        return;
+    
+    // Check time filter before proceeding
+    if(UseTimeFilter && !IsOptimalTradingTime())
+    {
+        // Reset range on time filter change to avoid stale ranges
+        if(rangeActive)
+        {
+            rangeActive = false;
+            Print("Trading time ended - Range deactivated");
+        }
+        return;
+    }
+    
+    // Calculate current range
+    CalculateRange();
+    
+    // Check for new bar to reset breakout triggers
+    datetime currentBarTime = Time[0];
+    if(currentBarTime != lastBarTime)
+    {
+        lastBarTime = currentBarTime;
+        // Reset breakout triggers on new bar
+        buyBreakoutTriggered = false;
+        sellBreakoutTriggered = false;
+        // Recalculate range
+        CalculateRange();
+        rangeActive = (rangeHigh > 0 && rangeLow > 0);
+        
+        if(rangeActive)
+        {
+            string timeStatus = UseTimeFilter ? (IsOptimalTradingTime() ? " [TRADING TIME]" : " [OFF HOURS]") : "";
+            Print("New range set: ", rangeLow, " - ", rangeHigh, timeStatus);
+        }
+    }
+    
+    // Monitor for breakouts if range is active and time filter allows
+    if(rangeActive && !HasOpenPosition())
+    {
+        MonitorBreakouts();
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Check if current time is optimal for trading                    |
+//+------------------------------------------------------------------+
+bool IsOptimalTradingTime()
+{
+    if(!UseTimeFilter) return true;
+    
+    int currentHour = Hour(); // GMT time
+    
+    // Check individual session filters
+    bool tokyoTime = (currentHour >= 0 && currentHour <= 9);
+    bool londonNYOverlap = (currentHour >= 12 && currentHour <= 16);
+    bool tokyoNYOverlap = (currentHour >= 8 && currentHour <= 12);
+    
+    // Apply session preferences
+    if(TradeTokyoSession && tokyoTime) return true;
+    if(TradeLondonNYOverlap && londonNYOverlap) return true;
+    if(TradeTokyoNYOverlap && tokyoNYOverlap) return true;
+    
+    // Fallback to manual start/end hours if no sessions selected
+    if(!TradeTokyoSession && !TradeLondonNYOverlap && !TradeTokyoNYOverlap)
+    {
+        if(StartHourGMT <= EndHourGMT)
+        {
+            return (currentHour >= StartHourGMT && currentHour <= EndHourGMT);
+        }
+        else // Handle overnight sessions (e.g., 22-6)
+        {
+            return (currentHour >= StartHourGMT || currentHour <= EndHourGMT);
+        }
+    }
+    
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Get current trading session name for logging                    |
+//+------------------------------------------------------------------+
+string GetCurrentSession()
+{
+    int currentHour = Hour();
+    
+    if(currentHour >= 0 && currentHour <= 9) return "Tokyo";
+    if(currentHour >= 8 && currentHour <= 12) return "Tokyo-NY Overlap";
+    if(currentHour >= 12 && currentHour <= 16) return "London-NY Overlap";
+    if(currentHour >= 17 && currentHour <= 23) return "Off Hours";
+    
+    return "Unknown";
+}
+
+//+------------------------------------------------------------------+
+//| Calculate range from last N candles                             |
+//+------------------------------------------------------------------+
+void CalculateRange()
+{
+    GetRangeHighLow(rangeHigh, rangeLow);
+}
+
+//+------------------------------------------------------------------+
+//| Get range high and low values                                   |
+//+------------------------------------------------------------------+
+void GetRangeHighLow(double &high, double &low)
+{
+    high = 0;
+    low = 999999;
+    
+    for(int i = 1; i <= RangePeriod; i++)
+    {
+        if(High[i] > high) high = High[i];
+        if(Low[i] < low) low = Low[i];
+    }
+    
+    // Normalize prices
+    high = NormalizeDouble(high, Digits);
+    low = NormalizeDouble(low, Digits);
+}
+
+//+------------------------------------------------------------------+
+//| Monitor for breakouts and execute trades                        |
+//+------------------------------------------------------------------+
+void MonitorBreakouts()
+{
+    double currentBid = Bid;
+    double currentAsk = Ask;
+    
+    // Check for bullish breakout (price above range high)
+    if(!buyBreakoutTriggered && currentBid >= rangeHigh)
+    {
+        buyBreakoutTriggered = true;
+        
+        // Check ADX condition
+        if(CheckADXCondition())
+        {
+            ExecuteBuyTrade();
+        }
+        else
+        {
+            Print("Bullish breakout detected but ADX condition not met. ADX: ", 
+                  iADX(Symbol(), Period(), ADXPeriod, PRICE_HIGH, MODE_MAIN, 0));
+        }
+    }
+    
+    // Check for bearish breakout (price below range low)
+    if(!sellBreakoutTriggered && currentAsk <= rangeLow)
+    {
+        sellBreakoutTriggered = true;
+        
+        // Check ADX condition
+        if(CheckADXCondition())
+        {
+            ExecuteSellTrade();
+        }
+        else
+        {
+            Print("Bearish breakout detected but ADX condition not met. ADX: ", 
+                  iADX(Symbol(), Period(), ADXPeriod, PRICE_HIGH, MODE_MAIN, 0));
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Execute buy trade                                               |
+//+------------------------------------------------------------------+
+void ExecuteBuyTrade()
+{
+    double entryPrice = Ask;
+    double pipMultiplier = GetPipMultiplier();
+    
+    // Calculate SL and TP
+    double stopLoss = entryPrice - StopLossPips * Point * pipMultiplier;
+    double takeProfit = entryPrice + TakeProfitPips * Point * pipMultiplier;
+    
+    // Normalize prices
+    stopLoss = NormalizeDouble(stopLoss, Digits);
+    takeProfit = NormalizeDouble(takeProfit, Digits);
+    
+    // Create enhanced comment with session info
+    string tradeComment = CommentPrefix + "_Buy_" + GetCurrentSession();
+    
+    // Execute buy order
+    int ticket = OrderSend(Symbol(), OP_BUY, LotSize, entryPrice, 3, 
+                          stopLoss, takeProfit, tradeComment, 
+                          MagicNumber, 0, clrBlue);
+    
+    if(ticket > 0)
+    {
+        Print("BUY trade executed at: ", entryPrice, " | SL: ", stopLoss, " | TP: ", takeProfit, 
+              " | Session: ", GetCurrentSession());
+        rangeActive = false; // Deactivate range monitoring
+    }
+    else
+    {
+        Print("Error executing BUY trade: ", GetLastError());
+        buyBreakoutTriggered = false; // Reset trigger on error
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Execute sell trade                                              |
+//+------------------------------------------------------------------+
+void ExecuteSellTrade()
+{
+    double entryPrice = Bid;
+    double pipMultiplier = GetPipMultiplier();
+    
+    // Calculate SL and TP
+    double stopLoss = entryPrice + StopLossPips * Point * pipMultiplier;
+    double takeProfit = entryPrice - TakeProfitPips * Point * pipMultiplier;
+    
+    // Normalize prices
+    stopLoss = NormalizeDouble(stopLoss, Digits);
+    takeProfit = NormalizeDouble(takeProfit, Digits);
+    
+    // Create enhanced comment with session info
+    string tradeComment = CommentPrefix + "_Sell_" + GetCurrentSession();
+    
+    // Execute sell order
+    int ticket = OrderSend(Symbol(), OP_SELL, LotSize, entryPrice, 3, 
+                          stopLoss, takeProfit, tradeComment, 
+                          MagicNumber, 0, clrRed);
+    
+    if(ticket > 0)
+    {
+        Print("SELL trade executed at: ", entryPrice, " | SL: ", stopLoss, " | TP: ", takeProfit,
+              " | Session: ", GetCurrentSession());
+        rangeActive = false; // Deactivate range monitoring
+    }
+    else
+    {
+        Print("Error executing SELL trade: ", GetLastError());
+        sellBreakoutTriggered = false; // Reset trigger on error
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Check ADX condition                                              |
+//+------------------------------------------------------------------+
+bool CheckADXCondition()
+{
+    double currentADX = iADX(Symbol(), Period(), ADXPeriod, PRICE_HIGH, MODE_MAIN, 0);
+    
+    if(currentADX == 0)
+    {
+        Print("Failed to get ADX value");
+        return false;
+    }
+    
+    Print("Breakout detected! Current ADX: ", currentADX, " | Threshold: ", ADXThreshold,
+          " | Session: ", GetCurrentSession());
+    
+    return currentADX > ADXThreshold;
+}
+
+//+------------------------------------------------------------------+
+//| Check if any positions are open                                 |
+//+------------------------------------------------------------------+
+bool HasOpenPosition()
+{
+    for(int i = 0; i < OrdersTotal(); i++)
+    {
+        if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+        {
+            if(OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber)
+            {
+                if(OrderType() == OP_BUY || OrderType() == OP_SELL)
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Update trailing stops                                           |
+//+------------------------------------------------------------------+
+void UpdateTrailingStops()
+{
+    for(int i = 0; i < OrdersTotal(); i++)
+    {
+        if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
+        
+        if(OrderSymbol() != Symbol() || OrderMagicNumber() != MagicNumber) continue;
+        
+        if(OrderType() != OP_BUY && OrderType() != OP_SELL) continue;
+        
+        double pipMultiplier = GetPipMultiplier();
+        
+        if(OrderType() == OP_BUY)
+        {
+            double currentProfit = (Bid - OrderOpenPrice()) / Point / pipMultiplier;
+            
+            if(currentProfit >= TrailingStart)
+            {
+                double newSL = Bid - TrailingDistance * Point * pipMultiplier;
+                newSL = NormalizeDouble(newSL, Digits);
+                
+                if(newSL > OrderStopLoss() + TrailingStep * Point * pipMultiplier || 
+                   OrderStopLoss() == 0)
+                {
+                    bool modified = OrderModify(OrderTicket(), OrderOpenPrice(), 
+                                              newSL, OrderTakeProfit(), 0, clrBlue);
+                    if(modified)
+                        Print("Buy trailing stop updated to: ", newSL);
+                }
+            }
+        }
+        else if(OrderType() == OP_SELL)
+        {
+            double currentProfit = (OrderOpenPrice() - Ask) / Point / pipMultiplier;
+            
+            if(currentProfit >= TrailingStart)
+            {
+                double newSL = Ask + TrailingDistance * Point * pipMultiplier;
+                newSL = NormalizeDouble(newSL, Digits);
+                
+                if(newSL < OrderStopLoss() - TrailingStep * Point * pipMultiplier || 
+                   OrderStopLoss() == 0)
+                {
+                    bool modified = OrderModify(OrderTicket(), OrderOpenPrice(), 
+                                              newSL, OrderTakeProfit(), 0, clrRed);
+                    if(modified)
+                        Print("Sell trailing stop updated to: ", newSL);
+                }
+            }
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Get pip multiplier for current symbol                           |
+//+------------------------------------------------------------------+
+double GetPipMultiplier()
+{
+    return (Digits == 5 || Digits == 3) ? 10.0 : 1.0;
+}
+
+//+------------------------------------------------------------------+
+//| Close all positions                                             |
+//+------------------------------------------------------------------+
+void CloseAllPositions()
+{
+    for(int i = OrdersTotal() - 1; i >= 0; i--)
+    {
+        if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+        {
+            if(OrderSymbol() == Symbol() && OrderMagicNumber() == MagicNumber)
+            {
+                if(OrderType() == OP_BUY || OrderType() == OP_SELL)
+                {
+                    bool closed = OrderClose(OrderTicket(), OrderLots(), 
+                                           OrderType() == OP_BUY ? Bid : Ask, 
+                                           3, clrYellow);
+                    if(closed)
+                        Print("Position closed: ", OrderTicket());
+                }
+            }
+        }
+    }
+}

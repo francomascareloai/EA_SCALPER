@@ -1,0 +1,39 @@
+{
+  "id": "IND_ChaosArrZZ_v2.22_MULTI",
+  "nome_original": "#Chaos ArrZZx2(1).mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "2.22",
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "caminho": "CODIGO_FONTE_LIBRARY/MQL5_Source/Indicators/Trend/IND_ChaosArrZZ_v2.22_MULTI.mq5",
+  "descricao": "Indicador Chaos Array ZigZag com múltiplos buffers e plots para análise de tendência",
+  "funcoes_principais": [
+    "OnInit",
+    "OnCalculate"
+  ],
+  "parametros_expostos": [
+    "SRZZ",
+    "MainRZZ",
+    "FP",
+    "SMF",
+    "DrawZZ",
+    "PriceConst"
+  ],
+  "ftmo_score": 8,
+  "ftmo_ready": true,
+  "riscos_detectados": [],
+  "qualidade_codigo": 7,
+  "ajustes_ftmo_sugeridos": [],
+  "tags": [
+    "#Indicator",
+    "#Trend",
+    "#ZigZag",
+    "#Chaos",
+    "#MULTI",
+    "#FTMO_Ready"
+  ]
+}

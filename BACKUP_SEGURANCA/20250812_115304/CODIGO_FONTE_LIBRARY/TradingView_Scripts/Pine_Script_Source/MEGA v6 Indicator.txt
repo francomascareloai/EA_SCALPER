@@ -1,0 +1,371 @@
+﻿//@version=6
+
+indicator("MEGA v6 Indicator", shorttitle="MEGA v6", overlay=true, max_lines_count=500, max_boxes_count=500, max_bars_back = 500)
+
+
+
+//=====================================================================
+
+// Переключатели для отображения каждого индикатора
+
+//=====================================================================
+
+showZLT = input.bool(true, title="Включить Zero Lag Trend Signals (MTF)", group="Zero Lag Trend Signals")
+
+showSMH = input.bool(true, title="Включить Smart Money Liquidity Heatmap", group="Smart Money Liquidity Heatmap")
+
+showPRZ = input.bool(true, title="Включить Peak Reaction Zones [BigBeluga]", group="Peak Reaction Zones [BigBeluga]")
+
+
+
+//=====================================================================
+
+// 1. Zero Lag Trend Signals (MTF) [AlgoAlpha]
+
+//=====================================================================
+
+// --- Параметры расчётов ---
+
+zlt_length = input.int(70, "Length", tooltip="The Look-Back window for the Zero-Lag EMA calculations", group="Zero Lag Trend Signals - Main Calculations")
+
+zlt_mult   = input.float(1.2, "Band Multiplier", tooltip="Controls the band thickness; higher value makes the indicator less noisy", group="Zero Lag Trend Signals - Main Calculations")
+
+// --- Дополнительные таймфреймы ---
+
+zlt_t1 = input.timeframe("5",   "Time frame 1", group="Zero Lag Trend Signals - Extra Timeframes")
+
+zlt_t2 = input.timeframe("15",  "Time frame 2", group="Zero Lag Trend Signals - Extra Timeframes")
+
+zlt_t3 = input.timeframe("60",  "Time frame 3", group="Zero Lag Trend Signals - Extra Timeframes")
+
+zlt_t4 = input.timeframe("240", "Time frame 4", group="Zero Lag Trend Signals - Extra Timeframes")
+
+zlt_t5 = input.timeframe("1D",  "Time frame 5", group="Zero Lag Trend Signals - Extra Timeframes")
+
+// --- Параметры внешнего вида ---
+
+zlt_bullColor = input.color(color.new(#00ffbb, 0), "Bullish Color", group="Zero Lag Trend Signals - Appearance")
+
+zlt_bearColor = input.color(color.new(#ff1100, 0), "Bearish Color", group="Zero Lag Trend Signals - Appearance")
+
+
+
+// --- Расчёты индикатора ---
+
+src = close
+
+zlt_lag = math.floor((zlt_length - 1) / 2)
+
+zlema = ta.ema(src + (src - src[zlt_lag]), zlt_length)
+
+zlt_volatility = ta.highest(ta.atr(zlt_length), zlt_length * 3) * zlt_mult
+
+
+
+var int zlt_trend = 0
+
+if ta.crossover(close, zlema + zlt_volatility)
+
+    zlt_trend := 1
+
+if ta.crossunder(close, zlema - zlt_volatility)
+
+    zlt_trend := -1
+
+
+
+zlt_zlemaColor = zlt_trend == 1 ? color.new(zlt_bullColor, 70) : color.new(zlt_bearColor, 70)
+
+
+
+// --- Отрисовка Zero Lag Trend ---
+
+p_zlema  = plot(showZLT ? zlema : na, title="Zero Lag Basis", linewidth=2, color=zlt_zlemaColor)
+
+p_upper = plot(showZLT ? (zlt_trend == -1 ? zlema + zlt_volatility : na) : na, title="Upper Deviation Band", style=plot.style_linebr, color=color.new(zlt_bearColor, 90))
+
+p_lower = plot(showZLT ? (zlt_trend == 1 ? zlema - zlt_volatility : na) : na, title="Lower Deviation Band", style=plot.style_linebr, color=color.new(zlt_bullColor, 90))
+
+
+
+fill(p_zlema, p_upper, showZLT ? (open + close) / 2 : na, zlema + zlt_volatility, color.new(zlt_bearColor, 90), color.new(zlt_bearColor, 70))
+
+fill(p_zlema, p_lower, showZLT ? (open + close) / 2 : na, zlema - zlt_volatility, color.new(zlt_bullColor, 90), color.new(zlt_bullColor, 70))
+
+
+
+plotshape(showZLT ? (ta.crossunder(zlt_trend, 0) ? zlema + zlt_volatility : na) : na, title="Bearish Trend", style=shape.labeldown, location=location.absolute, color=zlt_bearColor, text="▼", textcolor=chart.fg_color, size=size.small)
+
+plotshape(showZLT ? (ta.crossover(zlt_trend, 0) ? zlema - zlt_volatility : na) : na, title="Bullish Trend", style=shape.labelup, location=location.absolute, color=zlt_bullColor, text="▲", textcolor=chart.fg_color, size=size.small)
+
+
+
+plotchar(showZLT ? (ta.crossover(close, zlema) and zlt_trend == 1 and zlt_trend[1] == 1 ? zlema - zlt_volatility * 1.5 : na) : na, title="Bullish Entry", char="▲", location=location.absolute, color=zlt_bullColor, size=size.tiny)
+
+plotchar(showZLT ? (ta.crossunder(close, zlema) and zlt_trend == -1 and zlt_trend[1] == -1 ? zlema + zlt_volatility * 1.5 : na) : na, title="Bearish Entry", char="▼", location=location.absolute, color=zlt_bearColor, size=size.tiny)
+
+
+
+// --- Многофреймовая обработка ---
+
+s1 = request.security(syminfo.tickerid, zlt_t1, zlt_trend)
+
+s2 = request.security(syminfo.tickerid, zlt_t2, zlt_trend)
+
+s3 = request.security(syminfo.tickerid, zlt_t3, zlt_trend)
+
+s4 = request.security(syminfo.tickerid, zlt_t4, zlt_trend)
+
+s5 = request.security(syminfo.tickerid, zlt_t5, zlt_trend)
+
+
+
+if showZLT and barstate.islast
+
+    var zlt_table = table.new(position=position.top_right, columns=2, rows=6, bgcolor=chart.bg_color, border_width=1, border_color=chart.fg_color, frame_color=chart.fg_color, frame_width=1)
+
+    table.cell(zlt_table, 0, 0, "Time Frame", text_color=chart.fg_color, text_halign=text.align_center)
+
+    table.cell(zlt_table, 1, 0, "Signal", text_color=chart.fg_color, text_halign=text.align_center)
+
+    
+
+    s1a = s1 == 1 ? "Bullish" : "Bearish"
+
+    s2a = s2 == 1 ? "Bullish" : "Bearish"
+
+    s3a = s3 == 1 ? "Bullish" : "Bearish"
+
+    s4a = s4 == 1 ? "Bullish" : "Bearish"
+
+    s5a = s5 == 1 ? "Bullish" : "Bearish"
+
+    
+
+    table.cell(zlt_table, 0, 1, zlt_t1, text_color=chart.fg_color, text_halign=text.align_center)
+
+    table.cell(zlt_table, 1, 1, s1a, text_color=chart.fg_color, bgcolor=s1a=="Bullish" ? color.new(zlt_bullColor,70) : color.new(zlt_bearColor,70), text_halign=text.align_center)
+
+    table.cell(zlt_table, 0, 2, zlt_t2, text_color=chart.fg_color, text_halign=text.align_center)
+
+    table.cell(zlt_table, 1, 2, s2a, text_color=chart.fg_color, bgcolor=s2a=="Bullish" ? color.new(zlt_bullColor,70) : color.new(zlt_bearColor,70), text_halign=text.align_center)
+
+    table.cell(zlt_table, 0, 3, zlt_t3, text_color=chart.fg_color, text_halign=text.align_center)
+
+    table.cell(zlt_table, 1, 3, s3a, text_color=chart.fg_color, bgcolor=s3a=="Bullish" ? color.new(zlt_bullColor,70) : color.new(zlt_bearColor,70), text_halign=text.align_center)
+
+    table.cell(zlt_table, 0, 4, zlt_t4, text_color=chart.fg_color, text_halign=text.align_center)
+
+    table.cell(zlt_table, 1, 4, s4a, text_color=chart.fg_color, bgcolor=s4a=="Bullish" ? color.new(zlt_bullColor,70) : color.new(zlt_bearColor,70), text_halign=text.align_center)
+
+    table.cell(zlt_table, 0, 5, zlt_t5, text_color=chart.fg_color, text_halign=text.align_center)
+
+    table.cell(zlt_table, 1, 5, s5a, text_color=chart.fg_color, bgcolor=s5a=="Bullish" ? color.new(zlt_bullColor,70) : color.new(zlt_bearColor,70), text_halign=text.align_center)
+
+
+
+alertcondition(showZLT and ta.crossover(close, zlema) and zlt_trend == 1 and zlt_trend[1] == 1, "Bullish Entry Signal", message="Bullish Entry Signal detected. Consider entering a long position.")
+
+alertcondition(showZLT and ta.crossunder(close, zlema) and zlt_trend == -1 and zlt_trend[1] == -1, "Bearish Entry Signal", message="Bearish Entry Signal detected. Consider entering a short position.")
+
+alertcondition(showZLT and ta.crossover(zlt_trend, 0), "Bullish Trend", message="Bullish Trend detected.")
+
+alertcondition(showZLT and ta.crossunder(zlt_trend, 0), "Bearish Trend", message="Bearish Trend detected.")
+
+alertcondition(showZLT and ta.cross(zlt_trend, 0), "(Bullish or Bearish) Trend", message="Trend change detected.")
+
+alertcondition(showZLT and ta.crossover(s1, 0), "Bullish Trend Time Frame 1", message="Bullish Trend on Time Frame 1")
+
+alertcondition(showZLT and ta.crossunder(s1, 0), "Bearish Trend Time Frame 1", message="Bearish Trend on Time Frame 1")
+
+alertcondition(showZLT and ta.cross(s1, 0), "(Bullish or Bearish) Trend Time Frame 1", message="Trend change on Time Frame 1")
+
+alertcondition(showZLT and ta.crossover(s2, 0), "Bullish Trend Time Frame 2", message="Bullish Trend on Time Frame 2")
+
+alertcondition(showZLT and ta.crossunder(s2, 0), "Bearish Trend Time Frame 2", message="Bearish Trend on Time Frame 2")
+
+alertcondition(showZLT and ta.cross(s2, 0), "(Bullish or Bearish) Trend Time Frame 2", message="Trend change on Time Frame 2")
+
+alertcondition(showZLT and ta.crossover(s3, 0), "Bullish Trend Time Frame 3", message="Bullish Trend on Time Frame 3")
+
+alertcondition(showZLT and ta.crossunder(s3, 0), "Bearish Trend Time Frame 3", message="Bearish Trend on Time Frame 3")
+
+alertcondition(showZLT and ta.cross(s3, 0), "(Bullish or Bearish) Trend Time Frame 3", message="Trend change on Time Frame 3")
+
+alertcondition(showZLT and ta.crossover(s4, 0), "Bullish Trend Time Frame 4", message="Bullish Trend on Time Frame 4")
+
+alertcondition(showZLT and ta.crossunder(s4, 0), "Bearish Trend Time Frame 4", message="Bearish Trend on Time Frame 4")
+
+alertcondition(showZLT and ta.cross(s4, 0), "(Bullish or Bearish) Trend Time Frame 4", message="Trend change on Time Frame 4")
+
+alertcondition(showZLT and ta.crossover(s5, 0), "Bullish Trend Time Frame 5", message="Bullish Trend on Time Frame 5")
+
+alertcondition(showZLT and ta.crossunder(s5, 0), "Bearish Trend Time Frame 5", message="Bearish Trend on Time Frame 5")
+
+alertcondition(showZLT and ta.cross(s5, 0), "(Bullish or Bearish) Trend Time Frame 5", message="Trend change on Time Frame 5")
+
+alertcondition(showZLT and ta.crossover(close, zlema) and zlt_trend == 1 and zlt_trend[1] == 1, "Bullish Entry", message="Bullish Entry Signal")
+
+alertcondition(showZLT and ta.crossunder(close, zlema) and zlt_trend == -1 and zlt_trend[1] == -1, "Bearish Entry", message="Bearish Entry Signal")
+
+
+
+//=====================================================================
+
+// 2. Smart Money Liquidity Heatmap [AlgoAlpha]
+
+//=====================================================================
+
+hm_indexPeriod      = input.int(25, "Index Period", minval=1, group="Smart Money Liquidity Heatmap - Calculation Settings")
+
+hm_volumeFlowPeriod = input.int(14, "Volume Flow Period", minval=1, group="Smart Money Liquidity Heatmap - Calculation Settings")
+
+hm_peakslen         = input.int(500, "Normalization Period", minval=1, group="Smart Money Liquidity Heatmap - Calculation Settings")
+
+hm_thr              = input.float(0.85, "High Interest Threshold", minval=0.01, maxval=0.99, group="Smart Money Liquidity Heatmap - Calculation Settings")
+
+hm_color  = input.color(#00ffbb, "Heatmap Colour", group="Smart Money Liquidity Heatmap - Appearance")
+
+hm_baset  = input.int(99, "Base Transparency", minval=1, group="Smart Money Liquidity Heatmap - Appearance")
+
+
+
+dumb   = ta.pvi - ta.ema(ta.pvi, 255)
+
+smart  = ta.nvi - ta.ema(ta.nvi, 255)
+
+drsi   = ta.rsi(dumb, hm_volumeFlowPeriod)
+
+srsi   = ta.rsi(smart, hm_volumeFlowPeriod)
+
+r_ratio = srsi / drsi
+
+sums   = math.sum(r_ratio, hm_indexPeriod)
+
+peak_hm = ta.highest(sums, hm_peakslen)
+
+hm_index = sums / peak_hm
+
+
+
+hm_valleyform = hm_index > hm_thr
+
+
+
+var box[] hm_boxes = array.new_box()
+
+if showSMH
+
+    if hm_valleyform
+
+        array.push(hm_boxes, box.new(bar_index, high, bar_index, low, color.new(hm_color, 100), 1, line.style_solid, extend.right, bgcolor=color.new(hm_color, hm_baset)))
+
+else
+
+    if array.size(hm_boxes) > 0
+
+        for i = 0 to array.size(hm_boxes) - 1
+
+            box.delete(array.get(hm_boxes, i))
+
+    array.clear(hm_boxes)
+
+
+
+//=====================================================================
+
+// 3. Peak Reaction Zones [BigBeluga]
+
+//=====================================================================
+
+var int high_i = na
+
+var float high_v = na
+
+var int low_i = na
+
+var float low_v = na
+
+
+
+lookback = input.int(72, title="Lookback", group="Peak Reaction Zones [BigBeluga]")
+
+multiplier = input.float(1, "Zones Width", step=0.1, inline="h/l", group="Peak Reaction Zones [BigBeluga]")
+
+high_col = input.color(color.orange, "", inline="h/l", group="Peak Reaction Zones [BigBeluga]")
+
+low_col  = input.color(color.blue, "", inline="h/l", group="Peak Reaction Zones [BigBeluga]")
+
+
+
+highest_val = ta.highest(high, lookback)
+
+lowest_val  = ta.lowest(low, lookback)
+
+prz_atr = ta.atr(200) * multiplier
+
+
+
+if high[1] == ta.highest(high, lookback)[1] and high < highest_val
+
+    high_i := bar_index - 1
+
+    high_v := high[1]
+
+
+
+if low[1] == ta.lowest(low, lookback)[1] and low > lowest_val
+
+    low_i := bar_index - 1
+
+    low_v := low[1]
+
+
+
+draw_zone(x, y, h_l, col) =>
+
+    dist = h_l ? -prz_atr : prz_atr
+
+    line.delete(line.new(x, y, bar_index, y, color=col, style=line.style_solid, width=2)[1])
+
+    line.delete(line.new(x+3, y+dist, bar_index, y+dist, color=col, style=line.style_dashed)[1])
+
+    label.delete(label.new(bar_index, y, str.tostring(y, "#,###.####"), color=color.new(color.black, 100), style=label.style_label_left, textcolor=col)[1])
+
+
+
+if showPRZ and barstate.islast
+
+    zone_size = bar_index - (high_i > low_i ? low_i : high_i)
+
+    draw_zone(high_i, high_v, true, high_col)
+
+    draw_zone(low_i, low_v, false, low_col)
+
+    mid = math.avg(high_v, low_v)
+
+    mid_index = bar_index - zone_size / 2
+
+    line.delete(line.new(mid_index, mid, bar_index, mid, color=chart.fg_color, style=line.style_dashed)[1])
+
+    label.delete(label.new(bar_index, mid, str.tostring(mid, "#,###.####"), color=color.new(color.black, 100), style=label.style_label_left, textcolor=chart.fg_color)[1])
+
+    max_loop = math.min(zone_size, bar_index - 3)
+
+    for i = 0 to max_loop
+
+        idx = bar_index - i - 2
+
+        if low[i+3] > low_v + prz_atr and low[i+2] < low_v + prz_atr and high[i+1] > low_v + prz_atr and idx > low_i
+
+            label.new(idx, low[i+2], "", style=label.style_label_up, color=low_col, size=size.tiny)
+
+        if high[i+3] < high_v - prz_atr and high[i+2] > high_v - prz_atr and low[i+1] < high_v - prz_atr and idx > high_i
+
+            label.new(idx, high[i+2], "", style=label.style_label_down, color=high_col, size=size.tiny)
+
+            
+
+//=====================================================================
+
+// Конец объединённого скрипта

@@ -1,0 +1,45 @@
+{
+  "id": "EA_AIRSIBBScalper_v1.5_MULTI_5",
+  "file_name": "EA_AIRSIBBScalper_v1.5_MULTI_5.mq5",
+  "file_hash": "sha256_placeholder",
+  "type": "EA",
+  "language": "MQL5",
+  "strategy": "Scalping",
+  "markets": ["FOREX", "INDICES", "COMMODITIES", "CRYPTO"],
+  "timeframes": ["M5"],
+  "key_functions": [
+    "OnTick",
+    "OnInit",
+    "CTrade",
+    "iRSI",
+    "iBands"
+  ],
+  "dependencies": [
+    "Trade\\Trade.mqh"
+  ],
+  "exposed_parameters": [
+    "Lots",
+    "TpPoints",
+    "RsiTimeFrame",
+    "RsiPeriods",
+    "RsiAppPrice",
+    "RsiSellTrigger",
+    "RsiBuyTrigger"
+  ],
+  "ftmo_score": 8,
+  "detected_risks": [
+    "Scalping de alta frequência",
+    "Sem filtro de sessão"
+  ],
+  "code_quality_score": 8,
+  "compilation_status": "success",
+  "merge_readiness": "ready",
+  "necessary_adjustments": [
+    "Adicionar filtro de sessão para FTMO",
+    "Implementar gestão de risco mais rigorosa"
+  ],
+  "license": "Custom",
+  "author": "Alfred Mandala (Alfr5d)",
+  "description": "AI RSI BB Scalper EA v1.5 - RSI Grid Scalping with Bollinger Bands - duplicate version 5",
+  "tags": ["#EA", "#Scalping", "#RSI", "#BollingerBands", "#Grid", "#M5", "#FTMO_Ready", "#Multi_Market", "#Duplicate"]
+}

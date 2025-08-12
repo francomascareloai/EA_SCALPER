@@ -1,0 +1,469 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © LuxAlgo
+
+//@version=5
+indicator("Market Structure CHoCH/BOS LEO", overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500)
+//------------------------------------------------------------------------------
+// Settings
+//-----------------------------------------------------------------------------{
+length = input.int(5, minval = 3)
+
+//Colors
+showBull = input(true, 'Bullish Structures', inline = 'bull', group = 'Style')
+bullCss = input.color(#089981, '', inline = 'bull', group = 'Style')
+
+showBear = input(true, 'Bearish Structures', inline = 'bear', group = 'Style')
+bearCss = input.color(#f23645, '', inline = 'bear', group = 'Style')
+
+showSupport = input(false, 'Support', inline = 's', group = 'Style')
+supCss = input.color(#089981, '', inline = 's', group = 'Style')
+
+showResistance = input(false, 'Resistance', inline = 'r', group = 'Style')
+resCss = input.color(#f23645, '', inline = 'r', group = 'Style')
+
+//Dashboard
+showDash  = input(false, 'Show Dashboard', group = 'Dashboard')
+dashLoc  = input.string('Top Right', 'Location', options = ['Top Right', 'Bottom Right', 'Bottom Left'], group = 'Dashboard')
+textSize = input.string('Small', 'Size'        , options = ['Tiny', 'Small', 'Normal']                 , group = 'Dashboard')
+
+//-----------------------------------------------------------------------------}
+//Types
+//-----------------------------------------------------------------------------{
+type fractal
+    float value
+    int loc
+    bool iscrossed
+
+//-----------------------------------------------------------------------------}
+//Fractal Detection
+//-----------------------------------------------------------------------------{
+var p = int(length/2)
+n = bar_index
+
+dh = math.sum(math.sign(high - high[1]), p)
+dl = math.sum(math.sign(low - low[1]), p)
+
+bullf = dh == -p and dh[p] == p and high[p] == ta.highest(length)
+bearf = dl == p and dl[p] == -p and low[p] == ta.lowest(length)
+
+bullf_count = ta.cum(bullf ? 1 : 0)
+bearf_count = ta.cum(bearf ? 1 : 0)
+
+//-----------------------------------------------------------------------------}
+//Bullish market structure
+//-----------------------------------------------------------------------------{
+var upper = fractal.new()
+var line lower_lvl = na
+var label ms_lbl = na
+var bull_ms_count = 0
+var broken_sup = false
+var os = 0
+
+if bullf
+    upper.value := high[p]
+    upper.loc := n-p
+    upper.iscrossed := false
+
+if ta.crossover(close, upper.value) and not upper.iscrossed
+    line.new(upper.loc, upper.value, n, upper.value, color = showBull ? bullCss : na)
+
+    ms_lbl := label.new(int(math.avg(n, upper.loc)), upper.value, os == -1 ? 'ChoCH' : 'BOS'
+      , color = color(na)
+      , textcolor = showBull ? bullCss : na
+      , style = label.style_label_down
+      , size = size.tiny)
+
+    //Set support
+    k = 2
+    min = low[1]
+    for i = 2 to (n - upper.loc)-1
+        min := math.min(low[i], min)
+        k := low[i] == min ? i : k
+
+    if showSupport
+        lower_lvl := line.new(n-k, min, n, min, color = bullCss, style = line.style_dashed)
+        broken_sup := false
+
+    upper.iscrossed := true
+    bull_ms_count += 1
+    os := 1
+
+else if showSupport and not broken_sup
+    lower_lvl.set_x2(n)
+
+    if close < lower_lvl.get_y2()
+        broken_sup := true
+
+//-----------------------------------------------------------------------------}
+//Bearish market structure
+//-----------------------------------------------------------------------------{
+var lower = fractal.new()
+var line upper_lvl = na
+var broken_res = false
+var bear_ms_count = 0
+
+if bearf
+    lower.value := low[p]
+    lower.loc := n-p
+    lower.iscrossed := false
+
+if ta.crossunder(close, lower.value) and not lower.iscrossed
+    line.new(lower.loc, lower.value, n, lower.value, color = showBear ? bearCss : na)
+    
+    label.new(int(math.avg(n, lower.loc)), lower.value, os == 1 ? 'ChoCH' : 'BOS'
+      , color = color(na)
+      , textcolor = showBear ? bearCss : na
+      , style = label.style_label_up
+      , size = size.tiny)
+
+    //Set resistance
+    k = 2
+    max = high[1]
+    for i = 2 to (n - lower.loc)-1
+        max := math.max(high[i], max)
+        k := high[i] == max ? i : k
+
+    if showResistance
+        upper_lvl := line.new(n-k, max, n, max, color = bearCss, style = line.style_dashed)
+        broken_res := false
+    
+    lower.iscrossed := true
+    bear_ms_count += 1
+    os := -1
+
+else if showResistance and not broken_res
+    upper_lvl.set_x2(n)
+
+    if close > upper_lvl.get_y2()
+        broken_res := true
+
+//-----------------------------------------------------------------------------}
+//Dashboard
+//-----------------------------------------------------------------------------{
+var table_position = dashLoc == 'Bottom Left' ? position.bottom_left 
+  : dashLoc == 'Top Right' ? position.top_right 
+  : position.bottom_right
+
+var table_size = textSize == 'Tiny' ? size.tiny 
+  : textSize == 'Small' ? size.small 
+  : size.normal
+
+var tb = table.new(table_position, 2, 3
+  , bgcolor = #1e222d
+  , border_color = #373a46
+  , border_width = 1
+  , frame_color = #373a46
+  , frame_width = 1)
+
+if showDash
+    if barstate.isfirst
+        tb.cell(0, 0, 'Structure To Fractal %', text_color = color.white, text_size = table_size)
+        tb.merge_cells(0,0,1,0)
+
+        tb.cell(0, 1, 'Bullish', text_color = #089981, text_size = table_size)
+        tb.cell(1, 1, 'Bearish', text_color = #f23645, text_size = table_size)
+    
+    if barstate.islast
+        tb.cell(0, 2, str.tostring(bull_ms_count / bullf_count * 100, format.percent), text_color = #089981, text_size = table_size)
+        tb.cell(1, 2, str.tostring(bear_ms_count / bearf_count * 100, format.percent), text_color = #f23645, text_size = table_size)
+
+//-----------------------------------------------------------------------------}
+//Plots
+//-----------------------------------------------------------------------------{
+plot(broken_res and not broken_res[1] ? low : na, 'Resistance Breakout', #089981, 2, plot.style_circles)
+plot(broken_sup and not broken_sup[1] ? high : na, 'Support Breakout', #f23645, 2, plot.style_circles)
+
+//-----------------------------------------------------------------------------}
+
+numDays = input.int(7, "number of days lookback")
+showUP = input.bool(true, "'UP' FVGs:", inline ='1')
+colUp = input.color(color.new(color.blue, 86), "", inline ='1')
+showDN = input.bool(true, "'DOWN' FVGs:", inline ='2')
+colDn = input.color(color.new(color.orange, 86), "", inline ='2')
+showCE = input.bool(true, "show CE", inline ='3')
+ceCol = input.color(color.new(color.black, 1), "| color:", inline ='3')
+ceStyle = input.string(line.style_dotted, "| style:", options=[line.style_dotted,line.style_solid,  line.style_dashed], inline ='3')
+deleteFilledBoxes = input.bool(true, "delete filled boxes & lines")
+CEcond = input.bool (true, "Use CE (as opposed to Full Fill)", group = 'conditions/alerts', tooltip = "If toggled OFF, FVGs and CEs will paint until FVG has been completely filled.\n\nThis threshold is used for Above/Below threshold Alert conditions too (but does not effect the IOFED alerts):\ni.e. this will determine if your 'ABOVE threshold' alert fires when price hits latest active FVG CE ABOVE or latest active FVG Full Fill ABOVE\n\nAlerts are set by clicking the three dots on the indicator display line.")
+colorNone = color.new(color.white, 100)
+_day = 24*3600*1000
+var box bxUp = na, var box bxDn = na, var line lnUp = na, var line lnDn = na
+var array<box> bxUpArr = array.new<box>(0), var array<line> lnUpArr = array.new<line>(0)
+var array<box> bxDnArr = array.new<box>(0), var array<line> lnDnArr = array.new<line>(0)
+dnCE = high[1] + (low[3]-high[1])/2
+upCE = low[1] - (low[1]-high[3])/2
+if low[3] > high[1] and time> timenow- numDays*_day and showDN
+    bxDnArr.push(box.new(bar_index-3, low[3], bar_index, high[1], bgcolor = colDn, border_color = colorNone))
+    lnDnArr.push(line.new(bar_index-3, dnCE, bar_index, dnCE, color = showCE?ceCol:colorNone, style =ceStyle))
+if high[3] < low[1] and time> timenow- numDays*_day and showUP
+    bxUpArr.push(box.new(bar_index-3, low[1], bar_index, high[3], bgcolor = colUp, border_color = colorNone))
+    lnUpArr.push(line.new(bar_index-3, upCE, bar_index, upCE, color = showCE?ceCol:colorNone, style =ceStyle))
+
+var array<int> _countArr =array.new<int>(0)
+var array<int> _countArrIOFED =array.new<int>(0)
+
+//modified form of @Bjorgum's looping function.  This stops boxes/lines painting when price passes to or through them
+extendAndRemoveBx(array<box> boxArray, array<line> lineArray, array<int> countArr1, array<int> countArr2, simple bool isBull, int maxSize) => 
+    if boxArray.size() > 0
+        for i = boxArray.size() -1 to 0
+            line ln = lineArray.get(i)
+            box bx = boxArray.get(i)
+            bx.set_right(bar_index)
+            ln.set_x2(bar_index)
+            float price = CEcond?ln.get_price(bar_index):(isBull?bx.get_top():bx.get_bottom())    
+            float price_IOFED = isBull?bx.get_bottom():bx.get_top()          
+            int m = isBull ? 1 : -1
+            float hiLo = isBull ? high : low  
+            if hiLo * m > price * m 
+                boxArray.remove(i)
+                lineArray.remove(i)
+                countArr1.push(isBull?1:-1) //for 'above/below threshold alerts; counter sum will decrement 1 on lower threshold hit, increment 1 on upper threshold hit
+                if deleteFilledBoxes
+                    bx.set_bgcolor(colorNone)
+                    ln.set_color(colorNone)
+            if hiLo*m>price_IOFED*m
+                countArr2.push(isBull?1:-1)
+
+    if boxArray.size() > maxSize
+        box.delete(boxArray.shift())
+        line.delete(lineArray.shift())
+
+extendAndRemoveBx(bxDnArr,lnDnArr,_countArr,_countArrIOFED, true, 12) //12 should be good for around 2200 bars of history
+extendAndRemoveBx(bxUpArr, lnUpArr,_countArr,_countArrIOFED, false, 12)
+
+upThresholdLst = array.sum(_countArr)>array.sum(_countArr)[1]
+dnThresholdLst = array.sum(_countArr)<array.sum(_countArr)[1]
+
+upIOFEDlast= array.sum(_countArrIOFED)>array.sum(_countArrIOFED)[1]
+dnIOFEDlast= array.sum(_countArrIOFED)<array.sum(_countArrIOFED)[1]
+
+alertcondition(upThresholdLst, "ABOVE threshold of latest active Up FVG (CE or fvg High)", "price has crossed threshold of latest active Up FVG")
+alertcondition(dnThresholdLst, "BELOW threshold of latest active Down FVG (CE or fvg low)", "price has crossed threshold of latest active Down FVG")
+
+alertcondition(upIOFEDlast, "IOFED into latest active Up FVG", "price has entered latest active UP FVG")
+alertcondition(dnIOFEDlast, "IOFED into latest active Down FVG", "price has entered latest active Down FVG")
+
+alertcondition(low[3] > high[1], "Simple alert: Down FVG (confirmed)", "Down FVG has formed (confirmed)")
+alertcondition(high[3] < low[1], "Simple alert: Up FVG (confirmed)", "Up FVG has formed (confirmed)")
+
+alertcondition(low[2] > high, "Simple alert: Down FVG (UN-confirmed)", "Down FVG has formed (un-confirmed)")
+alertcondition(high[2] < low, "Simple alert: Up FVG (UN-confirmed)", "Up FVG has formed (un-confirmed)")
+
+
+// Inputs
+a = input(2, title='Key Vaule. \'This changes the sensitivity\'')
+c = input(1, title='ATR Period')
+h = input(false, title='Signals from Heikin Ashi Candles')
+
+xATR = ta.atr(c)
+nLoss = a * xATR
+
+src = h ? request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close, lookahead=barmerge.lookahead_off) : close
+
+xATRTrailingStop = 0.0
+iff_1 = src > nz(xATRTrailingStop[1], 0) ? src - nLoss : src + nLoss
+iff_2 = src < nz(xATRTrailingStop[1], 0) and src[1] < nz(xATRTrailingStop[1], 0) ? math.min(nz(xATRTrailingStop[1]), src + nLoss) : iff_1
+xATRTrailingStop := src > nz(xATRTrailingStop[1], 0) and src[1] > nz(xATRTrailingStop[1], 0) ? math.max(nz(xATRTrailingStop[1]), src - nLoss) : iff_2
+
+pos = 0
+iff_3 = src[1] > nz(xATRTrailingStop[1], 0) and src < nz(xATRTrailingStop[1], 0) ? -1 : nz(pos[1], 0)
+pos := src[1] < nz(xATRTrailingStop[1], 0) and src > nz(xATRTrailingStop[1], 0) ? 1 : iff_3
+
+xcolor = pos == -1 ? color.red : pos == 1 ? color.green : color.blue
+
+ema = ta.ema(src, 1)
+above = ta.crossover(ema, xATRTrailingStop)
+below = ta.crossover(xATRTrailingStop, ema)
+
+buy = src > xATRTrailingStop and above
+sell = src < xATRTrailingStop and below
+
+barbuy = src > xATRTrailingStop
+barsell = src < xATRTrailingStop
+
+plotshape(buy, title='Buy', text='Buy', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.new(color.white, 0), size=size.tiny)
+plotshape(sell, title='Sell', text='Sell', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.new(color.white, 0), size=size.tiny)
+
+barcolor(barbuy ? color.green : na)
+barcolor(barsell ? color.red : na)
+
+alertcondition(buy, 'UT Long', 'UT Long')
+alertcondition(sell, 'UT Short', 'UT Short')
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+bullCss1          = input.color(color.teal, 'FVG Level'               , inline = 'bull')
+bullAreaCss      = input.color(color.new(color.teal, 50), 'Area'     , inline = 'bull')
+bullMitigatedCss = input.color(color.new(color.teal, 80), 'Mitigated', inline = 'bull')
+
+bearCss1          = input.color(color.red, 'FVG Level'                , inline = 'bear')
+bearAreaCss      = input.color(color.new(color.red, 50), 'Area'      , inline = 'bear')
+bearMitigatedCss = input.color(color.new(color.red, 80), 'Mitigated' , inline = 'bear')
+
+//-----------------------------------------------------------------------------}
+//UDT's
+//-----------------------------------------------------------------------------{
+type fvg
+    float top
+    float btm
+    bool  mitigated
+    bool  isnew
+    bool  isbull
+    line  lvl
+    box   area
+
+type session_range
+    line max
+    line min
+
+//-----------------------------------------------------------------------------}
+//Methods
+//-----------------------------------------------------------------------------{
+nl = bar_index
+
+//Method for setting fair value gaps
+method set_fvg(fvg id, offset, bg_css, l_css)=>
+    avg = math.avg(id.top, id.btm)
+
+    area  = box.new(nl - offset, id.top, nl, id.btm, na, bgcolor = bg_css)
+    avg_l = line.new(nl - offset, avg, nl, avg, color = l_css, style = line.style_dashed)
+
+    id.lvl := avg_l
+    id.area := area
+
+//Method for setting session range maximum/minimum
+method set_range(session_range id)=>
+    max = math.max(high, id.max.get_y2())
+    min = math.min(low, id.min.get_y2())
+
+    id.max.set_xy2(nl, max)
+    id.max.set_y1(max)
+
+    id.min.set_xy2(nl, min)
+    id.min.set_y1(min)
+
+//-----------------------------------------------------------------------------}
+//Variables
+//-----------------------------------------------------------------------------{
+var chartCss = color.new(chart.fg_color, 50)
+
+var fvg sfvg = fvg.new(na, na, na, true, na)
+var session_range sesr = na
+
+var box area = na
+var line avg = na
+
+bull_fvg = low > high[2] and close[1] > high[2]
+bear_fvg = high < low[2] and close[1] < low[2]
+
+//Alert conditions
+bull_isnew      = false
+bear_isnew      = false
+bull_mitigated  = false
+bear_mitigated  = false
+within_bull_fvg = false
+within_bear_fvg = false
+
+//-----------------------------------------------------------------------------}
+//New session
+//-----------------------------------------------------------------------------{
+dtf = timeframe.change('D')
+
+//On new session
+if dtf
+    //Set delimiter
+    line.new(nl, high + syminfo.mintick
+      , nl, low - syminfo.mintick
+      , color = chartCss
+      , style = line.style_dashed
+      , extend = extend.both)
+
+    //Set new range
+    sesr := session_range.new(
+      line.new(nl, high, nl, high, color = chartCss)
+      , line.new(nl, low, nl, low, color = chartCss))
+
+    sfvg.isnew := true
+
+    //Set prior session fvg right coordinates
+    if not na(sfvg.lvl)
+        sfvg.lvl.set_x2(nl-2)
+        sfvg.area.set_right(nl-2)
+
+//Set range
+else if not na(sesr)
+    sesr.set_range()
+
+    //Set range lines color
+    sesr.max.set_color(sfvg.isbull ? bullCss1 : bearCss1)
+    sesr.min.set_color(sfvg.isbull ? bullCss1 : bearCss1)
+
+//-----------------------------------------------------------------------------}
+//Set FVG
+//-----------------------------------------------------------------------------{
+//New session bullish fvg
+if bull_fvg and sfvg.isnew
+    sfvg := fvg.new(low, high[2], false, false, true)
+    sfvg.set_fvg(2, bullAreaCss, bullCss1)
+
+    bull_isnew := true
+
+//New session bearish fvg
+else if bear_fvg and sfvg.isnew
+    sfvg := fvg.new(low[2], high, false, false, false)
+    sfvg.set_fvg(2, bearAreaCss, bearCss1)
+
+    bear_isnew := true
+
+//Change object transparencies if mitigated
+if not sfvg.mitigated
+    //If session fvg is bullish
+    if sfvg.isbull and close < sfvg.btm
+        sfvg.set_fvg(1, bullMitigatedCss, bullCss1)
+
+        sfvg.mitigated := true
+        bull_mitigated := true
+
+    //If session fvg is bearish
+    else if not sfvg.isbull and close > sfvg.top
+        sfvg.set_fvg(1, bearMitigatedCss, bearCss1)
+
+        sfvg.mitigated := true
+        bear_mitigated := true
+
+//Set fvg right coordinates to current bar
+if not sfvg.isnew
+    sfvg.lvl.set_x2(nl)
+    sfvg.area.set_right(nl)
+
+//-----------------------------------------------------------------------------}
+//Alerts
+//-----------------------------------------------------------------------------{
+//On new session fvg
+alertcondition(bull_isnew, 'Bullish FVG', 'New session bullish fvg')
+alertcondition(bear_isnew, 'Bearish FVG', 'New session bearish fvg')
+
+//On fvg mitigation
+alertcondition(bull_mitigated, 'Mitigated Bullish FVG', 'Session bullish fvg has been mitigated')
+alertcondition(bear_mitigated, 'Mitigated Bearish FVG', 'Session bearish fvg has been mitigated')
+
+//If within fvg
+alertcondition(close >= sfvg.btm and close <= sfvg.top and sfvg.isbull and not sfvg.isnew
+  , 'Price Within Bullish FVG'
+  , 'Price is within bullish fvg')
+
+alertcondition(close >= sfvg.btm and close <= sfvg.top and not sfvg.isbull and not sfvg.isnew
+  , 'Price Within Bearish FVG'
+  , 'Price is within bearish fvg')
+
+//On fvg average cross
+alertcondition(ta.cross(close, math.avg(sfvg.top, sfvg.btm)) and sfvg.isbull and not sfvg.isnew
+  , 'Bullish FVG AVG Cross'
+  , 'Price crossed bullish fvg average')
+
+alertcondition(ta.cross(close, math.avg(sfvg.top, sfvg.btm)) and not sfvg.isbull and not sfvg.isnew
+  , 'Bearish FVG AVG Cross'
+  , 'Price crossed bearish fvg average')
+
+//-----------------------------------------------------------------------------}

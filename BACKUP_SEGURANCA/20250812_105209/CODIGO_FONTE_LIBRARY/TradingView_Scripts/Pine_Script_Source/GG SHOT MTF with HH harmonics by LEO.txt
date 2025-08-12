@@ -1,0 +1,2002 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © leandrolopezf1920
+
+//@version=5
+
+indicator('GG SHOT with HH LL harmonics by LEO', overlay=true, max_labels_count = 500, max_lines_count = 500, max_boxes_count=500, max_bars_back = 1000)
+
+length = input(title='Period', defval=2000)
+mult = input.float(title='Multiplier', step=0.1, defval=3)
+
+//ichimoku inputs
+conversionPeriods = input.int(9, minval=1, title='Conversion Line Periods')
+basePeriods = input.int(26, minval=1, title='Base Line Periods')
+laggingSpan2Periods = input.int(52, minval=1, title='Lagging Span 2 Periods')
+displacement = input.int(26, minval=1, title='Displacement')
+
+
+//algo
+atr = mult * ta.atr(length)
+
+//kumo
+donchian(len) =>
+    math.avg(ta.lowest(len), ta.highest(len))
+conversionLine = donchian(conversionPeriods)
+baseLine = donchian(basePeriods)
+leadLine1 = math.avg(conversionLine, baseLine)
+leadLine2 = donchian(laggingSpan2Periods)
+
+longStop = hl2 - atr
+longStopPrev = nz(longStop[1], longStop)
+longStop := close[1] > longStopPrev ? math.max(longStop, longStopPrev) : longStop
+
+shortStop = hl2 + atr
+shortStopPrev = nz(shortStop[1], shortStop)
+shortStop := close[1] < shortStopPrev ? math.min(shortStop, shortStopPrev) : shortStop
+
+dir = 1
+dir := nz(dir[1], dir)
+dir := dir == -1 and close > shortStopPrev ? 1 : dir == 1 and close < longStopPrev ? -1 : dir
+
+
+longColor = color.blue
+shortColor = color.blue
+
+
+
+////////////////////////////////////////////////////////////    
+// Conditions 1
+
+longCond1 = bool(na)
+shortCond1 = bool(na)
+longCond1 := ta.crossover(close[1], shortStopPrev)
+shortCond1 := ta.crossunder(close[1], longStopPrev)
+
+// Conditions 2
+
+longCond2 = bool(na)
+shortCond2 = bool(na)
+longCond2 := ta.crossover(close[1], shortStopPrev)
+shortCond2 := ta.crossunder(close[1], longStopPrev)
+
+// Conditions 3
+
+longCond3 = bool(na)
+shortCond3 = bool(na)
+longCond3 := ta.crossover(close[1], shortStopPrev)
+shortCond3 := ta.crossunder(close[1], longStopPrev)
+
+// Conditions 4
+
+longCond4 = bool(na)
+shortCond4 = bool(na)
+longCond4 := ta.crossover(close[1], shortStopPrev)
+shortCond4 := ta.crossunder(close[1], longStopPrev)
+
+
+////////////////////////////////////////////////////////////    
+// Count your long short conditions for more control with Pyramiding 1
+
+sectionLongs1 = 0
+sectionLongs1 := nz(sectionLongs1[1])
+sectionShorts1 = 0
+sectionShorts1 := nz(sectionShorts1[1])
+
+if longCond1
+    sectionLongs1 += 1
+    sectionShorts1 := 0
+    sectionShorts1
+
+if shortCond1
+    sectionLongs1 := 0
+    sectionShorts1 += 1
+    sectionShorts1
+
+// Count your long short conditions for more control with Pyramiding 2
+
+sectionLongs2 = 0
+sectionLongs2 := nz(sectionLongs2[1])
+sectionShorts2 = 0
+sectionShorts2 := nz(sectionShorts2[1])
+
+if longCond2
+    sectionLongs2 += 1
+    sectionShorts2 := 0
+    sectionShorts2
+
+if shortCond2
+    sectionLongs2 := 0
+    sectionShorts2 += 1
+    sectionShorts2
+
+
+// Count your long short conditions for more control with Pyramiding 3
+
+sectionLongs3 = 0
+sectionLongs3 := nz(sectionLongs3[1])
+sectionShorts3 = 0
+sectionShorts3 := nz(sectionShorts3[1])
+
+if longCond3
+    sectionLongs3 += 1
+    sectionShorts3 := 0
+    sectionShorts3
+
+if shortCond3
+    sectionLongs3 := 0
+    sectionShorts3 += 1
+    sectionShorts3
+
+// Count your long short conditions for more control with Pyramiding 4
+
+sectionLongs4 = 0
+sectionLongs4 := nz(sectionLongs4[1])
+sectionShorts4 = 0
+sectionShorts4 := nz(sectionShorts4[1])
+
+if longCond4
+    sectionLongs4 += 1
+    sectionShorts4 := 0
+    sectionShorts4
+
+if shortCond4
+    sectionLongs4 := 0
+    sectionShorts4 += 1
+    sectionShorts4
+
+
+////////////////////////////////////////////////////////////    
+// Pyramiding 1
+
+pyrl = 1
+
+
+// Pyramiding 2
+
+pyr2 = 1
+
+
+// Pyramiding 3
+
+pyr3 = 1
+
+
+// Pyramiding 4
+
+pyr4 = 1
+
+
+////////////////////////////////////////////////////////////    
+
+// These check to see your signal and cross references it against the pyramiding settings above 1
+
+
+longCondition1 = longCond1 and sectionLongs1 <= pyrl
+shortCondition1 = shortCond1 and sectionShorts1 <= pyrl
+
+// These check to see your signal and cross references it against the pyramiding settings above 2
+
+
+longCondition2 = longCond2 and sectionLongs2 <= pyr2
+shortCondition2 = shortCond2 and sectionShorts2 <= pyr2
+
+// These check to see your signal and cross references it against the pyramiding settings above 3
+
+
+longCondition3 = longCond3 and sectionLongs3 <= pyr3
+shortCondition3 = shortCond3 and sectionShorts3 <= pyr3
+
+// These check to see your signal and cross references it against the pyramiding settings above 4
+
+
+longCondition4 = longCond4 and sectionLongs4 <= pyr4
+shortCondition4 = shortCond4 and sectionShorts4 <= pyr4
+
+
+////////////////////////////////////////////////////////////    
+// Get the price of the last opened long or short 1
+
+last_open_longCondition1 = float(na)
+last_open_shortCondition1 = float(na)
+last_open_longCondition1 := longCondition1 ? open : nz(last_open_longCondition1[1])
+last_open_shortCondition1 := shortCondition1 ? open : nz(last_open_shortCondition1[1])
+
+// Get the price of the last opened long or short 2
+
+last_open_longCondition2 = float(na)
+last_open_shortCondition2 = float(na)
+last_open_longCondition2 := longCondition2 ? open : nz(last_open_longCondition2[1])
+last_open_shortCondition2 := shortCondition2 ? open : nz(last_open_shortCondition2[1])
+
+// Get the price of the last opened long or short 3
+
+last_open_longCondition3 = float(na)
+last_open_shortCondition3 = float(na)
+last_open_longCondition3 := longCondition3 ? open : nz(last_open_longCondition3[1])
+last_open_shortCondition3 := shortCondition3 ? open : nz(last_open_shortCondition3[1])
+
+// Get the price of the last opened long or short 4
+
+last_open_longCondition4 = float(na)
+last_open_shortCondition4 = float(na)
+last_open_longCondition4 := longCondition4 ? open : nz(last_open_longCondition4[1])
+last_open_shortCondition4 := shortCondition4 ? open : nz(last_open_shortCondition4[1])
+
+
+////////////////////////////////////////////////////////////    
+// Check if your last postion was a long or a short 1
+
+last_longCondition1 = float(na)
+last_shortCondition1 = float(na)
+last_longCondition1 := longCondition1 ? time : nz(last_longCondition1[1])
+last_shortCondition1 := shortCondition1 ? time : nz(last_shortCondition1[1])
+
+in_longCondition1 = last_longCondition1 > last_shortCondition1
+in_shortCondition1 = last_shortCondition1 > last_longCondition1
+
+// Check if your last postion was a long or a short 2
+
+last_longCondition2 = float(na)
+last_shortCondition2 = float(na)
+last_longCondition2 := longCondition2 ? time : nz(last_longCondition2[1])
+last_shortCondition2 := shortCondition2 ? time : nz(last_shortCondition2[1])
+
+in_longCondition2 = last_longCondition2 > last_shortCondition2
+in_shortCondition2 = last_shortCondition2 > last_longCondition2
+
+// Check if your last postion was a long or a short 3
+
+last_longCondition3 = float(na)
+last_shortCondition3 = float(na)
+last_longCondition3 := longCondition3 ? time : nz(last_longCondition3[1])
+last_shortCondition3 := shortCondition3 ? time : nz(last_shortCondition3[1])
+
+in_longCondition3 = last_longCondition3 > last_shortCondition3
+in_shortCondition3 = last_shortCondition3 > last_longCondition3
+
+// Check if your last postion was a long or a short 4
+
+last_longCondition4 = float(na)
+last_shortCondition4 = float(na)
+last_longCondition4 := longCondition4 ? time : nz(last_longCondition4[1])
+last_shortCondition4 := shortCondition4 ? time : nz(last_shortCondition4[1])
+
+in_longCondition4 = last_longCondition4 > last_shortCondition4
+in_shortCondition4 = last_shortCondition4 > last_longCondition4
+
+
+////////////////////////////////////////////////////////////    
+// Take profit 1
+
+isTPl = input(true, 'Take Profit Long')
+isTPs = input(true, 'Take Profit Short')
+tp = input(1, 'Take Profit 1 %')
+long_tp1 = isTPl and ta.crossover(high, (1 + tp / 100) * last_open_longCondition1) and longCondition1 == 0 and in_longCondition1 == 1
+short_tp1 = isTPs and ta.crossunder(low, (1 - tp / 100) * last_open_shortCondition1) and shortCondition1 == 0 and in_shortCondition1 == 1
+
+// Take profit 2
+
+isTP2 = input(true, 'Take Profit Long 2')
+isTPs2 = input(true, 'Take Profit Short 2')
+tp2 = input(2, 'Take Profit 2 %')
+long_tp2 = isTP2 and ta.crossover(high, (1 + tp2 / 100) * last_open_longCondition2) and longCondition2 == 0 and in_longCondition2 == 1
+short_tp2 = isTPs2 and ta.crossunder(low, (1 - tp2 / 100) * last_open_shortCondition2) and shortCondition2 == 0 and in_shortCondition2 == 1
+
+// Take profit 3
+
+isTP3 = input(true, 'Take Profit Long 3')
+isTPs3 = input(true, 'Take Profit Short 3')
+tp3 = input.float(3, 'Take Profit 3 %')
+long_tp3 = isTP3 and ta.crossover(high, (1 + tp3 / 100) * last_open_longCondition3) and longCondition3 == 0 and in_longCondition3 == 1
+short_tp3 = isTPs3 and ta.crossunder(low, (1 - tp3 / 100) * last_open_shortCondition3) and shortCondition3 == 0 and in_shortCondition3 == 1
+
+
+// Take profit 4
+
+isTP4 = input(true, 'Take Profit Long 4')
+isTPs4 = input(true, 'Take Profit Short 4')
+tp4 = input.float(4, 'Take Profit 4 %')
+long_tp4 = isTP4 and ta.crossover(high, (1 + tp4 / 100) * last_open_longCondition4) and longCondition4 == 0 and in_longCondition4 == 1
+short_tp4 = isTPs4 and ta.crossunder(low, (1 - tp4 / 100) * last_open_shortCondition4) and shortCondition4 == 0 and in_shortCondition4 == 1
+
+
+
+////////////////////////////////////////////////////////////    
+
+
+////////////////////////////////////////////////////////////    
+// Create a single close for all the different closing conditions. 1
+
+long_close = long_tp1 ? 1 : 0
+short_close = short_tp1 ? 1 : 0
+
+
+// Create a single close for all the different closing conditions. 2
+
+long_close2 = long_tp2 ? 1 : 0
+short_close2 = short_tp2 ? 1 : 0
+
+// Create a single close for all the different closing conditions. 3
+
+long_close3 = long_tp3 ? 1 : 0
+short_close3 = short_tp3 ? 1 : 0
+
+
+// Create a single close for all the different closing conditions. 4
+
+long_close4 = long_tp4 ? 1 : 0
+short_close4 = short_tp4 ? 1 : 0
+
+
+
+////////////////////////////////////////////////////////////    
+// Get the time of the last close
+
+last_long_close = float(na)
+last_short_close = float(na)
+last_long_close := long_close ? time : nz(last_long_close[1])
+last_short_close := short_close ? time : nz(last_short_close[1])
+
+// Get the time of the last close 2
+
+last_long_close2 = float(na)
+last_short_close2 = float(na)
+last_long_close2 := long_close2 ? time : nz(last_long_close2[1])
+last_short_close2 := short_close2 ? time : nz(last_short_close2[1])
+
+// Get the time of the last close 3
+
+last_long_close3 = float(na)
+last_short_close3 = float(na)
+last_long_close3 := long_close3 ? time : nz(last_long_close3[1])
+last_short_close3 := short_close3 ? time : nz(last_short_close3[1])
+
+
+// Get the time of the last close 4
+
+last_long_close4 = float(na)
+last_short_close4 = float(na)
+last_long_close4 := long_close4 ? time : nz(last_long_close4[1])
+last_short_close4 := short_close4 ? time : nz(last_short_close4[1])
+
+
+
+
+////////////////////////////////////////////////////////////    
+//Signals 
+
+
+bton(b) =>
+    b ? 1 : 0
+//
+plotshape(long_tp1 and last_longCondition1 > nz(last_long_close[1]), text='TP1', title='Take Profit Long', color=color.new(color.green, 0), style=shape.labeldown, location=location.abovebar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for sell icon
+plotshape(short_tp1 and last_shortCondition1 > nz(last_short_close[1]), text='TP1', title='Take Profit Short', color=color.new(color.red, 0), style=shape.labelup, location=location.belowbar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for buy icon
+//
+plotshape(long_tp2 and last_longCondition2 > nz(last_long_close2[1]), text='TP2', title='Take Profit Long 2', color=color.new(color.green, 0), style=shape.labeldown, location=location.abovebar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for sell icon
+plotshape(short_tp2 and last_shortCondition2 > nz(last_short_close2[1]), text='TP2', title='Take Profit Short 2', color=color.new(color.red, 0), style=shape.labelup, location=location.belowbar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for buy icon
+//
+plotshape(long_tp3 and last_longCondition3 > nz(last_long_close3[1]), text='TP3', title='Take Profit Long 3', color=color.new(color.green, 0), style=shape.labeldown, location=location.abovebar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for sell icon
+plotshape(short_tp3 and last_shortCondition3 > nz(last_short_close3[1]), text='TP3', title='Take Profit Short 3', color=color.new(color.red, 0), style=shape.labelup, location=location.belowbar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for buy icon
+//
+plotshape(long_tp4 and last_longCondition4 > nz(last_long_close4[1]), text='TP4', title='Take Profit Long 4', color=color.new(color.green, 0), style=shape.labeldown, location=location.abovebar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for sell icon
+plotshape(short_tp4 and last_shortCondition4 > nz(last_short_close4[1]), text='TP4', title='Take Profit Short 4', color=color.new(color.red, 0), style=shape.labelup, location=location.belowbar, size=size.tiny, textcolor=color.new(color.white, 0))  //plot for buy icon
+
+//
+ltp1 = long_tp1 and last_longCondition1 > nz(last_long_close[1]) ? (1 + tp / 100) * last_open_longCondition1 : na
+plot(ltp1, color=color.new(color.green, 100), trackprice=true, style=plot.style_linebr, linewidth=2 , title = "Take profit - 1")
+stp = short_tp1 and last_shortCondition1 > nz(last_short_close[1]) ? (1 - tp / 100) * last_open_shortCondition1 : na
+plot(stp, style=plot.style_linebr, trackprice=true, linewidth=3, color=color.new(color.white, 0))
+//
+ltp2 = long_tp2 and last_longCondition2 > nz(last_long_close2[1]) ? (1 + tp2 / 100) * last_open_longCondition2 : na
+plot(ltp2, color=color.new(color.green, 100), trackprice=true, style=plot.style_linebr, linewidth=2, title = "Take profit - 2")
+stp2 = short_tp2 and last_shortCondition2 > nz(last_short_close2[1]) ? (1 - tp2 / 100) * last_open_shortCondition2 : na
+plot(stp2, style=plot.style_linebr, trackprice=true, linewidth=3, color=color.new(color.white, 0))
+//
+ltp3 = long_tp3 and last_longCondition3 > nz(last_long_close3[1]) ? (1 + tp3 / 100) * last_open_longCondition3 : na
+plot(ltp3, color=color.new(color.green, 100), trackprice=true, style=plot.style_linebr, linewidth=2, title = "Take profit - 3")
+stp3 = short_tp3 and last_shortCondition3 > nz(last_short_close3[1]) ? (1 - tp3 / 100) * last_open_shortCondition3 : na
+plot(stp3, style=plot.style_linebr, trackprice=true, linewidth=3, color=color.new(color.white, 0))
+//
+ltp4 = long_tp4 and last_longCondition4 > nz(last_long_close4[1]) ? (1 + tp4 / 100) * last_open_longCondition4 : na
+plot(ltp4, color=color.new(color.green, 100), trackprice=true, style=plot.style_linebr, linewidth=2, title = "Take profit - 4")
+stp4 = short_tp4 and last_shortCondition4 > nz(last_short_close4[1]) ? (1 - tp4 / 100) * last_open_shortCondition4 : na
+plot(stp4, style=plot.style_linebr, trackprice=true, linewidth=4, color=color.new(color.white, 0))
+//
+
+//plot for trend
+plot(dir == 1 ? longStop : na, title="BuyLine", style=plot.style_linebr, linewidth=1, color=#ffffff00)
+plotshape(dir == 1 and dir[1] == -1 ? longStop : na, title='LONG', style=shape.triangleup, location=location.belowbar, size=size.small, text='LONG', textcolor=#2962ff, color=#2962ff)
+plot(dir == 1 ? na : shortStop, title="SellLine", style=plot.style_linebr, linewidth=1, color=#ffffff00)
+plotshape(dir == -1 and dir[1] == 1 ? shortStop : na, title='SHORT', style=shape.triangledown, location=location.abovebar, size=size.small, text='SHORT', textcolor=#9c27b0, color=#9c27b0)
+
+//kumo plots
+plot(conversionLine, color=#0496ff00, title="Conversion Line")
+plot(baseLine, color=#99151500, title="Base Line")
+plot(close, offset = -displacement, color=#45991500, title="Lagging Span")
+K1 = plot(leadLine1, offset=displacement, color=#4caf4f00, title='Lead 1')
+K2 = plot(leadLine2, offset=displacement, color=#ff525200, title='Lead 2')
+fill(K1, K2, leadLine1 > leadLine2 ? #4caf4f00 : #ff525200)
+
+
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Functions
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Conditional Sampling EMA Function 
+Cond_EMA(x, cond, n) =>
+    var val = array.new_float(0)
+    var ema_val = array.new_float(1)
+    if cond
+        array.push(val, x)
+        if array.size(val) > 1
+            array.remove(val, 0)
+        if na(array.get(ema_val, 0))
+            array.fill(ema_val, array.get(val, 0))
+        array.set(ema_val, 0, (array.get(val, 0) - array.get(ema_val, 0)) * (2 / (n + 1)) + array.get(ema_val, 0))
+    EMA = array.get(ema_val, 0)
+    EMA
+
+//Conditional Sampling SMA Function
+Cond_SMA(x, cond, n) =>
+    var vals = array.new_float(0)
+    if cond
+        array.push(vals, x)
+        if array.size(vals) > n
+            array.remove(vals, 0)
+    SMA = array.avg(vals)
+    SMA
+
+//Standard Deviation Function
+Stdev(x, n) =>
+    math.sqrt(Cond_SMA(math.pow(x, 2), 1, n) - math.pow(Cond_SMA(x, 1, n), 2))
+
+//Range Size Function
+rng_size(x, scale, qty, n) =>
+    ATR = Cond_EMA(ta.tr(true), 1, n)
+    AC = Cond_EMA(math.abs(x - x[1]), 1, n)
+    SD = Stdev(x, n)
+    rng_size = scale == 'Pips' ? qty * 0.0001 : scale == 'Points' ? qty * syminfo.pointvalue : scale == '% of Price' ? close * qty / 100 : scale == 'ATR' ? qty * ATR : scale == 'Average Change' ? qty * AC : scale == 'Standard Deviation' ? qty * SD : scale == 'Ticks' ? qty * syminfo.mintick : qty
+    rng_size
+
+//Two Type Range Filter Function
+rng_filt(h, l, rng_, n, type, smooth, sn, av_rf, av_n) =>
+    rng_smooth = Cond_EMA(rng_, 1, sn)
+    r = smooth ? rng_smooth : rng_
+    var rfilt = array.new_float(2, (h + l) / 2)
+    array.set(rfilt, 1, array.get(rfilt, 0))
+    if type == 'Type 1'
+        if h - r > array.get(rfilt, 1)
+            array.set(rfilt, 0, h - r)
+        if l + r < array.get(rfilt, 1)
+            array.set(rfilt, 0, l + r)
+    if type == 'Type 2'
+        if h >= array.get(rfilt, 1) + r
+            array.set(rfilt, 0, array.get(rfilt, 1) + math.floor(math.abs(h - array.get(rfilt, 1)) / r) * r)
+        if l <= array.get(rfilt, 1) - r
+            array.set(rfilt, 0, array.get(rfilt, 1) - math.floor(math.abs(l - array.get(rfilt, 1)) / r) * r)
+    rng_filt1 = array.get(rfilt, 0)
+    hi_band1 = rng_filt1 + r
+    lo_band1 = rng_filt1 - r
+    rng_filt2 = Cond_EMA(rng_filt1, rng_filt1 != rng_filt1[1], av_n)
+    hi_band2 = Cond_EMA(hi_band1, rng_filt1 != rng_filt1[1], av_n)
+    lo_band2 = Cond_EMA(lo_band1, rng_filt1 != rng_filt1[1], av_n)
+    rng_filt = av_rf ? rng_filt2 : rng_filt1
+    hi_band = av_rf ? hi_band2 : hi_band1
+    lo_band = av_rf ? lo_band2 : lo_band1
+    [hi_band, lo_band, rng_filt]
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Inputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Filter Type
+f_type = input.string(defval='Type 1', options=['Type 1', 'Type 2'], title='Filter Type')
+
+//Movement Source
+mov_src = input.string(defval='Close', options=['Wicks', 'Close'], title='Movement Source')
+
+//Range Size Inputs
+rng_qty = input.float(defval=8, minval=0.0000001, title='Range Size')
+rng_scale = input.string(defval='Average Change', options=['Points', 'Pips', 'Ticks', '% of Price', 'ATR', 'Average Change', 'Standard Deviation', 'Absolute'], title='Range Scale')
+
+//Range Period
+rng_per = input.int(defval=40, minval=1, title='Range Period (for ATR, Average Change, and Standard Deviation)')
+
+//Range Smoothing Inputs
+smooth_range = input(defval=true, title='Smooth Range')
+smooth_per = input.int(defval=150, minval=1, title='Smoothing Period')
+
+//Filter Value Averaging Inputs
+av_vals = input(defval=false, title='Average Filter Changes')
+av_samples = input.int(defval=2, minval=1, title='Number Of Changes To Average')
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Definitions
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//High And Low Values
+h_val = mov_src == 'Wicks' ? high : close
+l_val = mov_src == 'Wicks' ? low : close
+
+//Range Filter Values
+[h_band, l_band, filt] = rng_filt(h_val, l_val, rng_size((h_val + l_val) / 2, rng_scale, rng_qty, rng_per), rng_per, f_type, smooth_range, smooth_per, av_vals, av_samples)
+
+//Direction Conditions
+var fdir = 0.0
+fdir := filt > filt[1] ? 1 : filt < filt[1] ? -1 : fdir
+upward = fdir == 1 ? 1 : 0
+downward = fdir == -1 ? 1 : 0
+
+//Colors
+filt_color = upward ? #05ff9b : downward ? #ff0583 : #cccccc
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Outputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Filter Plot
+filt_plot = plot(filt, color=dir == 1 ? #4caf4f00 : #ff525200, linewidth=1, title='Trend Line')
+
+
+//Alerts
+
+alertcondition(dir == 1 and dir[1] == -1 ? longStop : na, title='Buy', message='Buy!')
+alertcondition(dir == 1 and dir[1] == -1 ? longStop : na, title='Buy', message='Buy!')
+alertcondition(dir == 1 and dir[1] == -1 ? longStop : na, title='Buy', message='Buy!')
+alertcondition(dir == -1 and dir[1] == 1 ? shortStop : na, title='Sell', message='Sell!')
+//TP1 & SL1
+alertcondition(bton(long_tp1 and last_longCondition1 > nz(last_long_close[1])), title='TP1 LONG')
+alertcondition(bton(short_tp1 and last_shortCondition1 > nz(last_short_close[1])), title='TP1 SHORT')
+
+//TP2 & SL2
+alertcondition(bton(long_tp2 and last_longCondition2 > nz(last_long_close2[1])), title='TP2 LONG')
+alertcondition(bton(short_tp2 and last_shortCondition2 > nz(last_short_close2[1])), title='TP2 SHORT')
+
+//TP3
+alertcondition(bton(long_tp3 and last_longCondition3 > nz(last_long_close3[1])), title='TP3 LONG')
+alertcondition(bton(short_tp3 and last_shortCondition3 > nz(last_short_close3[1])), title='TP3 SHORT')
+
+
+//TP4
+alertcondition(bton(long_tp4 and last_longCondition4 > nz(last_long_close4[1])), title='TP4 LONG')
+alertcondition(bton(short_tp4 and last_shortCondition4 > nz(last_short_close4[1])), title='TP4 SHORT')
+
+
+
+var color psar_longColor = na
+var color psar_longLight = na
+var color psar_shortColor = na
+var color psar_shortLight = na
+
+
+
+// Cambia el color de la vela según si es alcista o bajista
+esAlcista = close > open
+buySignal = dir == 1 and dir[1] == -1
+sellSignal = dir == -1 and dir[1] == 1
+
+changeCond = buySignal or sellSignal
+
+lastTrade(src) => ta.valuewhen(changeCond, src, 0 )
+
+levels = input(title='Show Entry Labels/SL/TP /Mostrar Etiquetas de Entrada/SL/TP', defval=true)
+
+//ENTRADA
+entry = levels ? label.new(time, close, "ENTRY " + str.tostring(lastTrade(close), "#.#####"), xloc.bar_time, yloc.price, psar_longColor, label.style_label_left,  color.rgb(0, 0, 0), size.normal) : na
+label.set_y(entry, lastTrade(close))
+label.delete(entry[1])
+
+
+// HiLo inputs
+high_activate = input(title='Track Previous High', defval=true)
+high_input = input(title='60', defval=45)
+low_activate = input(title='Track Previous Low', defval=true)
+low_input = input(title='60', defval=45)
+
+[daily_hh, daily_ll] = request.security(syminfo.tickerid, '60', [nz(ta.highest(high, high_input)[1]),nz(ta.lowest(low, low_input)[1])])
+
+// HH and LL crossovers
+HHXO = ta.crossover(close, daily_hh)
+LLXO = ta.crossover(daily_ll, close)
+
+// HiLoTouch logic
+HiLoTouchUpper = close >= daily_hh
+HiLoTouchLower = close <= daily_ll
+
+// alerts
+i_HHXO = input(false, 'Alert HH Crossed')
+i_LLXO = input(false, 'Alert LL Crossed')
+i_HiLoTouch = input(true, 'Alert HiLoTouch')
+
+// alert entries only generate entries when allowed in inputs
+enterHHXO = i_HHXO and HHXO
+enterLLXO = i_LLXO and LLXO
+enterHiLoTouchUpper = i_HiLoTouch and HiLoTouchUpper
+enterHiLoTouchLower = i_HiLoTouch and HiLoTouchLower
+
+// alert plots only when the compound condition is met
+if enterHHXO
+    alert('Price crossing up last Highest High (HH is ' + str.tostring(daily_hh, '#.00)'))
+else if enterLLXO
+    alert('Price crossing down last Lowest Low (LL is ' + str.tostring(daily_ll, '#.00)'))
+else if enterHiLoTouchUpper
+    alert('Price touching Upper HiLoTrack')
+
+else if enterHiLoTouchLower
+    alert('Price touching Lower HiLoTrack')
+
+// plot HiLo horizontal line
+plot(high_activate ? daily_hh : na, title='Previous Highest High', trackprice=true, offset=-9999, color=color.new(#f3219c, 0))
+plot(low_activate ? daily_ll : na, title='Previous Lowest Low', trackprice=true, offset=-9999, color=color.new(#f3219c, 0))
+
+labeltime = time + time - time[13]
+
+// previous daily high label
+ldaily_hh = label.new(labeltime, daily_hh, 'H (' + str.tostring(high_input) + ') = ' + str.tostring(daily_hh, '#.##'), color=high_activate ? color.new(#f3219c, 0) : na, textcolor=high_activate ? color.white : na, textalign=text.align_center, style=label.style_label_center, xloc=xloc.bar_time)
+label.delete(ldaily_hh[1])
+
+f_printhh(_texthh) =>
+    // Create label on the first bar.
+    var _labelhh = label.new(bar_index, na, _texthh, xloc.bar_index, yloc.price, color(na), label.style_none, color.gray, size.normal, text.align_left)
+    // On next bars, update the label's x and y position, and the text it displays.
+    label.set_xy(_labelhh, bar_index, ta.highest(10)[1])
+    label.set_text(_labelhh, _texthh)
+
+// previous daily low label
+ldaily_ll = label.new(labeltime, daily_ll, 'L (' + str.tostring(low_input) + ') = ' + str.tostring(daily_ll, '#.##'), color=low_activate ? color.new(#f3219c, 0) : na, textcolor=low_activate ? color.white : na, textalign=text.align_center, style=label.style_label_center, xloc=xloc.bar_time)
+label.delete(ldaily_ll[1])
+
+f_printll(_textll) =>
+    // Create label on the first bar.
+    var _labelll = label.new(bar_index, na, _textll, xloc.bar_index, yloc.price, color(na), label.style_none, color.gray, size.normal, text.align_left)
+    // On next bars, update the label's x and y position, and the text it displays.
+    label.set_xy(_labelll, bar_index, ta.lowest(10)[1])
+    label.set_text(_labelll, _textll)
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// Média Móvel Aritmética configurável de 2400 períodos
+MA2400 = input(true, title="Enable MA2400")
+MA2400_length = input(2400, title="MA2400 Periods")
+ma2400 = ta.sma(close, MA2400_length)
+
+plot(MA2400 ? ma2400 : na, title="MA2400", color=color.new(color.purple, 0), linewidth=2)
+
+alpha = 0.1 / (int(bar_index) + 1)
+
+ema = close
+ema1 = close
+ema2 = close
+ema := alpha * ema + (1 - alpha) * nz(ema[1], ema)
+ema1 := alpha * ema + (1 - alpha) * nz(ema[1], ema)
+ema2 := alpha * ema + (1 - alpha) * nz(ema[1], ema)
+
+plot(ema, title="ADEMA", linewidth=3, color=color.yellow)
+above_ema = ema[1] < ema
+plot(ema, title="ADEMA", linewidth=3, color=color.gray)
+bellow_ema = ema[1] < ema
+
+
+plot(ema, title="ADEMA", linewidth=2, color=color.rgb(85, 73, 250, 10))
+plot(ema1, title="ADEMA", linewidth=2, color=color.rgb(228, 67, 67))
+plot(ema2, title="ADEMA", linewidth=2, color=color.rgb(251, 252, 250, 10))
+
+//plot(ema, title="ADEMA", linewidth=2, color=color.rgb(85, 73, 250, 10))
+
+long = (not above_ema[3] and not above_ema[2] and not above_ema[1] and above_ema)
+plotshape(long, style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.rgb(0, 92, 230), text='BUY')
+
+short = (above_ema[3] and above_ema[2] and above_ema[1] and not above_ema)
+plotshape(short, style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.rgb(243, 11, 11), text='SELL')
+
+// Médias Móveis configuráveis
+includeRMA1 = input(false, title="Include RMA 1")
+RMA1_length = input(14, title="RMA 1 Periods")
+rma1 = ta.rma(close, RMA1_length)
+
+includeRMA2 = input(false, title="Include RMA 2")
+RMA2_length = input(50, title="RMA 2 Periods")
+rma2 = ta.rma(close, RMA2_length)
+
+includeSMA1 = input(false, title="Include SMA 1")
+SMA1_length = input(30, title="SMA 1 Periods")
+sma1 = ta.sma(close, SMA1_length)
+
+includeSMA2 = input(false, title="Include SMA 2")
+SMA2_length = input(50, title="SMA 2 Periods")
+sma2 = ta.sma(close, SMA2_length)
+
+includeWMA1 = input(false, title="Include WMA 1")
+WMA1_length = input(20, title="WMA 1 Periods")
+wma1 = ta.wma(close, WMA1_length)
+
+includeWMA2 = input(false, title="Include WMA 2")
+WMA2_length = input(40, title="WMA 2 Periods")
+wma2 = ta.wma(close, WMA2_length)
+
+// Plot das Médias Móveis configuráveis
+plot(includeRMA1 ? rma1 : na, title="RMA 1", color=color.new(color.green, 0), linewidth=2)
+plot(includeRMA2 ? rma2 : na, title="RMA 2", color=color.new(color.red, 0), linewidth=2)
+
+plot(includeSMA1 ? sma1 : na, title="SMA 1", color=color.new(color.orange, 0), linewidth=2)
+plot(includeSMA2 ? sma2 : na, title="SMA 2", color=color.new(color.purple, 0), linewidth=2)
+
+plot(includeWMA1 ? wma1 : na, title="WMA 1", color=color.new(color.teal, 0), linewidth=2)
+plot(includeWMA2 ? wma2 : na, title="WMA 2", color=color.new(color.maroon, 0), linewidth=2)
+
+
+
+/////////////////////////////////////////-BAGANG PIVOT ZONES MTF-///////////////////////////////////////////////////
+
+
+
+// Input for selecting the higher timeframe
+var string higherTF = input("D", "Higher Timeframe")
+
+// Functions
+get(arr, index) =>
+    index < array.size(arr) ? array.get(arr, index) : na
+
+busted(highs, lows, times, bounces) =>
+    array.shift(highs)
+    array.shift(lows)
+    array.shift(times)
+    array.shift(bounces) or true
+
+bounced(bounces) =>
+    status = array.get(bounces, 0)
+    array.set(bounces, 0, true)
+    status
+
+// A. CORE
+ceiling = request.security(syminfo.tickerid, higherTF, math.max(high, close[1], open[1]))
+floor = request.security(syminfo.tickerid, higherTF, math.min(low, close[1], open[1]))
+
+buying = close >= open and high != low
+selling = close <= open and low != high
+
+green = close > open and close > close[1]
+red = close < open and close < close[1]
+
+gapup = open > close[1]
+gapdown = open < close[1]
+
+higher = high > high[1]
+lower = low < low[1]
+
+bullish = green and higher
+bearish = red and lower
+
+// Notable price actions
+bullishEngulf = selling[1] and (gapdown or lower) and bullish and close > open[1]
+bearishEngulf = buying[1] and (gapup or higher) and bearish and close < open[1]
+
+breakHigh = (selling[2] or selling[1]) and buying and close > ceiling[1]
+breakLow = (buying[2] or buying[1]) and selling and close < floor[1]
+
+whiteSoldiers = bearish[3] and buying[2] and bullish[1] and bullish and close > high[3]
+blackCrows = bullish[3] and selling[2] and bearish[1] and bearish and close < low[3]
+
+// Pivot setups
+soaring = bullishEngulf or breakHigh or whiteSoldiers
+tumbling = bearishEngulf or breakLow or blackCrows
+
+reversal = switch
+    whiteSoldiers => not soaring[1] and not soaring[2]
+    blackCrows => not tumbling[1] and not tumbling[2]
+    breakHigh => not soaring[1] and (bearish[1] or bearish[2])
+    breakLow => not tumbling[1] and (bullish[1] or bullish[2])
+
+continuation = switch
+    breakHigh => bullish[2] and close > high[2] and not bearish[1]
+    breakLow => bearish[2] and close < low[2] and not bullish[1]
+
+engulfing = (bullishEngulf or bearishEngulf) and (higher[1] or lower[1])
+
+// B. PIVOT ZONES
+var buyzoneHigh = array.new_float(0)
+var buyzoneLow = array.new_float(0)
+var buyzoneTime = array.new_int(0)
+var bounceUp = array.new_bool(0)
+
+var sellzoneHigh = array.new_float(0)
+var sellzoneLow = array.new_float(0)
+var sellzoneTime = array.new_int(0)
+var bounceDown = array.new_bool(0)
+
+// 1. Broken Pivot Zones
+brokenHigh = while get(sellzoneHigh, 0) < high
+    busted(sellzoneHigh, sellzoneLow, sellzoneTime, bounceDown)
+
+brokenLow = while get(buyzoneLow, 0) > low
+    busted(buyzoneHigh, buyzoneLow, buyzoneTime, bounceUp)
+
+// 2. Distribution/Accumulation Bar and Pivot Bar
+upturn = soaring and (reversal or continuation or engulfing)
+downturn = tumbling and (reversal or continuation or engulfing)
+
+dacbar = switch
+    upturn => whiteSoldiers ? 3 : (breakHigh and selling[2] ? 2 : 1)
+    downturn => blackCrows ? 3 : (breakLow and buying[2] ? 2 : 1)
+
+pivotbar = switch
+    upturn => whiteSoldiers ? 2 : (green[1] ? 1 : 0)
+    downturn => blackCrows ? 2 : (red[1] ? 1 : 0)
+
+// 3. Pivot Zone Values
+pzHigh = float(na)
+pzLow = float(na)
+
+switch
+    upturn =>
+        // Low at wick
+        pzLow := math.min(low[dacbar], low[pivotbar], low[1], low)
+        // High at wick or open
+        pzHigh := switch
+            close[pivotbar] > high[dacbar] => high[dacbar]
+            open[pivotbar] > open[dacbar] => open[pivotbar]
+            => open[dacbar]
+
+    downturn =>
+        // High at wick
+        pzHigh := math.max(high[dacbar], high[pivotbar], high[1], high)
+        // Low at wick or open
+        pzLow := switch
+            close[pivotbar] < low[dacbar] => low[dacbar]
+            open[pivotbar] < open[dacbar] => open[pivotbar]
+            => open[dacbar]
+
+// 4. Overlapping Pivot Zones
+overlap = switch
+    upturn => get(buyzoneHigh, 0) >= pzLow
+    downturn => get(sellzoneLow, 0) <= pzHigh
+
+replace = switch
+    overlap and upturn => bounced(bounceUp)
+    overlap and downturn => bounced(bounceDown)
+
+// Remove replaced zone or adjust overlapped zone
+switch
+    replace and upturn => busted(buyzoneHigh, buyzoneLow, buyzoneTime, bounceUp)
+    replace and downturn => busted(sellzoneHigh, sellzoneLow, sellzoneTime, bounceDown)
+    overlap and upturn => array.set(buyzoneHigh, 0, pzLow)
+    overlap and downturn => array.set(sellzoneLow, 0, pzHigh)
+
+// 5. Pivot Zones Queue
+switch
+    upturn =>
+        array.unshift(buyzoneHigh, pzHigh)
+        array.unshift(buyzoneLow, pzLow)
+        array.unshift(buyzoneTime, time[dacbar])
+        array.unshift(bounceUp, false)
+
+    downturn =>
+        array.unshift(sellzoneHigh, pzHigh)
+        array.unshift(sellzoneLow, pzLow)
+        array.unshift(sellzoneTime, time[dacbar])
+        array.unshift(bounceDown, false)
+
+// 6. Pivot Zones Markup
+maxbox(redraw) => redraw ? 22 : na
+
+newbox(bg) =>
+    box.new(0, 0, 0, 0, xloc=xloc.bar_time, border_color=na, bgcolor=bg, extend=extend.right)
+
+render(boxes, index, highs, lows, times) =>
+    ibox = get(boxes, index)
+    top = get(highs, index)
+    bottom = get(lows, index)
+    left = get(times, index)
+    overlapped = if index > 0
+        lastbox = index - 1
+        top == get(lows, lastbox) or bottom == get(highs, lastbox)
+    box.set_lefttop(ibox, left, overlapped ? na : top)
+    box.set_rightbottom(ibox, time, overlapped ? na : bottom)
+
+var supply = input.color(color.rgb(242, 54, 70, 97), 'Supply Zones')
+var demand = input.color(color.rgb(8, 153, 129, 97), 'Demand Zones')
+
+var buyBox = array.new_box(0)
+var sellBox = array.new_box(0)
+
+for i = 0 to maxbox(na(close[1]))
+    array.push(buyBox, newbox(demand))
+    array.push(sellBox, newbox(supply))
+
+for i = 0 to maxbox(upturn or brokenLow)
+    render(buyBox, i, buyzoneHigh, buyzoneLow, buyzoneTime)
+
+for i = 0 to maxbox(downturn or brokenHigh)
+    render(sellBox, i, sellzoneHigh, sellzoneLow, sellzoneTime)
+
+// C. ALERTS
+if brokenHigh
+    alert('Breakout', alert.freq_once_per_bar)
+
+if brokenLow
+    alert('Breakdown', alert.freq_once_per_bar)
+
+if upturn or downturn
+    setup = switch
+        whiteSoldiers => 'White Soldiers'
+        blackCrows => 'Black Crows'
+        breakHigh => bullishEngulf ? 'Engulf & Break High' : 'Break High'
+        breakLow => bearishEngulf ? 'Engulf & Break Low' : 'Break Low'
+        bullishEngulf => 'Bullish Engulf'
+        bearishEngulf => 'Bearish Engulf'
+    occurence = replace ? 'Replace' : (overlap ? 'Bounce' : 'Fresh')
+    message = setup + ' (' + occurence + ')'
+    alert(message, alert.freq_once_per_bar_close)
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//HH harmonics
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+i_pivothigh_len = input.int(21, "1 Technical Analysis Settings", group="Pivot points", inline="phb")
+i_pivothigh_n   = input.int(7 , "2 Technical Analysis Settings", group="Pivot points", inline="phb")
+i_pivotlow_len  = input.int(21, "3 Technical Analysis Settings", group="Pivot points", inline="plb")
+i_pivotlow_n    = input.int(7 , "4 Technical Analysis Settings", group="Pivot points", inline="plb")
+i_drawpivots    = input.bool(true, "Clean test?", group="Pivot points")
+i_hsource_test	= input.source(close, "RSI summit", group="Pivot points", tooltip = "Series that is tested for a high pivot point, if yes takes price from Pivot high source")
+i_hsource     	= input.source(high, "ASTROLOGY summit", group="Pivot points")
+i_lsource_test	= input.source(close, "harmonic summit", group="Pivot points", tooltip = "Series that is tested for a low pivot point, if yes takes price from Pivot low source")
+i_lsource       = input.source(low, "Volume summit", group="Pivot points")
+
+i_trend_old_method = input.bool(false, "Run Automatic Test", group="Indicator test")
+i_htrend_style = input.string(line.style_dashed, "Trend settings", options=[line.style_dotted, line.style_dashed, line.style_solid, line.style_arrow_both, line.style_arrow_left, line.style_arrow_right], group="test", inline="htr")
+i_htrend_width = input.int(2, "top line", group="test", inline="htr")
+i_ltrend_style = input.string(line.style_dashed, "bottom line" , options=[line.style_dotted, line.style_dashed, line.style_solid, line.style_arrow_both, line.style_arrow_left, line.style_arrow_right], group="test", inline="ltr")
+i_ltrend_width = input.int(2, "imaginary fracture", group="test", inline="ltr")
+i_trend_extlen = input.int(5, "Length of the price channel", group="test")
+
+i_hcolor = input.color(color.new(#025b06, 0),"buying",group="Colors", inline="clr")
+i_lcolor = input.color(color.new(#FA5032, 0), "selling", group="Colors", inline="clr")
+
+i_drawheatmap = input.bool(false, "operation", group = "heat map")
+i_minrsi_len  = input.int(2 , "1 Map Settings", group = "heat map", tooltip = "for step = 0 to 10 : rsi = step * (max - min) / 10")
+i_maxrsi_len  = input.int(22, "2 Map Settings", group = "heat map", tooltip = "for step = 0 to 10 : rsi = step * (max - min) / 10")
+i_grid_x      = input.int(100, "3 Map Settings" , group = "heat map", tooltip = "X axis resolution, if > 45 first cells start to get deleted")
+
+ 
+ 
+i_drawfibs          = input.bool(true , "turning off?", group = "correction", inline="fiblines")
+i_drawfibs_extended = input.bool(false, "automatic correction", group = "correction", inline="fiblines")
+i_fibline_widths    = input.int(1, "Default setting", group="correction")
+i_fibline_styles    = input.string(line.style_dotted, "font type", options=[line.style_dotted, line.style_dashed, line.style_solid, line.style_arrow_both, line.style_arrow_left, line.style_arrow_right], group="revision")
+
+i_alerts_enabled                = input.bool(false, "Enable", group ="Elliot and Harmony", inline="alrt", tooltip = "WIP, alarms dont trigger so just a label for now")
+i_alerts_high_trend_trigger_pct = input.float(0.15, "1 Stop", group="Elliot and Harmony", step=0.1, minval = 0.0, maxval = 1.0)
+i_alerts_low_trend_trigger_pct  = input.float(0.15, "2 Stop" , group="Elliot and Harmony", step=0.1, minval = 0.0, maxval = 1.0)
+i_alerts_draw_alert_zones       = input.bool(false, "3 Stop", group="Elliot and Harmony", inline="alrt")
+i_alerts_fill_alert_zones       = input.bool(false, "4 Stop", group="Elliot and Harmony", inline="alrt")
+
+A1 = input.int(111, step=10)
+A2 = input.int(111, step=10)
+A3 = input.int(111, step=10)
+A4 = input.int(111, step=10)
+A5 = input.int(111, step=10)
+CRAK1 = input.int(13, step=10) 
+CRAK2 = input.int(17, step=10)
+CRAK3 = input.int(110, step=10)
+CRAK4 = input.int(109, step=10)
+CRAK5 = input.int(103, step=10)
+CRAK6 = input.int(1, step=10)
+CRAK7 = input.int(1, step=10)
+CRAK8 = input.int(9, step=10) 
+CRAK9 = input.int(11, step=10)
+CRAK10 = input.int(120, step=10)
+CRAK11 = input.int(200, step=10)
+CRAK12 = input.int(200, step=10)
+CRAK13 = input.int(110, step=10)
+CRAK14 = input.int(11, step=10)
+CRAK15 = input.int(12, step=10)
+CRAK16 = input.int(2, step=10)
+CRAK17 = input.int(1, step=10)
+CRAK18 = input.int(2, step=10)
+CRAK19 = input.int(1, step=10)
+CRAK20 = input.int(2, step=10)
+///
+DETECT3 = input.int(18, step=10)
+PATTERN1 = input(true)
+PATTERN10 = input.int(24, step=5, minval=1)
+COLORP1 = input(color.rgb(43, 52, 146, 100))
+zigzag1Width = 1
+zigzag1Style = line.style_dotted
+ 
+PATTERN2 = input(true)
+PATTERN20 = input.int(24, step=5, minval=1)
+COLORP2 = input(color.rgb(43, 52, 146, 100))
+zigzag2Width = 1
+zigzag2Style = line.style_dotted
+ 
+PATTERN3 = input(true)
+PATTERN30 = input.int(35, step=5, minval=1)
+COLORP3 = input(color.rgb(43, 52, 146, 100))
+zigzag3Width = 1
+zigzag3Style = line.style_dotted
+ 
+PATTERN4 = input(true)
+PATTERN40 = input.int(35, step=5, minval=1)
+COLORP4 = input(color.rgb(43, 52, 146, 100))
+zigzag4Width = 1
+zigzag4Style = line.style_dotted
+
+P11 = input(true)
+P22 = input(true)
+P33 = input(true)
+P44 = input(true)
+P55 = input(true)
+P66 = input(true)
+DETECTM = input.int(18, minval=5, step=5, maxval=200)
+//
+DATAC = input.int(350, step=10)
+DATAC2 = input.int(400, step=10)
+//
+MaxRiskPerReward = input.int(29, title='DETECT/PER', step=10, minval=0)
+//
+
+//
+E1 = input.int(370, step=10)
+E2 = input.int(390, step=10)
+showStatTable = false
+CANCLE_PATTERNS = input(false)
+//
+CRAKD90 = input.int(200, step=10)
+CRAKFALSE200 = input.int(200, step=10)
+CRAKFALSE100 = input.int(300, step=10)
+///
+BULL_PATTERNS = input(color.rgb(2, 115, 21))
+BEAR_PATTERNS = input(color.rgb(199, 23, 3))
+
+err_min = (100 - DETECTM) / 100
+err_max = (100 + DETECTM) / 100
+
+var zigzagpivots1 = array.new_float(0)
+var zigzagpivotbars1 = array.new_int(0)
+var zigzagpivotdirs1 = array.new_int(0)
+
+var zigzagpivots2 = array.new_float(0)
+var zigzagpivotbars2 = array.new_int(0)
+var zigzagpivotdirs2 = array.new_int(0)
+
+var zigzagpivots3 = array.new_float(0)
+var zigzagpivotbars3 = array.new_int(0)
+var zigzagpivotdirs3 = array.new_int(0)
+
+var zigzagpivots4 = array.new_float(0)
+var zigzagpivotbars4 = array.new_int(0)
+var zigzagpivotdirs4 = array.new_int(0)
+
+var wmlines1 = array.new_line(8)
+var wmtype1 = array.new_int(2, 1)
+var wmLabels1 = array.new_bool(13, false)
+var wmLabel1 = array.new_label(1)
+
+var wmlines2 = array.new_line(8)
+var wmtype2 = array.new_int(2, 1)
+var wmLabels2 = array.new_bool(13, false)
+var wmLabel2 = array.new_label(1)
+
+var wmlines3 = array.new_line(8)
+var wmtype3 = array.new_int(2, 1)
+var wmLabels3 = array.new_bool(13, false)
+var wmLabel3 = array.new_label(1)
+
+var wmlines4 = array.new_line(8)
+var wmtype4 = array.new_int(2, 1)
+var wmLabels4 = array.new_bool(13, false)
+var wmLabel4 = array.new_label(1)
+
+pivots(length) =>
+    float phigh = ta.highestbars(high, length) == 0 ? high : na
+    float plow = ta.lowestbars(low, length) == 0 ? low : na
+    dir = 0
+    iff_1 = plow and na(phigh) ? -1 : dir[1]
+    dir := phigh and na(plow) ? 1 : iff_1
+    [dir, phigh, plow]
+
+zigzag(length, zigzagpivots, zigzagpivotbars, zigzagpivotdirs) =>
+    [dir, phigh, plow] = pivots(length)
+    dirchanged = ta.change(dir)
+
+    if phigh or plow
+        value = dir == 1 ? phigh : plow
+        bar = bar_index
+        newDir = dir
+        if not dirchanged and array.size(zigzagpivots) >= 1
+            pivot = array.shift(zigzagpivots)
+            pivotbar = array.shift(zigzagpivotbars)
+            pivotdir = array.shift(zigzagpivotdirs)
+            useNewValues = value * pivotdir < pivot * pivotdir
+            value := useNewValues ? pivot : value
+            bar := useNewValues ? pivotbar : bar
+            bar
+
+        if array.size(zigzagpivots) >= 2
+            LastPoint = array.get(zigzagpivots, 1)
+            newDir := dir * value > dir * LastPoint ? dir * 2 : dir
+            newDir
+
+        array.unshift(zigzagpivots, value=value)
+        array.unshift(zigzagpivotbars, bar)
+        array.unshift(zigzagpivotdirs, newDir)
+
+        if array.size(zigzagpivots) > DETECT3
+            array.pop(zigzagpivots)
+            array.pop(zigzagpivotbars)
+            array.pop(zigzagpivotdirs)
+
+get_harmonic_label(wmLabels, dir, price, bar) =>
+    isP11 = array.get(wmLabels, 0)
+    isP22 = array.get(wmLabels, 1)
+    isP33 = array.get(wmLabels, 2)
+    isP44 = array.get(wmLabels, 3)
+    isP55 = array.get(wmLabels, 4)
+    isP66 = array.get(wmLabels, 5)
+
+    labelText = isP11 ? 'Strong entry' : ''
+    labelText := labelText + (isP22 ? (labelText == '' ? '' : '\n') + 'Strong entry' : '')
+    labelText := labelText + (isP33 ? (labelText == '' ? '' : '\n') + 'Strong entry' : '')
+    labelText := labelText + (isP44 ? (labelText == '' ? '' : '\n') + 'Strong entry' : '')
+    labelText := labelText + (isP55 ? (labelText == '' ? '' : '\n') + 'Strong entry' : '')
+    labelText := labelText + (isP66 ? (labelText == '' ? '' : '\n') + 'Strong entry' : '')
+    
+
+    trendColor = dir > 0 ? BULL_PATTERNS : BEAR_PATTERNS
+
+    baseLabel = label.new(x=bar, y=price, text=labelText, yloc=yloc.price, color=trendColor, style=dir < 1 ? label.style_label_down : label.style_label_up, textcolor=#ffffff, size=size.normal)
+    baseLabel
+
+detect_harmonic_pattern(zigzagpivots, zigzagpivotbars, zigzagpivotdirs, wmlines, wmlabel, wmtype, wmLabels, zigzagColor, zigzagWidth, zigzagStyle, showZigZag) =>
+    start = CANCLE_PATTERNS ? 1 : 0
+    wm_pattern = false
+    abcd_pattern = false
+    double_pattern = false
+    if array.size(zigzagpivots) >= 6 + start and showZigZag
+
+        d = array.get(zigzagpivots, start + 0)
+        dBar = array.get(zigzagpivotbars, start + 0)
+        dDir = array.get(zigzagpivotdirs, start + 0)
+
+        c = array.get(zigzagpivots, start + 1)
+        cBar = array.get(zigzagpivotbars, start + 1)
+        cDir = array.get(zigzagpivotdirs, start + 1)
+
+        b = array.get(zigzagpivots, start + 2)
+        bBar = array.get(zigzagpivotbars, start + 2)
+        bDir = array.get(zigzagpivotdirs, start + 2)
+
+        a = array.get(zigzagpivots, start + 3)
+        aBar = array.get(zigzagpivotbars, start + 3)
+        aDir = array.get(zigzagpivotdirs, start + 3)
+
+        x = array.get(zigzagpivots, start + 4)
+        xBar = array.get(zigzagpivotbars, start + 4)
+        xDir = array.get(zigzagpivotdirs, start + 4)
+
+        y = array.get(zigzagpivots, start + 5)
+        yBar = array.get(zigzagpivotbars, start + 5)
+        yDir = array.get(zigzagpivotdirs, start + 5)
+
+        highPoint = math.max(x, a, b, c, d)
+        lowPoint = math.min(x, a, b, c, d)
+        dir = c > d ? 1 : -1
+
+        xabRatio = math.abs(b - a) / math.abs(x - a)
+        abcRatio = math.abs(c - b) / math.abs(a - b)
+        bcdRatio = math.abs(d - c) / math.abs(b - c)
+        xadRatio = math.abs(d - a) / math.abs(x - a)
+        yxaRatio = math.abs(a - x) / math.abs(y - x)
+
+        abTime = math.abs(aBar - bBar)
+        cdTime = math.abs(cBar - dBar)
+        abPrice = math.abs(a - b)
+        cdPrice = math.abs(c - d)
+
+        time_ratio = cdTime / abTime
+        price_ratio = cdPrice / abPrice
+        abcdDirection = a < b and a < c and c < b and c < d and a < d and b < d ? 1 : a > b and a > c and c > b and c > d and a > d and b > d ? -1 : 0
+
+        risk = math.abs(b - d)
+        reward = math.abs(c - d)
+        riskPerReward = risk * 100 / (risk + reward)
+
+        if b < highPoint and b > lowPoint
+            //gartley
+            if P11 and xabRatio >= 0.588 * err_min and xabRatio <= 0.648 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 0.866 * err_min and xadRatio <= 0.886 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 0, true)
+            else
+                array.set(wmLabels, 0, false)
+            //Crab
+            if P22 and  xabRatio >= 0.382 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 1.802 * err_min and xadRatio <= 1.902 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 1, true)
+            else
+                array.set(wmLabels, 1, false)
+            //Deep Crab
+            if P33  and xabRatio >= 0.886 * err_min and xabRatio <= 0.936 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 1.802 * err_min and xadRatio <= 1.902 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 2, true)
+            else
+                array.set(wmLabels, 2, false)
+            //Bat
+            if P44 and xabRatio >= 0.382 * err_min and xabRatio <= 0.55 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 0.886 * err_min and xadRatio <= 0.886 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 3, true)
+            else
+                array.set(wmLabels, 3, false)
+            //Butterfly
+            if P55 and xabRatio >= 0.755 * err_min and xabRatio <= 0.816 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max and xadRatio >= 1.272 * err_min and xadRatio <= 1.272 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 4, true)
+            else
+                array.set(wmLabels, 4, false)
+            //Shark
+            if P66 and xabRatio >= 0.382 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 1.13 * err_min and abcRatio <= 1.618 * err_max and xadRatio >= 1 * err_min and xadRatio <= 1.13 * err_max
+                wm_pattern := true
+                array.set(wmLabels, 5, true)
+            else
+                array.set(wmLabels, 5, false)
+
+        cancelW = false
+        cancelA = false
+        cancelD = false
+        if wm_pattern[1] and x == x[1] and a == a[1] and b == b[1] and c == c[1]
+            line.delete(array.get(wmlines, 0))
+            line.delete(array.get(wmlines, 1))
+            line.delete(array.get(wmlines, 2))
+            line.delete(array.get(wmlines, 3))
+            line.delete(array.get(wmlines, 4))
+            line.delete(array.get(wmlines, 5))
+            line.delete(array.get(wmlines, 6))
+            line.delete(array.get(wmlines, 7))
+            label.delete(array.get(wmlabel, 0))
+            cancelW := true
+            cancelW
+
+        if abcd_pattern[1] and a == a[1] and b == b[1] and c == c[1]
+            line.delete(array.get(wmlines, 1))
+            line.delete(array.get(wmlines, 2))
+            line.delete(array.get(wmlines, 3))
+            label.delete(array.get(wmlabel, 0))
+            cancelA := true
+            cancelA
+
+        if double_pattern[1] and a == a[1] and b == b[1] and c == c[1]
+            line.delete(array.get(wmlines, 5))
+            label.delete(array.get(wmlabel, 0))
+            cancelD := true
+            cancelD
+
+        if wm_pattern
+            xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            cd = line.new(y1=c, y2=d, x1=cBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            xd = line.new(y1=x, y2=d, x1=xBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            ac = line.new(y1=a, y2=c, x1=aBar, x2=cBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            array.set(wmlines, 0, xa)
+            array.set(wmlines, 1, ab)
+            array.set(wmlines, 2, bc)
+            array.set(wmlines, 3, cd)
+            array.set(wmlines, 4, xb)
+            array.set(wmlines, 5, bd)
+            array.set(wmlines, 6, xd)
+            array.set(wmlines, 7, ac)
+            array.set(wmtype, 0, dir)
+            linefill.new(xa, xb, color=color.rgb(44, 93, 136, 100))
+            linefill.new(bc, bd, color=color.rgb(44, 93, 136, 100))
+        if abcd_pattern and not wm_pattern
+            ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            cd = line.new(y1=c, y2=d, x1=cBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            array.set(wmlines, 1, ab)
+            array.set(wmlines, 2, bc)
+            array.set(wmlines, 3, cd)
+            array.set(wmtype, 0, dir)
+        if double_pattern and not wm_pattern
+            bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=zigzagColor, width=zigzagWidth, style=zigzagStyle)
+            array.set(wmlines, 5, bd)
+            array.set(wmtype, 0, dir)
+
+        if wm_pattern or abcd_pattern or double_pattern
+            array.set(wmlabel, 0, get_harmonic_label(wmLabels, dir, d, dBar))
+
+    pattern = wm_pattern and not wm_pattern[1] or abcd_pattern and not abcd_pattern[1] or double_pattern and not double_pattern[1]
+    pattern
+
+zigzag(PATTERN10, zigzagpivots1, zigzagpivotbars1, zigzagpivotdirs1)
+zigzag(PATTERN20, zigzagpivots2, zigzagpivotbars2, zigzagpivotdirs2)
+zigzag(PATTERN30, zigzagpivots3, zigzagpivotbars3, zigzagpivotdirs3)
+zigzag(PATTERN40, zigzagpivots4, zigzagpivotbars4, zigzagpivotdirs4)
+
+
+
+wm_pattern1 = detect_harmonic_pattern(zigzagpivots1, zigzagpivotbars1, zigzagpivotdirs1, wmlines1, wmLabel1, wmtype1, wmLabels1, COLORP1, zigzag1Width, zigzag1Style, PATTERN1)
+wm_pattern2 = detect_harmonic_pattern(zigzagpivots2, zigzagpivotbars2, zigzagpivotdirs2, wmlines2, wmLabel2, wmtype2, wmLabels2, COLORP2, zigzag2Width, zigzag2Style, PATTERN2)
+wm_pattern3 = detect_harmonic_pattern(zigzagpivots3, zigzagpivotbars3, zigzagpivotdirs3, wmlines3, wmLabel3, wmtype3, wmLabels3, COLORP3, zigzag3Width, zigzag3Style, PATTERN3)
+wm_pattern4 = detect_harmonic_pattern(zigzagpivots4, zigzagpivotbars4, zigzagpivotdirs4, wmlines4, wmLabel4, wmtype4, wmLabels4, COLORP4, zigzag4Width, zigzag4Style, PATTERN4)
+
+alertcondition(wm_pattern1 or wm_pattern2 or wm_pattern3 or wm_pattern4, title='market maker', message='market maker Alert {{ticker}}')
+
+var stats = table.new(position=position.top_right, columns=8, rows=DETECT3 + 2, border_width=1)
+
+if barstate.islast and showStatTable
+    if PATTERN1
+        table.cell(table_id=stats, column=0, row=0, text='Zigzag ' + str.tostring(PATTERN10), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=0, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=1, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots1) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs1, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=0, row=i + 2, text=str.tostring(array.get(zigzagpivots1, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=1, row=i + 2, text=str.tostring(array.get(zigzagpivotbars2, i)), bgcolor=bgcolor)
+
+    if PATTERN2
+        table.cell(table_id=stats, column=2, row=0, text='Zigzag ' + str.tostring(PATTERN20), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=2, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=3, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots2) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs2, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=2, row=i + 2, text=str.tostring(array.get(zigzagpivots2, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=3, row=i + 2, text=str.tostring(array.get(zigzagpivotbars2, i)), bgcolor=bgcolor)
+
+    if PATTERN3
+        table.cell(table_id=stats, column=4, row=0, text='Zigzag ' + str.tostring(PATTERN30), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=4, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=5, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots3) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs3, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=4, row=i + 2, text=str.tostring(array.get(zigzagpivots3, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=5, row=i + 2, text=str.tostring(array.get(zigzagpivotbars3, i)), bgcolor=bgcolor)
+
+    if PATTERN4
+        table.cell(table_id=stats, column=6, row=0, text='Zigzag ' + str.tostring(PATTERN40), bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=6, row=1, text='Price', bgcolor=color.black, text_color=color.white)
+        table.cell(table_id=stats, column=7, row=1, text='BarIndex', bgcolor=color.black, text_color=color.white)
+
+        for i = 0 to array.size(zigzagpivots4) - 1 by 1
+            bgcolor = array.get(zigzagpivotdirs4, i) == 1 ? color.lime : color.orange
+            table.cell(table_id=stats, column=6, row=i + 2, text=str.tostring(array.get(zigzagpivots4, i)), bgcolor=bgcolor)
+            table.cell(table_id=stats, column=7, row=i + 2, text=str.tostring(array.get(zigzagpivotbars4, i)), bgcolor=bgcolor)
+
+
+
+
+/////////
+
+//'
+
+
+//fiboLevel= b + (1.618 * (c - b))
+//line.new(x1=dBar+1, y1=fiboLevel, x2=dBar+40, y2=fiboLevel, color=color.red, width=1)
+
+
+//isP11 = array.get(wmLabels, 0)
+//isP22 = array.get(wmLabels, 1)
+//isP33 = array.get(wmLabels, 2)
+//isP44 = array.get(wmLabels, 3)
+//isP55 = array.get(wmLabels, 4)
+//isP66 = array.get(wmLabels, 5)
+
+////////////another1
+
+get_color(rsi) =>
+    clr = color.white
+    if rsi >= 0 and rsi <= 25
+        clr := color.from_gradient(rsi, 0 , 25 , color.rgb(69, 13,   85, 40), color.rgb(64, 70, 137 , 40))
+    if rsi > 25 and rsi <= 50
+        clr := color.from_gradient(rsi, 25, 50 , color.rgb(57, 87,  141, 40), color.rgb(35, 139, 140, 40))
+    if rsi > 50 and rsi <= 75
+        clr := color.from_gradient(rsi, 50, 75 , color.rgb(30, 150, 138, 40), color.rgb(85, 199, 103, 40))
+    if rsi > 75 and rsi <= 100
+        clr := color.from_gradient(rsi, 75, 100, color.rgb(115, 208, 85, 40), color.rgb(253, 230, 36, 40))
+    clr
+
+get_avg_rsi(source, start_index, len) =>
+    avg = 0.0
+    for i = start_index to start_index + len
+        avg += source[i]
+    avg / len
+
+interp(l, h, s) => l + (h - l) * s
+
+//PIVOT POINTS
+type PivotPoint
+    float price
+    int index
+
+var high_pivots = array.new<PivotPoint>()
+var low_pivots  = array.new<PivotPoint>()
+
+ph = ta.pivothigh(i_hsource_test, i_pivothigh_len, i_pivothigh_len)
+if ph
+    if array.size(high_pivots) >= i_pivothigh_n
+        array.shift(high_pivots)
+    array.push(high_pivots, PivotPoint.new(i_hsource[i_pivothigh_len], bar_index[i_pivothigh_len]))
+
+pl = ta.pivotlow(i_lsource_test, i_pivotlow_len, i_pivotlow_len)
+if pl
+    if array.size(low_pivots) >= i_pivotlow_n
+        array.shift(low_pivots)
+    array.push(low_pivots, PivotPoint.new(i_lsource[i_pivotlow_len], bar_index[i_pivotlow_len]))
+
+//FIND HIGH AND LOW TREND LINE
+var low_trend  = line(na)
+var high_trend = line(na)
+var labels = array.new_label()
+
+while array.size(labels) > 0
+    label.delete(array.shift(labels))
+
+if array.size(high_pivots) > 1
+    if i_drawpivots
+        for pivot in high_pivots
+            array.push(labels, label.new(pivot.index, pivot.price, "", style=label.style_label_down, size=size.tiny, color=color.new(#99d31b, 100)))
+
+    tmp = array.new_line()
+    for i = 0 to array.size(high_pivots) - 1
+        for j = i to array.size(high_pivots) - 1
+            if i != j
+                PivotPoint pp0 = array.get(high_pivots, i)
+                PivotPoint pp1 = array.get(high_pivots, j)
+                array.push(tmp, line.new(pp0.index, pp0.price, pp1.index, pp1.price, color=i_hcolor, width = 1, style = line.style_dashed))
+
+    best_ind = int(na)
+    if i_trend_old_method
+        min_val = 10000000.0
+        for i = 0 to array.size(tmp) - 1
+            lp = line.get_price(array.get(tmp, i), bar_index)
+            if lp > high
+                if min_val > math.abs(lp - close)
+                    min_val := math.abs(lp - close)
+                    best_ind := i
+    else
+        best_cnt = 0
+        for i = 0 to array.size(tmp) - 1
+            trend = array.get(tmp, i)
+            cnt = 0
+
+            for pivot in high_pivots
+                if line.get_price(trend, pivot.index) >= pivot.price
+                    cnt += 1
+
+            if cnt > best_cnt
+                best_cnt := cnt
+                best_ind := i
+
+            if cnt == best_cnt
+                if line.get_price(array.get(tmp, best_ind), bar_index + 1) > line.get_price(trend, bar_index + 1) and line.get_price(trend, bar_index + 1) > i_hsource
+                    best_cnt := cnt
+                    best_ind := i
+
+    if not na(best_ind)
+        line.delete(high_trend)
+        high_trend := array.get(tmp, best_ind)
+        array.remove(tmp, best_ind)
+
+    while array.size(tmp) > 0
+        line.delete(array.shift(tmp)) 
+
+if array.size(low_pivots) > 1
+    if i_drawpivots
+        for pivot in low_pivots
+            array.push(labels, label.new(pivot.index, pivot.price, "", style=label.style_label_up, size=size.tiny, color=color.new(#FA5032, 100)))
+
+    tmp = array.new_line()
+    for i = 0 to array.size(low_pivots) - 1
+        for j = i to array.size(low_pivots) - 1
+            if i != j
+                PivotPoint pp0 = array.get(low_pivots, i)
+                PivotPoint pp1 = array.get(low_pivots, j)
+                array.push(tmp, line.new(pp0.index, pp0.price, pp1.index, pp1.price, color=i_lcolor, width = 1, style = line.style_dashed))
+
+    best_ind = int(na)
+    if i_trend_old_method
+        min_val = 100000.0
+        for i = 0 to array.size(tmp) - 1
+            lp = line.get_price(array.get(tmp, i), bar_index)
+            if lp < low
+                if min_val > math.abs(lp - close)
+                    min_val := math.abs(lp - close)
+                    best_ind := i
+    else
+        best_cnt = 0
+        for i = 0 to array.size(tmp) - 1
+            trend = array.get(tmp, i)
+            cnt = 0
+            
+            for pivot in low_pivots
+                if line.get_price(trend, pivot.index) <= pivot.price
+                    cnt += 1
+
+            if cnt > best_cnt
+                best_cnt := cnt
+                best_ind := i
+
+            if cnt == best_cnt
+                if line.get_price(array.get(tmp, best_ind), bar_index + 1) < line.get_price(trend, bar_index + 1) and line.get_price(trend, bar_index + 1) < i_lsource
+                    best_cnt := cnt
+                    best_ind := i
+
+    if not na(best_ind)
+        line.delete(low_trend)
+        low_trend := array.get(tmp, best_ind)
+        array.remove(tmp, best_ind)
+
+    while array.size(tmp) > 0
+        line.delete(array.shift(tmp))
+
+if not na(low_trend) and not na(high_trend)
+    for l in labels
+        if label.get_x(l) == line.get_x1(low_trend) or label.get_x(l) == line.get_x2(low_trend)
+            label.set_color(l, color.new(#FA5032, 0))
+    line.set_y2(low_trend, line.get_price(low_trend, bar_index + i_trend_extlen))
+    line.set_x2(low_trend, bar_index + i_trend_extlen)
+    line.set_width(low_trend, i_ltrend_width)
+    line.set_style(low_trend, i_ltrend_style)
+    if line.get_x1(high_trend) > line.get_x1(low_trend)
+        line.set_y1(high_trend, line.get_price(high_trend, line.get_x1(low_trend)))
+        line.set_x1(high_trend, line.get_x1(low_trend))
+
+    for l in labels
+        if label.get_x(l) == line.get_x1(high_trend) or label.get_x(l) == line.get_x2(high_trend)
+            label.set_color(l, color.new(#99d31b, 0))
+    line.set_y2(high_trend, line.get_price(high_trend, bar_index + i_trend_extlen))
+    line.set_x2(high_trend, bar_index + i_trend_extlen)
+    line.set_width(high_trend, i_htrend_width)
+    line.set_style(high_trend, i_htrend_style)
+    if line.get_x1(low_trend) > line.get_x1(high_trend)
+        line.set_y1(low_trend, line.get_price(low_trend, line.get_x1(high_trend)))
+        line.set_x1(low_trend, line.get_x1(high_trend))
+
+
+//you can now use high and low trend line
+//if not na(high_trend)
+//  ...code...
+
+
+//HEATMAP  
+var fills = array.new_linefill()
+var lines = array.new_line()
+
+while array.size(fills) > 0
+    linefill.delete(array.shift(fills))
+while array.size(lines) > 0
+    line.delete(array.shift(lines))
+
+rsi0  = ta.rsi(close, i_minrsi_len +  0 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi1  = ta.rsi(close, i_minrsi_len +  1 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi2  = ta.rsi(close, i_minrsi_len +  2 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi3  = ta.rsi(close, i_minrsi_len +  3 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi4  = ta.rsi(close, i_minrsi_len +  4 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi5  = ta.rsi(close, i_minrsi_len +  5 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi6  = ta.rsi(close, i_minrsi_len +  6 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi7  = ta.rsi(close, i_minrsi_len +  7 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi8  = ta.rsi(close, i_minrsi_len +  8 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi9  = ta.rsi(close, i_minrsi_len +  9 * (i_maxrsi_len - i_minrsi_len) / 10)
+rsi10 = ta.rsi(close, i_minrsi_len + 10 * (i_maxrsi_len - i_minrsi_len) / 10)
+
+if not na(high_trend) and not na(low_trend) and barstate.islast and i_drawheatmap
+    X = i_grid_x //horizontal grid segments OK to change (limited by max_line_count? or something) (max 45 at 500)
+    Y = 10 //vertical grid segments do NOT change or add rsi11 and so on with other relevant code
+    for x = 0 to X - 1 by 1
+        for y = 0 to Y
+            x0 = int(line.get_x1(low_trend) + x * (bar_index - line.get_x1(low_trend)) / X)
+            y0 = line.get_price(low_trend, x0) + y * (line.get_price(high_trend, x0) - line.get_price(low_trend, x0)) / Y
+            x1 = int(line.get_x1(high_trend) + (x + 1) * (bar_index - line.get_x1(high_trend)) / X)
+            y1 = line.get_price(low_trend, x1) + y * (line.get_price(high_trend, x1) - line.get_price(low_trend, x1)) / Y
+
+            array.push(lines, line.new(x0, y0, x1, y1, color=na))
+
+            if array.size(lines) > 1 and y != 0
+                l0 = array.get(lines, array.size(lines) - 2)
+                l1 = array.get(lines, array.size(lines) - 1)
+                if y == 1
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi0[bar_index - x1 + int((x1 - x0) / 2)]))) //get_color(get_avg_rsi(rsi0, bar_index - x1, x1 - x0)) //not working great so lets just take the middle
+                if y == 2
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi1[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 3
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi2[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 4
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi3[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 5
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi4[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 6
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi5[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 7
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi6[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 8
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi7[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 9
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi8[bar_index - x1 + int((x1 - x0) / 2)])))
+                if y == 10
+                    array.push(fills, linefill.new(l0, l1, get_color(rsi9[bar_index - x1 + int((x1 - x0) / 2)])))
+
+
+//FIBONACI
+var fibs = array.new_line()
+
+while array.size(fibs) > 0
+    line.delete(array.shift(fibs))
+
+if not na(high_trend) and not na(low_trend) and barstate.islast and i_drawfibs
+    left  = line.get_x1(low_trend)
+    right = bar_index + i_trend_extlen
+    left_val   = interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , -0.618)
+    right_val  = interp(line.get_price(low_trend, right), line.get_price(high_trend, right), -0.618)
+    array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+    left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 0.236)
+    right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 0.236)
+    array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+    left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 0.382)
+    right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 0.382)
+    array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+    left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 0.5)
+    right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 0.5)
+    array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+    left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 0.618)
+    right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 0.618)
+    array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+    left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 0.75)
+    right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 0.75)
+    array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+    left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 1.618)
+    right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 1.618)
+    array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+
+    if i_drawfibs_extended
+        left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 2.618)
+        right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 2.618)
+        array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+        left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 3.618)
+        right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 3.618)
+        array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+        left_val  := interp(line.get_price(low_trend, left) , line.get_price(high_trend, left) , 4.236)
+        right_val := interp(line.get_price(low_trend, right), line.get_price(high_trend, right), 4.236)
+        array.push(fibs, line.new(left, left_val, right, right_val, style=i_fibline_styles, width=i_fibline_widths, color=color.from_gradient(right_val, line.get_price(low_trend, right), line.get_price(high_trend, right), i_lcolor , i_hcolor)))
+
+
+//ALERTS
+var line alert_zone_low  = line(na)
+var line alert_zone_high = line(na)
+var linefill alert_zone_low_linefill  = linefill(na)
+var linefill alert_zone_high_linefill = linefill(na)
+var label alert_label = label(na)
+
+if not na(low_trend) and not na(high_trend) and barstate.islast and i_alerts_enabled
+    clp = line.get_price(low_trend, bar_index)
+    chp = line.get_price(high_trend, bar_index)
+
+    ldiff = (close - clp) / (chp - clp)
+    hdiff = (chp - close) / (chp - clp)
+
+    label.delete(alert_label)
+
+    if ldiff <= i_alerts_low_trend_trigger_pct and ldiff > 0.0
+        alert_label := label.new(bar_index + 3, close, str.tostring(ldiff, "buy #.##%"), style=label.style_label_left)
+        alert("Possible bounce incoming " + syminfo.ticker, alert.freq_once_per_bar)      
+    else if hdiff <= i_alerts_high_trend_trigger_pct and hdiff > 0.0
+        alert_label := label.new(bar_index + 3, close, str.tostring(hdiff, "sell #.##%"), style=label.style_label_left)
+        alert("Possible drop incoming " + syminfo.ticker, alert.freq_once_per_bar)
+
+    if i_alerts_draw_alert_zones
+        line.delete(alert_zone_low)
+        line.delete(alert_zone_high)
+
+        x0 = bar_index
+        y0 = clp + (chp - clp) * i_alerts_low_trend_trigger_pct
+        x1 = bar_index + i_trend_extlen
+        y1 = line.get_price(low_trend, x1) + (line.get_price(high_trend, x1) - line.get_price(low_trend, x1)) * i_alerts_low_trend_trigger_pct
+        alert_zone_low := line.new(x0, y0, x1, y1, color=i_lcolor)
+        if i_alerts_fill_alert_zones
+            linefill.delete(alert_zone_low_linefill)
+            alert_zone_low_linefill := linefill.new(low_trend, alert_zone_low, color.new(i_lcolor, 70))
+
+        x0 := bar_index
+        y0 := clp + (chp - clp) * (1.0 - i_alerts_high_trend_trigger_pct)
+        x1 := bar_index + i_trend_extlen
+        y1 := line.get_price(low_trend, x1) + (line.get_price(high_trend, x1) - line.get_price(low_trend, x1)) * (1.0 - i_alerts_high_trend_trigger_pct)
+        alert_zone_high := line.new(x0, y0, x1, y1, color=i_hcolor)
+        if i_alerts_fill_alert_zones
+            linefill.delete(alert_zone_high_linefill)
+            alert_zone_high_linefill := linefill.new(high_trend, alert_zone_high, color.new(i_hcolor, 70))
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//MTF hhLL/with table
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+t(val) => str.tostring(val)
+method f(float f) => str.tostring(f)
+method f(int i) => str.tostring(i)
+method f(bool b) => str.tostring(b)
+method f(string s) => str.tostring(s)
+method fd(int t, string format = "dd-MM-yy HH:mm") => str.format_time(t, format, syminfo.timezone)
+
+dt(val, format = "dd-MM-yy HH:mm") => str.format_time(val, format, syminfo.timezone)
+var debug = array.new<string>(1, "")
+method clear_log(string [] s) =>
+    s.clear()
+    s.unshift("")
+method log(string [] s, string msg, bool on_last_bar = false) =>
+    if((not on_last_bar) or (on_last_bar and barstate.islast))
+        if(str.length(s.get(0)) + str.length(msg) < 4095)
+            s.set(0, s.get(0) + msg + "\n")
+method display(string [] s, where = 'B') =>
+    if(not na(s.get(0)))
+        if(where == 'B')
+            label.new(bar_index, low, yloc = yloc.belowbar, style = label.style_diamond, tooltip = s.get(0), size = size.tiny)
+        else
+            label.new(bar_index, high, yloc = yloc.abovebar, style = label.style_diamond, tooltip = s.get(0), size = size.tiny)
+        debug.clear_log()
+//#endregion General functions
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+
+// Input Parameters
+start_time = input.time(timestamp("01 Jan 1900"))
+
+g1 = 'High high, Lower low Setup'
+lb = input.int(title = 'Left bars', defval = 10, group = g1, inline = 'g11')
+rb = input.int(title = 'Right bars', defval = 10, group = g1, inline = 'g11')
+
+g2 = 'Chart timeframe Zigzag Setup'
+color_ctf = input.color(title = 'Zigzag color', defval = #dedede, group = g2, inline = 'g21')
+width_ctf = input.int(title = 'Width', defval = 1, group = g2, inline = 'g21')
+plot_ctf_zigzag = input.bool(title = 'Plot Zigzag', defval = true, group = g2, inline = 'g22')
+plot_ctf_hhll_labels = input.bool(title = 'Plot HHLL labels', defval = true, group = g2, inline = 'g22')
+
+
+g3 = 'Higher timeframe Zigzag Setup'
+htf = input.timeframe(title = 'HTF', defval = '60', group = g3, inline = 'g31')
+htf_offset = input.int(title = 'Offset', defval = 1, minval = 0, maxval = 1, group = g3, inline = 'g31')
+color_htf = input.color(title = 'Zigzag color', defval = color.yellow, group = g3, inline = 'g32')
+width_htf = input.int(title = 'Width', defval = 1, group = g3, inline = 'g32')
+plot_htf_zigzag = input.bool(title = 'Plot Zigzag', defval = true, group = g3, inline = 'g33')
+plot_htf_hhll_labels = input.bool(title = 'Plot HHLL labels', defval = true, group = g3, inline = 'g33')
+
+g4 = 'Higher timeframe Zigzag Setup 1'
+htf1 = input.timeframe(title = 'HTF', defval = '240', group = g4, inline = 'g41')
+htf1_offset = input.int(title = 'Offset', defval = 1, minval = 0, maxval = 1, group = g4, inline = 'g41')
+color_htf1 = input.color(title = 'Zigzag color', defval = color.purple, group = g4, inline = 'g42')
+width_htf1 = input.int(title = 'Width', defval = 1, group = g4, inline = 'g42')
+plot_htf1_zigzag = input.bool(title = 'Plot Zigzag', defval = true, group = g4, inline = 'g43')
+plot_htf1_hhll_labels = input.bool(title = 'Plot HHLL labels', defval = true, group = g4, inline = 'g43')
+
+// Definitions and functions
+var tf_info = table.new(position=position.bottom_right, columns=1, rows=1,frame_color = na, frame_width = 1)
+
+show_tf(int row = 0, int col = 0, string msg_str, clr=color.blue) =>
+    if(barstate.islast)
+        table.cell(table_id=tf_info, column=col, row=row, text=msg_str, text_color=clr, text_size = size.tiny)
+
+var ctf = t(timeframe.period)
+show_tf(0, 0, "TF: "+t(ctf)+"/"+t(htf)+"/"+t(htf1))
+
+type class_visuals
+    bool plot_line = false
+    bool plot_label = false
+    color clr
+    int width
+
+var visuals  = map.new<string, class_visuals>()
+
+if(bar_index == 0)
+    visuals.put('CTF', class_visuals.new(plot_ctf_zigzag, plot_ctf_hhll_labels, color_ctf, width_ctf))
+    visuals.put('HTF', class_visuals.new(plot_htf_zigzag, plot_htf_hhll_labels, color_htf, width_htf))
+    visuals.put('HTF1', class_visuals.new(plot_htf1_zigzag, plot_htf1_hhll_labels, color_htf1, width_htf1))
+
+type class_hhll
+    string group //H or l
+    string sub_group // HH, LL, LH, HL
+    int bar_id 
+    int bar_time
+    float pivot_pp 
+    line ln
+    label lbl
+    float rsi
+    float stoc
+    float adx
+    float sma20
+    float sma50
+    float sma100
+    float sma200
+    float price_move
+    float price_change
+    float cum_volume
+    float swing_volume
+    string tf
+    bool is_new = false
+
+var array<class_hhll> hhll_ctf = array.new<class_hhll>()
+var array<class_hhll> hhll_htf = array.new<class_hhll>()
+var array<class_hhll> hhll_htf1 = array.new<class_hhll>()
+
+type class_ohlc
+    bool pivot
+    float pp
+    int bar_id
+    int bar_time
+    float rsi
+    float stoc
+    float adx
+    float sma20
+    float sma50
+    float sma100
+    float sma200
+    float cum_volume
+
+rsi = math.round(ta.rsi(close, 14), 2)
+stoc = math.round(ta.stoch(close, high, low, 14), 2)
+[diplus, diminus, _adx] = ta.dmi(14, 14)
+adx = math.round(_adx, 2)
+sma20 = math.round(ta.sma(close, 20), 2)
+sma50 = math.round(ta.sma(close, 50), 2)
+sma100 = math.round(ta.sma(close, 100), 2)
+sma200 = math.round(ta.sma(close, 200), 2)
+vol_sum = ta.cum(volume)
+
+get_ph_pl(i) =>
+    ph = class_ohlc.new(pivot = false)
+    pl = class_ohlc.new(pivot = false)
+    _ph = ta.pivothigh(high[i], lb, rb) 
+    _pl = ta.pivotlow(low[i], lb, rb) 
+    // __ph = ta.pivothigh(high[i], lb, rb)
+    // __pl = ta.pivotlow(low[i], lb, rb)
+    // _ph = __ph != 0 ? true : false
+    // _pl = __pl != 0 ? true : false
+
+    if((_ph > 0  or _pl > 0) and time >= start_time)
+        rec = class_ohlc.new(
+             pivot = true,
+             pp = _ph > 0 ? high[rb+i] : low[rb+i],
+             bar_id = bar_index[rb+i],
+             bar_time = time[rb+i],
+             rsi = rsi[rb+i],
+             stoc = stoc[rb+i],
+             adx = adx[rb+i],
+             sma20 = sma20[rb+i],
+             sma50 = sma50[rb+i],
+             sma100 = sma100[rb+i],
+             sma200 = sma200[rb+i],
+             cum_volume = vol_sum[rb+i])
+        ph := not na(_ph) ? rec : ph
+        pl := not na(_pl) ? rec : pl
+
+    [ph, pl]
+
+method get_tt(class_hhll hhll) =>
+    tt = "Tag = "+ hhll.sub_group + " (" + dt(hhll.bar_time) +")\n" +
+         "Timeframe = "+ hhll.tf + "\n" +
+         "Price point = "+ t(hhll.pivot_pp) + "\n" +
+         "Price change  = "+ t(hhll.price_change) + " ("+t(hhll.price_move) + " %)\n" +
+         "Swing volume  = "+ t(math.round(hhll.swing_volume/1000000, 2)) + " M\n" +
+         "---- Technical Indicators ----" +"\n"+
+         "RSI = "+ t(hhll.rsi) + "\n" +
+         "Stochastic = "+ t(hhll.stoc) + "\n" +
+         "ADX = "+ t(hhll.adx) + "\n" +
+         "SMA20 = "+ t(hhll.sma20) + "\n" +
+         "SMA50 = "+ t(hhll.sma50) + "\n" +
+         "SMA100 = "+ t(hhll.sma100) + "\n" +
+         "SMA200 = "+ t(hhll.sma200) 
+
+method miMetodo(array<class_hhll> hhll, id) => hhll.size() > id ? hhll.get(id)  : class_hhll.new()
+
+method add_ph(array<class_hhll> hhll, class_ohlc ph, class_visuals v, tf) =>
+    if(ph.pivot)
+        pp = ph.pp 
+        bar_id = ph.bar_id 
+        bar_time = ph.bar_time
+        vol = ph.cum_volume
+        class_hhll prev = hhll.miMetodo(0)
+        rec_deleted = false
+        if(prev.group == 'H')
+            if(pp > prev.pivot_pp)
+                rec_deleted := true
+                prev.ln.delete()
+                prev.lbl.delete()
+                hhll.shift()
+                prev := hhll.miMetodo(0)
+        if(prev.group != 'H')
+            move = math.round((pp - nz(prev.pivot_pp, 0)) / pp * 100, 2)
+            change = math.round_to_mintick(pp - nz(prev.pivot_pp))
+            swing_vol = vol - prev.cum_volume
+            new_rec = class_hhll.new(group = 'H', bar_id = bar_id, bar_time = bar_time, pivot_pp = pp, rsi = ph.rsi,
+                 stoc = ph.stoc, adx = ph.adx, sma20 = ph.sma20, sma50 = ph.sma50, sma100 = ph.sma100, sma200 = ph.sma200, price_move = move,  price_change = change,
+                 cum_volume = ph.cum_volume, swing_volume = swing_vol, tf = t(tf), is_new = true)
+            if(na(prev.group))
+                new_rec.sub_group := 'HH'
+                if(v.plot_line)
+                    new_rec.ln := line.new(bar_time, pp, bar_time, pp, xloc = xloc.bar_time, color = v.clr, width = v.width)
+                if(v.plot_label)
+                    tt = new_rec.get_tt()
+                    new_rec.lbl := label.new(bar_time, pp, text = new_rec.sub_group, xloc = xloc.bar_time, style = label.style_label_down, size = size.tiny,
+                         color = v.clr, tooltip = tt)
+            else
+                class_hhll prev_ph = hhll.miMetodo(1)
+                new_rec.sub_group := pp > prev_ph.pivot_pp ? 'HH' : 'LH'
+                if(v.plot_line)
+                    new_rec.ln := line.new(prev.bar_time, prev.pivot_pp, bar_time, pp, xloc = xloc.bar_time, color = v.clr, width = v.width)
+                if(v.plot_label)
+                    tt = new_rec.get_tt()
+                    new_rec.lbl := label.new(bar_time, pp, text = new_rec.sub_group, xloc = xloc.bar_time, style = label.style_label_down, size = size.tiny, color = v.clr, tooltip = tt)
+            hhll.unshift(new_rec)
+    true
+
+method add_pl(array<class_hhll> hhll, class_ohlc pl, class_visuals v, tf) =>
+    if(pl.pivot)
+        pp = pl.pp 
+        bar_id = pl.bar_id 
+        bar_time = pl.bar_time
+        vol = pl.cum_volume
+        class_hhll prev = hhll.miMetodo(0)
+        rec_deleted = false
+        if(prev.group == 'L')
+            if(pp < prev.pivot_pp)
+                rec_deleted := true
+                prev.ln.delete()
+                prev.lbl.delete()
+                hhll.shift()
+                prev := hhll.miMetodo(0)
+        if(prev.group != 'L')
+            move = math.round((pp - nz(prev.pivot_pp, 0)) / pp * 100, 2)
+            change = math.round_to_mintick(pp - nz(prev.pivot_pp))
+            swing_vol = vol - prev.cum_volume
+            new_rec = class_hhll.new(group = 'L', bar_id = bar_id, bar_time = bar_time, pivot_pp = pp, rsi = pl.rsi,
+                 stoc = pl.stoc, adx = pl.adx, sma20 = pl.sma20, sma50 = pl.sma50, sma100 = pl.sma100, sma200 = pl.sma200, price_move = move, price_change = change,
+                 cum_volume = pl.cum_volume, swing_volume = swing_vol, tf = t(tf), is_new = true)
+            if(na(prev.group))
+                new_rec.sub_group := 'LL'
+                if(v.plot_line)
+                    new_rec.ln := line.new(bar_time, pp, bar_time, pp, xloc = xloc.bar_time, color = v.clr, width = v.width)
+                if(v.plot_label)
+                    tt = new_rec.get_tt()
+                    new_rec.lbl := label.new(bar_time, pp, text = new_rec.sub_group, xloc = xloc.bar_time, style = label.style_label_up, size = size.tiny, color = v.clr, tooltip = tt)
+            else
+                class_hhll prev_pl = hhll.miMetodo(1)
+                new_rec.sub_group := pp < prev_pl.pivot_pp ? 'LL' : 'HL'
+                if(v.plot_line)
+                    new_rec.ln := line.new(prev.bar_time, prev.pivot_pp, bar_time, pp, xloc = xloc.bar_time, color = v.clr, width = v.width)
+                if(v.plot_label)
+                    tt = new_rec.get_tt()
+                    new_rec.lbl := label.new(bar_time, pp, text = new_rec.sub_group, xloc = xloc.bar_time, style = label.style_label_up, size = size.tiny, color = v.clr, tooltip = tt)
+
+            hhll.unshift(new_rec)
+    true    
+//#region Main 
+//main code
+[ph_ctf, pl_ctf] = get_ph_pl(0)
+hhll_ctf.add_ph(ph_ctf, visuals.get('CTF'), ctf)
+hhll_ctf.add_pl(pl_ctf, visuals.get('CTF'), ctf)
+
+//HTF code
+new_htf = timeframe.change(htf)
+[ph_htf, pl_htf] = request.security('', htf, get_ph_pl(htf_offset))
+if(na(ph_htf) or not new_htf)
+    ph_htf := class_ohlc.new(false)
+if(na(pl_htf) or not new_htf)
+    pl_htf := class_ohlc.new(false)
+
+
+hhll_htf.add_ph(ph_htf, visuals.get('HTF'), htf)
+hhll_htf.add_pl(pl_htf, visuals.get('HTF'), htf)
+
+//HTF 1 code
+new_htf1 = timeframe.change(htf1)
+[ph_htf1, pl_htf1] = request.security('', htf1, get_ph_pl(htf1_offset))
+if(na(ph_htf1) or not new_htf1)
+    ph_htf1 := class_ohlc.new(false)
+if(na(pl_htf1) or not new_htf1)    
+    pl_htf1 := class_ohlc.new(false)
+
+hhll_htf1.add_ph(ph_htf1, visuals.get('HTF1'), htf1)
+hhll_htf1.add_pl(pl_htf1, visuals.get('HTF1'), htf1)
+//#endregion Main 

@@ -1,0 +1,58 @@
+{
+  "nome_arquivo": "EA_GoldScalpingAI_v1.0_XAUUSD.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Scalping",
+  "mercado": "XAUUSD",
+  "timeframe": "M5",
+  "versao": "1.0",
+  "autor": "Winyu",
+  "descricao": "EA de scalping para Gold com integração de IA (DeepSeek API). Utiliza MACD, RSI, ATR e EMAs para sinais, com trailing stop e gestão de risco avançada.",
+  "funcoes_principais": [
+    "Scalping baseado em múltiplos indicadores",
+    "Integração com DeepSeek AI API",
+    "Trailing stop configurável",
+    "Controle de spread máximo",
+    "Stop loss e take profit fixos",
+    "Magic number para identificação"
+  ],
+  "parametros_expostos": [
+    "Symbol_Name",
+    "Timeframe",
+    "TradeVolume",
+    "StopLoss",
+    "TakeProfit",
+    "Slippage",
+    "UseTrailingStop",
+    "TrailingStop",
+    "TrailingStep",
+    "MaxSpread",
+    "MagicNumber",
+    "UseFixedSLTP",
+    "AIApiKey",
+    "AIEndpoint"
+  ],
+  "conformidade_ftmo": {
+    "score": 6,
+    "status": "Moderado",
+    "observacoes": "EA com boa estrutura de risk management. Integração com IA é interessante mas pode adicionar latência. Parâmetros de SL/TP configuráveis são positivos."
+  },
+  "riscos_identificados": [
+    "Dependência de API externa (DeepSeek AI)",
+    "Possível latência por chamadas de API",
+    "Scalping em Gold requer spread baixo",
+    "Múltiplos indicadores podem gerar sinais conflitantes",
+    "Código com problemas de encoding (BOM)"
+  ],
+  "observacoes_tecnicas": [
+    "Código extenso (1365 linhas)",
+    "Integração com IA via API REST",
+    "Problemas de encoding visíveis",
+    "Estrutura complexa com múltiplos indicadores",
+    "Adequado especificamente para XAUUSD"
+  ],
+  "tags": ["#EA", "#Scalping", "#XAUUSD", "#M5", "#AI_Integration", "#Trailing_Stop", "#Moderado", "#Multi_Indicator"],
+  "caminho_arquivo": "EAs/Scalping/EA_GoldScalpingAI_v1.0_XAUUSD.mq5",
+  "data_classificacao": "2025-01-27",
+  "status_revisao": "Classificado"
+}

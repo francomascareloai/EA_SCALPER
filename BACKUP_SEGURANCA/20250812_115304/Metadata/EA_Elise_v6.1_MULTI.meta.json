@@ -1,0 +1,53 @@
+{
+  "nome_arquivo": "EA_Elise_v6.1_MULTI.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "mercado": "MULTI",
+  "timeframe": "M5-H1",
+  "versao": "6.1",
+  "autor": "Elise's",
+  "descricao": "EA Grid/Martingale avançado com múltiplas funcionalidades. Suporta vários pares (EURUSD, GBPUSD, XAUUSD) e timeframes M5-H1. Inclui trailing stop e gestão de equity.",
+  "funcoes_principais": [
+    "Sistema Grid/Martingale com multiplicador de lote",
+    "Suporte a múltiplos pares e timeframes",
+    "Trailing stop configurável",
+    "Gestão de equity stop",
+    "Take profit em pips",
+    "Controle de PipStep para grid"
+  ],
+  "parametros_expostos": [
+    "Lots",
+    "LotExponent",
+    "PipStep",
+    "MaxLots",
+    "TakeProfit",
+    "UseTrailingStop",
+    "TrailStart",
+    "UseEquityStop",
+    "TotalEquityRisk"
+  ],
+  "conformidade_ftmo": {
+    "score": 2,
+    "status": "Nao_FTMO",
+    "observacoes": "Sistema Grid/Martingale clássico com alto risco. Multiplicador de lote exponencial pode causar margin call rapidamente."
+  },
+  "riscos_identificados": [
+    "Sistema Grid/Martingale de altíssimo risco",
+    "Multiplicador exponencial de lotes",
+    "Ausência de stop loss por posição",
+    "Risco de margin call em tendências fortes",
+    "Requer depósitos mínimos altos por timeframe"
+  ],
+  "observacoes_tecnicas": [
+    "Código complexo com 3279 linhas",
+    "Problemas de encoding (BOM)",
+    "Recomendações específicas de depósito por TF",
+    "Suporte a Telegram para comunicação",
+    "Versão madura (v6.1) com muitas funcionalidades"
+  ],
+  "tags": ["#EA", "#Grid_Martingale", "#MULTI", "#M5_H1", "#Nao_FTMO", "#Alto_Risco", "#Trailing_Stop", "#Equity_Management"],
+  "caminho_arquivo": "EAs/Grid_Martingale/EA_Elise_v6.1_MULTI.mq5",
+  "data_classificacao": "2025-01-27",
+  "status_revisao": "Classificado"
+}

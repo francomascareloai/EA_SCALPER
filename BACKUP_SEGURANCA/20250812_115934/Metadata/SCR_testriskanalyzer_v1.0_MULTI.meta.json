@@ -1,0 +1,28 @@
+{
+  "id": "edada8e4cff69307",
+  "arquivo": "test_risk_analyzer.mq4",
+  "hash": "edada8e4cff69307",
+  "tipo": "Script",
+  "linguagem": "MQL4",
+  "estrategia": "Custom",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "D1"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 100,
+  "riscos_detectados": [],
+  "qualidade_codigo_score": 100,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

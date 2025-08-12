@@ -1,0 +1,32 @@
+{
+  "id": "IND_AdaptiveRenko_v1.10_MULTI_2",
+  "nome_original": "Adaptive Renko (2).mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Custom",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.10",
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "caminho": "CODIGO_FONTE_LIBRARY/MQL5_Source/Indicators/Custom/IND_AdaptiveRenko_v1.10_MULTI_2.mq5",
+  "descricao": "Indicador Renko adaptativo com múltiplos buffers e plots para análise de preço",
+  "funcoes_principais": [
+    "OnInit",
+    "OnCalculate"
+  ],
+  "parametros_expostos": [],
+  "ftmo_score": 8,
+  "ftmo_ready": true,
+  "riscos_detectados": [],
+  "qualidade_codigo": 7,
+  "ajustes_ftmo_sugeridos": [],
+  "tags": [
+    "#Indicator",
+    "#Custom",
+    "#Renko",
+    "#Adaptive",
+    "#MULTI",
+    "#FTMO_Ready"
+  ]
+}

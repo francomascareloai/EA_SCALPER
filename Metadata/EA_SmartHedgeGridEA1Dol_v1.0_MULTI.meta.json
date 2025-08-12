@@ -1,0 +1,32 @@
+{
+  "id": "4681c97a3af71d28",
+  "arquivo": "SmartHedgeGridEA_1Dollar.mq5",
+  "hash": "4681c97a3af71d28",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 20,
+  "riscos_detectados": [
+    "Martingale/Grid detected",
+    "No Stop Loss detected",
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 40,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

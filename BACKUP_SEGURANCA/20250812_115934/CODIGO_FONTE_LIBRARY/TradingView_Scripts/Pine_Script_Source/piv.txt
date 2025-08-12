@@ -1,0 +1,89 @@
+
+// @version=5
+indicator("Auto-Pivot-P", overlay=true)
+
+// Get user input
+var devTooltip          = "Deviation is a multiplier that affects how much the price should deviate from the previous pivot in order for the bar to become a new pivot."
+var depthTooltip        = "The minimum number of bars that will be taken into account when calculating the indicator."
+threshold_multiplier    = input.float(title="Deviation", defval=5, minval=0, tooltip=devTooltip)
+depth                   = input.int(title="Depth", defval=10, minval=1, tooltip=depthTooltip)
+color_Line = input(#FF9800)
+deleteLastLine          = input.bool(title="Delete Last Line", defval=false)
+
+
+
+
+// Calculate deviation threshold for identifying major swings
+dev_threshold = ta.atr(10) / close * 100 * threshold_multiplier
+
+// Prepare pivot variables
+var line lineLast = na
+var int iLast = 0
+var int iPrev = 0
+var float pLast = 0
+var isHighLast = false // Otherwise the last pivot is a low pivot
+
+// Custom function for detecting pivot points
+pivots(src, length, isHigh) =>
+    l2 = length * 2
+    c = nz(src[length])
+    ok = true
+    for i = 0 to l2
+        if isHigh and src[i] > c
+            ok := false
+        if not isHigh and src[i] < c
+            ok := false
+    if ok
+        [bar_index[length], c]
+    else
+        [int(na), float(na)]
+
+// Get bar index & price high/low for current pivots
+[iH, pH] = pivots(high, depth / 2, true)
+[iL, pL] = pivots(low, depth / 2, false)
+
+// Custom function for calculating price deviation
+calc_dev(base_price, price) => 100 * (price - base_price) / price
+
+// Custom function for detecting pivots that meet our deviation criteria
+pivotFound(dev, isHigh, index, price) =>
+    if isHighLast == isHigh and not na(lineLast)
+        // New pivot in same direction as last, so update line (ie. trend-continuation)
+        if isHighLast ? price > pLast : price < pLast
+            line.set_xy2(lineLast, index, price)
+            [lineLast, isHighLast]
+        else
+            [line(na), bool(na)] // No valid pivot detected, return nothing
+    else // Reverse the trend/pivot direction (or create the very first line if lineLast is na)
+        if math.abs(dev) > dev_threshold
+            // Price move is significant - create a new line between the pivot points
+            id = line.new(iLast, pLast, index, price, color=color_Line, width=1, style=line.style_solid)
+            line.set_width(id,3)
+            [id, isHigh]
+        else
+            [line(na), bool(na)]
+
+// If bar index for current pivot high is not NA (ie. we have a new pivot):
+if not na(iH)
+    dev = calc_dev(pLast, pH) // Calculate the deviation from last pivot
+    [id, isHigh] = pivotFound(dev, true, iH, pH)
+    if not na(id) // If the line has been updated, update price values and delete previous line
+        if id != lineLast and deleteLastLine
+            line.delete(lineLast)
+        lineLast := id
+        isHighLast := isHigh
+        iPrev := iLast
+        iLast := iH
+        pLast := pH
+else 
+    if not na(iL) // If bar index for current pivot low is not NA (ie. we have a new pivot):
+        dev = calc_dev(pLast, pL) // Calculate the deviation from last pivot
+        [id, isHigh] = pivotFound(dev, false, iL, pL)
+        if not na(id) // If the line has been updated, update price values and delete previous line
+            if id != lineLast and deleteLastLine
+                line.delete(lineLast)
+            lineLast := id
+            isHighLast := isHigh
+            iPrev := iLast
+            iLast := iL
+            pLast := pL

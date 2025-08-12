@@ -1,0 +1,150 @@
+
+//@version=5
+indicator('<<Динамический внутрибарный объем>>', overlay=false, precision=0)
+I = timeframe.multiplier
+show_classic_volume = input(title='Show classic volume', defval=false)
+show_stack_volume = input(title='Show stack volume', defval=true)
+e_range = input(title='Use range to define volume ? ', defval=false)
+v_range = input(title='Range value in percent', defval=0.05)
+cv = input(title='Use custom value down below ?', defval=false)
+ctf = input.string(title='Time frame for custom value', defval='1W', options=['5m', '15m', '30m', '1H', '2H', '4H', '8H', '12H', '1D', '1W', 'Any'])
+tf = input(title='Time frame to look for', defval='1D')
+cd = input(title='Number of candles', defval=5)
+
+// if "Use custom value ?" is check just look for the "TF for custom value" if the tf on your chart match the preset tf c_tf will apply user setup, Any means that the indicator just apply the user preset without TF detection.
+c_tf = cv ? ctf == 'Any' ? true : timeframe.isintraday ? I == 720 and ctf == '12H' ? true : I == 480 and ctf == '8H' ? true : I == 240 and ctf == '4H' ? true : I == 120 and ctf == '2H' ? true : I == 60 and ctf == '1H' ? true : I == 30 and ctf == '30m' ? true : I == 15 and ctf == '25m' ? true : I == 5 and ctf == '5m' ? true : false : timeframe.isdaily and ctf == '1D' ? true : timeframe.isweekly and ctf == '1W' ? true : false : false
+lower_tf = c_tf ? tf : timeframe.isintraday ? I == 720 ? '15' : I == 480 ? '15' : I == 240 ? '10' : I == 120 ? '5' : I == 60 ? '5' : I == 30 ? '5' : I == 15 ? '1' : I == 5 ? '1' : '1' : timeframe.isdaily ? '60' : timeframe.isweekly ? '1D' : '12M'
+// down there I just keep it to see quickly own many candles the indicator look for each TF 
+//bars_in_tf = (isintraday? (I==720?48 : I==480?32 : I==240?24 : I==120?24 : I==60?12 : I==30?6 : I==15?15 : I==5?5:1) : isdaily ?24 :isweekly ? 7:ismonthly? 30 : 12)
+balanced_volume(range_1) =>
+    vol = float(na)
+    for i = 0 to range_1 - 1 by 1
+        if e_range ? open[i] - (high[i] - low[i]) * v_range <= close[i] and close[i] <= (high[i] - low[i]) * v_range + open[i] : open[i] == close[i]
+            vol := na(vol) ? volume[i] : vol + volume[i]
+            vol
+    vol
+
+buying_volume(range_2) =>
+    vol = float(na)
+    for i = 0 to range_2 - 1 by 1
+        if e_range ? (high[i] - low[i]) * v_range + open[i] < close[i] : open[i] < close[i]
+            vol := na(vol) ? volume[i] : vol + volume[i]
+            vol
+    vol
+
+selling_volume(range_3) =>
+    vol = float(na)
+    for i = 0 to range_3 - 1 by 1
+        if e_range ? open[i] - (high[i] - low[i]) * v_range > close[i] : open[i] > close[i]
+            vol := na(vol) ? volume[i] : vol + volume[i]
+            vol
+    vol
+
+
+buying_volume__1 = buying_volume(cd)
+security_1 = request.security(syminfo.tickerid, tf, buying_volume__1)
+buying_volume__2 = buying_volume(48)
+security_2 = request.security(syminfo.tickerid, lower_tf, buying_volume__2)
+buying_volume__3 = buying_volume(32)
+security_3 = request.security(syminfo.tickerid, lower_tf, buying_volume__3)
+buying_volume__4 = buying_volume(24)
+security_4 = request.security(syminfo.tickerid, lower_tf, buying_volume__4)
+buying_volume__5 = buying_volume(24)
+security_5 = request.security(syminfo.tickerid, lower_tf, buying_volume__5)
+buying_volume__6 = buying_volume(12)
+security_6 = request.security(syminfo.tickerid, lower_tf, buying_volume__6)
+buying_volume__7 = buying_volume(6)
+security_7 = request.security(syminfo.tickerid, lower_tf, buying_volume__7)
+buying_volume__8 = buying_volume(15)
+security_8 = request.security(syminfo.tickerid, lower_tf, buying_volume__8)
+buying_volume__9 = buying_volume(5)
+security_9 = request.security(syminfo.tickerid, lower_tf, buying_volume__9)
+buying_volume__10 = buying_volume(24)
+security_10 = request.security(syminfo.tickerid, lower_tf, buying_volume__10)
+buying_volume__11 = buying_volume(7)
+security_11 = request.security(syminfo.tickerid, lower_tf, buying_volume__11)
+buying_volume__12 = buying_volume(12)
+security_12 = request.security(syminfo.tickerid, lower_tf, buying_volume__12)
+lower_buy_vol = c_tf ? nz(security_1) : nz(timeframe.isintraday ? I == 720 ? security_2 : I == 480 ? security_3 : I == 240 ? security_4 : I == 120 ? security_5 : I == 60 ? security_6 : I == 30 ? security_7 : I == 15 ? security_8 : I == 5 ? security_9 : na : timeframe.isdaily ? security_10 : timeframe.isweekly ? security_11 : security_12)
+selling_volume__1 = selling_volume(cd)
+security_13 = request.security(syminfo.tickerid, tf, selling_volume__1)
+selling_volume__2 = selling_volume(48)
+security_14 = request.security(syminfo.tickerid, lower_tf, selling_volume__2)
+selling_volume__3 = selling_volume(32)
+security_15 = request.security(syminfo.tickerid, lower_tf, selling_volume__3)
+selling_volume__4 = selling_volume(24)
+security_16 = request.security(syminfo.tickerid, lower_tf, selling_volume__4)
+selling_volume__5 = selling_volume(24)
+security_17 = request.security(syminfo.tickerid, lower_tf, selling_volume__5)
+selling_volume__6 = selling_volume(12)
+security_18 = request.security(syminfo.tickerid, lower_tf, selling_volume__6)
+selling_volume__7 = selling_volume(6)
+security_19 = request.security(syminfo.tickerid, lower_tf, selling_volume__7)
+selling_volume__8 = selling_volume(15)
+security_20 = request.security(syminfo.tickerid, lower_tf, selling_volume__8)
+selling_volume__9 = selling_volume(5)
+security_21 = request.security(syminfo.tickerid, lower_tf, selling_volume__9)
+selling_volume__10 = selling_volume(24)
+security_22 = request.security(syminfo.tickerid, lower_tf, selling_volume__10)
+selling_volume__11 = selling_volume(7)
+security_23 = request.security(syminfo.tickerid, lower_tf, selling_volume__11)
+selling_volume__12 = selling_volume(12)
+security_24 = request.security(syminfo.tickerid, lower_tf, selling_volume__12)
+lower_sell_vol = c_tf ? nz(security_13) : nz(timeframe.isintraday ? I == 720 ? security_14 : I == 480 ? security_15 : I == 240 ? security_16 : I == 120 ? security_17 : I == 60 ? security_18 : I == 30 ? security_19 : I == 15 ? security_20 : I == 5 ? security_21 : na : timeframe.isdaily ? security_22 : timeframe.isweekly ? security_23 : security_24)
+balanced_volume__1 = balanced_volume(cd)
+security_25 = request.security(syminfo.tickerid, lower_tf, balanced_volume__1)
+balanced_volume__2 = balanced_volume(48)
+security_26 = request.security(syminfo.tickerid, lower_tf, balanced_volume__2)
+balanced_volume__3 = balanced_volume(32)
+security_27 = request.security(syminfo.tickerid, lower_tf, balanced_volume__3)
+balanced_volume__4 = balanced_volume(24)
+security_28 = request.security(syminfo.tickerid, lower_tf, balanced_volume__4)
+balanced_volume__5 = balanced_volume(24)
+security_29 = request.security(syminfo.tickerid, lower_tf, balanced_volume__5)
+balanced_volume__6 = balanced_volume(12)
+security_30 = request.security(syminfo.tickerid, lower_tf, balanced_volume__6)
+balanced_volume__7 = balanced_volume(6)
+security_31 = request.security(syminfo.tickerid, lower_tf, balanced_volume__7)
+balanced_volume__8 = balanced_volume(15)
+security_32 = request.security(syminfo.tickerid, lower_tf, balanced_volume__8)
+balanced_volume__9 = balanced_volume(5)
+security_33 = request.security(syminfo.tickerid, lower_tf, balanced_volume__9)
+balanced_volume__10 = balanced_volume(24)
+security_34 = request.security(syminfo.tickerid, lower_tf, balanced_volume__10)
+balanced_volume__11 = balanced_volume(7)
+security_35 = request.security(syminfo.tickerid, lower_tf, balanced_volume__11)
+balanced_volume__12 = balanced_volume(12)
+security_36 = request.security(syminfo.tickerid, lower_tf, balanced_volume__12)
+balanced_vol = c_tf ? nz(security_25) : nz(timeframe.isintraday ? I == 720 ? security_26 : I == 480 ? security_27 : I == 240 ? security_28 : I == 120 ? security_29 : I == 60 ? security_30 : I == 30 ? security_31 : I == 15 ? security_32 : I == 5 ? security_33 : na : timeframe.isdaily ? security_34 : timeframe.isweekly ? security_35 : security_36)
+
+v_control = math.round(nz(balanced_vol[1]) + nz(lower_buy_vol[1]) + nz(lower_sell_vol[1])) >= math.round(nz(volume[1])) * 0.99 ? math.round(nz(balanced_vol[1]) + nz(lower_buy_vol[1]) + nz(lower_sell_vol[1])) <= math.round(nz(volume[1])) * 1.01 ? true : false : false
+
+plot(show_stack_volume ? lower_sell_vol + balanced_vol + lower_buy_vol : na, style=plot.style_columns, color=color.new(color.black, 0), title='Balanced Volume')
+plot(show_stack_volume ? lower_buy_vol >= lower_sell_vol ? na : lower_buy_vol + lower_sell_vol : na, style=plot.style_columns, color=color.new(#84C582, 0), title='Buying Volume')
+plot(show_stack_volume ? lower_buy_vol < lower_sell_vol ? lower_sell_vol : lower_sell_vol + lower_buy_vol : na, style=plot.style_columns, color=color.new(#ff6464, 0), title='Selling Volume')
+plot(show_stack_volume ? lower_buy_vol >= lower_sell_vol ? lower_buy_vol : na : na, style=plot.style_columns, color=color.new(#84C582, 0), title='Buying Volume')
+plot(show_stack_volume ? na : lower_buy_vol, style=plot.style_columns, color=color.new(color.green, 65), title='Buying Volume')
+plot(show_stack_volume ? na : lower_sell_vol, style=plot.style_columns, color=color.new(color.red, 65), title='Selling Volume')
+plot(show_stack_volume ? na : balanced_vol, style=plot.style_columns, color=color.new(color.black, 0), title='Balanced Volume')
+plot(show_classic_volume ? volume : na, style=plot.style_stepline, color=color.new(color.black, 70), title='Classic Volume')
+
+plotshape(v_control ? 1 : na, color=color.new(color.green, 100), title='Volume OK', location=location.top, size=size.tiny, style=shape.circle, offset=3, show_last=1)
+plotshape(v_control ? na : 1, color=color.new(color.red, 100), text='Error', title='Volume Error', location=location.top, size=size.tiny, style=shape.circle, offset=3, show_last=1)
+
+// alets conditoon
+alertcondition(lower_sell_vol == 0 and balanced_vol == 0 and lower_buy_vol > 0 ? true : false, 'Buy volume alert', 'Buy volume alert')
+alertcondition(lower_buy_vol == 0 and balanced_vol == 0 and lower_sell_vol > 0 ? true : false, 'Sell volume alert', 'Sell volume alert')
+alertcondition(balanced_vol == 0 ? true : false, 'Balance volume alert', 'Balance volume alert')
+
+src1 = input(close, title='Источник 1')
+src2 = input(open, title='Источник 2')
+
+num3 = math.sign(src1) == 1 and math.sign(src2) == 1 and src1 < src2 ? #ff525238 : na  // Красная зона
+num4 = math.sign(src1) == 1 and math.sign(src2) == 1 and src1 > src2 ? #4caf4f36 : na  // Зеленая зона
+
+bgcolor(num3)
+bgcolor(num4)
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, 'DM', text_size=size.normal, text_color=#00897b)

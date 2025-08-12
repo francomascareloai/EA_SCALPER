@@ -1,0 +1,8 @@
+Allow WebRequest:
+
+Tools - Options - Expert Advisors
+
+https://btc.mqlblue.com/btcusd
+
+https://nfs.faireconomy.media
+

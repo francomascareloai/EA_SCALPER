@@ -1,0 +1,59 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © MintLeafEdge
+
+//@version=6
+indicator("Z-Score Adaptive Connors RSI",overlay = false)
+
+src = input.source(close,"RSI Source",group = "Connors RSI")
+lenrsi = input(24, "RSI Length",group = "Connors RSI")
+lenupdown = input(20, "UpDown Length",group = "Connors RSI")
+lenroc = input(75, "ROC Length",group = "Connors RSI")
+
+z_score_length  = input(14, "Z-Score Lookback",group = "Filtering")
+threshold       = input.float(1.5, "Z-Score Threshold", step=0.025,group = "Filtering")
+trendingLongThreshold = input.float(65, "Trending Long Threshold" ,group = "Filtering")
+trendingShortThreshold = input.float(35, "Trending Short Threshold",group = "Filtering")
+revertingLongThreshold  = input.float(70, title="Reverting Long Threshold",group = "Filtering")
+revertingShortThreshold = input.float(30, title="Reverting Short Threshold",group = "Filtering")
+
+// ─── CONNORS RSI ──────────────────────────────────────────────────────────
+updown(s) =>
+	isEqual = s == s[1]
+	isGrowing = s > s[1]
+	ud = 0.0
+	ud := isEqual ? 0 : isGrowing ? (nz(ud[1]) <= 0 ? 1 : nz(ud[1])+1) : (nz(ud[1]) >= 0 ? -1 : nz(ud[1])-1)
+	ud
+rsi = ta.rsi(src, lenrsi)
+updownrsi = ta.rsi(updown(src), lenupdown)
+percentrank = ta.percentrank(ta.roc(src, 1), lenroc)
+crsi =  math.avg(rsi, updownrsi, percentrank) 
+
+
+// ─── Z-SCORING ──────────────────────────────────────────────────────────
+mean    = ta.sma(crsi, z_score_length)
+stdDev  = ta.stdev(crsi, z_score_length)
+zScore  = (crsi - mean) / stdDev
+
+isTrending = math.abs(zScore) > threshold
+
+// ─── Signal Generation ────────────────────────────────────────────────
+var int signal = 0
+if barstate.isconfirmed
+	if isTrending
+		signal := crsi > trendingLongThreshold ? 1 : crsi < trendingShortThreshold ? -1 : signal[1]
+	else
+		signal := crsi > revertingLongThreshold ? 1 : crsi < revertingShortThreshold ? -1 : signal[1]
+
+
+trendColor = signal == 1 ? #17dfad : signal == -1  ? #dd326b : color.gray
+
+plot1 = plot(trendingLongThreshold,"Trending Long Threshold",color= isTrending ? #17dfad : color.gray,linewidth = 2)
+plot2 = plot(trendingShortThreshold,"Trending Short Threshold",color= isTrending ? #dd326b : color.gray,linewidth =  2)
+plot3 = plot(revertingLongThreshold,"Reverting Long Threshold",color= isTrending ? color.gray : #17dfad,linewidth =  2)
+plot4 = plot( revertingShortThreshold,"Reverting Short Threshold",color = isTrending ? color.gray : #dd326b,linewidth =  2)
+
+
+decor = plot(crsi,"Decor",style = plot.style_columns,histbase = 50,color=trendColor,linewidth = 2)
+bgcolor(color.new(trendColor,75))
+plotcandle(open,high,low,close,"Candles",color=trendColor,wickcolor = trendColor,bordercolor = trendColor,force_overlay = true)
+

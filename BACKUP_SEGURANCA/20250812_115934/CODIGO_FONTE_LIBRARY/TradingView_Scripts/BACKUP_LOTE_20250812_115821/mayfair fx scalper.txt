@@ -1,0 +1,78 @@
+//@version=5
+strategy("MAYFAIR FX SCALPER", overlay=true)
+
+// Settings for VIP MFX Ultimate Scalper [Mohs Mayfair]
+h = input.int(14, 'Lookback Window', tooltip='The number of bars used for the estimation. Recommended range: 3-50')
+alpha = input.float(0.25, 'Relative Weighting', step=0.25, tooltip='Relative weighting of time frames. Recommended range: 0.25-25')
+x_0 = input.int(12, "Start Regression at Bar", tooltip='Bar index on which to start regression. Recommended range: 5-25')
+atr_length = input.int(7, 'ATR Length', minval=1, tooltip='The number of bars associated with the Average True Range (ATR).')
+nearFactor = input.float(1.9, 'Near ATR Factor', minval=0.5, step=0.1, tooltip='Recommended range: 0.5-2.0')
+farFactor = input.float(5, 'Far ATR Factor', minval=1.0, step=0.25, tooltip='Recommended range: 6.0-8.0')
+confirmToggle = input.bool(true, title="Enable Confirmation")
+confirmationValue = input.float(29, title="Confirmation Threshold", tooltip='Threshold value for confirmation')
+
+// Libraries
+import jdehorty/KernelFunctions/2 as kernels
+
+// Helper Functions
+getBounds(_atr, _nearFactor, _farFactor, _yhat) =>
+    _upper_far = _yhat + _farFactor * _atr
+    _upper_near = _yhat + _nearFactor * _atr
+    _lower_near = _yhat - _nearFactor * _atr
+    _lower_far = _yhat - _farFactor * _atr
+    _upper_avg = (_upper_far + _upper_near) / 2
+    _lower_avg = (_lower_far + _lower_near) / 2
+    [_upper_near, _upper_far, _upper_avg, _lower_near, _lower_far, _lower_avg]
+
+kernel_atr(length, _high, _low, _close) =>
+    trueRange = na(_high[1]) ? _high - _low : math.max(math.max(_high - _low, math.abs(_high - _close[1])), math.abs(_low - _close[1]))
+    ta.rma(trueRange, length)
+
+// Envelope Calculations
+yhat_close = kernels.rationalQuadratic(close, h, alpha, x_0)
+yhat_high = kernels.rationalQuadratic(high, h, alpha, x_0)
+yhat_low = kernels.rationalQuadratic(low, h, alpha, x_0)
+yhat = yhat_close
+ktr = kernel_atr(atr_length, yhat_high, yhat_low, yhat_close)
+[upper_near, upper_far, upper_avg, lower_near, lower_far, lower_avg] = getBounds(ktr, nearFactor, farFactor, yhat_close)
+
+// Colors and Transparency Adjustments
+red_far = input.color(color.new(color.red, 75), title='Upper Boundary Color: Far')
+red_near = input.color(color.new(color.red, 90), title='Upper Boundary Color: Near')
+yhat_green = input.color(color.new(color.green, 60), title='Bullish Estimator Color')
+yhat_red = input.color(color.new(color.red, 60), title='Bearish Estimator Color')
+green_near = input.color(color.new(color.green, 90), title='Lower Boundary Color: Near')
+green_far = input.color(color.new(color.green, 75), title='Lower Boundary Color: Far')
+
+// Plots for VIP MFX Ultimate Scalper
+p_upper_far = plot(upper_far, color=red_far, title='Upper External Heat Zone', linewidth=1)
+p_upper_avg = plot(upper_avg, color=red_near, title='', linewidth=1)
+p_upper_near = plot(upper_near, color=red_near, title='Upper External Heat Zone', linewidth=1)
+
+p_lower_near = plot(lower_near, color=green_near, title='Lower Internal Heat Zone', linewidth=1)
+p_lower_avg = plot(lower_avg, color=green_near, title='', linewidth=1)
+p_lower_far = plot(lower_far, color=green_far, title='Lower Internal Heat Zone', linewidth=1)
+
+// Fills with Adjusted Transparency
+fill(p_upper_far, p_upper_avg, color=red_far, title='Upper Boundary: Farmost Region')
+fill(p_upper_near, p_upper_avg, color=red_near, title='Upper Boundary: Nearmost Region')
+fill(p_lower_near, p_lower_avg, color=green_near, title='Lower Boundary: Nearmost Region')
+fill(p_lower_far, p_lower_avg, color=green_far, title='Lower Boundary: Farmost Region')
+
+// Buy and Sell Conditions for VIP MFX Ultimate Scalper
+buyCondition = ta.crossover(close, lower_near)
+sellCondition = ta.crossunder(close, upper_near)
+
+// Confirmation Condition
+confirmationCondition = confirmToggle ? (close > confirmationValue ? 1 : 0) : 1
+
+// Filter false signals by ensuring signals are near the zones
+validBuyCondition = buyCondition and (close < lower_near * 1.05)
+validSellCondition = sellCondition and (close > upper_near * 0.95)
+
+// Plotting Buy and Sell Signals with Confirmation for VIP MFX Ultimate Scalper
+plotshape(series=validBuyCondition and confirmationCondition, location=location.belowbar, color=color.green, style=shape.triangleup, text="BUY", textcolor=color.green)
+plotshape(series=validSellCondition and confirmationCondition, location=location.abovebar, color=color.red, style=shape.triangledown, text="SELL", textcolor=color.red)
+
+
+

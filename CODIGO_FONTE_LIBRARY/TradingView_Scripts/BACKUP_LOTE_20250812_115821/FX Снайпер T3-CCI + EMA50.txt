@@ -1,0 +1,79 @@
+﻿//@version=6
+strategy(title = 'FX Снайпер: T3-CCI + EMA50', shorttitle = 'T3-CCI+EMA', overlay = true)
+
+// === Входные параметры ===
+cci_len = input.int(14, minval=1, title='Длина CCI')
+t3_len = input.int(5, minval=1, title='Длина T3')
+beta = input.float(0.618, title='Коэффициент сглаживания', step=0.001)
+reverse = input.bool(false, title='Сигналы в обратном направлении?')
+ema_len = input.int(50, title='Период EMA фильтра')
+
+// === Расчет индикаторов ===
+// EMA 50
+ema50 = ta.ema(close, ema_len)
+
+// T3-CCI расчет
+price = close
+beta_2 = beta * beta
+beta_3 = beta_2 * beta
+c1 = -beta_3
+c2 = 3 * (beta_2 + beta_3)
+c3 = -3 * (2*beta_2 + beta + beta_3)
+c4 = 1 + 3*beta + beta_3 + 3*beta_2
+
+n = t3_len < 1 ? 1 : t3_len
+nr = 1 + 0.5*(n - 1)
+w1 = 2 / (nr + 1)
+w2 = 1 - w1
+
+cci_val = ta.cci(price, cci_len)
+
+var float e1 = na, var float e2 = na, var float e3 = na
+var float e4 = na, var float e5 = na, var float e6 = na
+
+e1 := w1*cci_val + w2*nz(e1[1])
+e2 := w1*e1 + w2*nz(e2[1])
+e3 := w1*e2 + w2*nz(e3[1])
+e4 := w1*e3 + w2*nz(e4[1])
+e5 := w1*e4 + w2*nz(e5[1])
+e6 := w1*e5 + w2*nz(e6[1])
+
+t3_cci = c1*e6 + c2*e5 + c3*e4 + c4*e3
+
+// === Определение сигналов ===
+// Фильтр по EMA
+price_above_ema = close > ema50
+price_below_ema = close < ema50
+
+// Базовые сигналы
+var int pos = 0
+pos := t3_cci > 0 ? 1 : t3_cci < 0 ? -1 : nz(pos[1], 0)
+
+// Комбинированные сигналы с фильтром EMA
+filtered_pos = pos == 1 and price_above_ema ? 1 : 
+               pos == -1 and price_below_ema ? -1 : 0
+
+signal = reverse and filtered_pos == 1 ? -1 : 
+         reverse and filtered_pos == -1 ? 1 : filtered_pos
+
+// === Исполнение сделок ===
+if signal == 1
+    strategy.entry('Long', strategy.long)
+if signal == -1
+    strategy.entry('Short', strategy.short)
+
+// === Визуализация ===
+// EMA 50
+plot(ema50, color=color.orange, title="EMA 50", linewidth=2)
+
+// T3-CCI на отдельной панели (если overlay=false)
+// plot(t3_cci, color=color.blue, title="T3-CCI", display=display.data_window)
+
+// Цвет свечей
+barcolor(signal == -1 ? color.red : signal == 1 ? color.green : color.blue)
+
+// Маркеры сигналов
+plotshape(signal == 1 and signal[1] != 1, style=shape.triangleup, 
+         location=location.belowbar, color=color.green, size=size.small, title="Buy Signal")
+plotshape(signal == -1 and signal[1] != -1, style=shape.triangledown, 
+         location=location.abovebar, color=color.red, size=size.small, title="Sell Signal")

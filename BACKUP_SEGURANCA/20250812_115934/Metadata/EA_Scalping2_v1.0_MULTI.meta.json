@@ -1,0 +1,30 @@
+{
+  "id": "7d860b0f69818fc7",
+  "arquivo": "Scalping2.mq5",
+  "hash": "7d860b0f69818fc7",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 55,
+  "riscos_detectados": [
+    "Martingale/Grid detected"
+  ],
+  "qualidade_codigo_score": 75,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

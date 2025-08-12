@@ -1,0 +1,53 @@
+{
+  "arquivo": "CS-EA1-Ali-V4.mq5",
+  "nome_padronizado": "EA_TechnicalMaster25_v1.0_MULTI",
+  "tipo": "EA",
+  "categoria": "Multi_Strategy",
+  "estrategia": "25_Independent_Strategies",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "descricao": "EA complexo com 25 estratégias técnicas independentes implementadas. Inclui MA Crossover, RSI Momentum, MACD Signal, Bollinger Bands e outras estratégias com controles individuais.",
+  "funcoes_principais": [
+    "OnInit",
+    "OnTick",
+    "25 Independent Strategies",
+    "Individual Risk Management",
+    "Multi-Timeframe Analysis",
+    "Position Management"
+  ],
+  "parametros_expostos": [
+    "S1_Enabled (MA Crossover)",
+    "S1_RiskPerTrade (2.0%)",
+    "S1_MaxPositions (1)",
+    "S2_Enabled (RSI Momentum)",
+    "S2_RiskPerTrade (1.5%)",
+    "S3_Enabled (MACD Signal)",
+    "S3_RiskPerTrade (1.8%)",
+    "Individual timeframes per strategy",
+    "Individual risk controls per strategy"
+  ],
+  "ftmo_score": 4,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Complexidade extrema (2755 linhas, 25 estratégias)",
+    "Risco individual por estratégia até 5%",
+    "Múltiplas posições simultâneas",
+    "Sem controle de risco global",
+    "Potencial sobreposição de sinais",
+    "Sem daily loss limit global"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Reduzir risco individual para máximo 1% por estratégia",
+    "Implementar controle de risco global",
+    "Adicionar daily loss limit global",
+    "Limitar número de estratégias ativas simultaneamente",
+    "Implementar filtros de correlação entre estratégias",
+    "Simplificar para estratégias mais conservadoras",
+    "Adicionar controle de drawdown global"
+  ],
+  "tags": ["#EA", "#Multi_Strategy", "#25_Strategies", "#MULTI", "#Nao_FTMO", "#Complexo", "#Alto_Risco"],
+  "caminho_origem": "All_MQ5/CS-EA1-Ali-V4.mq5",
+  "caminho_final": "EAs/Multi_Strategy/EA_TechnicalMaster25_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "EA extremamente complexo com 25 estratégias independentes. Arquivo com codificação corrompida. Risco muito alto para FTMO."
+}

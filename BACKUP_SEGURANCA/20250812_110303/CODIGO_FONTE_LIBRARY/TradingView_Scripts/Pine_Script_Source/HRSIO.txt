@@ -1,0 +1,964 @@
+﻿//@version=5
+indicator("<[Hayden's RSI[Osc]>",'*HRSIO*',overlay=false, max_bars_back = 4999)
+// Groups
+grrsi = '📈 Relative Strength Index 📈'
+grppl = '🔖 Price Pivot Labels 🔖'
+grtl = '📐 Trend Lines 📐'
+grsx = '🧰 Stochastic [X] 🧰'
+grhts = '🚦 Hayden Triple Trend State 🚦'
+grdv = '🔀 Divergences 🔀'
+grrtpl = '💱 RSI-to-Price Labels 💱'
+grtk = '🎰 Tickers 🎰'
+// ----------------------- 🦶 BarefootJoey Theme ---------------------------- //
+// Gradient Bull/Bear
+brightgreen = #00ff0a
+green = color.green
+darkgreen = #1b5e20
+brightred = #ff1100
+red = color.red
+darkred = #801922
+// Other
+yellow = #ffe500
+fuchsia = #da00ff
+blue = #0006ff
+aqua = #00ffef
+gray = color.gray
+grayishgreen = #a5d6a7
+grayishred = #faa1a4
+// Default Variables
+pi=3.141592653589793238462643383279502884197169399375105820974944592307816406286
+
+// ---------------------------------- RSI ------------------------------------//
+// Inputs
+src = input.source(close, "Source", group=grrsi) 
+len = input(14, 'RSI Length', group=grrsi, 
+  tooltip="RSI = The indexed ratio of the average UP closes to the average DOWN closes over 'length' periods."+
+  "\nThe RSI formula requires at least 10 times 'length' time intervals to stabilize the RSI value. So if length = 14 bars, then we need 140 bars of prior data for the RSI value to be of use."+
+  "\nChart #17 (Page 71) suggests that using a 9-period RSI along with a 9-period stochastic is a method to identify strong multiple divergences indicating strong contra-trend retracements or possible trend reversals.")
+ad = input(false, 'Length-Volatility Adjusted?', group=grrsi, 
+  tooltip="(Page 8) You might check this box when you want to use RSI length other than 14 (default). As length becomes larger, the RSI value oscillates less vigorously. As length becomes smaller, the oscillations of the indicator become more pronounced. This feature changes the RSI by applying the appropriate function expression so that the RSI with a period value of 56 (=14*4) in a 15-minute time frame has the same value as the RSI with a period value of 14 in a 60-minute time frame.")
+cdob = input.string('Candle', title='Candle or Bar or Line?', options=['Candle', 'Bar', 'Line'], group=grrsi)
+uc = input(brightgreen, 'Bullish Color', group=grrsi, 
+  tooltip="(Page 56) 10 Lies That Traders Believe = Whenever the RSI is above 50, it is a bullish indication.")
+dc = input(brightred, 'Bearish Color', group=grrsi, 
+  tooltip="(Page 56) 10 Lies That Traders Believe = Whenever the RSI is below 50, it's a bearish indication.")
+// Calculations
+_rsi(src, len) =>
+    u = math.max(src - src[1], 0)  
+    d = math.max(src[1] - src, 0)  
+    rs = ta.rma(u, len) / ta.rma(d, len)
+    res = 100 - 100 / (1 + rs)
+    res
+
+_rma(src, length) =>
+    a = 1 / length
+    sum = 0.0
+    sum := na(sum[1]) ? ta.sma(src, length) : a * src + (1 - a) * nz(sum[1])
+    sum
+
+u = math.max(src - src[1], 0)
+d = math.max(src[1] - src, 0)
+a = 1 / len
+ruh = a * math.max(high - close[1], 0) + (1 - a) * ta.rma(u, len)[1]
+rdh = (1 - a) * ta.rma(d, len)[1]
+
+rul = (1 - a) * ta.rma(u, len)[1]
+rdl = a * math.max(close[1] - low, 0) + (1 - a) * ta.rma(d, len)[1]
+
+function(rsi, len) =>
+    f = -math.pow(math.abs(math.abs(rsi - 50) - 50), 1 + math.pow(len / 14, 0.618) - 1) / math.pow(50, math.pow(len / 14, 0.618) - 1) + 50
+    rsiadvanced = if rsi > 50
+        f + 50
+    else
+        -f + 50
+    rsiadvanced
+
+rsiha = 100 - 100 / (1 + ruh / rdh)
+rsila = 100 - 100 / (1 + rul / rdl)
+rsia = ta.rsi(src, len)
+
+rsih = if ad
+    function(rsiha, len)
+else 
+    rsiha
+
+rsil = if ad
+    function(rsila, len)
+else
+    rsila
+rsi = if ad
+    function(rsia, len)
+else
+    rsia
+
+col = ta.change(rsi) > 0 ? uc : dc
+colc = if cdob == 'Candle'
+    col
+colb = if cdob == 'Bar'
+    col
+cold = if cdob == 'Line'
+    col
+// Plots
+plotcandle(rsi[1], rsih, rsil, rsi, color= cdob == 'Candle' ? colc : na, wickcolor=cdob == 'Candle' ? colc : na, bordercolor=cdob == 'Candle' ? colc : na, title='RSI Candles', editable=false)
+plotbar(rsi[1], rsih, rsil, rsi, color= cdob == 'Bar'? colb : na, title='RSI Bars', editable=false)
+plot(rsi, title='RSI Line', color= cdob == 'Line' ? cold : na, editable=false)
+// ----------------------------- Decimals ----------------------------------- //
+len_rsi=len
+targetsrc=src
+targetrsi = rsi
+
+price_by_rsi(level) =>
+    x1 = (len_rsi - 1) * (ta.rma(math.max(nz(targetsrc[1], targetsrc) - targetsrc, 0), len_rsi) * level / (100 - level) - ta.rma(math.max(targetsrc - nz(targetsrc[1], targetsrc), 0), len_rsi))
+    x1 >= 0 ? targetsrc + x1 : targetsrc + x1 * (100 - level) / level
+
+showperc = input(defval=true, title='Show Percentage & Price Change Labels?', group=grppl, 
+  tooltip="Hover over labels for additional info.")
+pricedecimals= input.int(defval=2, title='Price Decimals', minval=0, maxval=10, group=grppl, 
+  tooltip="This Price Decimals setting also applies to all other Price labels/data")
+percentdecimals= input.int(defval=2, title='% Decimals', minval=0, maxval=10, group=grppl, 
+  tooltip="This % Decimals setting also applies to all other Percent labels/data")
+
+truncateprice(number, pricedecimals) =>
+    factor = math.pow(10, pricedecimals)
+    int(number * factor) / factor
+    
+percenttruncate(number, percentdecimals) =>
+    factor = math.pow(10, percentdecimals)
+    int(number * factor) / factor
+    
+percent(n1, n2) =>
+    ((n1 - n2) / n2) * 100
+// ----------------------------- Trend Lines -------------------------------- //
+n = bar_index
+
+showtl = input(false, "Show Trend Lines?", group=grtl, tooltip="(Page 48) The most common pattern is the triangle formation, which often indicates a pending explosive move. However, there is often a false breakout before the real move!")
+prd = input.int(defval=8, title='Pivot Point Period', minval=5, maxval=50, group=grtl)
+PPnum = input.int(defval=3, title='Number of Pivot Point to check', minval=2, maxval=3, group=grtl)
+trendstyle = input.string(defval='.....', title='Trend Line Style', options=['.....', '-----'], group=grtl)
+
+float ph = na
+float pl = na
+ph := ta.pivothigh(rsi, prd, prd)
+pl := ta.pivotlow(rsi, prd, prd)
+
+getloc(bar_i) =>
+    _ret = bar_index + prd - bar_i
+    _ret
+
+t1pos = ta.valuewhen(ph, bar_index, 0)
+t1val = nz(rsi[getloc(t1pos)])
+t2pos = ta.valuewhen(ph, bar_index, 1)
+t2val = nz(rsi[getloc(t2pos)])
+t3pos = ta.valuewhen(ph, bar_index, 2)
+t3val = nz(rsi[getloc(t3pos)])
+
+b1pos = ta.valuewhen(pl, bar_index, 0)
+b1val = nz(rsi[getloc(b1pos)])
+b2pos = ta.valuewhen(pl, bar_index, 1)
+b2val = nz(rsi[getloc(b2pos)])
+b3pos = ta.valuewhen(pl, bar_index, 2)
+b3val = nz(rsi[getloc(b3pos)])
+
+getloval(l1, l2) =>
+    _ret1 = l1 == 1 ? b1val : l1 == 2 ? b2val : l1 == 3 ? b3val : 0
+    _ret2 = l2 == 1 ? b1val : l2 == 2 ? b2val : l2 == 3 ? b3val : 0
+    [_ret1, _ret2]
+
+getlopos(l1, l2) =>
+    _ret1 = l1 == 1 ? b1pos : l1 == 2 ? b2pos : l1 == 3 ? b3pos : 0
+    _ret2 = l2 == 1 ? b1pos : l2 == 2 ? b2pos : l2 == 3 ? b3pos : 0
+    [_ret1, _ret2]
+
+gethival(l1, l2) =>
+    _ret1 = l1 == 1 ? t1val : l1 == 2 ? t2val : l1 == 3 ? t3val : 0
+    _ret2 = l2 == 1 ? t1val : l2 == 2 ? t2val : l2 == 3 ? t3val : 0
+    [_ret1, _ret2]
+
+gethipos(l1, l2) =>
+    _ret1 = l1 == 1 ? t1pos : l1 == 2 ? t2pos : l1 == 3 ? t3pos : 0
+    _ret2 = l2 == 1 ? t1pos : l2 == 2 ? t2pos : l2 == 3 ? t3pos : 0
+    [_ret1, _ret2]
+
+var line l1 = na
+var label l1a = na 
+var line l2 = na
+var label l2a = na
+var line l3 = na
+var label l3a = na
+var line t1 = na
+var label t1a = na
+var line t2 = na
+var label t2a = na
+var line t3 = na
+var label t3a = na
+
+line.delete(l1)
+label.delete(l1a[1]) 
+line.delete(l2)
+label.delete(l2a[1])
+line.delete(l3)
+label.delete(l3a[1])
+line.delete(t1)
+label.delete(t1a[1])
+line.delete(t2)
+label.delete(t2a[1])
+line.delete(t3)
+label.delete(t3a[1])
+
+countlinelo = 0
+countlinehi = 0
+for p1 = 1 to PPnum - 1 by 1
+    uv1 = 0.0
+    uv2 = 0.0
+    up1 = 0
+    up2 = 0
+    for p2 = PPnum to p1 + 1 by 1
+        [val1, val2] = getloval(p1, p2)
+        [pos1, pos2] = getlopos(p1, p2)
+        if val1 > val2
+            diff = (val1 - val2) / (pos1 - pos2)
+            hline = val2 + diff
+            lloc = bar_index
+            lval = src
+            valid = true
+            for x = pos2 + 1 - prd to bar_index by 1
+                if nz(rsi[getloc(x + prd)]) < hline
+                    valid := false
+                    valid
+                lloc := x
+                lval := hline
+                hline += diff
+                hline
+
+            if valid
+                uv1 := hline
+                uv2 := val2
+                up1 := lloc
+                up2 := pos2
+                break
+    dv1 = 0.0
+    dv2 = 0.0
+    dp1 = 0
+    dp2 = 0
+    for p2 = PPnum to p1 + 1 by 1
+        [val1, val2] = gethival(p1, p2)
+        [pos1, pos2] = gethipos(p1, p2)
+        if val1 < val2
+            diff = (val2 - val1) / (pos1 - pos2)
+            hline = val2 - diff
+            lloc = bar_index
+            lval = rsi
+            valid = true
+            for x = pos2 + 1 - prd to bar_index by 1
+                if nz(rsi[getloc(x + prd)]) > hline
+                    valid := false
+                    break
+                lloc := x
+                lval := hline
+                hline -= diff
+                hline
+            if valid
+                dv1 := hline
+                dv2 := val2
+                dp1 := lloc
+                dp2 := pos2
+                break
+    if up1 != 0 and up2 != 0 and showtl
+        countlinelo += 1
+        l1 := countlinelo == 1 ? line.new(up2 - prd, uv2, up1, uv1, color=green, style=trendstyle == '-----' ? line.style_dashed : line.style_dotted) : l1
+        l2 := countlinelo == 2 ? line.new(up2 - prd, uv2, up1, uv1, color=green, style=trendstyle == '-----' ? line.style_dashed : line.style_dotted) : l2
+        l3 := countlinelo == 3 ? line.new(up2 - prd, uv2, up1, uv1, color=green, style=trendstyle == '-----' ? line.style_dashed : line.style_dotted) : l3
+        l3
+    if dp1 != 0 and dp2 != 0 and showtl
+        countlinehi += 1
+        t1 := countlinehi == 1 ? line.new(dp2 - prd, dv2, dp1, dv1, color=red, style=trendstyle == '-----' ? line.style_dashed : line.style_dotted) : t1
+        t2 := countlinehi == 2 ? line.new(dp2 - prd, dv2, dp1, dv1, color=red, style=trendstyle == '-----' ? line.style_dashed : line.style_dotted) : t2
+        t3 := countlinehi == 3 ? line.new(dp2 - prd, dv2, dp1, dv1, color=red, style=trendstyle == '-----' ? line.style_dashed : line.style_dotted) : t3
+        t3
+// ----------------------------- 45 WMA/EMA --------------------------------- //
+r45ma = input.string('WMA', title='RSI 45 WMA or EMA?', options=['WMA', 'EMA'], group=grrsi, 
+  tooltip='There is some inconsistency in the book due to charts (Appendix C) citing use of a 45 EMA on RSI, and text (page 107 & 108) citing use of a 45 WMA on RSI; take your pick.')
+rwma = ta.wma(rsi, 45)
+rema = ta.ema(rsi, 45)
+r45maout = r45ma == 'WMA' ? rwma : rema
+rwmacol = r45maout > r45maout[1] ? green : red
+rwmacolv = r45maout > r45maout[1] ? brightgreen : brightred
+rwmafill = plot(r45maout, 'RSI 45 WMA/EMA', color.new(rwmacol, 0))
+// ------------------------------ 9 SMA ------------------------------------- //
+rsma = ta.sma(rsi, 9)
+rsmacol = rsma > rsma[1] ? green : red
+rsmacolv = rsma > rsma[1] ? brightgreen : brightred
+rsmafill = plot(rsma, 'RSI 9 SMA', color=color.new(rsmacol, 50))
+// ---------------------- Stochastic of X Signals --------------------------- //
+showstoch=input(true, "Show Stochastic [X]?", group=grsx)
+indi = input.string(defval='Price/Source', title='[X]=', group=grsx,
+  options=['Price/Source','Volume','RSI', 'scRSI', 'CCI', 'OBV', 'Momentum', 'MFI', 'ROSI', 'Slope', 'TSI', 'RVI', 'CMO', 'CMF', 'CO', 'AO', 'DPO', 'ROC', 'SMIeO', 'UO', 'W%R', 'PPO', 'HAO','RMI'], 
+  tooltip='CMF, OBV, MFI, CO, and Volume will not generate signals on assets that have no volume, like $DJI and other indexes.\nChart #17 (Page 71) suggests that using a 9-period RSI along with a 9-period stochastic is a method that can be used to identify strong multiple divergences indicating strong contra-trend retracements or possible trend reversals.')
+Src = input(defval=close, title='Source', group=grsx)
+resCustom = input.timeframe(title='Timeframe', defval='', group=grsx, tooltip="Stochastic of scRSI is not MTF compatible")
+gap = input(false, "Show Gaps?")
+gapout = gap == true ? barmerge.gaps_on : barmerge.gaps_off
+rsilen = input.int(defval= 14, title='RSI Length', minval=1, group=grsx)
+domcycle = input.int(20, minval=10, title='scRSI Dominant Cycle Length', group=grsx)
+ccilen = input.int(defval=20, title='CCI Length', minval=1, group=grsx)
+momlen = input.int(defval=10, title='Momentum Length', minval=1, group=grsx)
+mfilen = input.int(defval=14, title='MFI Length', minval=1, group=grsx)
+rosilen=input.int(defval=14, title="ROSI Length", group=grsx)
+rocP=input.int(defval=3, title="ROSI Rate of Change", group=grsx)
+slopelen=input.int(defval=14, title="Slope Length", group=grsx)
+SlopePeriod = input.int(1,title="Slope Period", group=grsx)
+r=input(25, title="TSI Smoothing 1", group=grsx)
+s=input(13, title="TSI Smoothing 2", group=grsx)
+rvilen=input.int(defval=14, title="RVI Length", group=grsx)
+rvi_dev_len = input(10, title="RVI Std. Dev. Length", group=grsx)
+cmolen=input.int(defval=9, title="Chande Momentum Osc Length", group=grsx)
+cmflength = input.int(20, "Chaikin Money Flow Length", minval=1, group=grsx)
+choshort = input.int(3, minval=1, title="Chaikin Money Osc (CO) Fast Length", group=grsx)
+cholong = input.int(10, minval=1, title="Chaikin Money Osc (CO) Slow Length", group=grsx)
+dperiod_ = input.int(21, title="DPO Length", minval=1, group=grsx)
+isCentered = input(false, title="DPO Centered?", group=grsx)
+rlength = input.int(9, "Rate of Change Length", minval=1, group=grsx)
+slonglen = input.int(20, minval=1, title="SMIeO Long Length", group=grsx)
+sshortlen = input.int(5, minval=1, title="SMIeO Short Length", group=grsx)
+ssiglen = input.int(5, minval=1, title="SMIeO Signal Line Length", group=grsx)
+ulength1 = input.int(7, minval=1, title = "Ultimate Osc Fast Length", group=grsx)
+ulength2 = input.int(14, minval=1, title = "Ultimate Osc Middle Length", group=grsx)
+ulength3 = input.int(28, minval=1, title = "Ultimate Osc Slow Length", group=grsx)
+plength = input(title="William's % R Length", defval=14, group=grsx)
+pshortlen=input.int(10, "PPO Short Length", minval=1, group=grsx)
+plonglen=input.int(21, "PPO Long Length", minval=1, group=grsx)
+pexp = input(false, "PPO Exponential", group=grsx)
+bbd_src = input.source(hlc3,"Heikin Ashi Osc Source", group=grsx, tooltip='Recommended setting: hlc3')
+bbd_avg = input.int(5,'Heikin Ashi Osc Moving Average', minval=1, group=grsx)
+rlen = input.int(minval=1,defval=14,title="Relative Momentum Index Length", group=grsx)
+// Different 'one-liner' Oscillator Calculations
+Rsi = ta.rsi(Src, rsilen)
+Cci = ta.cci(Src, ccilen)
+Mom = Src - Src[momlen]  
+Mfi = ta.mfi(Src, mfilen)
+Rosi = ta.roc(ta.rsi(Src,rosilen),rocP)
+ao = ta.sma(hl2,5) - ta.sma(hl2,34)
+Chosc = ta.ema(ta.accdist, choshort) - ta.ema(ta.accdist, cholong)
+// ROC
+source = Src
+roc = 100 * (source - source[rlength])/source[rlength]
+// PPO
+esma(source, length)=>
+	ps = ta.sma(source, length)
+	pe = ta.ema(source, length)
+	pexp ? pe : ps
+pshort = esma(Src, pshortlen)
+plong = esma(Src, plonglen)
+po = (pshort - plong)/plong*100
+// W % R
+_pr(length) =>
+	pmax = ta.highest(plength)
+	pmin = ta.lowest(plength)
+	100 * (Src - pmax) / (pmax - pmin)
+percentR = _pr(plength)
+// SMIO
+serg = ta.tsi(close, sshortlen, slonglen)
+ssig = ta.ema(serg, ssiglen)
+sosc = serg - ssig
+// UO
+average(ubp, utr_, ulength) => math.sum(ubp, ulength) / math.sum(utr_, ulength)
+uhigh_ = math.max(high, close[1])
+ulow_ = math.min(low, close[1])
+ubp = close - ulow_
+utr_ = uhigh_ - ulow_
+avg7 = average(ubp, utr_, ulength1)
+avg14 = average(ubp, utr_, ulength2)
+avg28 = average(ubp, utr_, ulength3)
+uout = 100 * (4*avg7 + 2*avg14 + avg28)/7
+// DPO
+barsback = dperiod_/2 + 1
+ma = ta.sma(close, dperiod_)
+dpo = isCentered ? close[barsback] - ma : close - ma[barsback]
+// Slope
+SMAs= ta.sma(Src, slopelen)
+Slope = (SMAs - SMAs[SlopePeriod]) / SlopePeriod
+// TSI
+m=Src-Src[1]
+Tsi=100*(ta.ema(ta.ema(m,r),s)/ta.ema(ta.ema(math.abs(m), r),s))
+// RVI
+rvi_dev = ta.stdev(Src, rvi_dev_len)
+upper = ta.ema(ta.change(Src) <= 0 ? 0 : rvi_dev, rvilen)
+lower = ta.ema(ta.change(Src) > 0 ? 0 : rvi_dev, rvilen)
+Rvi = upper / (upper + lower) * 100
+// CMO
+momm = ta.change(Src)
+f1(m) => m >= 0.0 ? m : 0.0
+f2(m) => m >= 0.0 ? 0.0 : -m
+m1 = f1(momm)
+m2 = f2(momm)
+sm1 = math.sum(m1, cmolen)
+sm2 = math.sum(m2, cmolen)
+percentCMO(nom, div) => 100 * nom / div
+chandeMO = percentCMO(sm1-sm2, sm1+sm2)
+// CMF 
+var cumVol = 0.
+cumVol += nz(volume)
+ad1 = close==high and close==low or high==low ? 0 : ((2*close-low-high)/(high-low))*volume
+Cmf = math.sum(ad1, cmflength) / math.sum(volume, cmflength)
+// Smoothed Cyclic RSI
+crsi = 0.0
+cyclelen = domcycle / 2
+vibration = 10
+leveling = 10.0
+cyclicmemory = domcycle * 2
+torque = 2.0 / (vibration + 1)
+phasingLag = (vibration - 1) / 2.0
+up = ta.rma(math.max(ta.change(Src), 0), cyclelen)
+down = ta.rma(-math.min(ta.change(Src), 0), cyclelen)
+vrsi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)
+crsi := torque * (2 * vrsi - vrsi[phasingLag]) + (1 - torque) * nz(crsi[1])
+lmax = -999999.0
+lmin = 999999.0
+for i = 0 to cyclicmemory - 1 by 1
+    if nz(crsi[i], -999999.0) > lmax
+        lmax := nz(crsi[i])
+        lmax
+    else
+        if nz(crsi[i], 999999.0) < lmin
+            lmin := nz(crsi[i])
+            lmin
+mstep = (lmax - lmin) / 100
+aperc = leveling / 100
+db = 0.0
+for steps = 0 to 100 by 1
+    testvalue = lmin + mstep * steps
+    above = 0
+    below = 0
+    for m = 0 to cyclicmemory - 1 by 1
+        below += (crsi[m] < testvalue ? 1 : 0)
+        below
+
+    ratio = below / cyclicmemory
+    if ratio >= aperc
+        db := testvalue
+        break
+    else
+        continue
+ubs = 0.0
+for steps = 0 to 100 by 1
+    testvalue = lmax - mstep * steps
+    above = 0
+    for m = 0 to cyclicmemory - 1 by 1
+        above += (crsi[m] >= testvalue ? 1 : 0)
+        above
+    ratio = above / cyclicmemory
+    if ratio >= aperc
+        ubs := testvalue
+        break
+    else
+        continue
+// Heikin Ashi Oscillator
+Y(X, N, M) =>
+    alpha = M / N
+    S2 = 0.0
+    S2 := nz(S2[1]) - nz(X[N]) + X
+    M2 = 0.0
+    M2 := na(X[N]) ? na : S2 / N
+    A2 = 0.0
+    A2 := na(A2[1]) ? M2 : alpha * X + (1 - alpha) * nz(A2[1])
+    A2
+bbd_raw = Y(bbd_src, 5, 1) - Y(bbd_src, 13, 1)
+bbd = (bbd_raw - Y(bbd_raw, 3, 1)) * 100
+// RMI
+rmisrc = Src
+rmi(src, len) =>
+    up = math.sum(math.max(ta.change(src), 0), len)
+    down = math.sum(-math.min(ta.change(src), 0), len)
+    rmi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)
+    rmi
+rmiout = rmi(rmisrc,rlen)
+// Which plot to display?
+indiout = indi=='HAO'? bbd : indi == 'RSI' ? Rsi : indi == 'scRSI' ? crsi : indi == 'CCI' ? Cci : indi == 'Momentum' ? Mom : indi == 'MFI' ? Mfi : indi == 'ROSI' ? Rosi : indi == 'Slope' ? Slope : indi == 'TSI' ? Tsi : indi == 'RVI' ? Rvi : indi == 'CMO' ? chandeMO : indi == 'CMF' ? Cmf : indi == 'CO' ? Chosc : indi == 'AO' ? ao : indi == 'DPO' ? dpo : indi == 'ROC' ? roc : indi == 'SMIeO' ? sosc : indi == 'UO' ? uout : indi == 'W%R' ? percentR : indi == 'PPO' ? po : indi == 'Price/Source' ? Src : indi == 'Volume' ? volume : indi == 'RMI' ? rmiout : ta.obv
+// Stochastic of X
+smoothKr = input.int(2, "Stochastic [X] K Length", minval=1, group=grsx)
+smoothDr = input.int(2, "Stochastic [X] D Length", minval=1, group=grsx)
+lengthStoch = input.int(14, "Stochastic [X] Length", minval=1, group=grsx)
+stochtransp = input.int(70, "Stochastic [X] Transparency", minval=0, maxval=100, group=grsx)
+
+rsi1 = indiout
+kr = request.security(syminfo.tickerid, resCustom, ta.sma(ta.stoch(rsi1, rsi1, rsi1, lengthStoch), smoothKr), gaps=gapout)
+dr = request.security(syminfo.tickerid, resCustom, ta.sma(kr, smoothDr), gaps=gapout)
+
+fkr=plot(showstoch?kr:na, title="Stochastich [X] K Line", color=color.new(color.blue, stochtransp), display=display.none)
+fdr=plot(showstoch?dr:na, title="Stochastich [X] D Line", color=color.new(color.orange, stochtransp), display=display.none)
+fillcol=kr>dr ? color.blue : color.orange
+fill(fkr,fdr, color=showstoch?color.new(fillcol, stochtransp):na)
+plot(ta.cross(kr, dr) and showstoch ? dr : na, title="Stochastic [X] K-D Crosses", color = color.new(ta.crossover(kr,dr)?color.blue:color.orange,0) , style = plot.style_circles, linewidth = 1, display=display.none)
+// ------------------------- Trend State ------------------------------------ //
+showtrend = input(true, title='Show Hayden triple trend state H-line fill?',group=grhts, 
+  tooltip ="Check this box if you want to see the Bull, Bear, or Chop trend state background according to Hayden.\n(Page 56) 10 Lies That Traders Believe = The RSI is unable to indicate trend direction, because it's only a momentum indicator.")
+showbc = input(false, title='Show Hayden triple trend state Chart Bar Color?',group=grhts)
+ts1 = input.float(defval=67, title="Precise Bullish RSI Crossover 66 to 68", minval=66, maxval=68, step=0.001, group=grhts, tooltip="End of chop. Popular: 66, 66.666, or 67")
+ts2 = input.float(defval=33, title="Precise Bearish RSI Crossunder 32 to 34", minval=32, maxval=34, step=0.001, group=grhts, tooltip="End of chop. Popular: 34, 33.333, or 33")
+ts1a = input.float(defval=61, title="Precise Bullish RSI Crossover 60 to 62", minval=60, maxval=62, step=0.001, group=grhts, tooltip="End of bearish trend. Popular: 61, 60.618, 60.5, or 60")
+ts2a = input.float(defval=39, title="Precise Bearish RSI Crossunder 38 to 40", minval=38, maxval=40, step=0.001, group=grhts, tooltip="End of bullish trend. Popular: 39, 39.5, 39.618, or 40")
+// Trend State
+var state = 0
+if ta.crossover(rsi, ts1)
+    state := 1
+    state
+if ta.crossunder(rsi, ts2) 
+    state := 2
+    state
+if state == 1 and ta.crossunder(rsi, ts2a)
+    state := 3
+    state
+if state == 2 and ta.crossover(rsi, ts1a)
+    state := 3
+    state
+state := state
+// ------------------- Hayden & Fibonacci H Lines --------------------------- //
+hundred = hline(100, title="100 H-Line", color=color.new(uc, 70), editable=true, display=display.none)
+eighty = hline(85.41, color=color.new(uc, 70), editable=false) 
+seventysix = hline(76.30, color=color.new(uc, 70), editable=false)
+sixtysix = hline(ts1, color=color.new(uc, 70), editable=false) 
+sixty = hline(ts1a, color=color.new(gray, 50), editable=false)
+fifty = hline(50, color=color.new(gray, 50), editable=false)
+fourty = hline(ts2a, color=color.new(gray, 50), editable=false)
+thirtythree = hline(ts2, color=color.new(dc, 70), editable=false) 
+twentythree = hline(23.61, color=color.new(dc, 70), editable=false) 
+twenty = hline(14.59, color=color.new(dc, 70), editable=false) 
+zero = hline(0, title="0 H-Line", color=color.new(dc, 70), editable=true, display=display.none) 
+
+fill(sixty,sixtysix, color=showtrend and state == 3 ? color.new(red,80) : na) 
+fill(thirtythree,fourty, color=showtrend and state == 3 ? color.new(green,80) : na)
+fill(fifty, hundred, color=showtrend and state == 1 ? color.new(green,80) : na) 
+fill(fifty, zero, color=showtrend and state == 2 ? color.new(red,80) : na) 
+fill(fifty, sixty, color=showtrend and state == 2 ? color.new(darkred,80) : na)
+fill(fifty, fourty, color=showtrend and state == 1 ? color.new(darkgreen,80) : na) 
+//---------------------------- RSI Divergences ------------------------------ //
+lbR = input(title="Pivot Lookback Right", defval=3, group=grdv, tooltip="(Page 68) The price that generated the divergence often becomes a key number used to identify temporary support or resistance.")
+lbL = input(title="Pivot Lookback Left", defval=3, group=grdv)
+rangeUpper = input(title="Max of Lookback Range", defval=100, group=grdv)
+rangeLower = input(title="Min of Lookback Range", defval=3, group=grdv)
+plotBull = input(title="Plot Bullish", defval=false, group=grdv, tooltip="(Page 65) Valid bullish divergences only occur in bear markets. \n(Page 56) 10 Lies That Traders Believe = A bullish divergence is an indication that a downtrend is about to end. \n(Page 47) Going long when a bullish divergence makes its appearance is a certain way to make small profits and generate large losses!")
+plotHiddenBull = input(title="Plot Hidden Bullish", defval=false, group=grdv, tooltip="(Page 82) An Uptrend is indicated when the chart shows Hidden bullish divergence.")
+plotBear = input(title="Plot Bearish", defval=false, group=grdv, tooltip="(Page 65) Valid bearish divergences only occur in bull markets. \n(Page 56) 10 Lies That Traders Believe = A bearish divergence is an indication that an uptrend is about to end.")
+plotHiddenBear = input(title="Plot Hidden Bearish", defval=false, group=grdv, tooltip="(Page 82) A Downtrend is indicated when the chart shows Hidden bearish divergence.")
+bearColor = red
+bullColor = green
+hiddenBullColor = color.new(green, 50)
+hiddenBearColor = color.new(red, 50)
+noneColor = color.new(color.white, 100)
+osc = rsi
+
+plFound = na(ta.pivotlow(osc, lbL, lbR)) ? false : true
+phFound = na(ta.pivothigh(osc, lbL, lbR)) ? false : true
+_inRange(cond) =>
+	bars = ta.barssince(cond == true)
+	rangeLower <= bars and bars <= rangeUpper
+// Regular Bullish
+// Osc: Higher Low
+oscHL = osc[lbR] > ta.valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+// Price: Lower Low
+priceLL = low[lbR] < ta.valuewhen(plFound, low[lbR], 1)
+bullCond = plotBull and priceLL and oscHL and plFound and (state==2 or state==3)// Hayden trend state filter page 72
+plot(plFound ? osc[lbR] : na,
+     offset=-lbR,
+     title="Regular Bullish",
+     linewidth=1,
+     editable=false,
+     color=(bullCond ? bullColor : noneColor))
+// Hidden Bullish
+// Osc: Lower Low
+oscLL = osc[lbR] < ta.valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+// Price: Higher Low
+priceHL = low[lbR] > ta.valuewhen(plFound, low[lbR], 1)
+hiddenBullCond = plotHiddenBull and priceHL and oscLL and plFound and (state==1 or state==3)// Hayden trend state filter page 72
+plot(plFound ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Hidden Bullish",
+	 linewidth=2,
+	 editable=false,
+	 color=(hiddenBullCond ? hiddenBullColor : noneColor))
+// Regular Bearish
+// Osc: Lower High
+oscLH = osc[lbR] < ta.valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+// Price: Higher High
+priceHH = high[lbR] > ta.valuewhen(phFound, high[lbR], 1)
+bearCond = plotBear and priceHH and oscLH and phFound and (state==1 or state==3)// Hayden trend state filter page 72
+plot(phFound ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Regular Bearish",
+	 linewidth=1,
+	 editable=false,
+	 color=(bearCond ? bearColor : noneColor))
+// Hidden Bearish
+// Osc: Higher High
+oscHH = osc[lbR] > ta.valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+// Price: Lower High
+priceLH = high[lbR] < ta.valuewhen(phFound, high[lbR], 1)
+hiddenBearCond = plotHiddenBear and priceLH and oscHH and phFound and (state==2 or state==3)// Hayden trend state filter page 72
+plot(phFound ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Hidden Bearish",
+	 linewidth=2,
+	 editable=false,
+	 color=(hiddenBearCond ? hiddenBearColor : noneColor))
+// ------------------ RSI Price & Percentage Change Pivots ------------------ //
+// Pivot Lookback
+pppsize = input.string(size.tiny, "RSI Price & Percentage Change Pivots Label Size", [size.tiny, size.small, size.normal], group=grppl)
+leftbars = input.int(5, minval=1, title='Bars to the left', group=grppl)
+rightbars = input.int(5, minval=1, title='Bars to the right', group=grppl)
+// Pivot Prices
+phigh = ta.pivothigh(high, leftbars, rightbars)
+plow = ta.pivotlow(low, leftbars, rightbars)
+// Pivot RSI
+rsiphigh = ta.pivothigh(rsi, leftbars, rightbars)
+rsiplow = ta.pivotlow(rsi, leftbars, rightbars)
+//Pivot %
+//Inputs
+zigperiod = input(defval=8, title='ZigZag Period', group=grppl, tooltip="The higher the number, the fewer the labels")
+showline = input(defval=false, title='Show Zig Lines?', group=grppl)
+zigstyle = input.string(defval='-----', title='Zig Zag Line Style', options=['.....', '-----'], group=grppl)
+upcolor = input(defval=green, title='Bullish Color', group=grppl)
+downcolor = input(defval=red, title='Bearish Color', group=grppl)
+
+zigwidth = 1
+elen = 5
+esrc = close
+out = ta.ema(esrc, elen)
+//Float
+float highs = ta.highestbars(rsi, zigperiod) == 0 ? rsi : na
+float lows = ta.lowestbars(rsi, zigperiod) == 0 ? rsi : na
+//Variables
+var dir1 = 0
+iff_1 = lows and na(highs) ? -1 : dir1
+dir1 := highs and na(lows) ? 1 : iff_1
+
+var max_array_size = 10
+var ziggyzags = array.new_float(0)
+
+add_to_zigzag(pointer, value, bindex) =>
+    array.unshift(pointer, bindex)
+    array.unshift(pointer, value)
+    if array.size(pointer) > max_array_size
+        array.pop(pointer)
+        array.pop(pointer)
+
+update_zigzag(pointer, value, bindex, dir) =>
+    if array.size(pointer) == 0
+        add_to_zigzag(pointer, value, bindex)
+    else
+        if dir == 1 and value > array.get(pointer, 0) or dir == -1 and value < array.get(pointer, 0)
+            array.set(pointer, 0, value)
+            array.set(pointer, 1, bindex)
+        0.
+
+dir1changed = ta.change(dir1)
+if highs or lows
+    if dir1changed
+        add_to_zigzag(ziggyzags, dir1 == 1 ? highs : lows, bar_index)
+    else
+        update_zigzag(ziggyzags, dir1 == 1 ? highs : lows, bar_index, dir1)
+
+// Retrace Targets: (A-C)+B, see book page 75: "We can also calculate the upside target by obtaining the difference between points "B" and "Ref'
+rtt=(ta.valuewhen(highs or lows,close,2) - ta.valuewhen(highs or lows,close,0)) + ta.valuewhen(highs or lows,close,1)
+// Stop Loss: Calculated as the high for the leftbars variable ('Bars to the left' setting)
+lsl = ta.lowest(low,leftbars)
+ssl = ta.highest(high,leftbars)
+// Risk Reward Ratio
+rrri = (percent(rtt, ta.valuewhen(highs or lows,close,0)))/(percent(highs?ssl:lsl, ta.valuewhen(highs or lows,close,0)))
+rrr = math.abs(rrri)
+
+if array.size(ziggyzags) >= 6
+    var line zzline1 = na
+    var label zzlabel1 = na
+    float val = array.get(ziggyzags, 0)
+    int point = math.round(array.get(ziggyzags, 1))
+    if ta.change(val) or ta.change(point)
+        float val1 = array.get(ziggyzags, 2)
+        int point1 = math.round(array.get(ziggyzags, 3))
+        plabel = "RSI ∆y " + str.tostring(truncateprice(val-val1, pricedecimals)) 
+          + ", " + str.tostring(percenttruncate(percent(val, val1),percentdecimals)) + ' %' 
+          // Change in X
+          + "\n⏱ ∆x " + str.tostring(point - point1) + " bars"
+          // RSI
+          + "\n📍 RSI " + str.tostring(percenttruncate(rsi,percentdecimals)) 
+          // Targets
+          + "\n🎯 " + str.tostring(rtt) + ", " + str.tostring(percenttruncate(percent(rtt, ta.valuewhen(highs or lows,close,0)),percentdecimals)) + " %"
+          // Stop
+          + "\n🛑 " + str.tostring(highs?ssl:lsl) + ", " + str.tostring(percenttruncate(percent(highs?ssl:lsl, ta.valuewhen(highs or lows,close,0)),percentdecimals)) + " %" 
+          // Reward:Risk Ratio
+          + "\nReward : Risk = " + str.tostring(percenttruncate(rrr, percentdecimals)) + " : 1 "// + (rrr>2 and rrr<3 ? "✅" : rrr>3 ? "💰" : "⛔" ) // useful easteregg if you follow a >2:1 Reward:Risk ratio
+        
+        if ta.change(val1) == 0 and ta.change(point1) == 0
+            line.delete(zzline1)
+            label.delete(zzlabel1)
+        if showline
+            zzline1 := line.new(x1=point, x2=point1, y1=val, y2=val1, color=dir1 == 1 ? upcolor : downcolor, width=zigwidth, style=zigstyle == '-----' ? line.style_dashed : line.style_dotted)
+            zzline1
+        labelcol = dir1 == 1 ? array.get(ziggyzags, 0) > out ? upcolor : downcolor : array.get(ziggyzags, 0) < out ? downcolor : upcolor
+        if showperc
+            zzlabel1 := label.new(x=point, y=val, text=str.tostring(truncateprice(close,pricedecimals)), size=pppsize, color=color.new(labelcol, 100), textcolor=dir1 == 1 ? downcolor : upcolor, style=dir1 == 1 ? label.style_label_down : label.style_label_up, tooltip=plabel)
+            zzlabel1
+// ------------------------- RSI Price Targets ------------------------------ //
+showrtp = input(true, "Show RSI-to-Price Labels?", group=grrtpl, tooltip="Hover over labels for additional info.")
+rtpoffset =input(5, title="RSI-to-Price Label Horizontal Offset", group=grrtpl, 
+  tooltip ="(Page 56) 10 Lies That Traders Believe = It is not possible to use the RSI to set price objectives.")
+rtpsize = input.string(size.tiny, "RSI-to-Price Label Size", [size.tiny, size.small, size.normal], group=grrtpl)
+// [BFJ] Fib variables
+fr1 = 0
+fr3 = 14.59
+fr5 = 23.61
+fr7 = ts2
+fr9 = ts2a
+fr11 = 50
+fr13 = ts1a
+fr16 = ts1
+fr18 = 76.3
+fr20 = 85.41
+fr21 = 100
+// Number of Decimals for Labels
+truncatepercent(number, percentdecimals) =>
+    factor = math.pow(10, percentdecimals)
+    int(number * factor) / factor
+// RSI to Price Labels
+var label la0 = na
+if showrtp    
+    la0 := label.new(n + rtpoffset,fr3, str.tostring(truncateprice(price_by_rsi(fr3), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=state == 2 ? dc : na, 
+      tooltip="📍 RSI " + str.tostring(fr3) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr3)-close, pricedecimals))+'\n~1 : 6') 
+    label.delete(la0[1])
+
+var label la1c = na
+if showrtp 
+    la1c := label.new(n + rtpoffset,fr5, str.tostring(truncateprice(price_by_rsi(fr5), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=state == 2 ? dc : na, 
+      tooltip="📍 RSI " + str.tostring(fr5)  + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr5)-close, pricedecimals))+'\n~1 : 3') 
+    label.delete(la1c[1])
+
+var label la1b = na
+if showrtp 
+    la1b := label.new(n + rtpoffset,fr7, str.tostring(truncateprice(price_by_rsi(fr7), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor= state == 2 ? dc : state == 3 ? uc : na, 
+      tooltip="📍 RSI " + str.tostring(fr7) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr7)-close, pricedecimals))+'\n1 : 2') 
+    label.delete(la1b[1])
+
+var label la2 = na
+if showrtp 
+    la2 := label.new(n + rtpoffset,fr9,str.tostring(truncateprice(price_by_rsi(fr9), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=state == 1 or state == 3? uc : state == 2 ? dc : na, 
+      tooltip="📍 RSI " + str.tostring(fr9) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr9)-close, pricedecimals))+'\n~1 : 1.618') 
+    label.delete(la2[1])
+
+var label la3 = na
+if showrtp 
+    la3 := label.new(n + rtpoffset,fr11, str.tostring(truncateprice(price_by_rsi(fr11), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=rsi > 50 ? uc : dc, 
+      tooltip="📍 RSI " + str.tostring(fr11) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr11)-close, pricedecimals))+'\n1 : 1') 
+    label.delete(la3[1])
+
+var label la4 = na
+if showrtp 
+    la4 := label.new(n + rtpoffset,fr13,str.tostring(truncateprice(price_by_rsi(fr13), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=state == 2 or state == 3 ? dc : state == 1 ? uc : na, 
+      tooltip="📍 RSI " + str.tostring(fr13) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr13)-close, pricedecimals))+'\n~1.618 : 1')  
+    label.delete(la4[1])
+
+var label la4b = na
+if showrtp 
+    la4b := label.new(n + rtpoffset,fr16, str.tostring(truncateprice(price_by_rsi(fr16), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=state == 1 ? uc :state == 3 ? dc : na, 
+      tooltip="📍 RSI " + str.tostring(fr16) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr16)-close, pricedecimals))+'\n2 : 1') 
+    label.delete(la4b[1])
+
+var label la5b = na
+if showrtp 
+    la5b := label.new(n + rtpoffset,fr18, str.tostring(truncateprice(price_by_rsi(fr18), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=state == 1 ? uc : na, 
+      tooltip="📍 RSI " + str.tostring(fr18) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr18)-close, pricedecimals))+'\n~3 : 1') 
+    label.delete(la5b[1])
+
+var label la6 = na
+if showrtp 
+    la6 := label.new(n + rtpoffset,fr20, str.tostring(truncateprice(price_by_rsi(fr20), pricedecimals)), color=color.new(color.white, 100), style=label.style_none, size=rtpsize, textcolor=state == 1 ? uc : na, 
+      tooltip="📍 RSI " + str.tostring(fr20) + "\n∆y " + str.tostring(truncateprice(price_by_rsi(fr20)-close, pricedecimals))+'\n~6 : 1') 
+    label.delete(la6[1])
+// ------------------------ Advanced Data Ticker ---------------------------- //
+showticker=input(true, "Show Tickers?", group=grtk)
+datatype = input.string('RSI MA Price', 
+  title='Ticker 1 Data Source?', 
+  options=['RSI to Price', "RSI MA Price", 'Trend End', 'Trend State', 'ADX & DI+/-', "Watermark", "Volatility", "None"], 
+  group=grtk)
+datatype2 = input.string('RSI to Price', 
+  title='Ticker 2 Data Source?', 
+  options=['RSI to Price', "RSI MA Price", 'Trend End', 'Trend State', 'ADX & DI+/-', "Watermark", "Volatility", "None"], 
+  group=grtk)
+// Emoji Rating
+erating= (r45maout>r45maout[1] and rsma>rsma[1])?" 🚀 ":
+ (r45maout<r45maout[1] and rsma<rsma[1])?" 💀 ":"  🪓 "
+// RSI to Price Target Inputs
+obLevel1 = input.float(80, title='RSI to Price Target 1', minval=1, maxval=99, group=grtk, 
+  tooltip="Table #8 Fibonacci Bullish RSI Levels: 61.8, 66.67, 76.30, 85.42, 90.98, 94.43\n(Page 56) 10 Lies That Traders Believe = The RSI will generally 'top out' somewhere around the 70 level.")
+osLevel1 = input.float(20, title='RSI to Price Target 2', minval=1, maxval=99, group=grtk, 
+  tooltip="Table #8 Fibonacci Bearish RSI Levels: 38.2, 33.33, 23.61, 14.59, 9.02, 5.57\n(Page 56) 10 Lies That Traders Believe = The RSI will generally 'bottom out' somewhere around the 30 level.")
+// Functional Math and RSI Targets
+// Code Author: @ LazyBear
+ep = 2 * 14 - 1
+auc = ta.ema(math.max(src - src[1], 0), ep)
+adc = ta.ema(math.max(src[1] - src, 0), ep)
+x1 = (14 - 1) * (adc * obLevel1 / (100 - obLevel1) - auc)
+longrsitarget = x1 >= 0 ? src + x1 : src + x1 * (100 - obLevel1) / obLevel1
+x2 = (14 - 1) * (adc * osLevel1 / (100 - osLevel1) - auc)
+shortrsitarget = x2 >= 0 ? src + x2 : src + x2 * (100 - osLevel1) / osLevel1
+// Text
+tickerstateob=(str.tostring(obLevel1) + " 🎯 = " + str.tostring(truncateprice(longrsitarget,pricedecimals)))
+tickerstateos=(str.tostring(osLevel1) + " 🎯 = " + str.tostring(truncateprice(shortrsitarget,pricedecimals)))
+// Plots
+roblcol=input.color(aqua, title="RSI to Price Target 1 Color", group=grtk)
+roslcol=input.color(fuchsia, title="RSI to Price Target 2 Color", group=grtk)
+// Shape Plots 
+plotshape(obLevel1, title="User-defined RSI to Price Target 1", location=location.absolute, style=shape.cross, color=datatype=="RSI to Price" or datatype2=="RSI to Price" ?color.new(roblcol, 0):na, show_last=1)
+plotshape(osLevel1, title="User-defined RSI to Price Target 2", location=location.absolute, style=shape.cross, color=datatype=="RSI to Price" or datatype2=="RSI to Price" ?color.new(roslcol, 0):na, show_last=1)
+// RSI MA Price Targets
+lstop2=r45maout
+sstop2=rsma
+// RWMA Math
+x122 = (14 - 1) * (adc * lstop2 / (100 - lstop2) - auc)
+rwmatarget = x122 >= 0 ? src + x122 : src + x122 * (100 - lstop2) / lstop2
+// RSMA Math
+x132 = (14 - 1) * (adc * sstop2 / (100 - sstop2) - auc)
+rsmatarget = x132 >= 0 ? src + x132 : src + x132 * (100 - sstop2) / sstop2
+// Text
+tickerstaterwma=("45 "+ (r45ma == 'WMA' ? "WMA" : "EMA") + " = " + str.tostring(truncateprice(rwmatarget, pricedecimals))) + "  " + erating
+tickerstatersma=("9 SMA = " + str.tostring(truncateprice(rsmatarget, pricedecimals)))
+// Text Color
+rwmatcol2=rwmacolv
+rsmatcol2=rsmacolv
+// Trend Ends Text
+tickerstateendbull=("🐮 Bullish above " + str.tostring(truncateprice(price_by_rsi(fr9),pricedecimals)))
+tickerstateendbear=("🐻 Bearish below " + str.tostring(truncateprice(price_by_rsi(fr13),pricedecimals)))
+tickerstateendbullchop=("Bullish above " + str.tostring(truncateprice(price_by_rsi(fr16),pricedecimals)))
+tickerstateendbearchop=("🪓 Bearish below " + str.tostring(truncateprice(price_by_rsi(fr7),pricedecimals)))
+// Trend State Text
+bulltrend=rsi>r45maout and rsi>rsma and state==1
+tickerstatebulltrend=("📈 Bullish " + (bulltrend?"Trend 🚀":"Chop 🪓"))
+beartrend=rsi<r45maout and rsi<rsma and state==2
+tickerstatebeartrend=("📉 Bearish " + (beartrend?"Trend 💀":"Chop 🪓"))
+chopbear=state==3 and rsi<r45maout
+tickerstatechoptrend=("🪓 Chop with " + (chopbear?"Bearish 💀":"Bullish 🚀") + " Sentiment")
+trendstatedisplay=state==1?tickerstatebulltrend:state==2?tickerstatebeartrend:state==3?tickerstatechoptrend:na
+// Trend State Text Color
+tstextcol=state==1 and bulltrend ?brightgreen : 
+  state==1 and not bulltrend?green : 
+  state==2 and beartrend ? brightred : 
+  state==2 and not beartrend ? red : 
+  state==3 and chopbear ? red : 
+  state==3 and not chopbear ? green : na
+// ADX & DI Data
+// Code Author: Currently unknown. Please help identify the author if you know who it is.
+[_, _, adx1] = ta.dmi(17, 4)
+adxlen = 14
+dilen = 14
+dirmov(len) =>
+    up = ta.change(high)
+    down = -ta.change(low)
+    truerange = ta.rma(ta.tr, len)
+    plus = fixnan(100 * ta.rma(up > down and up > 0 ? up : 0, len) / truerange)
+    minus = fixnan(100 * ta.rma(down > up and down > 0 ? down : 0, len) / truerange)
+    [plus, minus]
+adx(dilen, adxlen) =>
+    [plus, minus] = dirmov(dilen)
+    sum = plus + minus
+    adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), adxlen)
+    adx
+adxHigh(dilen, adxlen) =>
+    [plus, minus] = dirmov(dilen)
+    plus
+adxLow(dilen, adxlen) =>
+    [plus, minus] = dirmov(dilen)
+    minus
+sig = adx(dilen, adxlen)
+sigHigh = adxHigh(dilen, adxlen)
+sigLow = adxLow(dilen, adxlen)
+sigTop = sigHigh>sigLow?sigHigh:sigLow
+// Text
+adxtext ='ADX ' + str.tostring(truncatepercent(adx1, percentdecimals)) 
+  + (adx1>adx1[1] ? ' & 📈' : ' & 📉') 
+  + (adx1<25?' 💤':adx1>25 and adx1<50 ?' 💪':adx1>50 and adx1<75 ?' 🔥':adx1>75 and adx1<100 ?' 🚀':'')
+ditext ='DI ' + str.tostring(truncatepercent(sigTop, percentdecimals)) 
+  + (sigTop>sigTop[1] and sigHigh>sigLow? ' & 📈 🐮' : sigTop<sigTop[1] and sigHigh>sigLow ? ' & 📉 🪓': sigTop>sigTop[1] and sigHigh<sigLow ? ' & 📈 🐻' : sigTop<sigTop[1] and sigHigh<sigLow ? ' & 📉 🪓':na) 
+// Text Color
+adxtextcol = color.new(
+  sigHigh > sigLow and adx1 < 25 ? green: 
+  sigHigh > sigLow and adx1 > 25 ? brightgreen: 
+  sigHigh < sigLow and adx1 > 25 ? brightred: 
+  sigHigh < sigLow and adx1 < 25 ? red: 
+  gray, 0)
+ditextcol = color.new(
+  sigHigh > sigLow and sigTop<sigTop[1] ? green: 
+  sigHigh > sigLow and sigTop>sigTop[1] ? brightgreen: 
+  sigHigh < sigLow and sigTop>sigTop[1] ? brightred: 
+  sigHigh < sigLow and sigTop<sigTop[1] ? red: 
+  gray, 0) 
+// Volatility
+lowvolcol = input.color(color.rgb(250,237,56,1), "Low Volatility Gradient Color", group=grtk)
+highvolcol = input.color(color.rgb(255,37,174,1), "High Volatility Gradient Color", group=grtk)
+f_volatility() =>
+	atr = ta.atr(14)
+	stdAtr = 2*ta.stdev(atr,20)
+	smaAtr = ta.sma(atr,20)
+	topAtrDev = smaAtr+stdAtr
+	bottomAtrDev = smaAtr-stdAtr
+	calcDev = (atr-bottomAtrDev)/(topAtrDev-bottomAtrDev)
+	percentVol = (40*calcDev+30)
+volatility = f_volatility()
+volatilitydir = volatility>volatility[1]?" & 📈":" & 📉"
+volemoji = volatility > 0 and volatility < 20 ? "😴" : volatility > 20 and volatility < 40 ? " 😐" : volatility > 40 and volatility < 60 ? " 😬" : volatility > 60 and volatility < 80 ? " 😮" : volatility > 80 and volatility < 100 ? " 😵" : " 🤯" 
+voltxt = "Volatility = " + str.tostring(truncatepercent(volatility, percentdecimals)) + " %" + volemoji + volatilitydir 
+volcol = color.from_gradient(volatility,25,75,lowvolcol,highvolcol) 
+
+q1 = "Look first / Then leap." 
+q2 = "TradeStation™ Charting by Omega Research and Epsilon Charting"
+q3 = "Made w/ ❤ by © 🦶 BarefootJoey"
+// Watermark Displays
+str1 = "₸⩒ TradingView"
+str2 = "TradeStation™" 
+str3 = "🦶 BarefootJoey"
+
+showwatermark = input(true, 'Show Watermark?', group=grtk, tooltip="Hover over watermark for additional info.")
+wmstring = input.string("TradingView", title="Watermark Display Text", options=["BarefootJoey", "TradeStation", "TradingView", "Custom"], group=grtk)
+watermark = input("Your name", title="Custom Trader WaterMark Text", group=grtk, tooltip="Emojis allowed!")
+WMtxtcol = input(gray, title="WaterMark Text Color", group=grtk)
+Ttransp = input(20, title="Ticker Text Transparency", group=grtk)
+// Show which watermark & tooltip
+whichwm = wmstring == "BarefootJoey" ? str3 :wmstring =="TradeStation"? str2 : wmstring == "TradingView" ? str1 : watermark
+whichtt = wmstring == "TradeStation" ? q2 : wmstring == "TradingView"? q1 : q3
+
+position = input.string(position.top_center, "Ticker 1 Position", [position.top_center, position.top_right, position.middle_right, position.bottom_right, position.bottom_center, position.bottom_left, position.middle_left, position.top_left], group=grtk)
+size = input.string(size.small, "Ticker 1 Size", [size.tiny, size.small, size.normal, size.large, size.huge], group=grtk)
+var table Ticker = na
+Ticker := table.new(position, 2, 1)
+if barstate.islast and showticker
+    table.cell(Ticker, 0, 0, 
+      text = datatype=="RSI to Price"?tickerstateob:datatype=="RSI MA Price"?tickerstaterwma:datatype=="Trend End" and state ==1?tickerstateendbull:datatype=="Trend End" and state ==3?tickerstateendbullchop:datatype=="ADX & DI+/-"?adxtext:datatype=="Watermark"?whichwm:na, 
+      text_size = size, 
+      text_color = color.new(datatype=="RSI to Price"?roblcol:datatype=="RSI MA Price"?rwmatcol2:datatype=="Trend End" and (state==3 or state==1)?green:datatype=="ADX & DI+/-"?adxtextcol:gray,Ttransp),
+      tooltip=datatype=="Watermark"?whichtt:na)
+    table.cell(Ticker, 1, 0, 
+      text = datatype=="RSI to Price"?tickerstateos:datatype=="RSI MA Price"?tickerstatersma:datatype=="Trend End" and state ==2?tickerstateendbear:datatype=="Trend End" and state ==3?tickerstateendbearchop:datatype=="ADX & DI+/-"?ditext:datatype=="Trend State"?trendstatedisplay:datatype=="Volatility"?voltxt:na, 
+      text_size = size, 
+      text_color = color.new(datatype=="RSI to Price"?roslcol:datatype=="RSI MA Price"?rsmatcol2:datatype=="Trend End" and (state==3 or state==2)?red:datatype=="ADX & DI+/-"?ditextcol:datatype=="Trend State"?tstextcol:datatype=="Volatility" ? volcol :gray,Ttransp))
+position2 = input.string(position.bottom_center, "Ticker 2 Position", [position.top_center, position.top_right, position.middle_right, position.bottom_right, position.bottom_center, position.bottom_left, position.middle_left, position.top_left], group=grtk)
+size2 = input.string(size.small, "Ticker 2 Size", [size.tiny, size.small, size.normal, size.large, size.huge], group=grtk)
+var table Ticker2 = na
+Ticker2 := table.new(position2, 2, 1)
+if barstate.islast and showticker
+    table.cell(Ticker2, 0, 0,
+      text = datatype2=="RSI to Price"?tickerstateob:datatype2=="RSI MA Price"?tickerstaterwma:datatype2=="Trend End" and state ==1?tickerstateendbull:datatype2=="Trend End" and state ==3?tickerstateendbullchop:datatype2=="ADX & DI+/-"?adxtext:datatype2=="Watermark"?whichwm:na, 
+      text_size = size2, 
+      text_color = color.new(datatype2=="RSI to Price"?roblcol:datatype2=="RSI MA Price"?rwmatcol2:datatype2=="Trend End" and (state==3 or state==1)?green:datatype2=="ADX & DI+/-"?adxtextcol:gray,Ttransp),
+      tooltip = datatype=="Watermark"?whichtt:na)
+    table.cell(Ticker2, 1, 0,
+      text = datatype2=="RSI to Price"?tickerstateos:datatype2=="RSI MA Price"?tickerstatersma:datatype2=="Trend End" and state ==2?tickerstateendbear:datatype2=="Trend End" and state ==3?tickerstateendbearchop:datatype2=="ADX & DI+/-"?ditext:datatype2=="Trend State"?trendstatedisplay:datatype=="Volatility"?voltxt:na, 
+      text_size = size2, 
+      text_color = color.new(datatype2=="RSI to Price"?roslcol:datatype2=="RSI MA Price"?rsmatcol2:datatype2=="Trend End" and (state==3 or state==2)?red:datatype2=="ADX & DI+/-"?ditextcol:datatype2=="Trend State"?tstextcol:datatype=="Volatility" ? volcol :gray,Ttransp))
+//-----------------3 State RSI Gradient Bar Color on Chart--------------------//
+cbullu = input(brightgreen, "Chart Bar Color: Bull Run", group=grhts)
+cbulld = input(darkgreen, "Chart Bar Color: Bull Pullback", group=grhts)
+cbearu = input(brightred, "Chart Bar Color: Bear Run", group=grhts)
+cbeard = input(darkred, "Chart Bar Color: Bear Pullback", group=grhts)
+cbearc = input(brightgreen, "Chart Bar Color: Bull Chop Gradient", group=grhts) 
+cbullc = input(brightred, "Chart Bar Color: Bear Chop Gradient", group=grhts) 
+
+barcolor(state==1 and rsi>50?cbullu: state==1 and rsi<50?cbulld: state==2 and rsi<50 ?cbearu: state==2 and rsi>50 ?cbeard:color.new(color.from_gradient(rsi, ts2, ts1, cbullc, cbearc),0),title="Chart Bar Color", display = showbc ? display.all : display.none, editable=false)
+
+//------------------------------------------------------------------------------------------- END --------------------------------------------------------------------------------//

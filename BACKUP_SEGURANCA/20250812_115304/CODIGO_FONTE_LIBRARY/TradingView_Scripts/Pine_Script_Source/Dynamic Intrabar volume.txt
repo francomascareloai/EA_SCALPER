@@ -1,0 +1,356 @@
+
+//@version=5
+indicator("<<Индикатор Динамической Торговой Эффективности>>", '<<Индикатор Динамической Торговой Эффективности>>', overlay=true, max_bars_back=500, max_lines_count=500, max_labels_count=500)
+//Inputs
+highcolor   = input.color(defval=color.red,   title='Top Retracement',                                            group='Chart Customization', inline='customcolor')
+lowcolor    = input.color(defval=color.green, title='Bottom Retracement',                                         group='Chart Customization', inline='customcolor')
+vsprice     = input.bool(defval=true,         title='Show Historical Price Labels?',                              group='Volume Spike Settings')
+vsvlength   = input.bool(defval=true,         title='Show Historical Volume Length Labels?',                      group='Volume Spike Settings')
+vslength    = input.int(defval=89,            title='Volume Spike Length', minval=1,                              group='Volume Spike Settings')
+multiplier  = input.float(defval=0.5,         title='Multiplier',          minval=0.1, step=.1,                   group='Volume Spike Settings')
+linecount   = input.int(defval=10,            title='Maximum Lines',       minval=1, maxval=200,                  group='Retracement Settings')
+layout      = input.string(defval='Wick',     title='Lines Type',          options=['Wick', 'Zone'],              group='Retracement Settings', inline='lines')
+linestyle   = input.string(defval='Solid',    title='Lines Style',         options=['Solid', 'Dotted', 'Dashed'], group='Retracement Settings', inline='lines')
+linessize   = input.int(defval=1,             title='Lines Size',          minval=1, maxval=3,                    group='Retracement Settings', inline='lines')
+extend      = input.bool(defval=false,        title='Extend Lines?',                                              group='Retracement Settings', inline='lines')
+vsalerts    = input.bool(defval=true,         title='Enable Volume Spike Limit Alerts?',                          group='Alerts Setup')
+crossalerts = input.bool(defval=false,        title='Enable Top/Bottom Lines Crossed Alerts?',                    group='Alerts Setup')
+//Price Variables Declaration
+close_     = close
+low_       = low
+high_      = high
+open_      = open
+bar_index_ = bar_index
+//Color Call Function
+fzonecolor(obcolor, _call) =>
+    c1 = color.r(obcolor)
+    c2 = color.g(obcolor)
+    c3 = color.b(obcolor)
+    color.rgb(c1, c2, c3, _call)
+
+//Round Function
+round_f(x) =>
+    math.round(x / syminfo.mintick) * syminfo.mintick
+
+//Volume Spike Calculation
+hvs       = ta.highest(volume, vslength)
+abs       = volume * 100 / hvs * 4 / 5
+smoothing = ta.ema(abs, 21)
+equal     = abs - smoothing
+limit     = ta.highest(equal, vslength) * multiplier
+cum       = equal > 0 and equal >= limit
+beardir   = close < open
+bulldir   = close > open
+//Conditions
+bearvol = beardir and cum ? -1 : 0
+bullvol = bulldir and cum ? 1 : 0
+bearbccolor = bearvol != 0 ? highcolor : na
+bullbccolor = bullvol != 0 ? lowcolor : na
+//Boolean Conditions to Float
+var float bearvolprice = na
+if vsprice or vsvlength
+    bearvolprice := high_
+    bearvolprice
+var float bullvolprice = na
+if vsalerts and bearvol == 1
+    bullvolprice := low_
+    bullvolprice
+
+//Plotting
+plotshape(bearvol, title='Bearish Volume Spike', style=shape.triangledown, location=location.abovebar, color=color.new(highcolor, 0), size=size.tiny)
+plotshape(bullvol, title='Bullish Volume Spike', style=shape.triangleup,   location=location.belowbar, color=color.new(lowcolor,  0), size=size.tiny)
+barcolor(bearbccolor)
+barcolor(bullbccolor)
+
+var label l = na
+var bool bearCrossover = false
+var bool bullCrossover = false
+
+if (vsprice or vsvlength)
+    bearCrossover := ta.crossunder(bearvol, 0)
+    bullCrossover := ta.crossover(bullvol, 0)
+
+    if (bearCrossover)
+        l := label.new(bar_index_, bearvolprice[1] + 0.01, vsprice and vsvlength ? str.tostring(round_f(bearvolprice)) + ' - ' + str.tostring(math.round(abs)) : vsprice ? str.tostring(round_f(bearvolprice)) : vsvlength ? str.tostring(math.round(abs)) : na, color=color.new(highcolor, 100), textcolor=highcolor, style=label.style_label_down, yloc=yloc.abovebar, size=size.small)
+    else if (bullCrossover)
+        l := label.new(bar_index_, bullvolprice[1] + 0.01, vsprice and vsvlength ? str.tostring(round_f(bullvolprice)) + ' - ' + str.tostring(math.round(abs)) : vsprice ? str.tostring(round_f(bullvolprice)) : vsvlength ? str.tostring(math.round(abs)) : na, color=color.new(lowcolor, 100), textcolor=lowcolor, style=label.style_label_up, yloc=yloc.belowbar, size=size.small)
+
+if vsalerts and bearvol == 1
+    alert('Bearish Volume Spike Limit! At ' + str.tostring(bearvolprice), alert.freq_once_per_bar)
+if vsalerts and bullvol == 1
+    alert('Bullish Volume Spike Limit! At ' + str.tostring(bullvolprice), alert.freq_once_per_bar)
+
+//Retracement Lines Variables Declaration
+var int     numberofline       = linecount
+var float   upperphzone        = na
+var float   upperplzone        = na
+var float   lowerphzone        = na
+var float   lowerplzone        = na
+var line[]  upperphzonearr     = array.new_line(0, na)
+var line[]  upperplzonearr     = array.new_line(0, na)
+var line[]  lowerphzonearr     = array.new_line(0, na)
+var line[]  lowerplzonearr     = array.new_line(0, na)
+var line    upperphzoneline    = na
+var line    upperplzoneline    = na
+var line    lowerphzoneline    = na
+var line    lowerplzoneline    = na
+var bool[]  upperzonetestedarr = array.new_bool(0, false)
+var bool[]  lowerzonetestedarr = array.new_bool(0, false)
+var bool    upperzonetested    = false
+var bool    lowerzonetested    = false
+var bool    nobool             = true
+var bool    showprice          = true
+var color   upperzonecolor     = highcolor
+var color   lowerzonecolor     = lowcolor
+var label[] labelpharr         = array.new_label(0, na)
+var label[] labelplarr         = array.new_label(0, na)
+var label   labelph            = na
+var label   labelpl            = na
+//Lines Styles String
+f_linestyle(_style) =>
+    _style == 'Solid' ? line.style_solid : _style == 'Dotted' ? line.style_dotted : line.style_dashed
+
+//Top Retracement Lines Calculation
+if bearvol != 0
+    upperphzone     := high_
+    upperplzone     := close_ < open_   ? close_ : open_
+    upperplzoneline := layout == 'Zone' ? line.new(bar_index_,  upperplzone, bar_index, upperplzone, width=linessize) : na
+    upperphzoneline := nobool           ? line.new(bar_index_,  upperphzone, bar_index, upperphzone, width=linessize) : line.new(bar_index_, (upperphzone + upperplzone) / 2, bar_index, (upperphzone + upperplzone) / 2, width=linessize)
+    labelph         := showprice        ? label.new(bar_index_, nobool ? upperphzone : (upperphzone + upperplzone) / 2, text=str.tostring(bar_index - bar_index_), textcolor=upperzonecolor, style=label.style_none) : na
+    if array.size(upperphzonearr) > numberofline
+        line.delete(array.shift(upperphzonearr))
+        line.delete(array.shift(upperplzonearr))
+        array.shift(upperzonetestedarr)
+        label.delete(array.shift(labelpharr))
+    array.push(upperphzonearr, upperphzoneline)
+    array.push(upperplzonearr, upperplzoneline)
+    array.push(upperzonetestedarr,       extend ? true : false)
+    array.push(labelpharr,             labelph)
+if array.size(upperplzonearr) > 0
+    for i = 0 to array.size(upperplzonearr) - 1 by 1
+        line  tempupperline  = array.get(upperphzonearr,     i)
+        line  templowerline  = array.get(upperplzonearr,     i)
+        label linepricelabel = array.get(labelpharr,         i)
+        bool  tested         = array.get(upperzonetestedarr, i)
+        line.set_style(tempupperline, f_linestyle(linestyle))
+        line.set_style(templowerline, f_linestyle(linestyle))
+        line.set_color(tempupperline, color.from_gradient(i,       1, numberofline, fzonecolor(upperzonecolor, 00), fzonecolor(upperzonecolor, 00)))
+        line.set_color(templowerline, color.from_gradient(i,       1, numberofline, fzonecolor(upperzonecolor, 00), fzonecolor(upperzonecolor, 00)))
+        label.set_textcolor(linepricelabel, color.from_gradient(i, 1, numberofline, fzonecolor(upperzonecolor, 00), upperzonecolor))
+        label.set_text(linepricelabel, str.tostring(round_f(line.get_y1(tempupperline))))
+        label.set_text(linepricelabel, '                                              Top Retracement - ' + str.tostring(round_f(line.get_y1(tempupperline))))
+        label.set_x(linepricelabel, bar_index)
+        crossed = high > line.get_y1(tempupperline)
+        if crossed and not tested
+            array.set(upperzonetestedarr, i, true)
+            label.delete(linepricelabel)
+        if crossalerts and crossed and not tested
+            array.set(upperzonetestedarr, i, true)
+            label.delete(linepricelabel)
+            alert('Top Line Has Been Crossed! At ' + str.tostring(close), alert.freq_once_per_bar)
+        else if extend ? tested : not tested
+            line.set_x2(tempupperline, bar_index)
+            array.set(upperphzonearr, i, tempupperline)
+            line.set_x2(templowerline, bar_index)
+            array.set(upperplzonearr, i, templowerline)
+
+//Bottom Retracement Lines Calculation
+if bullvol != 0
+    lowerplzone     := low_
+    lowerphzone     := close_ < open_   ? open_ : close_
+    lowerphzoneline := layout == 'Zone' ? line.new(bar_index_,  lowerphzone, bar_index, lowerphzone, width=linessize) : na
+    lowerplzoneline := nobool           ? line.new(bar_index_,  lowerplzone, bar_index, lowerplzone, width=linessize) : line.new(bar_index_, (lowerphzone + lowerplzone) / 2, bar_index, (lowerphzone + lowerplzone) / 2, width=linessize)
+    labelpl         := showprice        ? label.new(bar_index_, nobool ? lowerplzone : (lowerphzone + lowerplzone) / 2, text=str.tostring(bar_index - bar_index_), textcolor=lowerzonecolor, style=label.style_none) : na
+    if array.size(lowerphzonearr) > numberofline
+        line.delete(array.shift(lowerphzonearr))
+        line.delete(array.shift(lowerplzonearr))
+        array.shift(lowerzonetestedarr)
+        label.delete(array.shift(labelplarr))
+    array.push(lowerphzonearr, lowerphzoneline)
+    array.push(lowerplzonearr, lowerplzoneline)
+    array.push(lowerzonetestedarr,       extend ? true : false)
+    array.push(labelplarr,             labelpl)
+if array.size(lowerplzonearr) > 0
+    for i = 0 to array.size(lowerplzonearr) - 1 by 1
+        line  tempupperline  = array.get(lowerphzonearr,     i)
+        line  templowerline  = array.get(lowerplzonearr,     i)
+        label linepricelabel = array.get(labelplarr,         i)
+        bool  tested         = array.get(lowerzonetestedarr, i)
+        line.set_style(tempupperline, f_linestyle(linestyle))
+        line.set_style(templowerline, f_linestyle(linestyle))
+        line.set_color(tempupperline, color.from_gradient(i,       1, numberofline, fzonecolor(lowerzonecolor, 00), fzonecolor(lowerzonecolor, 00)))
+        line.set_color(templowerline, color.from_gradient(i,       1, numberofline, fzonecolor(lowerzonecolor, 00), fzonecolor(lowerzonecolor, 00)))
+        label.set_textcolor(linepricelabel, color.from_gradient(i, 1, numberofline, fzonecolor(lowerzonecolor, 00), lowerzonecolor))
+        label.set_text(linepricelabel, str.tostring(round_f(line.get_y1(templowerline))))
+        label.set_text(linepricelabel, '                                                   Bottom Retracement - ' + str.tostring(round_f(line.get_y1(templowerline))))
+        label.set_x(linepricelabel, bar_index)
+        crossed = low < line.get_y1(templowerline)
+        if crossed and not tested
+            array.set(lowerzonetestedarr, i, true)
+            label.delete(linepricelabel)
+        if crossalerts and crossed and not tested
+            array.set(lowerzonetestedarr, i, true)
+            label.delete(linepricelabel)
+            alert('Bottom Line Has Been Crossed! At ' + str.tostring(close), alert.freq_once_per_bar)
+        else if extend ? tested : not tested
+            line.set_x2(tempupperline, bar_index)
+            array.set(lowerphzonearr, i, tempupperline)
+            line.set_x2(templowerline, bar_index)
+            array.set(lowerplzonearr, i, templowerline) 
+
+//Tooltips
+//-----------------------------------------------------------------------------{
+widthTooltip  = "Bin width percentage. Determine the length of the returned profile bin as a percentage of the Length setting"
+offsetTooltip = "Determine the amount of bars each graphical elements are shifted by"
+
+//-----------------------------------------------------------------------------}
+//Settings
+//-----------------------------------------------------------------------------{
+length = input.int(80, minval = 2)
+rows   = input.int(20, minval = 2)
+useIb  = input(false, 'Use Intrabar', inline = 'intrabar') 
+tf     = input.timeframe('1', ''    , inline = 'intrabar')
+
+//Style
+width     = input.float(20, 'Width %', minval = 0, maxval = 100, group = 'Style', tooltip = widthTooltip)
+
+showRange = input(true, 'Show Range Levels', inline = 'range', group = 'Style')
+rangeCss  = input(color.gray, ''         , inline = 'range', group = 'Style')
+
+bullBin   = input(#2157f3, 'Bullish Bin', inline = 'bull', group = 'Style')
+bullMax   = input(true, 'Maximum'         , inline = 'bull', group = 'Style') 
+bearBin   = input(#ff5d00, 'Bearish Bin', inline = 'bear', group = 'Style')
+bearMax   = input(true, 'Minimum'         , inline = 'bear', group = 'Style')
+
+showFill = input(true, 'Show Fill'             , inline = 'fill', group = 'Style')
+bullFill = input(color.new(#2157f3, 90), ''  , inline = 'fill', group = 'Style')
+bearFill = input(color.new(#ff5d00, 90), ''  , inline = 'fill', group = 'Style')
+
+offset = input.int(8, group = 'Style', tooltip = offsetTooltip)
+
+//-----------------------------------------------------------------------------}
+//Function
+//-----------------------------------------------------------------------------{
+get_data() => [close, open]
+
+//-----------------------------------------------------------------------------}
+//Main variables
+//-----------------------------------------------------------------------------{
+var boxes = array.new<box>(0)
+
+//Populate bins array
+if barstate.isfirst
+    for i = 0 to rows-1
+        boxes.push(box.new(na,na,na,na,na
+          , text_valign = text.align_center
+          , text_color = color.white))
+
+n = bar_index
+upper = ta.highest(length)
+lower = ta.lowest(length)
+sumad = math.sum(math.abs(close - open), length)
+
+//Get intrabar data
+[get_close, get_open] = request.security_lower_tf(syminfo.tickerid, tf, get_data())
+
+//-----------------------------------------------------------------------------}
+//Set profile
+//-----------------------------------------------------------------------------{
+//Range levels
+var ltop = line.new(na,na,na,na, color = rangeCss)
+var l75  = line.new(na,na,na,na, color = rangeCss, style = line.style_dashed)
+var l50  = line.new(na,na,na,na, color = rangeCss)
+var l25  = line.new(na,na,na,na, color = rangeCss, style = line.style_dashed)
+var lbtm = line.new(na,na,na,na, color = rangeCss)
+var fill = linefill.new(ltop, lbtm, na)
+
+//Max / Min levels
+var bull_max = line.new(na,na,na,na, color = bullBin)
+var bear_min = line.new(na,na,na,na, color = bearBin)
+
+//Set profile
+if barstate.islast
+    avg = math.avg(upper, lower)
+    avg75 = math.avg(upper, avg)
+    avg25 = math.avg(lower, avg)
+
+    //Set lines coordinates
+    ltop.set_xy1(n - length, upper), ltop.set_xy2(n + offset, upper)
+    lbtm.set_xy1(n - length, lower), lbtm.set_xy2(n + offset, lower)
+    
+    //Display range levels
+    if showRange
+        l75.set_xy1(n - length, avg75) , l75.set_xy2(n + offset, avg75)
+        l50.set_xy1(n - length, avg)   , l50.set_xy2(n + offset, avg)
+        l25.set_xy1(n - length, avg25) , l25.set_xy2(n + offset, avg25)
+    else
+        ltop.set_color(na)
+        lbtm.set_color(na)
+
+    //Get bullish/absolute delta sums for each row
+    up = upper
+    dn = upper
+    sums     = array.new_float(0)
+    sums_abs = array.new_float(0)
+
+    //Loop trough each rows
+    for i = 0 to rows-1
+        dn -= (upper - lower) / rows
+        sum = 0.
+        den = 0.
+        
+        //Loop trough most recent bars
+        for j = 0 to length-1
+            if useIb //Loop trough intrabar prices
+                for k = 0 to (get_close[j]).size()-1
+                    c = (get_close[j]).get(k)
+                    o = (get_open[j]).get(k)
+                    sum += math.max(c, o) <= up and math.min(c, o) >= dn ? c - o : 0
+            else
+                sum += high[j] > dn and low[j] < up ? close[j] - open[j] : 0
+        
+        sums.push(sum)
+        sums_abs.push(math.abs(sum))
+
+        up := dn
+
+    //Set profile bins
+    max = sums_abs.max()
+    up := upper
+    dn := upper
+    
+    for [index, element] in sums
+        dn -= (upper - lower) / rows
+        x2 = n + int(element / max * length * (width / 100))
+        
+        css = element > 0 ? color.new(bullBin, 50) : color.new(bearBin, 50)
+
+        //Set box coordinates
+        get_bx = boxes.get(index)
+        get_bx.set_lefttop(n + offset, .9 * up + .1 * dn)
+        get_bx.set_rightbottom(x2 + offset, .9 * dn + .1 * up)
+        get_bx.set_bgcolor(css)
+        get_bx.set_text(str.tostring(element / sumad * 100, format.percent))
+        
+        //Set area MAX/MIN levels
+        if element == sums.max() and bullMax
+            bull_max_val = math.avg(up, dn)
+            bull_max.set_xy1(n + offset, bull_max_val)
+            bull_max.set_xy2(n - length, bull_max_val)
+
+        if element == sums.min() and bearMax
+            bear_min_val = math.avg(up, dn)
+            bear_min.set_xy1(x2 + offset, bear_min_val)
+            bear_min.set_xy2(n - length, bear_min_val)
+            
+        up := dn
+    
+    //Fill Area
+    if showFill
+        fill.set_color(sums.sum() > 0 ? color.new(bullBin, 90) : color.new(bearBin, 90))
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, 'DM', text_size=size.normal, text_color=#00897b)
+
+//-----------------------------------------------------------------------------}

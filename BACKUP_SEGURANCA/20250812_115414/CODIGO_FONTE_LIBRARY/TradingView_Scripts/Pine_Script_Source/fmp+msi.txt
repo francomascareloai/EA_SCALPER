@@ -1,0 +1,163 @@
+//@version=5
+indicator(title='Fisher Multi-Pack [DW]', shorttitle='FMP [DW]')
+//by Donovan Wall
+
+len = input.int(14, title='Length', minval=14)
+src = close
+ref = 13
+sqzLen = 5
+
+ma = ta.ema(src, len)
+closema = close - ma
+refma = ta.ema(src, ref) - ma
+sqzma = ta.ema(src, sqzLen) - ma
+
+hline(0)
+plotcandle(0, closema, 0, closema, color=closema >= 0 ? color.aqua : color.fuchsia)
+plotcandle(0, sqzma, 0, sqzma, color=sqzma >= 0 ? color.lime : color.red)
+plotcandle(0, refma, 0, refma, color=refma >= 0 and closema < refma or refma < 0 and closema > refma ? color.yellow : refma >= 0 ? color.green : color.maroon)
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Functions
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Fisher Transform
+fish(x, t) =>
+    highval = ta.highest(x, t)
+    lowval = ta.lowest(x, t)
+    val1 = 0.0
+    val1 := 0.66 * ((x - lowval) / math.max(highval - lowval, 0.001) - 0.5) + 0.67 * nz(val1[1], 0)
+    val2 = val1 > 0.99 ? 0.999 : val1 < -0.99 ? -0.999 : val1
+    fish = 0.0
+    fish := 0.5 * math.log((1 + val2) / math.max(1 - val2, 0.001)) + 0.5 * nz(fish[1], 0)
+    fish
+
+//Inverse Fisher RSI
+ifishrsi(x, t, a) =>
+    rsiv = a * (ta.rsi(x, t) )
+    wmarv = ta.wma(rsiv, t)
+    ifishrsi = (math.exp(2 * wmarv) - 1) / (math.exp(2 * wmarv) + 1)
+    ifishrsi
+
+//Inverse Fisher Stochastic
+ifishstoch(x, t, a) =>
+    stochv = a * (ta.stoch(x, high, low, t))
+    wmasv = ta.wma(stochv, t)
+    ifishstoch = (math.exp(2 * wmasv) - 1) / (math.exp(2 * wmasv) + 1)
+    ifishstoch
+
+//Inverse Fisher CCI
+ifishcci(x, t, a) =>
+    cciv = a * ta.cci(x, t)
+    wmacv = ta.wma(cciv, t)
+    ifishcci = (math.exp(2 * wmacv) - 1) / (math.exp(2 * wmacv) + 1)
+    ifishcci
+
+//EMA Function
+EMA(x, t) =>
+    EMA = x
+    EMA := na(EMA[1]) ? x : (x - nz(EMA[1])) * (2 / (t + 1)) + nz(EMA[1])
+    EMA
+
+//Cumulative Average Function
+cmean(x) =>
+    var xsum = 0.0
+    xsum += x
+    var tsum = 0.0
+    tsum += 1
+    cmean = xsum / tsum
+    cmean
+
+//Compression Function
+comp(x, k_type, h_knee, l_knee, intensity) =>
+    hk = k_type == 'Auto' ? cmean(math.abs(x)) : h_knee
+    lk = k_type == 'Auto' ? -cmean(math.abs(x)) : l_knee
+    comp = x > hk ? x - intensity * (x - hk)  : x < lk ? x + intensity * (lk - x)  : x
+    comp
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Inputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Source
+src1 = input(defval=close, title='Source')
+
+//Sampling Period
+per = input.int(defval=13, minval=1, title='Sampling Period')
+
+//Smoothing Inputs
+smooth = input(defval=false, title='Smooth Oscillator')
+smper = input.int(defval=1, minval=1, title='Smoothing Period')
+
+//Oscillator Type
+otype = input.string(defval='Fisher Transform', options=['Fisher Transform', 'Inverse Fisher RSI', 'Inverse Fisher Stochastic', 'Inverse Fisher CCI'], title='Oscillator Type')
+
+//Alpha
+alpha = input.float(defval=0.1, minval=0, title='Alpha (for Inverse Fisher Calculations)')
+
+//Threshold Inputs
+th_type = input.string(defval='Auto', options=['Auto', 'Custom'], title='Threshold Type')
+custom_ht = input(defval=0.0, title='Custom High Threshold')
+custom_lt = input(defval=0.0, title='Custom Low Threshold')
+
+//Compression Inputs
+use_comp = input(defval=false, title='Compress Around Thresholds')
+comp_intensity = input.int(defval=10, minval=0, maxval=100, title='Compression Intensity (%)')
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Definitions
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Fisher Transform
+fisher = nz(fish(src1, per), 0)
+
+//Inverse Fisher RSI
+ifrsi = nz(ifishrsi(src1, per, alpha), 0)
+
+//Inverse Fisher Stochastic
+ifstoch = nz(ifishstoch(src1, per, alpha), 0)
+
+//Inverse Fisher CCI
+ifcci = nz(ifishcci(src1, per, alpha), 0)
+
+//Oscillator Type
+osc1 = otype == 'Fisher Transform' ? fisher : otype == 'Inverse Fisher RSI' ? ifrsi : otype == 'Inverse Fisher Stochastic' ? ifstoch : ifcci
+osc2 = EMA(osc1, smooth ? smper : 1)
+osc = (use_comp ? comp(osc2, th_type, custom_ht, custom_lt, comp_intensity) : osc2)*10
+
+//Thresholds
+tdist = cmean(math.abs(osc2))
+hth = th_type == 'Auto' ? tdist : custom_ht
+lth = th_type == 'Auto' ? -tdist : custom_lt
+
+//Signals 
+bullpower = osc > 0 and osc >= osc[1] and osc >= hth
+bullforming = osc > 0 and osc > osc[1] and osc < hth
+bullpullback = osc > 0 and osc < osc[1]
+bearpower = osc < 0 and osc <= osc[1] and osc <= lth
+bearforming = osc < 0 and osc < osc[1] and osc > lth
+bearpullback = osc < 0 and osc > osc[1]
+
+//Color
+osccolor = bullforming ? #05fff1 : bullpower ? #05ffa6 : bullpullback ? #00945f : bearforming ? #ff0ae2 : bearpower ? #ff0a70 : bearpullback ? #990040 : #cccccc
+basiscolor = osc > 0 ? #00FA9A : osc < 0 ? #C71585 : #cccccc
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Outputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Threshold Plots
+hbandplot = plot(hth, color=color.new(#05ffa6, 0), linewidth=1, title='High Threshold')
+basisplot = plot(0, color=basiscolor, linewidth=2, title='Center Threshold', transp=0)
+lbandplot = plot(lth, color=color.new(#ff0a70, 0), linewidth=1, title='Low Threshold')
+
+//Oscillator Plot
+oscplot = plot(osc, color=osccolor, linewidth=2, title='Oscillator', transp=0)
+
+//Oscillator Fill
+fill(oscplot, basisplot, color=osccolor, title='Oscillator Fill', transp=70)
+
+//Bar Color
+barcolor(osccolor, title='Bar Color')
+

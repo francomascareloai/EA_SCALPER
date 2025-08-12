@@ -1,0 +1,446 @@
+
+
+//@version=5
+indicator("script 1 + script 5 ", overlay=true)
+
+
+len9 = input.int(3, minval=1, title="Length9")
+src9 = input(close, title="Source9")
+offset9 = input.int(title="Offset9", defval=0, minval=-500, maxval=500)
+out3 = ta.ema(src9, len9) 
+plot(out3, title="EMA3", color=color.blue, offset=offset9)
+
+len10 = input.int(5, minval=1, title="Length10")
+src10 = input(close, title="Source10")
+offset10 = input.int(title="Offset10", defval=0, minval=-500, maxval=500)
+out5 = ta.ema(src10, len10)
+plot(out5, title="EMA5", color=color.blue, offset=offset10)
+
+len11 = input.int(9, minval=1, title="Length11")
+src11 = input(close, title="Source11")
+offset11 = input.int(title="Offset11", defval=0, minval=-500, maxval=500)
+out9 = ta.ema(src11, len11)
+plot(out9, title="EMA9", color=color.blue, offset=offset11)
+
+length = input(50)
+beta = input.float(3., '-Lag', minval=1, maxval=10)
+alpha = input.float(3., '+Lag', minval=1, maxval=10)
+src = input(close)
+//----
+var b = array.new_float(0)
+var css = array.new_color(na)
+if barstate.isfirst
+    for i = 0 to length - 1 by 1
+        x = i / (length - 1)
+        w = math.pow(x, alpha - 1) * math.pow(1 - x, beta - 1)
+        array.push(b, w)
+    array.push(css, #FF1100)
+    array.push(css, #FF1200)
+    array.push(css, #FF1400)
+    array.push(css, #FF1500)
+    array.push(css, #FF1700)
+    array.push(css, #FF1800)
+    array.push(css, #FF1A00)
+    array.push(css, #FF1B00)
+    array.push(css, #FF1D00)
+    array.push(css, #FF1F00)
+    array.push(css, #FF2000)
+    array.push(css, #FF2200)
+    array.push(css, #FF2300)
+    array.push(css, #FF2500)
+    array.push(css, #FF2600)
+    array.push(css, #FF2800)
+    array.push(css, #FF2900)
+    array.push(css, #FF2B00)
+    array.push(css, #FF2D00)
+    array.push(css, #FF2E00)
+    array.push(css, #FF3000)
+    array.push(css, #FF3100)
+    array.push(css, #FF3300)
+    array.push(css, #FF3400)
+    array.push(css, #FF3600)
+    array.push(css, #FF3700)
+    array.push(css, #FF3900)
+    array.push(css, #FF3B00)
+    array.push(css, #FF3C00)
+    array.push(css, #FF3E00)
+    array.push(css, #FF3F00)
+    array.push(css, #FF4100)
+    array.push(css, #FF4200)
+    array.push(css, #FF4400)
+    array.push(css, #FF4500)
+    array.push(css, #FF4700)
+    array.push(css, #FF4900)
+    array.push(css, #FF4A00)
+    array.push(css, #FF4C00)
+    array.push(css, #FF4D00)
+    array.push(css, #FF4F00)
+    array.push(css, #FF5000)
+    array.push(css, #FF5200)
+    array.push(css, #FF5300)
+    array.push(css, #FF5500)
+    array.push(css, #FF5700)
+    array.push(css, #FF5800)
+    array.push(css, #FF5A00)
+    array.push(css, #FF5B00)
+    array.push(css, #FF5D00)
+    array.push(css, #FF5E00)
+    array.push(css, #FF6000)
+    array.push(css, #FF6200)
+    array.push(css, #FF6300)
+    array.push(css, #FF6500)
+    array.push(css, #FF6600)
+    array.push(css, #FF6800)
+    array.push(css, #FF6900)
+    array.push(css, #FF6B00)
+    array.push(css, #FF6C00)
+    array.push(css, #FF6E00)
+    array.push(css, #FF7000)
+    array.push(css, #FF7100)
+    array.push(css, #FF7300)
+    array.push(css, #FF7400)
+    array.push(css, #FF7600)
+    array.push(css, #FF7700)
+    array.push(css, #FF7900)
+    array.push(css, #FF7A00)
+    array.push(css, #FF7C00)
+    array.push(css, #FF7E00)
+    array.push(css, #FF7F00)
+    array.push(css, #FF8100)
+    array.push(css, #FF8200)
+    array.push(css, #FF8400)
+    array.push(css, #FF8500)
+    array.push(css, #FF8700)
+    array.push(css, #FF8800)
+    array.push(css, #FF8A00)
+    array.push(css, #FF8C00)
+    array.push(css, #FF8D00)
+    array.push(css, #FF8F00)
+    array.push(css, #FF9000)
+    array.push(css, #FF9200)
+    array.push(css, #FF9300)
+    array.push(css, #FF9500)
+    array.push(css, #FF9600)
+    array.push(css, #FF9800)
+    array.push(css, #FF9A00)
+    array.push(css, #FF9B00)
+    array.push(css, #FF9D00)
+    array.push(css, #FF9E00)
+    array.push(css, #FFA000)
+    array.push(css, #FFA100)
+    array.push(css, #FFA300)
+    array.push(css, #FFA400)
+    array.push(css, #FFA600)
+    array.push(css, #FFA800)
+    array.push(css, #FFA900)
+    array.push(css, #FFAB00)
+    array.push(css, #FDAC00)
+    array.push(css, #FBAD02)
+    array.push(css, #F9AE03)
+    array.push(css, #F7AE04)
+    array.push(css, #F5AF06)
+    array.push(css, #F3B007)
+    array.push(css, #F1B108)
+    array.push(css, #EFB20A)
+    array.push(css, #EDB30B)
+    array.push(css, #EBB30C)
+    array.push(css, #E9B40E)
+    array.push(css, #E7B50F)
+    array.push(css, #E4B610)
+    array.push(css, #E2B712)
+    array.push(css, #E0B813)
+    array.push(css, #DEB814)
+    array.push(css, #DCB916)
+    array.push(css, #DABA17)
+    array.push(css, #D8BB18)
+    array.push(css, #D6BC1A)
+    array.push(css, #D4BD1B)
+    array.push(css, #D2BD1C)
+    array.push(css, #D0BE1E)
+    array.push(css, #CEBF1F)
+    array.push(css, #CCC020)
+    array.push(css, #C9C122)
+    array.push(css, #C7C223)
+    array.push(css, #C5C224)
+    array.push(css, #C3C326)
+    array.push(css, #C1C427)
+    array.push(css, #BFC528)
+    array.push(css, #BDC62A)
+    array.push(css, #BBC72B)
+    array.push(css, #B9C72C)
+    array.push(css, #B7C82E)
+    array.push(css, #B5C92F)
+    array.push(css, #B3CA30)
+    array.push(css, #B0CB32)
+    array.push(css, #AECC33)
+    array.push(css, #ACCC34)
+    array.push(css, #AACD36)
+    array.push(css, #A8CE37)
+    array.push(css, #A6CF38)
+    array.push(css, #A4D03A)
+    array.push(css, #A2D13B)
+    array.push(css, #A0D13C)
+    array.push(css, #9ED23E)
+    array.push(css, #9CD33F)
+    array.push(css, #9AD440)
+    array.push(css, #98D542)
+    array.push(css, #95D643)
+    array.push(css, #93D644)
+    array.push(css, #91D746)
+    array.push(css, #8FD847)
+    array.push(css, #8DD948)
+    array.push(css, #8BDA4A)
+    array.push(css, #89DB4B)
+    array.push(css, #87DB4C)
+    array.push(css, #85DC4E)
+    array.push(css, #83DD4F)
+    array.push(css, #81DE50)
+    array.push(css, #7FDF52)
+    array.push(css, #7CE053)
+    array.push(css, #7AE054)
+    array.push(css, #78E156)
+    array.push(css, #76E257)
+    array.push(css, #74E358)
+    array.push(css, #72E45A)
+    array.push(css, #70E55B)
+    array.push(css, #6EE55C)
+    array.push(css, #6CE65E)
+    array.push(css, #6AE75F)
+    array.push(css, #68E860)
+    array.push(css, #66E962)
+    array.push(css, #64EA63)
+    array.push(css, #61EA64)
+    array.push(css, #5FEB66)
+    array.push(css, #5DEC67)
+    array.push(css, #5BED68)
+    array.push(css, #59EE6A)
+    array.push(css, #57EF6B)
+    array.push(css, #55EF6C)
+    array.push(css, #53F06E)
+    array.push(css, #51F16F)
+    array.push(css, #4FF270)
+    array.push(css, #4DF372)
+    array.push(css, #4BF473)
+    array.push(css, #48F474)
+    array.push(css, #46F576)
+    array.push(css, #44F677)
+    array.push(css, #42F778)
+    array.push(css, #40F87A)
+    array.push(css, #3EF97B)
+    array.push(css, #3CF97C)
+    array.push(css, #3AFA7E)
+    array.push(css, #38FB7F)
+    array.push(css, #36FC80)
+    array.push(css, #34FD82)
+    array.push(css, #32FE83)
+    array.push(css, #30FF85)
+den = array.sum(b)
+//----
+sum = 0.
+for i = 0 to length - 1 by 1
+    sum += src[i] * array.get(b, i)
+    sum
+filt = sum / den
+//----
+os = ta.rsi(filt, length) / 100
+plot(filt, 'Plot', array.get(css, math.round(os * 199)), 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+showsignals = input(true, title="Show BUY/SELL Signals")
+showcandlecolors = input(true, title="Show Candle Colors")
+length2 = input(14, title="ADX Length")
+smoothing = input(10, title="ADX Smoothing")
+macdsource = input(close, title="MACD Source")
+macdfast = input(12, title="MACD Fast Length")
+macdslow = input(26, title="MACD Slow Length")
+macdsignal = input(9, title="MACD Signal Length")
+colorup = input(color.green, title="Up Candle Color")
+colordown = input(color.red, title="Down Candle Color")
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////// ADX AND MACD CALC
+[diplus, diminus, adx] = ta.dmi(length2, smoothing)
+
+[macdline, signalline, histline] = ta.macd(macdsource, macdfast, macdslow, macdsignal)
+
+//////////////////////////////////////////////////////////////////////////////////////////////TRADE CALC
+
+longcheck = diplus > diminus and macdline > signalline
+shortcheck = diminus > diplus and signalline > macdline
+
+int trade = 0
+
+//Open from nothing
+
+if trade == 0 and longcheck
+    trade := 1
+
+else if trade == 0 and shortcheck
+    trade := -1
+    
+//Reversal
+
+else if trade == 1 and shortcheck
+    trade := -1
+    
+else if trade == -1 and longcheck
+    trade := 1
+    
+//Keep status quo until crossover
+
+else
+    trade := trade[1]
+
+//////////////////////////////////////////////////////////////////////////////////////////////PLOT 
+
+colors = longcheck ? colorup : shortcheck ? colordown : color.white
+
+plotcandle(open, high, low, close, color = showcandlecolors ? colors : na)
+
+plotshape(trade[1] != 1 and trade == 1 and showsignals, style=shape.labelup, text='BUY', textcolor=color.white, color=color.green, size=size.small, location=location.belowbar)
+plotshape(trade[1] != -1 and trade == -1 and showsignals, style=shape.labeldown, text='SELL', textcolor=color.white, color=color.red, size=size.small, location=location.abovebar)
+
+///////////////////////////////////////////////////////////////////////////////////////////// ALERTS
+
+alertcondition(trade[1] != 1 and trade == 1, "LONG")
+alertcondition(trade[1] != -1 and trade == -1, "SHORT")
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+_period = input.int(defval=24, title='Pivot _period', minval=10, maxval=50)
+PivotPointNumber = input.int(defval=6, title='Number of Pivots to be controlled', minval=2, maxval=6)
+up_trend_color = input.color(defval=color.lime, title='Up Trend Colors', inline='tcol')
+down_trend_color = input.color(defval=color.red, title='Down Trend Colors', inline='tcol')
+
+float pivot_high = ta.pivothigh(_period, _period)
+float pivot_low = ta.pivotlow(_period, _period)
+
+var trend_top_values = array.new_float(PivotPointNumber)  //high pivot point
+var trend_top_position = array.new_int(PivotPointNumber)  //pivot position
+var trend_bottom_values = array.new_float(PivotPointNumber)  //low pivot point
+var trend_bottom_position = array.new_int(PivotPointNumber)  //pivot position
+
+add_to_array(apointer1, apointer2, val) =>
+    array.unshift(apointer1, val)
+    array.unshift(apointer2, bar_index)
+    array.pop(apointer1)
+    array.pop(apointer2)
+
+if pivot_high
+    add_to_array(trend_top_values, trend_top_position, pivot_high)
+
+if pivot_low
+    add_to_array(trend_bottom_values, trend_bottom_position, pivot_low)
+
+// line definitions
+maxline = 3
+var bottom_lines = array.new_line(maxline, na)
+var top_lines = array.new_line(maxline, na)
+//var ticksize = syminfo.mintick
+
+// Pivot point loop to control the existence of a trend line 
+count_line_low = 0
+count_line_high = 0
+starttime = timestamp(0, 0, 0, 0, 0, 0)
+
+// bottom trend line calc
+if time >= starttime
+    for x = 0 to maxline - 1 by 1
+        line.delete(array.get(bottom_lines, x))
+        line.delete(array.get(top_lines, x))
+    for pivot1 = 0 to PivotPointNumber - 2 by 1
+        up_val1 = 0.0
+        up_val2 = 0.0
+        up1 = 0
+        up2 = 0
+
+        if count_line_low <= maxline
+            for pivot2 = PivotPointNumber - 1 to pivot1 + 1 by 1
+                value1 = array.get(trend_bottom_values, pivot1)
+                value2 = array.get(trend_bottom_values, pivot2)
+                position1 = array.get(trend_bottom_position, pivot1)
+                position2 = array.get(trend_bottom_position, pivot2)
+
+                if value1 > value2
+                    different = (value1 - value2) / (position1 - position2)
+                    high_line = value2 + different
+                    low_location = bar_index
+                    low_value = low
+                    valid = true
+
+                    for x = position2 + 1 - _period to bar_index by 1
+                        if close[bar_index - x] < high_line
+                            valid := false
+                            break
+                        low_location := x
+                        low_value := high_line
+                        high_line += different
+                        high_line
+
+                    if valid
+                        up_val1 := high_line - different
+                        up_val2 := value2
+                        up1 := low_location
+                        up2 := position2
+                        break
+
+        d_value1 = 0.0
+        d_value2 = 0.0
+        d_position1 = 0
+        d_position2 = 0
+
+        //top trend line calc
+        if count_line_high <= maxline
+            for pivot2 = PivotPointNumber - 1 to pivot1 + 1 by 1
+                value1 = array.get(trend_top_values, pivot1)
+                value2 = array.get(trend_top_values, pivot2)
+                position1 = array.get(trend_top_position, pivot1)
+                position2 = array.get(trend_top_position, pivot2)
+                if value1 < value2
+                    different = (value2 - value1) / float(position1 - position2)
+                    high_line = value2 - different
+                    low_location = bar_index
+                    low_value = high
+                    valid = true
+                    for x = position2 + 1 - _period to bar_index by 1
+                        if close[bar_index - x] > high_line
+                            valid := false
+                            break
+                        low_location := x
+                        low_value := high_line
+                        high_line -= different
+                        high_line
+
+
+                    if valid
+                        d_value1 := high_line + different
+                        d_value2 := value2
+                        d_position1 := low_location
+                        d_position2 := position2
+                        break
+
+
+        // if there is continues uptrend line then draw it
+        if up1 != 0 and up2 != 0 and count_line_low < maxline
+            count_line_low += 1
+            array.set(bottom_lines, count_line_low - 1, line.new(up2 - _period, up_val2, up1, up_val1, color=up_trend_color))
+
+        // if there is continues downtrend line then draw it
+        if d_position1 != 0 and d_position2 != 1 and count_line_high < maxline
+            count_line_high += 1
+            array.set(top_lines, count_line_high - 1, line.new(d_position2 - _period, d_value2, d_position1, d_value1, color=down_trend_color))
+
+
+

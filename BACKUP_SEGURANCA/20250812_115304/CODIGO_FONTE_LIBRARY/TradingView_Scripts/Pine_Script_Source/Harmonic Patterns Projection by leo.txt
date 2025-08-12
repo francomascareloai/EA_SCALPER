@@ -1,0 +1,1315 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © leandrolopezf1920
+
+//@version=5
+indicator(title="Harmonic Patterns Projection by leo", overlay=true, max_bars_back=500)//, default_qty_type=strategy.percent_of_equity, default_qty_value=100, initial_capital=1000, max_lines_count=500, max_labels_count=500, commission_type=strategy.commission.percent, commission_value=0.01, margin_long=50, margin_short=50, max_boxes_count=500)
+
+// study
+// define pattern names
+pattern_names = array.from('5-0™', 'AB=CD™', 'AB=CD™ Alternate', 'Bat™', 'Bat™ Alternate', 'Butterfly™', 'Crab™', 'Deep Crab™', 'Gartley™ (222)', 'Shark™', '3 Drives', 'ABCD', 'ABCD Extended', 'Cypher', 'Nen Star', '121', 'Double Top', 'Double Bottom')
+int pattern_size = array.size(pattern_names)
+
+// Harmonic Pattern™
+Pattern_50 = '5-0™'  // https://harmonictrader.com/harmonic-patterns/5-0/
+Pattern_ABEqCD = 'AB=CD™'  // https://harmonictrader.com/harmonic-patterns/abcd-pattern/
+Pattern_ABEqCDAlt = 'AB=CD™ Alternate'  // https://harmonictrader.com/harmonic-patterns/alternate-abcd-pattern/
+Pattern_Bat = 'Bat™'  // https://harmonictrader.com/harmonic-patterns/bat-pattern/ 
+Pattern_BatAlt = 'Bat™ Alternate'  // https://harmonictrader.com/harmonic-patterns/alternate-bat-pattern/
+Pattern_Butterfly = 'Butterfly™'  // https://harmonictrader.com/harmonic-patterns/butterfly-pattern/
+Pattern_Crab = 'Crab™'  // https://harmonictrader.com/harmonic-patterns/crab-pattern/
+Pattern_CrabDeep = 'Deep Crab™'  // https://harmonictrader.com/harmonic-patterns/Deep-crab-pattern/
+Pattern_Gartley = 'Gartley™ (222)'  // https://harmonictrader.com/harmonic-patterns/Gartley-pattern/
+Pattern_Shark = 'Shark™'  // https://harmonictrader.com/harmonic-patterns/Shark-pattern/
+// Other pattern
+Pattern_3Drives = '3 Drives'  // https://www.forex.com/en-us/trading-academy/courses/advanced-technical-analysis/three-drive-pattern/
+Pattern_ABCD = 'ABCD'  // https://www.vtad.de/lexikon/Gartley-ab-cd-muster/
+Pattern_ABCDExt = 'ABCD Extended'  // https://www.vtad.de/lexikon/Gartley-ab-cd-muster/
+Pattern_Cypher = 'Cypher'
+Pattern_NenStar = 'Nen Star'  // https://forum.mt5.com/Drawthread.php?140480-ProfitForex-s-Trading-journal&s=a8ed9b8e82a8c47a548a22b17ce31278&p=12866665&viewfull=1#post12866665
+Pattern_121 = '121'
+Pattern_DoubleTop = 'Double Top'
+Pattern_DoubleBottom = 'Double Bottom'
+
+// Draw ... Important switches
+DrawLines = input.bool(true, title='Lines', group='Draw', inline='0')
+DrawPatternNames = input.bool(false, title='Names', group='Draw', inline='0')
+DrawLetters = input.bool(false, title='Letters', group='Draw', inline='0')
+DrawRatioAndLines = input.bool(false, title='Ratios/Lines', group='Draw', inline='1')
+DrawTargetLevels = input.bool(false, title='Targets', group='Draw', inline='1')
+waitForConfirmation = input.bool(false, title='Wait for Confirmation', group='Draw', inline='3')
+
+// Harmonic Pattern™
+fiveZero = input.bool(true, title=Pattern_50, group='Harmonic Pattern™', inline='1')
+abEQcd = input.bool(true, title=Pattern_ABEqCD, group='Harmonic Pattern™', inline='1')
+abEQcdAlt = input.bool(true, title=Pattern_ABEqCDAlt, group='Harmonic Pattern™', inline='1')
+bat = input.bool(true, title=Pattern_Bat, group='Harmonic Pattern™', inline='2')
+batAlt = input.bool(true, title=Pattern_BatAlt, group='Harmonic Pattern™', inline='2')
+butterfly = input.bool(true, title=Pattern_Butterfly, group='Harmonic Pattern™', inline='2')
+crab = input.bool(true, title=Pattern_Crab, group='Harmonic Pattern™', inline='3')
+DeepCrab = input.bool(true, title=Pattern_CrabDeep, group='Harmonic Pattern™', inline='3')
+Gartley = input.bool(true, title=Pattern_Gartley, group='Harmonic Pattern™', inline='3')
+Shark = input.bool(true, title=Pattern_Shark, group='Harmonic Pattern™', inline='4')
+
+// Other Pattern
+OneTwoOne = input.bool(false, title=Pattern_121, group='Other Pattern', inline='1')
+threeDrives = input.bool(true, title=Pattern_3Drives, group='Other Pattern', inline='1')
+abcdClassic = input.bool(false, title=Pattern_ABCD, group='Other Pattern', inline='1')
+abcdExt = input.bool(false, title=Pattern_ABCDExt, group='Other Pattern', inline='1')
+Cypher = input.bool(true, title=Pattern_Cypher, group='Other Pattern', inline='2')
+NenStar = input.bool(true, title=Pattern_NenStar, group='Other Pattern', inline='2')
+doubleBottomTop = input.bool(false, title='Double Bottom/Top', group='Other Pattern', inline='2')
+MaxRiskPerReward = input.int(30, title='Max Risk Per Reward (Bottom/Top)', step=1, minval=0, group='Other Pattern')
+
+// Pojected Point of D
+float batdtargetratio = input.float(0.886, title='BatBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='1')
+float batdtargetratio1 = input.float(0.886, title='BatBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='1')
+float bataltdtargetratio = input.float(1.130, title='BatAltBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='2')
+float bataltdtargetratio1 = input.float(1.130, title='BatAltBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='2')
+float butterflydtargetratio = input.float(1.270, title='ButterflyBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='3')
+float butterflydtargetratio1 = input.float(1.270, title='ButterflyBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='3')
+float crabdtargetratio = input.float(1.618, title='CrabBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='4')
+float crabdtargetratio1 = input.float(1.618, title='CrabBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='4')
+float DeepCrabdtargetratio = input.float(1.618, title='DeepCrabBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='5')
+float DeepCrabdtargetratio1 = input.float(1.618, title='DeepCrabBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='5')
+float Gartleydtargetratio = input.float(0.786, title='GartleyBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='6')
+float Gartleydtargetratio1 = input.float(0.786, title='GartleyBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='6')
+float Sharkdtargetratio = input.float(1.130, title='SharkBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='7')
+float Sharkdtargetratio1 = input.float(1.130, title='SharkBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='7')
+float abandcddtargetratio = input.float(1.130, title='AB=CDBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='8')
+float abandcddtargetratio1 = input.float(1.130, title='AB=CDBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='8')
+float cypherdtargetratio = input.float(0.786, title='CypherBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='9')
+float cypherdtargetratio1 = input.float(0.786, title='CypherBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='9')
+float abcddtargetratio = input.float(1.618, title='ABCDBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='10')
+float abcddtargetratio1 = input.float(1.618, title='ABCDBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='10')
+float nenstardtargetratio = input.float(1.272, title='NenStarBull', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='11')
+float nenstardtargetratio1 = input.float(1.272, title='NenStarBear', minval=0.100, maxval=3.618, group='Harmonic Pattern™ Projected Point of D', inline='11')
+float fivezerodtargetratio = input.float(1.50, title='5-0Bull', minval=0.0001, maxval=10.618, group='Harmonic Pattern™ Projected Point of D', inline='12')
+float fivezerodtargetratio1 = input.float(0.50, title='5-0Bear', minval=0.0001, maxval=10.618, group='Harmonic Pattern™ Projected Point of D', inline='12')
+
+fillMajorTriangles = true//input.bool(true, title='Fill XAB/BCD', group='Display', inline='fill1')
+majorFillTransparency = 97//input.int(99, step=5, title='', group='Display', inline='fill1')
+fillMinorTriangles = true//input.bool(true, title='Fill ABC/XBD', group='Display', inline='fill2')
+minorFillTransparency = 97//input.int(99, step=5, title='', group='Display', inline='fill2')
+
+
+bdfill = input.bool(true, title='Fill BD Line', group='Display Projection', inline='1')
+bdFillTransparency = input.int(99, step=5, title='', group='Display Projection', inline='1')
+cdfill = input.bool(true, title='Fill CD Line', group='Display Projection', inline='2')
+cdFillTransparency = input.int(99, step=5, title='', group='Display Projection', inline='2')
+
+
+// Other Settings
+max_pivot_size = input.int(300, title='Max Pivot Size', step=1, group='Other Settings', inline='6')
+
+// Ratio and Ratio Lines Setting
+RatioPrecision = input.int(1, minval=1, step=1, maxval=50, title='Ratio Precision [%]', group='Ratio and Ratio Lines Setting', inline='1')
+RatioColor = input.color(color.silver, title='Line Color', group='Ratio and Ratio Lines Setting', inline='1')
+// Make the input with pull-down menu
+RatioLineStyleOption = input.string(defval='dotted (┈)', title='Line Style', options=['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group='Ratio and Ratio Lines Setting', inline='2')
+// Convert the input to a proper line style value
+RatioLineStyle = RatioLineStyleOption == 'dotted (┈)' ? line.style_dotted : RatioLineStyleOption == 'dashed (╌)' ? line.style_dashed : RatioLineStyleOption == 'arrow left (←)' ? line.style_arrow_left : RatioLineStyleOption == 'arrow right (→)' ? line.style_arrow_right : RatioLineStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+RatioLineWidth = input.int(title='Width', defval=1, minval=1, group='Ratio and Ratio Lines Setting', inline='2')
+
+// Target Level Settings
+// targets
+//TrailOffset=input(3.0, minval=0.1, step=0.05, maxval=100, title="TrailOffset [%]", group="Target Level Settings", inline="1")
+TrailingStartOption = input.string(defval='No Trailing', title='Trailing starts at:', options=['No Trailing', 'Stoploss', 'Point D', 'Target 1', 'Target 2', 'Target 3', 'Target 4'], group='Target Level Settings', inline='0')  // Make the input with pull-down menu
+TrailingStartString = TrailingStartOption == 'Stoploss' ? 'Stoploss' : TrailingStartOption == 'Point D' ? 'Point D' : TrailingStartOption == 'Target 1' ? 'Target 1' : TrailingStartOption == 'Target 2' ? 'Target 2' : TrailingStartOption == 'Target 3' ? 'Target 3' : TrailingStartOption == 'Target 4' ? 'Target 4' : 'No Trailing'  // Convert the input to a proper line style value
+TargetOption = input.string(defval='Target 1', title='Target (if no Trailing)', options=['Target 1', 'Target 2', 'Target 3', 'Target 4'], group='Target Level Settings', inline='0')  // Make the input with pull-down menu
+TargetString = TargetOption == 'Target 1' ? 'Target 1' : TargetOption == 'Target 2' ? 'Target 2' : TargetOption == 'Target 3' ? 'Target 3' : TargetOption == 'Target 4' ? 'Target 4' : 'Target 1'  // Convert the input to a proper line style value
+TargetLevelTextSize = input.string('normal', 'Text Size', options=['tiny', 'small', 'normal', 'large', 'huge', 'auto'], group='Target Level Settings', inline='2')
+levelWidth = input.int(20, minval=10, step=1, maxval=200, title='Level Width', group='Target Level Settings', inline='Width')
+levelSL = input.float(-2.5, minval=-100, step=0.05, maxval=100, title='Limit SL [%]', group='Target Level Settings', inline='SL') * 0.01
+levelSLColor = input.color(color.red, title='Color', group='Target Level Settings', inline='SL')
+levelD = input.float(0.0, minval=0, step=1, maxval=100, title='Limit D [%]', group='Target Level Settings', inline='D') * 0.01
+levelDColor = input.color(color.orange, title='Color', group='Target Level Settings', inline='D')
+levelT1 = input.float(23.6, minval=0, step=1, maxval=100, title='Limit T1 [%]', group='Target Level Settings', inline='T1') * 0.01
+levelT1Color = input.color(color.blue, title='Color', group='Target Level Settings', inline='T1')
+levelT2 = input.float(50.0, minval=0, step=1, maxval=100, title='Limit T2 [%]', group='Target Level Settings', inline='T2') * 0.01
+levelT2Color = input.color(color.blue, title='Color', group='Target Level Settings', inline='T2')
+levelT3 = input.float(61.8, minval=0, step=1, maxval=100, title='Limit T3 [%]', group='Target Level Settings', inline='T3') * 0.01
+levelT3Color = input.color(color.blue, title='Color', group='Target Level Settings', inline='T3')
+levelT4 = input.float(78.6, minval=0, step=1, maxval=100, title='Limit T4 [%]', group='Target Level Settings', inline='T4') * 0.01
+levelT4Color = input.color(color.blue, title='Color', group='Target Level Settings', inline='T4')
+
+// Wave Settings
+bullishColor = input.color(color.green, title='Bullish Color', group='Wave Settings', inline='0')
+bearishColor = input.color(color.red, title='Bearish Color', group='Wave Settings', inline='0')
+
+// Make the input with pull-down menu
+WaveStyleOption = input.string(title='Line Style', options=['solid (─)', 'dotted (┈)', 'dashed (╌)'], defval='dashed (╌)', group='Wave Settings', inline='1')
+// Convert the input to a proper line style value
+WaveLineStyle = WaveStyleOption == 'dotted (┈)' ? line.style_dotted : WaveStyleOption == 'dashed (╌)' ? line.style_dashed :  line.style_solid
+WaveWidth = input.int(3, title='Width', minval=1, group='Wave Settings', inline='1')
+
+DrawWave1 = input.bool(true, title='Draw Wave 1, ', group='Wave Settings', inline='2')
+Wave1Length = input.int(8, step=1, minval=3, title='Lenght', group='Wave Settings', inline='2')
+DrawWave2 = input.bool(true, title='Draw Wave 2, ', group='Wave Settings', inline='3')
+Wave2Length = input.int(13, step=1, minval=2, title='Lenght', group='Wave Settings', inline='3')
+DrawWave3 = input.bool(true, title='Draw Wave 3, ', group='Wave Settings', inline='4')
+Wave3Length = input.int(21, step=1, minval=2, title='Lenght', group='Wave Settings', inline='4')
+DrawWave4 = input.bool(true, title='Draw Wave 4, ', group='Wave Settings', inline='5')
+Wave4Length = input.int(55, step=1, minval=2, title='Lenght', group='Wave Settings', inline='5')
+DrawWave5 = input.bool(true, title='Draw Wave 5, ', group='Wave Settings', inline='6')
+Wave5Length = input.int(89, step=1, minval=2, title='Lenght', group='Wave Settings', inline='6')
+DrawWave6 = input.bool(true, title='Draw Wave 6, ', group='Wave Settings', inline='7')
+Wave6Length = input.int(144, step=1, minval=2, title='Lenght', group='Wave Settings', inline='7')
+
+err_min = (100 - RatioPrecision) / 100
+err_max = (100 + RatioPrecision) / 100
+
+var WaveCount = 6
+
+var WavePivots1 = array.new_float(0)
+var WavePivotBars1 = array.new_int(0)
+var WavePivotDirs1 = array.new_int(0)
+var WaveLines1 = array.new_line(6)
+var WaveType1 = array.new_int(2, 1)
+var WaveLabels1 = array.new_bool(pattern_size, false)
+var WaveLabel1 = array.new_label(1)
+var WavePoints1 = array.new_label(6)
+var WaveRatioLines1 = array.new_line(5)
+var WaveRatios1 = array.new_label(5)
+var WaveLevels1 = array.new_line(6)
+var WaveLevelLabels1 = array.new_label(6)
+
+var WavePivots2 = array.new_float(0)
+var WavePivotBars2 = array.new_int(0)
+var WavePivotDirs2 = array.new_int(0)
+var WaveLines2 = array.new_line(6)
+var WaveType2 = array.new_int(2, 1)
+var WaveLabels2 = array.new_bool(pattern_size, false)
+var WaveLabel2 = array.new_label(1)
+var WavePoints2 = array.new_label(6)
+var WaveRatioLines2 = array.new_line(5)
+var WaveRatios2 = array.new_label(5)
+var WaveLevels2 = array.new_line(6)
+var WaveLevelLabels2 = array.new_label(6)
+
+var WavePivots3 = array.new_float(0)
+var WavePivotBars3 = array.new_int(0)
+var WavePivotDirs3 = array.new_int(0)
+var WaveLines3 = array.new_line(6)
+var WaveType3 = array.new_int(2, 1)
+var WaveLabels3 = array.new_bool(pattern_size, false)
+var WaveLabel3 = array.new_label(1)
+var WavePoints3 = array.new_label(6)
+var WaveRatioLines3 = array.new_line(5)
+var WaveRatios3 = array.new_label(5)
+var WaveLevels3 = array.new_line(6)
+var WaveLevelLabels3 = array.new_label(6)
+
+var WavePivots4 = array.new_float(0)
+var WavePivotBars4 = array.new_int(0)
+var WavePivotDirs4 = array.new_int(0)
+var WaveLines4 = array.new_line(6)
+var WaveType4 = array.new_int(2, 1)
+var WaveLabels4 = array.new_bool(pattern_size, false)
+var WaveLabel4 = array.new_label(1)
+var WavePoints4 = array.new_label(6)
+var WaveRatioLines4 = array.new_line(5)
+var WaveRatios4 = array.new_label(5)
+var WaveLevels4 = array.new_line(6)
+var WaveLevelLabels4 = array.new_label(6)
+
+var WavePivots5 = array.new_float(0)
+var WavePivotBars5 = array.new_int(0)
+var WavePivotDirs5 = array.new_int(0)
+var WaveLines5 = array.new_line(6)
+var WaveType5 = array.new_int(2, 1)
+var WaveLabels5 = array.new_bool(pattern_size, false)
+var WaveLabel5 = array.new_label(1)
+var WavePoints5 = array.new_label(6)
+var WaveRatioLines5 = array.new_line(5)
+var WaveRatios5 = array.new_label(5)
+var WaveLevels5 = array.new_line(6)
+var WaveLevelLabels5 = array.new_label(6)
+
+var WavePivots6 = array.new_float(0)
+var WavePivotBars6 = array.new_int(0)
+var WavePivotDirs6 = array.new_int(0)
+var WaveLines6 = array.new_line(6)
+var WaveType6 = array.new_int(2, 1)
+var WaveLabels6 = array.new_bool(pattern_size, false)
+var WaveLabel6 = array.new_label(1)
+var WavePoints6 = array.new_label(6)
+var WaveRatioLines6 = array.new_line(5)
+var WaveRatios6 = array.new_label(5)
+var WaveLevels6 = array.new_line(6)
+var WaveLevelLabels6 = array.new_label(6)
+
+var WaveStatsBear = array.new_int(pattern_size, 0)
+var WaveStatsBull = array.new_int(pattern_size, 0)
+
+fun_pivots(length) =>
+    float phigh = ta.highestbars(high, length) == 0 ? high : na
+    float plow = ta.lowestbars(low, length) == 0 ? low : na
+    dir = 0
+    iff_1 = plow and na(phigh) ? -1 : dir[1]
+    dir := phigh and na(plow) ? 1 : iff_1
+    [dir, phigh, plow]
+
+fun_Wave(length, WavePivots, WavePivotBars, WavePivotDirs) =>
+    [dir, phigh, plow] = fun_pivots(length)
+    dirchanged = ta.change(dir)
+
+    if phigh or plow
+        value = dir == 1 ? phigh : plow
+        bar = bar_index
+        newDir = dir
+        if not dirchanged and array.size(WavePivots) >= 1
+            pivot = array.shift(WavePivots)
+            pivotbar = array.shift(WavePivotBars)
+            pivotdir = array.shift(WavePivotDirs)
+            useNewValues = value * pivotdir < pivot * pivotdir
+            value := useNewValues ? pivot : value
+            bar := useNewValues ? pivotbar : bar
+            bar
+
+        if array.size(WavePivots) >= 2
+            LastPoint = array.get(WavePivots, 1)
+            newDir := dir * value > dir * LastPoint ? dir * 2 : dir
+            newDir
+
+        array.unshift(WavePivots, value=value)
+        array.unshift(WavePivotBars, bar)
+        array.unshift(WavePivotDirs, newDir)
+
+        if array.size(WavePivots) > max_pivot_size
+            array.pop(WavePivots)
+            array.pop(WavePivotBars)
+            array.pop(WavePivotDirs)
+
+fun_DrawLines_abcd(a, b, c, d, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines) =>
+    ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+    array.set(WaveLines, 1, ab)
+    bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+    array.set(WaveLines, 2, bc)
+    cd = line.new(y1=c, y2=d, x1=cBar, x2=dBar, color=color.new(trendColor, 99), width=WaveWidth, style=WaveLineStyle)
+    array.set(WaveLines, 3, cd)
+
+fun_DrawLines_xabcd(x, a, b, c, d, xBar, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines) =>
+    xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+    array.set(WaveLines, 0, xa)
+    fun_DrawLines_abcd(a, b, c, d, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)  // draw line 1 / 2 / 3
+
+fun_DrawLines_yxabcd(y, x, a, b, c, d, yBar, xBar, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines) =>
+    fun_DrawLines_xabcd(x, a, b, c, d, xBar, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)  // draw lines 0 / 1 / 2 / 3
+    yx = line.new(y1=y, y2=x, x1=yBar, x2=xBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+    array.set(WaveLines, 4, yx)
+
+fun_DrawRatioAndLines_abcd(a, b, c, d, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio) =>
+    // draw RatioLines
+    bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 1, bd)
+    ac = line.new(y1=a, y2=c, x1=aBar, x2=cBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 3, ac)
+    // draw Ratios
+    bd_x = math.abs(bBar + (dBar - bBar) / 2)
+    bd_y = math.abs(d + (b - d) / 2)
+    bd_string = str.tostring(bcdRatio, '0.000')
+    ratio_bd = label.new(x=bd_x, y=bd_y, text=bd_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 1, ratio_bd)
+    ac_x = math.abs(aBar + (cBar - aBar) / 2)
+    ac_y = math.abs(c + (a - c) / 2)
+    ac_string = str.tostring(abcRatio, '0.000')
+    ratio_ac = label.new(x=ac_x, y=ac_y, text=ac_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 3, ratio_ac)
+
+fun_DrawRatioAndLines_xabcd(x, a, b, c, d, xBar, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio) =>
+    // draw RatioLines
+    xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 0, xb)
+    bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 1, bd)
+    xd = line.new(y1=x, y2=d, x1=xBar, x2=dBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 2, xd)
+    ac = line.new(y1=a, y2=c, x1=aBar, x2=cBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 3, ac)
+    // draw Ratios
+    xb_x = math.abs(xBar + (bBar - xBar) / 2)
+    xb_y = math.abs(x + (b - x) / 2)
+    xb_string = str.tostring(xabRatio, '0.000')
+    ratio_xb = label.new(x=xb_x, y=xb_y, text=xb_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 0, ratio_xb)
+    bd_x = math.abs(bBar + (dBar - bBar) / 2)
+    bd_y = math.abs(d + (b - d) / 2)
+    bd_string = str.tostring(bcdRatio, '0.000')
+    ratio_bd = label.new(x=bd_x, y=bd_y, text=bd_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 1, ratio_bd)
+    xd_x = math.abs(xBar + (dBar - xBar) / 2)
+    xd_y = math.abs(x + (d - x) / 2)
+    xd_string = str.tostring(xadRatio, '0.000')
+    ratio_xd = label.new(x=xd_x, y=xd_y, text=xd_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 2, ratio_xd)
+    ac_x = math.abs(aBar + (cBar - aBar) / 2)
+    ac_y = math.abs(c + (a - c) / 2)
+    ac_string = str.tostring(abcRatio, '0.000')
+    ratio_ac = label.new(x=ac_x, y=ac_y, text=ac_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 3, ratio_ac)
+
+fun_DrawRatioAndLines_yxabcd(y, x, a, b, c, d, yBar, xBar, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio) =>
+    // draw RatioLines
+    xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 0, xb)
+    bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 1, bd)
+    ac = line.new(y1=a, y2=c, x1=aBar, x2=cBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 3, ac)
+    ya = line.new(y1=y, y2=a, x1=yBar, x2=aBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+    array.set(WaveRatioLines, 4, ya)
+    // draw Ratios
+    xb_x = math.abs(xBar + (bBar - xBar) / 2)
+    xb_y = math.abs(x + (b - x) / 2)
+    xb_string = str.tostring(xabRatio, '0.000')
+    ratio_xb = label.new(x=xb_x, y=xb_y, text=xb_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 0, ratio_xb)
+    bd_x = math.abs(bBar + (dBar - bBar) / 2)
+    bd_y = math.abs(d + (b - d) / 2)
+    bd_string = str.tostring(bcdRatio, '0.000')
+    ratio_bd = label.new(x=bd_x, y=bd_y, text=bd_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 1, ratio_bd)
+    ac_x = math.abs(aBar + (cBar - aBar) / 2)
+    ac_y = math.abs(c + (a - c) / 2)
+    ac_string = str.tostring(abcRatio, '0.000')
+    ratio_ac = label.new(x=ac_x, y=ac_y, text=ac_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 3, ratio_ac)
+    ya_x = math.abs(yBar + (aBar - yBar) / 2)
+    ya_y = math.abs(y + (a - y) / 2)
+    ya_string = str.tostring(yxaRatio, '0.000')
+    ratio_ya = label.new(x=ya_x, y=ya_y, text=ya_string, textcolor=RatioColor, size=size.normal, style=label.style_none)
+    array.set(WaveRatios, 4, ratio_ya)
+
+fun_DrawTarget(c, d, dBar, levelSL, levelD, levelT1, levelT2, levelT3, levelT4, WaveLevels, WaveLevellabels, levelWidth) =>
+    // calculate targets
+    SL_y = math.abs(c + (d - c) * (1 - levelSL))
+    D_y = math.abs(c + (d - c) * (1 - levelD))
+    T1_y = math.abs(c + (d - c) * (1 - levelT1))
+    T2_y = math.abs(c + (d - c) * (1 - levelT2))
+    T3_y = math.abs(c + (d - c) * (1 - levelT3))
+    T4_y = math.abs(c + (d - c) * (1 - levelT4))
+    // draw target levels
+    lineSL = line.new(y1=SL_y, y2=SL_y, x1=dBar, x2=dBar + levelWidth, color=levelSLColor, width=1, style=line.style_solid)
+    lineLabelSL = label.new(x=dBar + levelWidth / 2, y=SL_y, text='SL: ' + str.tostring(SL_y, '0.000') + ' (' + str.tostring(levelSL * 100, '#.#') + ' %)', textcolor=levelSLColor, size=TargetLevelTextSize, style=label.style_none)
+    array.set(WaveLevels, 0, lineSL)
+    array.set(WaveLevellabels, 0, lineLabelSL)
+    lineD = line.new(y1=D_y, y2=D_y, x1=dBar, x2=dBar + levelWidth, color=levelDColor, width=1, style=line.style_solid)
+    lineLabelD = label.new(x=dBar + levelWidth / 2, y=D_y, text='D: ' + str.tostring(D_y, '0.000') + ' (' + str.tostring(levelD * 100, '#.#') + ' %)', textcolor=levelDColor, size=TargetLevelTextSize, style=label.style_none)
+    array.set(WaveLevels, 1, lineD)
+    array.set(WaveLevellabels, 1, lineLabelD)
+    lineT1 = line.new(y1=T1_y, y2=T1_y, x1=dBar, x2=dBar + levelWidth, color=levelT1Color, width=1, style=line.style_solid)
+    lineLabelT1 = label.new(x=dBar + levelWidth / 2, y=T1_y, text='T1: ' + str.tostring(T1_y, '0.000') + ' (' + str.tostring(levelT1 * 100, '#.#') + ' %)', textcolor=levelT1Color, size=TargetLevelTextSize, style=label.style_none)
+    array.set(WaveLevels, 2, lineT1)
+    array.set(WaveLevellabels, 2, lineLabelT1)
+    lineT2 = line.new(y1=T2_y, y2=T2_y, x1=dBar, x2=dBar + levelWidth, color=levelT2Color, width=1, style=line.style_solid)
+    lineLabelT2 = label.new(x=dBar + levelWidth / 2, y=T2_y, text='T2: ' + str.tostring(T2_y, '0.000') + ' (' + str.tostring(levelT2 * 100, '#.#') + ' %)', textcolor=levelT2Color, size=TargetLevelTextSize, style=label.style_none)
+    array.set(WaveLevels, 3, lineT2)
+    array.set(WaveLevellabels, 3, lineLabelT2)
+    lineT3 = line.new(y1=T3_y, y2=T3_y, x1=dBar, x2=dBar + levelWidth, color=levelT3Color, width=1, style=line.style_solid)
+    lineLabelT3 = label.new(x=dBar + levelWidth / 2, y=T3_y, text='T3: ' + str.tostring(T3_y, '0.000') + ' (' + str.tostring(levelT3 * 100, '#.#') + ' %)', textcolor=levelT3Color, size=TargetLevelTextSize, style=label.style_none)
+    array.set(WaveLevels, 4, lineT3)
+    array.set(WaveLevellabels, 4, lineLabelT3)
+    lineT4 = line.new(y1=T4_y, y2=T4_y, x1=dBar, x2=dBar + levelWidth, color=levelT4Color, width=1, style=line.style_solid)
+    lineLabelT4 = label.new(x=dBar + levelWidth / 2, y=T4_y, text='T4: ' + str.tostring(T4_y, '0.000') + ' (' + str.tostring(levelT4 * 100, '#.#') + ' %)', textcolor=levelT4Color, size=TargetLevelTextSize, style=label.style_none)
+    array.set(WaveLevels, 5, lineT4)
+    array.set(WaveLevellabels, 5, lineLabelT4)
+
+fun_get_label(WaveLabels, dir, price, bar) =>
+    isFiveZero = array.get(WaveLabels, 0)
+    isAbEqCd = array.get(WaveLabels, 1)
+    isAbEqCdAlt = array.get(WaveLabels, 2)
+    isBat = array.get(WaveLabels, 3)
+    isBatAlt = array.get(WaveLabels, 4)
+    isButterfly = array.get(WaveLabels, 5)
+    isCrab = array.get(WaveLabels, 6)
+    isDeepCrab = array.get(WaveLabels, 7)
+    isGartley = array.get(WaveLabels, 8)
+    isShark = array.get(WaveLabels, 9)
+    is3Drives = array.get(WaveLabels, 10)
+    isAbcd = array.get(WaveLabels, 11)
+    isAbcdExt = array.get(WaveLabels, 12)
+    isCypher = array.get(WaveLabels, 13)
+    isNenStar = array.get(WaveLabels, 14)
+    is121 = array.get(WaveLabels, 15)
+    isDoubleTop = array.get(WaveLabels, 16) and dir < 0
+    isDoubleBottom = array.get(WaveLabels, 17) and dir > 0
+
+    LabelText = isGartley ? Pattern_Gartley : ''
+    LabelText += (isFiveZero ? (LabelText == '' ? '' : '\n') + Pattern_50 : '')
+    LabelText += (isAbEqCd ? (LabelText == '' ? '' : '\n') + Pattern_ABEqCD : '')
+    LabelText += (isAbEqCdAlt ? (LabelText == '' ? '' : '\n') + Pattern_ABEqCDAlt : '')
+    LabelText += (isBat ? (LabelText == '' ? '' : '\n') + Pattern_Bat : '')
+    LabelText += (isBatAlt ? (LabelText == '' ? '' : '\n') + Pattern_BatAlt : '')
+    LabelText += (isButterfly ? (LabelText == '' ? '' : '\n') + Pattern_Butterfly : '')
+    LabelText += (isCrab ? (LabelText == '' ? '' : '\n') + Pattern_Crab : '')
+    LabelText += (isDeepCrab ? (LabelText == '' ? '' : '\n') + Pattern_CrabDeep : '')
+    LabelText += (isShark ? (LabelText == '' ? '' : '\n') + Pattern_Shark : '')
+
+    LabelText += (is3Drives ? (LabelText == '' ? '' : '\n') + Pattern_3Drives : '')
+    LabelText += (isAbcd ? (LabelText == '' ? '' : '\n') + Pattern_ABCD : '')
+    LabelText += (isAbcdExt ? (LabelText == '' ? '' : '\n') + Pattern_ABCDExt : '')
+    LabelText += (isCypher ? (LabelText == '' ? '' : '\n') + Pattern_Cypher : '')
+    LabelText += (isNenStar ? (LabelText == '' ? '' : '\n') + Pattern_NenStar : '')
+    LabelText += (is121 ? (LabelText == '' ? '' : '\n') + Pattern_121 : '')
+    LabelText += (isDoubleTop ? (LabelText == '' ? '' : '\n') + Pattern_DoubleTop : '')
+    LabelText += (isDoubleBottom ? (LabelText == '' ? '' : '\n') + Pattern_DoubleBottom : '')
+    trendColor = dir > 0 ? bullishColor : bearishColor
+
+    LabelTooltip = string(na)
+    // Performance data from "Encyclopedia of Chart Patterns (3rd Ed., 2021)" by Thomas Bulkowski
+    if LabelText == Pattern_ABEqCD or LabelText == Pattern_ABEqCDAlt
+        if dir > 0  //Bullish
+            LabelTooltip := 'Bull Market \nPerformance: ↑ 38,4% \nFailure Rate: 11,6 % \n \nBear Market \nPerformance: ↑ 30,5% \nFailure Rate: 3,7%'
+            LabelTooltip
+        else
+            //Bearish
+            LabelTooltip := 'Bull Market \nPerformance: ↓ -12,7% \nFailure Rate: 26,3 % \n \nBear Market \nPerformance: ↓ -21,6% \nFailure Rate: 10,2%'
+            LabelTooltip
+    if LabelText == Pattern_Bat or LabelText == Pattern_BatAlt
+        if dir > 0  //Bullish
+            LabelTooltip := 'Bull Market \nPerformance: ↑ 44,3%% \nFailure Rate: 10,2% \n \nBear Market \nPerformance: ↑ 34,5% \nFailure Rate: 4,3%'
+            LabelTooltip
+        else
+            //Bearish
+            LabelTooltip := 'Bull Market \nPerformance: ↓ -14,3% \nFailure Rate: 17,7% \n \nBear Market \nPerformance: ↓ -20,2% \nFailure Rate: 4,5%'
+            LabelTooltip
+    if LabelText == Pattern_Butterfly
+        if dir > 0  //Bullish
+            LabelTooltip := 'Bull Market \nPerformance: ↑ 39,5% \nFailure Rate: 11,4% \n \nBear Market \nPerformance: ↑ 27,8% \nFailure Rate: 2,6%'
+            LabelTooltip
+        else
+            //Bearish
+            LabelTooltip := 'Bull Market \nPerformance: ↓ -13,0% \nFailure Rate: 27,3% \n \nBear Market \nPerformance: ↓ -20,2% \nFailure Rate: 7,6%'
+            LabelTooltip
+    if LabelText == Pattern_Crab or LabelText == Pattern_CrabDeep
+        if dir > 0  //Bullish
+            LabelTooltip := 'Bull Market \nPerformance: ↑ 39,1% \nFailure Rate: 7,1% \n \nBear Market \nPerformance: ↑ 32,7% \nFailure Rate: 2,6%'
+            LabelTooltip
+        else
+            //Bearish
+            LabelTooltip := 'Bull Market \nPerformance: ↓ -14,3% \nFailure Rate: 19,8% \n \nBear Market \nPerformance: ↓ -22,9% \nFailure Rate: 8,9%'
+            LabelTooltip
+    if LabelText == Pattern_Gartley
+        if dir > 0  //Bullish
+            LabelTooltip := 'Bull Market \nPerformance: ↑ 36,2% \nFailure Rate: 13,5% \n \nBear Market \nPerformance: ↑ 29,2% \nFailure Rate: 5,9%'
+            LabelTooltip
+        else
+            //Bearish
+            LabelTooltip := 'Bull Market \nPerformance: ↓ -14,1% \nFailure Rate: 21,5% \n \nBear Market \nPerformance: ↓ -23,3% \nFailure Rate: 7,3%'
+            LabelTooltip
+    if LabelText == Pattern_NenStar
+        if dir > 0  //Bullish
+            LabelTooltip := 'XABCD-Pattern:\nXAB: 0.382 - 0.618 \nABC: 1.130 - 1.414 \nBCD: 1.272 - 2.000 \nXBD: 1.272'
+            LabelTooltip
+        else
+            //Bearish
+            LabelTooltip := 'XABCD-Pattern:\nXAB: 0.382 - 0.618 \nABC: 1.130 - 1.414 \nBCD: 1.272 - 2.000 \nXBD: 1.272'
+            LabelTooltip
+    // (((yxaRatio>= 0.618*err_min and yxaRatio<= 0.618*err_max) and (xabRatio>= 1.272*err_min and xabRatio<= 1.272*err_max)) and ((abcRatio>= 0.618*err_min and abcRatio<= 0.618*err_max) and (bcdRatio>= 1.272*err_min and bcdRatio<= 1.272*err_max))) or 
+    if LabelText == Pattern_3Drives
+        if dir > 0  //Bullish
+            LabelTooltip := 'YXABCD-Pattern:\nYXA=ABC: 0.618 or 0.786\nXAB=BCD: 1.272 or 1.618'
+            LabelTooltip
+        else
+            //Bearish
+            LabelTooltip := 'YXABCD-Pattern:\nYXA=ABC: 0.618 or 0.786\nXAB=BCD: 1.272 or 1.618'
+            LabelTooltip
+
+    if LabelText == Pattern_50 or LabelText == Pattern_Shark or LabelText == Pattern_Cypher or LabelText == Pattern_ABCD or LabelText == Pattern_ABCDExt or LabelText == Pattern_121 or LabelText == Pattern_DoubleTop or LabelText == Pattern_DoubleBottom
+        LabelTooltip := 'No Performance Data.'
+        LabelTooltip
+
+    if dir > 0 
+        baseLabel = label.new(x=bar, y=price, text=LabelText, yloc=yloc.price, color=trendColor, style=label.style_label_up, textcolor=color.black, size=size.normal, tooltip=LabelTooltip)
+        baseLabel
+
+    if dir < 0 
+        baseLabel = label.new(x=bar, y=price, text=LabelText, yloc=yloc.price, color=trendColor, style=label.style_label_down, textcolor=color.black, size=size.normal, tooltip=LabelTooltip)
+        baseLabel
+
+
+fun_detect_pattern(WavePivots, WavePivotBars, WavePivotDirs, WaveLines, WaveLabel, WaveType, WaveLabels, WavePoints, WaveRatioLines, WaveRatios, WaveLevels, WaveLevellabels, DrawWave) =>
+    start = waitForConfirmation ? 1 : 0
+    bd_pattern = false
+    abcd_pattern = false
+    xabcd_pattern = false
+    yxabcd_pattern = false
+
+    if array.size(WavePivots) >= 6 + start and DrawWave
+
+        d = array.get(WavePivots, start + 0)
+        dBar = array.get(WavePivotBars, start + 0)
+        dDir = array.get(WavePivotDirs, start + 0)
+
+        c = array.get(WavePivots, start + 1)
+        cBar = array.get(WavePivotBars, start + 1)
+        cDir = array.get(WavePivotDirs, start + 1)
+
+        b = array.get(WavePivots, start + 2)
+        bBar = array.get(WavePivotBars, start + 2)
+        bDir = array.get(WavePivotDirs, start + 2)
+
+        a = array.get(WavePivots, start + 3)
+        aBar = array.get(WavePivotBars, start + 3)
+        aDir = array.get(WavePivotDirs, start + 3)
+
+        x = array.get(WavePivots, start + 4)
+        xBar = array.get(WavePivotBars, start + 4)
+        xDir = array.get(WavePivotDirs, start + 4)
+
+        y = array.get(WavePivots, start + 5)
+        yBar = array.get(WavePivotBars, start + 5)
+        yDir = array.get(WavePivotDirs, start + 5)
+
+        time_ratio = math.abs(cBar - dBar) / math.abs(aBar - bBar)
+        price_ratio = math.abs(c - d) / math.abs(a - b)
+
+        xabRatio = math.abs(b - a) / math.abs(x - a)
+        abcRatio = math.abs(c - b) / math.abs(a - b)
+        bcdRatio = math.abs(d - c) / math.abs(b - c)
+        xadRatio = math.abs(d - a) / math.abs(x - a)
+        yxaRatio = math.abs(a - x) / math.abs(y - x)
+
+        abcdDirection = a < b and a < c and c < b and c < d and a < d and b < d ? 1 : a > b and a > c and c > b and c > d and a > d and b > d ? -1 : 0
+        dir = c > d ? 1 : -1
+        trendColor = dir > 0 ? bullishColor : bearishColor
+
+        risk = math.abs(b - d)
+        reward = math.abs(c - d)
+        riskPerReward = risk * 100 / (risk + reward)
+
+        highPoint = math.max(x, a, b, c, d)
+        lowPoint = math.min(x, a, b, c, d)
+
+        // "5-0™", "AB=CD™", "AB=CD™ Alternate", "Bat™", "Bat™ Alternate", "Butterfly™", "Crab™", "Deep Crab™", "Gartley™ (222)", "Shark™", "3 Drives", "ABCD", "ABCD Extended", "Cypher", "Nen Star", "121", "Double Top", "Double Bottom"
+        // 1     , 2       , 3                 , 4     , 5               , 6           , 7      , 8           , 9               , 10      , 11        , 12    , 13             , 14      , 15        , 16   , 17          , 18
+    //ID:0     , 1       , 2                 , 3     , 4               , 5           , 6      , 7           , 8               , 9       , 10        , 11    , 12             , 13      , 14        , 15   , 16          , 17
+
+        if b < highPoint and b > lowPoint
+            //Bat
+            if bat and xabRatio >= 0.382 * err_min and xabRatio <= 0.50 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max
+                xabcd_pattern := true
+                array.set(WaveLabels, 3, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 3, array.get(WaveStatsBear, 3) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 3, array.get(WaveStatsBear, 3) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 3, false)    
+        
+
+            //BatAlt
+            if batAlt and xabRatio >= 0.382 * err_min and xabRatio <= 0.382 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max 
+                xabcd_pattern := true
+                array.set(WaveLabels, 4, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 4, array.get(WaveStatsBear, 4) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 4, array.get(WaveStatsBear, 4) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 4, false)
+
+
+            //Butterfly ✔
+            if butterfly and xabRatio >= 0.786 * err_min and xabRatio <= 0.786 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max
+                xabcd_pattern := true
+                array.set(WaveLabels, 5, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 5, array.get(WaveStatsBear, 5) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 5, array.get(WaveStatsBear, 5) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 5, false)
+
+
+            //Crab
+            if crab and xabRatio >= 0.382 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max
+                xabcd_pattern := true
+                array.set(WaveLabels, 6, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 6, array.get(WaveStatsBear, 6) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 6, array.get(WaveStatsBear, 6) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 6, false)
+
+
+            //Deep Crab
+            if DeepCrab and xabRatio >= 0.886 * err_min and xabRatio <= 0.886 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max 
+                xabcd_pattern := true
+                array.set(WaveLabels, 7, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 7, array.get(WaveStatsBear, 7) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 7, array.get(WaveStatsBear, 7) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 7, false)
+
+
+            //Gartley
+            if Gartley and xabRatio >= 0.618 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 0.382 * err_min and abcRatio <= 0.886 * err_max
+                xabcd_pattern := true
+                array.set(WaveLabels, 8, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 8, array.get(WaveStatsBear, 8) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 8, array.get(WaveStatsBear, 8) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 8, false)
+ 
+
+            //Cypher ✔
+            if Cypher and xabRatio >= 0.382 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 1.130 * err_min and abcRatio <= 1.414 * err_max
+                xabcd_pattern := true
+                array.set(WaveLabels, 13, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 13, array.get(WaveStatsBear, 13) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 13, array.get(WaveStatsBear, 13) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 13, false)
+
+
+            //Nen Star ✔
+            if NenStar and xabRatio >= 0.382 * err_min and xabRatio <= 0.618 * err_max and abcRatio >= 1.130 * err_min and abcRatio <= 1.414 * err_max
+                xabcd_pattern := true
+                array.set(WaveLabels, 14, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 14, array.get(WaveStatsBear, 14) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 14, array.get(WaveStatsBear, 14) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 14, false)
+
+
+            //Shark
+            if Shark and abcRatio >= 1.13 * err_min and abcRatio <= 1.618 * err_max and xabRatio >= 0.50 * err_min and xabRatio <= 0.50 * err_max
+                xabcd_pattern := true
+                array.set(WaveLabels, 9, true)
+                if dir > 0
+                    array.set(WaveStatsBull, 9, array.get(WaveStatsBear, 9) + 1)  // Bullish
+                else
+                    array.set(WaveStatsBear, 9, array.get(WaveStatsBear, 9) + 1)  // Bearish
+            else
+                array.set(WaveLabels, 9, false)
+
+
+        //3 Drives ✔
+        if threeDrives and (yxaRatio >= 0.618 * err_min and yxaRatio <= 0.618 * err_max and xabRatio >= 1.272 * err_min and xabRatio <= 1.272 * err_max and abcRatio >= 0.618 * err_min and abcRatio <= 0.618 * err_max and bcdRatio >= 1.272 * err_min and bcdRatio <= 1.272 * err_max or yxaRatio >= 0.618 * err_min and yxaRatio <= 0.618 * err_max and xabRatio >= 1.618 * err_min and xabRatio <= 1.618 * err_max and abcRatio >= 0.618 * err_min and abcRatio <= 0.618 * err_max and bcdRatio >= 1.618 * err_min and bcdRatio <= 1.618 * err_max or yxaRatio >= 0.786 * err_min and yxaRatio <= 0.786 * err_max and xabRatio >= 1.272 * err_min and xabRatio <= 1.272 * err_max and abcRatio >= 0.786 * err_min and abcRatio <= 0.786 * err_max and bcdRatio >= 1.272 * err_min and bcdRatio <= 1.272 * err_max or yxaRatio >= 0.786 * err_min and yxaRatio <= 0.786 * err_max and xabRatio >= 1.618 * err_min and xabRatio <= 1.618 * err_max and abcRatio >= 0.786 * err_min and abcRatio <= 0.786 * err_max and bcdRatio >= 1.618 * err_min and bcdRatio <= 1.618 * err_max)
+            yxabcd_pattern := true
+            array.set(WaveLabels, 10, true)
+            if dir > 0
+                array.set(WaveStatsBull, 10, array.get(WaveStatsBear, 10) + 1)  // Bullish
+            else
+                array.set(WaveStatsBear, 10, array.get(WaveStatsBear, 10) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 10, false)
+
+        //5-0 ✔
+        if fiveZero and xabRatio >= 1.13 * err_min and xabRatio <= 1.618 * err_max and abcRatio >= 1.618 * err_min and abcRatio <= 2.24 * err_max
+            yxabcd_pattern := true
+            array.set(WaveLabels, 0, true)
+            if dir > 0
+                array.set(WaveStatsBull, 0, array.get(WaveStatsBear, 0) + 1)  // Bullish
+            else
+                array.set(WaveStatsBear, 0, array.get(WaveStatsBear, 0) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 0, false)
+
+
+        // 1-2-1 ✔
+        if OneTwoOne and xabRatio >= 0.618 * err_min and xabRatio <= 0.786 * err_max and bcdRatio >= 0.5 * err_min and bcdRatio <= 0.618 * err_max
+            xabcd_pattern := true
+            array.set(WaveLabels, 15, true)
+            if dir > 0
+                array.set(WaveStatsBull, 15, array.get(WaveStatsBear, 15) + 1)  // Bullish
+            else
+                array.set(WaveStatsBear, 15, array.get(WaveStatsBear, 15) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 15, false)
+
+        //AB=CD
+        if abEQcd and time_ratio >= err_min and time_ratio <= err_max and price_ratio >= err_min and price_ratio <= err_max and abcdDirection != 0
+            abcd_pattern := true
+            array.set(WaveLabels, 1, true)
+            if dir > 0
+                array.set(WaveStatsBull, 1, array.get(WaveStatsBear, 1) + 1)  // Bullish
+            else
+                array.set(WaveStatsBear, 1, array.get(WaveStatsBear, 1) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 1, false)
+
+        //AB=CD Alternate
+        if abEQcdAlt and time_ratio >= 1.272 * err_min and time_ratio <= 1.272 * err_max and price_ratio >= 1.272 * err_min and price_ratio <= 1.272 * err_max and abcdDirection != 0 or abEQcdAlt and time_ratio >= 1.618 * err_min and time_ratio <= 1.618 * err_max and price_ratio >= 1.618 * err_min and price_ratio <= 1.618 * err_max and abcdDirection != 0
+            abcd_pattern := true
+            array.set(WaveLabels, 2, true)
+            if dir > 0
+                array.set(WaveStatsBull, 2, array.get(WaveStatsBear, 2) + 1)  // Bullis
+            else
+                array.set(WaveStatsBear, 2, array.get(WaveStatsBear, 2) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 2, false)
+
+        //ABCD
+        if abcdClassic and abcRatio >= 0.618 * err_min and abcRatio <= 0.786 * err_max and bcdRatio >= 1.272 * err_min and bcdRatio <= 1.618 * err_max and abcdDirection != 0
+            abcd_pattern := true
+            array.set(WaveLabels, 11, true)
+            if dir > 0
+                array.set(WaveStatsBull, 11, array.get(WaveStatsBear, 11) + 1)  // Bullish
+            else
+                array.set(WaveStatsBear, 11, array.get(WaveStatsBear, 11) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 11, false)
+
+        //ABCD Ext.
+        if abcdExt and price_ratio >= 1.272 * err_min and price_ratio <= 1.618 * err_max and abcRatio >= 0.618 * err_min and abcRatio <= 0.786 * err_max and abcdDirection != 0
+            abcd_pattern := true
+            array.set(WaveLabels, 12, true)
+            if dir > 0
+                array.set(WaveStatsBull, 12, array.get(WaveStatsBear, 12) + 1)  // Bullish
+            else
+                array.set(WaveStatsBear, 12, array.get(WaveStatsBear, 12) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 12, false)
+
+        //Double Top/Bottom
+        if doubleBottomTop and (dDir == 1 and bDir == 2 and cDir == -1 or dDir == -1 and bDir == -2 and cDir == 1) 
+            bd_pattern := true
+            array.set(WaveLabels, 16, true)
+            if dir > 0
+                array.set(WaveStatsBull, 16, array.get(WaveStatsBear, 16) + 1)  // Bullish
+            else
+                array.set(WaveStatsBear, 16, array.get(WaveStatsBear, 16) + 1)  // Bearish
+        else
+            array.set(WaveLabels, 16, false)
+
+        //WaveLabel: X=0, A=1, B=2, C=3, D=4, Y=5
+        //WaveLines: X-A=0, A-B=1, B-C=2, C-D=3, Y-X=4, B-D=5
+        //WavePoints: X=0, A=1, B=2, C=3, D=4, Y=5
+        //WaveRatioLines: x-b=0, b-d=1, x-d=2, a-c=3, y-a=4
+        //WaveRatio: x-b=0, b-d=1, x-d=2, a-c=3, y-a=4
+
+        if bd_pattern[1] and b == b[1]
+            label.delete(array.get(WaveLabel, 0))
+            line.delete(array.get(WaveLines, 5))
+            label.delete(array.get(WavePoints, 2))
+            label.delete(array.get(WavePoints, 4))
+
+        if abcd_pattern[1] and a == a[1] and b == b[1] and c == c[1]
+            label.delete(array.get(WaveLabel, 0))
+            for i = 1 to 3 by 1
+                line.delete(array.get(WaveLines, i))
+            for i = 1 to 4 by 1
+                label.delete(array.get(WavePoints, i))
+
+            line.delete(array.get(WaveRatioLines, 1))
+            line.delete(array.get(WaveRatioLines, 3))
+            label.delete(array.get(WaveRatios, 1))
+            label.delete(array.get(WaveRatios, 3))
+
+            for i = 0 to 5 by 1
+                line.delete(array.get(WaveLevels, i))
+            for i = 0 to 5 by 1
+                label.delete(array.get(WaveLevellabels, i))
+
+        //if (xabcd_pattern[1] and x==x[1] and a==a[1] and b==b[1] and c==c[1])
+        if xabcd_pattern[1] and a == a[1] and b == b[1] and c == c[1]
+            label.delete(array.get(WaveLabel, 0))
+            for i = 0 to 3 by 1
+                line.delete(array.get(WaveLines, i))
+            for i = 0 to 4 by 1
+                label.delete(array.get(WavePoints, i))
+
+            for i = 0 to 3 by 1
+                line.delete(array.get(WaveRatioLines, i))
+            for i = 0 to 3 by 1
+                label.delete(array.get(WaveRatios, i))
+
+            for i = 0 to 5 by 1
+                line.delete(array.get(WaveLevels, i))
+            for i = 0 to 5 by 1
+                label.delete(array.get(WaveLevellabels, i))
+
+        //if (yxabcd_pattern[1] and y==y[1] and x==x[1] and a==a[1] and b==b[1] and c==c[1])
+        if yxabcd_pattern[1] and a == a[1] and b == b[1] and c == c[1]
+            label.delete(array.get(WaveLabel, 0))
+            for i = 0 to 4 by 1
+                line.delete(array.get(WaveLines, i))
+            for i = 0 to 5 by 1
+                label.delete(array.get(WavePoints, i))
+
+            for i = 0 to 1 by 1
+                line.delete(array.get(WaveRatioLines, i))
+            for i = 3 to 4 by 1
+                line.delete(array.get(WaveRatioLines, i))
+            for i = 0 to 1 by 1
+                label.delete(array.get(WaveRatios, i))
+            for i = 3 to 4 by 1
+                label.delete(array.get(WaveRatios, i))
+
+            for i = 0 to 5 by 1
+                line.delete(array.get(WaveLevels, i))
+            for i = 0 to 5 by 1
+                label.delete(array.get(WaveLevellabels, i))
+
+        if bd_pattern
+            array.set(WaveType, 0, dir)
+
+            // draw points
+            if dir > 0 //and (TradeDirection == 'long' or TradeDirection == 'all')  // Bullish
+                // draw main lines
+                if DrawLines == true
+                    bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                    array.set(WaveLines, 5, bd)
+                if DrawLetters == true
+                    point_b = label.new(x=bBar, y=b - math.abs((b - c) * 0.1), text='1', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_d = label.new(x=dBar, y=d - math.abs((b - c) * 0.1), text='2', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 2, point_b)
+                    array.set(WavePoints, 4, point_d)
+            if dir < 0 //and (TradeDirection == 'short' or TradeDirection == 'all')  // Bearish
+                // draw main lines
+                if DrawLines == true
+                    bd = line.new(y1=b, y2=d, x1=bBar, x2=dBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                    array.set(WaveLines, 5, bd)
+                if DrawLetters == true
+                    point_b = label.new(x=bBar, y=b + math.abs((b - c) * 0.2), text='1', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_d = label.new(x=dBar, y=d + math.abs((b - c) * 0.2), text='2', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 2, point_b)
+                    array.set(WavePoints, 4, point_d)
+
+        if abcd_pattern
+            array.set(WaveType, 0, dir)
+            if abEQcd == true
+                float xd_ycalc = 0.0000
+                if b < a
+                    xd_ycalc := math.abs(b - b * abandcddtargetratio / 100)
+                if b > a
+                    xd_ycalc := math.abs(b + b * abandcddtargetratio1 / 100)
+                ac = line.new(y1=a, y2=c, x1=aBar, x2=cBar, color=trendColor, width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, ac)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                //xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                //array.set(WaveLines, 0, xb)
+                abbc = linefill.new(ab, bc, color.new(trendColor, majorFillTransparency))
+                acbc = linefill.new(ac, bc, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bdbc = linefill.new(bd, bc, color.new(trendColor, majorFillTransparency))
+            if abcdClassic == true
+                float xd_ycalc = 0.0000
+                if b < a
+                    xd_ycalc := math.abs(b - b * abcddtargetratio / 100)
+                if b > a
+                    xd_ycalc := math.abs(b + b * abcddtargetratio1 / 100)
+                ac = line.new(y1=a, y2=c, x1=aBar, x2=cBar, color=trendColor, width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, ac)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                //xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                //array.set(WaveLines, 0, xb)
+                abbc = linefill.new(ab, bc, color.new(trendColor, majorFillTransparency))
+                acbc = linefill.new(ac, bc, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bdbc = linefill.new(bd, bc, color.new(trendColor, majorFillTransparency))
+            if dir > 0 //Bullish
+                // Draw main lines
+                if DrawLines == true
+                    fun_DrawLines_abcd(a, b, c, d, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)
+                // Draw points
+                if DrawLetters == true
+                    point_a = label.new(x=aBar, y=a + math.abs((b - c) * 0.1), text='A', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_b = label.new(x=bBar, y=b - math.abs((b - c) * 0.25), text='B', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_c = label.new(x=cBar, y=c + math.abs((b - c) * 0.1), text='C', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_d = label.new(x=dBar, y=d - math.abs((b - c) * 0.25), text='D', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 1, point_a)
+                    array.set(WavePoints, 2, point_b)
+                    array.set(WavePoints, 3, point_c)
+                    array.set(WavePoints, 4, point_d)
+                if DrawRatioAndLines == true
+                    fun_DrawRatioAndLines_abcd(a, b, c, d, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio)  // draw ratios and RatioLines 
+                if DrawTargetLevels == true
+                    fun_DrawTarget(c, d, dBar, levelSL, levelD, levelT1, levelT2, levelT3, levelT4, WaveLevels, WaveLevellabels, levelWidth)  // call function
+
+            if dir < 0 //Bearisch
+                // Draw main lines
+                if DrawLines == true
+                    fun_DrawLines_abcd(a, b, c, d, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)
+                if DrawLetters == true
+                    point_a = label.new(x=aBar, y=a - math.abs((b - c) * 0.25), text='A', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_b = label.new(x=bBar, y=b + math.abs((b - c) * 0.1), text='B', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_c = label.new(x=cBar, y=c - math.abs((b - c) * 0.25), text='C', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_d = label.new(x=dBar, y=d + math.abs((b - c) * 0.1), text='D', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 1, point_a)
+                    array.set(WavePoints, 2, point_b)
+                    array.set(WavePoints, 3, point_c)
+                    array.set(WavePoints, 4, point_d)
+                if DrawRatioAndLines == true
+                    fun_DrawRatioAndLines_abcd(a, b, c, d, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio)  // draw ratios and RatioLines 
+                if DrawTargetLevels == true
+                    fun_DrawTarget(c, d, dBar, levelSL, levelD, levelT1, levelT2, levelT3, levelT4, WaveLevels, WaveLevellabels, levelWidth)  // call function
+
+        if xabcd_pattern
+            array.set(WaveType, 0, dir)
+            if bat == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x + x * batdtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x - x * batdtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if batAlt == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x - x * bataltdtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x + x * bataltdtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if butterfly == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x - x * butterflydtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x + x * butterflydtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if crab == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x - x * crabdtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x + x * crabdtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if DeepCrab == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x - x * DeepCrabdtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x + x * DeepCrabdtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if Gartley == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x + x * Gartleydtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x - x * Gartleydtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if Cypher == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x + x * cypherdtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x - x * cypherdtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if NenStar == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x - x * nenstardtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x + x * nenstardtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+            if Shark == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(x + x * Sharkdtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(x - x * Sharkdtargetratio1 / 100)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+
+            if dir > 0 // Bullish
+                if DrawLines == true
+                    fun_DrawLines_xabcd(x, a, b, c, d, xBar, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)
+                if DrawLetters == true
+                    point_x = label.new(x=xBar, y=x - math.abs((b - c) * 0.2), text='X', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_a = label.new(x=aBar, y=a + math.abs((b - c) * 0.1), text='A', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_b = label.new(x=bBar, y=b - math.abs((b - c) * 0.2), text='B', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_c = label.new(x=cBar, y=c + math.abs((b - c) * 0.1), text='C', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_d = label.new(x=dBar, y=d - math.abs((b - c) * 0.2), text='D', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 0, point_x)
+                    array.set(WavePoints, 1, point_a)
+                    array.set(WavePoints, 2, point_b)
+                    array.set(WavePoints, 3, point_c)
+                    array.set(WavePoints, 4, point_d)
+                if DrawRatioAndLines == true
+                    fun_DrawRatioAndLines_xabcd(x, a, b, c, d, xBar, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio)  // draw ratios and lines
+                if DrawTargetLevels == true
+                    fun_DrawTarget(c, d, dBar, levelSL, levelD, levelT1, levelT2, levelT3, levelT4, WaveLevels, WaveLevellabels, levelWidth)  // call function
+
+            if dir < 0 // Bearisch
+                // draw lines
+                if DrawLines == true
+                    fun_DrawLines_xabcd(x, a, b, c, d, xBar, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)
+                if DrawLetters == true
+                    point_x = label.new(x=xBar, y=x + math.abs((b - c) * 0.1), text='X', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_a = label.new(x=aBar, y=a - math.abs((b - c) * 0.2), text='A', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_b = label.new(x=bBar, y=b + math.abs((b - c) * 0.1), text='B', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_c = label.new(x=cBar, y=c - math.abs((b - c) * 0.2), text='C', textcolor=trendColor, size=size.large, style=label.style_none)
+                    point_d = label.new(x=dBar, y=d + math.abs((b - c) * 0.1), text='D', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 0, point_x)
+                    array.set(WavePoints, 1, point_a)
+                    array.set(WavePoints, 2, point_b)
+                    array.set(WavePoints, 3, point_c)
+                    array.set(WavePoints, 4, point_d)
+                if DrawRatioAndLines == true
+                    fun_DrawRatioAndLines_xabcd(x, a, b, c, d, xBar, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio)  // draw ratios and lines
+                if DrawTargetLevels == true
+                    fun_DrawTarget(c, d, dBar, levelSL, levelD, levelT1, levelT2, levelT3, levelT4, WaveLevels, WaveLevellabels, levelWidth)  // call function
+
+        if yxabcd_pattern
+            array.set(WaveType, 0, dir)
+            if fiveZero == true
+                float xd_ycalc = 0.0000
+                if x < a
+                    xd_ycalc := math.abs(b + b * fivezerodtargetratio / 100)
+                if x > a
+                    xd_ycalc := math.abs(b - b * fivezerodtargetratio1 / 100)
+                yx = line.new(y1=y, y2=x, x1=yBar, x2=xBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, yx)
+                xa = line.new(y1=x, y2=a, x1=xBar, x2=aBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 0, xa)
+                ab = line.new(y1=a, y2=b, x1=aBar, x2=bBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 1, ab)
+                bc = line.new(y1=b, y2=c, x1=bBar, x2=cBar, color=trendColor, width=WaveWidth, style=WaveLineStyle)
+                array.set(WaveLines, 2, bc)
+                bd = line.new(y1=b, y2=xd_ycalc, x1=bBar, x2=dBar + levelWidth, color=color.new(trendColor, bdFillTransparency), width=RatioLineWidth, style=line.style_dashed)
+                array.set(WaveLines, 1, bd)
+                cd = line.new(y1=c, y2=xd_ycalc, x1=cBar, x2=dBar + levelWidth, color=color.new(trendColor, cdFillTransparency), width=WaveWidth, style=line.style_dashed)
+                array.set(WaveLines, 3, cd)
+                cdt = line.new(y1=xd_ycalc, y2=xd_ycalc, x1=dBar, x2=dBar + levelWidth, color=trendColor, width=1, style=line.style_dotted)
+                xb = line.new(y1=x, y2=b, x1=xBar, x2=bBar, color=RatioColor, width=RatioLineWidth, style=RatioLineStyle)
+                array.set(WaveLines, 0, xb)
+                xaab = linefill.new(xa, ab, color.new(trendColor, majorFillTransparency))
+                xbab = linefill.new(xb, ab, color.new(trendColor, majorFillTransparency))
+                bccd = linefill.new(bc, cd, color.new(trendColor, majorFillTransparency))
+                bcbd = linefill.new(bc, bd, color.new(trendColor, majorFillTransparency))
+
+            // draw points
+            if dir > 0 // Bullish
+                if DrawLines == true
+                    fun_DrawLines_yxabcd(y, x, a, b, c, d, yBar, xBar, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)  // draw lines
+                if DrawLetters == true
+                    point_y = label.new(x=yBar, y=y + math.abs((b - c) * 0.1), text='Y', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 5, point_y)
+                    point_x = label.new(x=xBar, y=x - math.abs((b - c) * 0.2), text='X', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 0, point_x)
+                    point_a = label.new(x=aBar, y=a + math.abs((b - c) * 0.1), text='A', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 1, point_a)
+                    point_b = label.new(x=bBar, y=b - math.abs((b - c) * 0.2), text='B', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 2, point_b)
+                    point_c = label.new(x=cBar, y=c + math.abs((b - c) * 0.1), text='C', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 3, point_c)
+                    point_d = label.new(x=dBar, y=d - math.abs((b - c) * 0.2), text='D', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 4, point_d)
+                if DrawRatioAndLines == true
+                    fun_DrawRatioAndLines_yxabcd(y, x, a, b, c, d, yBar, xBar, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio)  // draw RatioLines
+                if DrawTargetLevels == true
+                    fun_DrawTarget(c, d, dBar, levelSL, levelD, levelT1, levelT2, levelT3, levelT4, WaveLevels, WaveLevellabels, levelWidth)  // call function
+
+            if dir < 0 // Bearisch
+                if DrawLines == true
+                    fun_DrawLines_yxabcd(y, x, a, b, c, d, yBar, xBar, aBar, bBar, cBar, dBar, trendColor, WaveWidth, WaveLineStyle, WaveLines)  // draw lines
+                if DrawLetters == true
+                    point_y = label.new(x=yBar, y=y - math.abs((b - c) * 0.2), text='Y', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 5, point_y)
+                    point_x = label.new(x=xBar, y=x + math.abs((b - c) * 0.1), text='X', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 0, point_x)
+                    point_a = label.new(x=aBar, y=a - math.abs((b - c) * 0.2), text='A', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 1, point_a)
+                    point_b = label.new(x=bBar, y=b + math.abs((b - c) * 0.1), text='B', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 2, point_b)
+                    point_c = label.new(x=cBar, y=c - math.abs((b - c) * 0.2), text='C', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 3, point_c)
+                    point_d = label.new(x=dBar, y=d + math.abs((b - c) * 0.1), text='D', textcolor=trendColor, size=size.large, style=label.style_none)
+                    array.set(WavePoints, 4, point_d)
+                if DrawRatioAndLines == true
+                    fun_DrawRatioAndLines_yxabcd(y, x, a, b, c, d, yBar, xBar, aBar, bBar, cBar, dBar, RatioColor, RatioLineWidth, RatioLineStyle, WaveRatioLines, WaveRatios, xabRatio, abcRatio, bcdRatio, xadRatio, yxaRatio)  // draw RatioLines
+                if DrawTargetLevels == true
+                    fun_DrawTarget(c, d, dBar, levelSL, levelD, levelT1, levelT2, levelT3, levelT4, WaveLevels, WaveLevellabels, levelWidth)  // call function
+
+        if bd_pattern or abcd_pattern or xabcd_pattern or yxabcd_pattern
+
+            if DrawPatternNames == true
+                array.set(WaveLabel, 0, fun_get_label(WaveLabels, dir, d, dBar))
+
+            
+
+    pattern = bd_pattern and not bd_pattern[1] or abcd_pattern and not abcd_pattern[1] or xabcd_pattern and not xabcd_pattern[1] or yxabcd_pattern and not yxabcd_pattern[1]
+    pattern
+
+//for i = 1 to WaveCount
+    //fun_(("Wave"+tostring(i)+"Length"), ("WavePivots"+tostring(i)), ("WavePivotBars"+tostring(i)), ("WavePivotDirs"+tostring(i)))
+
+fun_Wave(Wave1Length, WavePivots1, WavePivotBars1, WavePivotDirs1)
+fun_Wave(Wave2Length, WavePivots2, WavePivotBars2, WavePivotDirs2)
+fun_Wave(Wave3Length, WavePivots3, WavePivotBars3, WavePivotDirs3)
+fun_Wave(Wave4Length, WavePivots4, WavePivotBars4, WavePivotDirs4)
+fun_Wave(Wave5Length, WavePivots5, WavePivotBars5, WavePivotDirs5)
+fun_Wave(Wave6Length, WavePivots6, WavePivotBars6, WavePivotDirs6)
+
+xabcd_pattern1 = fun_detect_pattern(WavePivots1, WavePivotBars1, WavePivotDirs1, WaveLines1, WaveLabel1, WaveType1, WaveLabels1, WavePoints1, WaveRatioLines1, WaveRatios1, WaveLevels1, WaveLevelLabels1, DrawWave1)
+xabcd_pattern2 = fun_detect_pattern(WavePivots2, WavePivotBars2, WavePivotDirs2, WaveLines2, WaveLabel2, WaveType2, WaveLabels2, WavePoints2, WaveRatioLines2, WaveRatios2, WaveLevels2, WaveLevelLabels2, DrawWave2)
+xabcd_pattern3 = fun_detect_pattern(WavePivots3, WavePivotBars3, WavePivotDirs3, WaveLines3, WaveLabel3, WaveType3, WaveLabels3, WavePoints3, WaveRatioLines3, WaveRatios3, WaveLevels3, WaveLevelLabels3, DrawWave3)
+xabcd_pattern4 = fun_detect_pattern(WavePivots4, WavePivotBars4, WavePivotDirs4, WaveLines4, WaveLabel4, WaveType4, WaveLabels4, WavePoints4, WaveRatioLines4, WaveRatios4, WaveLevels4, WaveLevelLabels4, DrawWave4)
+xabcd_pattern5 = fun_detect_pattern(WavePivots5, WavePivotBars5, WavePivotDirs5, WaveLines5, WaveLabel5, WaveType5, WaveLabels5, WavePoints5, WaveRatioLines5, WaveRatios5, WaveLevels5, WaveLevelLabels5, DrawWave5)
+xabcd_pattern6 = fun_detect_pattern(WavePivots6, WavePivotBars6, WavePivotDirs6, WaveLines6, WaveLabel6, WaveType6, WaveLabels6, WavePoints6, WaveRatioLines6, WaveRatios6, WaveLevels6, WaveLevelLabels6, DrawWave6)
+
+
+
+
+

@@ -1,0 +1,390 @@
+////
+//@version=5
+indicator( title = "NSE Option Chain" , overlay = true )
+
+
+
+spot = input.string ('BANKNIFTY', options = ['NIFTY' , 'BANKNIFTY' , 'NIFTYMIDCAP50' ,'CNXFINANCE'] , title = "Spot Symbol" )                                    
+spot_request = request.security(spot, timeframe.period, close)
+//spot = input.symbol ( "BANKNIFTY" , title = "Spot Symbol" )
+strike_interval = input.int ( 100 , title = "Strike Interval" )
+strike_number = 19 
+_day = input.string ( "27" , title = "Exp Day", inline="s1" )
+_month = input.string ( "03" , title = "M" , inline="s1")
+_year = input.string ( "24" , title = "Y" , inline="s1")
+ 
+spot_close = request.security( spot , timeframe.period , close ) 
+
+spot_atm = input.int ( 46500 , title = "Reference ATM Strike" ) 
+no_of_strike = input.int ( 10 , title = "No. of Strikes" )
+dashboard_loc = input.string( "top_right" , title = "Dashboard Location" , options = ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"])
+
+lay1 = input.bool ( false , title = "Colored Layout" , group = "Layout" )
+lay2 = input.bool ( true , title = "Plane Layout" , group = "Layout" )
+font = input.string ( "Small" , title = "Font Size" , options = [ "Tiny", "Small", "Normal", "Large", "Huge" ]  , group = "Layout" )
+
+
+
+real_atm = ( math.round ( spot_close / strike_interval ) ) * strike_interval
+
+screener_func() =>
+    
+
+    [ close , close-close[1] , ((close-close[1])/close[1])*100 ]
+    
+
+
+
+strike_arr  = array.new_int(0)
+
+call_ltp_arr  = array.new_float(0)
+call_chg_arr  = array.new_float(0)
+call_chg_per_arr  = array.new_float(0)
+
+put_ltp_arr  = array.new_float(0)
+put_chg_arr  = array.new_float(0)
+put_chg_per_arr  = array.new_float(0)
+
+
+
+
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 0*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 1*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 2*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 3*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 4*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 5*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 6*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 7*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 8*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 9*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 10*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 11*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 12*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 13*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 14*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 15*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 16*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 17*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 18*strike_interval)  )
+array.push(strike_arr, ((spot_atm+(math.round(strike_number/2)*strike_interval)) - 19*strike_interval)  )
+
+
+
+[ call_close01 , call_chg01 , call_chg_per01 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 0*strike_interval)) , "D" , screener_func() ) )
+[ call_close02 , call_chg02 , call_chg_per02 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 1*strike_interval)) , "D" , screener_func() ) )
+[ call_close03 , call_chg03 , call_chg_per03 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 2*strike_interval)) , "D" , screener_func() ) )
+[ call_close04 , call_chg04 , call_chg_per04 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 3*strike_interval)) , "D" , screener_func() ) )
+[ call_close05 , call_chg05 , call_chg_per05 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 4*strike_interval)) , "D" , screener_func() ) )
+[ call_close06 , call_chg06 , call_chg_per06 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 5*strike_interval)) , "D" , screener_func() ) )
+[ call_close07 , call_chg07 , call_chg_per07 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 6*strike_interval)) , "D" , screener_func() ) )
+[ call_close08 , call_chg08 , call_chg_per08 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 7*strike_interval)) , "D" , screener_func() ) )
+[ call_close09 , call_chg09 , call_chg_per09 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 8*strike_interval)) , "D" , screener_func() ) )
+[ call_close10 , call_chg10 , call_chg_per10 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 9*strike_interval)) , "D" , screener_func() ) )
+[ call_close11 , call_chg11 , call_chg_per11 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 10*strike_interval)) , "D" , screener_func() ) )
+[ call_close12 , call_chg12 , call_chg_per12 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 11*strike_interval)) , "D" , screener_func() ) )
+[ call_close13 , call_chg13 , call_chg_per13 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 12*strike_interval)) , "D" , screener_func() ) )
+[ call_close14 , call_chg14 , call_chg_per14 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 13*strike_interval)) , "D" , screener_func() ) )
+[ call_close15 , call_chg15 , call_chg_per15 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 14*strike_interval)) , "D" , screener_func() ) )
+[ call_close16 , call_chg16 , call_chg_per16 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 15*strike_interval)) , "D" , screener_func() ) )
+[ call_close17 , call_chg17 , call_chg_per17 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 16*strike_interval)) , "D" , screener_func() ) )
+[ call_close18 , call_chg18 , call_chg_per18 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 17*strike_interval)) , "D" , screener_func() ) )
+[ call_close19 , call_chg19 , call_chg_per19 ] = ( request.security( spot+_year+_month+_day+"C"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 18*strike_interval)) , "D" , screener_func() ) )
+
+
+
+array.push(call_ltp_arr, call_close01 )
+array.push(call_ltp_arr, call_close02 )
+array.push(call_ltp_arr, call_close03 )
+array.push(call_ltp_arr, call_close04 )
+array.push(call_ltp_arr, call_close05 )
+array.push(call_ltp_arr, call_close06 )
+array.push(call_ltp_arr, call_close07 )
+array.push(call_ltp_arr, call_close08 )
+array.push(call_ltp_arr, call_close09 )
+array.push(call_ltp_arr, call_close10 )
+array.push(call_ltp_arr, call_close11 )
+array.push(call_ltp_arr, call_close12 )
+array.push(call_ltp_arr, call_close13 )
+array.push(call_ltp_arr, call_close14 )
+array.push(call_ltp_arr, call_close15 )
+array.push(call_ltp_arr, call_close16 )
+array.push(call_ltp_arr, call_close17 )
+array.push(call_ltp_arr, call_close18 )
+array.push(call_ltp_arr, call_close19 )
+
+array.push(call_chg_arr, call_chg01 )
+array.push(call_chg_arr, call_chg02 )
+array.push(call_chg_arr, call_chg03 )
+array.push(call_chg_arr, call_chg04 )
+array.push(call_chg_arr, call_chg05 )
+array.push(call_chg_arr, call_chg06 )
+array.push(call_chg_arr, call_chg07 )
+array.push(call_chg_arr, call_chg08 )
+array.push(call_chg_arr, call_chg09 )
+array.push(call_chg_arr, call_chg10 )
+array.push(call_chg_arr, call_chg11 )
+array.push(call_chg_arr, call_chg12 )
+array.push(call_chg_arr, call_chg13 )
+array.push(call_chg_arr, call_chg14 )
+array.push(call_chg_arr, call_chg15 )
+array.push(call_chg_arr, call_chg16 )
+array.push(call_chg_arr, call_chg17 )
+array.push(call_chg_arr, call_chg18 )
+array.push(call_chg_arr, call_chg19 )
+
+array.push(call_chg_per_arr, call_chg_per01 )
+array.push(call_chg_per_arr, call_chg_per02 )
+array.push(call_chg_per_arr, call_chg_per03 )
+array.push(call_chg_per_arr, call_chg_per04 )
+array.push(call_chg_per_arr, call_chg_per05 )
+array.push(call_chg_per_arr, call_chg_per06 )
+array.push(call_chg_per_arr, call_chg_per07 )
+array.push(call_chg_per_arr, call_chg_per08 )
+array.push(call_chg_per_arr, call_chg_per09 )
+array.push(call_chg_per_arr, call_chg_per10 )
+array.push(call_chg_per_arr, call_chg_per11 )
+array.push(call_chg_per_arr, call_chg_per12 )
+array.push(call_chg_per_arr, call_chg_per13 )
+array.push(call_chg_per_arr, call_chg_per14 )
+array.push(call_chg_per_arr, call_chg_per15 )
+array.push(call_chg_per_arr, call_chg_per16 )
+array.push(call_chg_per_arr, call_chg_per17 )
+array.push(call_chg_per_arr, call_chg_per18 )
+array.push(call_chg_per_arr, call_chg_per19 )
+
+
+[ put_close01 , put_chg01 , put_chg_per01 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 0*strike_interval)) , "D" , screener_func() ) )
+[ put_close02 , put_chg02 , put_chg_per02 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 1*strike_interval)) , "D" , screener_func() ) )
+[ put_close03 , put_chg03 , put_chg_per03 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 2*strike_interval)) , "D" , screener_func() ) )
+[ put_close04 , put_chg04 , put_chg_per04 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 3*strike_interval)) , "D" , screener_func() ) )
+[ put_close05 , put_chg05 , put_chg_per05 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 4*strike_interval)) , "D" , screener_func() ) )
+[ put_close06 , put_chg06 , put_chg_per06 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 5*strike_interval)) , "D" , screener_func() ) )
+[ put_close07 , put_chg07 , put_chg_per07 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 6*strike_interval)) , "D" , screener_func() ) )
+[ put_close08 , put_chg08 , put_chg_per08 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 7*strike_interval)) , "D" , screener_func() ) )
+[ put_close09 , put_chg09 , put_chg_per09 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 8*strike_interval)) , "D" , screener_func() ) )
+[ put_close10 , put_chg10 , put_chg_per10 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 9*strike_interval)) , "D" , screener_func() ) )
+[ put_close11 , put_chg11 , put_chg_per11 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 10*strike_interval)) , "D" , screener_func() ) )
+[ put_close12 , put_chg12 , put_chg_per12 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 11*strike_interval)) , "D" , screener_func() ) )
+[ put_close13 , put_chg13 , put_chg_per13 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 12*strike_interval)) , "D" , screener_func() ) )
+[ put_close14 , put_chg14 , put_chg_per14 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 13*strike_interval)) , "D" , screener_func() ) )
+[ put_close15 , put_chg15 , put_chg_per15 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 14*strike_interval)) , "D" , screener_func() ) )
+[ put_close16 , put_chg16 , put_chg_per16 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 15*strike_interval)) , "D" , screener_func() ) )
+[ put_close17 , put_chg17 , put_chg_per17 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 16*strike_interval)) , "D" , screener_func() ) )
+[ put_close18 , put_chg18 , put_chg_per18 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 17*strike_interval)) , "D" , screener_func() ) )
+[ put_close19 , put_chg19 , put_chg_per19 ] = ( request.security( spot+_year+_month+_day+"P"+str.tostring(((spot_atm+(math.round(strike_number/2)*strike_interval)) - 18*strike_interval)) , "D" , screener_func() ) )
+
+
+
+array.push(put_ltp_arr, put_close01 )
+array.push(put_ltp_arr, put_close02 )
+array.push(put_ltp_arr, put_close03 )
+array.push(put_ltp_arr, put_close04 )
+array.push(put_ltp_arr, put_close05 )
+array.push(put_ltp_arr, put_close06 )
+array.push(put_ltp_arr, put_close07 )
+array.push(put_ltp_arr, put_close08 )
+array.push(put_ltp_arr, put_close09 )
+array.push(put_ltp_arr, put_close10 )
+array.push(put_ltp_arr, put_close11 )
+array.push(put_ltp_arr, put_close12 )
+array.push(put_ltp_arr, put_close13 )
+array.push(put_ltp_arr, put_close14 )
+array.push(put_ltp_arr, put_close15 )
+array.push(put_ltp_arr, put_close16 )
+array.push(put_ltp_arr, put_close17 )
+array.push(put_ltp_arr, put_close18 )
+array.push(put_ltp_arr, put_close19 )
+
+array.push(put_chg_arr, put_chg01 )
+array.push(put_chg_arr, put_chg02 )
+array.push(put_chg_arr, put_chg03 )
+array.push(put_chg_arr, put_chg04 )
+array.push(put_chg_arr, put_chg05 )
+array.push(put_chg_arr, put_chg06 )
+array.push(put_chg_arr, put_chg07 )
+array.push(put_chg_arr, put_chg08 )
+array.push(put_chg_arr, put_chg09 )
+array.push(put_chg_arr, put_chg10 )
+array.push(put_chg_arr, put_chg11 )
+array.push(put_chg_arr, put_chg12 )
+array.push(put_chg_arr, put_chg13 )
+array.push(put_chg_arr, put_chg14 )
+array.push(put_chg_arr, put_chg15 )
+array.push(put_chg_arr, put_chg16 )
+array.push(put_chg_arr, put_chg17 )
+array.push(put_chg_arr, put_chg18 )
+array.push(put_chg_arr, put_chg19 )
+
+array.push(put_chg_per_arr, put_chg_per01 )
+array.push(put_chg_per_arr, put_chg_per02 )
+array.push(put_chg_per_arr, put_chg_per03 )
+array.push(put_chg_per_arr, put_chg_per04 )
+array.push(put_chg_per_arr, put_chg_per05 )
+array.push(put_chg_per_arr, put_chg_per06 )
+array.push(put_chg_per_arr, put_chg_per07 )
+array.push(put_chg_per_arr, put_chg_per08 )
+array.push(put_chg_per_arr, put_chg_per09 )
+array.push(put_chg_per_arr, put_chg_per10 )
+array.push(put_chg_per_arr, put_chg_per11 )
+array.push(put_chg_per_arr, put_chg_per12 )
+array.push(put_chg_per_arr, put_chg_per13 )
+array.push(put_chg_per_arr, put_chg_per14 )
+array.push(put_chg_per_arr, put_chg_per15 )
+array.push(put_chg_per_arr, put_chg_per16 )
+array.push(put_chg_per_arr, put_chg_per17 )
+array.push(put_chg_per_arr, put_chg_per18 )
+array.push(put_chg_per_arr, put_chg_per19 )
+
+
+//
+color_up = input.color ( color.rgb(86, 235, 88) , title = "Up Color" , group ="Colors" )
+color_dn = input.color ( color.rgb(244, 175, 91) , title = "Down Color" , group ="Colors" )
+color_ltp = input.color ( color.rgb(200, 213, 243) , title = "LTP Color" , group ="Colors" )
+color_strike = input.color ( color.rgb(214, 244, 40) , title = "Strike Color" , group ="Colors" )
+
+
+var table_position = dashboard_loc == 'top_left' ? position.top_left :
+  dashboard_loc == 'top_center' ? position.top_center :
+  dashboard_loc == 'top_right' ? position.top_right :
+  dashboard_loc == 'middle_left' ? position.middle_left :
+  dashboard_loc == 'middle_center' ? position.middle_center :
+  dashboard_loc == 'middle_right' ? position.middle_right :
+  dashboard_loc == 'bottom_left' ? position.bottom_left :
+  dashboard_loc == 'bottom_center' ? position.bottom_center : position.bottom_right
+
+font_size = font == "Tiny" ? size.tiny : font == "Small" ? size.small : font == "Normal" ? size.normal : font == "Large" ? size.large : size.huge 
+font_size_atm = font == "Tiny" ? size.small : font == "Small" ? size.normal : font == "Normal" ? size.large : size.huge 
+
+
+var tbl = table.new(table_position, 21, 41 , bgcolor = color.black , frame_color=color.black, frame_width=2, border_width=2, border_color=color.black)
+
+if ( lay1 )
+    if barstate.islast
+
+        table.cell(tbl, 1, 0, syminfo.ticker + " " + '| 𝗢𝗣𝗧𝗜𝗢𝗡 𝗖𝗛𝗔𝗜𝗡 |   𝗘𝘅𝗽 '+ _day + "-"+_month+"-"+_year,     text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)   
+        // table.cell(tbl, 0, 1, '𝗖𝗘 %',     text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)
+        table.cell(tbl, 1, 1, '𝗖𝗘 𝗖𝗵𝗴',      text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)
+        table.cell(tbl, 2, 1, '𝗖𝗘 𝗟𝘁𝗽',     text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)   
+        table.cell(tbl, 3, 1, '𝗦𝘁𝗿𝗶𝗸𝗲',     text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)
+        table.cell(tbl, 4, 1, '𝗣𝗘 𝗟𝘁𝗽',      text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)
+        table.cell(tbl, 5, 1, '𝗣𝗘 𝗖𝗵𝗴',     text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)   
+        // table.cell(tbl, 6, 1, '𝗣𝗘 %',     text_halign = text.align_center, bgcolor = color.rgb(169, 177, 185), text_color = color.rgb(7, 6, 6), text_size = font_size)   
+
+
+        table.merge_cells(tbl, 1, 0, 5, 0)
+
+        u = 0 
+        for i = ((array.get(strike_arr, 0)-real_atm)/strike_interval)-math.round(no_of_strike/2) to (((array.get(strike_arr, 0)-real_atm)/strike_interval)-math.round(no_of_strike/2)) + math.round(no_of_strike)
+
+            if ( real_atm == array.get(strike_arr, i) )
+
+                // table.cell(tbl, 0 , u+2 ,  str.tostring(math.round(array.get(call_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = array.get(call_chg_per_arr, i) > 0 ? color_up : color_dn , text_color = color.rgb(7, 6, 6), text_size = size.large  )
+
+                table.cell(tbl, 1 , u+2 ,  str.tostring(math.round(array.get(call_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = array.get(call_chg_arr, i) > 0 ? color_up : color_dn, text_color = color.rgb(7, 6, 6), text_size = font_size_atm )
+
+                table.cell(tbl, 2 , u+2 ,  str.tostring(math.round(array.get(call_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color_ltp , text_color = color.rgb(7, 6, 6), text_size = font_size_atm)
+
+                table.cell(tbl, 3 , u+2 , str.tostring(array.get(strike_arr, i)),  text_halign = text.align_center,   bgcolor = color_strike , text_color = color.rgb(7, 6, 6), text_size = font_size_atm)
+                
+                table.cell(tbl, 4 , u+2 ,  str.tostring(math.round(array.get(put_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color_ltp, text_color = color.rgb(7, 6, 6), text_size = font_size_atm )
+
+                table.cell(tbl, 5 , u+2 ,  str.tostring(math.round(array.get(put_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = array.get(put_chg_arr, i) > 0 ? color_up : color_dn, text_color = color.rgb(7, 6, 6), text_size = font_size_atm )
+
+                // table.cell(tbl, 6 , u+2 ,  str.tostring(math.round(array.get(put_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = array.get(put_chg_per_arr, i) > 0 ? color_up : color_dn, text_color = color.rgb(7, 6, 6), text_size = size.large )
+
+                u := u + 1
+
+            else
+
+                // table.cell(tbl, 0 , u+2 ,  str.tostring(math.round(array.get(call_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = array.get(call_chg_per_arr, i) > 0 ? color_up : color_dn , text_color = color.rgb(7, 6, 6), text_size = size.normal  )
+
+                table.cell(tbl, 1 , u+2 ,  str.tostring(math.round(array.get(call_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = array.get(call_chg_arr, i) > 0 ? color_up : color_dn, text_color = color.rgb(7, 6, 6), text_size = font_size )
+
+                table.cell(tbl, 2 , u+2 ,  str.tostring(math.round(array.get(call_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color_ltp , text_color = color.rgb(7, 6, 6), text_size = font_size_atm )
+
+                table.cell(tbl, 3 , u+2 , str.tostring(array.get(strike_arr, i)),  text_halign = text.align_center,   bgcolor = color_strike , text_color = color.rgb(7, 6, 6), text_size = font_size )
+                
+                table.cell(tbl, 4 , u+2 ,  str.tostring(math.round(array.get(put_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color_ltp, text_color = color.rgb(7, 6, 6), text_size = font_size_atm)
+
+                table.cell(tbl, 5 , u+2 ,  str.tostring(math.round(array.get(put_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = array.get(put_chg_arr, i) > 0 ? color_up : color_dn, text_color = color.rgb(7, 6, 6), text_size = font_size )
+
+                // table.cell(tbl, 6 , u+2 ,  str.tostring(math.round(array.get(put_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = array.get(put_chg_per_arr, i) > 0 ? color_up : color_dn, text_color = color.rgb(7, 6, 6), text_size = size.normal )
+
+                u := u + 1
+
+else
+    if barstate.islast
+
+        table.cell(tbl, 1, 0, syminfo.ticker + " " + '| 𝗢𝗣𝗧𝗜𝗢𝗡 𝗖𝗛𝗔𝗜𝗡 |   𝗘𝘅𝗽 '+ _day + "-"+_month+"-"+_year,     text_halign = text.align_center, bgcolor = na , text_color = color.white, text_size = font_size )   
+        // table.cell(tbl, 0, 1, '𝗖𝗘 %',     text_halign = text.align_center, bgcolor = na , text_color = color.white, text_size = size.normal)
+        table.cell(tbl, 1, 1, '𝗖𝗘 𝗖𝗵𝗴',      text_halign = text.align_center, bgcolor = na, text_color = color.white, text_size = font_size)
+        table.cell(tbl, 2, 1, '𝗖𝗘 𝗟𝘁𝗽',     text_halign = text.align_center, bgcolor = na, text_color = color.white, text_size = font_size)   
+        table.cell(tbl, 3, 1, '𝗦𝘁𝗿𝗶𝗸𝗲',     text_halign = text.align_center, bgcolor = na, text_color = color.white, text_size = font_size)
+        table.cell(tbl, 4, 1, '𝗣𝗘 𝗟𝘁𝗽',      text_halign = text.align_center, bgcolor = na, text_color = color.white, text_size = font_size)
+        table.cell(tbl, 5, 1, '𝗣𝗘 𝗖𝗵𝗴',     text_halign = text.align_center, bgcolor = na , text_color = color.white, text_size = font_size)   
+        // table.cell(tbl, 6, 1, '𝗣𝗘 %',     text_halign = text.align_center, bgcolor = na , text_color = color.white, text_size = size.normal)   
+
+
+        table.merge_cells(tbl, 1, 0, 5, 0)
+
+        u = 0 
+        for i = ((array.get(strike_arr, 0)-real_atm)/strike_interval)-math.round(no_of_strike/2) to (((array.get(strike_arr, 0)-real_atm)/strike_interval)-math.round(no_of_strike/2)) + math.round(no_of_strike)
+
+            if ( real_atm == array.get(strike_arr, i) )
+
+                // table.cell(tbl, 0 , u+2 ,  str.tostring(math.round(array.get(call_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = color.rgb(164, 162, 121) , text_color = color.white, text_size = size.large  )
+
+                table.cell(tbl, 1 , u+2 ,  str.tostring(math.round(array.get(call_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(164, 162, 121), text_color = color.white, text_size = font_size_atm )
+
+                table.cell(tbl, 2 , u+2 ,  str.tostring(math.round(array.get(call_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(164, 162, 121) , text_color = color.white , text_size = font_size_atm )
+
+                table.cell(tbl, 3 , u+2 , str.tostring(array.get(strike_arr, i)),  text_halign = text.align_center,   bgcolor = color.rgb(164, 162, 121) , text_color = color.white, text_size = font_size_atm )
+                
+                table.cell(tbl, 4 , u+2 ,  str.tostring(math.round(array.get(put_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(164, 162, 121), text_color = color.white, text_size = font_size_atm )
+
+                table.cell(tbl, 5 , u+2 ,  str.tostring(math.round(array.get(put_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(164, 162, 121), text_color = color.white, text_size = font_size_atm )
+
+                // table.cell(tbl, 6 , u+2 ,  str.tostring(math.round(array.get(put_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = color.rgb(164, 162, 121) , text_color = color.white, text_size = size.large )
+
+                u := u + 1
+
+            else
+
+                if ( real_atm >= array.get(strike_arr, i) )
+
+                    // table.cell(tbl, 0 , u+2 ,  str.tostring(math.round(array.get(call_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = na , text_color = color.white, text_size = size.normal  )
+
+                    table.cell(tbl, 1 , u+2 ,  str.tostring(math.round(array.get(call_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = na   , text_color = color.white, text_size = font_size )
+
+                    table.cell(tbl, 2 , u+2 ,  str.tostring(math.round(array.get(call_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = na  , text_color = color.white, text_size = font_size_atm )
+
+                    table.cell(tbl, 3 , u+2 , str.tostring(array.get(strike_arr, i)),  text_halign = text.align_center,   bgcolor = color.rgb(106, 79, 126)  , text_color = color.white, text_size = font_size )
+                    
+                    table.cell(tbl, 4 , u+2 ,  str.tostring(math.round(array.get(put_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(138, 140, 145) , text_color = color.white, text_size = font_size_atm )
+
+                    table.cell(tbl, 5 , u+2 ,  str.tostring(math.round(array.get(put_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(138, 140, 145)  , text_color = color.white, text_size = font_size )
+
+                    // table.cell(tbl, 6 , u+2 ,  str.tostring(math.round(array.get(put_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = color.rgb(138, 140, 145) , text_color = color.white, text_size = size.normal )
+
+                    u := u + 1
+
+                else
+
+                    // table.cell(tbl, 0 , u+2 ,  str.tostring(math.round(array.get(call_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = color.rgb(138, 140, 145) , text_color = color.white, text_size = size.normal  )
+
+                    table.cell(tbl, 1 , u+2 ,  str.tostring(math.round(array.get(call_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(138, 140, 145)  , text_color = color.white, text_size = font_size )
+
+                    table.cell(tbl, 2 , u+2 ,  str.tostring(math.round(array.get(call_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = color.rgb(138, 140, 145) , text_color = color.white, text_size = font_size_atm )
+
+                    table.cell(tbl, 3 , u+2 , str.tostring(array.get(strike_arr, i)),  text_halign = text.align_center,   bgcolor =color.rgb(106, 79, 126)  , text_color = color.white, text_size = font_size )
+                    
+                    table.cell(tbl, 4 , u+2 ,  str.tostring(math.round(array.get(put_ltp_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = na, text_color = color.white, text_size = font_size_atm )
+
+                    table.cell(tbl, 5 , u+2 ,  str.tostring(math.round(array.get(put_chg_arr, i)/1)*1) ,  text_halign = text.align_center,   bgcolor = na , text_color = color.white, text_size = font_size )
+
+                    // table.cell(tbl, 6 , u+2 ,  str.tostring(math.round(array.get(put_chg_per_arr, i)/1)*1)+" %" ,  text_halign = text.align_center,   bgcolor = na, text_color = color.white, text_size = size.normal )
+
+                    u := u + 1
+
+

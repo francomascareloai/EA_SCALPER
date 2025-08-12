@@ -1,0 +1,1088 @@
+//@version=5
+indicator('KOLBASKA AI', overlay=true, max_bars_back=1000, max_lines_count=200)
+
+
+length = input.int(100, 'Evaluation Window', minval=0, maxval=200)
+fcast = input.int(96, 'Forecast Window', minval=1, maxval=200)
+
+fmode = input.string('Similarity', 'Forecast Mode', options=['Similarity', 'Dissimilarity'])
+cmode = input.string('Cumulative', 'Forecast Construction', options=['Cumulative', 'Mean', 'Linreg'])
+src = input(close)
+
+fcast_col = input.color(#b2b5be, 'Forecast Style', inline='fcast_style', group='Style')
+fcast_style = input.string('· · ·', '', options=['──', '- - -', '· · ·'], inline='fcast_style', group='Style')
+
+show_area = input.bool(false, 'Show Area', inline='areas', group='Style')
+fcast_area = input.color(color.new(#ff5d00, 50), '', inline='areas', group='Style')
+corr_area = input.color(color.new(#0cb51a, 50), '', inline='areas', group='Style')
+eval_area = input.color(color.new(color.gray, 50), '', inline='areas', group='Style')
+//----
+var lines = array.new_line(0)
+if barstate.isfirst
+    for i = 0 to fcast - 1 by 1
+        array.push(lines, line.new(na, na, na, na))
+//----
+n = bar_index
+d = ta.change(src)
+
+top = ta.highest(src, length + fcast * 2)
+btm = ta.lowest(src, length + fcast * 2)
+
+if barstate.islast
+    float val = na
+    k = 0
+    A = array.new_float(0)
+    X = array.new_int(0)
+    for i = 0 to fcast * 2 + length by 1
+        array.push(A, src[i])
+        if cmode == 'Linreg'
+            array.push(X, n[i])
+
+    a = array.slice(A, 0, fcast - 1)
+    for i = 0 to length - 1 by 1
+        b = array.slice(A, fcast + i, fcast * 2 + i - 1)
+        r = array.covariance(a, b) / (array.stdev(a) * array.stdev(b))
+        if fmode == 'Similarity'
+            val := r >= nz(val, r) ? r : val
+            val
+        else
+            val := r <= nz(val, r) ? r : val
+            val
+        k := val == r ? i : k
+        k
+
+    prev = src
+    current = src
+
+    for i = 0 to fcast - 1 by 1
+        e = d[fcast + k + fcast - i - 1]
+        if cmode == 'Mean'
+            current := array.avg(a) + e
+            current
+        else if cmode == 'Linreg'
+            a = array.slice(A, 0, fcast)
+            x = array.slice(X, 0, fcast)
+            alpha = array.covariance(a, x) / array.variance(x)
+            beta = array.avg(a) - alpha * array.avg(x)
+            current := alpha * (n + i + 1) + beta + e
+            current
+        else
+            current += e
+            current
+
+        l = array.get(lines, i)
+        line.set_xy1(l, n + i, prev)
+        line.set_xy2(l, n + i + 1, current)
+        line.set_color(l, fcast_col)
+
+        if fcast_style == '- - -'
+            line.set_style(l, line.style_dashed)
+        else if fcast_style == '· · ·'
+            line.set_style(l, line.style_dotted)
+
+        prev := current
+        prev
+
+    if show_area
+        box.delete(box.new(n - length - fcast * 2 + 1, top, n - fcast + 1, btm, border_color=na, bgcolor=eval_area)[1])
+        box.delete(box.new(n - fcast + 1, top, n, btm, border_color=na, bgcolor=fcast_area)[1])
+        box.delete(box.new(n - k - fcast * 2 + 1, btm, n - k - fcast, top, border_color=na, bgcolor=corr_area)[1])
+
+lengthInput = 96
+sourceInput = input.source(close, title="Source")
+
+group1 = "Channel Settings"
+useUpperDevInput = input.bool(true, title="Upper Deviation", inline = "Upper Deviation", group = group1)
+upperMultInput = 3
+useLowerDevInput = input.bool(true, title="Lower Deviation", inline = "Lower Deviation", group = group1)
+lowerMultInput = 3
+
+group2 = "Display Settings"
+extendLeftInput = input.bool(false, "Extend Lines Left", group = group2)
+extendRightInput = input.bool(true, "Extend Lines Right", group = group2)
+extendStyle = switch
+    extendLeftInput and extendRightInput => extend.both
+    extendLeftInput => extend.left
+    extendRightInput => extend.right
+    => extend.none
+
+group3 = "Color Settings"
+colorUpper = input.color(color.new(#b2b5be, 70), "", inline = group3, group = group3)
+colorLower = input.color(color.new(#b2b5be, 70), "", inline = group3, group = group3)
+
+calcSlope(source, length) =>
+    max_bars_back(source, 5000)
+    if not barstate.islast or length <= 1
+        [float(na), float(na), float(na)]
+    else
+        sumX = 0.0
+        sumY = 0.0
+        sumXSqr = 0.0
+        sumXY = 0.0
+        for i = 0 to length - 1 by 1
+            val = source[i]
+            per = i + 1.0
+            sumX += per
+            sumY += val
+            sumXSqr += per * per
+            sumXY += val * per
+        slope = (length * sumXY - sumX * sumY) / (length * sumXSqr - sumX * sumX)
+        average = sumY / length
+        intercept = average - slope * sumX / length + slope
+        [slope, average, intercept]
+        
+[s, a, i] = calcSlope(sourceInput, lengthInput)
+startPrice = i + s * (lengthInput - 1)
+endPrice = i
+var line baseLine = na
+if na(baseLine) and not na(startPrice)
+    baseLine := line.new(bar_index - lengthInput + 1, startPrice, bar_index, endPrice, width=1, extend=extendStyle, color=color.new(colorLower, 0))
+else
+    line.set_xy1(baseLine, bar_index - lengthInput + 1, startPrice)
+    line.set_xy2(baseLine, bar_index, endPrice)
+    na
+    
+calcDev(source, length, slope, average, intercept) =>
+    upDev = 0.0
+    dnDev = 0.0
+    stdDevAcc = 0.0
+    dsxx = 0.0
+    dsyy = 0.0
+    dsxy = 0.0
+    periods = length - 1
+    daY = intercept + slope * periods / 2
+    val = intercept
+    for j = 0 to periods by 1
+        price = high[j] - val
+        if price > upDev
+            upDev := price
+        price := val - low[j]
+        if price > dnDev
+            dnDev := price
+        price := source[j]
+        dxt = price - average
+        dyt = val - daY
+        price -= val
+        stdDevAcc += price * price
+        dsxx += dxt * dxt
+        dsyy += dyt * dyt
+        dsxy += dxt * dyt
+        val += slope
+    stdDev = math.sqrt(stdDevAcc / (periods == 0 ? 1 : periods))
+    [stdDev, upDev, dnDev]
+    
+[stdDev, upDev, dnDev] = calcDev(sourceInput, lengthInput, s, a, i)
+upperStartPrice = startPrice + (useUpperDevInput ? upperMultInput * stdDev : upDev)
+upperEndPrice = endPrice + (useUpperDevInput ? upperMultInput * stdDev : upDev)
+var line upper = na
+lowerStartPrice = startPrice + (useLowerDevInput ? -lowerMultInput * stdDev : -dnDev)
+lowerEndPrice = endPrice + (useLowerDevInput ? -lowerMultInput * stdDev : -dnDev)
+var line lower = na
+if na(upper) and not na(upperStartPrice)
+    upper := line.new(bar_index - lengthInput + 1, upperStartPrice, bar_index, upperEndPrice, width=1, extend=extendStyle, color=color.new(colorUpper, 0), style=line.style_dashed)
+else
+    line.set_xy1(upper, bar_index - lengthInput + 1, upperStartPrice)
+    line.set_xy2(upper, bar_index, upperEndPrice)
+    na
+if na(lower) and not na(lowerStartPrice)
+    lower := line.new(bar_index - lengthInput + 1, lowerStartPrice, bar_index, lowerEndPrice, width=1, extend=extendStyle, color=color.new(colorUpper, 0), style=line.style_dashed)
+else
+    line.set_xy1(lower, bar_index - lengthInput + 1, lowerStartPrice)
+    line.set_xy2(lower, bar_index, lowerEndPrice)
+    na
+TAK = 1.7
+TAK1 = 1.6
+TAKTAK = 0.7
+var line upper1 = na
+lowerStartPrice1 = startPrice + (useLowerDevInput ? -TAK1 * stdDev : -dnDev)
+lowerEndPrice1 = endPrice + (useLowerDevInput ? -TAK1 * stdDev : -dnDev)
+upperStartPrice1 = startPrice + (useUpperDevInput ? TAK * stdDev : upDev)
+upperEndPrice1 = endPrice + (useUpperDevInput ? TAK * stdDev : upDev)
+var line lower1 = na
+if na(upper1) and not na(upperStartPrice1)
+    upper1 := line.new(bar_index - lengthInput + 1, upperStartPrice1, bar_index, upperEndPrice1, width=1, extend=extendStyle, color=color.new(colorUpper, 0), style=line.style_dotted)
+else
+    line.set_xy1(upper1, bar_index - lengthInput + 1, upperStartPrice1)
+    line.set_xy2(upper1, bar_index, upperEndPrice1)
+    na
+if na(lower1) and not na(lowerStartPrice1)
+    lower1 := line.new(bar_index - lengthInput + 1, lowerStartPrice1, bar_index, lowerEndPrice1, width=1, extend=extendStyle, color=color.new(colorUpper, 0), style=line.style_dotted)
+else
+    line.set_xy1(lower1, bar_index - lengthInput + 1, lowerStartPrice1)
+    line.set_xy2(lower1, bar_index, lowerEndPrice1)
+    na
+
+var line upper2 = na
+lowerStartPrice2 = startPrice + (useLowerDevInput ? -TAKTAK * stdDev : -dnDev)
+lowerEndPrice2 = endPrice + (useLowerDevInput ? -TAKTAK * stdDev : -dnDev)
+upperStartPrice2 = startPrice + (useUpperDevInput ? TAKTAK * stdDev : upDev)
+upperEndPrice2 = endPrice + (useUpperDevInput ? TAKTAK * stdDev : upDev)
+var line lower2 = na
+if na(upper2) and not na(upperStartPrice2)
+    upper2 := line.new(bar_index - lengthInput + 1, upperStartPrice2, bar_index, upperEndPrice2, width=1, extend=extendStyle, color=color.new(colorUpper, 0), style=line.style_dotted)
+else
+    line.set_xy1(upper2, bar_index - lengthInput + 1, upperStartPrice2)
+    line.set_xy2(upper2, bar_index, upperEndPrice2)
+    na
+if na(lower2) and not na(lowerStartPrice2)
+    lower2 := line.new(bar_index - lengthInput + 1, lowerStartPrice2, bar_index, lowerEndPrice2, width=1, extend=extendStyle, color=color.new(colorUpper, 0), style=line.style_dotted)
+else
+    line.set_xy1(lower2, bar_index - lengthInput + 1, lowerStartPrice2)
+    line.set_xy2(lower2, bar_index, lowerEndPrice2)
+    na
+
+
+
+out2 = ta.sma(close, 20)
+out = ta.sma(close, 24)
+plot(out, color=color.new(#b2b5be, 70), title='MA200', linewidth=2)
+plot(out2, color=color.new(#b2b5be, 70), title='MA50', linewidth=2)
+out6 = ta.sma(close, 28)
+out7 = ta.sma(close, 32)
+plot(out6, color=color.new(#b2b5be, 70), title='MA144', linewidth=2)
+plot(out7, color=color.new(#b2b5be, 70), title='MA21', linewidth=2)
+out8 = ta.sma(close, 36)
+plot(out8, color=color.new(#b2b5be, 70), title='MA144', linewidth=2)
+out9 = ta.sma(close, 40)
+plot(out9, color=color.new(#b2b5be, 70), title='MA40', linewidth=2)
+out10 = ta.sma(close, 44)
+plot(out10, color=color.new(#b2b5be, 70), title='MA44', linewidth=2)
+out11 = ta.sma(close, 48)
+plot(out11, color=color.new(#b2b5be, 70), title='MA48', linewidth=2)
+out12 = ta.sma(close, 52)
+plot(out12, color=color.new(#b2b5be, 70), title='MA52', linewidth=2)
+out13 = ta.sma(close, 60)
+plot(out13, color=color.new(#b2b5be, 70), title='MA56', linewidth=2)
+out14 = ta.sma(close, 64)
+plot(out14, color=color.new(#b2b5be, 70), title='MA58', linewidth=2)
+out15 = ta.sma(close, 56)
+plot(out15, color=color.new(#b2b5be, 70), title='MA62', linewidth=2)
+out16 = ta.sma(close, 68)
+plot(out16, color=color.new(#b2b5be, 70), title='MA66', linewidth=2)
+out17 = ta.sma(close, 72)
+plot(out17, color=color.new(#b2b5be, 70), title='MA70', linewidth=2)
+out18 = ta.sma(close, 76)
+plot(out18, color=color.new(#b2b5be, 70), title='MA74', linewidth=2)
+out19 = ta.sma(close, 80)
+plot(out19, color=color.new(#b2b5be, 70), title='MA52', linewidth=2)
+out20 = ta.sma(close, 84)
+plot(out20, color=color.new(#b2b5be, 70), title='MA52', linewidth=2)
+out21 = ta.sma(close, 88)
+plot(out21, color=color.new(#b2b5be, 70), title='MA52', linewidth=2)
+out22 = ta.sma(close, 92)
+plot(out22, color=color.new(#b2b5be, 70), title='MA52', linewidth=2)
+out23 = ta.sma(close, 96)
+plot(out23, color=color.new(#b2b5be, 70), title='MA52', linewidth=2)
+out24 = ta.sma(close, 100)
+plot(out24, color=color.new(#b2b5be, 70), title='MA52', linewidth=2)
+
+//FOMO
+source = hlc3
+type = 'SuperSmoother'
+length666 = 200
+innermult = 1
+outermult = 2.55
+drawchannel = input(defval=true, title='Draw FOMO')
+displayzone = true
+zonetransp = 90
+
+//************************************************************************************************************
+// Functions Start {
+//************************************************************************************************************
+var pi = 2 * math.asin(1)
+var mult = pi * innermult
+var mult2 = pi * outermult
+var gradsize = 0.5
+var gradtransp = zonetransp
+
+//-----------------------
+// Ehler SwissArmyKnife Function
+//-----------------------
+SAK_smoothing(_type, _src, _length666) =>
+    c0 = 1.0
+    c1 = 0.0
+    b0 = 1.0
+    b1 = 0.0
+    b2 = 0.0
+    a1 = 0.0
+    a2 = 0.0
+    alpha = 0.0
+    beta = 0.0
+    gamma = 0.0
+    cycle = 2 * pi / _length666
+
+
+    _Input = _src
+    _Output = 0.0
+    _Output := c0 * (b0 * _Input + b1 * nz(_Input[1]) + b2 * nz(_Input[2])) + a1 * nz(_Output[1]) + a2 * nz(_Output[2]) - c1 * nz(_Input[_length666])
+    _Output
+
+//-----------------------
+// SuperSmoother Function
+//-----------------------
+supersmoother(_src, _length666) =>
+    s_a1 = math.exp(-math.sqrt(2) * pi / _length666)
+    s_b1 = 2 * s_a1 * math.cos(math.sqrt(2) * pi / _length666)
+    s_c3 = -math.pow(s_a1, 2)
+    s_c2 = s_b1
+    s_c1 = 1 - s_c2 - s_c3
+    ss = 0.0
+    ss := s_c1 * _src + s_c2 * nz(ss[1], _src[1]) + s_c3 * nz(ss[2], _src[2])
+    ss
+
+
+//-----------------------
+// Mean Reversion Channel Function
+//-----------------------
+get_mrc() =>
+    v_condition = 0
+    v_meanline = source
+    v_meanrange = supersmoother(ta.tr, length666)
+
+    //-- Get Line value
+    if type == 'SuperSmoother'
+        v_meanline := supersmoother(source, length666)
+        v_meanline
+
+    if type != 'SuperSmoother'
+        v_meanline := SAK_smoothing(type, source, length666)
+        v_meanline
+
+    v_upband1 = v_meanline + v_meanrange * mult
+    v_loband1 = v_meanline - v_meanrange * mult
+    v_upband2 = v_meanline + v_meanrange * mult2
+    v_loband2 = v_meanline - v_meanrange * mult2
+
+    //-- Check Condition
+    if close > v_meanline
+        v_upband2_1 = v_upband2 + v_meanrange * gradsize * 4
+        v_upband2_9 = v_upband2 + v_meanrange * gradsize * -4
+        if high >= v_upband2_9 and high < v_upband2
+            v_condition := 1
+            v_condition
+        else if high >= v_upband2 and high < v_upband2_1
+            v_condition := 2
+            v_condition
+        else if high >= v_upband2_1
+            v_condition := 3
+            v_condition
+        else if close <= v_meanline + v_meanrange
+            v_condition := 4
+            v_condition
+        else
+            v_condition := 5
+            v_condition
+
+    if close < v_meanline
+        v_loband2_1 = v_loband2 - v_meanrange * gradsize * 4
+        v_loband2_9 = v_loband2 - v_meanrange * gradsize * -4
+        if low <= v_loband2_9 and low > v_loband2
+            v_condition := -1
+            v_condition
+        else if low <= v_loband2 and low > v_loband2_1
+            v_condition := -2
+            v_condition
+        else if low <= v_loband2_1
+            v_condition := -3
+            v_condition
+        else if close >= v_meanline + v_meanrange
+            v_condition := -4
+            v_condition
+        else
+            v_condition := -5
+            v_condition
+
+    [v_meanline, v_meanrange, v_upband1, v_loband1, v_upband2, v_loband2, v_condition]
+
+//} Function End
+
+//************************************************************************************************************
+// Calculate Channel
+//************************************************************************************************************
+
+
+[meanline, meanrange, upband1, loband1, upband2, loband2, condition] = get_mrc()
+
+
+//************************************************************************************************************
+// Drawing Start {
+//************************************************************************************************************
+float p_meanline = drawchannel ? meanline : na
+float p_upband1 = drawchannel ? upband1 : na
+float p_loband1 = drawchannel ? loband1 : na
+float p_upband2 = drawchannel ? upband2 : na
+float p_loband2 = drawchannel ? loband2 : na
+
+//z = plot(p_meanline, color=color.new(#FFCD00, 0), style=plot.style_line, title=' Mean', linewidth=2)
+//x1 = plot(p_upband1, color=color.new(color.green, 50), style=plot.style_circles, title=' R1', linewidth=1)
+//x2 = plot(p_loband1, color=color.new(color.green, 50), style=plot.style_circles, title=' S1', linewidth=1)
+y1 = plot(p_upband2, color=color.new(#b2b5be, 70), style=plot.style_line, title=' R2', linewidth=1)
+y2 = plot(p_loband2, color=color.new(#b2b5be, 70), style=plot.style_line, title=' S2', linewidth=1)
+
+// Draw zone
+//-----------------------
+//---
+var color1 = #005429
+var color2 = #059500
+var color3 = #05c102
+var color4 = #00ff44
+var color5 = #1f6e7f
+var color6 = #1799ad
+var color7 = #0dcae2
+var color8 = #00ddff
+//---
+float upband2_1 = drawchannel and displayzone ? upband2 + meanrange * gradsize * 4.3 : na
+float loband2_1 = drawchannel and displayzone ? loband2 - meanrange * gradsize * 4.3 : na
+float upband2_2 = drawchannel and displayzone ? upband2 + meanrange * gradsize * 3 : na
+float loband2_2 = drawchannel and displayzone ? loband2 - meanrange * gradsize * 3 : na
+float upband2_3 = drawchannel and displayzone ? upband2 + meanrange * gradsize * 2 : na
+float loband2_3 = drawchannel and displayzone ? loband2 - meanrange * gradsize * 2 : na
+float upband2_4 = drawchannel and displayzone ? upband2 + meanrange * gradsize * 1 : na
+float loband2_4 = drawchannel and displayzone ? loband2 - meanrange * gradsize * 1 : na
+float upband2_5 = drawchannel and displayzone ? upband2 + meanrange * gradsize * 0 : na
+float loband2_5 = drawchannel and displayzone ? loband2 - meanrange * gradsize * 0 : na
+float upband2_6 = drawchannel and displayzone ? upband2 + meanrange * gradsize * -1 : na
+float loband2_6 = drawchannel and displayzone ? loband2 - meanrange * gradsize * -1 : na
+float upband2_7 = drawchannel and displayzone ? upband2 + meanrange * gradsize * -2 : na
+float loband2_7 = drawchannel and displayzone ? loband2 - meanrange * gradsize * -2 : na
+float upband2_8 = drawchannel and displayzone ? upband2 + meanrange * gradsize * -3 : na
+float loband2_8 = drawchannel and displayzone ? loband2 - meanrange * gradsize * -4 : na
+float upband2_9 = drawchannel and displayzone ? upband2 + meanrange * gradsize * -4.3 : na
+float loband2_9 = drawchannel and displayzone ? loband2 - meanrange * gradsize * -4.3 : na
+
+
+//---
+plot_upband2_1 = plot(upband2_1, color=na, display=display.none, transp=100)
+plot_loband2_1 = plot(loband2_1, color=na, display=display.none, transp=100)
+plot_upband2_2 = plot(upband2_2, color=na, display=display.none, transp=100)
+plot_loband2_2 = plot(loband2_2, color=na, display=display.none, transp=100)
+plot_upband2_3 = plot(upband2_3, color=na, display=display.none, transp=100)
+plot_loband2_3 = plot(loband2_3, color=na, display=display.none, transp=100)
+plot_upband2_4 = plot(upband2_4, color=na, display=display.none, transp=100)
+plot_loband2_4 = plot(loband2_4, color=na, display=display.none, transp=100)
+plot_upband2_5 = plot(upband2_5, color=na, display=display.none, transp=100)
+plot_loband2_5 = plot(loband2_5, color=na, display=display.none, transp=100)
+plot_upband2_6 = plot(upband2_6, color=na, display=display.none, transp=100)
+plot_loband2_6 = plot(loband2_6, color=na, display=display.none, transp=100)
+plot_upband2_7 = plot(upband2_7, color=na, display=display.none, transp=100)
+plot_loband2_7 = plot(loband2_7, color=na, display=display.none, transp=100)
+plot_upband2_8 = plot(upband2_8, color=na, display=display.none, transp=100)
+plot_loband2_8 = plot(loband2_8, color=na, display=display.none, transp=100)
+plot_upband2_9 = plot(upband2_9, color=na, display=display.none, transp=100)
+plot_loband2_9 = plot(loband2_9, color=na, display=display.none, transp=100)
+
+//---
+fill(plot_upband2_1, plot_upband2_2, color=color1, transp=gradtransp)
+fill(plot_loband2_1, plot_loband2_2, color=color1, transp=gradtransp)
+fill(plot_upband2_2, plot_upband2_3, color=color2, transp=gradtransp)
+fill(plot_loband2_2, plot_loband2_3, color=color2, transp=gradtransp)
+fill(plot_upband2_3, plot_upband2_4, color=color3, transp=gradtransp)
+fill(plot_loband2_3, plot_loband2_4, color=color3, transp=gradtransp)
+fill(plot_upband2_4, plot_upband2_5, color=color4, transp=gradtransp)
+fill(plot_loband2_4, plot_loband2_5, color=color4, transp=gradtransp)
+fill(plot_upband2_5, plot_upband2_6, color=color5, transp=gradtransp)
+fill(plot_loband2_5, plot_loband2_6, color=color5, transp=gradtransp)
+fill(plot_upband2_6, plot_upband2_7, color=color6, transp=gradtransp)
+fill(plot_loband2_6, plot_loband2_7, color=color6, transp=gradtransp)
+fill(plot_upband2_7, plot_upband2_8, color=color7, transp=gradtransp)
+fill(plot_loband2_7, plot_loband2_8, color=color7, transp=gradtransp)
+fill(plot_upband2_8, plot_upband2_9, color=color8, transp=gradtransp)
+fill(plot_loband2_8, plot_loband2_9, color=color8, transp=gradtransp)
+
+///////////////
+// FUNCTIONS //
+///////////////
+
+// Function outputs 1 when it's the first bar of the D/W/M/Y
+is_newbar(res) =>
+    ch = 0
+    if res == 'Y'
+        t = year(time('D'))
+        ch := ta.change(t) != 0 ? 1 : 0
+        ch
+    else
+        t = time(res)
+        ch := ta.change(t) != 0 ? 1 : 0
+        ch
+    ch
+
+// Rounding levels to min tick
+nround(x) =>
+    n = math.round(x / syminfo.mintick) * syminfo.mintick
+    n
+
+////////////
+// INPUTS //
+////////////
+
+pp_type = input.string(title='Pivot Type', defval='Traditional', options=['Traditional', 'Fibonacci', 'Woodie', 'Camarilla'])
+pp_period = input.string(title='Period', defval='Week', options=['Day', 'Week', 'Month', 'Year'])
+show_historical_levels = input(title='Show Historical Levels?', defval=false)
+show_level_value = input(title='Show Levels Value?', defval=true)
+show_current_levels = input(title='Show Current Levels', defval=false)
+
+pp_res = pp_period == 'Day' ? 'D' : pp_period == 'Week' ? 'W' : pp_period == 'Month' ? 'M' : 'Y'
+
+/////////////////////
+// Get HLC from HT //
+
+// Calc Open
+open_cur = 0.0
+open_cur := is_newbar(pp_res) ? open : open_cur[1]
+
+popen = 0.0
+popen := is_newbar(pp_res) ? open_cur[1] : popen[1]
+
+// Calc High
+high_cur = 0.0
+high_cur := is_newbar(pp_res) ? high : math.max(high_cur[1], high)
+
+phigh = 0.0
+phigh := is_newbar(pp_res) ? high_cur[1] : phigh[1]
+
+// Calc Low
+low_cur = 0.0
+low_cur := is_newbar(pp_res) ? low : math.min(low_cur[1], low)
+
+plow = 0.0
+plow := is_newbar(pp_res) ? low_cur[1] : plow[1]
+
+// Calc Close
+pclose = 0.0
+pclose := is_newbar(pp_res) ? close[1] : pclose[1]
+
+
+////////////////////////////
+// CALCULATE PIVOT POINTS //
+////////////////////////////
+
+PP = 0.0
+R1 = 0.0
+R2 = 0.0
+R3 = 0.0
+S1 = 0.0
+S2 = 0.0
+S3 = 0.0
+
+if pp_type == 'Traditional'
+    PP := (phigh + plow + pclose) / 3
+    R1 := PP + PP - plow
+    S1 := PP - (phigh - PP)
+    R2 := PP + phigh - plow
+    S2 := PP - (phigh - plow)
+    R3 := phigh + 2 * (PP - plow)
+    S3 := plow - 2 * (phigh - PP)
+    S3
+
+if pp_type == 'Fibonacci'
+    PP := (phigh + plow + pclose) / 3
+    R1 := PP + (phigh - plow) * 0.382
+    S1 := PP - (phigh - plow) * 0.382
+    R2 := PP + (phigh - plow) * 0.618
+    S2 := PP - (phigh - plow) * 0.618
+    R3 := PP + (phigh - plow) * 1.000
+    S3 := PP - (phigh - plow) * 1.000
+    S3
+
+if pp_type == 'Woodie'
+    PP := (phigh + plow + 2 * popen) / 4
+    R1 := PP + PP - plow
+    S1 := PP - (phigh - PP)
+    R2 := PP + phigh - plow
+    S2 := PP - (phigh - plow)
+    R3 := phigh + 2 * (PP - plow)
+    S3 := plow - 2 * (phigh - PP)
+    S3
+
+if pp_type == 'Camarilla'
+    PP := (phigh + plow + pclose) / 3
+    R1 := pclose + (phigh - plow) * 1.1 / 12
+    S1 := pclose - (phigh - plow) * 1.1 / 12
+    R2 := pclose + (phigh - plow) * 1.1 / 6
+    S2 := pclose - (phigh - plow) * 1.1 / 6
+    R3 := pclose + (phigh - plow) * 1.1 / 4
+    S3 := pclose - (phigh - plow) * 1.1 / 4
+    S3
+
+// Projected levels
+
+prPP = 0.0
+prR1 = 0.0
+prR2 = 0.0
+prR3 = 0.0
+prS1 = 0.0
+prS2 = 0.0
+prS3 = 0.0
+
+if pp_type == 'Traditional'
+    prPP := (high_cur + low_cur + close) / 3
+    prR1 := prPP + prPP - low_cur
+    prS1 := prPP - (high_cur - PP)
+    prR2 := prPP + high_cur - low_cur
+    prS2 := prPP - (high_cur - low_cur)
+    prR3 := phigh + 2 * (prPP - low_cur)
+    prS3 := plow - 2 * (high_cur - PP)
+    prS3
+
+//////////////
+// PLOTTING //
+
+bars_sinse = 0
+bars_sinse := is_newbar(pp_res) ? 0 : bars_sinse[1] + 1
+
+////////////////////////
+// PLOT PIVOTS LEVELS //
+
+vpp_p = line.new(bar_index[math.min(bars_sinse, 4999)], PP, bar_index, PP, color=#b2b5be, style=line.style_solid, extend=extend.none)
+vs1_p = line.new(bar_index[math.min(bars_sinse, 4999)], S1, bar_index, S1, color=#b2b5be, style=line.style_solid, extend=extend.none)
+vs2_p = line.new(bar_index[math.min(bars_sinse, 4999)], S2, bar_index, S2, color=#b2b5be, style=line.style_solid, extend=extend.none)
+vs3_p = line.new(bar_index[math.min(bars_sinse, 4999)], S3, bar_index, S3, color=#b2b5be, style=line.style_solid, extend=extend.none)
+vr1_p = line.new(bar_index[math.min(bars_sinse, 4999)], R1, bar_index, R1, color=#b2b5be, style=line.style_solid, extend=extend.none)
+vr2_p = line.new(bar_index[math.min(bars_sinse, 4999)], R2, bar_index, R2, color=#b2b5be, style=line.style_solid, extend=extend.none)
+vr3_p = line.new(bar_index[math.min(bars_sinse, 4999)], R3, bar_index, R3, color=#b2b5be, style=line.style_solid, extend=extend.none)
+
+// delete previous lines in the same period
+if not is_newbar(pp_res) or not show_historical_levels
+    line.delete(vpp_p[1])
+    line.delete(vs1_p[1])
+    line.delete(vs2_p[1])
+    line.delete(vs3_p[1])
+    line.delete(vr1_p[1])
+    line.delete(vr2_p[1])
+    line.delete(vr3_p[1])
+
+
+
+// Add labels
+label_vpp = label.new(bar_index, PP, text=show_level_value ? 'P' + ' ' + str.tostring(nround(PP)) : 'P', style=label.style_none, textcolor=#b2b5be)
+label_vs1 = label.new(bar_index, S1, text=show_level_value ? 'S1' + ' ' + str.tostring(nround(S1)) : 'S1', style=label.style_none, textcolor=#b2b5be)
+label_vs2 = label.new(bar_index, S2, text=show_level_value ? 'S2' + ' ' + str.tostring(nround(S2)) : 'S2', style=label.style_none, textcolor=#b2b5be)
+label_vs3 = label.new(bar_index, S3, text=show_level_value ? 'S3' + ' ' + str.tostring(nround(S3)) : 'S3', style=label.style_none, textcolor=#b2b5be)
+label_vr1 = label.new(bar_index, R1, text=show_level_value ? 'R1' + ' ' + str.tostring(nround(R1)) : 'R1', style=label.style_none, textcolor=#b2b5be)
+label_vr2 = label.new(bar_index, R2, text=show_level_value ? 'R2' + ' ' + str.tostring(nround(R2)) : 'R2', style=label.style_none, textcolor=#b2b5be)
+label_vr3 = label.new(bar_index, R3, text=show_level_value ? 'R3' + ' ' + str.tostring(nround(R3)) : 'R3', style=label.style_none, textcolor=#b2b5be)
+
+label.delete(label_vpp[1])
+label.delete(label_vs1[1])
+label.delete(label_vs2[1])
+label.delete(label_vs3[1])
+label.delete(label_vr1[1])
+label.delete(label_vr2[1])
+label.delete(label_vr3[1])
+
+// Projected levels    
+line vpp_pr = na
+line vs1_pr = na
+line vs2_pr = na
+line vs3_pr = na
+line vr1_pr = na
+line vr2_pr = na
+line vr3_pr = na
+
+if show_current_levels
+
+    vpp_pr = line.new(bar_index[1], prPP, bar_index, prPP, color=#b2b5be, style=line.style_dashed, extend=extend.right)
+    vs1_pr = line.new(bar_index[1], prS1, bar_index, prS1, color=#b2b5be, style=line.style_dashed, extend=extend.right)
+    vs2_pr = line.new(bar_index[1], prS2, bar_index, prS2, color=#b2b5be, style=line.style_dashed, extend=extend.right)
+    vs3_pr = line.new(bar_index[1], prS3, bar_index, prS3, color=#b2b5be, style=line.style_dashed, extend=extend.right)
+    vr1_pr = line.new(bar_index[1], prR1, bar_index, prR1, color=#b2b5be, style=line.style_dashed, extend=extend.right)
+    vr2_pr = line.new(bar_index[1], prR2, bar_index, prR2, color=#b2b5be, style=line.style_dashed, extend=extend.right)
+    vr3_pr = line.new(bar_index[1], prR3, bar_index, prR3, color=#b2b5be, style=line.style_dashed, extend=extend.right)
+
+    line.delete(vpp_pr[1])
+    line.delete(vs1_pr[1])
+    line.delete(vs2_pr[1])
+    line.delete(vs3_pr[1])
+    line.delete(vr1_pr[1])
+    line.delete(vr2_pr[1])
+    line.delete(vr3_pr[1])
+
+
+// Support & Resistance
+enableSR          = input(true, "SUPPORT & RESISTANCE ON/Off", group="SUPPORT & RESISTANCE")
+colorSup          = input(#b2b5be, "SUPPORT", group="SUPPORT & RESISTANCE")
+colorRes          = input(#b2b5be, "RESISTANCE", group="SUPPORT & RESISTANCE")
+strengthSR        = input.int(6, "S/R STRENGTH", 1, group="SUPPORT & RESISTANCE")
+lineStyle1        = input.string("Solid", "LINE STYLE", ["Solid", "Dotted", "Dashed"], group="SUPPORT & RESISTANCE")
+lineWidth1        = input.int(2, "LINE WIDTH", 1, group="SUPPORT & RESISTANCE")
+expandSR          = input(true, "EXTEND LINES", group = "SUPPORT & RESISTANCE")
+useZones          = input(true, "ZONE ON/OFF", group="SUPPORT & RESISTANCE")
+useHLZones        = input(true, "HIGH LOW ZONES ON/OFF", group="SUPPORT & RESISTANCE")
+zoneWidth         = input.int(4, "ZONE WIDTH %", 0, tooltip="it's calculated using % of the distance between highest/lowest in last 300 bars", group="SUPPORT & RESISTANCE")
+//===================================================================
+//===================================================================
+
+// SUPPORT & RESISTANCE
+percWidth(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+
+percWidth1(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+
+// Get components
+rb            = 10
+prd           = 284
+ChannelW      = 10
+label_loc     = 55
+style1        = lineStyle1 == "Solid" ? line.style_solid : lineStyle1 == "Dotted" ? line.style_dotted :  line.style_dashed
+ph            = ta.pivothigh(rb, rb)
+pl            = ta.pivotlow (rb, rb)
+sr_levels     = array.new_float(21, na)
+prdhighest    = ta.highest(prd)
+prdlowest     = ta.lowest(prd)
+cwidth        = percWidth(prd, ChannelW)
+zonePerc      = percWidth(300, zoneWidth)
+aas           = array.new_bool(41, true)
+u1            = 0.0, u1 := nz(u1[1])
+d1            = 0.0, d1 := nz(d1[1])
+highestph     = 0.0, highestph := highestph[1]
+lowestpl      = 0.0, lowestpl := lowestpl[1]
+var sr_levs   = array.new_float(21, na)
+label hlabel  = na, label.delete(hlabel[1])
+label llabel  = na, label.delete(llabel[1])
+var sr_lines  = array.new_line(21, na)
+var sr_linesH = array.new_line(21, na)
+var sr_linesL = array.new_line(21, na)
+var sr_linesF = array.new_linefill(21, na)
+var sr_labels = array.new_label(21, na)
+if ph or pl
+    for x = 0 to array.size(sr_levels) - 1
+        array.set(sr_levels, x, na)
+    highestph := prdlowest
+    lowestpl := prdhighest
+    countpp = 0
+    for x = 0 to prd
+        if na(close[x])
+            break
+        if not na(ph[x]) or not na(pl[x])
+            highestph := math.max(highestph, nz(ph[x], prdlowest), nz(pl[x], prdlowest))
+            lowestpl := math.min(lowestpl, nz(ph[x], prdhighest), nz(pl[x], prdhighest))
+            countpp += 1
+            if countpp > 40
+                break
+            if array.get(aas, countpp)
+                upl = (ph[x] ? high[x + rb] : low[x + rb]) + cwidth
+                dnl = (ph[x] ? high[x + rb] : low[x + rb]) - cwidth
+                u1 := countpp == 1 ? upl : u1
+                d1 := countpp == 1 ? dnl : d1
+                tmp = array.new_bool(41, true)
+                cnt = 0
+                tpoint = 0
+                for xx = 0 to prd
+                    if na(close[xx])
+                        break
+                    if not na(ph[xx]) or not na(pl[xx])
+                        chg = false
+                        cnt += 1
+                        if cnt > 40
+                            break
+                        if array.get(aas, cnt)
+                            if not na(ph[xx])
+                                if high[xx + rb] <= upl and high[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                            if not na(pl[xx])
+                                if low[xx + rb] <= upl and low[xx + rb] >= dnl
+                                    tpoint += 1
+                                    chg := true
+                        if chg and cnt < 41
+                            array.set(tmp, cnt, false)
+                if tpoint >= strengthSR
+                    for g = 0 to 40 by 1
+                        if not array.get(tmp, g)
+                            array.set(aas, g, false)
+                    if ph[x] and countpp < 21
+                        array.set(sr_levels, countpp, high[x + rb])
+                    if pl[x] and countpp < 21
+                        array.set(sr_levels, countpp, low[x + rb])
+
+// Plot
+var line highest_ = na, line.delete(highest_)
+var line lowest_  = na, line.delete(lowest_)
+var line highest_fill1 = na, line.delete(highest_fill1)
+var line highest_fill2 = na, line.delete(highest_fill2)
+var line lowest_fill1  = na, line.delete(lowest_fill1)
+var line lowest_fill2  = na, line.delete(lowest_fill2)
+hi_col = close >= highestph ? colorSup : colorRes
+lo_col = close >= lowestpl  ? colorSup : colorRes
+if enableSR
+    highest_ := line.new(bar_index - 311, highestph, bar_index, highestph, xloc.bar_index, expandSR ? extend.both : extend.right, hi_col, style1, lineWidth1)
+    lowest_  := line.new(bar_index - 311, lowestpl , bar_index, lowestpl , xloc.bar_index, expandSR ? extend.both : extend.right, lo_col, style1, lineWidth1)
+    if useHLZones
+        highest_fill1 := line.new(bar_index - 311, highestph + zonePerc, bar_index, highestph + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        highest_fill2 := line.new(bar_index - 311, highestph - zonePerc, bar_index, highestph - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill1  := line.new(bar_index - 311, lowestpl + zonePerc , bar_index, lowestpl + zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        lowest_fill2  := line.new(bar_index - 311, lowestpl - zonePerc , bar_index, lowestpl - zonePerc , xloc.bar_index, expandSR ? extend.both : extend.right, na)
+        linefill.new(highest_fill1, highest_fill2, color.new(hi_col, 90))
+        linefill.new(lowest_fill1 , lowest_fill2 , color.new(lo_col, 90))
+if ph or pl
+    for x = 0 to array.size(sr_lines) - 1
+        array.set(sr_levs, x, array.get(sr_levels, x))
+for x = 0 to array.size(sr_lines) - 1
+    line.delete(array.get(sr_lines, x))
+    line.delete(array.get(sr_linesH, x))
+    line.delete(array.get(sr_linesL, x))
+    linefill.delete(array.get(sr_linesF, x))
+    if array.get(sr_levs, x) and enableSR
+        line_col = close >= array.get(sr_levs, x) ? colorSup : colorRes
+        array.set(sr_lines, x, line.new(bar_index - 355, array.get(sr_levs, x), bar_index, array.get(sr_levs, x), xloc.bar_index, expandSR ? extend.both : extend.right, line_col, style1, lineWidth1))
+        if useZones
+            array.set(sr_linesH, x, line.new(bar_index - 355, array.get(sr_levs, x) + zonePerc, bar_index, array.get(sr_levs, x) + zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesL, x, line.new(bar_index - 355, array.get(sr_levs, x) - zonePerc, bar_index, array.get(sr_levs, x) - zonePerc, xloc.bar_index, expandSR ? extend.both : extend.right, na))
+            array.set(sr_linesF, x, linefill.new(array.get(sr_linesH, x), array.get(sr_linesL, x), color.new(line_col, 90)))
+for x = 0 to array.size(sr_labels) - 1
+    label.delete(array.get(sr_labels, x))
+    if array.get(sr_levs, x) and enableSR
+        lab_loc = close >= array.get(sr_levs, x) ? label.style_label_up : label.style_label_down
+        lab_col = close >= array.get(sr_levs, x) ? colorSup             : colorRes
+
+
+import Fontiramisu/fontilab/12 as fontilab
+// import Fontiramisu/fontLib/87 as fontilab 
+
+
+// ] —————— Input Vars —————— [
+// Get user input
+var devTooltip              = "Deviation is a multiplier that affects how much the price should deviate from the previous pivot in order for the bar to become a new pivot."
+var depthTooltip            = "The minimum number of bars that will be taken into account when analyzing pivots."
+//src                         = input.source(close, "Source", group="Settings")
+thresholdMultiplier         = input.float(title="Deviation", defval=2.5, minval=0, tooltip=devTooltip, group="Pivot Settings")
+depth                       = input.int(title="Depth", defval=50, minval=1, tooltip=depthTooltip, group="Pivot Settings")
+
+isColorAll                  = input.bool(true, "", group="UI Settings", inline="color")
+colorAll                    = input.color(#b2b5be, "Color All Lines ----", group="UI Settings", inline="color")
+
+rightOffset                 = input.int(25, "Line Offset Right", group="UI Settings", inline="offset")
+leftOffset                  = input.int(20, "Left", group="UI Settings", inline="offset")
+
+isfib0000                   = input.bool(true, "", group="UI Settings", inline="0")
+nFib0000                    = input.float(0, "", step=0.01, group="UI Settings", inline="0")
+colorFib0000                = input.color(#b2b5be, "", group="UI Settings", inline="0")
+
+isfib0206                   = input.bool(false, "", group="UI Settings", inline="0")
+nFib0206                    = input.float(0.206, "", step=0.01, group="UI Settings", inline="0")
+colorFib0206                = input.color(#b2b5be, "", group="UI Settings", inline="0")
+
+isfib0382                   = input.bool(true, "", group="UI Settings", inline="0.382")
+nFib0382                    = input.float(0.382, "", step=0.01, group="UI Settings", inline="0.382")
+colorFib0382                = input.color(#b2b5be, "", group="UI Settings", inline="0.382")
+
+isfib0500                   = input.bool(false, "", group="UI Settings", inline="0.382")
+nFib0500                    = input.float(0.5, "", step=0.01, group="UI Settings", inline="0.382")
+colorFib0500                = input.color(#b2b5be, "", group="UI Settings", inline="0.382")
+
+isfib0618                   = input.bool(true, "", group="UI Settings", inline="0.618")
+nFib0618                    = input.float(0.618, "", step=0.01, group="UI Settings", inline="0.618")
+colorFib0618                = input.color(#b2b5be, "", group="UI Settings", inline="0.618")
+
+isfib0786                   = input.bool(true, "", group="UI Settings", inline="0.618")
+nFib0786                    = input.float(0.718, "", step=0.01, group="UI Settings", inline="0.618")
+colorFib0786                = input.color(#b2b5be, "", group="UI Settings", inline="0.618")
+
+isfib1000                   = input.bool(true, "", group="UI Settings", inline="1")
+nFib1000                    = input.float(1, "", step=0.01, group="UI Settings", inline="1")
+colorFib1000                = input.color(#b2b5be, "", group="UI Settings", inline="1")
+
+isfib1414                   = input.bool(false, "", group="UI Settings", inline="1")
+nFib1414                    = input.float(1.414, "", step=0.01, group="UI Settings", inline="1")
+colorFib1414                = input.color(#b2b5be, "", group="UI Settings", inline="1")
+
+isfib1618                   = input.bool(false, "", group="UI Settings", inline="1.618")
+nFib1618                    = input.float(1.618, "", step=0.01, group="UI Settings", inline="1.618")
+colorFib1618                = input.color(#b2b5be, "", group="UI Settings", inline="1.618")
+
+isfib2000                   = input.bool(false, "", group="UI Settings", inline="1.618")
+nFib2000                    = input.float(2, "", step=0.01, group="UI Settings", inline="1.618")
+colorFib2000                = input.color(#b2b5be, "", group="UI Settings", inline="1.618")
+
+isfib2618                   = input.bool(false, "", group="UI Settings", inline="2.618")
+nFib2618                    = input.float(2.618, "", step=0.01, group="UI Settings", inline="2.618")
+colorFib2618                = input.color(#b2b5be, "", group="UI Settings", inline="2.618")
+
+// ] —————— Find Dev Pivots —————— [
+// Prepare pivot variables
+var line lineLast           = na
+var int iLast               = 0 // Index last
+var int iPrev               = 0 // Index previous
+var float pLast             = 0 // Price last
+var float pLastHigh         = 0 // Price last
+var float pLastLow          = 0 // Price last
+var isHighLast              = false // If false then the last pivot was a pivot low 
+isPivotFound                = false
+
+// Get pivot information from dev pivot finding function
+[dupLineLast, dupIsHighLast, dupIPrev, dupILast, dupPLast, dupPLastHigh, dupPLastLow] = 
+     fontilab.getDeviationPivots(thresholdMultiplier, depth, lineLast, isHighLast, iLast, pLast, true, close, high, low)
+
+
+if not na(dupIsHighLast)
+    lineLast        := dupLineLast
+    isHighLast      := dupIsHighLast
+    iPrev           := dupIPrev
+    iLast           := dupILast
+    pLast           := dupPLast
+    pLastHigh       := dupPLastHigh
+    pLastLow        := dupPLastLow
+    isPivotFound    := true
+    
+
+// ] —————— Find Trend —————— [
+var tDirUp      = true
+var pDirStrike  = 0
+var upB         = close
+var lowB        = close
+var midB        = close
+var nStrike     = 2
+
+var fib0000     = close
+var fib0206     = close
+var fib0382     = close
+var fib0500     = close
+var fib0618     = close
+var fib0786     = close
+var fib1000     = close
+var fib1414     = close
+var fib1618     = close
+var fib2000     = close
+var fib2618     = close
+
+// Get trend and up/low Bands.
+[midBDup, upBDup, lowBDup, pDirStrikeDup, tDirUpDup] = fontilab.getInterTrend(src, upB, lowB, pLast, tDirUp, pDirStrike, isPivotFound, isHighLast, 2, 0.5, depth)
+pDirStrike      := nz(pDirStrikeDup)
+tDirUp          := nz(tDirUpDup)
+upB             := nz(upBDup)
+lowB            := nz(lowBDup)
+midB            := nz(midBDup)
+
+// Logic fibo direction.
+var state       = 1
+var fiboDirUp   = true
+var lastState   = 1
+state           := pDirStrike < nStrike ? 0 : not tDirUp ? -1 : tDirUp == 1 ? 1 : nz(state[1])
+lastState       := state != state[1] ? state[1] : lastState
+fiboDirUp       := state == 0 ? lastState == 1 : state == 1
+
+// Calculate fibs levels.
+rangeD          = upB - lowB
+fib0000         := fiboDirUp ? upB - nFib0000 * rangeD : lowB + nFib0000 * rangeD
+fib0206         := fiboDirUp ? upB - nFib0206 * rangeD : lowB + nFib0206 * rangeD
+fib0382         := fiboDirUp ? upB - nFib0382 * rangeD : lowB + nFib0382 * rangeD
+fib0500         := fiboDirUp ? upB - nFib0500 * rangeD : lowB + nFib0500 * rangeD
+fib0618         := fiboDirUp ? upB - nFib0618 * rangeD : lowB + nFib0618 * rangeD
+fib0786         := fiboDirUp ? upB - nFib0786 * rangeD : lowB + nFib0786 * rangeD
+fib1000         := fiboDirUp ? upB - nFib1000 * rangeD : lowB + nFib1000 * rangeD
+fib1414         := fiboDirUp ? upB - nFib1414 * rangeD : lowB + nFib1414 * rangeD
+fib1618         := fiboDirUp ? upB - nFib1618 * rangeD : lowB + nFib1618 * rangeD
+fib2000         := fiboDirUp ? upB - nFib2000 * rangeD : lowB + nFib2000 * rangeD
+fib2618         := fiboDirUp ? upB - nFib2618 * rangeD : lowB + nFib2618 * rangeD
+
+// Last Update Barindex.
+var barLastUpdate = 0
+barLastUpdate   := midB != midB[1] ? bar_index : barLastUpdate
+
+
+// ] —————— Plot —————— [
+var fib0000Line     = line.new(0, low, bar_index, high)
+var fib0000Label    = label.new(bar_index, low, text="Init")
+
+var fib0206Line     = line.new(0, low, bar_index, high)
+var fib0206Label    = label.new(bar_index, low, text="Init")
+
+var fib0382Line     = line.new(0, low, bar_index, high)
+var fib0382Label    = label.new(bar_index, low, text="Init")
+
+var fib0500Line     = line.new(0, low, bar_index, high)
+var fib0500Label    = label.new(bar_index, low, text="Init")
+
+var fib0618Line     = line.new(0, low, bar_index, high)
+var fib0618Label    = label.new(bar_index, low, text="Init")
+
+var fib0786Line     = line.new(0, low, bar_index, high)
+var fib0786Label    = label.new(bar_index, low, text="Init")
+
+var fib1000Line     = line.new(0, low, bar_index, high)
+var fib1000Label    = label.new(bar_index, low, text="Init")
+
+var fib1414Line     = line.new(0, low, bar_index, high)
+var fib1414Label    = label.new(bar_index, low, text="Init")
+
+var fib1618Line     = line.new(0, low, bar_index, high)
+var fib1618Label    = label.new(bar_index, low, text="Init")
+
+var fib2000Line     = line.new(0, low, bar_index, high)
+var fib2000Label    = label.new(bar_index, low, text="Init")
+
+var fib2618Line     = line.new(0, low, bar_index, high)
+var fib2618Label    = label.new(bar_index, low, text="Init")
+
+labelOffset = rightOffset - 5 
+
+if isfib0000
+    line.delete(fib0000Line)
+    label.delete(fib0000Label)
+    fib0000Line     := line.new(barLastUpdate - leftOffset, fib0000, bar_index + rightOffset, fib0000, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib0000,  width=1)
+    fib0000Label    := label.new(x=bar_index + labelOffset, y = fib0000, xloc=xloc.bar_index, text=str.tostring(nFib0000), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib0000, textalign=text.align_center)
+
+if isfib0206
+    line.delete(fib0206Line)
+    label.delete(fib0206Label)
+    fib0206Line     := line.new(barLastUpdate - leftOffset, fib0206, bar_index + rightOffset, fib0206, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib0206,  width=1)
+    fib0206Label    := label.new(x=bar_index + labelOffset, y = fib0206, xloc=xloc.bar_index, text=str.tostring(nFib0206), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib0206, textalign=text.align_center)
+
+if isfib0382
+    line.delete(fib0382Line)
+    label.delete(fib0382Label)
+    fib0382Line     := line.new(barLastUpdate - leftOffset, fib0382, bar_index + rightOffset, fib0382, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib0382,  width=1)
+    fib0382Label    := label.new(x=bar_index + labelOffset, y = fib0382, xloc=xloc.bar_index, text=str.tostring(nFib0382), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib0382, textalign=text.align_center)
+
+if isfib0500
+    line.delete(fib0500Line)
+    label.delete(fib0500Label)
+    fib0500Line     := line.new(barLastUpdate - leftOffset, fib0500, bar_index + rightOffset, fib0500, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib0500,  width=1)
+    fib0500Label    := label.new(x=bar_index + labelOffset, y = fib0500, xloc=xloc.bar_index, text=str.tostring(nFib0500), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib0500, textalign=text.align_center)
+
+if isfib0618
+    line.delete(fib0618Line)
+    label.delete(fib0618Label)
+    fib0618Line     := line.new(barLastUpdate - leftOffset, fib0618, bar_index + rightOffset, fib0618, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib0618,  width=1)
+    fib0618Label    := label.new(x=bar_index + labelOffset, y = fib0618, xloc=xloc.bar_index, text=str.tostring(nFib0618), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib0618, textalign=text.align_center)
+
+if isfib0786
+    line.delete(fib0786Line)
+    label.delete(fib0786Label)
+    fib0786Line     := line.new(barLastUpdate - leftOffset, fib0786, bar_index + rightOffset, fib0786, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib0786,  width=1)
+    fib0786Label    := label.new(x=bar_index + labelOffset, y = fib0786, xloc=xloc.bar_index, text=str.tostring(nFib0786), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib0786, textalign=text.align_center)
+
+if isfib1000
+    line.delete(fib1000Line)
+    label.delete(fib1000Label)
+    fib1000Line     := line.new(barLastUpdate - leftOffset, fib1000, bar_index + rightOffset, fib1000, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib1000,  width=1)
+    fib1000Label    := label.new(x=bar_index + labelOffset, y = fib1000, xloc=xloc.bar_index, text=str.tostring(nFib1000), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib1000, textalign=text.align_center)
+
+if isfib1414
+    line.delete(fib1414Line)
+    label.delete(fib1414Label)
+    fib1414Line     := line.new(barLastUpdate - leftOffset, fib1414, bar_index + rightOffset, fib1414, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib1414,  width=1)
+    fib1414Label    := label.new(x=bar_index + labelOffset, y = fib1414, xloc=xloc.bar_index, text=str.tostring(nFib1414), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib1414, textalign=text.align_center)
+
+if isfib1618
+    line.delete(fib1618Line)
+    label.delete(fib1618Label)
+    fib1618Line     := line.new(barLastUpdate - leftOffset, fib1618, bar_index + rightOffset, fib1618, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib1618,  width=1)
+    fib1618Label    := label.new(x=bar_index + labelOffset, y = fib1618, xloc=xloc.bar_index, text=str.tostring(nFib1618), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib1618, textalign=text.align_center)
+
+if isfib2000
+    line.delete(fib2000Line)
+    label.delete(fib2000Label)
+    fib2000Line     := line.new(barLastUpdate - leftOffset, fib2000, bar_index + rightOffset, fib2000, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib2000,  width=1)
+    fib2000Label    := label.new(x=bar_index + labelOffset, y = fib2000, xloc=xloc.bar_index, text=str.tostring(nFib2000), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib2000, textalign=text.align_center)
+
+if isfib2618
+    line.delete(fib2618Line)
+    label.delete(fib2618Label)
+    fib2618Line     := line.new(barLastUpdate - leftOffset, fib2618, bar_index + rightOffset, fib2618, xloc=xloc.bar_index, color=isColorAll ? colorAll : colorFib2618,  width=1)
+    fib2618Label    := label.new(x=bar_index + labelOffset, y = fib2618, xloc=xloc.bar_index, text=str.tostring(nFib2618), style=label.style_none, size=size.small, textcolor=isColorAll ? colorAll : colorFib2618, textalign=text.align_center)
+
+// linefill.new(fib0786Line, fib1000Line, color.blue)
+
+// ]
+
+

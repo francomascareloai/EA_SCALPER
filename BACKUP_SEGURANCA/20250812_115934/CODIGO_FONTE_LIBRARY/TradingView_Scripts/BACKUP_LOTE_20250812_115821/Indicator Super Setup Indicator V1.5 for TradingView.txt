@@ -1,0 +1,459 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator('Super Algo Setup'
+     , 'Super Setup Indicator V1.5'
+     , true)
+
+    // Hardcoded values for hidden parameters
+candle_stability_index_param = 0.5  // Fixed value for Candle Stability Index
+rsi_index_param = 70  // Fixed value for RSI Index
+candle_delta_length_param = 6  // Fixed value for Candle Delta Length
+disable_repeating_signals_param = input.bool(true, 'Disable Repeating Signals', group='Technical', tooltip='Removes repeating signals. Useful for removing clusters of signals and general clarity')
+//------------------------------------------------------------
+// Inputs
+//------------------------------------------------------------
+tip = "Those Bottoms will be Shown in which Krypton EMA is in Oversold Zone (Below -50)
+     \nAnd\n
+     Those Tops will be Shown in which Krypton EMA is in Overbought Zone (Above +50)"
+//------------------------------------------------------------
+hist = input.bool(true, "Show Historical Top Bottom")
+relEx = input.bool(false, "Show Only Relevant Exits")
+Krypron = input.bool(false, "Krypton Fear And Greed Filter", tip)
+
+slt1 = input.string('▲ Bottom', 'Signal Label Text')
+slt2 = input.string('▼ TOP', 'Signal Label Text')
+
+rsiLengthInput = input.int(20, minval=1, title="RSI Length", group="RSI Settings")
+rsiSourceInput = input.source(close, "Source", group="RSI Settings")
+
+src = input.string('High/Low', 'Source', ['High/Low', 'Open/Close'])
+phlb = input.int(10, 'Period For Highest/Lowest Bar', 2)
+
+resCol = input.color(color.red, 'Resistance Color')
+supCol = input.color(color.lime, 'Support Color')
+
+factor =    input.float(4.0, "SuperTrend Factor",     minval = 0.01, step = 0.01)
+atrPeriod = input.int(10,    "SuperTrend Period", minval = 1)
+
+macd_length_fast   = input.int(defval=12, minval=1, title="MACD Fast Length")
+macd_length_slow   = input.int(defval=26, minval=1, title="MACD Slow Length")
+macd_length_signal = input.int(defval=9,  minval=1, title="MACD Signal Length")
+
+ema_length         = input.int(defval=13, minval=1, title="EMA Length")
+
+//atr for book profit
+atr_length = input.int(20, title="ATR Length")
+atr_multiplier = input.float(1, title="ATR Multiplier for Book Profit")
+atr_value = ta.atr(atr_length)
+
+
+
+//------------------------------------------------------------
+// Calculations
+//------------------------------------------------------------
+// Function
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "Bollinger Bands" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+// RSI
+up = ta.rma(math.max(ta.change(rsiSourceInput), 0), rsiLengthInput)
+down = ta.rma(-math.min(ta.change(rsiSourceInput), 0), rsiLengthInput)
+rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - (100 / (1 + up / down))
+
+[supertrend, direction] = ta.supertrend(factor, atrPeriod)
+supertrend := barstate.isfirst ? na : supertrend
+
+source = close
+macd_ma_fast       = ta.ema(source, macd_length_fast)
+macd_ma_slow       = ta.ema(source, macd_length_slow)
+macd               = macd_ma_fast - macd_ma_slow
+macd_signal        = ta.ema(macd, macd_length_signal)
+macd_histogram     = macd - macd_signal
+ema                = ta.ema(source, ema_length)
+
+elder_bulls        = (ema[0] > ema[1]) and (macd_histogram[0] > macd_histogram[1])
+elder_bears        = (ema[0] < ema[1]) and (macd_histogram[0] < macd_histogram[1])
+elder_color        = elder_bulls ? color.green
+                     : elder_bears ? color.rgb(255, 0, 0)
+                     : color.blue 
+
+BullRev = ta.crossover(rsi, 30)
+BearRev = ta.crossunder(rsi, 70)
+
+vwap = timeframe.isintraday ? ta.vwap(hlc3) : na
+newDay = timeframe.change('D')
+pvwap = ta.valuewhen(newDay, vwap[1], 0)
+
+ema9 = ma(close, 9, "EMA")
+ema20 = ma(close, 20, "EMA")
+ema50 = ma(close, 50, "EMA")
+ema200 = ma(close, 200, "EMA")
+
+length = 20
+maType = "SMA"
+BBsrc = close
+mult = 2.0
+offset = 0
+basis = ma(BBsrc, length, maType)
+dev = mult * ta.stdev(BBsrc, length)
+upper = basis + dev
+lower = basis - dev
+
+pdh = request.security(syminfo.tickerid, "D", high[1], barmerge.gaps_off, barmerge.lookahead_on)
+pdl = request.security(syminfo.tickerid, "D", low[1], barmerge.gaps_off, barmerge.lookahead_on)
+
+rc = open > close
+gc = open < close
+
+bh = math.max(open, close)
+bl = math.min(open, close)
+bm = (open+close)/2
+mx = math.max(high, high[1])
+mn = math.min(low, low[1])
+
+var sup = low
+var res = high
+    
+HSrc = src == 'High/Low' ? high : bh
+LSrc = src == 'High/Low' ? low : bl
+
+ph = ta.pivothigh(HSrc, phlb - 1,0)
+pl = ta.pivotlow(LSrc, phlb - 1,0)
+
+if not na(pl)
+    sup := pl
+if not na(ph)
+    res := ph
+
+rsi2  = ta.rsi(close, 14)
+
+g_kr = "Krypton Settings"
+a = input(10, 'Percent K Length', group = g_kr)
+b = input(3, 'Percent D Length', group = g_kr)
+ob = input(45, 'Overbought', group = g_kr)
+os = input(-45, 'Oversold', group = g_kr)
+
+// Range Calculation
+ll = ta.lowest(low, a)
+hh = ta.highest(high, a)
+diff = hh - ll
+rdiff = close - (hh + ll) / 2
+
+avgrel = ta.ema(ta.ema(rdiff, b), b)
+avgdiff = ta.ema(ta.ema(diff, b), b)
+// SMI calculations
+SMI = avgdiff != 0 ? avgrel / (avgdiff / 2) * 100 : 0
+SMIsignal = ta.ema(SMI, b)
+emasignal = ta.ema(SMI, 4)
+
+level_40 = ob
+level_40smi = SMIsignal > level_40 ? SMIsignal : level_40
+
+level_m40 = os
+level_m40smi = SMIsignal < level_m40 ? SMIsignal : level_m40
+
+KryB = Krypron ? emasignal <= level_m40 : true
+KryS = Krypron ? emasignal >= level_40 : true
+
+stable = math.abs(open-close) / ta.tr > 0.5
+
+isB = gc and rc[1]
+      and bh > bh[1] 
+      and rsi2 < 50
+      and stable
+      and bh < close[5]
+      and KryB
+
+isS = rc and gc[1] 
+      and bl < bl[1] 
+      and rsi2 > 50
+      and stable
+      and bl > close[5]
+      and KryS
+
+var pos = 0
+
+if isB
+    pos := 1
+if isS
+    pos := -1
+
+shpUp = ta.crossover(close,upper)
+shpDn = ta.crossover(close,lower)
+
+bsl = relEx ? pos[1] > 0 and low < sup[1] : false
+ssl = relEx ? pos[1] < 0 and high > res[1] : false
+
+exb = relEx ? pos[1] > 0 and shpUp : shpUp
+exs = relEx ? pos[1] < 0 and shpDn : shpDn
+
+if bsl or ssl or exb or exs
+    pos := 0
+
+//------------------------------------------------------------
+// Outputs
+//------------------------------------------------------------
+plotshape(BullRev
+         , 'Bull Reversal'
+         , shape.labelup
+         , location.belowbar
+         , color.green
+         , 0
+         , 'R'
+         , color.white
+         , size = size.small
+         , display = display.none)
+
+plotshape(BearRev
+         , 'Bear Reversal'
+         , shape.labeldown
+         , location.abovebar
+         , color.red
+         , 0
+         , 'R'
+         , color.white
+         , size = size.small
+         , display = display.none)
+
+
+plot(res
+     , "Plot"
+     , res == res[1] ? resCol : na
+     , 1
+     , plot.style_line)
+plot(sup
+     , "Plot"
+     , sup == sup[1] ? supCol : na
+     , 1
+     , plot.style_line)
+
+
+plot(vwap
+     , 'VWAP'
+     , color.blue
+     , 2)
+plot(pvwap
+     , 'Prev Day VWAP'
+     , color.teal
+     , 2
+     , display = display.none)
+
+
+plot(supertrend
+     , "SuperTrend"
+     ,   direction < 0 ?  color.green : color.red
+     , 2
+     , display = display.none)
+
+barcolor(elder_color)
+
+
+plot(ema9, "EMA 9", #21a3f3, display = display.none)
+plot(ema20, "EMA 20", color.green, display = display.none)
+plot(ema50, "EMA 50", color.rgb(188, 8, 182, 11), display = display.none)
+plot(ema200, "EMA 200", #ff0000, 2)
+
+
+plot(upper, color=color.red, offset = offset, display = display.none)
+plot(lower, color=color.red, offset = offset, display = display.none)
+
+plotshape(exb
+         , 'Shapes'
+         , shape.xcross
+         , location.abovebar
+         , color.red
+         , 0
+         , 'Exit'
+         , size = size.tiny)
+
+plotshape(exs
+         , 'Shapes'
+         , shape.xcross
+         , location.belowbar
+         , color.red
+         , 0
+         , 'Exit'
+         , size = size.tiny)
+
+plotshape(bsl
+         , 'Buy SL'
+         , shape.xcross
+         , location.belowbar
+         , color.red
+         , 0
+         , 'SL'
+         , size = size.tiny
+         , editable = false)
+
+plotshape(ssl
+         , 'Sell SL'
+         , shape.xcross
+         , location.abovebar
+         , color.red
+         , 0
+         , 'SL'
+         , size = size.tiny
+         , editable = false)
+
+plot(pdh
+     , "Previous Day High"
+     , #ff0000
+     , 2
+     , display = display.none)
+plot(pdl
+     , "Previous Day Low"
+     , #13d71a
+     , 2
+     , display = display.none)
+
+var Blb = array.new_label()
+var Slb = array.new_label()
+
+if isB
+    Blb.push(label.new(bar_index
+          , low
+          , slt1
+          , xloc.bar_index
+          , color = color.rgb(1,154,6)
+          , textcolor = color.white
+          , style = label.style_label_up
+          , size = size.normal))         
+     
+if isS
+    Slb.push(label.new(bar_index
+          , high
+          , slt2
+          , xloc.bar_index
+          , color = color.rgb(187,5,5)
+          , textcolor = color.white
+          , style = label.style_label_down
+          , size = size.normal))       
+
+if not hist 
+    if Blb.size() > 5
+        label.delete(Blb.shift())
+    if Slb.size() > 5
+        label.delete(Slb.shift())
+
+// Alerts
+alertcondition(isB, "BUY Alert", "BUY Alert", alert.freq_once_per_bar_close)
+alertcondition(isS, "SELL Alert", "SELL Alert", alert.freq_once_per_bar_close)
+
+alertcondition(isB, "CALL BUY", "CALL BUY", alert.freq_once_per_bar_close)
+alertcondition(isS, "PUT BUY", "PUT BUY", alert.freq_once_per_bar_close)
+
+trade(y, txt) =>
+    var line ln = na
+    var label lb = na
+
+    show = isB or isS
+    ext = ta.barssince(show) < 5
+    state = 0
+    state := isB ? 1 : isS ? -1 : state[1]
+
+    _sty = isB ? label.style_label_down : label.style_label_up
+    css = isB ? color.blue : color.red
+
+    if show
+        ln.delete()
+        lb.delete()
+        ln := line.new(bar_index, y             , bar_index + 5, y              , color = css             , style = line.style_dotted             , width = 2)
+
+        lb := label.new(bar_index, y, txt , color = css, textcolor = color.white, style = _sty, size = size.small)
+    
+    if ext
+        ln.set_x2(bar_index + 5)
+
+    if (state == 1 and close > y)
+         or (state == -1 and close < y)
+        lb.set_color(color.green)
+    
+    
+
+En0 = isB ? low[1] : high[1]
+Risk = isB ? close - En0 : En0 - close
+k = isB ? 1 : -1
+var Tg1 = 0.
+var Tg2 = 0.
+var Tg3 = 0.
+
+if isB or isS
+    Tg1 := En0 + k * 2.618 * Risk 
+    Tg2 := En0 + k * 3.618 * Risk 
+    Tg3 := En0 + k * 5.236 * Risk 
+
+trade(Tg1 , "Target 1")
+trade(Tg2 , "Target 2")
+trade(Tg3 , "Target 3")
+
+var last_signal = ''
+var float buy_entry_price = na
+var float sell_entry_price = na
+var bool buy_label_plotted = false
+var bool sell_label_plotted = false
+GREEN = #388e3c
+RED =  #b22833
+TRANSPARENT = color.rgb(0, 0, 0, 100)
+
+label_size = input.string('normal', 'Label Size', options=['huge', 'large', 'normal', 'small', 'tiny'], group='Cosmetic')
+label_style = input.string('text bubble', 'Label Style', ['text bubble', 'triangle', 'arrow'], group='Cosmetic')
+buy_label_color = input(GREEN, 'BUY Label Color', inline='Highlight', group='Cosmetic')
+sell_label_color = input(RED, 'SELL Label Color', inline='Highlight', group='Cosmetic')
+label_text_color = input(color.white, 'Label Text Color', inline='Highlight', group='Cosmetic')
+
+if isB and (disable_repeating_signals_param ? (last_signal != 'buy' ? true : na) : true)
+    buy_entry_price := close
+    buy_label_plotted := false  // Reset label plotted flag when a new buy signal occurs
+    if label_style == 'text bubble'
+        label.new(isB ? bar_index : na, low, '▲ Bottom', color=buy_label_color, style=label.style_label_up, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(isB ? bar_index : na, low, '▲ Bottom', yloc=yloc.belowbar, color=buy_label_color, style=label.style_triangleup, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(isB ? bar_index : na, low, '▲ Bottom', yloc=yloc.belowbar, color=buy_label_color, style=label.style_arrowup, textcolor=TRANSPARENT, size=label_size)
+    
+    last_signal := 'buy'
+
+if isS and (disable_repeating_signals_param ? (last_signal != 'sell' ? true : na) : true)
+    sell_entry_price := close
+    sell_label_plotted := false  // Reset label plotted flag when a new sell signal occurs
+    if label_style == 'text bubble'
+        label.new(isS ? bar_index : na, high, '▼ TOP', color=sell_label_color, style=label.style_label_down, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(isS ? bar_index : na, high, '▼ TOP', yloc=yloc.abovebar, color=sell_label_color, style=label.style_triangledown, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(isS ? bar_index : na, high, '▼ TOP', yloc=yloc.abovebar, color=sell_label_color, style=label.style_arrowdown, textcolor=TRANSPARENT, size=label_size)
+    
+    last_signal := 'sell'
+// Book profit labels based on ATR, only plot once
+if not na(buy_entry_price) and not buy_label_plotted
+    buy_profit_target = buy_entry_price + atr_multiplier * atr_value
+    if close >= buy_profit_target
+        label.new(bar_index, high, "Book Profit", color=color.blue, style=label.style_label_down, textcolor=color.white, size=size.small)
+        buy_label_plotted := true  // Mark label as plotted
+
+if not na(sell_entry_price) and not sell_label_plotted
+    sell_profit_target = sell_entry_price - atr_multiplier * atr_value
+    if close <= sell_profit_target
+        label.new(bar_index, low, "Book Profit", color=color.blue, style=label.style_label_up, textcolor=color.white, size=size.small)
+        sell_label_plotted := true  // Mark label as plotted
+
+//------------------------------------------------------------
+//------------------------------------------------------------
+//------------------------------------------------------------
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

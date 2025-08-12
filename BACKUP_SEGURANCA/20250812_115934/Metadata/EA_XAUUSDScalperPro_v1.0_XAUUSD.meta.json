@@ -1,0 +1,171 @@
+{
+  "id": "EA_XAUUSDScalperPro_v1.0_XAUUSD",
+  "arquivo": "XAUUSD_Scalper_Pro_MT5_CORRECTED.mq5",
+  "hash": "xauusd_scalper_pro_corrected",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Scalping",
+  "subestrategias": ["Supertrend", "RSI", "EMA", "MACD", "News_Filter", "Session_Filter"],
+  "mercados": ["XAUUSD"],
+  "timeframes": ["M1", "M5", "M15"],
+  "funcoes_chave": [
+    "OnTick",
+    "OnInit",
+    "OnDeinit",
+    "CalculateSupertrend",
+    "CalculateRSI",
+    "CalculateEMA",
+    "CalculateMACD",
+    "NewsFilter",
+    "SessionFilter",
+    "TrailingStop",
+    "BreakEven",
+    "RiskManagement"
+  ],
+  "dependencias_includes": [
+    "Trade/Trade.mqh",
+    "Trade/SymbolInfo.mqh",
+    "Trade/PositionInfo.mqh"
+  ],
+  "parametros_expostos": [
+    {
+      "nome": "EMA_Period",
+      "tipo": "int",
+      "default": 21,
+      "descricao": "EMA Period"
+    },
+    {
+      "nome": "RSI_Period",
+      "tipo": "int",
+      "default": 14,
+      "descricao": "RSI Period"
+    },
+    {
+      "nome": "RSI_Overbought",
+      "tipo": "double",
+      "default": 70.0,
+      "descricao": "RSI Overbought Level"
+    },
+    {
+      "nome": "RSI_Oversold",
+      "tipo": "double",
+      "default": 30.0,
+      "descricao": "RSI Oversold Level"
+    },
+    {
+      "nome": "MACD_Fast",
+      "tipo": "int",
+      "default": 12,
+      "descricao": "MACD Fast EMA"
+    },
+    {
+      "nome": "MACD_Slow",
+      "tipo": "int",
+      "default": 26,
+      "descricao": "MACD Slow EMA"
+    },
+    {
+      "nome": "MACD_Signal",
+      "tipo": "int",
+      "default": 9,
+      "descricao": "MACD Signal Line"
+    },
+    {
+      "nome": "Supertrend_ATR_Multiplier",
+      "tipo": "double",
+      "default": 3.0,
+      "descricao": "Supertrend ATR Multiplier"
+    },
+    {
+      "nome": "Supertrend_Length",
+      "tipo": "int",
+      "default": 10,
+      "descricao": "Supertrend Length"
+    },
+    {
+      "nome": "TakeProfit",
+      "tipo": "double",
+      "default": 50.0,
+      "descricao": "Take Profit in Points"
+    },
+    {
+      "nome": "StopLoss",
+      "tipo": "double",
+      "default": 30.0,
+      "descricao": "Stop Loss in Points"
+    },
+    {
+      "nome": "TrailingStop",
+      "tipo": "double",
+      "default": 20.0,
+      "descricao": "Trailing Stop in Points"
+    },
+    {
+      "nome": "LotSize",
+      "tipo": "double",
+      "default": 0.01,
+      "descricao": "Lot Size"
+    },
+    {
+      "nome": "MagicNumber",
+      "tipo": "int",
+      "default": 12345,
+      "descricao": "Magic Number"
+    },
+    {
+      "nome": "EnableAlerts",
+      "tipo": "bool",
+      "default": true,
+      "descricao": "Enable Alerts"
+    },
+    {
+      "nome": "EnableNewsFilter",
+      "tipo": "bool",
+      "default": true,
+      "descricao": "Enable News Filter"
+    },
+    {
+      "nome": "EnableSessionFilter",
+      "tipo": "bool",
+      "default": true,
+      "descricao": "Enable Session Filter"
+    },
+    {
+      "nome": "StartHour",
+      "tipo": "int",
+      "default": 8,
+      "descricao": "Trading Start Hour"
+    },
+    {
+      "nome": "EndHour",
+      "tipo": "int",
+      "default": 18,
+      "descricao": "Trading End Hour"
+    }
+  ],
+  "ftmo_score": 95,
+  "riscos_detectados": [
+    "ratio_tp_sl_excelente_1_67",
+    "trailing_stop_implementado",
+    "news_filter_presente",
+    "session_filter_presente",
+    "lot_size_conservador"
+  ],
+  "qualidade_codigo_score": 9,
+  "compilacao": {
+    "status": "ok",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Implementar daily loss limit de 5%",
+    "Adicionar limite máximo de trades por dia",
+    "Validar news filter com fontes confiáveis"
+  ],
+  "licenca_autor": "Não especificada",
+  "tags": ["#EA", "#Scalping", "#XAUUSD", "#FTMO_Ready", "#Multi_Indicator", "#News_Filter", "#Session_Filter", "#Supertrend", "#RSI", "#MACD"],
+  "caminho_origem": "All_MQ5/XAUUSD_Scalper_Pro_MT5_CORRECTED.mq5",
+  "caminho_final": "EAs/FTMO_Ready/EA_XAUUSDScalperPro_v1.0_XAUUSD.mq5",
+  "data_classificacao": "2025-01-27",
+  "observacoes": "EA de scalping XAUUSD muito bem estruturado com múltiplos indicadores, filtros de notícias e sessão. Excelente para FTMO com ratio TP/SL conservador."
+}

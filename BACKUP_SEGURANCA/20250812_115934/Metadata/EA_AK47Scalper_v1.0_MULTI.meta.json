@@ -1,0 +1,54 @@
+{
+  "id": "EA_AK47Scalper_v1.0_MULTI",
+  "arquivo_original": "AK-47 Scalper EA - MT5.mq5",
+  "arquivo_renomeado": "EA_AK47Scalper_v1.0_MULTI.mq5",
+  "hash_arquivo": "ak47_scalper_mt5_v100",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Scalping",
+  "mercados": ["MULTI"],
+  "timeframes": ["M1", "M5", "M15"],
+  "funcoes_chave": [
+    "OnTick",
+    "OpenOrder",
+    "TrailingStop",
+    "CalculateVolume",
+    "CheckSpreadAllow",
+    "CheckStopLoss"
+  ],
+  "dependencias": [
+    "Trade\\PositionInfo.mqh",
+    "Trade\\Trade.mqh",
+    "Trade\\SymbolInfo.mqh",
+    "Trade\\AccountInfo.mqh",
+    "Trade\\OrderInfo.mqh"
+  ],
+  "parametros_expostos": {
+    "InpMagicNumber": "Magic Number",
+    "InpRisk": "Risk Percentage (3%)",
+    "Inpuser_lot": "Fixed Lots (0.01)",
+    "InpSL_Pips": "Stop Loss in Pips (3.5)",
+    "InpTP_Pips": "Take Profit in Pips (7)",
+    "InpTimeFilter": "Trading Time Filter",
+    "InpStartHour": "Start Hour (2)",
+    "InpEndHour": "End Hour (21)"
+  },
+  "ftmo_score": 7,
+  "riscos_detectados": [
+    "Risk 3% pode ser alto para FTMO",
+    "Sem filtro de sessão específico",
+    "RR 1:2 adequado"
+  ],
+  "qualidade_codigo": 8,
+  "status_compilacao": "OK",
+  "pronto_merge": true,
+  "ajustes_necessarios": [
+    "Reduzir risk para 1% para FTMO",
+    "Adicionar filtro de sessão Londres/NY",
+    "Implementar daily loss protection"
+  ],
+  "licenca": "Copyright 2023, Hung_tthanh@yahoo.com",
+  "autor": "Hung_tthanh@yahoo.com",
+  "data_analise": "2024-12-19",
+  "tags": ["#EA", "#Scalping", "#MULTI", "#M1", "#M5", "#M15", "#FTMO_Parcial", "#TrailingStop", "#TimeFilter", "#RiskManagement"]
+}

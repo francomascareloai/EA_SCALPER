@@ -1,0 +1,128 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Author © Market-Pip-Factory
+//@version=4
+//Credits to Falcon and others for parts of the code
+//Thanks to Nitheesh Rajath for helping me iron out the alert headache :-)
+// Thanks to Soeski for helping test the config and tweaking
+
+study(title="Cipher Twister - Long and Short", shorttitle="Cipher_Twister")
+n1 = input(10, "Channel Length")
+n2 = input(21, "Average Length")
+obLevel1 = input(60, "Over Bought Level 1")
+obLevel2 = input(53, "Over Bought Level 2")
+osLevel1 = input(-60, "Over Sold Level 1")
+osLevel2 = input(-53, "Over Sold Level 2")
+
+// Maths Calc and Parameters
+ap = hlc3
+esa = ema(ap, n1)
+d = ema(abs(ap - esa), n1)
+ci = (ap - esa) / (0.015 * d)
+tci = ema(ci, n2)
+wt1 = tci
+wt2 = sma(wt1, 4)
+wt3 = (wt1 - wt2)
+
+// Secondary Color Details
+grow_above = color.rgb(14.9, 65.1, 60.4)
+grow_below = color.rgb(100, 80.4, 82.4)
+fall_above = color.rgb(69.8, 87.5, 85.9)
+fall_below = color.rgb(93.7, 32.5, 31.4)
+final_col = (wt3>=0 ? (wt3[1] < wt3 ? grow_above : fall_above) : (wt3[1] < wt3 ? grow_below : fall_below) )
+
+// Draw Oversold & Overbought Markers
+plot(0, color=color.gray)
+plot(obLevel1, color=color.red)
+plot(obLevel2, color=color.red)
+plot(osLevel1, color=color.green)
+plot(osLevel2, color=color.green)
+
+// Draw Light Yellow Cloud Area
+plot(wt1, style=plot.style_area, color=color.rgb(255, 235, 59, 15), title="wt1")
+// Draw Blue Cloud Area
+plot(wt2, style=plot.style_area, color=color.rgb(12, 12, 100, 20), title="wt2")
+
+// Draw Green and Red Dots on Intersections
+plot(cross(wt1, wt2) ? wt2 : na, color=wt2 - wt1 > 0 ? color.red : color.lime, style=plot.style_circles, linewidth=6)
+
+// Enable and execute Generic Alerts (for TV free accounts)
+wtz = cross(wt1, wt2)
+alertcondition(wtz, title='General Cross Alert', message='Trade Signal Alert')
+
+// Enable and execute specific LONG & SHORT Alerts (For TV Pro Accounts)
+// Detect Crosses
+longsignal = crossover(wt1, wt2) // Enable this without brakets (and wt1 < osLevel2) for additional special conditions
+shortsignal = crossunder(wt1, wt2) // Enable this without brakets (and wt1 > obLevel2) for additional special conditions
+
+// Only generate entries when the trade's direction is allowed in inputs.
+// If you want to enable the signal to fire only on CLOSE OF CANDLE, please uncomment the following 2 lines by removing the two forward slashes // on the following 2 lines
+enterLong  = longsignal //and barstate.isconfirmed
+enterShort = shortsignal //and barstate.isconfirmed
+
+// Trigger the alerts only when the compound condition is met.
+// required code here
+alertcondition(enterLong, "Long Alert",  "Go long")
+alertcondition(enterShort, "Short Alert", "Go short ")
+
+// Draw Divergences
+showDiv = input(true, "Show Divergences")
+src = input(title="Source", defval="Wave Trend", options=["Wave Trend", "Signal", "Histogram"])
+lbR = input(title="Pivot Lookback Right", defval=5)
+lbL = input(title="Pivot Lookback Left", defval=5)
+rangeUpper = input(title="Max of Lookback Range", defval=60)
+rangeLower = input(title="Min of Lookback Range", defval=5)
+plotBull = input(title="Plot Bullish", defval=true)
+plotHiddenBull = input(title="Plot Hidden Bullish", defval=false)
+plotBear = input(title="Plot Bearish", defval=true)
+plotHiddenBear = input(title="Plot Hidden Bearish", defval=false)
+
+bearColor = color.red
+bullColor = color.green
+hiddenBullColor = color.new(color.green, 80)
+hiddenBearColor = color.new(color.red, 80)
+textColor = color.white
+noneColor = color.new(color.white, 100)
+
+//wt1="Wave Trend", wt2="Signal", wt3="Histogram"
+osc = showDiv ? src == "Wave Trend" ? wt1 : src == "Signal" ? wt2 : src == "Histogram" ? wt3 : wt1 : na
+
+// Additional Parameters
+plFound = na(pivotlow(osc, lbL, lbR)) ? false : true
+phFound = na(pivothigh(osc, lbL, lbR)) ? false : true
+_inRange(cond) =>
+	bars = barssince(cond == true)
+	rangeLower <= bars and bars <= rangeUpper
+
+// Regular Bullish
+// Osc: Higher Low
+oscHL = osc[lbR] > valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+
+// Price: Lower Low Parameters
+priceLL = low[lbR] < valuewhen(plFound, low[lbR], 1)
+bullCond = plotBull and priceLL and oscHL and plFound
+
+// Draw Line for Bullish Divergence
+plot(plFound ? osc[lbR] : na, offset=-lbR, title="Bullish", linewidth=2, color=(bullCond ? bullColor : noneColor))
+
+// Print Text for Bullish Divergence
+plotshape(bullCond ? osc[lbR] : na, offset=-lbR, title="Bullish Label", text=" Bullish Divergence ", style=shape.labelup, location=location.absolute, color=bullColor, textcolor=textColor)
+
+// Osc: Lower Low
+oscLL = osc[lbR] < valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+
+// Price: Higher Low
+priceHL = low[lbR] > valuewhen(plFound, low[lbR], 1)
+
+// Regular Bearish
+// Osc: Lower High
+oscLH = osc[lbR] < valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+
+// Price: Higher High Parameters
+priceHH = high[lbR] > valuewhen(phFound, high[lbR], 1)
+bearCond = plotBear and priceHH and oscLH and phFound
+
+// Draw Line for Bearish Divergence
+plot(phFound ? osc[lbR] : na, offset=-lbR, title="Bearish", linewidth=2, color=(bearCond ? bearColor : noneColor))
+
+// Print Text for Bearish Divergence
+plotshape(bearCond ? osc[lbR] : na, offset=-lbR, title="Bearish Label", text=" Bearish Divergence ", style=shape.labeldown, location=location.absolute, color=bearColor, textcolor=textColor)

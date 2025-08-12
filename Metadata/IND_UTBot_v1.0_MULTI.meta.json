@@ -1,0 +1,38 @@
+{
+  "id": "bc1a94a1b7bb311a",
+  "arquivo": "UT Bot.mq5",
+  "hash": "bc1a94a1b7bb311a",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Volume",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "M1",
+    "M5",
+    "M15",
+    "M30",
+    "H1",
+    "H4",
+    "D1"
+  ],
+  "funcoes_chave": [
+    "TrailingStop"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 85,
+  "riscos_detectados": [
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 100,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

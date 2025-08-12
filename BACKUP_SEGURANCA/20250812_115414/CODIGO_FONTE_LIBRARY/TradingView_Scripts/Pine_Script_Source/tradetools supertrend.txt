@@ -1,0 +1,40 @@
+//@version=5
+indicator("Warrior Supertrend", overlay = true, timeframe = "", timeframe_gaps = true)
+
+// Input parameters for Supertrend 1
+atrPeriod1 = input.int(10, "ATR Length 1", minval = 1)
+factor1 = input.float(3.0, "Factor 1", minval = 0.01, step = 0.01)
+showSupertrend1 = input(true, "Show Supertrend 1")
+
+// Input parameters for Supertrend 2
+atrPeriod2 = input.int(14, "ATR Length 2", minval = 1)
+factor2 = input.float(3.5, "Factor 2", minval = 0.01, step = 0.01)
+showSupertrend2 = input(true, "Show Supertrend 2")
+
+// Input parameters for Supertrend 3
+atrPeriod3 = input.int(20, "ATR Length 3", minval = 1)
+factor3 = input.float(4.0, "Factor 3", minval = 0.01, step = 0.01)
+showSupertrend3 = input(true, "Show Supertrend 3")
+
+// Calculate Supertrends
+[supertrend1, direction1] = ta.supertrend(factor1, atrPeriod1)
+[supertrend2, direction2] = ta.supertrend(factor2, atrPeriod2)
+[supertrend3, direction3] = ta.supertrend(factor3, atrPeriod3)
+
+// Define the middle of each candle's body
+bodyMiddle = plot((open + close) / 2, display = display.none)
+
+// Up Trend and Down Trend for Supertrend 1, 2, and 3
+color1 = showSupertrend1 ? direction1 < 0 ? color.green : color.red : na
+color2 = showSupertrend2 ? direction2 < 0 ? color.green : color.red : na
+color3 = showSupertrend3 ? direction3 < 0 ? color.green : color.red : na
+
+// Plotting
+plot(showSupertrend1 ? supertrend1 : na, color = color1, style = plot.style_linebr)
+plot(showSupertrend2 ? supertrend2 : na, color = color2, style = plot.style_linebr)
+plot(showSupertrend3 ? supertrend3 : na, color = color3, style = plot.style_linebr)
+
+// Filling the background based on the trend direction
+fill(bodyMiddle, plot(showSupertrend1 ? supertrend1 : na), color.new(color1, 90), fillgaps = false)
+fill(bodyMiddle, plot(showSupertrend2 ? supertrend2 : na), color.new(color2, 90), fillgaps = false)
+fill(bodyMiddle, plot(showSupertrend3 ? supertrend3 : na), color.new(color3, 90), fillgaps = false)

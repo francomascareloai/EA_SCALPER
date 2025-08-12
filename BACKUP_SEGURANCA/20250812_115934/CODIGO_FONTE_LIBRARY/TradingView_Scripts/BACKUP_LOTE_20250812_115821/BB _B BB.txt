@@ -1,0 +1,98 @@
+﻿//@version=5
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$                                                                                 $
+//$ Благодарность приветствуется!                                                   $
+//$ Gratitude is appreciated!                                                       $
+//$                                                                                 $
+//$ Вы можете сделать пожертвование через:                                          $
+//$ You may donate via:                                                             $
+//$                                                                                 $
+//$ Крипто-мультивалютный кошелек                                                   $
+//$ Crypto-multi-currency wallet                                                    $
+//$                                                                                 $
+//$ https://tinyurl.com/4f9dr9nw                                                    $
+//$                                                                                 $
+//$    - BTC: 1EpDN7pg1WqURcK7te5kQtgx3H17wuHiV7                                    $
+//$                                                                                 $
+//$    - LTC: MJyEtVt7EFmA18Bo1vjRMbguivHnVbbWvp                                    $
+//$                                                                                 $
+//$ - Tether TRC20 (USDT): TWQdh36osEJ3mDrG7kGEHgSVHQSgSR61ZY                       $
+//$                                                                                 $
+//$ Пожертвуйте столько, сколько считаете нужным.                                   $
+//$ Donate as much as you see fit.                                                  $
+//$                                                                                 $
+//$ Сделайте это, если найдете этот материал полезным!                              $
+//$ Do it if you find the stuff useful!                                             $
+//$                                                                                 $
+//$ Disclaimer: I am not a financial advisor.                                       $
+//$ Отказ от ответственности: я не финансовый консультант.                          $
+//$                                                                                 $
+//$ For purpose educate only. Use at your own risk.                                 $
+//$ Только в образовательных целях. Используйте на свой страх и риск.               $
+//$                                                                                 $
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+indicator(title='!<*[Osc]Bollinger Bands %B Bollinger Bands]>*!', shorttitle='<<BB %B BB>>', overlay=false)
+// Параметры Боллинджер-ленд
+source = close
+length = input.int(20, minval=1, title="Length")
+mult = input.float(2.0, minval=0.001, maxval=50, title="Multiplier")
+basis = ta.sma(source, length)
+dev = mult * ta.stdev(source, length)
+upper = basis + dev
+lower = basis - dev
+bbr = (source - lower) / (upper - lower)
+
+basisa = ta.sma(bbr, length)
+deva = mult * ta.stdev(bbr, length)
+uppera = basisa + deva
+lowera = basisa - deva
+// Уровни
+level1 = input.float(1.2, title="Upper Level 1", step=0.1)
+level2 = input.float(1.0, title="Upper Level 2", step=0.1)
+level3 = input.float(0.5, title="Middle Level", step=0.1)
+level4 = input.float(0.0, title="Lower Level 1", step=0.1)
+level5 = input.float(-0.2, title="Lower Level 2", step=0.1)
+// Цвета уровней
+level1Color = input.color(#fd0000, title="Upper Level 1 Color")
+level2Color = input.color(#ff0000, title="Upper Level 2 Color")
+level3Color = input.color(#ffeb3b80, title="Middle Level Color")
+level4Color = input.color(#00ff00, title="Lower Level 1 Color")
+level5Color = input.color(#00ff00, title="Lower Level 2 Color")
+// Типы линий
+lineStyle = input.string("Solid", title="Line Style", options=["Solid", "Dashed", "Dotted"])
+// Преобразование стиля линий
+getLineStyle(style) =>
+    style == "Solid" ? hline.style_solid : style == "Dashed" ? hline.style_dashed : hline.style_dotted
+
+// Отрисовка уровней
+hline(level1, "Upper Level 1", color=level1Color, linestyle=getLineStyle(lineStyle))
+hline(level2, "Upper Level 2", color=level2Color, linestyle=getLineStyle(lineStyle))
+hline(level3, "Middle Level", color=level3Color, linestyle=getLineStyle(lineStyle))
+hline(level4, "Lower Level 1", color=level4Color, linestyle=getLineStyle(lineStyle))
+hline(level5, "Lower Level 2", color=level5Color, linestyle=getLineStyle(lineStyle))
+// Логика сигналов
+aboveUp = bbr > uppera ? 1 : 0
+belowDn = bbr < lowera ? 1 : 0
+plotchar(aboveUp == 1 ? true : false, title='i', char='S', location=location.top, color=#f1f1f1, offset=0)
+plotchar(belowDn == 1 ? true : false, title='i', char='B', location=location.bottom, color=#03f80b, offset=0)
+
+noTrade = aboveUp == 0 and belowDn == 0
+bgcolor(noTrade ? #01162a : na)
+bgcolor(aboveUp == 1 ? #ff525266 : na)
+bgcolor(belowDn == 1 ? #258f2866 : na)
+
+col = bbr < lowera ? #3ce636 : bbr > uppera ? #fc0404 : #000000
+// Отрисовка Боллинджер-ленд и осциллятора
+p1 = plot(basisa, color=#ffffff, linewidth=1)
+p2 = plot(uppera, color=#750303, linewidth=2)
+p3 = plot(lowera, color=#003802, linewidth=2)
+fill(p1, p2, color=#ff52524d)
+fill(p1, p3, color=#3f8b424d)
+plot(bbr, color=col, style=plot.style_linebr, linewidth=3)
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, 'DM', text_size=size.normal, text_color=#00897b) 
+
+//==============================================================================================//

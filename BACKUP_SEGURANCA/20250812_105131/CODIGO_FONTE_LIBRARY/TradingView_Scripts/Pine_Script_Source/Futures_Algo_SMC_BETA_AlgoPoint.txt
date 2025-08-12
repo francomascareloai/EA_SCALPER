@@ -1,0 +1,916 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+ 
+ 
+//@version=5
+indicator("Futures Algo SMC [BETA] [AlgoPoint]", overlay=true, max_labels_count=500,max_bars_back = 500, max_lines_count=500)
+// V43 is Smooth Version And last full version
+// Constants
+color CLEAR = color.rgb(0,0,0,100)
+ 
+// Inputs
+theme = input.string('Colored', 'Mode', ['Colored', 'Monochrome'], group = 'Theme')
+barcoloring = input.bool(true, 'Bar Coloring', group = 'Theme')
+swingSize = 10
+bosConfType = 'Candle Close'
+choch = true
+showHalf = false
+halfColor = #2927b0
+halfStyle = 'Solid'
+halfWidth = 1
+ 
+bosStyle = input.string('Dashed', 'Market Structures Line Style', ['Solid', 'Dashed', 'Dotted'], group='Market Structures')
+bosWidth = input.int(1, 'Market Structures Line Width', minval=1, group='Market Structures')
+showSwing = input.bool(false, 'Show Swing Points', tooltip='Show or hide HH, LH, HL, LL', group = 'Market Structures')
+ 
+//Colors
+ 
+bosbrokeup = (theme == 'Colored' ? #008976ba : #707277)
+bosbrokedown = (theme == 'Colored' ? #f23646ba : #707277)
+fvgbulcolor = (theme == 'Colored' ? #0899813d : #4346514b)
+fvgbearcolor = (theme == 'Colored' ? #f235133b : #4346514b)
+trendlinescolor = (theme == 'Colored' ? #2962ff : #707277)
+buysidecolor = (theme == 'Colored' ? #008976ba : color.new(#d1d4dc,  15))
+selsidecolor = (theme == 'Colored' ? #f23646ba : color.new(#d1d4dc,  15))
+srcolor = (theme == 'Colored' ? color.new(#673ab7, 25) : #4346514b)
+upBar = #d1d4dc
+downBar = #5d606b
+// Functions 
+lineStyle(x) =>
+    switch x
+        'Solid' => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+ 
+ 
+// Calculations
+ 
+//Finding high and low pivots
+pivHi = ta.pivothigh(high, swingSize, swingSize)
+pivLo = ta.pivotlow(low, swingSize, swingSize)
+ 
+ 
+//Tracking the previous swing levels to determine hh lh hl ll
+var float prevHigh = na
+var float prevLow = na
+var int prevHighIndex = na
+var int prevLowIndex = na
+ 
+//Tracking whether previous levels have been breached
+var bool highActive = false
+var bool lowActive = false
+ 
+bool hh = false
+bool lh = false
+bool hl = false
+bool ll = false
+ 
+//Variable to track the previous swing type, used later on to draw 0.5 Retracement Levels (HH = 2, LH = 1, HL = -1, LL = -2)
+var int prevSwing = 0
+ 
+if not na(pivHi)
+    if pivHi >= prevHigh
+        hh := true
+        prevSwing := 2
+    else
+        lh := true
+        prevSwing := 1
+    prevHigh := pivHi
+    highActive := true
+    prevHighIndex := bar_index - swingSize
+ 
+if not na(pivLo)
+    if pivLo >= prevLow
+        hl := true
+        prevSwing := -1
+    else
+        ll := true
+        prevSwing := -2
+    prevLow := pivLo
+    lowActive := true
+    prevLowIndex := bar_index - swingSize
+ 
+//Generating the breakout signals
+bool highBroken = false
+bool lowBroken = false
+ 
+//Tracking prev breakout
+var int prevBreakoutDir = 0
+ 
+float highSrc = bosConfType == 'Candle Close' ? close : high
+float lowSrc = bosConfType == 'Candle Close' ? close : low
+ 
+if highSrc > prevHigh and highActive
+    highBroken := true
+    highActive := false
+if lowSrc < prevLow and lowActive
+    lowBroken := true
+    lowActive := false
+ 
+ 
+// Visual Output
+ 
+//Swing level labels
+if hh and showSwing
+    label.new(bar_index - swingSize, pivHi, 'HH', color=CLEAR, style=label.style_label_down, textcolor=bosbrokeup)
+    //Detecting if it is a hh after a hl
+    if prevSwing[1] == -1 and showHalf
+        line.new(prevLowIndex, (prevLow + pivHi) / 2, bar_index - swingSize, (prevLow + pivHi) / 2, color=halfColor, style=lineStyle(halfStyle), width=halfWidth)
+if lh and showSwing
+    label.new(bar_index - swingSize, pivHi, 'LH', color=CLEAR, style=label.style_label_down, textcolor=bosbrokedown)
+if hl and showSwing
+    label.new(bar_index - swingSize, pivLo, 'HL', color=CLEAR, style=label.style_label_up, textcolor=bosbrokeup)
+if ll and showSwing
+    label.new(bar_index - swingSize, pivLo, 'LL', color=CLEAR, style=label.style_label_up, textcolor=bosbrokedown)
+    //Detecting if it is a ll after a lh
+    if prevSwing[1] == 1 and showHalf
+        line.new(prevHighIndex, (prevHigh + pivLo) / 2, bar_index - swingSize, (prevHigh + pivLo) / 2, color=halfColor, style=lineStyle(halfStyle), width=halfWidth)
+ 
+//Generating the BOS Lines
+if highBroken
+    line.new(prevHighIndex, prevHigh, bar_index, prevHigh, color=bosbrokeup, style=lineStyle(bosStyle), width=bosWidth)
+    label.new(math.floor(bar_index - (bar_index - prevHighIndex) / 2), prevHigh, prevBreakoutDir == -1 and choch ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bosbrokeup, size=size.tiny)
+    prevBreakoutDir := 1
+if lowBroken
+    line.new(prevLowIndex, prevLow, bar_index, prevLow, color=bosbrokedown, style=lineStyle(bosStyle), width=bosWidth)
+    label.new(math.floor(bar_index - (bar_index - prevLowIndex) / 2), prevLow, prevBreakoutDir == 1 and choch ? 'CHoCH' : 'BOS', color=CLEAR, textcolor=bosbrokedown, style=label.style_label_up, size=size.tiny)
+    prevBreakoutDir := -1
+ 
+// EQH/EQL
+length_eqh = 7
+n=bar_index
+atrre = ta.atr(200)
+show_equal_highlow = input(false, 'Equal Highs & Lows', group = 'Market Structures',inline = 'equilibrium_zone')
+eq_bear_color = bosbrokeup
+eq_bull_color = bosbrokedown
+eq_threshold = 0.10
+label_sizes_s ="Small"
+label_size_buysell = label_sizes_s == "Small" ? size.tiny : label_sizes_s == "Medium" ? size.small : label_sizes_s == "Large" ? size.normal : label_sizes_s == "Medium2" ? size.normal : label_sizes_s == "Large2" ? size.large : size.huge
+var high_eqh_pre = 0.,var eq_top_x = 0,var low_eqh_pre = 0.,var eq_btm_x = 0
+if show_equal_highlow
+    high_eqh = ta.pivothigh(length_eqh, length_eqh)
+    low_eqh = ta.pivotlow(length_eqh, length_eqh)
+    if low_eqh 
+        if math.min(low_eqh, low_eqh_pre) > math.max(low_eqh, low_eqh_pre) - atrre * eq_threshold
+            eql_line = line.new(eq_btm_x, low_eqh_pre, n-length_eqh, low_eqh, color = eq_bull_color, style = line.style_dotted)
+            eql_lbl = label.new(int(math.avg(n-length_eqh, eq_btm_x)), low_eqh, 'EQL', color = #00000000, textcolor = eq_bull_color, style = label.style_label_up, size = label_size_buysell)
+        low_eqh_pre := low_eqh
+        eq_btm_x := n-length_eqh
+    if high_eqh     
+        if math.max(high_eqh, high_eqh_pre) < math.min(high_eqh, high_eqh_pre) + atrre * eq_threshold
+            eqh_line = line.new(eq_top_x, high_eqh_pre, n-length_eqh, high_eqh, color = eq_bear_color, style = line.style_dotted)
+            eqh_lbl = label.new(int(math.avg(n-length_eqh, eq_top_x)), high_eqh, 'EQH', color = #00000000, textcolor = eq_bear_color, style = label.style_label_down, size = label_size_buysell)
+        high_eqh_pre := high_eqh
+        eq_top_x := n-length_eqh
+ 
+// Trendlines
+ 
+showTL      = input(true, 'TrendLine', group = 'TrendLines')
+//general
+f_barssince(_cond, _count) =>
+    _barssince = bar_index - ta.valuewhen(_cond, bar_index, _count)
+    _barssince
+ 
+barssince(_cond, _count) => int(math.max(1, nz(f_barssince(_cond, _count))))
+f_vw(cond, expr, count) => ta.valuewhen(cond, expr, count)
+ 
+tostring(x, y)=> x + str.tostring(y)
+ 
+var int dec = str.length(str.tostring(syminfo.mintick))-2
+ 
+// Trendlines
+gr5         = 'Trendlines'
+showPriceTl = false
+newestTL    = true
+newestBreak = true
+periodlen   = input.string('Adaptive', 'Trendline Term', ['Long Term', 'Short Term','Adaptive'])
+period = (periodlen == 'Adaptive' ? 30 : periodlen == 'Long Term' ? 40 : periodlen == 'Short Term' ? 20 : 0)
+//period      = input(30, 'Trendline Period')
+srcI        = input.string('Wick', 'TrendLine Source', ['Close Body', 'Wick'])
+srcL        = srcI=='Wick'? low  : close
+srcH        = srcI=='Wick'? high : close
+lStyleI     = input.string('Solid', 'TrendLine Style', ['Solid', 'Dashed', 'Dotted'])
+y2_mult     = 1
+lStyle      = lStyleI=='Solid'? line.style_solid : lStyleI=='Dashed'? line.style_dashed : line.style_dotted
+lWidth      = input(2, 'TrendLine Width')
+lColor      = trendlinescolor
+supTextCol  = color.red
+resTextCol  = color.blue
+ 
+truncate(number) =>
+    factor = math.pow(10, dec)
+    int(number * factor) / factor
+ 
+EndTime     = timestamp('19 Jan 2022 00:00 +0000')
+inDateRange = time<=EndTime
+ 
+fVwSeries (x, xVal, xBar)=>
+    x0      = truncate(ta.valuewhen(x, xVal, 0))
+    x1      = truncate(ta.valuewhen(x, xVal, 1))
+    x2      = truncate(ta.valuewhen(x, xVal, 2))
+    x0Bar   = ta.valuewhen(x, xBar, 0) - f_barssince(x, 0)
+    x1Bar   = ta.valuewhen(x, xBar, 1) - f_barssince(x, 1)
+    x2Bar   = ta.valuewhen(x, xBar, 2) - f_barssince(x, 2)
+ 
+    [x0, x1, x2, x0Bar, x1Bar, x2Bar]
+ 
+ 
+fTst(x, y)=> x + str.tostring(y)
+ 
+phFound     = ta.pivothigh(srcH, period, period)
+plFound     = ta.pivotlow (srcL, period, period)
+phVal       = ta.valuewhen(phFound, srcH[period], 0)
+plVal       = ta.valuewhen(plFound, srcL[period], 0)
+phVal1      = ta.valuewhen(phFound, srcH[period], 1)
+plVal1      = ta.valuewhen(plFound, srcL[period], 1)
+ 
+a_bar_time  = time - time[1]
+noneCol     = color.new(color.red, 100)
+ 
+fGetPriceTl(slope_, x2_, y2_) =>
+    current_price  = y2_ + (slope_/(x2_ - time))
+    current_price
+ 
+f_trendline(cond_, y1Val_, x1Bar_, y2Val_, x2Bar_, color_, tlPriceText, textCol) =>
+ 
+    x1      = ta.valuewhen(cond_, time[x1Bar_], 0)
+    x2      = ta.valuewhen(cond_, time[x2Bar_], 0)
+    y1      = ta.valuewhen(cond_, y1Val_, 0)
+    y2      = ta.valuewhen(cond_, y2Val_, 0)
+    slope_  = ta.valuewhen(cond_, (y2-y1)/(x2-x1), 0)
+ 
+    currentPrice    = truncate(y2 + (time-x2)*slope_) 
+    var label tlPrice     = na
+ 
+    if close and newestTL
+        a_trendline = line.new (x1, y1, time,  currentPrice, xloc.bar_time, color=lColor, style=lStyle, width=lWidth)
+        line.delete (a_trendline[1])
+ 
+        a_trendline
+ 
+    newY2   = x2 + (y2_mult * a_bar_time * 25)
+ 
+    if cond_ and not newestTL
+        a_trendline = line.new(x1, y1, newY2,  currentPrice, xloc.bar_time, color=lColor, style=lStyle, width=lWidth)
+        a_trendline
+    if showPriceTl
+        tlPrice     := label.new(bar_index+10, currentPrice, fTst(tlPriceText, currentPrice), color=noneCol, style=label.style_label_left, textcolor=textCol)
+        label.delete(tlPrice[1])
+ 
+    currentPrice
+ 
+newUp   = phFound and phVal<phVal1 and showTL
+newLo   = plFound and plVal>plVal1 and showTL
+upperTl = f_trendline(newUp, phVal1, f_barssince(phFound,1)+period, phVal, f_barssince(phFound,0)+period,color.black, 'Upper = ', resTextCol)
+lowerTl = f_trendline(newLo, plVal1, f_barssince(plFound,1)+period, plVal, f_barssince(plFound,0)+period,color.black, 'Lower = ', supTextCol)
+ 
+highestSince    = ta.highest(srcH, barssince(phFound and phVal<phVal1 and showTL,0))
+lowestSince     = ta.lowest (srcL, barssince(plFound and plVal>plVal1 and showTL,0))
+breakUpper      = srcH[1]<upperTl[1] and srcH>upperTl
+breakLower      = srcL[1]>lowerTl[1] and srcL<lowerTl
+ 
+// FVG
+showfvg = input.bool(true, 'Show FVG', tooltip='Show or hide Fair Value Gaps', group = 'Fair Value Gap')
+ 
+adboxcount = input.int (10, "Maximum FVG Display", 1)
+boxcolor_filled = (showfvg == true ? #4346514d : #00000000)
+boxcolor_bullish = (showfvg == true ? fvgbulcolor : #00000000)
+boxcolor_bearish = (showfvg == true ? fvgbearcolor : #00000000)
+boxcolor = (showfvg == true ? #4346514d : #00000000)
+ 
+ 
+//boxcolor = input.color(color.new(#f3ff4b, 65), "Box Line Colour", inline = "customcolor", group = "###### Chart Customization Box ######")
+ 
+ 
+var tb = table.new(position.bottom_left, 1, 1, bgcolor = color.new(color.blue, 90))
+ 
+ 
+var box[] imbboxarray = array.new_box()
+ 
+topimbalance = low[2] <= open[1] and high[0] >= close[1]
+topimbalancesize = low[2] - high[0]
+bottomimbalance = high[2] >= open[1] and low[0] <= close[1]
+bottomimbalancesize = low[0] - high[2]
+ 
+ 
+if topimbalance and topimbalancesize > 0 or bottomimbalance and bottomimbalancesize > 0
+    boxhighzone = topimbalance and topimbalancesize > 0 ? low[2] : low[0]
+    boxlowzone = topimbalance and topimbalancesize > 0 ? high[0] : high[2]
+    imbbox = (showfvg == true ? box.new(bar_index, boxhighzone, bar_index, boxlowzone, boxcolor, bgcolor = boxcolor) : na)
+    if array.size(imbboxarray) > adboxcount
+        box.delete(array.shift(imbboxarray))
+    array.push(imbboxarray, imbbox)
+ 
+ 
+f_choppedoffimb(imbboxarray) =>
+    if array.size(imbboxarray) > 0
+        for i = array.size(imbboxarray) - 1 to 0 by 1
+            cutbox = array.get(imbboxarray, i)
+            boxhighzone = box.get_top(cutbox)
+            boxlowzone = box.get_bottom(cutbox)
+            boxrightzone = box.get_right(cutbox)
+            boxleftzone = box.get_left(cutbox)
+            if na or bar_index - 1 == boxrightzone and (high > boxlowzone and high < boxhighzone )
+                box.set_bottom(cutbox, high)
+                box.set_bgcolor(cutbox, boxcolor_filled)
+                box.set_right(cutbox, bar_index)
+                BOX1 = box.new(left=boxleftzone, top=high, right=bar_index, bottom=boxlowzone)
+                box.set_bgcolor(BOX1, boxcolor_filled )
+                box.set_border_color(BOX1, #00000000 )   
+            // else if na or bar_index - 1 == boxrightzone and high < boxlowzone 
+            //     box.set_right(cutbox, bar_index)
+            else if na or bar_index - 1 == boxrightzone and (low > boxlowzone and low < boxhighzone )
+                box.set_top(cutbox, low)
+                box.set_bgcolor(cutbox, boxcolor_filled)
+                box.set_right(cutbox, bar_index)
+                BOX2 = box.new(left=boxleftzone, top=low, right=bar_index, bottom=boxhighzone)
+                box.set_bgcolor(BOX2, boxcolor_filled)
+                box.set_border_color(BOX2, #00000000 )     
+            else if na or bar_index - 1 == boxrightzone and not(high > boxlowzone and low < boxlowzone or high > boxhighzone and low < boxhighzone)
+                box.set_right(array.get(imbboxarray, i), bar_index)
+                if high >  boxhighzone
+                    box.set_bgcolor(cutbox, boxcolor_bullish)
+                else if low < boxlowzone
+                    box.set_bgcolor(cutbox, boxcolor_bearish)
+ 
+ 
+f_choppedoffimb(imbboxarray)
+ 
+// Order Blocks
+ 
+showobs = input.bool(true, 'Show Order Blocks', group = 'Order Block')
+ 
+obhvc = (showobs == false ? #00000000 : theme == 'Colored' ? color.new(#2962ff, 30) : color.new(#9598a1, 30))
+oblvc = (showobs == false ? #00000000 : theme == 'Colored' ? color.new(#ff9800, 65) : color.new(#787b86, 65))
+obbc = (showobs == false ? #00000000 : theme == 'Colored' ? color.new(#2962ff, 85) : color.new(#d1d4dc, 85))
+oblfc = (showobs == false ? #00000000 : theme == 'Colored' ? color.new(#2962ff, 65) : color.new(#787b86, 75))
+ 
+// { <CONSTANTS>
+ 
+OB_BORDER_WIDTH = 2
+ 
+// } <CONSTANTS>
+ 
+ 
+ 
+// { <INPUTS>
+ 
+tuning   = input.int(
+ title   = "Sensitivity",
+  defval = 5,
+   group = "Order Block")
+ 
+amountOfBoxes = input.int(
+ title        = "Amount Of Grids",
+  defval      = 3,
+   group      = "Order Block")
+ 
+mitigationMethod = input.string(
+ title           = "Mitigation Method",
+  defval         = "Close Engulfs 100% Of Order Block",
+   group         = "Order Block",
+     inline      = "mitigation",
+      options    = [
+       "Close Engulfs 100% Of Order Block",
+         "Close Engulfs 75% Of Order Block",
+          "Close Engulfs 50% Of Order Block",
+           "Close Engulfs 25% Of Order Block",
+             "Wick Engulfs 100% Of Order Block",
+              "Wick Engulfs 75% Of Order Block",
+               "Wick Engulfs 50% Of Order Block",
+                 "Wick Engulfs 25% Of Order Block"])
+ 
+obHighVolumeColor = obhvc
+obLowVolumeColor = oblvc
+obBorderColor = obbc
+obLinefillColor = oblfc
+ 
+// } <INPUTS>
+ 
+ 
+ 
+// { <FUNCTIONS>
+ 
+checkObCondition(set)=>
+    bear = false
+    for i = tuning - 1 to 0
+        start = tuning - 1
+        if i == start
+            if close[i] <= open[i]
+                break
+        else
+            if close[i] > open[i]
+                break
+ 
+            if i == 0
+                bear := true
+ 
+    bull = false
+    for i = tuning - 1 to 0
+        start = tuning - 1
+        if i == start
+            if close[i] >= open[i]
+                break
+        else
+            if close[i] < open[i]
+                break
+ 
+            if i == 0
+                bull := true
+ 
+    [bear, bull]
+ 
+// } <FUNCTIONS>
+ 
+ 
+ 
+// { <USER DEFINED TYPES>
+ 
+type orderBlock
+    line topLine
+    line botLine
+    linefill bgFill
+    array<box> boxArray = na
+    array<float> boxVolume = na
+    float topValue
+    float botValue
+    int leftTime
+    int rightTime
+    string direction
+ 
+method generateBorderLines(orderBlock self, topValue, botValue)=>
+    newTopLine = line.new(x1 = self.leftTime, y1 = topValue, x2 = time, y2 = topValue, xloc = xloc.bar_time, extend = extend.none, color = obBorderColor, style = line.style_solid, width = OB_BORDER_WIDTH)
+    newbotLine = line.new(x1 = self.leftTime, y1 = botValue, x2 = time, y2 = botValue, xloc = xloc.bar_time, extend = extend.none, color = obBorderColor, style = line.style_solid, width = OB_BORDER_WIDTH)
+    newlinefill = linefill.new(newTopLine, newbotLine, obLinefillColor)
+    self.topLine := newTopLine
+    self.botLine := newbotLine
+    self.bgFill := newlinefill
+ 
+method generateVolume(orderBlock self, topValue, botValue, vArray, hArray, lArray)=>
+    newVolumeArray = self.boxVolume
+    startingValue = topValue
+    increment = (topValue - botValue) / amountOfBoxes
+    for i = 0 to amountOfBoxes - 1
+        topOfGrid = startingValue - (increment * i)
+        botOfGrid = startingValue - (increment * (i + 1))
+        if array.size(vArray) > 0 and array.size(hArray) > 0 and array.size(lArray) > 0
+            for j = 0 to array.size(vArray) - 1
+                candleVolume = array.get(vArray, j)
+                candleHigh = array.get(hArray, j)
+                candleLow = array.get(lArray, j)
+                ltfDiff = candleHigh - candleLow
+ 
+ 
+                if candleLow <= topOfGrid and candleHigh >= botOfGrid
+                    topRegister = math.min(candleHigh, topOfGrid)
+                    botRegister = math.max(candleLow, botOfGrid)
+ 
+                    registerDiff = topRegister - botRegister
+                    registerVolume = registerDiff / ltfDiff
+                    array.set(newVolumeArray, i, array.get(newVolumeArray, i) + nz(registerVolume * candleVolume))
+ 
+    array.sum(newVolumeArray)
+ 
+method generateBoxes(orderBlock self, topValue, botValue, leftValue, rightValue)=>
+    newBoxesArray = array.new_box()
+ 
+    highestVolume = array.max(self.boxVolume)
+    lowestVolume = array.min(self.boxVolume)
+    timeLength = self.rightTime - self.leftTime
+    timeRatio = timeLength / highestVolume
+ 
+    startingValue = topValue
+    increment = (topValue - botValue) / amountOfBoxes
+    for i = 0 to amountOfBoxes - 1
+        topOfGrid = startingValue - (increment * i)
+        botOfGrid = startingValue - (increment * (i + 1))
+        color_ = color.from_gradient(array.get(self.boxVolume, i), lowestVolume, highestVolume, obLowVolumeColor, obHighVolumeColor)
+        newbox = box.new(left = self.leftTime, top = topOfGrid, right = self.leftTime + math.round(array.get(self.boxVolume, i) * timeRatio), bottom = botOfGrid, border_color = color_, border_width = 2, xloc = xloc.bar_time, bgcolor = color_, extend = extend.none)
+        array.push(newBoxesArray, newbox)
+ 
+    self.boxArray := newBoxesArray
+ 
+method updateBoxes(orderBlock self, currentTime)=>
+    self.rightTime := currentTime
+ 
+    highestVolume = array.max(self.boxVolume)
+    lowestVolume = array.min(self.boxVolume)
+    timeLength = self.rightTime - self.leftTime
+    timeRatio = timeLength / highestVolume
+ 
+    for i = 0 to amountOfBoxes - 1
+        box.set_right(array.get(self.boxArray, i), self.leftTime + math.round(array.get(self.boxVolume, i) * timeRatio))
+ 
+    line.set_x2(self.topLine, self.rightTime)
+    line.set_x2(self.botLine, self.rightTime)
+ 
+method wipeBlock(orderBlock self)=>
+    line.delete(self.topLine)
+    line.delete(self.botLine)
+    linefill.delete(self.bgFill)
+    for i = array.size(self.boxArray) - 1 to 0
+        selectedBox = array.get(self.boxArray, i)
+        box.delete(selectedBox)
+ 
+// } <USER DEFINED TYPES>
+ 
+ 
+ 
+// { <CALCULATIONS>
+ 
+rawTimeframe = timeframe.isdaily ? 1440 : timeframe.isweekly ? 1440 * 7 : timeframe.ismonthly ? 1440 * 30 : str.tonumber(timeframe.period)
+fixedTimeframe = math.round(rawTimeframe / 1) < 1 ? "1S" : str.tostring(math.round(rawTimeframe / 1))
+[h, l, v] = request.security_lower_tf(syminfo.tickerid, fixedTimeframe, [high, low, volume])
+ 
+[bear, bull] = checkObCondition(tuning)
+ 
+var array<orderBlock> orderBlockArray = array.new<orderBlock>(0)
+ 
+if not na(bar_index[tuning]) and barstate.isconfirmed
+    topValue = high[tuning - 1]
+    botValue = low[tuning - 1]
+    leftValue = time[tuning - 1]
+    rightValue = time
+    if bull or bear
+        neworderBlock = orderBlock.new(topValue = topValue, botValue = botValue, leftTime = leftValue, rightTime = rightValue, boxVolume = array.new_float(amountOfBoxes, 0), direction = bull ? "Bull" : "Bear")
+        neworderBlock.generateBorderLines(neworderBlock.topValue, neworderBlock.botValue)
+        vol = neworderBlock.generateVolume(neworderBlock.topValue, neworderBlock.botValue, v[tuning - 1], h[tuning - 1], l[tuning - 1])
+        neworderBlock.generateBoxes(neworderBlock.topValue, neworderBlock.botValue, neworderBlock.leftTime, neworderBlock.rightTime)
+        if vol == 0
+            neworderBlock.wipeBlock()
+        else
+            array.push(orderBlockArray, neworderBlock)
+ 
+maxBlocks = math.floor(500 / amountOfBoxes)
+if array.size(orderBlockArray) > 0
+    for i = array.size(orderBlockArray) - 1 to 0
+        block = array.get(orderBlockArray, i)
+        block.updateBoxes(time)
+ 
+        blockDifference = block.topValue - block.botValue
+        startingValue = block.direction == "Bull" ? block.topValue : block.botValue
+        sourceToUse = str.contains(mitigationMethod, "Close") ? close : 
+         (block.direction == "Bull" ? low : high)
+        incrementMultiplier = 
+         str.contains(mitigationMethod, "100%") ? math.abs(blockDifference * 1) :
+          str.contains(mitigationMethod, "75%") ? math.abs(blockDifference * .75) :
+           str.contains(mitigationMethod, "50%") ? math.abs(blockDifference * .50) : .25
+        incrementMultiplier *= block.direction == "Bull" ? -1 : 1 
+        breakValue = startingValue + incrementMultiplier
+ 
+        bullBreak = block.direction == "Bull" and sourceToUse < breakValue
+        bearBreak = block.direction == "Bear" and sourceToUse > breakValue
+        if (bullBreak or bearBreak or i < (array.size(orderBlockArray) - 1 - maxBlocks)) and barstate.isconfirmed
+            block.wipeBlock()
+            array.remove(orderBlockArray, i)
+ 
+
+
+
+
+
+
+
+
+
+
+
+ 
+sr_line_trans = 30
+sr_trackprice = true
+ 
+left = 5
+right = 5
+line_width = 3
+ 
+activeATF = input.bool(false, "Current Timeframe", group="Multi-Timeframe S/R", inline="", tooltip="Show you current timeframe support and resistance levels")
+ 
+activeD = input.bool(false, "Daily  ", group="Multi-Timeframe S/R", inline="sr-a")
+active4h = input.bool(false, "4 Hour  ", group="Multi-Timeframe S/R", inline="sr-a")
+active1h = input.bool(false, "1 Hour  ", group="Multi-Timeframe S/R", inline="sr-a")
+active30m = input.bool(false, "M30   ", group="Multi-Timeframe S/R", inline="sr-b")
+active15m = input.bool(false, "M15    ", group="Multi-Timeframe S/R", inline="sr-b")
+active5m = input.bool(false, "M5", group="Multi-Timeframe S/R", inline="sr-b")
+ 
+ 
+sr_color = srcolor 
+c_white = srcolor
+ 
+float level1 = na
+float level2 = na
+float level3 = na
+float level4 = na
+float level5 = na
+float level6 = na
+float level7 = na
+float level8 = na
+float level9 = na
+float level0 = na
+ 
+float level15m = na
+float level15m1 = na
+ 
+float level5m = na
+float level5m1 = na
+ 
+pivot_tf_high(tf, src, left, right, occ) =>
+    request.security(syminfo.tickerid, tf, ta.valuewhen(ta.pivothigh(src, left, right), close[right], 0))
+ 
+pivot_tf_low(tf, src, left, right, occ) =>
+    request.security(syminfo.tickerid, tf, ta.valuewhen(ta.pivotlow(src, left, right), close[right], 0))
+ 
+if activeATF
+    level1 := ta.valuewhen(ta.pivothigh(close, left, right), close[right], 0)
+    level2 := ta.valuewhen(ta.pivotlow(close, left, right), close[right], 0)
+ 
+if timeframe.isintraday
+    if active4h
+        level3 := pivot_tf_high('240', close, left, right, 0)
+        level4 := pivot_tf_low('240', close, left, right, 0)
+ 
+    if active1h
+        level5 := pivot_tf_high('60', close, left, right, 0)
+        level6 := pivot_tf_low('60', close, left, right, 0)
+ 
+    if active30m
+        level7 := pivot_tf_high('30', close, left, right, 0)
+        level8 := pivot_tf_low('30', close, left, right, 0)
+ 
+    if active15m
+        level15m := pivot_tf_high('15', close, left, right, 0)
+        level15m1 := pivot_tf_low('15', close, left, right, 0)
+ 
+    if active5m
+        level5m := pivot_tf_high('5', close, left, right, 0)
+        level5m1 := pivot_tf_low('5', close, left, right, 0)
+ 
+    if activeD
+        level9 := pivot_tf_high('D', close, left, right, 0)
+        level0 := pivot_tf_low('D', close, left, right, 0)
+        level0
+ 
+ 
+//Only show the strongest support/resistance levels
+if level5 == level7
+    level7 := na
+if level6 == level8
+    level8 := na
+ 
+if level1 == level3 or level1 == level5 or level1 == level7 or level1 == level9 or level1 == level15m or level1 == level15m1 or level1 == level5m or level1 == level5m1
+    level1 := na
+if level2 == level4 or level2 == level6 or level2 == level8 or level2 == level0 or level2 == level15m or level2 == level15m1 or level2 == level5m or level2 == level5m1
+    level2 := na
+ 
+if level15m == level3 or level15m == level4 or level15m == level5 or level15m == level6 or level15m == level7 or level15m == level8
+    level15m := na
+if level15m1 == level3 or level15m1 == level4 or level15m1 == level5 or level15m1 == level6 or level15m1 == level7 or level15m1 == level8
+    level15m1 := na
+ 
+if level5m == level3 or level5m == level4 or level5m == level5 or level5m == level6 or level5m == level7 or level5m == level8 or level5m == level15m1 or level5m == level15m
+    level5m := na
+ 
+if level5m1 == level3 or level5m1 == level4 or level5m1 == level5 or level5m1 == level6 or level5m1 == level7 or level5m1 == level8 or level5m1 == level15m1 or level5m1 == level15m
+    level5m1 := na
+ 
+ 
+ 
+create_line_label(lvl, lvl2, txt)=>
+    l1 = line.new(x1=bar_index - 1, y1=lvl, x2=bar_index, y2=lvl, extend=extend.both, width=line_width, color=sr_color)
+    l2 = line.new(x1=bar_index - 1, y1=lvl2, x2=bar_index, y2=lvl2, extend=extend.both, width=line_width, color=sr_color)
+    line.delete(l1[1])
+    line.delete(l2[1])
+    if not na(lvl)
+        lab = label.new(bar_index + 5, lvl, text=txt, style=label.style_none, textcolor=c_white)
+        label.delete(lab[1])
+    if not na(lvl2)
+        lab2 = label.new(bar_index + 5, lvl2, text=txt, style=label.style_none, textcolor=c_white)
+        label.delete(lab2[1])
+ 
+ 
+if barstate.islast
+    create_line_label(level1, level2, "ATF")
+    create_line_label(level3, level4, "H4")
+    create_line_label(level5, level6, "H1")
+    create_line_label(level7, level8, "M30")
+    create_line_label(level15m, level15m1, "M15")
+    create_line_label(level5m, level5m1, "M5")
+    create_line_label(level0, level9, "D")
+ 
+// Bar Color
+ 
+// Input
+fastLength = 12
+slowLength = 26
+srcre = close
+signalLength = 9
+ 
+// Data reference
+[macd, signal, hist] = ta.macd(srcre, fastLength, slowLength, signalLength)
+ 
+// 4 level of green
+greenHigh = #05df09
+greenMidHigh = #05df09
+greenMidLow = #388E3C
+greenLow = #5f3a97
+ 
+// Yellow
+yellowLow = #5f3a97
+ 
+// 4 level of red
+redHigh = #ea0402
+redMidHigh = #ea0402
+redMidLow = #cc0402
+redLow = #5f3a97
+ 
+// Default color
+candleBody = yellowLow
+ 
+// Ranging trend
+if hist > 0
+    if hist > hist[1] and hist[1] > 0
+        candleBody := greenLow
+ 
+if hist < 0
+    if hist < hist[1] and hist[1] < 0
+        candleBody := redLow
+ 
+// Bullish trend
+if macd > 0 and hist > 0
+    candleBody := greenMidLow
+ 
+    if hist > hist[1] and macd[1] > 0 and hist[1] > 0
+        candleBody := greenMidHigh
+ 
+        if hist > hist[2] and macd[2] > 0 and hist[2] > 0
+            candleBody := greenHigh
+ 
+// Bearish trend
+if macd < 0 and hist < 0
+    candleBody := redMidLow
+ 
+    if hist < hist[1] and macd[1] < 0 and hist[1] < 0
+        candleBody := redMidHigh
+ 
+        if hist < hist[2] and macd[2] < 0 and hist[2] < 0
+            candleBody := redHigh
+ 
+barcolor(barcoloring == true and theme == 'Colored' ? candleBody : barcoloring == true and theme == 'Monochrome' and close >= open ? upBar : barcoloring == true and theme == 'Monochrome' and close <= open ? downBar : na ) // Include suggestion by Shaheen204
+ 
+// MTF S/R //
+group               = "MULTI-TIMEFRAME S/R AREA "
+showSR              = input.bool(true, title = "", inline = "01", group=group)
+timef               = input.timeframe("", "", inline = "01", group=group)
+levels              = input.int(7 , "Levels", inline = "01", group = group)
+linewidth           = input.int(1, "Width", inline = "02", group = group) * 20
+supportcolor        = (theme == 'Colored' ? #0089774b : #d1d4dc4b)
+resistancecolor     = (theme == 'Colored' ? #b228344b : #d1d4dc4b)
+labelon             = input.string("On", "Label", ["On", "Off"], inline = "03", group = group)
+labelsize           = input.string("Default", "Size", ["Small", "Default", "Large"], inline = "03", group = group)
+labelcol            = input.color(#787b86, "", inline = "03", group = group)
+labelloc            = input.int(10, "Offset", inline = "04", group = group) + 30
+showtimef           = input.bool(true, "Show Timeframe", inline = "04", group = group)
+showtprice          = input.bool(true, "Show Price", inline = "04", group = group)
+ 
+ 
+// get data on ticker based on chosen timeframe
+src_c = request.security(syminfo.tickerid,timef,close, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+src_o = request.security(syminfo.tickerid,timef,open, gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+f_resInMinutes() =>
+    _resInMinutes = timeframe.multiplier * (timeframe.isseconds ? 1. / 60 : timeframe.isminutes ? 1. : timeframe.isdaily ? 60. * 24 : timeframe.isweekly ? 60. * 24 * 7 : timeframe.ismonthly ? 60. * 24 * 30.4375 : na)
+    _resInMinutes
+f_timefResInMinutes(_res) =>
+    request.security(syminfo.tickerid, _res, f_resInMinutes())
+f_timefIsIntraday(_res) =>
+    [intraday, daily, weekly, monthly] = request.security(syminfo.tickerid, _res, [timeframe.isintraday, timeframe.isdaily, timeframe.isweekly, timeframe.ismonthly])
+    check = intraday ? "Intraday" : daily ? "Daily" : weekly ? "Weekly" : monthly ? "Monthly" : "Error" 
+    check
+mtimef_multiplier = int (f_timefResInMinutes(timef) / f_resInMinutes())
+prd = 10
+maxnumpp = 284
+ChannelW = 10
+min_strength = 2
+prd := prd * mtimef_multiplier
+float src1 = math.max(src_c, src_o) 
+float src2 = math.min(src_c, src_o)
+float src3 = math.max(close, open)  
+float src4 = math.min(close, open)   
+float phsa = ta.pivothigh(src1, prd, prd)
+float plsa = ta.pivotlow(src2, prd, prd)
+Lstyle = line.style_solid
+timef_res = f_timefIsIntraday(timef)
+timef_text = str.tostring(timef)
+if str.tostring(timef) == ""
+    timef_text := na(timeframe.multiplier / 60) ? timeframe.period : timeframe.multiplier < 60 ?  timeframe.period + " M |" : str.tostring(timeframe.multiplier / 60) + " H |"
+else if timef_res == "Intraday"
+    timef_text := na(str.tonumber(timef) / 60) ? str.tostring(timef) : str.tonumber(timef) < 60 ?  str.tostring(timef) + " M |" : str.tostring(str.tonumber(timef) / 60) + " H |"
+else
+    timef_text := str.tostring(timef)
+//calculate maximum S/R channel zone width
+prdhighest = request.security(syminfo.tickerid, timef, ta.highest(300))
+prdlowest = request.security(syminfo.tickerid, timef, ta.lowest(300))
+cwidth = (prdhighest - prdlowest) * ChannelW / 100
+var pivotvals = array.new_float(0)
+if phsa or plsa
+    array.unshift(pivotvals, phsa ? phsa : plsa)
+    if array.size(pivotvals) > maxnumpp  // limit the array size
+        array.pop(pivotvals)
+get_sr_vals(ind) =>
+    float lo = array.get(pivotvals, ind)
+    float hi = lo
+    int numpp = 0
+    for y = 0 to array.size(pivotvals) - 1 by 1
+        float cpp = array.get(pivotvals, y)
+        float wdth = cpp <= lo ? hi - cpp : cpp - lo
+        if wdth <= cwidth  // fits the max channel width?
+            lo := cpp <= lo ? cpp : lo
+            hi := cpp > lo ? cpp : hi
+            numpp += 1
+            numpp
+    [hi, lo, numpp]
+var sr_up_level = array.new_float(0)
+var sr_dn_level = array.new_float(0)
+sr_strength = array.new_float(0)
+ 
+find_loc(strength) =>
+    ret = array.size(sr_strength)
+    for i = ret > 0 ? array.size(sr_strength) - 1 : na to 0 by 1
+        if strength <= array.get(sr_strength, i)
+            break
+        ret := i
+        ret
+    ret
+ 
+check_sr(hi, lo, strength) =>
+    ret = true
+    for i = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        //included?
+        if array.get(sr_up_level, i) >= lo and array.get(sr_up_level, i) <= hi or array.get(sr_dn_level, i) >= lo and array.get(sr_dn_level, i) <= hi
+            if strength >= array.get(sr_strength, i)
+                array.remove(sr_strength, i)
+                array.remove(sr_up_level, i)
+                array.remove(sr_dn_level, i)
+                ret
+            else
+                ret := false
+                ret
+            break
+    ret
+ 
+var sr_lines = array.new_line(11, na)
+var sr_labels = array.new_label(11, na)
+var timef_labels = array.new_label(11, na)
+ 
+if phsa or plsa
+    //because of new calculation, remove old S/R levels
+    array.clear(sr_up_level)
+    array.clear(sr_dn_level)
+    array.clear(sr_strength)
+    //find S/R zones
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        [hi, lo, strength] = get_sr_vals(x)
+        if check_sr(hi, lo, strength)
+            loc = find_loc(strength)
+            // if strength is in first levels sr then insert it to the arrays 
+            if loc < levels and strength >= min_strength
+                array.insert(sr_strength, loc, strength)
+                array.insert(sr_up_level, loc, hi)
+                array.insert(sr_dn_level, loc, lo)
+                // keep size of the arrays = 5
+                if array.size(sr_strength) > levels
+                    array.pop(sr_strength)
+                    array.pop(sr_up_level)
+                    array.pop(sr_dn_level)
+ 
+    for x = 1 to 10 by 1
+        line.delete(array.get(sr_lines, x))
+        label.delete(array.get(sr_labels, x))
+        label.delete(array.get(timef_labels, x))
+ 
+    for x = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        float mid = math.round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if showSR
+            array.set(sr_lines, x + 1, line.new(x1=bar_index, y1=mid, x2=bar_index - 1, y2=mid, extend=extend.both, color=mid >= close ? resistancecolor : supportcolor, style=Lstyle, width=linewidth))
+            if labelon == "On" 
+                size = labelsize == "Small" ? size.small : labelsize == "Default" ? size.normal : size.large
+                array.set(sr_labels, x + 1, label.new(x=bar_index + labelloc, y=mid, text=(showtimef ? timef_text : na) + (showtprice ? (" " + str.tostring(mid)) : na), color=mid >= close ? #ff525200 : #00e67700, textcolor=labelcol,
+                 size = size, style=label.style_label_left))
+ 
+f_crossed_over() =>
+    ret = false
+    for x = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        float mid = math.round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if close[1] <= mid and close > mid
+            ret := true
+            ret
+    ret
+ 
+f_crossed_under() =>
+    ret = false
+    for x = 0 to array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na by 1
+        float mid = math.round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if close[1] >= mid and close < mid
+            ret := true
+            ret
+    ret
+ 
+alertcondition(f_crossed_over(), title= "Price Breaks Resistance", message = "Price Breaks Resistance, TimeFrame={{interval}}")
+alertcondition(f_crossed_under(), title="Price Loses Support", message="Price Loses Support, TimeFrame={{interval}}")

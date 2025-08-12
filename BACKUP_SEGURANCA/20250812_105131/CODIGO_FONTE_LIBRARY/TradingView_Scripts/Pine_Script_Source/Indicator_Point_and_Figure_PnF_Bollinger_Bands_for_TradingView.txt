@@ -1,0 +1,206 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator('Point and Figure (PnF) Bollinger Bands', overlay=true, max_bars_back=5000)
+mode = input.string(title='Method', defval='ATR', options=['User Defined', 'ATR', 'Traditional', 'Percentage'])
+modevalue = input.int(title='Atr Period', defval=20, minval=1)
+boxsize = input.float(title='Box Size', defval=10.0, minval=0.000000000000001)
+percentagebs = input.float(title='Percentage %', defval=0.1, minval=0.00001)
+reversal = input.int(3, title='Reversal', minval=1)
+source = input.string(defval='close', title='Source', options=['close', 'hl'])
+
+//traditional box size calculation
+tboxsize = high < 0.25 ? 0.0625 : high < 1.00 ? 0.125 : high < 5.00 ? 0.25 : high < 20.0 ? 0.50 : high < 100.0 ? 1.0 : high < 200.0 ? 2.0 : high < 500.0 ? 4.0 : high < 1000.0 ? 5.0 : high < 25000.0 ? 50.0 : 500.0  //(high >= 25000.0) 
+
+//tboxsize := tboxsize * syminfo.mintick * 10
+
+//calc atr val
+conv_atr(valu) =>
+    a = 0
+    num = syminfo.mintick
+    s = valu
+    if na(s)
+        s := syminfo.mintick
+        s
+    if num < 1
+        for i = 1 to 20 by 1
+            num *= 10
+            if num > 1
+                break
+            a += 1
+            a
+
+    for x = 1 to a by 1
+        s *= 10
+        s
+    s := math.round(s)
+    for x = 1 to a by 1
+        s /= 10
+        s
+    s := s < syminfo.mintick ? syminfo.mintick : s
+    s
+
+//ATR box size calculation
+atrboxsize = conv_atr(ta.atr(modevalue))
+//percentage box size calculation
+pboxsize = conv_atr(percentagebs * close / 100)
+
+float box = na
+box := na(box[1]) ? mode == 'ATR' ? atrboxsize : mode == 'Traditional' ? tboxsize : mode == 'Percentage' ? pboxsize : boxsize : box[1]
+
+top = 0.0
+bottom = 0.0
+trend = 0
+trend := barstate.isfirst ? 0 : nz(trend[1])
+currentprice = 0.0
+currentprice := source == 'close' ? close : trend == 1 ? high : low
+float beginprice = na
+beginprice := barstate.isfirst ? math.floor(open / box) * box : nz(beginprice[1])
+iopenprice = 0.0
+icloseprice = 0.0
+
+if trend == 0 and box * reversal <= math.abs(beginprice - currentprice)
+    if beginprice > currentprice
+        numcell = math.floor(math.abs(beginprice - currentprice) / box)
+        iopenprice := beginprice
+        icloseprice := beginprice - numcell * box
+        trend := -1
+        trend
+    if beginprice < currentprice
+        numcell = math.floor(math.abs(beginprice - currentprice) / box)
+        iopenprice := beginprice
+        icloseprice := beginprice + numcell * box
+        trend := 1
+        trend
+
+if trend == -1
+    nok = true
+    if beginprice > currentprice and box <= math.abs(beginprice - currentprice)
+        numcell = math.floor(math.abs(beginprice - currentprice) / box)
+        icloseprice := beginprice - numcell * box
+        trend := -1
+        beginprice := icloseprice
+        nok := false
+        nok
+    else
+        iopenprice := iopenprice == 0 ? nz(iopenprice[1]) : iopenprice
+        icloseprice := icloseprice == 0 ? nz(icloseprice[1]) : icloseprice
+        icloseprice
+
+    tempcurrentprice = source == 'close' ? close : high
+    if beginprice < tempcurrentprice and box * reversal <= math.abs(beginprice - tempcurrentprice) and nok  //new column
+        numcell = math.floor(math.abs(beginprice - tempcurrentprice) / box)
+        iopenprice := beginprice + box
+        icloseprice := beginprice + numcell * box
+        trend := 1
+        beginprice := icloseprice
+        beginprice
+    else
+        iopenprice := iopenprice == 0 ? nz(iopenprice[1]) : iopenprice
+        icloseprice := icloseprice == 0 ? nz(icloseprice[1]) : icloseprice
+        icloseprice
+else
+    if trend == 1
+        nok = true
+        if beginprice < currentprice and box <= math.abs(beginprice - currentprice)
+            numcell = math.floor(math.abs(beginprice - currentprice) / box)
+            icloseprice := beginprice + numcell * box
+            trend := 1
+            beginprice := icloseprice
+            nok := false
+            nok
+        else
+            iopenprice := iopenprice == 0 ? nz(iopenprice[1]) : iopenprice
+            icloseprice := icloseprice == 0 ? nz(icloseprice[1]) : icloseprice
+            icloseprice
+
+        tempcurrentprice = source == 'close' ? close : low
+        if beginprice > tempcurrentprice and box * reversal <= math.abs(beginprice - tempcurrentprice) and nok  //new column
+            numcell = math.floor(math.abs(beginprice - tempcurrentprice) / box)
+            iopenprice := beginprice - box
+            icloseprice := beginprice - numcell * box
+            trend := -1
+            beginprice := icloseprice
+            beginprice
+        else
+            iopenprice := iopenprice == 0 ? nz(iopenprice[1]) : iopenprice
+            icloseprice := icloseprice == 0 ? nz(icloseprice[1]) : icloseprice
+            icloseprice
+
+//if icloseprice changed then recalculate box size
+box := ta.change(icloseprice) ? mode == 'ATR' ? atrboxsize : mode == 'Traditional' ? tboxsize : mode == 'Percentage' ? pboxsize : boxsize : box
+
+
+// end of setup part
+
+//PNF Bollinger Bands
+// Simple moving avearege
+bblen = input.int(5, title='[BB] Length', minval=1)
+bbstddev = input.float(1, title='[BB] StdDev', minval=0.1, step=0.1)
+masrc = input.string(defval='Close Price', title='[BB] MA Source', options=['Average price', 'Close Price'])
+bbcol = input(defval=color.new(color.blue, 85), title='[BB] Color')
+
+masource = masrc == 'Average price' ? (iopenprice + icloseprice) / 2 : icloseprice
+countch = 0
+countch := ta.change(icloseprice) ? nz(countch[1]) + 1 : nz(countch[1])
+trcnt = 0
+trcnt := ta.change(icloseprice) ? 1 : nz(trcnt[1]) + 1
+trcnt := trcnt > 4000 ? 4000 : trcnt
+
+pnf_sma(ser, len) =>
+    sum = ser
+    nn = 1
+    if len > 1
+        for i = 0 to 4000 by 1
+            if trend[i] == 0 or trend[i + 1] == 0
+                break
+            if trend[i] != nz(trend[i + 1])
+                nn += 1
+                sum += ser[i + 1]
+                if nn == len
+                    break
+    _ret = nn == len ? sum / len : na
+    _ret
+
+TotminAvg(ser, len, avg) =>
+    float tot = na
+    tot := math.pow(ser - avg, 2)
+    ind = 1
+    if len > 1
+        for x = 0 to 3000 by 1
+            if na(trend[x])
+                break
+            if trend[x] != trend[x + 1]
+                ind += 1
+                tot += math.pow(ser[x + 1] - avg, 2)
+                if ind == len
+                    break
+    _ret = ind == len and len > 1 ? tot / (len - 1) : 0
+    _ret
+
+icavg = pnf_sma(masource, bblen)
+
+stdev = math.sqrt(TotminAvg(masource, bblen, icavg))
+
+basis = pnf_sma(masource, bblen)
+float dev = na
+dev := bbstddev * stdev
+upper = basis + dev
+lower = basis - dev
+
+plot(basis, title='BB Basis', color=color.new(color.red, 0), linewidth=2)
+upline = plot(upper, title='BB Upper', color=color.new(color.blue, 0), linewidth=2)
+dnline = plot(lower, title='BB Lower', color=color.new(color.blue, 0), linewidth=2)
+
+fill(upline, dnline, color=bbcol, transp=90)
+
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

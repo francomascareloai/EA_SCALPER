@@ -1,0 +1,273 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator("Market Structure Inducements ICT [TradinFinder] CHoch BOS Sweeps", "TFlab Market Structure" , overlay = true , max_bars_back = 5000, max_lines_count = 500, max_labels_count = 500)
+//Logical Inputs
+LongP         = input.int(30, 'ChoCh Detector Period', minval = 1, group = 'Logical Setting')
+ShortP        = input.int(1, 'BoS & Liquidity Detector Period', minval = 1, group = 'Logical Setting')
+InducementP   = input.int(3, 'Inducement Detector Period', minval = 1, group = 'Logical Setting')
+FTD           = input.bool(true, 'Fast Trend Detector', group = 'Logical Setting')
+IDMT_Type     = input.string('Sweeps', 'Inducement Type Detector', ['Total', 'Sweeps'], group = 'Logical Setting')
+//ChoCh Display Inputs
+Show_ChoCh    = input.bool(true, 'Show ChoCh Level', group = 'ChoCh Display')
+Color_BuChoCh = input.color(#005503, 'Bull', group = 'ChoCh Display', inline = 'ChoCh')
+Color_BeChoCh = input.color(#630000  , 'Bear', group = 'ChoCh Display', inline = 'ChoCh')
+Size_ChoCh    = input.string(size.small, 'ChoCh Label Size', [size.tiny, size.small, size.normal, size.large, size.auto], group = 'ChoCh Display')
+//BoS & LQDY Inputs
+Show_BoS      = input.bool(true, 'Show BoS & Liquidity Level', group = 'BoS & LQDY Display')
+Color_BuBoS   = input.color(#006bc2, 'Bull', group = 'BoS & LQDY Display', inline = 'BoS')
+Color_BeBoS   = input.color(#e79e01  , 'Bear', group = 'BoS & LQDY Display', inline = 'BoS')
+Color_LQDY    = input.color(#7905af  , 'LQDY', group = 'BoS & LQDY Display', inline = 'BoS')
+Size_BoS      = input.string(size.small, 'BoS & LQDY Label Size', [size.tiny, size.small, size.normal, size.large, size.auto], group = 'BoS & LQDY Display')
+//Inducement Display Inputs
+Show_IDMT     = input.bool(true, 'Show Inducement Level', group = 'Inducement Display', inline = 'IDMT')
+Color_IDMT    = input.color(#666566  , '', group = 'Inducement Display', inline = 'IDMT')
+Size_IDMT     = input.string(size.small, 'Inducement Label Size', [size.tiny, size.small, size.normal, size.large, size.auto], group = 'Inducement Display')
+
+//Market Structure Detector Function
+Structure(LongP, ShortP, InducementP, FTD, LQDY_Type, Show_ChoCh, Color_BuChoCh, Color_BeChoCh, Size_ChoCh, Show_BoS, Color_BuBoS, Color_BeBoS, Color_LQDY, Size_BoS, Show_IDMT, Color_IDMT, Size_IDMT) => 
+    ATR = ta.atr(50)
+    // ChoCh Period 
+    LHP = ta.pivothigh(FTD ? int(LongP/2) : LongP, LongP)
+    LLP = ta.pivotlow(FTD  ? int(LongP/2) : LongP, LongP)
+    // BoS Period
+    SHP = ta.pivothigh(ShortP, ShortP)
+    SLP = ta.pivotlow(ShortP , ShortP)
+    // Inducement Period
+    IHP = ta.pivothigh(InducementP, InducementP)
+    ILP = ta.pivotlow(InducementP , InducementP)
+    // ChoCh Variable
+    var string Trend           = ''
+        //Bullish ChoCh
+    var float  BuChoCh_P       = 0.0
+    var int    BuChoCh_I       = 0
+    var int    BuChoCh_IB      = 0
+    var int    BuCount         = 0
+    var string BuChoCh_B       = ''
+    var string BuChoCh_BB      = ''
+    var line BuChoCh_Line      = na
+    var label BuChoCh_Label    = na
+        //Bearish ChoCh
+    var float  BeChoCh_P       = 0.0
+    var int    BeChoCh_I       = 0
+    var int    BeChoCh_IB      = 0
+    var int    BeCount         = 0   
+    var string BeChoCh_B       = ''
+    var string BeChoCh_BB      = ''
+    var line BeChoCh_Line      = na   
+    var label BeChoCh_Label    = na 
+    //Inducement Variable
+    var line Inducement_Line   = na 
+    var label Inducement_Label = na
+    var bool IDM_Permit        = true
+    //BoS & Liquidity Variable
+    var float High             = 0.0
+    var float Low              = 0.0
+    var int Index              = 0
+    var line BoS_Line          = na 
+    var label BoS_Label        = na
+    var bool BoS_Permit        = true
+    //   \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/////////////////////////////////////////////////
+    //    ||||||||||||||||||||||||||||||||||||||||ChoCh Block||||||||||||||||||||||||||||||||||||||||||
+    //   //////////////////////////////////////////////\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    //Set Point Bullish ChoCh
+    if nz(LHP) != 0 
+        if Trend == '' or Trend == 'Down Trend'
+            BuChoCh_P := LHP
+            BuChoCh_I := bar_index[LongP]
+        else if Trend == 'Up Trend'
+            if LHP > BuChoCh_P
+                BuChoCh_P := LHP
+                BuChoCh_I := bar_index[LongP]
+
+    //Set Point Bearish ChoCh
+    if nz(LLP) != 0
+        if Trend == '' or Trend == 'Up Trend'
+            BeChoCh_P := LLP
+            BeChoCh_I := bar_index[LongP]
+        else if Trend == 'Down Trend'
+            if LLP < BeChoCh_P
+                BeChoCh_P := LLP
+                BeChoCh_I := bar_index[LongP]
+    //Break
+    if BuChoCh_P > 0 and BeChoCh_P > 0
+        //Bullish ChoCh
+        if ta.crossover(close , BuChoCh_P) and (Trend == 'Down Trend' or Trend == '')
+            Trend     := 'Up Trend'
+            BuChoCh_B := 'Break'
+            BuChoCh_BB := 'Break'
+            BuChoCh_IB := line.get_x1(BuChoCh_Line)
+            BuCount := 0
+        else
+            BuChoCh_B := ''
+        //Bearish ChoCh
+        if ta.crossunder(close , BeChoCh_P) and (Trend == 'Up Trend' or Trend == '')
+            Trend     := 'Down Trend'
+            BeChoCh_B := 'Break' 
+            BeChoCh_BB := 'Break'
+            BeChoCh_IB := line.get_x1(BeChoCh_Line)
+            BeCount := 0
+        else 
+            BeChoCh_B := ''   
+    //Clear BoS When ChoCh Formation
+    if (BeChoCh_B == 'Break' or BuChoCh_B == 'Break')
+        if BoS_Permit == true
+            line.delete(BoS_Line), label.delete(BoS_Label)
+    //Next ChoCh Line
+        // Bullish ChoCh Line
+    if BuChoCh_I != BuChoCh_I[1] and Trend == 'Down Trend'
+        BuChoCh_BB := ''
+        BuCount := BuCount + 1 
+        if Trend[1] == 'Down Trend' and BuCount > 1
+            line.delete(BuChoCh_Line[1]), label.delete(BuChoCh_Label[1])
+        if Show_ChoCh
+            BuChoCh_Line  := line.new(BuChoCh_I , BuChoCh_P, bar_index, BuChoCh_P, color = color.new(Color_BuChoCh, 30) , style = line.style_solid)
+            BuChoCh_Label := label.new(int(math.avg(BuChoCh_I,bar_index)),BuChoCh_P + (ATR * 0.1) , 'Bullish ChoCh' , color = na, 
+             textcolor = Color_BuChoCh , style = label.style_label_down , size = Size_ChoCh)
+        // Bearish ChoCh Line
+    if BeChoCh_I != BeChoCh_I[1] and Trend == 'Up Trend'
+        BeChoCh_BB := ''
+        BeCount := BeCount + 1 
+        if Trend[1] == 'Up Trend' and BeCount > 1
+            line.delete(BeChoCh_Line[1]), label.delete(BeChoCh_Label[1]) 
+        if Show_ChoCh       
+            BeChoCh_Line  := line.new(BeChoCh_I , BeChoCh_P, bar_index, BeChoCh_P, color = color.new(Color_BeChoCh, 30)   , style = line.style_solid)
+            BeChoCh_Label := label.new(int(math.avg(BeChoCh_I,bar_index)),BeChoCh_P - (ATR * 0.5) , 'Bearish ChoCh' , color = na,  
+             textcolor = Color_BeChoCh , style = label.style_label_up , size = Size_ChoCh)  
+    // First ChoCh Line
+        // Bullish ChoCh Line
+    if BuCount == 0 and BeChoCh_B ==  'Break' and BuChoCh_IB !=  BuChoCh_I 
+        BuCount := BuCount + 1 
+        if Show_ChoCh
+            BuChoCh_Line  := line.new((bar_index-Index) > LongP ? BuChoCh_I : Index, (bar_index-Index) > LongP ? BuChoCh_P : high[bar_index-Index],
+             bar_index, (bar_index-Index) > LongP ? BuChoCh_P : high[bar_index-Index], color = color.new(Color_BuChoCh, 30) , style = line.style_solid)
+            BuChoCh_Label := label.new(int(math.avg((bar_index-Index) > LongP ? BuChoCh_I : Index,bar_index)),(bar_index-Index) > LongP ? BuChoCh_P + (ATR * 0.1) : high[bar_index-Index] + (ATR * 0.1) , 'Bullish ChoCh' , color = na,  
+             textcolor = Color_BuChoCh , style = label.style_label_down , size = Size_ChoCh)
+        // Bearish ChoCh Line
+    if BeCount == 0 and BuChoCh_B ==  'Break' and BeChoCh_IB !=  BeChoCh_I 
+        BeCount := BeCount + 1 
+        if Show_ChoCh
+            BeChoCh_Line  := line.new((bar_index-Index) > LongP ? BeChoCh_I : Index, (bar_index-Index) > LongP ? BeChoCh_P : low[bar_index-Index],
+             bar_index, (bar_index-Index) > LongP ? BeChoCh_P : low[bar_index-Index], color = color.new(Color_BeChoCh, 30)   , style = line.style_solid)
+            BeChoCh_Label := label.new(int(math.avg((bar_index-Index) > LongP ? BeChoCh_I : Index,bar_index)),(bar_index-Index) > LongP ? BeChoCh_P- (ATR * 0.5) : low[bar_index-Index] - (ATR * 0.5) , 'Bearish ChoCh' , color = na,  
+             textcolor = Color_BeChoCh , style = label.style_label_up , size = Size_ChoCh)                                    
+    // Reset ChoCh Line
+        // Bullish ChoCh Line    
+    if (BuChoCh_I == BuChoCh_I[1] and Trend == 'Down Trend' and BuCount > 0) 
+        line.set_x2(BuChoCh_Line , bar_index + 1), label.set_x(BuChoCh_Label, int(math.avg(line.get_x1(BuChoCh_Line),bar_index)))
+        // Bearish ChoCh Line
+    if (BeChoCh_I == BeChoCh_I[1] and Trend == 'Up Trend' and BeCount > 0)  
+        line.set_x2(BeChoCh_Line , bar_index + 1), label.set_x(BeChoCh_Label, int(math.avg(line.get_x1(BeChoCh_Line),bar_index)))
+    //   \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/////////////////////////////////////////////////
+    //    |||||||||||||||||||||||||||||||||||BoS & Liquidity Block|||||||||||||||||||||||||||||||||||||
+    //   //////////////////////////////////////////////\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    //BoS & Liquidity in Up Trend
+    if Trend == 'Up Trend'
+        Low := 0.0
+        if nz(SHP) != 0 
+            if  High ==  0.0 ? High ==  0.0 : High <= high[ShortP]
+                High := high[ShortP]
+                Index :=bar_index[ShortP]
+                BoS_Permit := true
+                if Show_BoS
+                    BoS_Line := line.new(bar_index[ShortP], high[ShortP], bar_index, high[ShortP] , color = color.new(Color_BuBoS, 30) , style = line.style_dashed)
+                    BoS_Label:= label.new(int((bar_index[ShortP] + bar_index) / 2), high[ShortP]  + (ATR * 0.1), 'BoS', color = na, textcolor = Color_BuBoS , 
+                     size = Size_BoS , style = label.style_label_center)
+                if BoS_Permit[1] == true
+                    line.delete(BoS_Line[1]), label.delete(BoS_Label[1])
+        // Reset BoS & Liquidity Line
+        if nz(SHP) == 0 and (BoS_Permit )
+            line.set_x2(BoS_Line, bar_index), label.set_x(BoS_Label, int((line.get_x1(BoS_Line) + bar_index) / 2))
+        // Mitigated BoS Line
+        if close > line.get_y1(BoS_Line) and (BoS_Permit )
+            BoS_Permit := false
+        // Mitigated and Set Liquidity Line
+        if close < line.get_y1(BoS_Line) and high > line.get_y1(BoS_Line) and (BoS_Permit )
+            BoS_Permit := false
+            line.set_color(BoS_Line, color.new(Color_LQDY, 30)), line.set_style(BoS_Line, line.style_dotted), label.set_text(BoS_Label, 'LQDT'), label.set_textcolor(BoS_Label, Color_LQDY)
+    // BoS & Liquidity in Down Trend
+    if Trend == 'Down Trend'
+        High := 0.0
+        if nz(SLP) != 0 
+            if  Low == 0.0 ? Low == 0.0 : Low >= low[ShortP]
+                Low := low[ShortP]
+                Index :=bar_index[ShortP]
+                BoS_Permit := true
+                if Show_BoS
+                    BoS_Line := line.new(bar_index[ShortP], low[ShortP], bar_index, low[ShortP] , color = color.new(Color_BeBoS, 30) , style = line.style_dashed)
+                    BoS_Label:= label.new(int((bar_index[ShortP] + bar_index) / 2), low[ShortP]  - (ATR * 0.4), 'BoS', color = na, textcolor = Color_BeBoS , 
+                     size = Size_BoS , style = label.style_label_center)
+                if BoS_Permit[1] == true
+                    line.delete(BoS_Line[1]), label.delete(BoS_Label[1])
+        // Reset BoS & Liquidity Line
+        if nz(SLP) == 0 and (BoS_Permit )
+            line.set_x2(BoS_Line, bar_index), label.set_x(BoS_Label, int((line.get_x1(BoS_Line) + bar_index) / 2))
+        // Mitigated BoS Line
+        if close < line.get_y1(BoS_Line) and (BoS_Permit )
+            BoS_Permit := false
+        // Mitigated and Set Liquidity Line
+        if close > line.get_y1(BoS_Line) and low < line.get_y1(BoS_Line) and (BoS_Permit )
+            BoS_Permit := false
+            line.set_color(BoS_Line, color.new(Color_LQDY, 30)), line.set_style(BoS_Line, line.style_dotted), label.set_text(BoS_Label, 'LQDT'), label.set_textcolor(BoS_Label, Color_LQDY)        
+    //   \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/////////////////////////////////////////////////
+    //    |||||||||||||||||||||||||||||||||||||||Inducement Block||||||||||||||||||||||||||||||||||||||
+    //   //////////////////////////////////////////////\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    // Inducement in Up Trend
+    if Trend == 'Up Trend'
+        if nz(ILP) != 0 
+            IDM_Permit := true
+            if Show_IDMT
+                Inducement_Line := line.new(bar_index[InducementP], low[InducementP], bar_index, low[InducementP] , color = color.new(Color_IDMT, 30) , style = line.style_dotted)
+                Inducement_Label := label.new(int((bar_index[InducementP] + bar_index) / 2), low[InducementP]  - (ATR * 0.4), 'IDMT', color = na, textcolor = Color_IDMT , 
+                 size = Size_IDMT , style = label.style_label_center)
+            if IDM_Permit[1] == true
+                line.delete(Inducement_Line[1]), label.delete(Inducement_Label[1])
+        // Reset Inducement Line
+        if nz(ILP) == 0 and IDM_Permit == true
+            line.set_x2(Inducement_Line, bar_index ), label.set_x(Inducement_Label, int((line.get_x1(Inducement_Line) + bar_index) / 2))
+        // Mitigated Inducement Line
+        if IDMT_Type == 'Total' 
+            if low < line.get_y1(Inducement_Line)  
+                IDM_Permit := false
+        if IDMT_Type == 'Sweeps'
+            if low < line.get_y1(Inducement_Line) and close > line.get_y1(Inducement_Line)
+                IDM_Permit := false
+            if close < line.get_y1(Inducement_Line)
+                line.delete(Inducement_Line)
+                label.delete(Inducement_Label)
+
+    // Inducement in Down Trend
+    if Trend == 'Down Trend'
+        if nz(IHP) != 0 
+            IDM_Permit := true
+            if Show_IDMT
+                Inducement_Line := line.new(bar_index[InducementP], high[InducementP], bar_index, high[InducementP] , color = color.new(Color_IDMT, 30) , style = line.style_dotted)
+                Inducement_Label := label.new(int((bar_index[InducementP] + bar_index) / 2), high[InducementP]  + (ATR * 0.1), 'IDMT', color = na, textcolor = Color_IDMT , 
+                 size = Size_IDMT , style = label.style_label_center)
+            if IDM_Permit[1] == true
+                line.delete(Inducement_Line[1]), label.delete(Inducement_Label[1])
+        // Reset Inducement Line
+        if nz(IHP) == 0 and IDM_Permit 
+            line.set_x2(Inducement_Line, bar_index ), label.set_x(Inducement_Label, int((line.get_x1(Inducement_Line) + bar_index) / 2))
+        // Mitigated Inducement Line
+        if IDMT_Type == 'Total' 
+            if high > line.get_y1(Inducement_Line)  
+                IDM_Permit := false
+        if IDMT_Type == 'Sweeps'
+            if high > line.get_y1(Inducement_Line) and close < line.get_y1(Inducement_Line)
+                IDM_Permit := false
+            if close > line.get_y1(Inducement_Line)
+                line.delete(Inducement_Line)
+                label.delete(Inducement_Label)
+//Call Function
+Structure(LongP, ShortP, InducementP, FTD, IDMT_Type, Show_ChoCh, Color_BuChoCh, Color_BeChoCh, Size_ChoCh, Show_BoS, Color_BuBoS, Color_BeBoS, Color_LQDY, Size_BoS, Show_IDMT, Color_IDMT, Size_IDMT)
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

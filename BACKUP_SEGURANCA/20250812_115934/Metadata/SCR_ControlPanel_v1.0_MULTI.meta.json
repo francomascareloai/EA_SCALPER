@@ -1,0 +1,34 @@
+{
+  "arquivo": "CONTROL PANEL PART 1.mq5",
+  "nome_padronizado": "SCR_ControlPanel_v1.0_MULTI",
+  "tipo": "Script",
+  "categoria": "Trading_Tools",
+  "estrategia": "Control_Panel",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "descricao": "Script de painel de controle para trading manual com interface gráfica. Inclui botões para operações de compra, venda, fechamento de posições e informações da conta.",
+  "funcoes_principais": [
+    "OnInit",
+    "Button Controls",
+    "Trade Management",
+    "Account Information",
+    "Position Management",
+    "GUI Interface"
+  ],
+  "parametros_expostos": [],
+  "ftmo_score": 9,
+  "ftmo_ready": true,
+  "riscos_detectados": [
+    "Ferramenta de trading manual (risco controlado pelo usuário)"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Adicionar alertas de risco",
+    "Implementar validação de tamanho de posição",
+    "Adicionar controle de daily loss"
+  ],
+  "tags": ["#Script", "#Trading_Tools", "#Control_Panel", "#GUI", "#MULTI", "#FTMO_Ready", "#Manual_Trading"],
+  "caminho_origem": "All_MQ5/CONTROL PANEL PART 1.mq5",
+  "caminho_final": "Scripts/Trading_Tools/SCR_ControlPanel_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "Script de interface para trading manual com 1162 linhas. Ferramenta útil para traders manuais compatível com FTMO."
+}

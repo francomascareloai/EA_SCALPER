@@ -1,0 +1,78 @@
+//@version=5
+indicator(title='<<RSX>>', shorttitle='<<RSX>>', overlay=false)
+
+src = input(close)
+length = input(4)
+
+var float f90_ = 0.0
+var float f88 = 0.0
+var float f28 = 0.0
+var float f30 = 0.0
+var float f38 = 0.0
+var float f40 = 0.0
+var float f48 = 0.0
+var float f50 = 0.0
+var float f58 = 0.0
+var float f60 = 0.0
+var float f68 = 0.0
+var float f70 = 0.0
+var float f78 = 0.0
+var float f80 = 0.0
+
+f90_ := nz(f90_[1]) == 0.0 ? 1.0 : nz(f88[1]) <= nz(f90_[1]) ? nz(f88[1]) + 1 : nz(f90_[1]) + 1
+f88 := nz(f90_[1]) == 0.0 and length - 1 >= 5 ? length - 1.0 : 5.0
+f8 = 100.0 * src
+f18 = 3.0 / (length + 2.0)
+f20 = 1.0 - f18
+f10 = nz(f8[1])
+v8 = f8 - f10
+
+f28 := f20 * nz(f28[1]) + f18 * v8
+f30 := f18 * f28 + f20 * nz(f30[1])
+vC = f28 * 1.5 - f30 * 0.5
+
+f38 := f20 * nz(f38[1]) + f18 * vC
+f40 := f18 * f38 + f20 * nz(f40[1])
+v10 = f38 * 1.5 - f40 * 0.5
+
+f48 := f20 * nz(f48[1]) + f18 * v10
+f50 := f18 * f48 + f20 * nz(f50[1])
+v14 = f48 * 1.5 - f50 * 0.5
+
+f58 := f20 * nz(f58[1]) + f18 * math.abs(v8)
+f60 := f18 * f58 + f20 * nz(f60[1])
+v18 = f58 * 1.5 - f60 * 0.5
+
+f68 := f20 * nz(f68[1]) + f18 * v18
+f70 := f18 * f68 + f20 * nz(f70[1])
+v1C = f68 * 1.5 - f70 * 0.5
+
+f78 := f20 * nz(f78[1]) + f18 * v1C
+f80 := f18 * f78 + f20 * nz(f80[1])
+v20 = f78 * 1.5 - f80 * 0.5
+
+f0 = f88 >= f90_ and f8 != f10 ? 1.0 : 0.0
+f90 = f88 == f90_ and f0 == 0.0 ? 0.0 : f90_
+
+v4 = f88 < f90 and v20 > 0.0000000001 ? (v14 / v20 + 1.0) * 50.0 : 50.0
+rsx = v4 / 50 - 1
+
+bcolor = if rsx > 0
+    if rsx > rsx[1]
+        #02fd84
+    else
+        #005e03
+else
+    if rsx < rsx[1]
+        #fa1f1f
+    else
+        #700303
+
+plot(rsx, color=bcolor, linewidth=10, style=plot.style_histogram, title='RSX')
+
+
+hline(0.5, "Верхний уровень 1", color=#005e03)
+hline(1.0, "Верхний уровень 2", color=#02fd84)
+hline(0.0, "Нулевой уровень 0", color=#696969)
+hline(-0.5, "Нижний уровень 1", color=#700303)
+hline(-1.0, "Нижний уровень 2", color=#fa1f1f)

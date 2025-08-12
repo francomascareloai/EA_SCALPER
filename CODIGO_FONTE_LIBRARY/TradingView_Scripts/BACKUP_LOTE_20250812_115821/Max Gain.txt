@@ -1,0 +1,56 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Skipper86
+// Date Created: 5/8/2021
+
+//@version=4
+study("Max Gain and Loss", shorttitle="Max Gain", format=format.percent, precision=1, resolution="")
+
+//Scope:
+//This indicator is meant to be used for coming up with price targets based on past performances of rallies/selloffs. 
+//It shows how much a trade could have made over a 30-day period (or other length of time) in terms of percentage gain.
+//It also show how much could have been lost in terms of percentage loss
+
+//Note on max loss adjustment:
+//Max loss percentage is adjusted to be higher to account for the fact that a percentage loss corresponds to a percentage
+//gain of a greater amount.  For instance, a loss of 25% can only be recovered with a percentage gain of 33%.
+//A 25% loss looking at the chart from left to right would be a 33% gain looking at the same price
+//action from right to left.  In order to compare apples to apples visually and performance wise, max loss percent needs to be adjusted.
+//The actual max loss percent is calculated and plottable but is not plotted by default because it is less useful and adds clutter.
+//There is not a great difference between actual max loss and adjusted max loss under everyday market conditions, but
+//major selloffs (SPY 2020), short squeezes (GME 2021), or other unusually directional moves will display percentage losses
+//that, in absolute terms, should be considered to be fairly incorrect.  The adjusted percentages are good indicators of
+//relative performance when comparing the magnitudes to the magnitudes of the max gain percentages and 
+//are more visually meaningful than the actual max loss percentages in every situation, so they are plotted despite having incorrect values.
+
+//Note on bear markets:
+//This indicator was designed for bull markets but should it be used in bear markets the indicators that are and aren't
+//plotted should be swapped using the plot check boxes in the settings dialogue if there is interest in using the loss percentages
+//for actual loss calculations while maintaining visual/performance adjustment
+
+length = input(30, title="Trading Period Length", minval=1)
+//number of previous days (or other time intervals) that are considered in the calculation of each indicator reading, default is 30
+//the time interval will be assumed to be days and the length of time will be assumed to be 30 for comment simplicity
+
+maxhigh = highest(high,length)  //finds the highest high over the past 30 days
+minlow  = lowest(low,length)    //finds the lowest low over the past 30 days
+
+MaxGain = ((high-minlow)/minlow)*100    //calculates the gain from the min low to today's high
+MaxLoss = ((low-maxhigh)/maxhigh)*-100  //calculates the loss from the max high to today's low, sign is switched to display as positive value
+//the oscillators would more accurately be described as "today's max gain from the 30-day low" or "today's max loss from the 30-day high" 
+//but the max values stand out on the chart and those are what matter most therefore the oscillators are named based on their main points of interest
+
+AdjustedMaxGain = (MaxGain/(100+MaxGain)*100)
+//meant for bear markets only, not normally plotted
+
+AdjustedMaxLoss = (MaxLoss/(100-MaxLoss)*100)
+//adjusts max loss percent to be higher for apples-to-apples comparison of performance
+//this is the same formula used for calculating sales markup based on sales margin
+
+plot(MaxGain, color=#08A515, title="Max Gain %")                                            //actual max gain is plotted green
+plot(MaxLoss, color=#B26F00, title="Actual Max Loss %", display=display.none)               //actual max loss is not plotted but can be turned on (orange)
+plot(AdjustedMaxGain, color=#FC0C84, title="Adjusted Max Gain %", display = display.none)   //adjusted max loss not plotted but can be turned on (pink)
+plot(AdjustedMaxLoss, color=#B2001D, title="Adjusted Max Loss %")                           //adjusted max loss is plotted green
+//for bear markets swap which percentages are and aren't plotted
+//percent loss will be correct and percent gain will be adjusted/incorrect
+
+//End of Script

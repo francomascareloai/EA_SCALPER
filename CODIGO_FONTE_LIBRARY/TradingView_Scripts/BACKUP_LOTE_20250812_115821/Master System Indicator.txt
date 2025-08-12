@@ -1,0 +1,61 @@
+//@version=5
+indicator("Master Range Divider", overlay=true)
+
+// Define user inputs
+instrument = input.string(defval="XAUUSD", title="Instrument (e.g., XAUUSD, EURUSD, BTCUSD, Oil)")
+customPipRange = input.int(defval=1000, title="Custom Pip Range", minval=1)
+extendLines = input.bool(defval=true, title="Extend Lines?")
+colorLine0 = input.color(color.red, title="Color for 0% Line")
+colorLine25 = input.color(color.orange, title="Color for 25% Line")
+colorLine50 = input.color(color.yellow, title="Color for 50% Line")
+colorLine75 = input.color(color.green, title="Color for 75% Line")
+colorLine100 = input.color(color.blue, title="Color for 100% Line")
+
+price = close
+
+// Set pip size and range based on the instrument
+var float rangePips = na
+var int pipsMultiplier = 1
+
+// Apply custom pip range for all instruments
+rangePips := customPipRange
+pipsMultiplier := (instrument == "EURUSD" or instrument == "Silver" or instrument == "NASDAQ" or instrument == "SP500" or instrument == "FOREX" or instrument == "BTCUSD" or instrument == "Oil") ? 10000 : 1
+
+// Calculate range low and high rounded to the nearest zero
+rangeSize = rangePips * syminfo.mintick * pipsMultiplier
+rangeLow = math.floor(price / rangeSize) * rangeSize
+rangeHigh = rangeLow + rangeSize
+
+// Calculate percentage levels
+line0 = rangeLow
+line25 = rangeLow + 0.25 * rangeSize
+line50 = rangeLow + 0.50 * rangeSize
+line75 = rangeLow + 0.75 * rangeSize
+line100 = rangeHigh
+
+// Draw and extend horizontal lines
+var line line0Line = na
+var line line25Line = na
+var line line50Line = na
+var line line75Line = na
+var line line100Line = na
+
+// Initialize lines
+if (na(line0Line))
+    line0Line := line.new(x1=bar_index - 1000, y1=line0, x2=bar_index, y2=line0, color=colorLine0, width=1)
+    line25Line := line.new(x1=bar_index - 1000, y1=line25, x2=bar_index, y2=line25, color=colorLine25, width=1)
+    line50Line := line.new(x1=bar_index - 1000, y1=line50, x2=bar_index, y2=line50, color=colorLine50, width=1)
+    line75Line := line.new(x1=bar_index - 1000, y1=line75, x2=bar_index, y2=line75, color=colorLine75, width=1)
+    line100Line := line.new(x1=bar_index - 1000, y1=line100, x2=bar_index, y2=line100, color=colorLine100, width=1)
+else
+    // Update line positions
+    line.set_xy1(line0Line, extendLines ? bar_index - 1000 : bar_index, line0)
+    line.set_xy2(line0Line, bar_index, line0)
+    line.set_xy1(line25Line, extendLines ? bar_index - 1000 : bar_index, line25)
+    line.set_xy2(line25Line, bar_index, line25)
+    line.set_xy1(line50Line, extendLines ? bar_index - 1000 : bar_index, line50)
+    line.set_xy2(line50Line, bar_index, line50)
+    line.set_xy1(line75Line, extendLines ? bar_index - 1000 : bar_index, line75)
+    line.set_xy2(line75Line, bar_index, line75)
+    line.set_xy1(line100Line, extendLines ? bar_index - 1000 : bar_index, line100)
+    line.set_xy2(line100Line, bar_index, line100)

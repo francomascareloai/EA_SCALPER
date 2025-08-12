@@ -1,0 +1,26 @@
+{
+  "arquivo": "CANVAS EA.mq5",
+  "nome_padronizado": "SCR_Canvas_v1.0_MULTI",
+  "tipo": "Script",
+  "categoria": "Educational",
+  "estrategia": "Canvas_Graphics",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "descricao": "Script educacional demonstrando uso da classe CCanvas para criação de gráficos e elementos visuais no MetaTrader 5. Desenha pixels e linhas em canvas.",
+  "funcoes_principais": [
+    "OnInit",
+    "CreateBitmapLabel",
+    "PixelSet",
+    "Canvas Graphics"
+  ],
+  "parametros_expostos": [],
+  "ftmo_score": 10,
+  "ftmo_ready": true,
+  "riscos_detectados": [],
+  "ajustes_ftmo_sugeridos": [],
+  "tags": ["#Script", "#Educational", "#Canvas", "#Graphics", "#MULTI", "#FTMO_Ready"],
+  "caminho_origem": "All_MQ5/CANVAS EA.mq5",
+  "caminho_final": "Scripts/Educational/SCR_Canvas_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "Script educacional para demonstração de funcionalidades gráficas. Não realiza trading, portanto compatível com FTMO."
+}

@@ -1,0 +1,32 @@
+Locate Your MT4 Root Folder: The MT4 path should look something like this: C:\Program Files (x86)\XXXX MT4 Client Terminal. If you're unsure about the location, you can use the Task Manager to find it. Open Task Manager, locate the MT4 process, right-click and select 'Properties' to find the path.
+
+Create a Backup: Before proceeding with any modification, it's good practice to create a backup of any files that will be replaced. In this case, locate the existing terminal.exe in your MT4 installation folder. Right-click on the terminal.exe file and select 'Rename'. Rename it to terminal-old.exe. This ensures that the original file remains safe in case you need to revert back to it later.
+
+Copy the New Files: Now, navigate to Root folder where terminal.exe and missing32.dll are located And Copy them.
+
+Replace Files: Now Copy the new files into the MT4 folder.
+
+Now you can copythe EA as any other EA. If you need help with it, there will be a PDF called "How to install MT4 files".
+
+
+Remember, missing32.dll might be flagged as a threat. It's not a virus, but if you're uncertain, consider using a VPS or Virtual Machine. If still unsure, you might skip this EA. 
+
+
+
+
+
+
+??For More Free EA, Indicators, Trading Systems, Video course Vist
+>>>>> https://ForexCracked.com
+
+??Join Our Telegram Group To Discus Further About These 
+>>>>> https://t.me/fxcracked
+
+??Join Discord Channel to Download and test Profitable EAs:
+>>>>> https://discord.gg/43P5CRk
+
+??Review your Favorites, Profitable, Scam , fraud EA here
+>>>>> https://www.fxcracked.com/
+
+??Our forum
+>>>>> https://www.JustForForex.com/

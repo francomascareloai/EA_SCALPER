@@ -1,0 +1,70 @@
+//@version=5
+indicator("King Indicator (Filtered)", overlay=true, max_labels_count=500)
+
+// ─── Inputs ───────────────────────────────────────────
+SMA_period = input.int(21, "SMA Period", minval=1)
+EMA_period = input.int(5, "EMA Period", minval=1)
+
+smaColor = input.color(color.purple, "SMA Color")
+emaColor = input.color(color.yellow, "EMA Color")
+smaWidth = input.int(2, "SMA Width")
+emaWidth = input.int(2, "EMA Width")
+
+// ─── Calculations ─────────────────────────────────────
+sma_value = ta.sma(close, SMA_period)
+ema_value = ta.ema(close, EMA_period)
+
+// ─── Crossover Functions ──────────────────────────────
+crossoverCond = ta.crossover(ema_value, sma_value)
+crossunderCond = ta.crossunder(ema_value, sma_value)
+
+// ─── Candle Patterns ──────────────────────────────────
+red_green_green = close[3] < open[3] and close[2] > open[2] and close[1] > open[1]
+green_red_red = close[3] > open[3] and close[2] < open[2] and close[1] < open[1]
+
+// ─── Price Relative to SMA ─────────────────────────────
+sma_below_price = close > sma_value
+sma_above_price = close < sma_value
+
+// ─── Signal Conditions ─────────────────────────────────
+buy_signal_raw = (sma_below_price and red_green_green) or crossoverCond
+sell_signal_raw = (sma_above_price and green_red_red) or crossunderCond
+
+// ─── Filter to Avoid Arrow Spam ────────────────────────
+// Show arrow only when condition becomes true (no repeats)
+var bool buy_triggered = false
+var bool sell_triggered = false
+
+buy_signal = false
+sell_signal = false
+
+if (buy_signal_raw)
+    if not buy_triggered
+        buy_signal := true
+        buy_triggered := true
+else
+    buy_triggered := false
+
+if (sell_signal_raw)
+    if not sell_triggered
+        sell_signal := true
+        sell_triggered := true
+else
+    sell_triggered := false
+
+// ─── Plot SMA and EMA ──────────────────────────────────
+plot(sma_value, "SMA", color=smaColor, linewidth=smaWidth)
+plot(ema_value, "EMA", color=emaColor, linewidth=emaWidth)
+
+// ─── Plot Arrows ───────────────────────────────────────
+// Pattern-based signals (green/red arrows)
+plotshape(buy_signal and not crossoverCond, title="Buy (Pattern)", style=shape.triangleup, location=location.belowbar, size=size.large, color=color.green, text="(KING)")
+plotshape(sell_signal and not crossunderCond, title="Sell (Pattern)", style=shape.triangledown, location=location.abovebar, size=size.large, color=color.red, text="(KING)")
+
+// Crossover-based signals (purple arrows)
+plotshape(buy_signal and crossoverCond, title="Buy EMA-SMA", style=shape.triangleup, location=location.belowbar, size=size.large, color=color.purple, text="Compra (KING)", textcolor=color.yellow)
+plotshape(sell_signal and crossunderCond, title="Sell EMA-SMA", style=shape.triangledown, location=location.abovebar, size=size.large, color=color.purple, text="Venda (KING)", textcolor=color.yellow)
+
+// ─── Alerts ───────────────────────────────────────────
+alertcondition(buy_signal, title="Buy Signal", message="King Indicator: BUY")
+alertcondition(sell_signal, title="Sell Signal", message="King Indicator: SELL")

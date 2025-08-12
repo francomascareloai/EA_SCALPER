@@ -1,0 +1,256 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+    
+//@version=5
+strategy("Scalper TURBO", overlay=true, initial_capital=1000, 
+         default_qty_type=strategy.percent_of_equity, default_qty_value=50,
+         calc_on_every_tick=true, process_orders_on_close=false)
+
+// ==================== PERFORMANCE OPTIMIZATIONS ====================
+// Pre-calculate constants to avoid repeated calculations
+const int MINUTES_PER_HOUR = 60
+
+// ==================== INPUT PARAMETERS ====================
+// Technical Parameters
+emaFastLen    = input.int(34, "EMA Rápida", minval=1)
+emaSlowLen    = input.int(63, "EMA Lenta", minval=1)
+smaLen        = input.int(34, "SMA Filtro", minval=1)
+rsiLen        = input.int(14, "Periodo RSI", minval=1)
+rsiOverbought = input.int(70, "RSI Sobrecompra", minval=1, maxval=100)
+rsiOversold   = input.int(30, "RSI Sobreventa", minval=1, maxval=100)
+breakoutPeriod = input.int(1, "Periodos para Breakout", minval=1)
+atrLen        = input.int(14, "Periodo ATR", minval=1)
+atrMultSL     = input.float(3, "Multiplicador ATR Stop-Loss", step=0.1)
+atrMultTrail  = input.float(3, "Multiplicador ATR Trailing Stop", step=0.1)
+
+// ==================== TIME FILTER SETTINGS ====================
+var g_timefilters = "Time Filters"
+
+// Time Filter Arrays for faster processing
+useTimeFilter = array.new_bool(4)
+startHour = array.new_int(4)
+startMin = array.new_int(4)
+endHour = array.new_int(4)
+endMin = array.new_int(4)
+
+// Time Filter 1
+array.set(useTimeFilter, 0, input.bool(false, "Enable Time Filter 1", group=g_timefilters))
+array.set(startHour, 0, input.int(9, "Start Hour", minval=0, maxval=23, group=g_timefilters, inline="tf1start"))
+array.set(startMin, 0, input.int(0, "Start Minute", minval=0, maxval=59, group=g_timefilters, inline="tf1start"))
+array.set(endHour, 0, input.int(11, "End Hour", minval=0, maxval=23, group=g_timefilters, inline="tf1end"))
+array.set(endMin, 0, input.int(30, "End Minute", minval=0, maxval=59, group=g_timefilters, inline="tf1end"))
+
+// Time Filter 2
+array.set(useTimeFilter, 1, input.bool(false, "Enable Time Filter 2", group=g_timefilters))
+array.set(startHour, 1, input.int(13, "Start Hour", minval=0, maxval=23, group=g_timefilters, inline="tf2start"))
+array.set(startMin, 1, input.int(30, "Start Minute", minval=0, maxval=59, group=g_timefilters, inline="tf2start"))
+array.set(endHour, 1, input.int(15, "End Hour", minval=0, maxval=23, group=g_timefilters, inline="tf2end"))
+array.set(endMin, 1, input.int(0, "End Minute", minval=0, maxval=59, group=g_timefilters, inline="tf2end"))
+
+// Time Filter 3
+array.set(useTimeFilter, 2, input.bool(false, "Enable Time Filter 3", group=g_timefilters))
+array.set(startHour, 2, input.int(16, "Start Hour", minval=0, maxval=23, group=g_timefilters, inline="tf3start"))
+array.set(startMin, 2, input.int(0, "Start Minute", minval=0, maxval=59, group=g_timefilters, inline="tf3start"))
+array.set(endHour, 2, input.int(18, "End Hour", minval=0, maxval=23, group=g_timefilters, inline="tf3end"))
+array.set(endMin, 2, input.int(30, "End Minute", minval=0, maxval=59, group=g_timefilters, inline="tf3end"))
+
+// Time Filter 4
+array.set(useTimeFilter, 3, input.bool(false, "Enable Time Filter 4", group=g_timefilters))
+array.set(startHour, 3, input.int(20, "Start Hour", minval=0, maxval=23, group=g_timefilters, inline="tf4start"))
+array.set(startMin, 3, input.int(0, "Start Minute", minval=0, maxval=59, group=g_timefilters, inline="tf4start"))
+array.set(endHour, 3, input.int(22, "End Hour", minval=0, maxval=23, group=g_timefilters, inline="tf4end"))
+array.set(endMin, 3, input.int(30, "End Minute", minval=0, maxval=59, group=g_timefilters, inline="tf4end"))
+
+// ==================== PINECONNECTOR SETTINGS ====================
+var g_connector = "PineConnector Settings"
+pcID = input.string(" ", "Pine Connector ID", group=g_connector)
+symbolName = input.string("XAUUSD", "Symbol Name", tooltip="Symbol exactly as it appears in your MT5", group=g_connector)
+lotSize = input.float(0.01, "Lot Size", step=0.01, group=g_connector)
+enableRealTrading = input.bool(true, "Enable Real Trading", group=g_connector)
+useFastExecution = input.bool(true, "Use Fast Execution Mode", group=g_connector)
+showLabels = input.bool(true, "Show Info Labels", group=g_connector)
+
+// Risk Management
+useStopLoss = input.bool(true, "Use Stop Loss", group=g_connector)
+useTakeProfit = input.bool(true, "Use Take Profit", group=g_connector)
+useTrailingStop = input.bool(false, "Use Trailing Stop", group=g_connector)
+stopLossATRMult = input.float(3, "Stop Loss ATR Multiple", step=0.1, group=g_connector)
+takeProfitATRMult = input.float(3, "Take Profit ATR Multiple", step=0.1, group=g_connector)
+trailingStopATRMult = input.float(3, "Trailing Stop ATR Multiple", step=0.1, group=g_connector)
+
+// ==================== OPTIMIZED TIME FILTER FUNCTION ====================
+// Cache current time components
+currentHour = hour(time)
+currentMin = minute(time)
+currentTimeMinutes = currentHour * MINUTES_PER_HOUR + currentMin
+
+// Optimized time check function
+isTimeAllowed() =>
+    anyEnabled = false
+    timeOK = false
+    
+    for i = 0 to 3
+        if array.get(useTimeFilter, i)
+            anyEnabled := true
+            startTimeMin = array.get(startHour, i) * MINUTES_PER_HOUR + array.get(startMin, i)
+            endTimeMin = array.get(endHour, i) * MINUTES_PER_HOUR + array.get(endMin, i)
+            
+            inRange = startTimeMin <= endTimeMin ? 
+                     (currentTimeMinutes >= startTimeMin and currentTimeMinutes <= endTimeMin) :
+                     (currentTimeMinutes >= startTimeMin or currentTimeMinutes <= endTimeMin)
+            
+            if inRange
+                timeOK := true
+                break
+    
+    not anyEnabled or timeOK
+
+// ==================== CACHED INDICATOR CALCULATIONS ====================
+// Calculate indicators only once per bar
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+sma34   = ta.sma(close, smaLen)
+rsi     = ta.rsi(close, rsiLen)
+atr     = ta.atr(atrLen)
+
+// Support/Resistance with caching
+var float resistenciaReciente = na
+var float soporteReciente = na
+if barstate.isconfirmed
+    resistenciaReciente := ta.highest(high, breakoutPeriod)[1]
+    soporteReciente := ta.lowest(low, breakoutPeriod)[1]
+
+// ==================== SIGNAL CONDITIONS ====================
+// Pre-calculate all conditions
+tendenciaAlcista = emaFast > emaSlow
+tendenciaBajista = emaFast < emaSlow
+rsiNotOverbought = rsi < rsiOverbought
+rsiNotOversold = rsi > rsiOversold
+priceAboveSMA = close > sma34
+priceBelowSMA = close < sma34
+timeAllowed = isTimeAllowed()
+
+// Breakout conditions
+breakoutUp = close > resistenciaReciente
+breakoutDown = close < soporteReciente
+
+// Final entry conditions - simplified logic
+longSignal = breakoutUp and tendenciaAlcista and rsiNotOverbought and priceAboveSMA and timeAllowed
+shortSignal = breakoutDown and tendenciaBajista and rsiNotOversold and priceBelowSMA and timeAllowed
+
+// ==================== POSITION MANAGEMENT ====================
+// Efficient position tracking
+var int currentPosition = 0  // 1 = long, -1 = short, 0 = flat
+var bool positionChanged = false
+var string pendingAlert = ""
+
+// Detect position changes
+newLong = longSignal and currentPosition <= 0
+newShort = shortSignal and currentPosition >= 0
+
+// ==================== OPTIMIZED ALERT SYSTEM ====================
+// Pre-build alert components for faster execution
+stopPips = useStopLoss ? str.tostring(math.round(atr * stopLossATRMult * 100)) : ""
+tpPips = useTakeProfit ? str.tostring(math.round(atr * takeProfitATRMult * 100)) : ""
+trailPips = useTrailingStop ? str.tostring(math.round(atr * trailingStopATRMult * 100)) : ""
+
+// Build risk management string once
+riskParams = useStopLoss ? ",sl=" + stopPips : ""
+riskParams += useTakeProfit ? ",tp=" + tpPips : ""
+riskParams += useTrailingStop ? ",trailingstop=" + trailPips : ""
+
+// ==================== FAST EXECUTION MODE ====================
+if enableRealTrading
+    // LONG ENTRY
+    if newLong
+        // Close short first if needed
+        if currentPosition < 0
+            alert(pcID + ",closeshort," + symbolName, alert.freq_once_per_bar)
+        
+        // Enter long
+        strategy.entry("Long", strategy.long)
+        longAlert = pcID + ",buy," + symbolName + ",risk=" + str.tostring(lotSize) + riskParams
+        alert(longAlert, useFastExecution ? alert.freq_once_per_bar : alert.freq_once_per_bar_close)
+        currentPosition := 1
+    
+    // SHORT ENTRY
+    else if newShort
+        // Close long first if needed
+        if currentPosition > 0
+            alert(pcID + ",closelong," + symbolName, alert.freq_once_per_bar)
+        
+        // Enter short
+        strategy.entry("Short", strategy.short)
+        shortAlert = pcID + ",sell," + symbolName + ",risk=" + str.tostring(lotSize) + riskParams
+        alert(shortAlert, useFastExecution ? alert.freq_once_per_bar : alert.freq_once_per_bar_close)
+        currentPosition := -1
+else
+    // Backtest mode
+    if newLong
+        strategy.entry("Long", strategy.long)
+        currentPosition := 1
+    else if newShort
+        strategy.entry("Short", strategy.short)
+        currentPosition := -1
+
+// ==================== STOP LOSS MANAGEMENT ====================
+// Calculate stops only when in position
+if currentPosition != 0
+    if currentPosition > 0
+        stopLong = strategy.position_avg_price - atr * atrMultSL
+        strategy.exit("Exit Long", "Long", stop=stopLong, trail_points=atr * atrMultTrail, trail_offset=atr * atrMultTrail)
+    else
+        stopShort = strategy.position_avg_price + atr * atrMultSL
+        strategy.exit("Exit Short", "Short", stop=stopShort, trail_points=atr * atrMultTrail, trail_offset=atr * atrMultTrail)
+
+// Detect exits
+if strategy.position_size == 0 and currentPosition != 0
+    if enableRealTrading
+        exitAlert = currentPosition > 0 ? pcID + ",closelong," + symbolName : pcID + ",closeshort," + symbolName
+        alert(exitAlert, alert.freq_once_per_bar)
+    currentPosition := 0
+
+// ==================== VISUALIZATION ====================
+// Entry signals
+plotshape(newLong, location=location.belowbar, color=color.green, style=shape.triangleup, size=size.small, title="Long Entry")
+plotshape(newShort, location=location.abovebar, color=color.red, style=shape.triangledown, size=size.small, title="Short Entry")
+
+// Indicators
+plot(sma34, "SMA 34", #2195f300, 2)
+plot(resistenciaReciente, "Resistance", color.gray, 1, plot.style_steplinebr)
+plot(soporteReciente, "Support", color.gray, 1, plot.style_steplinebr)
+
+// Stop levels when in position
+plot(currentPosition > 0 ? strategy.position_avg_price - atr * atrMultSL : na, "Long Stop", color.red, 2, plot.style_linebr)
+plot(currentPosition < 0 ? strategy.position_avg_price + atr * atrMultSL : na, "Short Stop", color.red, 2, plot.style_linebr)
+
+// Time filter visualization
+bgcolor(array.get(useTimeFilter, 0) and isTimeAllowed() ? color.new(color.green, 95) : na)
+bgcolor(array.get(useTimeFilter, 1) and isTimeAllowed() ? color.new(color.blue, 95) : na)
+bgcolor(array.get(useTimeFilter, 2) and isTimeAllowed() ? color.new(color.orange, 95) : na)
+bgcolor(array.get(useTimeFilter, 3) and isTimeAllowed() ? color.new(color.purple, 95) : na)
+
+// ==================== PERFORMANCE METRICS ====================
+var table perfTable = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 80))
+if barstate.islast and showLabels
+    table.cell(perfTable, 0, 0, "PineConnector", text_color=color.white)
+    table.cell(perfTable, 1, 0, enableRealTrading ? "ACTIVE" : "INACTIVE", text_color=enableRealTrading ? color.green : color.red)
+    table.cell(perfTable, 0, 1, "Symbol", text_color=color.white)
+    table.cell(perfTable, 1, 1, symbolName, text_color=color.white)
+    table.cell(perfTable, 0, 2, "Lot Size", text_color=color.white)
+    table.cell(perfTable, 1, 2, str.tostring(lotSize), text_color=color.white)
+    table.cell(perfTable, 0, 3, "Position", text_color=color.white)
+    table.cell(perfTable, 1, 3, currentPosition == 1 ? "LONG" : currentPosition == -1 ? "SHORT" : "FLAT", 
+               text_color=currentPosition == 1 ? color.green : currentPosition == -1 ? color.red : color.gray)
+    table.cell(perfTable, 0, 4, "Exec Mode", text_color=color.white)
+    table.cell(perfTable, 1, 4, useFastExecution ? "FAST" : "NORMAL", text_color=useFastExecution ? color.green : color.yellow)
+    table.cell(perfTable, 0, 4, "Join and Enjoy", text_color=color.white)
+    table.cell(perfTable, 1, 4, "📲https://t.me/Drfxai", text_color=#cefc02)
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

@@ -1,0 +1,13 @@
+//@version=5
+indicator("Step 2", shorttitle="Step 2", overlay=false)
+
+// Input parameters
+ema_length = input.int(13, title="EMA Length", minval=1)
+
+// Calculate normal EMAs
+ema1 = ta.ema(close, ema_length)
+ema2 = ta.ema(close, ema_length)
+
+// Plot EMAs with offsets
+plot(ema1, title="EMA1 (Red, Offset +2)", color=color.red, linewidth=2, offset=1)
+plot(ema2, title="EMA2 (Green, Offset -2)", color=color.green, linewidth=2, offset=-1)

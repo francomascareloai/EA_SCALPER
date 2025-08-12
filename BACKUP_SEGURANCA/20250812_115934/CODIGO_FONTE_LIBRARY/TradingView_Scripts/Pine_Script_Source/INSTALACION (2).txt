@@ -1,0 +1,47 @@
+INSTRUCCIONES
+
+1ER PASO
+
+Vamos a la pestaña herramientas, luego opciones y nos dirijimos hacia asesores expertos
+y dentro de la opcion vamos a darle check en 1,2,3 y 5 luego aceptamos 
+
+2DO PASO
+luego vamos a la pestaña archivo, y eligimos abrir carpeta de datos 
+entramos en la carpeta MQL4, ahora nos dirijimos a la carpeta experts
+en la carpeta experts pegamos los archivos enviados por correo electronico
+
+3ER PASO
+
+Nos vamos a la parte izquierda y buscamos el navegador, buscamos asesores expertos 
+en la opcion de asesores expertos damos click derecho actualizando
+
+4TO PASO
+
+Abrimos el grafico del par XAUUSD y lo dejamos en la temporalidad en 15 minutos
+dentro de la opcion del navegador, buscamos nuevamente asesores expertos y buscamos el robot
+lo arrastramos a la grafica indicada
+
+5TO PASO
+
+Al arrastrar al grafico del par XAUUSD, nos abrira un cuadro
+nos dirijimos a parametros de entrada y cambiamos los siguientes valores:
+General lot: 0.01
+General percent: 0.3
+Lotmax: 0.01
+Take Profit 1:99
+Take Profit 2:99
+Take Profit 3:99
+Take Profit 4:99
+Take Profit 5:99
+Take Profit 6:99
+Take Profit 7:99
+Take Profit 8:99
+
+y damos en aceptar; nos aseguramos que el autotrading (ubicado arriba del timeframe) se encuentre activo
+
+NOTA IMPORTANTE NO PRENDER EL ROBOT SI AL OTRO DIA HAY NOTICIAS COMO: NFP, CPI, PPI,FOMC.
+NO SOBRE-APALANCAR LA CUENTA POR NINGUN MOTIVO.
+
+NOTA 2: PARA QUE EL SISTEMA TRABAJE, TIENE QUE ESTAR CONECTADO A INTERNET; TAMBIEN SE PUEDE
+ADQUIRIR UN VPS PARA EVITAR ELLO.
+RECORDAR QUE LA TEMPORALIDAD (15 MINUTOS) NUNCA DEBE SER CAMBIADA BAJO NINGUN MOTIVO

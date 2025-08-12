@@ -1,0 +1,18 @@
+{
+  "inicio": "2025-08-12T11:54:32.480769",
+  "testes_executados": [
+    "test_01_inicializacao_orquestrador",
+    "test_02_interface_comando_trae",
+    "test_03_comando_status_sistema",
+    "test_04_comando_demo_completo",
+    "test_05_comando_backup",
+    "test_06_funcao_executar_comando_trae",
+    "test_07_integracao_completa"
+  ],
+  "testes_passou": 7,
+  "testes_falhou": 0,
+  "detalhes": {},
+  "fim": "2025-08-12T11:54:32.480783",
+  "total_testes": 7,
+  "taxa_sucesso": 100.0
+}

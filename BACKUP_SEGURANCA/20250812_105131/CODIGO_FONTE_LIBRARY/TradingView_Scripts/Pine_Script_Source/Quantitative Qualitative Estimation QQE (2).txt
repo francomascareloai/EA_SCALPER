@@ -1,0 +1,38 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © KivancOzbilgic
+
+//@version=4
+study("Quantitative Qualitative Estimation", shorttitle="QQE",precision=4, resolution="")
+src=input(close)
+length = input(14,"RSI Length", minval=1)
+SSF=input(5, "SF RSI SMoothing Factor", minval=1)
+showsignals = input(title="Show Crossing Signals?", type=input.bool, defval=true)
+highlighting = input(title="Highlighter On/Off ?", type=input.bool, defval=true)
+RSII=ema(rsi(src,length),SSF)
+TR=abs(RSII-RSII[1])
+wwalpha = 1/ length
+WWMA = 0.0
+WWMA := wwalpha*TR + (1-wwalpha)*nz(WWMA[1])
+ATRRSI=0.0
+ATRRSI := wwalpha*WWMA + (1-wwalpha)*nz(ATRRSI[1])
+QQEF=ema(rsi(src,length),SSF)
+QUP=QQEF+ATRRSI*4.236
+QDN=QQEF-ATRRSI*4.236
+QQES=0.0
+QQES:=QUP<nz(QQES[1]) ? QUP : QQEF>nz(QQES[1]) and QQEF[1]<nz(QQES[1]) ? QDN :  QDN>nz(QQES[1]) ? QDN : QQEF<nz(QQES[1]) and QQEF[1]>nz(QQES[1]) ? QUP : nz(QQES[1])
+QQF=plot(QQEF,"FAST",color.maroon,2)
+QQS=plot(QQES,"SLOW",color=color.blue, linewidth=1)
+plot(50,color=color.gray,style=6)
+longFillColor = highlighting ? (QQEF>QQES ? color.green : na) : na
+shortFillColor = highlighting ? (QQEF<QQES ? color.red : na) : na
+fill(QQF, QQS, title="UpTrend Highligter", color=longFillColor)
+fill(QQF, QQS, title="DownTrend Highligter", color=shortFillColor)
+buySignalr = crossover(QQEF, QQES)
+plotshape(buySignalr and showsignals ? QQES*0.995 : na, title="Buy", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.green, textcolor=color.white, transp=0)
+sellSignallr = crossunder(QQEF, QQES)
+plotshape(sellSignallr and showsignals ? QQES*1.005 : na, title="Sell", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+alertcondition(cross(QQEF, QQES), title="Cross Alert", message="QQE Crossing Signal!")
+alertcondition(crossover(QQEF, QQES), title="Crossover Alarm", message="QQE BUY SIGNAL!")
+alertcondition(crossunder(QQEF, QQES), title="Crossunder Alarm", message="QQE SELL SIGNAL!")
+alertcondition(crossover(QQEF, 50), title="Cross 50 Up Alert", message="QQE FAST Crossing 50 UP!")
+alertcondition(crossunder(QQEF, 50), title="Cross 50 Down Alert", message="QQE FAST Crossing 50 DOWN!")

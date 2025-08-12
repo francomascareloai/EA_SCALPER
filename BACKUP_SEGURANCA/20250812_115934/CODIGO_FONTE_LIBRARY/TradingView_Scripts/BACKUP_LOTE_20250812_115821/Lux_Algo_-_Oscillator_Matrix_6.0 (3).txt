@@ -1,0 +1,352 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Made By Cio
+
+//@version=5
+indicator("Lux Algo - Oscillator Matrix [6.0]", shorttitle = "Lux Algo - Oscillator Matrix [6.0]", max_lines_count = 500)
+
+
+dwTL = "Length of the hyper wave"
+smTL = "[SMA] Smooth signal with a simple moving average\n[EMA] Smooth signal with an exponential moving average\n[Input] Length of the smooth"
+dvTL = "Sensibility of the real time divergence : less sensibility = more short term divs; more sensibility = more long term divs"
+
+cmTL = "Show confluence meter at the side of the oscillator"
+caTL = "Show confluence area at the bottom/top of the oscillator"
+
+rfTL = "More factor will return in less signals but in a stronger way, less factor will return more signal with less strength"
+
+
+simple bool   dW    = input.bool  (true                    , "Main Length??????         ", inline = "1   ", group = "HYPER WAVE"                          , tooltip  = dwTL)
+simple int    mL    = input.int   (7                       , "                          ", inline = "1   ", group = "HYPER WAVE", minval = 5, maxval = 21)
+simple string sT    = input.string("SMA"                   , "Signal                    ", inline = "s   ", group = "HYPER WAVE", options = ["SMA", "EMA"], tooltip  = smTL)
+simple int    sL    = input.int   (3                       , "                          ", inline = "s   ", group = "HYPER WAVE", minval = 2, maxval = 10)
+simple color  fCSS  = input.color (#51B155               , "Colors??                  ", inline = "css ", group = "HYPER WAVE")
+simple color  sCSS  = input.color (#80828D               , "                          ", inline = "css ", group = "HYPER WAVE")
+simple int    tCSS  = input.int   (80                      , "                          ", inline = "css ", group = "HYPER WAVE", minval =  0, maxval = 100)
+simple int    dvT   = input.int   (20                      , "Divergence Sensibility??  ", inline = "x   ", group = "HYPER WAVE", minval = 20, maxval = 40 , tooltip = dvTL)
+simple bool   sDiv  = input.bool  (true                    , "Show Divergences??        ", inline = "div ", group = "HYPER WAVE")
+simple color  blDv  = input.color (color.new(#2962ff, 20), "                          ", inline = "div ", group = "HYPER WAVE")
+simple color  brDv  = input.color (color.new(#f23645, 20), "                          ", inline = "div ", group = "HYPER WAVE")
+
+simple bool   Smf   = input.bool  (true                     , "Money Flow Length        ", inline = "mfi ", group = "SMART MONEY FLOW")
+simple int    mfL   = input.int   (35                       , "                         ", inline = "mfi ", group = "SMART MONEY FLOW", minval = 10, maxval = 55)
+simple int    mfS   = input.int   (6                        , "Smooth??????????????     ", inline = "mfx ", group = "SMART MONEY FLOW", minval = 2 , maxval = 10)
+simple color  mfBL  = input.color (#089981                , "Money Flow Colors??????  ", inline = "mfiC", group = "SMART MONEY FLOW")
+simple color  mfBR  = input.color (#f23645                , "                         ", inline = "mfiC", group = "SMART MONEY FLOW")
+
+simple color  cnBL  = input.color (#089981                , "Confluence Colors??????? ", inline = "cf  ", group = "CONFLUENCE")
+simple color  cnBR  = input.color (#f23645                , "                         ", inline = "cf  ", group = "CONFLUENCE")
+simple bool   sCNF  = input.bool  (true                     , "Show Confluence Meter    ", inline = "zf  ", group = "CONFLUENCE", tooltip = cmTL)
+simple bool   sCNB  = input.bool  (true                     , "Show Confluence Areas    ", inline = "zx  ", group = "CONFLUENCE", tooltip = caTL)
+
+simple bool   rsS   = input.bool  (true                     , "Reversal Factor????      ", inline = "rv  ", group = "REVERSAL")
+simple int    rsF   = input.int   (4                        , "                         ", inline = "rv  ", group = "REVERSAL", options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], tooltip = rfTL)
+simple color  rsBL  = input.color (#089981                , "Reversal Colors??????????", inline = "rc  ", group = "REVERSAL")
+simple color  rsBR  = input.color (#f23645                , "                         ", inline = "rc  ", group = "REVERSAL")
+
+type oL
+    float sig
+    float sgD
+    color cO
+
+type dP
+    int   n
+    float src
+    float p
+
+type smf
+    float mfi
+    color mfc
+    float blMFI
+    float brMFI
+
+type cnf
+    color   up
+    color   dn
+    float[] blT
+    float[] brT
+
+var oL  osc = oL.new (na, na, na    )
+var dP  div = dP.new (na, na, na    )
+var smf mf  = smf.new(na, na, na, na)
+
+var cnf cf  = cnf.new(
+       color.rgb(54, 58, 69, 60)
+     , color.rgb(54, 58, 69, 60)
+     , array.new<float>(1, na)
+     , array.new<float>(1, na)
+     )
+
+
+mfT() =>
+    switch
+        mf.mfi > 0 =>
+            if cf.brT.size() > 1
+                cf.brT.pop()
+            if cf.blT.size() > mfL
+                cf.blT.pop()
+            if mf.mfi > cf.blT.avg()
+                cf.blT.unshift(mf.mfi)
+            else
+                cf.blT.unshift(mf.mfi[mfL] > 0 
+                     ? mf.mfi[mfL] 
+                     : mf.mfi
+                     )
+
+        mf.mfi < 0 =>
+            if cf.blT.size() > 1
+                cf.blT.pop()
+            if cf.brT.size() > mfL
+                cf.brT.pop()
+            if mf.mfi < cf.blT.avg()
+                cf.brT.unshift(mf.mfi)
+            else
+                cf.brT.unshift(mf.mfi[mfL] < 0 
+                     ? mf.mfi[mfL] 
+                     : mf.mfi
+                     )
+
+
+method st(simple string src, float osc, simple int len) =>
+    float o = switch src
+        "SMA" => ta.sma(osc, len)
+        "EMA" => ta.ema(osc, len)
+
+method css(color x, int inv) =>
+    color out = inv == 1 
+         ? color.new(x, tCSS) 
+         : color.new(x, 0   )
+
+method transp(color x, int t) =>
+    color.new(x, t)
+
+
+
+rv() =>
+    vMA  = ta.sma(volume, 7)
+    rsi  = ta.rsi(vMA,    7) - 50
+    
+    tMj  = volume > vMA * ( rsF != 10 ? 1 + (rsF / 10) : 2)             ? true : false
+    tMn  = volume > vMA * ( rsF != 10 ? 0 + (rsF / 10) : 2) and not tMj ? true : false
+
+    mjBR = tMj and osc.sig >  rsF and mf.mfi > cf.blT.avg()             ? true : false
+    mjBL = tMj and osc.sig < -rsF and mf.mfi < cf.brT.avg()             ? true : false
+
+    mnBR = tMn and osc.sig >  20 and osc.sig > osc.sgD and rsi >  20    ? true : false
+    mnBL = tMn and osc.sig < -20 and osc.sig < osc.sgD and rsi < -20    ? true : false
+
+    [mjBL, mjBR, mnBR, mnBL]
+
+
+
+osc(simple int len, simple int smt) =>
+    float hi = ta.highest(     len)
+    float lo = ta.lowest (     len)
+    float av = ta.sma    (hl2, len)
+
+    osc.sig := ta.ema(ta.linreg((close - math.avg(hi, lo, av)) / (hi - lo) * 100, len, 0), sL)
+    osc.sgD := sT.st(osc.sig, 2)
+    osc.cO  := osc.sig > osc.sgD ? fCSS.css(1) : sCSS.css(1)
+
+mfi() =>
+    mf.mfi := ta.sma(ta.mfi(hl2, mfL) - 50, mfS)
+
+    mf.mfc := mf.mfi > 0 
+         ? mfBL 
+         : mfBR
+
+    bL = mf.mfi - 10
+    bR = mf.mfi + 10
+
+    mf.blMFI := mf.mfi > 0 and mf.mfi > cf.blT.avg() 
+         ? bL 
+         : 0
+    mf.brMFI := mf.mfi < 0 and mf.mfi < cf.brT.avg() 
+         ? bR 
+         : 0
+
+cDiv() =>
+    mx = math.max(osc.sig, osc.sgD, osc.sig[1], osc.sgD[1])
+    mn = math.min(osc.sig, osc.sgD, osc.sig[1], osc.sgD[1])
+
+    mxid = mx == osc.sig[1] or mx == osc.sgD[1] ? 1 : 0
+    mnid = mn == osc.sig[1] or mn == osc.sgD[1] ? 1 : 0
+
+    switch
+        osc.sig > dvT =>
+            if ta.crossunder(osc.sig, osc.sgD)
+                switch
+                    na(div.src) =>
+                        div.n   := bar_index - mxid
+                        div.src := math.max(open[mxid], close[mxid])
+                        div.p   := mx
+
+                    not na(div.src) =>
+                        if math.max(open[mxid], close[mxid]) > div.src and not(osc.sig[mxid] > div.p)
+                            line.new(x1 = div.n, x2 = bar_index - mxid, y1 = div.p, y2 = mx, color = brDv)
+                            div.n   := na
+                            div.src := na
+                            div.p   := na
+                        else
+                            div.n   := bar_index - mxid
+                            div.src := math.max(open[mxid], close[mxid])
+                            div.p   := mx
+        osc.sig < -dvT =>
+            if ta.crossover (osc.sig, osc.sgD)
+                switch
+                    na(div.src) =>
+                        div.n   := bar_index - mnid
+                        div.src := math.min(open[mnid], close[mnid])
+                        div.p   := mn
+
+                    not na(div.src) =>
+                        if math.min(open[mnid], close[mnid]) < div.src and not(osc.sig[mnid] < div.p)
+                            line.new(x1 = div.n, x2 = bar_index - mnid, y1 = div.p, y2 = mn, color = blDv)
+                            div.n   := na
+                            div.src := na
+                            div.p   := na
+                        else
+                            div.n   := bar_index - mnid
+                            div.src := math.min(open[mnid], close[mnid])
+                            div.p   := mn
+
+osc(mL, sL)
+mfi()
+mfT()
+
+if sDiv
+    cDiv()
+
+[mjBL, mjBR, mnBR, mnBL] = rv()
+
+
+
+// REVERSAL SIGNAL
+plotshape(mjBL and rsS ? -65 : na, location = location.absolute, color = rsBL, size = size.tiny, style = shape.triangleup)
+plotshape(mjBR and rsS ?  65 : na, location = location.absolute, color = rsBR, size = size.tiny, style = shape.triangledown)
+
+plot(mnBL and rsS ? -65 : na, color = rsBL, linewidth = 1, style = plot.style_circles)
+plot(mnBR and rsS ?  65 : na, color = rsBR, linewidth = 1, style = plot.style_circles)
+
+
+
+// HYPER WAVE
+plot(ta.crossover (osc.sig, osc.sgD) and dW ? math.min(osc.sig, osc.sgD) : na, style = plot.style_circles, linewidth = 2, color = osc.cO.css(0), offset = 0)
+plot(ta.crossunder(osc.sig, osc.sgD) and dW ? math.max(osc.sig, osc.sgD) : na, style = plot.style_circles, linewidth = 2, color = osc.cO.css(0), offset = 0)
+
+pO = plot(dW ? osc.sig : na, color = osc.cO.css(0)                        )
+iO = plot(dW ? osc.sgD : na, color = osc.cO.css(1), display = display.none)
+bL = plot(0                , color = color.black                        )
+
+fill(pO, iO, color = dW ? osc.cO : na)
+
+
+
+//SMART MONEY FLOW
+pmf = plot(Smf                         ? mf.mfi   : na, color = mf.mfc                    )
+blT = plot(mf.blMFI > 0 and mf.mfi > 0 ? mf.blMFI : 0 , color = na, display = display.none)
+brT = plot(mf.brMFI < 0 and mf.mfi < 0 ? mf.brMFI : 0 , color = na, display = display.none)
+
+fill(bL, pmf, mf.mfc.transp(Smf ? 50 : 100))
+fill(bL, blT, mf.mfc.transp(Smf ?  0 : 100))
+fill(bL, brT, mf.mfc.transp(Smf ?  0 : 100))
+
+
+cf.up := color.rgb(54, 58, 69, 60)
+cf.dn := color.rgb(54, 58, 69, 60)
+
+switch
+    osc.sig > 0 and mf.mfi > 0 => cf.up := cnBL
+    osc.sig < 0 and mf.mfi < 0 => cf.dn := cnBR
+    => 
+        cf.dn := cnBR.transp(60)
+        cf.up := cnBL.transp(60)
+
+
+tLv = plot( 55, color = sCNB ? cf.up : na)
+bLv = plot(-55, color = sCNB ? cf.dn : na)
+
+tfL = plot( 50, display = display.none)
+dfL = plot(-50, display = display.none)
+
+fill(tLv, tfL, color = sCNB ? cf.up : na)
+fill(bLv, dfL, color = sCNB ? cf.dn : na)
+
+plot(mf.mfi > 0 and Smf ? cf.blT.avg() : na, color = mfBL, style = plot.style_linebr)
+plot(mf.mfi < 0 and Smf ? cf.brT.avg() : na, color = mfBR, style = plot.style_linebr)
+
+
+
+//CONFLUENCE METER
+if barstate.islast
+    line.new(x1 = last_bar_index, x2 = bar_index - 1, y1 =  20, y2 =  20, color = chart.fg_color.transp(50), style = line.style_dashed, extend = extend.right)
+    line.new(x1 = last_bar_index, x2 = bar_index - 1, y1 = -20, y2 = -20, color = chart.fg_color.transp(50), style = line.style_dashed, extend = extend.right)
+
+    if sCNF
+
+        var line[]  ln = array.new<line>()
+        for j in ln
+            j.delete()
+        ln.clear()
+
+        var label lb = na
+        lb.delete()
+        lb := na
+
+        for i = 0 to 21
+            int id = switch i
+                0 => 55
+                1 => 50
+                2 => 45
+                3 => 40
+                4 => 35
+                5 => 30
+                6 => 25
+                7 => 20
+                8 => 15
+                9 => 10
+                10 => 5
+                11 => 0
+                12 => -5
+                13 => -10
+                14 => -15
+                15 => -20
+                16 => -25
+                17 => -30
+                18 => -35
+                19 => -40
+                20 => -45
+                21 => -50
+                
+            ln.unshift(
+                 line.new(
+                       x1 = bar_index + 2
+                     , x2 = bar_index + 2
+                     , y1 = id
+                     , y2 = id - 5
+                     , color = color.from_gradient(id, -50, 55, cnBR, cnBL)
+                     , width = 4
+                      )
+                     )
+
+        cnfP = switch
+            osc.sig > 0 and mf.mfi > 0 and mf.mfi > cf.blT.avg() =>  40
+            osc.sig < 0 and mf.mfi < 0 and mf.mfi < cf.brT.avg() => -40
+
+            osc.sig > 0 and mf.mfi > 0 =>  20
+            osc.sig < 0 and mf.mfi < 0 => -20
+
+            osc.sig > 0 and mf.mfi < 0 => 0
+            osc.sig < 0 and mf.mfi > 0 => 0
+
+
+        lb := label.new(
+               x = bar_index + 3
+             , y = cnfP
+             , text = "?"
+             , color = na
+             , textcolor = chart.fg_color
+             , size = size.small
+             , style = label.style_label_left
+             )
+
+

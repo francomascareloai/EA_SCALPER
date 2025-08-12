@@ -1,0 +1,71 @@
+//@version=5
+indicator(shorttitle='FL', title='Follow Line', overlay=true)
+
+// --- settings 
+ATRperiod = input.int(defval=5, title='ATR Period', minval=1)
+BBperiod = input.int(defval=21, title='Bollinger Bands Period', minval=1)
+BBdeviation = input.float(defval=1.00, title='Bollinger Bands Deviation', minval=0.1, step=0.1)
+UseATRfilter = input(defval=true, title='ATR Filter On/Off') // false = 0, true = 1
+showsignals  = input(title='Show Signals ', defval=true)
+// --- end of settings
+
+// Bollinger Bands calculation
+BBUpper = ta.sma(close, BBperiod) + ta.stdev(close, BBperiod) * BBdeviation
+BBLower = ta.sma(close, BBperiod) - ta.stdev(close, BBperiod) * BBdeviation
+
+// ATR calculation
+atrValue = ta.atr(ATRperiod)
+
+// Signal initialization
+var float FollowLine = na
+var int BBSignal = 0
+
+// Determine BB signal
+if (close > BBUpper)
+    BBSignal := 1
+else if (close < BBLower)
+    BBSignal := -1
+
+// Buy signal logic
+if (BBSignal == 1) 
+    if (UseATRfilter) 
+        FollowLine := low - atrValue
+    else
+        FollowLine := low
+    if (FollowLine < nz(FollowLine[1]))
+        FollowLine := nz(FollowLine[1])
+
+// Sell signal logic
+if (BBSignal == -1) 
+    if (UseATRfilter) 
+        FollowLine := high + atrValue
+    else
+        FollowLine := high
+    if (FollowLine > nz(FollowLine[1]))
+        FollowLine := nz(FollowLine[1])
+
+// Trend direction determination
+var int iTrend = 0
+if (nz(FollowLine) > nz(FollowLine[1]))
+    iTrend := 1
+else if (nz(FollowLine) < nz(FollowLine[1]))
+    iTrend := -1
+
+// Trend line color based on trend direction
+lineColor = iTrend > 0 ? color.rgb(9, 98, 232) : color.new(color.rgb(220, 20, 60), 0)
+
+//buy & sell conditions
+buy=0.0
+sell=0.0
+buy:=iTrend[1]==-1 and iTrend==1 ? 1 : na
+sell:=iTrend[1]==1 and iTrend==-1? 1 : na
+
+//alerts
+alertcondition(sell == 1 ,title="Sell",message="Follow Line Sell")
+alertcondition(buy == 1 ,title="Buy",message="Follow Line Buy")
+alertcondition(buy == 1 or sell == 1 ,title="Signal",message="Follow Line Signal")
+
+// Plot the trend line and signals
+plot(FollowLine, color=lineColor, linewidth=2, title="Follow Line")
+plotshape(buy == 1 and showsignals ? FollowLine-atrValue :na, text='BUY', style= shape.labelup, location=location.absolute, color=color.blue, textcolor=color.white, offset=0, transp=0,size=size.auto)
+plotshape(sell == 1 and showsignals ? FollowLine+atrValue:na, text='SELL', style=shape.labeldown, location=location.absolute, color=color.rgb(102, 15, 15), textcolor=color.white, offset=0, transp=0,size=size.auto)

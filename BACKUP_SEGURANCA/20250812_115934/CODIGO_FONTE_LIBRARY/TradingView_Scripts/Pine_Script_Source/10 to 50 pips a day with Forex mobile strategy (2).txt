@@ -1,0 +1,34 @@
+10 to 50 pips a day with Forex mobile strategy
+
+10 to 50 pips a day with Forex mobile strategy is a trend momentum strategy for MT4 and MT5 mobile applications.
+This trading system is based on the Relative Strength Index and envelopes. The main part of envelopes is to
+draw very good and reliable levels of dynamic price resistances and supports in space. In other words, the rebound,
+the violation, or the return of the price in the envelopes are significant moments.
+
+Indicators settings:
+Time Frame: 15 min or higher.
+
+Currency pairs: any
+Apply close, Period 50, deviation 0.823, upper band green, shift 0, lower band red, method smoothed.
+Apply close, shift 0, deviation 0.783, Period 50, upper band green, method smoothed, lower band red.
+Apply close, shift 0, deviation 0.763, Period 50, upper band green, lower band red, method smoothed.
+Apply close, shift 0, deviation 0.423, Period 50, upper band green, lower band green, method smoothed.
+RSI (1), apply close, with simple moving averages (1-2-3-4 color orange)-(5-6-7-8-9-10, the color purple, apply close).
+
+Trading rules 100 pips a day with Forex mobile strategy
+Buy
+
+When the price bounce on the envelope or penetrates, the area between the lower envelope bands wait for the orange
+fast moving averages to cross the slow purple one upward. But the moving averages must first have gone into the
+oversold zone (the level below 20).
+
+Sell
+
+When the price bounces on the envelope or penetrates the area between the upper envelope bands, the orange
+fast moving averages cross the slow purple one downward. But the moving averages must first have gone into the
+oversold zone (level above 80).
+
+Exit position
+
+Place initial stop loss above below the previous swing high/low.
+Profit Target ratio stops loss minimum 1:1.3 or at opposite before the opposite band.

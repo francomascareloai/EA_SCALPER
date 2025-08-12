@@ -1,0 +1,41 @@
+{
+  "id": "2ac61c23de21fb2c",
+  "arquivo": "Mitigation Order Blocks EA.mq5",
+  "hash": "2ac61c23de21fb2c",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [
+    "OrderBlockColor",
+    "OrderBlockName",
+    "orderblockMitigatedStatus",
+    "orderBlockLabels",
+    "OrderBlockExist",
+    "OrderBlockValid",
+    "orderBlockStartTime",
+    "TrailingStop",
+    "orderBlockName",
+    "orderBlockCurrentColor"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 60,
+  "riscos_detectados": [
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 80,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

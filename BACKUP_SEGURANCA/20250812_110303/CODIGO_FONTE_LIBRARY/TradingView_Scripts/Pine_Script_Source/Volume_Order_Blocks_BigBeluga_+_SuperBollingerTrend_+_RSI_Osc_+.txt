@@ -1,0 +1,783 @@
+// This work is licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International  
+// https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © BigBeluga
+// merged by hamza
+//@version=6
+indicator("Volume Order Blocks [BigBeluga] +  SuperBollingerTrend + RSI Osc + N-R top & bottom by hamza", overlay = false
+             , max_lines_count = 500, max_labels_count = 500, max_bars_back = 5000)
+
+
+
+// - - - - - STRINGS - - - - - //{
+
+// Input Categories
+var string c1               = "RSI Length"
+var string c2               = "RSI Moving Average"
+var string c3               = "Plotting"
+var string c4               = "Alerts"
+
+// Tooltips
+var string rsi_len_variant_tooltip = 
+ "Length Calculation Variant:\n" +
+ "I - Aggressive: Strongly increases length based on volatility and distance from RSI midpoint.\n" +
+ "II - Moderate: Adds volatility and scaled distance from midpoint.\n" +
+ "III - Conservative: Adds volatility and raw distance from midpoint."
+
+var string ma_len_tooltip = 
+ "Smoothing Length Options:\n" +
+ "Full - Uses the full calculated dynamic length.\n" +
+ "Half - Uses half of the calculated dynamic length.\n" +
+ "SQRT - Uses the square root of the calculated dynamic length."
+//}
+
+// - - - - - INPUTS - - - - - //{
+
+// Main RSI Inputs
+var bool   smooth               = input.bool(true, "Smooth", group = c1, display = display.none)
+var string rsi_len_variant      = input.string("I", "Length Calculation Variant", options = ["I", "II", "III"], group = c1, tooltip = rsi_len_variant_tooltip, display = display.none)
+
+// RSI Moving Average Inputs
+var string ma_type              = input.string("SMA", "Smoothing Type", options = ["SMA", "EMA"], group = c2, display = display.none)
+var string ma_len               = input.string("Half", "Smoothing Length", options = ["Full", "Half", "SQRT"], group = c2, tooltip = ma_len_tooltip, display = display.none)
+
+// Plotting Inputs
+var string barc_style           = input.string("Trend (Raw RSI)", "Barcolor Style", 
+ options = ["Trend (Raw RSI)", "Trend (RSI MA)", "Trend (Raw RSI) + Momentum", "Trend (RSI MA) + Momentum", "Momentum", "Off"], group = c3, display = display.none)
+var bool   intrabar             = input.bool(true, "Allow intrabar updating", group = c3, display = display.none)
+
+// Alert Inputs
+var string alert_trend          = input.string("Off", "Trend Alert", 
+ options = ["Raw RSI", "RSI MA", "Off"], group = c4, display = display.none)
+var bool alert_momentum         = input.bool(false, "Momentum Alert", group = c4, display = display.none)
+//}
+
+// - - - - - FUNCTIONS - - - - - //{
+
+// Default Pine Script SMA function used directly to avoid errors with ta.sma
+// ta.sma requires a constant length, which causes issues with dynamic lengths
+// Using the underlying pine_sma function works correctly with variable lengths
+pine_sma(x, y) =>
+    sum = 0.0
+    for i = 0 to y - 1
+        sum := sum + x[i] / y
+    sum
+
+// Default Pine Script RMA function used directly to avoid errors with ta.rma
+// ta.rma requires a constant length, which causes issues with dynamic lengths
+// Using the underlying pine_sma function works correctly with variable lengths
+pine_rma(src, length) =>
+    alpha = 1/length
+    sum = 0.0
+    sum := na(sum[1]) ? pine_sma(src, length) : alpha * src + (1 - alpha) * nz(sum[1])
+
+// Default Pine Script RSI function used directly to avoid errors with ta.rsi
+// ta.rsi requires a constant length, which causes issues with dynamic lengths
+// Using the underlying pine_sma function works correctly with variable lengths
+pine_rsi(x, y) => 
+    u = math.max(x - x[1], 0) // upward ta.change
+    d = math.max(x[1] - x, 0) // downward ta.change
+    rs = pine_rma(u, y) / pine_rma(d, y)
+    res = 100 - 100 / (1 + rs)
+    res
+
+// Default Pine Script EMA function used directly to avoid errors with ta.ema
+// ta.ema requires a constant length, which causes issues with dynamic lengths
+// Using the underlying pine_sma function works correctly with variable lengths
+pine_ema(src, length) =>
+    alpha = 2 / (length + 1)
+    sum = 0.0
+    sum := na(sum[1]) ? src : alpha * src + (1 - alpha) * nz(sum[1])
+
+// Function that returns a dynamic RSI length based on past RSI values
+// The idea is to make the RSI length adaptive using volatility (stdev) and distance from the RSI midpoint (50)
+// Different "variant" options control how aggressively the length changes
+parameter_free_length(free_rsi, variant) =>
+    len = switch variant
+        // Variant I: Most aggressive adaptation
+        // Uses standard deviation scaled by a nonlinear factor of distance from 50
+        // Also adds another distance-based term to increase length more dramatically
+        "I" => math.ceil(
+                     ta.stdev(free_rsi - 50, math.ceil(free_rsi)) *
+                     math.pow(1 + (math.ceil((50 - math.abs(free_rsi[1] - 50))) / 100), 2)
+                 ) +
+                 (
+                     math.ceil(math.abs(free_rsi[1] - 50)) *
+                     (1 + (math.ceil((50 - math.abs(free_rsi[1] - 50))) / 100))
+                 )
+        
+        // Variant II: Moderate adaptation
+        // Adds the standard deviation and a distance-based scaling term (less nonlinear)
+        "II" => math.ceil(
+                         ta.stdev(free_rsi - 50, math.ceil(free_rsi)) +
+                     (
+                         math.ceil(math.abs(free_rsi[1] - 50)) *
+                         (1 + (math.ceil((50 - math.abs(free_rsi[1] - 50))) / 100))
+                     )
+                 )
+        
+        // Variant III: Least aggressive adaptation
+        // Simply adds standard deviation and raw distance from 50 (linear scaling)
+        "III" => math.ceil(
+                     ta.stdev(free_rsi - 50, math.ceil(free_rsi)) +
+                     math.ceil(math.abs(free_rsi[1] - 50))
+                 )
+
+//}
+
+// - - - - - CALCULATIONS - - - - - //{
+
+var float free_rsi  = 0.0
+
+// Step 1: Initialize RSI only once at the beginning
+// If `free_rsi` has not been assigned yet (i.e., first run), use the standard RSI with a fixed length of 14
+// This will be used to seed the dynamic calculation
+rsi_base            = free_rsi[1] > 0.0 ? na : ta.rsi(close, 14)
+
+// Step 2: Calculate the approximate intrabar range as a percentage of the close
+// This will help define an initial dynamic length if needed
+range_pct           = math.ceil(((high - low) / close) * 100)
+
+// Step 3: Compute the parameter-free dynamic RSI length
+free_rsi_len        = free_rsi[1] > 0.0 ? 
+ // Case A: `free_rsi` already exists, so we can compute a new length using the chosen variant
+ parameter_free_length(free_rsi, rsi_len_variant) 
+ : rsi_base[1] > 0.0 ? 
+ // Case B: On the first bar, use the seeded RSI (`rsi_base`) to estimate an initial dynamic length
+ (range_pct[1] * math.pow(1 + (math.ceil((50 - math.abs(rsi_base[1] - 50))) / 100), 2)) +
+ (math.ceil(math.abs(rsi_base[1] - 50)) * (1 + (math.ceil((50 - math.abs(rsi_base[1] - 50))) / 100))) 
+ : na
+
+// Step 4: Update `free_rsi` only when the dynamic length becomes valid
+if free_rsi_len > 0.0
+    free_rsi := pine_rsi(close, 
+         smooth ? pine_sma(math.round(free_rsi_len, 0), math.round(free_rsi_len, 0)) // Optionally smooth the dynamic length using SMA
+         : math.round(free_rsi_len, 0) // Use raw dynamic length if no smoothing is selected
+     )
+
+// Smoothing MA
+smooth_len          = switch ma_len
+    "Full" => math.round(free_rsi_len, 0)
+    "Half" => math.round(free_rsi_len, 0) / 2
+    "SQRT" => math.ceil(math.sqrt(math.round(free_rsi_len, 0)))
+
+smoothing           = switch ma_type
+    "SMA" => pine_sma(free_rsi, smooth_len)
+    "EMA" => pine_ema(free_rsi, smooth_len)
+//}
+
+// - - - - - VISUALIZATION - - - - - //{
+
+color bcol          =color.rgb(54, 208, 19)
+color scol          =color.rgb(227, 34, 34)
+
+barcol = switch barc_style
+    "Trend (Raw RSI)"               => free_rsi > 50 ? bcol : scol
+    "Trend (RSI MA)"                => smoothing > 50 ? bcol : scol
+    "Trend (Raw RSI) + Momentum"    => free_rsi > 50 ? (free_rsi > smoothing ? bcol : color.new(color.green, 50)) : (free_rsi < smoothing ? scol : color.new(color.red, 50))
+    "Trend (RSI MA) + Momentum"     => smoothing > 50 ? (free_rsi > smoothing ? bcol : color.new(color.green, 50)) : (free_rsi < smoothing ? scol : color.new(color.red, 50))
+    "Momentum"                      => free_rsi > smoothing ? bcol : scol
+    "Off"                           => na
+
+// Plot index
+var int i           = intrabar ? 0 : 1
+
+// Plotting
+M = plot(50, color = color.gray, linewidth = 2)
+R = plot(free_rsi[i], "Free RSI", color = color.white, linewidth = 1)
+plot(smooth[i] ? pine_sma(math.round(free_rsi_len[i], 0), math.round(free_rsi_len[i], 0)) : math.round(free_rsi_len[i], 0), "Free RSI Length", color = color.new(color.white, 70))
+S = plot(smoothing[i], "Free RSI MA", color = color.yellow, linewidth = 2)
+plot(free_rsi[i], "RSI", free_rsi[i] > 50 ? color.from_gradient(free_rsi[i] - 50, 0, 50, na, color.green) : color.from_gradient(free_rsi[i] - 50, -50, 0, color.red, na), style = plot.style_histogram, histbase =  50)
+
+fill(S, R, free_rsi[i] > smoothing[i] ? color.from_gradient(free_rsi[i] - smoothing[i], 0, 10, na, color.green) : color.from_gradient(free_rsi[i] - smoothing[i], -10, 0, color.red, na))
+barcolor(barcol[i])
+//}
+
+// - - - - - ALERTS - - - - - //{
+
+// Trend
+string trend_up_msg = "[PF-RSI] Uptrend on: " + str.tostring(syminfo.ticker)
+string trend_dn_msg = "[PF-RSI] Downtrend on: " + str.tostring(syminfo.ticker)
+
+if alert_trend == "Raw RSI"
+    if ta.crossover(free_rsi, 50)
+        alert(trend_up_msg, alert.freq_once_per_bar_close)
+    else if ta.crossunder(free_rsi, 50)
+        alert(trend_dn_msg, alert.freq_once_per_bar_close)
+else if alert_trend == "RSI MA"
+    if ta.crossover(smoothing, 50)
+        alert(trend_up_msg, alert.freq_once_per_bar_close)
+    else if ta.crossunder(smoothing, 50)
+        alert(trend_dn_msg, alert.freq_once_per_bar_close)
+
+// Momentum
+string mom_up_msg = "[PF-RSI] Rising Momentum on: " + str.tostring(syminfo.ticker)
+string mom_dn_msg = "[PF-RSI] Decling Momentum on: " + str.tostring(syminfo.ticker)
+
+if alert_momentum
+    if ta.crossover(free_rsi, smoothing)
+        alert(mom_up_msg, alert.freq_once_per_bar_close)
+    else if ta.crossunder(free_rsi, smoothing)
+        alert(mom_dn_msg, alert.freq_once_per_bar_close)
+//}             
+
+// UDT  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+type level 
+    int indx
+    float upper
+    float lower 
+    float mid 
+    float vol
+
+type draw 
+    line upper 
+    line lower 
+    line mid 
+    linefill fill 
+    label vol
+// }
+
+
+// ＩＮＰＵＴＳ ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+int  length1 = input.int(5, "Sensitivity Detection: ")
+int  length2 = length1 + 13
+bool mid_l  = input.bool(true, "Mid Line")
+bool trend_shadow = input.bool(true, "Trend Shadow")
+color col1   = input.color(#26ba9f, "", inline = "col")
+color col2   = input.color(#6626ba, "", inline = "col")
+// }
+
+// ＣＡＬＣＵＬＡＴＩＯＮＳ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+float ema1     = ta.ema(close, length1)
+float ema2     = ta.ema(close, length2)
+
+bool  cross_up = ta.crossover(ema1, ema2) and barstate.isconfirmed
+bool  cross_dn = ta.crossunder(ema1, ema2) and barstate.isconfirmed
+float lowest   = ta.lowest(length2) 
+float highest  = ta.highest(length2)
+
+var upper_draw = array.new<draw>()
+var lower_draw = array.new<draw>()
+
+var upper_lvl = array.new<level>()
+var lower_lvl = array.new<level>()
+
+array_vol_upper = array.new<float>()
+array_vol_lower = array.new<float>()
+
+difff = ema2 - ema1
+color_trend = trend_shadow ? difff > 0 ? color.from_gradient(difff, 0, ta.highest(difff,100), color(na), col2) : color.from_gradient(difff, ta.lowest(difff,100), 0, col1, color(na)) : color(na)
+
+p1 = plot(ema1, "", display = display.none, editable = false)
+p2 = plot(ema2, "", display = display.none, editable = false)
+fill(p1, p2, color_trend)
+
+atr = ta.highest(ta.atr(200),200)*3
+atr1 = ta.highest(ta.atr(200),200)*2
+
+f_clear_previous_lines(draw__) =>
+    if draw__.size() > 0
+        for l in draw__
+            line.delete(l.upper)
+            line.delete(l.lower)
+            line.delete(l.mid)
+            linefill.delete(l.fill)
+            label.delete(l.vol)
+        array.clear(draw__)
+
+
+if cross_up
+    var vol = 0.0
+    vol := 0
+    for i = 1 to length2
+        
+        if low[i] == lowest
+            index = bar_index-i
+
+            for k = 0 to i
+                vol += volume[k]
+
+            src = math.min(open[bar_index-index], close[bar_index-index])
+
+            src := (src-lowest) < atr1*0.5 ? lowest + atr1*0.5 : src
+
+            mid = math.avg(src, lowest)    
+
+            l = level.new(index, src, lowest, mid, vol)
+            lower_lvl.push(l)
+
+if cross_dn
+    var vol = 0.0
+    vol := 0
+    for i = 1 to length2
+        if high[i] == highest
+            index = bar_index-i
+       
+            for k = 0 to i
+                vol += volume[k]
+
+            src = math.max(open[bar_index-index], close[bar_index-index])
+
+            src := (highest-src) < atr1*0.5 ? highest - atr1*0.5 : src
+
+            mid = math.avg(src, highest) 
+
+            l = level.new(index, highest, src, mid, vol)
+            upper_lvl.push(l)
+
+
+// }
+
+
+
+// ＰＬＯＴ ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+// Remove crossed and Overlapped Bullish OB
+if lower_lvl.size() > 0
+    for i = 0 to lower_lvl.size() - 1
+
+        l = lower_lvl.get(i)
+        l1 = lower_lvl.get(i-1)
+
+        mid = l.mid
+        mid1 = l1.mid
+
+        // Overlaps
+        if math.abs(mid - mid1) < atr 
+            l_ = level.new(na, na, na, na, na)
+            lower_lvl.set(i-1, l_)
+
+        // Crossunder
+        if close < l.lower
+            l_ = level.new(na, na, na, na, na)
+            lower_lvl.set(i, l_)
+
+    if lower_lvl.size() > 15 
+        lower_lvl.shift()
+
+// Remove crossed and Overlapped Bearish OB
+if upper_lvl.size() > 0
+    for i = 0 to upper_lvl.size() - 1
+
+        l = upper_lvl.get(i)
+        l1 = upper_lvl.get(i-1)
+
+        upper = l.upper
+
+        mid = l.mid
+        mid1 = l1.mid
+
+        // Overlaps
+        if math.abs(mid - mid1) < atr 
+            l_ = level.new(na, na, na, na, na)
+            upper_lvl.set(i-1, l_)
+
+        // Crossover
+        if close > upper
+            l_ = level.new(na, na, na, na, na)
+            upper_lvl.set(i, l_)
+
+    if upper_lvl.size() > 15 
+        upper_lvl.shift()
+
+
+// Plot Bullish OBs and Colect Volume
+if lower_lvl.size() > 0 and barstate.islast
+    f_clear_previous_lines(lower_draw)
+
+    for i = 0 to lower_lvl.size() - 1
+        l = lower_lvl.get(i)
+        array_vol_lower.push(l.vol)
+    for i = 0 to lower_lvl.size() - 1
+        l = lower_lvl.get(i)
+        
+        txt = "⮜ "+str.tostring(l.vol/array_vol_lower.sum()*100, format.percent) + " ("+str.tostring(l.vol, format.volume)+")"
+ 
+        // Create upper, lower, and mid lines
+        l_1 = line.new(l.indx, l.upper, bar_index, l.upper, color=col1, width = 2,force_overlay=true)
+        l_2 = line.new(l.indx, l.lower, bar_index, l.lower, color=col1, width = 2,force_overlay=true)
+        l_mid = line.new(l.indx, l.mid, bar_index, l.mid, color= mid_l ? col1 : color(na), style = line.style_dashed,force_overlay=true)
+        vol_l = label.new(bar_index, l.mid, txt, style = label.style_label_left, color = color(na), textcolor = chart.fg_color,force_overlay=true)
+        // Create line fill
+        fill = linefill.new(l_1, l_2, color.new(col1, 90))
+
+        // Store newly created lines and fills
+        draw_ = draw.new(l_1, l_2, l_mid, fill, vol_l)
+        lower_draw.push(draw_)
+
+// Plot Bearish OBs and Colect Volume
+if upper_lvl.size() > 0 and barstate.islast
+    f_clear_previous_lines(upper_draw)
+    for i = 0 to array.size(upper_lvl) - 1
+        l = array.get(upper_lvl, i)
+        array_vol_upper.push(l.vol) 
+
+    for i = 0 to array.size(upper_lvl) - 1
+        l = array.get(upper_lvl, i)
+
+        txt = "⮜ "+str.tostring(l.vol/array_vol_upper.sum()*100, format.percent) + " ("+str.tostring(l.vol, format.volume)+")"
+ 
+        // Create upper, lower, and mid lines
+        l_1 = line.new(l.indx, l.upper, bar_index, l.upper, color=col2, width = 2,force_overlay=true)
+        l_2 = line.new(l.indx, l.lower, bar_index, l.lower, color=col2, width = 2,force_overlay=true)
+        l_mid = line.new(l.indx, l.mid, bar_index, l.mid, color= mid_l ? col2 : color(na), style = line.style_dashed,force_overlay=true)
+        vol_l = label.new(bar_index, l.mid, txt, style = label.style_label_left, color = color(na), textcolor = chart.fg_color,force_overlay=true)
+
+        // Create line fill
+        fill = linefill.new(l_1, l_2, color.new(col2, 90))
+
+        draw_ = draw.new(l_1, l_2, l_mid, fill, vol_l)
+        upper_draw.push(draw_)
+
+// }
+//---------------------------------------------------------------------------------------
+
+
+//~~ Inputs {
+int prd = input.int(12, 'Period', minval = 1, inline = 'setting')
+float mult = input.float(2.0, 'Mult', minval = 0.1, step = .1, inline = 'setting', tooltip = 'Set the Bollinger Band period. \n\nSet the multiplier.')
+bool showZigZag = input.bool(true, 'ZigZag', inline = 'zigzag')
+string signal = input.string('Signal', '', ['Signal', 'Peak Distance'], inline = 'zigzag')
+string dev = input.string('ZigZag', '', ['ZigZag', 'High/Low', 'Close'], inline = 'zigzag', tooltip = 'Enable the ZigZag Bollinger Signals. \n\nSelect if you only want to display the signals or the Peak Signal Distance between each signal. \n\nThe Signal Distance can be calculated using the ZigZag, High/Low, or Close.')
+bool showTable = input.bool(false, 'Average/Median Distance', inline = '', tooltip = 'Enable the Table that displays the Average or Median ZigZag move.')
+bool showTP = input.bool(false, 'Take Profit', inline = 'tp')
+string Tp = input.string('Median', '', ['Median', 'Average'], inline = 'tp', tooltip = 'Enable the Take-Profit line. \n\nSelect if the TP should be based on the Average or Median move.')
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Types & Variables {
+//Types
+type ZigZag
+	array<int> x1
+	array<float> y1
+	array<float> diff
+type SuperBollingerTrend
+	float s
+	color c
+type Alerts
+	bool Long = false
+	bool Short = false
+	bool LongTp = false
+	bool ShortTp = false
+
+var zz = ZigZag.new(array.new<int>(), array.new<float>(), array.new<float>())
+var sbt = SuperBollingerTrend.new(0.0, na)
+alerted = Alerts.new()
+//Variables
+int b = bar_index
+float bbup = ta.sma(high, prd) + ta.stdev(high, prd) * mult
+float bbdn = ta.sma(low, prd) - ta.stdev(low, prd) * mult
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Methods{
+//ZigZag
+method zigzag(ZigZag z, c, p, l) =>
+    y2 = dev == 'ZigZag' ? sbt.s : dev == 'High/Low' ? p : close
+    if z.x1.size() > 0
+        x1 = z.x1.get(0)
+        y1 = z.y1.get(0)
+        z.diff.unshift(math.abs(y2 - y1))
+        line.new(x1, y1, b, y2, color = color.new(color.gray, 0), style = line.style_dashed,force_overlay=true)
+        style = signal == 'Signal' ? l ? label.style_triangleup : label.style_triangledown : l ? label.style_label_up : label.style_label_down
+        txt = signal == 'Signal' ? na : str.tostring(y2 - y1, format.mintick) + 'p'
+        label.new(b, sbt.s, txt, color = c, size = size.small, style = style, textcolor = chart.bg_color,force_overlay=true)
+    z.x1.unshift(b)
+    z.y1.unshift(y2)
+    //SuperBollingerTrend Calculation
+method SBT(SuperBollingerTrend s, cond, val, col, p, l) =>
+    s.s := na(bbdn) or na(bbup) ? 0.0 : close > sbt.s ? math.max(sbt.s, bbdn) : close < sbt.s ? math.min(sbt.s, bbup) : 0.0
+    if cond
+        s.s := val
+        s.c := col
+        if showZigZag
+            zz.zigzag(col, p, l)
+        alerted.Long := l ? true : false
+        alerted.Short := l ? false : true
+        alerted.Short
+        //Run Methods
+sbt.SBT(ta.crossover(close, sbt.s), bbdn, color.lime, low, true)
+sbt.SBT(ta.crossunder(close, sbt.s), bbup, color.red, high, false)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Plot & Table {
+//Plot
+plot(sbt.s, 'SuperBollingerTrend', sbt.c,force_overlay=true)
+
+//TP Line
+var tp = line.new(na, na, na, na, color = color.lime,force_overlay=true)
+var ltp = label.new(na, na, 'TP', color = color(na), style = label.style_label_left, textcolor = chart.fg_color, size = size.normal,force_overlay=true)
+dist = Tp == 'Median' ? zz.diff.median() : zz.diff.avg()
+if showTP and zz.y1.size() > 0
+    pos = close > sbt.s ? true : false
+    x = zz.x1.get(0)
+    y = pos ? zz.y1.get(0) + dist : zz.y1.get(0) - dist
+    tp.set_xy1(x, y)
+    tp.set_xy2(b + 10, y)
+    ltp.set_xy(b + 10, y)
+    alerted.LongTp := pos ? high >= y and high[1] < y : false
+    alerted.ShortTp := pos ? false : low <= y and low[1] > y
+    alerted.ShortTp
+
+//Table
+var table tbl = na
+if barstate.islast and showZigZag and showTable
+    tbl := table.new(position.top_right, 1, 1, chart.bg_color, frame_color = color.new(color.gray, 50), frame_width = 3, border_width = 1,force_overlay=true)
+    tbl.cell(0, 0, Tp == 'Median' ? 'Median ZigZag Distance: ' + str.tostring(dist, format.mintick) + 'p' : 'Avg ZigZag Distance: ' + str.tostring(dist, format.mintick) + 'p', text_color = chart.fg_color)
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Alerts {
+alertcondition(alerted.Long, 'Long Alert', 'Long Signal')
+alertcondition(alerted.Short, 'Short Alert', 'Short Signal')
+alertcondition(alerted.LongTp, 'Long TP Alert', 'Long TP')
+alertcondition(alerted.ShortTp, 'Short TP Alert', 'Short TP')
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+//----------------------------------------------------------------------------------
+
+
+// === Input Parameters ===
+// Trend Continuation
+showContinuation = false //input.bool(false, "Show Continuation Candles", group="Trend Continuation")
+continuationColor = color.black//, "Continuation Candle Color", group="Trend Continuation")
+
+// VWAP Settings
+showVWAP = input.bool(true, "Show VWAP", group="VWAP")
+VWAPSource = input.source(hl2, "VWAP Source", group="VWAP")
+
+// Signal Settings
+disableRepeating = input.bool(true, 'Disable Repeating Signals', group='Signal Settings')
+useRes = input(true, 'Use Alternate Signals', group='Signal Settings')
+intRes = input(8, 'Multiplier for Alternate Signals', group='Signal Settings')
+basisType = input.string('ALMA', 'MA Type', options=['HullMA', 'ALMA'], group='Signal Settings')
+basisLen = input.int(2, 'MA Period', minval=1, group='Signal Settings')
+offsetSigma = input.int(5, 'Offset for LSMA / Sigma for ALMA', minval=0, group='Signal Settings')
+offsetALMA = input.float(0.85, 'Offset for ALMA', minval=0, step=0.01, group='Signal Settings')
+tradeType = input.string('BOTH', 'Trade Direction', options=['LONG', 'SHORT', 'BOTH', 'NONE'], group='Signal Settings')
+
+// Supertrend Settings
+supAtr = input.int(14, "ATR Length", 1, group="Supertrend")
+factor = input.float(3.0, "Factor", group="Supertrend")
+pltChk = input.bool(true, "Show Supertrend Line?", group="Supertrend")
+upCol = input.color(color.green, "Up Color", group="Supertrend")
+dnCol = input.color(color.red, "Down Color", group="Supertrend")
+
+// Label Settings
+label_size = input.string('small', 'Label Size', options=['huge', 'large', 'normal', 'small', 'tiny'], group='Label Settings')
+label_style = input.string('triangle', 'Label Style', ['text bubble', 'triangle', 'arrow'], group='Label Settings')
+buy_label_color = input.color(#388e3c, 'BUY Label Color', group='Label Settings')
+sell_label_color = input.color(#b22833, 'SELL Label Color', group='Label Settings')
+label_text_color = input.color(color.white, 'Label Text Color', group='Label Settings')
+
+// RSI Settings
+rsiPeriod = input.int(14, "RSI Period", group="RSI Settings")
+neutralLower = input.int(45, "Neutral Lower Bound", group="RSI Settings")
+neutralUpper = input.int(55, "Neutral Upper Bound", group="RSI Settings")
+bullishThreshold = input.int(55, "Bullish Threshold", group="RSI Settings")
+bearishThreshold = input.int(45, "Bearish Threshold", group="RSI Settings")
+
+// Moving Averages
+var g_EMAS = "Moving Averages"
+LenghtBool1 = input.bool(false, '', group=g_EMAS, inline='len1')
+len1 = input.int(15, title='MA 1', group=g_EMAS, inline='len1')
+ma_1_type = input.string('EMA', title='Type', options=['RMA', 'SMA', 'EMA', 'VWMA'], inline='len1', group=g_EMAS)
+ma_1_colour = input.color(color.rgb(51, 199, 15), '', inline='len1', group=g_EMAS)
+
+LenghtBool2 = input.bool(false, '', group=g_EMAS, inline='len2')
+len2 = input.int(30, minval=1, title='MA 2', group=g_EMAS, inline='len2')
+ma_2_type = input.string('EMA', title='Type', options=['RMA', 'SMA', 'EMA', 'VWMA'], inline='len2', group=g_EMAS)
+ma_2_colour = input.color(color.rgb(255, 94, 0), '', inline='len2', group=g_EMAS)
+
+LenghtBool3 = input.bool(false, '', group=g_EMAS, inline='len3')
+len3 = input.int(55, minval=1, title='MA 3', group=g_EMAS, inline='len3')
+ma_3_type = input.string('EMA', title='Type', options=['RMA', 'SMA', 'EMA', 'VWMA'], inline='len3', group=g_EMAS)
+ma_3_colour = input.color(color.new(color.aqua, 0), '', inline='len3', group=g_EMAS)
+
+LenghtBool4 = input.bool(false, '', group=g_EMAS, inline='len4')
+len4 = input.int(200, minval=1, title='MA 4', group=g_EMAS, inline='len4')
+ma_4_type = input.string('EMA', title='Type', options=['RMA', 'SMA', 'EMA', 'VWMA'], inline='len4', group=g_EMAS)
+ma_4_colour = input.color(color.black, '', inline='len4', group=g_EMAS)
+
+// Volume Settings
+volumeOption = input.string("Use Volume Confirmation", title="Volume Option", options=["none", "Use Volume Confirmation"], group="Volume")
+useVolumeConfirmation = volumeOption == 'none' ? false : true
+emaFastLength = input(9, title="Fast EMA Length", group="Volume")
+emaSlowLength = input(15, title="Slow EMA Length", group="Volume")
+volumeConfirmationLength = input(6, title="Volume Confirmation Length", group="Volume")
+
+// === Calculations ===
+// Trend Continuation
+uptrendContinues = close > open and close[1] > open[1] and close > close[1]
+downtrendContinues = close < open and close[1] < open[1] and close < close[1]
+
+// VWAP
+VWAPrice = ta.vwap(VWAPSource)
+
+// Supertrend
+[super, dirc] = ta.supertrend(factor, supAtr)
+var intlSupr = float(na)
+var rangSupr = float(na)
+intlSupr := dirc != dirc[1] ? super : intlSupr
+rangSupr := dirc != dirc[1] ? math.abs(super - super[1]) : rangSupr
+
+// Timeframe resolution
+stratRes = timeframe.ismonthly ? str.tostring(timeframe.multiplier * intRes, '###M') :
+           timeframe.isweekly ? str.tostring(timeframe.multiplier * intRes, '###W') :
+           timeframe.isdaily ? str.tostring(timeframe.multiplier * intRes, '###D') :
+           timeframe.isintraday ? str.tostring(timeframe.multiplier * intRes, '####') : '60'
+
+// MA Functions
+FunctionMA(source, length, type) =>
+    switch type
+        "RMA" => ta.rma(source, length)
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+ma1 = FunctionMA(close, len1, ma_1_type)
+ma2 = FunctionMA(close, len2, ma_2_type)
+ma3 = FunctionMA(close, len3, ma_3_type)
+ma4 = FunctionMA(close, len4, ma_4_type)
+
+// Base Functions
+variant(type, src, len, offSig, offALMA) =>
+    v1 = ta.sma(src, len)
+    v2 = ta.ema(src, len)
+    v8 = ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))
+    v10 = ta.alma(src, len, offALMA, offSig)
+    switch type
+        'ALMA' => v10
+        'HullMA' => v2
+        => v1
+
+// Security wrapper
+reso(exp, use, res) =>
+    security_1 = request.security(syminfo.tickerid, res, exp, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+    use ? security_1 : exp
+
+// Series Setup
+closeSeries = variant(basisType, close, basisLen, offsetSigma, offsetALMA)
+openSeries = variant(basisType, open, basisLen, offsetSigma, offsetALMA)
+closeSeriesAlt = reso(closeSeries, useRes, stratRes)
+openSeriesAlt = reso(openSeries, useRes, stratRes)
+
+// Alert conditions
+leTrigger = ta.crossover(closeSeriesAlt, openSeriesAlt)
+seTrigger = ta.crossunder(closeSeriesAlt, openSeriesAlt)
+
+// Entry & Exit Levels
+var float condition = 0.0
+var float slLine = 0.0
+var float entryLine = 0.0
+
+entryLine := leTrigger and condition[1] <= 0.0 ? close :
+             seTrigger and condition[1] >= 0.0 ? close : nz(entryLine[1])
+
+// Signal Conditions
+bearf = seTrigger and pltChk and dirc < 0 
+bullf = leTrigger and pltChk and dirc > 0
+
+// RSI Calculations
+rsiValue = ta.rsi(close, rsiPeriod)
+buySignal = rsiValue > bullishThreshold
+sellSignal = rsiValue < bearishThreshold
+bullishReversal = ta.crossover(rsiValue, neutralLower)
+bearishReversal = ta.crossunder(rsiValue, neutralUpper)
+
+// Volume Calculations
+emaFast = ta.ema(close, emaFastLength)
+emaSlow = ta.ema(close, emaSlowLength)
+signal1 = emaFast > emaSlow
+volumeMA = ta.sma(volume, volumeConfirmationLength)
+crossover = ta.crossover(emaFast, emaSlow)
+crossunder = ta.crossunder(emaFast, emaSlow)
+
+isVolumeConfirmed(source, length, ma) =>
+    math.sum(source > ma ? source : 0, length) >= math.sum(source < ma ? source : 0, length)
+
+crossoverConfirmed = crossover and (not useVolumeConfirmation or isVolumeConfirmed(volume, volumeConfirmationLength, volumeMA))
+crossunderConfirmed = crossunder and (not useVolumeConfirmation or isVolumeConfirmed(volume, volumeConfirmationLength, volumeMA))
+
+// === Signal Management ===
+var last_signal = ''
+var float buy_entry_price = na
+var float sell_entry_price = na
+var bool buy_label_plotted = false
+var bool sell_label_plotted = false
+
+// Signal Confirmation Function
+isSignalConfirmed(signalType, currentSignal) =>
+    // Check if we should disable repeating signals
+    if disableRepeating
+        if signalType == 'buy' and last_signal != 'buy'
+            true
+        else if signalType == 'sell' and last_signal != 'sell'
+            true
+        else
+            false
+    else
+        true
+
+// === Plotting ===
+// Plot continuation candles
+//plotcandle(showContinuation and uptrendContinues ? open : na,  showContinuation and uptrendContinues ? high : na, showContinuation and uptrendContinues ? low : na, showContinuation and uptrendContinues ? close : na,          title="Uptrend Continuation",  color=continuationColor,  wickcolor=continuationColor,  editable=false)
+
+//plotcandle(showContinuation and downtrendContinues ? open : na,    showContinuation and downtrendContinues ? high : na,  showContinuation and downtrendContinues ? low : na,   showContinuation and downtrendContinues ? close : na,    title="Downtrend Continuation",    color=continuationColor,    wickcolor=continuationColor,   editable=false)
+
+// Plot VWAP
+//plot(showVWAP ? VWAPrice : na, color=color.blue, title="VWAP", linewidth=2)
+
+// Plot Supertrend
+//plot(pltChk ? super : na, color=dirc < 0 ? dnCol : upCol, linewidth=2)
+
+// Plot MAs
+//plot(LenghtBool1 ? ma1 : na, color=ma_1_colour)
+//plot(LenghtBool2 ? ma2 : na, color=ma_2_colour)
+//plot(LenghtBool3 ? ma3 : na, color=ma_3_colour)
+//plot(LenghtBool4 ? ma4 : na, color=ma_4_colour)
+
+// Plot Volume EMAs
+//plot(emaFast, color=signal ? color.green : color.red, title="Fast EMA")
+//plot(emaSlow, color=color.blue, title="Slow EMA")
+
+// === Signal Labels ===
+if bullf and isSignalConfirmed('buy', bullf) and (tradeType == 'BOTH' or tradeType == 'LONG')
+    buy_entry_price := close
+    buy_label_plotted := false
+    if label_style == 'text bubble'
+        label.new(bar_index, low, '▲ Bottom\nRSI: ' + str.tostring(rsiValue, '#.##') + '\nVol: ' + str.tostring(volume, format.volume), 
+                 color=buy_label_color, style=label.style_label_up, textcolor=label_text_color, size=label_size,force_overlay=true)
+    else if label_style == 'triangle'
+        label.new(bar_index, low, '▲', yloc=yloc.belowbar, color=buy_label_color, style=label.style_triangleup, textcolor=label_text_color, size=label_size,force_overlay=true)
+    else if label_style == 'arrow'
+        label.new(bar_index, low, '▲', yloc=yloc.belowbar, color=buy_label_color, style=label.style_arrowup, textcolor=label_text_color, size=label_size,force_overlay=true)
+    
+    last_signal := 'buy'
+
+if bearf and isSignalConfirmed('sell', bearf) and (tradeType == 'BOTH' or tradeType == 'SHORT')
+    sell_entry_price := close
+    sell_label_plotted := false
+    if label_style == 'text bubble'
+        label.new(bar_index, high, '▼ TOP\nRSI: ' + str.tostring(rsiValue, '#.##') + '\nVol: ' + str.tostring(volume, format.volume), 
+                 color=sell_label_color, style=label.style_label_down, textcolor=label_text_color, size=label_size,force_overlay=true)
+    else if label_style == 'triangle'
+        label.new(bar_index, high, '▼', yloc=yloc.abovebar, color=sell_label_color, style=label.style_triangledown, textcolor=label_text_color, size=label_size,force_overlay=true)
+    else if label_style == 'arrow'
+        label.new(bar_index, high, '▼', yloc=yloc.abovebar, color=sell_label_color, style=label.style_arrowdown, textcolor=label_text_color, size=label_size,force_overlay=true)
+    
+    last_signal := 'sell'
+
+// Plot RSI Reversal Signals
+plotshape(series=bullishReversal, title="Bullish Reversal", location=location.belowbar, text="🔹", size=size.tiny, color=color.new(color.blue, 0),force_overlay=true)
+plotshape(series=bearishReversal, title="Bearish Reversal", location=location.abovebar, text="🔸", size=size.tiny, color=color.new(color.red, 0),force_overlay=true)
+
+// Bar coloring based on trend
+//trendDirection = rsiValue > bullishThreshold ? "Up" : rsiValue < bearishThreshold ? "Down" : "Neutral"
+//barColor = trendDirection == "Up" ? color.new(color.green, 70) : trendDirection == "Down" ? color.new(color.red, 70) : color.new(color.blue, 70)
+//barcolor(barColor)
+
+// === Alerts ===
+//alertcondition(bullf and (tradeType == 'BOTH' or tradeType == 'LONG'), title='Buy Signal', message='Buy Signal Activated')
+//alertcondition(bearf and (tradeType == 'BOTH' or tradeType == 'SHORT'), title='Sell Signal', message='Sell Signal Activated')
+//alertcondition(bullishReversal, title='Bullish Reversal', message='Bullish Reversal Detected')
+//alertcondition(bearishReversal, title='Bearish Reversal', message='Bearish Reversal Detected')

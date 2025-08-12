@@ -1,0 +1,803 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=6
+indicator('Coco', '🐊 ₵Ø₵Ø', overlay = false, max_lines_count = 500, max_labels_count = 500)
+
+import TradingView/ZigZag/7 as TVzz
+
+// Tick Volume
+tick = syminfo.mintick
+rng = close - open
+tickrng = tick
+tickrng := math.abs(rng) < tick ? nz(tickrng[1]) : rng
+tickvol = math.abs(tickrng) / tick
+volumen = nz(volume) != 0 ? volume : tickvol
+
+enhanced_vwma(_series, _length) =>
+    vmp = _series * volumen
+    VWMA = math.sum(vmp, _length) / math.sum(volumen, _length)
+    VWMA
+
+// ALMA - Arnaud Legoux Moving Average of @kurtsmock
+enhanced_alma(_series, _length, _offset, _sigma) =>
+    length = int(_length) // Floating point protection
+    numerator = 0.0
+    denominator = 0.0
+    m = _offset * (length - 1)
+    s = length / _sigma
+    for i = 0 to length - 1 by 1
+        weight = math.exp(-((i - m) * (i - m)) / (2 * s * s))
+        numerator := numerator + weight * _series[length - 1 - i]
+        denominator := denominator + weight
+        denominator
+    numerator / denominator
+
+// AMA - Adaptive Moving Average
+ama(src, len, fl, sl) =>
+    flout = 2 / (fl + 1)
+    slout = 2 / (sl + 1)
+    hh = ta.highest(len + 1)
+    ll = ta.lowest(len + 1)
+    mltp = hh - ll != 0 ? math.abs(2 * src - ll - hh) / (hh - ll) : 0
+    ssc = mltp * (flout - slout) + slout
+    ama = 0.0
+    ama := nz(ama[1]) + math.pow(ssc, 2) * (src - nz(ama[1]))
+    ama
+
+//T3 Moving Average based on the article 'Smoothing Techniques For More Accurate Signals' by Tim Tillson
+f_t3(src, len) =>
+    x1 = ta.ema(src, len) //(hlcc, 8)
+    x2 = ta.ema(x1, len)
+    x3 = ta.ema(x2, len)
+    x4 = ta.ema(x3, len)
+    x5 = ta.ema(x4, len)
+    x6 = ta.ema(x5, len)
+    b = 0.7 //Volume Factor
+    c1 = -math.pow(b, 3)
+    c2 = 3 * math.pow(b, 2) + 3 * math.pow(b, 3)
+    c3 = -6 * math.pow(b, 2) - 3 * b - 3 * math.pow(b, 3)
+    c4 = 1 + 3 * b + math.pow(b, 3) + 3 * math.pow(b, 2)
+    c1 * x6 + c2 * x5 + c3 * x4 + c4 * x3
+
+// Kaufman's Adaptive Moving Average - Fast and Slow Ends
+kama(x, t) =>
+    fastK = 0.666 // KAMA Fast End
+    slowK = 0.0645 // KAMA Slow End
+    dist = math.abs(x[0] - x[1])
+    signal_x = math.abs(x - x[t])
+    noise = math.sum(dist, t)
+    effr = noise != 0 ? signal_x / noise : 1
+    sc = math.pow(effr * (fastK - slowK) + slowK, 2)
+    KAma = x
+    KAma := nz(KAma[1]) + sc * (x - nz(KAma[1]))
+    KAma
+
+// Jurik Moving Average of @everget
+jma(src, length, power, phase) =>
+    phaseRatio = phase < -100 ? 0.5 : phase > 100 ? 2.5 : phase / 100 + 1.5
+    beta = 0.45 * (length - 1) / (0.45 * (length - 1) + 2)
+    alpha = math.pow(beta, power)
+    Jma = 0.0
+    e0 = 0.0
+    e0 := (1 - alpha) * src + alpha * nz(e0[1])
+    e1 = 0.0
+    e1 := (src - e0) * (1 - beta) + beta * nz(e1[1])
+    e2 = 0.0
+    e2 := (e0 + phaseRatio * e1 - nz(Jma[1])) * math.pow(1 - alpha, 2) + math.pow(alpha, 2) * nz(e2[1])
+    Jma := e2 + nz(Jma[1])
+    Jma
+
+// VAMA - Volume Adjusted Moving Average of @allanster
+vama(_src, _len, _fct, _rul, _nvb) => // vama(source,length,factor,rule,sample)
+    tvb = 0 // total volume bars used in sample            
+    tvb := _nvb == 0 ? nz(tvb[1]) + 1 : _nvb
+    tvs = _nvb == 0 ? ta.cum(volumen) : math.sum(volumen, _nvb) // total volume in sample
+    v2i = volumen / (tvs / tvb * _fct) // ratio of volume to increments of volume                                                  
+    wtd = _src * v2i // weighted prices 
+    nmb = 1 // initialize number of bars summed back               
+    wtdSumB = 0.0 // initialize weighted prices summed back
+    v2iSumB = 0.0 // initialize ratio of volume to increments of volume summed back
+    for i = 1 to _len * 10 by 1 // set artificial cap for strict to VAMA length * 10 to help reduce edge case timeout errors
+        strict = _rul ? false : i == _len // strict rule N bars' v2i ratios >= vama length, else <= vama length
+        wtdSumB := wtdSumB + nz(wtd[i - 1]) // increment number of bars' weighted prices summed back
+        v2iSumB := v2iSumB + nz(v2i[i - 1]) // increment number of bars' v2i's summed back
+        if v2iSumB >= _len or strict // if chosen rule met
+            break // break (exit loop)
+        nmb := nmb + 1 // increment number of bars summed back counter
+        nmb
+    //nmb        // number of bars summed back to fulfill volume requirements or vama length
+    //wtdSumB    // number of bars' weighted prices summed back
+    //v2iSumB    // number of bars' v2i's summed back
+    vama = (wtdSumB - (v2iSumB - _len) * _src[nmb]) / _len // volume adjusted moving average
+    vama
+
+// RedK Slow Smooth WMA (RSS_WMA) is a triple-pass WMA of @RedKTrader
+f_LazyLine(_data, _length) =>
+    w1 = 0
+    w2 = 0
+    w3 = 0
+    L1 = 0.0
+    L2 = 0.0
+    L3 = 0.0
+    w = _length / 3
+
+    if _length > 2
+        w2 := math.round(w)
+        w1 := math.round((_length - w2) / 2)
+        w3 := int((_length - w2) / 2)
+
+        L1 := ta.wma(_data, w1)
+        L2 := ta.wma(L1, w2)
+        L3 := ta.wma(L2, w3)
+        L3
+
+    else
+        L3 := _data
+        L3
+
+    L3
+
+// https://www.tradingview.com/script/X67OSwqc-TASC-2024-04-The-Ultimate-Smoother/
+// @function      The UltimateSmoother is a filter created
+//                by subtracting the response of a high-pass 
+//                filter from that of an all-pass filter.
+// @returns       Smoothed series.
+UltimateSmoother(float src, int period) =>
+    float a1 = math.exp(-1.414 * math.pi / period)
+    float c2 = 2.0 * a1 * math.cos(1.414 * math.pi / period)
+    float c3 = -a1 * a1
+    float c1 = (1.0 + c2 - c3) / 4.0
+    float us = src
+    if bar_index >= 4
+        us := (1.0 - c1) * src + (2.0 * c1 - c2) * src[1] - (c1 + c3) * src[2] + c2 * nz(us[1]) + c3 * nz(us[2])
+        us
+    us
+
+// 2PSS - Ehlers 2 Pole Super Smoother
+f_2pss(_src, _length) =>
+    var _a0 = math.sqrt(2) * math.pi / _length
+    var _a1 = math.exp(-_a0)
+    var _b0 = 2 * _a1 * math.cos(_a0)
+    var _c2 = -math.pow(_a1, 2)
+    var _c1 = _b0
+    var _c0 = 1 - _c1 - _c2
+    var _2pss = 0.0
+    _src1 = nz(_src[1], _src)
+    _src2 = nz(_src[2], _src1)
+    _2pss := _c0 * _src + _c1 * nz(_2pss[1], _src1) + _c2 * nz(_2pss[2], _src2)
+    _2pss
+
+// Variable Index Dynamic Average (VIDYA) by Tushar Chande
+VIDYA(src, length) =>
+    valpha = 2 / (length + 1)
+    vud1 = src > src[1] ? src - src[1] : 0
+    vdd1 = src < src[1] ? src[1] - src : 0
+    vUD = math.sum(vud1, 9)
+    vDD = math.sum(vdd1, 9)
+    vCMO = nz((vUD - vDD) / (vUD + vDD))
+    VAR = 0.0
+    VAR := nz(valpha * math.abs(vCMO) * src) + (1 - valpha * math.abs(vCMO)) * nz(VAR[1])
+    VAR
+
+get_src(_source) =>
+    float x = switch _source
+        'open' => open
+        'high' => high
+        'low' => low
+        'close' => close
+        'hl2' => hl2
+        'hlc3' => hlc3
+        'ohlc4' => ohlc4
+        'hlcc4' => hlcc4
+        'oc2' => math.avg(open, close)
+        'vwap(Close)' => ta.vwap(close)
+        'vwap(Open)' => ta.vwap(open)
+        'vwap(High)' => ta.vwap(high)
+        'vwap(Low)' => ta.vwap(low)
+    x
+
+// Function to calculate Moving Average based on type
+ma(_type, _source, _length) =>
+    switch _type
+        'SMA' => ta.sma(_source, _length)
+        'EMA' => ta.ema(_source, _length)
+        'WMA' => ta.wma(_source, _length)
+        'D_WMA' => ta.wma(ta.wma(_source, _length), _length) // Double Weighted Moving Average
+        'D_EMA' => ta.ema(ta.ema(_source, _length), _length)
+        'D_SMA' => ta.sma(ta.sma(_source, _length), _length)
+        'VWMA' => enhanced_vwma(_source, _length)
+        'D_VWMA' => enhanced_vwma(enhanced_vwma(_source, _length), _length)
+        'ALMA' => enhanced_alma(_source, _length, 0.85, 6)
+        'Wilder' => 
+    	    wild = _source // Wilder's moving average
+    	    wild := nz(wild[1]) + (_source - nz(wild[1])) / _length
+    	    wild
+        'T3' => f_t3(_source, _length)
+        'HMA' => ta.hma(_source, _length)
+        'KAMA' => kama(_source, _length)
+        'JMA' => jma(_source, _length, 2, 50)
+        'VAMA' => vama(_source, _length, 0.67, true, 0)
+        'Ultimate Smoother' => UltimateSmoother(_source, _length)
+        'Smooth LSMA' => 
+    	    lsma = ta.linreg(_source, _length, 0)
+    	    slsma = lsma - (lsma - ta.linreg(lsma, _length, 0))
+    	    slsma
+        'RSS_WMA' => f_LazyLine(_source, _length)
+        '2Pole Super Smoother' => f_2pss(_source, _length)
+        'D_T3' => f_t3(f_t3(_source, _length), _length)
+        'AMA' => ama(_source, _length, 3, 30)
+        'VIDYA' => VIDYA(_source, _length)
+
+// Inputs
+show_disp = input.bool(true, 'Show dispersion(%) between moving averages', inline = 's0')
+show_black = input.bool(true, 'Use Black Background', inline = 's0')
+src_ma = input.string('close', ' 》Source', inline = 'ma0', options = ['open', 'high', 'low', 'close', 'oc2', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'vwap(Close)', 'vwap(Open)', 'vwap(High)', 'vwap(Low)'])
+show_shadow = input.bool(true, 'Use Shadow', inline = 'ma0')
+show_fill = input.bool(false, 'Use Fill', inline = 'ma0')
+show_fast = input.bool(true, '⮩ Fast MA :', inline = 'F')
+ma_fast = input.int(3, 'Length', minval = 1, inline = 'F')
+type_fast = input.string('SMA', 'Type', inline = 'F', options = ['VIDYA', 'Ultimate Smoother', 'Smooth LSMA', '2Pole Super Smoother', 'D_T3', 'T3', 'SMA', 'EMA', 'WMA', 'D_WMA', 'ALMA', 'AMA', 'Wilder', 'D_SMA', 'D_EMA', 'HMA', 'KAMA', 'JMA', 'VWMA', 'D_VWMA', 'VAMA', 'RSS_WMA'])
+show_slow = input.bool(true, '⮩ Slow MA :', inline = 'S')
+ma_slow = input.int(21, 'Length', minval = 1, inline = 'S')
+type_slow = input.string('WMA', 'Type', inline = 'S', options = ['VIDYA', 'Ultimate Smoother', 'Smooth LSMA', '2Pole Super Smoother', 'D_T3', 'T3', 'SMA', 'EMA', 'WMA', 'D_WMA', 'ALMA', 'AMA', 'Wilder', 'D_SMA', 'D_EMA', 'HMA', 'KAMA', 'JMA', 'VWMA', 'D_VWMA', 'VAMA', 'RSS_WMA'])
+show_col_b_m = input.bool(false, '〚Color Bars〛', inline = 'col_m')
+color color_up = input.color(#8080FF, 'Color : Up', inline = 'col_m') //#00FE3E
+color color_dn = input.color(#FF8080, 'Down', inline = 'col_m') //#FE0027
+show_ma3 = input.bool(false, '⮩ MA3 :', inline = 'ma3')
+len_ma3 = input.int(42, 'Length', minval = 1, inline = 'ma3')
+type_ma3 = input.string('SMA', 'Type', inline = 'ma3', options = ['VIDYA', 'Ultimate Smoother', 'Smooth LSMA', '2Pole Super Smoother', 'D_T3', 'T3', 'SMA', 'EMA', 'WMA', 'D_WMA', 'ALMA', 'AMA', 'Wilder', 'D_SMA', 'D_EMA', 'HMA', 'KAMA', 'JMA', 'VWMA', 'D_VWMA', 'VAMA', 'RSS_WMA'])
+show_ma4 = input.bool(false, '⮩ MA4 :', inline = 'ma4')
+len_ma4 = input.int(55, 'Length', minval = 1, inline = 'ma4')
+type_ma4 = input.string('EMA', 'Type', inline = 'ma4', options = ['VIDYA', 'Ultimate Smoother', 'Smooth LSMA', '2Pole Super Smoother', 'D_T3', 'T3', 'SMA', 'EMA', 'WMA', 'D_WMA', 'ALMA', 'AMA', 'Wilder', 'D_SMA', 'D_EMA', 'HMA', 'KAMA', 'JMA', 'VWMA', 'D_VWMA', 'VAMA', 'RSS_WMA'])
+
+group_delta = '════════  Volume Delta  ════════'
+usecandle = input.bool(false, 'Volume on Candles ||', inline = 'candles', group = group_delta)
+C_Up = input.color(#12CEF8, 'Volume Buy', inline = 'candles', group = group_delta)
+C_Down = input.color(#FE3F00, 'Volume Sell', inline = 'candles', group = group_delta)
+show_table = input.bool(true, 'Show Table', inline = 'table', group = group_delta)
+P_ = input.string(position.top_right, 'Position', inline = 'table', options = [position.top_right, position.top_center, position.middle_right, position.middle_left, position.bottom_center, position.middle_center, position.bottom_left, position.bottom_right, position.top_left], group = group_delta)
+sT = input.string(size.small, 'Size', inline = 'table', group = group_delta, options = [size.auto, size.tiny, size.small, size.normal, size.large])
+show_col_b_vol = input.bool(false, 'Color Bars', inline = 'col_vol', group = group_delta)
+
+// Calculate Moving Averages based on type
+src_x = get_src(src_ma)
+ma_1 = ma(type_fast, src_x, ma_fast)
+ma_2 = ma(type_slow, src_x, ma_slow)
+ma_3 = ma(type_ma3, src_x, len_ma3)
+ma_4 = ma(type_ma4, src_x, len_ma4)
+
+// Calculate distance percentage
+distance_percentage = math.abs((ma_1 - ma_2) / ma_2 * 100)
+
+// Determine which MA has higher value
+higher_ma = ma_1 > ma_2 ? ma_1 : ma_2
+
+// Plot MAs
+ma_v = ta.ema(close, 4)
+ma_a = ta.ema(close, 9)
+ma_r = ta.ema(close, 18)
+trendfollower42 = enhanced_alma((close - ta.sma(close, len_ma3)) / ta.sma(close, len_ma3) * 100, 5, 0.85, 6)
+bull_ma = ma_v >= ma_a and ma_a > ma_r
+bear_ma = ma_v < ma_a and ma_a < ma_r
+color color_3 = bull_ma ? color.lime : bear_ma ? color.red : color.yellow
+color color_42 = ta.change(trendfollower42) > 0 ? #7FFF00 : #FF7E00 //#0475E6 : #0339A2
+color col_dispersion = ma_1 > ma_2 ? color_up : color_dn
+
+p1 = plot(show_fast ? ma_1 : na, color = col_dispersion, linewidth = 1, title = 'Fast MA')
+plot(show_shadow ? ma_1 : na, color = color.new(col_dispersion, 80), linewidth = 10, editable = false, display = display.pane)
+plot(show_shadow ? ma_1 : na, color = color.new(col_dispersion, 90), linewidth = 20, editable = false, display = display.pane)
+plot(show_shadow ? ma_1 : na, color = color.new(col_dispersion, 95), linewidth = 30, editable = false, display = display.pane)
+plot(show_shadow ? ma_1 : na, color = color.new(col_dispersion, 98), linewidth = 45, editable = false, display = display.pane)
+p2 = plot(show_slow ? ma_2 : na, color = col_dispersion, linewidth = 2, title = 'Slow MA')
+plot(show_shadow ? ma_2 : na, color = color.new(col_dispersion, 80), linewidth = 10, editable = false, display = display.pane)
+plot(show_shadow ? ma_2 : na, color = color.new(col_dispersion, 90), linewidth = 20, editable = false, display = display.pane)
+plot(show_shadow ? ma_2 : na, color = color.new(col_dispersion, 95), linewidth = 30, editable = false, display = display.pane)
+plot(show_shadow ? ma_2 : na, color = color.new(col_dispersion, 98), linewidth = 45, editable = false, display = display.pane)
+fill(p1, p2, show_fill ? color.new(col_dispersion, 90) : na)
+plot(show_ma3 ? ma_3 : na, color = color_42, linewidth = 1, title = 'MA3', force_overlay = true)
+plot(show_ma4 ? ma_4 : na, color = color_3, linewidth = 1, title = 'MA4', force_overlay = true)
+if barstate.islast
+    label.new(x = time, y = ma_3, text = show_ma3 ? type_ma3 + str.tostring(len_ma3,"#") : na, xloc = xloc.bar_time, yloc = yloc.price, color = color.rgb(0, 0, 0, 100), style = label.style_label_left, textcolor = color_42, size=size.small, force_overlay = true)
+    label.new(x = time, y = ma_4, text = show_ma4 ? type_ma4 + str.tostring(len_ma4,"#") : na, xloc = xloc.bar_time, yloc = yloc.price, color = color.rgb(0, 0, 0, 100), style = label.style_label_left, textcolor = color_3, size=size.small, force_overlay = true)
+
+barcolor(show_col_b_m ? col_dispersion : na)
+// Plot distance percentage as a single value on the higher MA line
+var label label_handle = na
+label.delete(label_handle)
+
+// Determine color based on distance_percentage
+color color_label = ma_1 > ma_2 ? color.new(color_up, 85) : color.new(color_dn, 85)
+color color_text = #000000
+string chart_distance = ta.rising(distance_percentage, 1) ? '▲' : '▼'
+string txt_distance = chart_distance + str.format('{0, number, #.##}%', distance_percentage)
+
+if show_disp
+    label_handle := label.new(x = bar_index, y = higher_ma, text = txt_distance, color = color_label, style = label.style_label_left, textcolor = color_text, size = size.normal, tooltip = 'Dispersion(%) between moving averages')
+    label_handle
+
+bgcolor(show_black ? color.new(#0A0C12, 10) : na, title = 'Black background')
+
+//_____________________________________________________________________________________________________
+// Volume Delta of @hapharmonic
+// https://www.tradingview.com/script/n4NK9sLH-Volume-Delta-hapharmonic/
+//_____________________________________________________________________________________________________
+// Define User Defined Type (UDT) for OHLCV data with default values
+type OHLCV
+	float O = open
+	float H = high
+	float L = low
+	float C = close
+	float V = volume
+
+// Define UDT for Volume Data
+type VolumeData
+	float buyVol
+	float sellVol
+	float pcBuy // Stores percentage of buy volume
+	float pcSell // Stores percentage of sell volume
+	bool isBuyGreater // Indicates if buy volume is greater True = Buy; otherwise, sell.
+	float higherVol // Stores the higher volume value
+	float lowerVol // Stores the lower volume value
+	color higherCol // Stores the color for the higher volume bar
+	color lowerCol // Stores the color for the lower volume bar
+
+//------------------------------------------
+//   Calculate volumes and percentages     | 
+//------------------------------------------
+calcVolumes(OHLCV ohlcv) =>
+    var VolumeData data = VolumeData.new()
+    data.buyVol := ohlcv.V * (ohlcv.C - ohlcv.L) / (ohlcv.H - ohlcv.L) // Calculate buy volume using the formula: volume * (close - low) / (high - low)
+    data.sellVol := ohlcv.V - data.buyVol // Calculate sell volume by subtracting buy volume from total volume
+    data.pcBuy := data.buyVol / ohlcv.V * 100 // Calculate the percentage of buy volume
+    data.pcSell := 100 - data.pcBuy // Calculate the percentage of sell volume (100% - buy percentage)
+    data.isBuyGreater := data.buyVol > data.sellVol // Determine if buy volume is greater than sell volume
+    data.higherVol := data.isBuyGreater ? data.buyVol : data.sellVol // Assign the higher volume value based on the comparison
+    data.lowerVol := data.isBuyGreater ? data.sellVol : data.buyVol // Assign the lower volume value based on the comparison
+    data.higherCol := data.isBuyGreater ? C_Up : C_Down // Assign the color for the higher volume bar based on the comparison
+    data.lowerCol := data.isBuyGreater ? C_Down : C_Up // Assign the color for the lower volume bar based on the comparison
+    data
+
+// Instantiate OHLCV without explicit values (uses defaults)
+ohlcv = OHLCV.new()
+volData = calcVolumes(ohlcv)
+
+// Format percentages and volumes as strings before using in label text
+S(D, F) =>
+    str.tostring(D, F)
+FV = format.volume
+FP = format.percent
+volStr = S(math.sign(ta.change(ohlcv.C)) * ohlcv.V, FV)
+buyVolStr = S(volData.buyVol, FV)
+sellVolStr = S(volData.sellVol, FV)
+buyPercentStr = S(volData.pcBuy, FP)
+sellPercentStr = S(volData.pcSell, FP)
+totalbuyPercentC_ = volData.buyVol / (volData.buyVol + volData.sellVol) * 100
+
+TC = text.align_center
+CW = color.white
+// Create table and set header
+if nz(volume) != 0 and show_table
+    var table tb = table.new(P_, 6, 6, bgcolor = na, frame_width = 2, frame_color = chart.fg_color, border_width = 1, border_color = CW)
+    if barstate.islast
+        // Title
+        tb.cell(0, 0, text = 'Volume Candles', text_color = #FFBF00, bgcolor = #0E2841, text_halign = TC, text_valign = TC, text_size = sT)
+        tb.merge_cells(0, 0, 5, 0)
+
+        tb.cell(0, 1, text = 'Current Volume', text_color = CW, bgcolor = #0B3040, text_halign = TC, text_valign = TC, text_size = sT)
+        tb.merge_cells(0, 1, 1, 1)
+
+        tb.cell(0, 2, text = 'Buy', text_color = #000000, bgcolor = #92D050, text_halign = TC, text_valign = TC, text_size = sT)
+        tb.cell(1, 2, text = 'Sell', text_color = #000000, bgcolor = #E9573E, text_halign = TC, text_valign = TC, text_size = sT)
+
+        tb.cell(0, 3, text = buyVolStr, text_color = CW, bgcolor = #074F69, text_halign = TC, text_valign = TC, text_size = sT)
+        tb.cell(1, 3, text = sellVolStr, text_color = CW, bgcolor = #074F69, text_halign = TC, text_valign = TC, text_size = sT)
+
+        tb.cell(0, 5, text = 'Net: ' + volStr, text_color = CW, bgcolor = #074F69, text_halign = TC, text_valign = TC, text_size = sT)
+        tb.merge_cells(0, 5, 1, 5)
+
+        tb.cell(0, 4, text = buyPercentStr, text_color = CW, bgcolor = #074F69, text_halign = TC, text_valign = TC, text_size = sT)
+        tb.cell(1, 4, text = sellPercentStr, text_color = CW, bgcolor = #074F69, text_halign = TC, text_valign = TC, text_size = sT)
+
+        //Fill the cell with color, setting 20 cells to 100% area. Then, loop according to the % volume of all trades.
+        cellCount = 20 // 4 columns x 5 rows = 20 cells
+        filledCells = 0
+        for r = 5 to 1 by 1
+            for c = 2 to 5 by 1
+                if filledCells < cellCount * (totalbuyPercentC_ / 100)
+                    tb.cell(c, r, text = '', bgcolor = C_Up)
+                else
+                    tb.cell(c, r, text = '', bgcolor = C_Down)
+                filledCells := filledCells + 1
+                filledCells
+
+//------------------------------------------
+// Draw volume levels on the candlesticks  | 
+//------------------------------------------
+// Define base and value for gradient candles
+float base = na
+float value = na
+// Calculate base and value based on buy/sell volume and open/close relationship
+if volData.isBuyGreater
+    base := math.min(ohlcv.O, ohlcv.C) // Start from the lower of open/close for buy
+    value := base + math.abs(ohlcv.O - ohlcv.C) * (volData.pcBuy / 100) // Extend to the percentage of buy volume
+    value
+else
+    base := math.max(ohlcv.O, ohlcv.C) // Start from the higher of open/close for sell
+    value := base - math.abs(ohlcv.O - ohlcv.C) * (volData.pcSell / 100) // Extend to the percentage of sell volume
+    value
+    // Plot candles with gradient color
+UseC = usecandle ? volData.higherCol : color.new(na, na)
+plotcandle(usecandle ? base : na, usecandle ? base : na, usecandle ? value : na, usecandle ? value : na, title = 'Body', color = UseC, bordercolor = na, wickcolor = UseC, display = display.pane, editable = false)
+plotcandle(usecandle ? ohlcv.O : na, usecandle ? ohlcv.H : na, usecandle ? ohlcv.L : na, usecandle ? ohlcv.C : na, title = 'Fill', color = color.new(UseC, 80), bordercolor = UseC, wickcolor = UseC, display = display.pane, editable = false)
+barcolor(show_col_b_vol ? volData.higherCol : na)
+
+//_____________________________________________________________________________________________________________________________________
+GRPI = '════════  Trend indicator table  ════════'
+infoBoxSizeInput = input.string('small', 'Size', inline = 'i1', group = GRPI, options = ['tiny', 'small', 'normal', 'large', 'huge', 'auto'])
+infoBoxYPosInput = input.string('bottom', '↕', inline = 'i1', group = GRPI, options = ['top', 'middle', 'bottom'])
+infoBoxXPosInput = input.string('center', '↔', inline = 'i1', group = GRPI, options = ['left', 'center', 'right'])
+show_rsi = input.bool(true, 'RSI ', inline = 'i2', group = GRPI)
+show_stoch = input.bool(false, 'Stochastic', inline = 'i2', group = GRPI)
+show_adx = input.bool(true, 'ADX ', inline = 'i3', group = GRPI)
+show_macd = input.bool(false, 'MACD', inline = 'i3', group = GRPI)
+// Unicode symbols: https://www.compart.com/en/unicode/mirrored
+indicator_text(value, name) =>
+    color colorCell = na
+    string flecha = ta.change(value) > 0 ? '🠉 ' : '🠋 '
+    if value >= 90
+        colorCell := color.from_gradient(value, 90, 100, #FF3224, #FF1100)
+        colorCell
+    else if value >= 80
+        colorCell := color.from_gradient(value, 80, 90, #FF5448, #FF3224)
+        colorCell
+    else if value >= 70
+        colorCell := color.from_gradient(value, 70, 80, #FFBBB6, #FF5448)
+        colorCell
+    else if value < 10
+        colorCell := color.from_gradient(value, 0, 10, #00FF10, #00FF4D)
+        colorCell
+    else if value < 20
+        colorCell := color.from_gradient(value, 10, 20, #24FF32, #48FF54)
+        colorCell
+    else if value < 30
+        colorCell := color.from_gradient(value, 20, 30, #6DFF76, #91FF98)
+        colorCell
+    else
+        colorCell := color.new(#FDFD96, 0)
+        colorCell
+
+    valueText = flecha + name + ': ' + str.tostring(value, '#.##')
+    [valueText, colorCell]
+
+rsi0 = ta.rsi(close, 14)
+[rsiText, rsiColor] = indicator_text(rsi0, 'RSI')
+
+periodK = 14
+smoothK = 7
+k0 = ta.sma(ta.stoch(close, high, low, periodK), smoothK)
+[stochText, stochColor] = indicator_text(k0, 'Stochastic')
+
+[_, _, adx] = ta.dmi(14, 14)
+
+color adxColor = na
+pendiente_adx = ta.change(adx) > 0
+string triangulo = pendiente_adx ? '▲ ' : '▼ '
+if adx >= 20
+    adxColor := pendiente_adx ? color.new(#E6E8EA, 10) : color.new(#726352, 40)
+    adxColor
+else
+    adxColor := color.new(#657C8E, 40)
+    adxColor
+string adxText = triangulo + 'ADX' + ': ' + str.tostring(adx, '#.##')
+
+[_, _, histLine] = ta.macd(close, 12, 26, 9)
+min_macd = ta.lowest(histLine, 52)
+max_macd = ta.highest(histLine, 52)
+color macdColor = na
+string flecha = ta.change(histLine) > 0 ? '▲ ' : '▼ '
+if histLine >= 0
+    macdColor := color.from_gradient(histLine, 0, max_macd, #F0C4C4, #CD3232)
+    macdColor
+else
+    macdColor := color.from_gradient(histLine, min_macd, 0, #32CD32, #C4F0C4)
+    macdColor
+string macdText = flecha + 'MACD' + ': ' + str.tostring(histLine, '#.##')
+
+// Table creation
+var table table_info = table.new(infoBoxYPosInput + '_' + infoBoxXPosInput, 4, 1, border_width = 1)
+color colorNegro = color.new(#000000, 0)
+// Update table cells
+if barstate.islast
+    if show_rsi
+        table.cell(table_info, 0, 0, rsiText, bgcolor = rsiColor, text_color = colorNegro, text_size = infoBoxSizeInput)
+    if show_stoch
+        table.cell(table_info, 1, 0, stochText, bgcolor = stochColor, text_color = colorNegro, text_size = infoBoxSizeInput)
+    if show_adx
+        table.cell(table_info, 2, 0, adxText, bgcolor = adxColor, text_color = colorNegro, text_size = infoBoxSizeInput)
+    if show_macd
+        table.cell(table_info, 3, 0, macdText, bgcolor = macdColor, text_color = colorNegro, text_size = infoBoxSizeInput)
+
+//____________________________________________________________________________________________________________________
+// ZigZag of @TradingView
+// https://www.tradingview.com/script/bzIRuGXC-ZigZag/
+//____________________________________________________________________________________________________________________
+string group_zz = '════════  ZigZag  ════════'
+// Show lines and labels of ZigZag
+bool show_zz = input.bool(false, 'Show ZigZag', inline = 'zz0', group = group_zz)
+// The color of the Zig Zag's lines.
+color lineColorInput = input.color(#E3B740, ' Color', inline = 'zz0', group = group_zz)
+bool show_piv = input.bool(false, 'Show pivot last end price', inline = 'price', group = group_zz)
+color priceColorInput = input.color(#BDB76B, ' Color', inline = 'price', group = group_zz)
+// The number of bars in the pivot calculation.
+int depthInput = input.int(9, 'Depth', minval = 1, inline = 'in_zz', group = group_zz)
+// The deviation percentage from the last local high or low required to form a new Zig Zag point.
+float deviationInput = input.float(5.0, 'Deviation (%)', minval = 0.00001, maxval = 100.0, inline = 'in_zz', group = group_zz)
+// If `true`, the Zig Zag will also display a line connecting the last known pivot to the current `close`.
+bool extendInput = input.bool(true, 'Extend to Last Bar', group = group_zz)
+// If `true`, the pivot labels will display their price values.
+bool showPriceInput = input.bool(false, 'Display Reversal Price', group = group_zz)
+// If `true`, each pivot label will display the volume accumulated since the previous pivot.
+bool showVolInput = input.bool(false, 'Display Cumulative Volume', group = group_zz)
+// If `true`, each pivot label will display the change in price from the previous pivot.
+bool showChgInput = input.bool(true, 'Display Reversal Price Change', inline = 'Price Rev', group = group_zz)
+// Controls whether the labels show price changes as raw values or percentages when `showChgInput` is `true`.
+string priceDiffInput = input.string('Percent', '', options = ['Absolute', 'Percent'], inline = 'Price Rev', group = group_zz)
+
+// A `Settings` instance for `ZigZag` creation.
+var TVzz.Settings settings = TVzz.Settings.new(deviationInput, depthInput, lineColorInput, extendInput, showPriceInput, showVolInput, showChgInput, priceDiffInput, show_zz)
+
+//  A `ZigZag` object created using the `settings`
+var TVzz.ZigZag zigZag = TVzz.newInstance(settings)
+// Update the `zigZag` on every bar.
+zigZag.update()
+plot(show_piv and zigZag.pivots.size() > 0 ? zigZag.pivots.last().end.price : na, 'Pivot last end price', priceColorInput)
+
+//_______________________________________________________________________________________
+// STD-Filtered, N-Pole Gaussian Filter of @loxx
+// https://www.tradingview.com/script/i4xZNAoy-STD-Filtered-N-Pole-Gaussian-Filter-Loxx/
+//_______________________________________________________________________________________
+//factorial calc
+fact(int n) =>
+    float a = 1
+    for i = 1 to n by 1
+        a := a * i
+        a
+    a
+
+//alpha calc
+_alpha(int period, int poles) =>
+    w = 2.0 * math.pi / period
+    float b = (1.0 - math.cos(w)) / (math.pow(1.414, 2.0 / poles) - 1.0)
+    float a = -b + math.sqrt(b * b + 2.0 * b)
+    a
+
+//n-pole calc
+_makeCoeffs(simple int period, simple int order) =>
+    coeffs = matrix.new<float>(order + 1, 3, 0.)
+    float a = _alpha(period, order)
+    for r = 0 to order by 1
+        out = nz(fact(order) / (fact(order - r) * fact(r)), 1)
+        matrix.set(coeffs, r, 0, out)
+        matrix.set(coeffs, r, 1, math.pow(a, r))
+        matrix.set(coeffs, r, 2, math.pow(1.0 - a, r))
+    coeffs
+
+//n-pole calc
+_npolegf(float src, simple int period, simple int order) =>
+    var coeffs = _makeCoeffs(period, order)
+    float filt = src * matrix.get(coeffs, order, 1)
+    int sign = 1
+    for r = 1 to order by 1
+        filt := filt + sign * matrix.get(coeffs, r, 0) * matrix.get(coeffs, r, 2) * nz(filt[r])
+        sign := sign * -1
+        sign
+    filt
+
+//std filter
+_filt(float src, int len, float filter) =>
+    float price = src
+    float filtdev = filter * ta.stdev(src, len)
+    price := math.abs(price - nz(price[1])) < filtdev ? nz(price[1]) : price
+    price
+
+group_gau = '════ STD-Filtered, N-Pole Gaussian Filter ════'
+// UI Options
+show_gaus = input.bool(false, 'Show N-Pole GF', inline = 's_gf', group = group_gau)
+showSigs = input.bool(false, 'Show Signals', inline = 's_gf', group = group_gau)
+colorbars = input.bool(false, 'Color Bars', inline = 's_gf', group = group_gau)
+// Basic Settings
+srcoption = input.string('close', 'Source', group = group_gau, options = ['open', 'high', 'low', 'close', 'oc2', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'vwap(Close)', 'vwap(Open)', 'vwap(High)', 'vwap(Low)'])
+period = input.int(25, 'Period', minval = 1, group = group_gau)
+order = input.int(5, 'Order', minval = 1, group = group_gau)
+// Filter Settings
+filterop = input.string('Gaussian Filter', 'Filter Options', options = ['Price', 'Gaussian Filter', 'Both', 'None'], group = group_gau)
+filter = input.float(1, 'Filter Devaitions', minval = 0, group = group_gau)
+filterperiod = input.int(10, 'Filter Period', minval = 0, group = group_gau)
+
+float src = get_src(srcoption)
+
+src := filterop == 'Both' or filterop == 'Price' and filter > 0 ? _filt(src, filterperiod, filter) : src
+
+out = _npolegf(src, period, order)
+
+out := filterop == 'Both' or filterop == 'Gaussian Filter' and filter > 0 ? _filt(out, filterperiod, filter) : out
+
+sig = nz(out[1])
+
+state = 0
+if out > sig
+    state := 1
+    state
+if out < sig
+    state := -1
+    state
+
+pregoLong = out > sig and (nz(out[1]) < nz(sig[1]) or nz(out[1]) == nz(sig[1]))
+pregoShort = out < sig and (nz(out[1]) > nz(sig[1]) or nz(out[1]) == nz(sig[1]))
+
+contsw = 0
+contsw := nz(contsw[1])
+contsw := pregoLong ? 1 : pregoShort ? -1 : nz(contsw[1])
+
+goLong = pregoLong and nz(contsw[1]) == -1
+goShort = pregoShort and nz(contsw[1]) == 1
+
+color greencolor = #2DD204
+color redcolor = #D2042D
+var color colorout = na
+colorout := state == -1 ? redcolor : state == 1 ? greencolor : nz(colorout[1])
+
+plot(show_gaus ? out : na, 'N-Pole GF', color = colorout, linewidth = 2, force_overlay = true)
+barcolor(colorbars ? colorout : na)
+
+plotshape(showSigs and goLong, title = 'Long', color = greencolor, textcolor = greencolor, text = 'L', style = shape.triangleup, location = location.belowbar, size = size.tiny, force_overlay = true)
+plotshape(showSigs and goShort, title = 'Short', color = redcolor, textcolor = redcolor, text = 'S', style = shape.triangledown, location = location.abovebar, size = size.tiny, force_overlay = true)
+
+alertcondition(goLong, title = 'Long', message = 'STD-Filtered, N-Pole Gaussian Filter: Long\nSymbol: {{ticker}}\nPrice: {{close}}')
+alertcondition(goShort, title = 'Short', message = 'STD-Filtered, N-Pole Gaussian Filter: Short\nSymbol: {{ticker}}\nPrice: {{close}}')
+
+//_______________________________________________________________________________________
+// Rolling VWAP of @TradingView
+// https://www.tradingview.com/script/ZU2UUu9T-Rolling-VWAP/
+//_______________________________________________________________________________________
+import PineCoders/ConditionalAverages/1 as pc
+
+// ———————————————————— Constants and Inputs {
+// ————— Constants
+int MS_IN_MIN = 60 * 1000
+int MS_IN_HOUR = MS_IN_MIN * 60
+int MS_IN_DAY = MS_IN_HOUR * 24
+
+string TT_SRC = 'The source used to calculate the VWAP. The default is the average of the high, low and close prices.'
+string TT_WINDOW = 'By default, the time period used to calculate the RVWAP automatically adjusts with the chart\'s timeframe. Check this to use a fixed-size time period instead, which you define with the following three values.'
+string TT_MINBARS = 'The minimum number of last values to keep in the moving window, even if these values are outside the time period. This avoids situations where a large time gap between two bars would cause the time window to be empty.'
+string TT_STDEV = 'The multiplier for the standard deviation bands offset above and below the RVWAP. Example: 1.0 is 100% of the offset value.  \n\nNOTE: A value of 0.0 will hide the bands.'
+string TT_TABLE = 'Displays the time period of the rolling window.'
+
+// ————— Inputs
+string GRP_RVWAP = '═══════════   Rolling VWAP   ═══════════'
+bool show_rolling = input.bool(false, 'Show Rolling VWAP', inline = 'RVWAP', group = GRP_RVWAP)
+color color_RVWAP = input.color(#0077B2, 'Color', inline = 'RVWAP', group = GRP_RVWAP)
+float srcInput = input.source(hlc3, 'Source', inline = 'RVWAP', tooltip = TT_SRC, group = GRP_RVWAP)
+// Time Period
+bool fixedTfInput = input.bool(false, 'Use a fixed time period', group = GRP_RVWAP, tooltip = TT_WINDOW)
+int daysInput = input.int(1, 'Days', group = GRP_RVWAP, minval = 0, maxval = 90) * MS_IN_DAY
+int hoursInput = input.int(0, 'Hours', group = GRP_RVWAP, minval = 0, maxval = 23) * MS_IN_HOUR
+int minsInput = input.int(0, 'Minutes', group = GRP_RVWAP, minval = 0, maxval = 59) * MS_IN_MIN
+bool showInfoBoxInput = input.bool(true, 'Show time period', group = GRP_RVWAP)
+string infoBoxSizeInput_RVWAP = input.string('small', 'Size ', inline = '21', group = GRP_RVWAP, options = ['tiny', 'small', 'normal', 'large', 'huge', 'auto'])
+string infoBoxYPosInput_RVWAP = input.string('bottom', '↕', inline = '21', group = GRP_RVWAP, options = ['top', 'middle', 'bottom'])
+string infoBoxXPosInput_RVWAP = input.string('right', '↔', inline = '21', group = GRP_RVWAP, options = ['left', 'center', 'right'])
+//color infoBoxColorInput_RVWAP = input.color(color.gray, '', inline = '21', group = GRP_RVWAP)
+color infoBoxTxtColorInput_RVWAP = input.color(color.white, 'Text', inline = '21', group = GRP_RVWAP)
+// Deviation Bands
+float stdevMult1 = input.float(0.0, 'Deviation Bands | Multiplier 1', group = GRP_RVWAP, inline = '31', minval = 0.0, step = 0.5, tooltip = TT_STDEV)
+float stdevMult2 = input.float(0.0, 'Deviation Bands | Multiplier 2', group = GRP_RVWAP, inline = '32', minval = 0.0, step = 0.5, tooltip = TT_STDEV)
+float stdevMult3 = input.float(0.0, 'Deviation Bands | Multiplier 3', group = GRP_RVWAP, inline = '33', minval = 0.0, step = 0.5, tooltip = TT_STDEV)
+color stdevColor1 = input.color(color.green, '', group = GRP_RVWAP, inline = '31')
+color stdevColor2 = input.color(color.yellow, '', group = GRP_RVWAP, inline = '32')
+color stdevColor3 = input.color(color.red, '', group = GRP_RVWAP, inline = '33')
+
+int minBarsInput = input.int(10, 'Minimum Window Size | Bars', group = GRP_RVWAP, tooltip = TT_MINBARS)
+// }
+
+// ———————————————————— Functions {
+// @function    Determines a time period from the chart's timeframe.
+// @returns     (int) A value of time in milliseconds that is appropriate for the current chart timeframe. To be used in the RVWAP calculation.
+timeStep() =>
+    int tfInMs = timeframe.in_seconds() * 1000
+    float step = switch 
+        tfInMs <= MS_IN_MIN => MS_IN_HOUR
+        tfInMs <= MS_IN_MIN * 5 => MS_IN_HOUR * 4
+        tfInMs <= MS_IN_HOUR => MS_IN_DAY * 1
+        tfInMs <= MS_IN_HOUR * 4 => MS_IN_DAY * 3
+        tfInMs <= MS_IN_HOUR * 12 => MS_IN_DAY * 7
+        tfInMs <= MS_IN_DAY => MS_IN_DAY * 30.4375
+        tfInMs <= MS_IN_DAY * 7 => MS_IN_DAY * 90
+        => MS_IN_DAY * 365
+    int result = int(step)
+    result
+
+
+// @function    Produces a string corresponding to the input time in days, hours, and minutes.
+// @param       (series int) A time value in milliseconds to be converted to a string variable. 
+// @returns     (string) A string variable reflecting the amount of time from the input time.
+tfString(int timeInMs) =>
+    int s = timeInMs / 1000
+    int m = s / 60
+    int h = m / 60
+    int tm = math.floor(m % 60)
+    int th = math.floor(h % 24)
+    int d = math.floor(h / 24)
+    string result = switch 
+        d == 30 and th == 10 and tm == 30 => '1M'
+        d == 7 and th == 0 and tm == 0 => '1W'
+        => 
+    	    string dStr = bool(d) ? str.tostring(d) + 'D ' : ''
+    	    string hStr = bool(th) ? str.tostring(th) + 'H ' : ''
+    	    string mStr = bool(tm) ? str.tostring(tm) + 'min' : ''
+    	    dStr + hStr + mStr
+    result
+cum_vol = ta.cum(nz(volume))
+if barstate.islast and cum_vol  == 0
+// }
+
+// ———————————————————— Calculations and Plots {
+    // Stop the indicator on charts with no volume.
+    runtime.error('No volume is provided by the data vendor.')
+int timeInMs = fixedTfInput ? minsInput + hoursInput + daysInput : timeStep()
+
+// RVWAP + stdev bands
+float sumSrcVol = pc.totalForTimeWhen(srcInput * volume, timeInMs, true, minBarsInput)
+
+float sumVol = pc.totalForTimeWhen(volume, timeInMs, true, minBarsInput)
+float sumSrcSrcVol = pc.totalForTimeWhen(volume * math.pow(srcInput, 2), timeInMs, true, minBarsInput)
+float rollingVWAP = sumSrcVol / sumVol
+
+float variance = sumSrcSrcVol / sumVol - math.pow(rollingVWAP, 2)
+
+variance := math.max(0, variance)
+float stDev = math.sqrt(variance)
+
+float upperBand1 = rollingVWAP + stDev * stdevMult1
+
+float lowerBand1 = rollingVWAP - stDev * stdevMult1
+float upperBand2 = rollingVWAP + stDev * stdevMult2
+
+float lowerBand2 = rollingVWAP - stDev * stdevMult2
+float upperBand3 = rollingVWAP + stDev * stdevMult3
+
+float lowerBand3 = rollingVWAP - stDev * stdevMult3
+plot(show_rolling ? rollingVWAP : na, 'Rolling VWAP', color_RVWAP, force_overlay = true)
+if barstate.islast
+    label.new(x = time, y = rollingVWAP, text = show_rolling ? 'RVWAP' : na, xloc = xloc.bar_time, yloc = yloc.price, color = color.rgb(0, 0, 0, 100), style = label.style_label_left, textcolor = color_RVWAP, size=size.small, force_overlay = true)
+
+p10 = plot(stdevMult1 != 0 ? upperBand1 : na, 'Upper Band 1', stdevColor1, force_overlay = true)
+
+p20 = plot(stdevMult1 != 0 ? lowerBand1 : na, 'Lower Band 1', stdevColor1, force_overlay = true)
+p30 = plot(stdevMult2 != 0 ? upperBand2 : na, 'Upper Band 2', stdevColor2, force_overlay = true)
+
+p40 = plot(stdevMult2 != 0 ? lowerBand2 : na, 'Lower Band 2', stdevColor2, force_overlay = true)
+p50 = plot(stdevMult3 != 0 ? upperBand3 : na, 'Upper Band 3', stdevColor3, force_overlay = true)
+
+p60 = plot(stdevMult3 != 0 ? lowerBand3 : na, 'Lower Band 3', stdevColor3, force_overlay = true)
+fill(p10, p20, color.new(color.green, 95), 'Bands Fill')
+
+fill(p30, p40, color.new(color.green, 95), 'Bands Fill')
+fill(p50, p60, color.new(color.green, 95), 'Bands Fill')
+var table tfDisplay = table.new(infoBoxYPosInput_RVWAP + '_' + infoBoxXPosInput_RVWAP, 1, 1, force_overlay = true)
+
+// Display of time period.
+if show_rolling and showInfoBoxInput and barstate.islastconfirmedhistory
+    table.cell(tfDisplay, 0, 0, tfString(timeInMs), bgcolor = color_RVWAP, text_color = infoBoxTxtColorInput_RVWAP, text_size = infoBoxSizeInput_RVWAP)
+// }
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

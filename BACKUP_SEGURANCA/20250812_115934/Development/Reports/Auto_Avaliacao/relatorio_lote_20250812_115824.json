@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-08-12T11:58:24.439026",
+  "execution_time": 2.673515796661377,
+  "backup_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\TradingView_Scripts\\BACKUP_LOTE_20250812_115821",
+  "statistics": {
+    "total_files": 3,
+    "processed": 1454,
+    "successful": 1454,
+    "errors": 0,
+    "skipped": 0,
+    "start_time": 1755010701.7655025,
+    "end_time": 1755010704.4390182,
+    "categories": {
+      "Unknown": 1454
+    },
+    "quality_distribution": {
+      "Unknown": 1454
+    },
+    "ftmo_distribution": {
+      "Unknown": 1454
+    },
+    "errors_list": []
+  },
+  "performance": {
+    "files_per_second": 543.8531546421834,
+    "success_rate": 100.0,
+    "error_rate": 0.0
+  },
+  "recommendations": [
+    "🔍 1454 arquivos não classificados (100.0%) - melhorar padrões de detecção"
+  ],
+  "top_categories": [
+    [
+      "Unknown",
+      1454
+    ]
+  ],
+  "quality_summary": {
+    "Unknown": 1454
+  },
+  "ftmo_summary": {
+    "Unknown": 1454
+  }
+}

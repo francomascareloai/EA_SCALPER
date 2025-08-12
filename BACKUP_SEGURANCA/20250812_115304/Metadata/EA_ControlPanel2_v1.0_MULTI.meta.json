@@ -1,0 +1,43 @@
+{
+  "id": "EA_ControlPanel2_v1.0_MULTI",
+  "nome_original": "CONTROL PANEL PART 2.mq5",
+  "nome_novo": "EA_ControlPanel2_v1.0_MULTI.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "versao": "1.0",
+  "autor": "Allan Munene Mutiiria",
+  "data_criacao": "2024",
+  "descricao": "Painel de controle avançado para trading - Parte 2. Interface gráfica com múltiplos botões para gerenciamento de trades, informações da conta e controles de risco.",
+  "estrategia": "Misc",
+  "mercado": "MULTI",
+  "timeframe": "ALL",
+  "funcoes_principais": [
+    "Interface gráfica com botões",
+    "Controles de trading (Buy/Sell/Close)",
+    "Informações da conta",
+    "Gerenciamento de posições",
+    "Controles de risco"
+  ],
+  "parametros_expostos": [
+    "Configurações de botões",
+    "Layout do painel",
+    "Cores e estilos"
+  ],
+  "indicadores_utilizados": [],
+  "pares_suportados": ["ALL"],
+  "ftmo_compliant": {
+    "score": 0,
+    "status": "N/A",
+    "observacoes": "Ferramenta de interface - não executa trades automaticamente"
+  },
+  "riscos_identificados": [
+    "Nenhum - apenas interface"
+  ],
+  "ajustes_necessarios_ftmo": [
+    "Não aplicável - ferramenta de interface"
+  ],
+  "tags": ["#EA", "#Interface", "#ControlPanel", "#TradingTools", "#MULTI", "#Misc"],
+  "complexidade": "Baixa",
+  "status_arquivo": "Funcional",
+  "observacoes_tecnicas": "Painel de controle gráfico para MT5. Parte 2 de um sistema de interface completo. Utiliza biblioteca Controls/Button.mqh para criar interface rica em botões."
+}

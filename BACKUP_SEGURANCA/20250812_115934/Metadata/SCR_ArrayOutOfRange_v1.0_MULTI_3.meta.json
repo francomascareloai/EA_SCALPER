@@ -1,0 +1,42 @@
+{
+  "file_info": {
+    "original_name": "ARRAY OUT OF RANGE (2).mq5",
+    "new_name": "SCR_ArrayOutOfRange_v1.0_MULTI_3.mq5",
+    "type": "Script",
+    "platform": "MQL5",
+    "classification": "Educational"
+  },
+  "metadata": {
+    "name": "Array Out of Range",
+    "author": "mutiiriallan.forex@gmail.com",
+    "version": "1.00",
+    "description": "Educational script demonstrating static and dynamic array handling, array resizing, and proper indexing to avoid out-of-range errors.",
+    "functions": [
+      "Static array initialization and manipulation",
+      "Dynamic array creation and resizing",
+      "Array bounds checking demonstration",
+      "For loop iteration examples",
+      "Array printing and debugging",
+      "Memory management education"
+    ],
+    "exposed_parameters": {},
+    "timeframe": "MULTI",
+    "market": "MULTI"
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 10,
+    "compliance_level": "Excellent",
+    "detected_risks": [
+      "No trading risks - educational only",
+      "No financial impact",
+      "Safe for learning purposes"
+    ],
+    "ftmo_adjustments_needed": [
+      "No adjustments needed - educational script",
+      "Can be used as reference for array handling"
+    ]
+  },
+  "tags": ["#Script", "#Educational", "#Arrays", "#Programming", "#MULTI", "#Safe"],
+  "processing_date": "2024-12-28",
+  "status": "Processed"
+}

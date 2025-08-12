@@ -1,0 +1,88 @@
+---EDIT BY: @User_010101
+
+instrument{name="JEEF CALL / JEEF PUT (SUP/RES)", 
+short_name="Criador Berman", 
+icon="https://i.imgur.com/iHLxqGU.jpg", overlay=true}
+
+
+Exibir_tracamento= input(1, "Deseja exibir o tracamento?", input.string_selection, {"SIM", "NAO"})
+
+input_group {"EMA", ema_color= input {default= '#0000CD', type= input.color}}
+input_group {"BANDA SUPERIOR", bbsup_color= input{ default= "#FF0000", type= input.color}}
+input_group {"BANDA INFERIOR", bbinf_color= input{ default= "#FFFF00", type= input.color}}
+input_group {"CALL", call_color= input{ default= "green", type= input.color}}
+input_group {"PUT", put_color= input{ default= "red", type= input.color}}
+
+
+smaa= sma(close, '60')
+upper_band= smaa + (stdev(close,60) * 3.0)
+lower_band= smaa - (stdev(close,60) * 3.0)
+emaa= ema(close, '2')
+
+if Exibir_tracamento == 1 then
+plot(emaa, "SMA", ema_color)
+plot(upper_band, "UPPER_BAND", bbsup_color)
+plot(lower_band, "LOWER_BAND", bbinf_color)
+end
+
+period1 = input (10, "period Line 1", input.integer, 1 )
+period2 = input (30, "period Line 2", input.integer, 1 )
+period3 = input (60, "period Line 3", input.integer, 1 )
+period4 = input (100, "period Line 4", input.integer, 1 )
+period5 = input (150, "period Line 5", input.integer, 1 )
+period6 = input (200, "period Line 6", input.integer, 1 )
+
+input_group {
+    "Color",
+    color1 = input {default = "rgba(0,255,0, 0.3)", type = input.color},
+    color2 = input {default = "rgba(0, 255 , 0, 0.4)", type = input.color},
+    color3 = input {default = "rgba(0, 255 , 0, 0.5)", type = input.color},
+    color4 = input {default = "rgba(0, 255 , 0, 0.6)", type = input.color},
+    color5 = input {default = "rgba(0, 255 , 0, 0.7)", type = input.color},
+    color6 = input {default = "rgba(0, 255 , 0, 0.9)", type = input.color},
+    width = input {default = 1, type = input.line_width}
+}
+
+hline(highest(period1), "HH10", color1, 1)
+hline(lowest(period1 ), "LL10", color1, 1)
+
+hline(highest(period2), "HH30", color2, 1)
+hline(lowest(period2), "LL30", color2, 1)
+
+hline(highest(period3), "HH60", color3, 1)
+hline(lowest(period3), "LL60", color3, 1)
+
+hline(highest(period4), "HH100", color4, 1)
+hline(lowest(period4), "LL100", color4, 1)
+
+hline(highest(period5), "HH150", color5, 1)
+hline(lowest(period5), "LL150", color5, 1)
+
+hline(highest(period6), "HH200", color6, 1)
+hline(lowest(period6), "LL200", color6, 1)
+
+hline(highest(close,period6), "HH201", color6, 1)
+hline(lowest(close,period6), "LL201", color6, 1)
+
+
+plot_shape((high >= upper_band and emaa > upper_band),
+"JEEF PUT",
+shape_style.arrowdown,
+shape_size.huge,
+put_color,
+shape_location.abovebar,
+0,
+"JEEF PUT",
+put_color)
+
+plot_shape((low <= lower_band and emaa < lower_band),
+"JEEF CALL",
+shape_style.arrowup,
+shape_size.huge,
+call_color,
+shape_location.belowbar,
+0,
+"JEEF CALL",
+call_color)
+
+---EDIT BY: @User_010101

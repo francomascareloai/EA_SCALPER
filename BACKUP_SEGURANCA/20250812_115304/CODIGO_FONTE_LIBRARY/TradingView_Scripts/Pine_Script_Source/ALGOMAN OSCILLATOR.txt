@@ -1,0 +1,332 @@
+//@version = 5
+
+
+indicator(shorttitle='Algoman Oscillator', title='Algoman Oscillator', overlay=false)
+n1 = input(10, 'Channel length')
+n2 = input(21, 'Average length')
+reaction_wt = input.int(defval=1, title='Reaction in change of direction', minval=1)
+
+nsc = input.float(53, 'Levels About Buys', minval=0.0)
+nsv = input.float(-53, 'Levels About Sells', maxval=-0.0)
+
+Buy_sales = input(true, title='Only Smart Buy Reversal')
+Sell_sales = input(true, title='Only Smart Sell Reversal')
+
+Histogram = input(true, title='Show Histogarm')
+//Trendx = input(false, title='Show Trendx')
+barras = input(true, title='Divergence on chart(Bars)')
+divregbull = input(true, title='Regular Divergence Bullish')
+divregbear = input(true, title='Regular Divergence Bearish')
+divhidbull = input(true, title='Show Divergence Hidden Bullish')
+divhidbear = input(true, title='Show Divergence Hidden Bearish')
+Tags = input(true, title='Show Divergence Lable')
+amme = input(false, title='Activar media movil Extra para WT')
+
+White = #FDFEFE
+Black = #000000
+Bearish = #e91e62
+Bullish = #18e0ff
+Strong_Bullish = #2962ff
+Bullish2 = #00bedc
+Blue1 = #00D4FF
+Blue2 = #009BBA
+orange = #FF8B00
+yellow = #FFFB00
+LEZ = #0066FF
+purp = #FF33CC
+
+// Colouring
+
+
+tf(_res, _exp, gaps_on) =>
+    gaps_on == 0 ? request.security(syminfo.tickerid, _res, _exp) : gaps_on == true ? request.security(syminfo.tickerid, _res, _exp, barmerge.gaps_on, barmerge.lookahead_off) : request.security(syminfo.tickerid, _res, _exp, barmerge.gaps_off, barmerge.lookahead_off)
+
+ha_htf = ''
+show_ha = input.bool(true, "Show HA Plot/ Market Bias", group="HA Market Bias")
+ha_len = input(7, 'Period', group="HA Market Bias")
+ha_len2 = input(10, 'Smoothing', group="HA Market Bias")
+
+// Calculations {
+o = ta.ema(open, ha_len)
+c = ta.ema(close, ha_len)
+h = ta.ema(high, ha_len)
+l = ta.ema(low, ha_len)
+
+haclose = tf(ha_htf, (o + h + l + c) / 4, 0)
+xhaopen = tf(ha_htf, (o + c) / 2, 0)
+haopen = na(xhaopen[1]) ? (o + c) / 2 : (xhaopen[1] + haclose[1]) / 2
+hahigh = math.max(h, math.max(haopen, haclose))
+halow = math.min(l, math.min(haopen, haclose))
+
+
+o2 = tf(ha_htf, ta.ema(haopen, ha_len2), 0)
+c2 = tf(ha_htf, ta.ema(haclose, ha_len2), 0)
+h2 = tf(ha_htf, ta.ema(hahigh, ha_len2), 0)
+l2 = tf(ha_htf, ta.ema(halow, ha_len2), 0)
+
+ha_avg = (h2 + l2) / 2
+// }
+    
+osc_len = 8
+
+osc_bias = 100 *(c2 - o2)
+osc_smooth = ta.ema(osc_bias, osc_len)
+
+sigcolor = 
+  (osc_bias > 0) and (osc_bias >= osc_smooth) ? color.new(Bullish, 35) : 
+  (osc_bias > 0) and (osc_bias < osc_smooth) ? color.new(Bullish2, 75) : 
+  (osc_bias < 0) and (osc_bias <= osc_smooth) ? color.new(Bearish, 35) : 
+  (osc_bias < 0) and (osc_bias > osc_smooth) ? color.new(Bearish, 75) :
+  na
+// }
+
+
+
+nsc1 = nsc
+nsc2 = nsc + 5
+nsc3 = nsc + 10
+nsc4 = nsc + 15
+nsc5 = nsc + 20
+nsc6 = nsc + 25
+nsc7 = nsc + 30
+nsc8 = nsc + 35
+nsv1 = nsv - 5
+nsv2 = nsv - 10
+nsv3 = nsv - 15
+nsv4 = nsv - 20
+nsv5 = nsv - 25
+nsv6 = nsv - 30
+nsv7 = nsv - 35
+nsv8 = nsv - 40
+
+
+ap = hlc3
+esa = ta.ema(ap, n1)
+d = ta.ema(math.abs(ap - esa), n1)
+ci = (ap - esa) / (0.015 * d)
+tci = ta.ema(ci, n2)
+
+wt1 = tci
+wt2 = ta.sma(wt1, 4)
+
+direction = 0
+direction := ta.rising(wt1, reaction_wt) ? 1 : ta.falling(wt1, reaction_wt) ? -1 : nz(direction[1])
+Change_of_direction = ta.change(direction, 1)
+pcol = direction > 0 ? Strong_Bullish : direction < 0 ? Bearish : na
+
+obLevel1 = input(60, 'Over Bought Level 1')
+obLevel2 = input(53, 'Over Bought Level 2')
+osLevel1 = input(-60, 'Over Sold Level 1')
+osLevel2 = input(-53, 'Over Sold Level 2')
+
+rsi = ta.rsi(close,14)
+color greengrad = color.from_gradient(rsi, 10, 90, #00ddff, #007d91)
+color redgrad = color.from_gradient(rsi, 10, 90, #8b002e, #e91e62)
+
+
+
+ob1  = plot(obLevel1, color=#e91e6301)
+os1 = plot(osLevel1, color=#00dbff01)
+ob2 = plot(obLevel2, color=#e91e6301)
+os2 = plot(osLevel2, color=#00dbff01)
+
+p1 = plot(wt1, color=#00dbff01)
+p2 = plot(wt2, color=#e91e6301)
+plot(wt1 - wt2, color=wt2 - wt1 > 0 ? redgrad : greengrad, style=plot.style_columns)
+
+// fill(p1,p2,color = wt2 - wt1 > 0 ? redgrad: greengrad) // old
+
+fill(p1,p2,color = sigcolor) // new
+
+
+fill(ob1,ob2,color = #e91e6350)
+fill(os1,os2,color = #00dbff50)
+
+midpoint = (nsc + nsv) / 2
+ploff = (nsc - midpoint) / 8
+
+BullSale = ta.crossunder(wt1, wt2) and wt1 >= nsc and Buy_sales == true
+BearSale = ta.crossunder(wt1, wt2) and Buy_sales == false
+
+Bullishh = ta.crossover(wt1, wt2) and wt1 <= nsv and Sell_sales == true
+Bearishh = ta.crossover(wt1, wt2) and Sell_sales == false
+
+plot(BullSale ? wt2[1] + ploff : na, style=plot.style_circles, color=color.new(Bearish, 0), linewidth=3, title='BuysG')
+plot(BearSale ? wt2[1] + ploff : na, style=plot.style_circles, color=color.new(Bearish, 0), linewidth=3, title='SellsG')
+
+plot(Bullishh ? wt2[1] - ploff : na, style=plot.style_circles, color=color.new(Strong_Bullish, 0), linewidth=3, title='Buys On Sale')
+plot(Bearishh ? wt2[1] - ploff : na, style=plot.style_circles, color=color.new(Strong_Bullish, 0), linewidth=3, title='Sells on Sale')
+
+plot(Histogram ? wt1 - wt2 : na, style=plot.style_area, color=color.new(Blue2, 80), linewidth=1, title='Histograma')
+
+barcolor(barras == true and Bullishh == true or barras == true and Bearishh == true ? Bullish2 : na)
+barcolor(barras == true and BullSale == true or barras == true and BearSale == true ? Bearish : na)
+
+/////// Divergence ///////
+
+f_top_fractal(_src) =>
+    _src[4] < _src[2] and _src[3] < _src[2] and _src[2] > _src[1] and _src[2] > _src[0]
+f_bot_fractal(_src) =>
+    _src[4] > _src[2] and _src[3] > _src[2] and _src[2] < _src[1] and _src[2] < _src[0]
+f_fractalize(_src) =>
+    f_top_fractal(_src) ? 1 : f_bot_fractal(_src) ? -1 : 0
+
+fractal_top1 = f_fractalize(wt1) > 0 ? wt1[2] : na
+fractal_bot1 = f_fractalize(wt1) < 0 ? wt1[2] : na
+
+high_prev1 = ta.valuewhen(fractal_top1, wt1[2], 0)[2]
+high_price1 = ta.valuewhen(fractal_top1, high[2], 0)[2]
+low_prev1 = ta.valuewhen(fractal_bot1, wt1[2], 0)[2]
+low_price1 = ta.valuewhen(fractal_bot1, low[2], 0)[2]
+
+regular_bearish_div1 = fractal_top1 and high[2] > high_price1 and wt1[2] < high_prev1 and divregbear == true
+hidden_bearish_div1 = fractal_top1 and high[2] < high_price1 and wt1[2] > high_prev1 and divhidbear == true
+regular_bullish_div1 = fractal_bot1 and low[2] < low_price1 and wt1[2] > low_prev1 and divregbull == true
+hidden_bullish_div1 = fractal_bot1 and low[2] > low_price1 and wt1[2] < low_prev1 and divhidbull == true
+
+col1 = regular_bearish_div1 ? Bearish : hidden_bearish_div1 ? Bearish : na
+col2 = regular_bullish_div1 ? Strong_Bullish : hidden_bullish_div1 ? Strong_Bullish : na
+
+plot(title='Divergence Bearish', series=fractal_top1 ? wt1[2] : na, color=col1, linewidth=2, transp=0)
+plot(title='Divergence Bullish', series=fractal_bot1 ? wt1[2] : na, color=col2, linewidth=2, transp=0)
+
+plotshape(regular_bearish_div1 and divregbear and Tags ? wt1[1] + ploff * 1 : na, title='Divergence Regular Bearish', text='Bear', location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.new(Bearish, 0), textcolor=color.new(White, 0))
+plotshape(hidden_bearish_div1 and divhidbear and Tags ? wt1[1] + ploff * 1 : na, title='Divergence Hidden Bearish', text='H Bear', location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.new(Bearish, 0), textcolor=color.new(White, 0))
+
+plotshape(regular_bullish_div1 and divregbull and Tags ? wt1[1] - ploff * 1 : na, title='Divergence Regular Bullish', text='Bull', location=location.absolute, style=shape.labelup, size=size.tiny, color=color.new(Strong_Bullish, 0), textcolor=color.new(White, 0))
+plotshape(hidden_bullish_div1 and divhidbull and Tags ? wt1[1] - ploff * 1 : na, title='Divergence Hidden Bullish', text='H Bull', location=location.absolute, style=shape.labelup, size=size.tiny, color=color.new(Strong_Bullish, 0), textcolor=color.new(White, 0))
+
+
+/////// Unfazed Alerts  //////
+
+alertcondition(BullSale, title='Smart Bullish Reversal')
+alertcondition(BearSale, title='Smart Bearish Reversal')
+
+alertcondition(Bullishh, title='Bullish Reversal')
+alertcondition(Bearishh, title='Bearish Reversal')
+
+alertcondition(BullSale or Bullishh, title='Any Bullish reversal')
+alertcondition(BearSale or Bearishh, title='Any Bearish Reversal')
+
+alertcondition(Change_of_direction, title='Change In Direction WT')
+
+/////// Extra Alerts //////
+
+alertcondition(BullSale, title='Overbought Reversal')
+alertcondition(BearSale, title='All Reversal')
+
+alertcondition(Bullishh, title='Oversold Buys')
+alertcondition(Bearishh, title='All Buys')
+
+alertcondition(BullSale or Bullishh, title='Buys/Reversal Overbought/Oversold')
+alertcondition(BearSale or Bearishh, title='All Reversal/Buys')
+
+alertcondition(Change_of_direction, title='WT Direction Change')
+
+
+
+
+////////////////////////////////////////////////-MISTERMOTA MOMENTUM-/////////////////////////////////////
+
+
+
+source = input(close)
+responsiveness = math.max(0.00001, input.float(0.9, minval=0.0, maxval=1.0))
+periodd = input(50)
+sd = ta.stdev(source, 50) * responsiveness
+
+var worm = source
+diff = source - worm
+delta = math.abs(diff) > sd ? math.sign(diff) * sd : diff
+worm += delta
+ma = ta.sma(source, periodd)
+raw_momentum = (worm - ma) / worm
+current_med = raw_momentum
+min_med = ta.lowest(current_med, periodd)
+max_med = ta.highest(current_med, periodd)
+temp = (current_med - min_med) / (max_med - min_med)
+value = 0.5 * 2
+value *= (temp - .5 + .5 * nz(value[1]))
+value := value > .9999 ? .9999 : value
+value := value < -0.9999 ? -0.9999 : value
+temp2 = (1 + value) / (1 - value)
+momentum = .25 * math.log(temp2)
+momentum += .5 * nz(momentum[1])
+
+//momentum := raw_momentum
+signal = nz(momentum[1])
+trend = math.abs(momentum) <= math.abs(momentum[1])
+
+
+
+
+
+
+////////////////////////////////////////////////-GROWING/FAILING-//////////////////////////////////////////
+
+
+
+length = input.int(title="MOM Period", minval=1, defval=14, group="MOM Settings")
+src = input(title="MOM Source", defval=hlc3, group="MOM Settings")
+
+
+txtcol_grow_above = input(#1a7b24, "Above   Grow", group="MOM Settings", inline="Above")
+txtcol_fall_above = input(#672ec5, "Fall", group="MOM Settings", inline="Above")
+txtcol_grow_below = input(#F37121, "Below Grow", group="MOM Settings", inline="Below")
+txtcol_fall_below = input(#be0606, "Fall", group="MOM Settings", inline="Below")
+
+
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+typeMA = input.string(title = "Method", defval = "SMA", options=["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"], group="MA Settings")
+smoothingLength = input.int(title = "Length", defval = 5, minval = 1, maxval = 100, group="MA Settings")
+
+
+smoothingLine = ma(delta, smoothingLength, typeMA)
+
+
+
+deltaText=(delta > 0 ? (delta > delta[1]? " MOM  > 0 and ? Growing, MOM = " + str.tostring(delta[0], "#.##") :" MOM > 0 and ? Falling, MOM = " + str.tostring(delta[0], "#.##") ) : (delta > delta[1] ? "MOM < 0 and ? Growing, MOM = " + str.tostring(delta[0], "#.##"): " MOM < 0 and ? Falling, MOM = " + str.tostring(delta[0], "#.##")))
+
+
+oneDay = 24 * 60 * 60 * 1000
+barsAhead = 3
+tmf = if timeframe.ismonthly
+    barsAhead * oneDay * 30
+else if timeframe.isweekly
+    barsAhead * oneDay * 7
+else if timeframe.isdaily
+    barsAhead * oneDay
+else if timeframe.isminutes
+    barsAhead * oneDay * timeframe.multiplier / 1440
+else if timeframe.isseconds
+    barsAhead * oneDay * timeframe.multiplier / 86400
+else
+    0
+  
+
+angle(_src) =>
+    rad2degree = 180 / 3.14159265359  //pi 
+    ang = rad2degree * math.atan((_src[0] - _src[1]) / ta.atr(14))
+    ang
+
+emae = angle(smoothingLine)
+emaanglestat = emae > emae[1] ? "?  Growing": "?  Falling"
+deltaTextxxx = "MOM MA/ATR angle value is " + str.tostring(emae, "#.##") + "° and is " + emaanglestat
+deltacolorxxx = emae >0 and emae >=emae[1] ? txtcol_grow_above : txtcol_fall_below
+// Label
+label lpt1 = label.new(time, -30, text=deltaTextxxx[0], color=deltacolorxxx, xloc=xloc.bar_time, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.set_x(lpt1, label.get_x(lpt1) + tmf)
+label.delete(lpt1[1])
+
+txtdeltaColors  = (delta > 50 ? (delta[1] < delta ? txtcol_grow_above : txtcol_fall_above) : (delta[1] < delta ? txtcol_grow_below : txtcol_fall_below))
+
+label ldelta1 = label.new(time, 30, text=deltaText[0], color=txtdeltaColors, xloc=xloc.bar_time, style=label.style_label_left, textcolor=color.white, textalign=text.align_left, size=size.normal)
+label.set_x(ldelta1, label.get_x(ldelta1) + tmf)
+label.delete(ldelta1[1])

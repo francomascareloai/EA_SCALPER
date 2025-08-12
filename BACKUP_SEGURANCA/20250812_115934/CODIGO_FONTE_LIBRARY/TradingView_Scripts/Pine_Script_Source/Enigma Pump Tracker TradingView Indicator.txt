@@ -1,0 +1,245 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+
+// © EnigmaWay
+// =================================
+// PLEASE SUPPORT THE TEAM
+// =================================
+//
+// If this project has been helpful, consider making a donation:
+// Biance UID: 263856481
+// Telegram: https://t.me/enigmawaytrading
+
+// =================================
+// @version=6
+
+// =================================
+// PLEASE SUPPORT THE TEAM
+// =================================
+//
+// If this project has been helpful, consider making a donation:
+// Biance UID: 263856481
+//
+
+// =================================
+// USER MANUAL - PUMP TRACKER
+// =================================
+//
+// HOW TO USE:
+// 1. ENTRY SIGNALS
+//    - 🚀 (Green signal): Indicates possible PUMP - Time to buy
+//    - 💥 (Red signal): Indicates possible DUMP - Time to sell
+//    - ⚠️ (Purple signal): Alert of possible manipulation/rug pull
+//
+// 2. PRICE LEVELS
+//    - Green Line: Suggested entry level
+//    - Red Line: Recommended Stop Loss
+//    - Purple Line: Target Take Profit
+//
+// 3. OPERATING ZONES
+//    - Green Area: Opportunity Zone (favorable for buying)
+//    - Red Area: Risk Zone (favorable for selling)
+//
+// 4. RECOMMENDED SETTINGS
+//    - Use timeframes from 5m to 1h for cryptocurrencies
+//    - Set alerts for Pump, Dump and Risk
+//    - Monitor volume and volatility through indicators
+//
+// 5. RISK MANAGEMENT
+//    - Never trade more than 1-2% of capital per trade
+//    - Always use Stop Loss
+//    - Strictly follow exit signals
+//
+// 6. BEST PRACTICES
+//    - Only trade during high liquidity moments
+//    - Confirm signals with increased volume
+//    - Avoid trading against the main trend
+//
+// =================================
+
+// The "Enigma Pump Tracker" is a professional indicator based on the strategies of legendary Japanese trader Takashi, known for turning $13,600 into $153 million. Specifically designed for volatile markets like cryptocurrencies, memecoins and altcoins, this indicator combines technical analysis, risk management and market psychology to identify profit opportunities with low initial capital.
+
+indicator("Enigma Pump Tracker", "EPT", overlay=true, max_labels_count=500)
+import TradingView/ta/7
+
+// =============================
+// SuperTrend and K-Means Settings
+// =============================
+atr_len = input.int(25, "ATR Length (Enigma)", group="SuperTrend Settings")
+fact = input.float(3, "Volatility Multiplier", group="SuperTrend Settings")
+training_data_period = input.int(100, "Analysis Period", group="K-Means Settings")
+highvol = input.float(0.75, "High Volatility Level", maxval=1, group="K-Means Settings", tooltip="High volatility level for pump detection")
+midvol = input.float(0.5, "Medium Volatility Level", maxval=1, group="K-Means Settings", tooltip="Medium volatility level")
+lowvol = input.float(0.25, "Low Volatility Level", maxval=1, group="K-Means Settings", tooltip="Low volatility level for accumulation detection")
+t1 = input.int(70, "Primary Transparency", maxval=100, minval=0, group="Appearance")
+t2 = input.int(95, "Secondary Transparency", maxval=100, minval=0, group="Appearance")
+green = input.color(#00ffb3, "Pump Color", group="Appearance")
+red = input.color(#ff1130, "Dump Color", group="Appearance")
+
+// =============================
+// SuperTrend Adaptive Function
+// =============================
+pine_supertrend(factor, atr) =>
+    src = hl2
+    upperBand = src + factor * atr
+    lowerBand = src - factor * atr
+    prevLowerBand = nz(lowerBand[1])
+    prevUpperBand = nz(upperBand[1])
+    lowerBand := lowerBand > prevLowerBand or close[1] < prevLowerBand ? lowerBand : prevLowerBand
+    upperBand := upperBand < prevUpperBand or close[1] > prevUpperBand ? upperBand : prevUpperBand
+    int _direction = na
+    float superTrend = na
+    prevSuperTrend = superTrend[1]
+    if na(atr[1])
+        _direction := 1
+    else if prevSuperTrend == prevUpperBand
+        _direction := close > upperBand ? -1 : 1
+    else
+        _direction := close < lowerBand ? 1 : -1
+    superTrend := _direction == -1 ? lowerBand : upperBand
+    [superTrend, _direction]
+
+// =============================
+// Volatility Calculation and Clustering (Simple K-Means)
+// =============================
+volatility = ta.atr(atr_len)
+upper = ta.highest(volatility, training_data_period)
+lower = ta.lowest(volatility, training_data_period)
+high_volatility = lower + (upper - lower) * highvol
+medium_volatility = lower + (upper - lower) * midvol
+low_volatility = lower + (upper - lower) * lowvol
+
+iterations = 0
+size_a = 0
+size_b = 0
+size_c = 0
+
+hv = array.new_float()
+mv = array.new_float()
+lv = array.new_float()
+amean = array.new_float(1, high_volatility)
+bmean = array.new_float(1, medium_volatility)
+cmean = array.new_float(1, low_volatility)
+
+if nz(volatility) > 0 and bar_index >= training_data_period - 1
+    while ((amean.size() == 1 ? true : (amean.first() != amean.get(1))) or (bmean.size() == 1 ? true : (bmean.first() != bmean.get(1))) or (cmean.size() == 1 ? true : (cmean.first() != cmean.get(1))))
+        hv.clear()
+        mv.clear()
+        lv.clear()
+        for i = training_data_period - 1 to 0
+            _1 = math.abs(volatility[i] - amean.first())
+            _2 = math.abs(volatility[i] - bmean.first())
+            _3 = math.abs(volatility[i] - cmean.first())
+            if _1 < _2 and _1 < _3
+                hv.unshift(volatility[i])
+            if _2 < _1 and _2 < _3
+                mv.unshift(volatility[i])
+            if _3 < _1 and _3 < _2
+                lv.unshift(volatility[i])
+        amean.unshift(hv.avg())
+        bmean.unshift(mv.avg())
+        cmean.unshift(lv.avg())
+        size_a := hv.size()
+        size_b := mv.size()
+        size_c := lv.size()
+        iterations := iterations + 1
+
+hv_new = amean.first()
+mv_new = bmean.first()
+lv_new = cmean.first()
+vdist_a = math.abs(volatility - hv_new)
+vdist_b = math.abs(volatility - mv_new)
+vdist_c = math.abs(volatility - lv_new)
+
+distances = array.new_float()
+centroids = array.new_float()
+distances.push(vdist_a)
+distances.push(vdist_b)
+distances.push(vdist_c)
+centroids.push(hv_new)
+centroids.push(mv_new)
+centroids.push(lv_new)
+
+cluster = distances.indexof(distances.min())
+assigned_centroid = cluster == -1 ? na : centroids.get(cluster)
+
+[ST, dir] = pine_supertrend(fact, assigned_centroid)
+upTrend = plot(close > ST ? ST : na, color=color.new(#00ffb3, t1), style=plot.style_linebr)
+downTrend = plot(close < ST ? ST : na, color=color.new(#ff1130, t1), style=plot.style_linebr, force_overlay=false)
+bodyMiddle = plot(barstate.isfirst ? na : (open + close) / 2, "Body Middle", display=display.none)
+
+fill(bodyMiddle, upTrend, (open + close) / 2, ST, color.new(#00ffb3, t2), color.new(#00ffb3, t1))
+fill(bodyMiddle, downTrend, ST, (open + close) / 2, color.new(#ff1130, t1), color.new(#ff1130, t2))
+
+plotshape(ta.crossunder(dir, 0) ? ST : na, "Pump Signal", shape.labelup, location=location.absolute, color=#00ffb3, text="🚀", textcolor=#dcf0ff, size=size.small)
+plotshape(ta.crossover(dir, 0) ? ST : na, "Dump Signal", shape.labeldown, location=location.absolute, color=#ff1130, text="💥", textcolor=#dcf0ff, size=size.small)
+
+label.new(bar_index, dir > 0 ? ST + ta.atr(7) : ST - ta.atr(7), text=str.tostring(4 - (cluster + 1)), style=label.style_none, textcolor=color.from_gradient(cluster + 1, 1, 3, color.new(dir > 0 ? #ff1130 : #00ffb3, 30), color.new(dir > 0 ? #ff1130 : #00ffb3, 90)))
+
+// =============================
+// PREDICTION SETTINGS (Enigma Method)
+// =============================
+rsiPeriod = input.int(14, "RSI Period (Enigma)", group="Prediction Settings")
+rsiValue = ta.rsi(close, rsiPeriod)
+volMA = ta.sma(volume, 20)
+forecastPrice = close + (close - close[1]) * (1 + volatility/100)
+
+// =============================
+// Enigma prediction conditions
+// =============================
+pump_signal   = (rsiValue < 30) and (forecastPrice > close * 1.02) and (volume > volMA * 1.5)
+dump_signal   = (rsiValue > 70) and (forecastPrice < close * 0.98) and (volume > volMA * 1.5)
+rugpull_signal = (volume < volMA * 0.3) and (forecastPrice < close * 0.95) and (rsiValue < 40)
+
+// =============================
+// Enigma Signals
+// =============================
+pump_color = color.new(#00ffb3, 0)
+dump_color = color.new(#ff1130, 0)
+rug_color  = color.new(#9100ff, 0)
+label_size = size.normal
+
+plotshape(pump_signal, title="Enigma Pump", style=shape.triangleup, location=location.belowbar, color=pump_color, size=size.large, offset=-1, text="💰")
+plotshape(dump_signal, title="Enigma Dump", style=shape.triangledown, location=location.abovebar, color=dump_color, size=size.large, offset=-1, text="📉")
+plotshape(rugpull_signal, title="Possible Rug", style=shape.circle, location=location.abovebar, color=rug_color, size=size.small, offset=-1, text="⚠️")
+
+if pump_signal
+    label.new(bar_index, high, "🎯 PUMP", color=pump_color, textcolor=#dcf0ff, style=label.style_label_down, size=label_size)
+if dump_signal
+    label.new(bar_index, low, "⚡ DUMP", color=dump_color, textcolor=#dcf0ff, style=label.style_label_up, size=label_size)
+if rugpull_signal
+    label.new(bar_index, low, "⚠️ RISK", color=rug_color, textcolor=#dcf0ff, style=label.style_label_up, size=label_size)
+
+alertcondition(pump_signal, title="Enigma Pump Alert", message="Possible pump opportunity - Volume increasing!")
+alertcondition(dump_signal, title="Enigma Dump Alert", message="Possible dump - Consider protection!")
+alertcondition(rugpull_signal, title="Enigma Risk Alert", message="Manipulation risk - Suspicious volume!")
+
+// =============================
+// Enigma PRICE LEVELS (Stop Loss and Take Profit)
+// =============================
+orders_count = 7
+price_window_mult = input.float(14, "ATR Multiplier (Enigma)", group="Price Settings")
+basePrice = close
+priceRange = price_window_mult * volatility
+lowerBound = basePrice - priceRange
+upperBound = basePrice + priceRange
+
+var float[] orderLevels = array.new_float(0)
+if barstate.isfirst
+    for i = 0 to orders_count - 1
+        level = lowerBound + (i / (orders_count - 1)) * (upperBound - lowerBound)
+        array.push(orderLevels, level)
+else
+    array.clear(orderLevels)
+    for i = 0 to orders_count - 1
+        level = lowerBound + (i / (orders_count - 1)) * (upperBound - lowerBound)
+        array.push(orderLevels, level)
+
+plot(array.get(orderLevels, 0), title="Stop Loss", color=color.new(#ff1130, 0), style=plot.style_line, linewidth=2)
+plot(array.get(orderLevels, int(math.floor(orders_count / 2))), title="Entry", color=color.new(#00ffb3, 0), style=plot.style_line, linewidth=2)
+plot(array.get(orderLevels, orders_count - 1), title="Take Profit", color=color.new(#9100ff, 0), style=plot.style_line, linewidth=2)
+
+bgcolor(close >= array.get(orderLevels, 0) and close < array.get(orderLevels, int(math.floor(orders_count / 2))) ? color.new(#ff1130, 95) : na, title="Risk Zone")
+bgcolor(close >= array.get(orderLevels, int(math.floor(orders_count / 2))) and close <= array.get(orderLevels, orders_count - 1) ? color.new(#ffe600, 95) : na, title="Opportunity Zone")
+
+// ==========================================================================================

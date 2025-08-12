@@ -1,0 +1,163 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © daddywookie
+
+//@version=5
+indicator("Opportunity Criteria")
+
+movementLength = input.int(24, title="Max Position Duration", minval=1, maxval=48, step=1, group="Strategy Config", tooltip="Number of intervals to allow for exit to occur")
+profitTarget = input.float(5, title="Profit Target %", minval=0.5, maxval=50, step=0.5, group="Strategy Config")
+stopLimit = input.float(3, title="Stop Loss %", minval=0.5, maxval=50, step=0.5, group="Strategy Config")
+
+// ---> Configure backtest start and end dates with inputs
+startDate = input.time(timestamp("01 Jan 2022 00:00 +0000"), title="Start Time", group="Strategy Active Dates", tooltip="Date to start evaluating the strategy")
+endDate = input.time(timestamp("31 Dec 2200 23:59 +0000"), title="End Time", group="Strategy Active Dates", tooltip="Date to finish evaluating the strategy")
+
+activeDates = time >= startDate and time <= endDate
+
+
+enterLong = false
+enterShort = false
+exitBar = 0
+
+entryPrice = open[movementLength]
+longProfit = entryPrice + entryPrice*(profitTarget/100)
+shortProfit = entryPrice - entryPrice*(profitTarget/100)
+longStop = entryPrice - entryPrice*(stopLimit/100)
+shortStop = entryPrice + entryPrice*(stopLimit/100)
+stopBar = 0
+
+studyBarOffset=(-1*movementLength)-1
+
+
+// ---> Set up the metrics we are going to compare as a set of -1 > 1 scales for short to long
+
+shortlong_Entry = 0
+shortlong_EntryStrength = 0
+
+// ---> Gather some statistics about our entries
+var shortlong_EntryCount = 0
+var short_EntryCount = 0
+var long_EntryCount = 0
+
+// ---> reset exit status
+exitLongStop = false
+exitShortStop = false
+exitLongProfit = false
+exitShortProfit = false
+
+// ---> Step back through the history to compare the open[i] price with the current high/low. Handle long and short in their own loops
+
+long_i = 1
+short_i = 1
+
+while long_i < movementLength and activeDates
+    
+    // ---> Reference the furthest back bar we are testing for an entry
+    thisBar = movementLength - long_i
+    
+    // ---> Did this bar exceed our profit or stop levels and trigger an exit
+    exitLongStop := low[thisBar] < longStop
+    exitLongProfit := high[thisBar] > longProfit
+    
+
+    // ---> If we hit a stop then flag it and exit this search
+    if(exitLongStop)
+        enterLong := false
+        long_i := movementLength
+    
+    // ---> If we hit a profit then flag it, update stats and exit the search
+    else if(exitLongProfit)
+        enterLong := true
+        exitBar := thisBar
+        shortlong_Entry := 1
+        shortlong_EntryStrength := 1-(long_i/movementLength)
+        shortlong_EntryCount += 1
+        long_EntryCount += 1
+        long_i := movementLength
+    
+    // ---> If nothing happened move forward to the next bar
+    else
+        long_i += 1
+
+while short_i < movementLength and activeDates
+
+    thisBar = movementLength - short_i
+    
+    exitShortStop := high[thisBar] > shortStop
+    exitShortProfit := low[thisBar] < shortProfit
+    
+    // ---> Did we hit a short exit without hitting a stop
+    if(exitShortStop)
+        enterShort := false
+        short_i := movementLength
+
+    else if(exitShortProfit)
+        enterShort := true
+        exitBar := thisBar
+        shortlong_Entry := -1
+        shortlong_EntryCount += 1
+        shortlong_EntryStrength := -1+(1*short_i/movementLength)
+        short_EntryCount += 1
+        short_i := movementLength
+
+    else
+        short_i += 1
+   
+
+// ---> Show another indicator to see if there is a correlation with our proposed entries
+
+smoothed_RSI = ta.ema(((ta.rsi(hl2,14)-50))/50,14)
+
+
+// ---> Plot out our entry points and series indicators
+
+// ---> Simple -1, 0, 1 values for go short, do nothing or go long
+plot(shortlong_Entry, title="Short or Long", offset=studyBarOffset, color=color.white)
+
+// ---> Advanced indicator to show strength of entry, showing how quickly it will profit
+plot(shortlong_EntryStrength, title="Short or Long Strength", offset=studyBarOffset, color=color.blue)
+
+// ---> Simple indicator icons for long or short. These appear on the bar which should calculate your entry, the actual entry would occur at the open of the next bar
+plotshape(enterLong, "Enter Long", shape.triangleup, location.bottom, offset=studyBarOffset, color=color.new(color.blue,33), size=size.auto)
+plotshape(enterShort, "Enter Short", shape.triangledown, location.bottom, offset=studyBarOffset, color=color.new(color.red,33), size=size.auto)
+
+// ---> Plot our proposed predictive indicator
+plot(smoothed_RSI, title="Inverse RSI", offset=studyBarOffset, color=color.green)
+//plot(longStop, color=color.new(color.blue, 50))
+//plot(shortStop, color=color.new(color.red, 50))
+//plot(shortStopBar, title="ShortstopBar", color=color.new(color.blue, 20))
+//plot(shortProfit, color=color.new(color.red, 20))
+//plotchar(exitShortStop, "Short Exit", "X", location.top, offset=-1*exitBar, color=color.blue)
+//plotchar(enterShort, "Short Profit", "X", location.top, offset=-1*exitBar, color=color.red)
+
+
+//---> Prepare and display a label with some output information
+
+var barDelta = 0
+
+if(time >= startDate and time <= endDate)
+    barDelta += 1
+
+shortlong_EntryRate = math.round((shortlong_EntryCount/barDelta)*100)
+long_EntryRate = math.round((long_EntryCount/barDelta)*100)
+short_EntryRate = math.round((short_EntryCount/barDelta)*100)
+
+print(txt) =>
+    // Create label on the first bar.
+    var lbl = label.new(bar_index, na, txt, xloc.bar_index, yloc.price, color(na), label.style_none, color.gray, size.large, text.align_left)
+    // On next bars, update the label's x and y position, and the text it displays.
+    label.set_xy(lbl, bar_index, 0)
+    label.set_text(lbl, txt)
+
+
+shortlong_EntryCountStr = "Number of entries: " + str.tostring(shortlong_EntryCount) + " from " + str.tostring(barDelta) + " bars (" + str.tostring(shortlong_EntryRate) + "%)\n"
+long_EntryCountStr = "Number of Long entries:" + str.tostring(long_EntryCount) + " from " + str.tostring(barDelta) + " bars (" + str.tostring(long_EntryRate) + "%)\n"
+short_EntryCountStr = "Number of Short entries: " + str.tostring(short_EntryCount) + " from " + str.tostring(barDelta) + " bars (" + str.tostring(short_EntryRate) + "%)\n"
+
+reportString = shortlong_EntryCountStr + long_EntryCountStr + short_EntryCountStr
+
+print(reportString)
+
+
+
+

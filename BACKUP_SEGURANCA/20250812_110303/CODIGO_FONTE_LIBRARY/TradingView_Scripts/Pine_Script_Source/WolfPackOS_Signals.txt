@@ -1,0 +1,69 @@
+
+//@version=5
+indicator('!<*WolfPack/OS_Signals*>!', 'WolfPack/OS_Signals')
+
+wp_group = 'WolfPack (Быстрый, Медленный, Источник)'
+wp_show = input.bool(true, 'Показать WolfPack?', inline='0', group=wp_group)
+wp_fast = input.int(3, '', inline='1', group=wp_group)
+wp_slow = input.int(8, '', inline='1', group=wp_group)
+wp_src = input.source(close, '', inline='1', group=wp_group)
+
+ema_group = 'Экспоненциальное Скользящее Среднее (Период)'
+ema_show = input.bool(true, 'Показать EMA?', inline='0', group=ema_group)
+ema_len = input.int(13, '', inline='1', group=ema_group)
+
+f_wolf(src, _fast, _slow) =>
+    slow = ta.sma(src, _slow)
+    fast = ta.sma(src, _fast)
+    macdLine = fast - slow
+    
+    sd_mac = ta.stdev(macdLine, 500)
+    basis_mac = ta.ema(macdLine, 500)
+    up_mac = basis_mac + sd_mac * 2
+    dn_mac = basis_mac - sd_mac * 2
+    rescaled_mac = ((macdLine - dn_mac) / (up_mac - dn_mac) * 50) - 25
+    
+wp = f_wolf(wp_src, wp_fast, wp_slow)
+wp_jma = ta.ema(wp, ema_len)
+
+green = #00cb65  
+red = #f05d5e 
+yellow = #f4d03f
+grey = #939fa6
+
+blue = #3980bc
+
+bull_color = color.new(blue, 80 )
+bear_color = color.new(red, 80 )
+
+rising_condition = ta.rising(wp, 1)
+falling_condition = ta.falling(wp, 1)
+
+wp_color = wp > wp_jma and falling_condition ? yellow : wp < wp_jma and rising_condition ? green : grey
+wp_ema_color = wp > wp_jma ? blue : red
+wp_fill_color = wp > wp_jma ? bull_color : bear_color
+
+// Сигналы 1
+signalUp1 = wp_color != wp_color[1] and wp_color == green
+signalDown1 = wp_color != wp_color[1] and wp_color == yellow
+
+// Сигналы 2
+signalUp2 = wp > wp_jma and wp[1] <= wp_jma[1]
+signalDown2 = wp < wp_jma and wp[1] >= wp_jma[1]
+
+hline(0)
+wp_plot = plot(wp, 'WolfPack', wp_color, 1)
+wp_ema_plot = plot(wp_jma, 'WolfPack EMA', wp_ema_color, 1)
+fill(wp_plot, wp_ema_plot, wp_fill_color)
+
+// Рисование сигналов 1
+plotshape(series=signalDown1, title="Sell Signal", location=location.top, color=#e5f504, style=shape.circle, size=size.tiny)
+plotshape(series=signalUp1, title="Buy Signal", location=location.bottom, color=#e5f504, style=shape.circle, size=size.tiny)
+
+// Рисование сигналов 2
+plotshape(series=signalDown2, title="Sell Signal", location=location.top, color=#fd0505, style=shape.triangledown, size=size.tiny)
+plotshape(series=signalUp2, title="Buy Signal", location=location.bottom, color=#06f80e, style=shape.triangleup, size=size.tiny)
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, 'DM', text_size=size.normal, text_color=#00897b)   

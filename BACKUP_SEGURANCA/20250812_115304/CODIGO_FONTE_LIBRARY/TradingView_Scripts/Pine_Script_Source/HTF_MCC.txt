@@ -1,0 +1,577 @@
+//@version=5
+indicator("[HTF_MiniChartCandle]","*HTF_MCC*",overlay=true, max_boxes_count = 500, max_lines_count = 500, max_bars_back = 5000)
+type Candle
+    float   o
+    float   c
+    float   h
+    float   l
+    int     o_idx
+    int     c_idx
+    int     h_idx
+    int     l_idx
+    box     body
+    line    wick_up
+    line    wick_down
+
+type Trace
+    line    o
+    line    c
+    line    h
+    line    l
+    label   o_l
+    label   c_l
+    label   h_l
+    label   l_l
+
+type Imbalance
+    box    b
+    int    idx
+
+type Settings
+    bool    htf_1_show
+    bool    htf_2_show
+    bool    htf_3_show
+    bool    htf_4_show
+    bool    htf_5_show
+    bool    htf_6_show
+    string  htf_1
+    string  htf_2
+    string  htf_3
+    string  htf_4
+    string  htf_5
+    string  htf_6
+    int     max_candles_1
+    int     max_candles_2
+    int     max_candles_3
+    int     max_candles_4
+    int     max_candles_5
+    int     max_candles_6
+    color   bull_body
+    color   bull_border
+    color   bull_wick
+    color   bear_body
+    color   bear_border
+    color   bear_wick
+    int     offset
+    int     buffer
+    int     htf_buffer
+    int     width
+    bool    trace_show
+    bool    trace_1_show
+    bool    trace_2_show
+    bool    trace_3_show
+    bool    trace_4_show
+    bool    trace_5_show
+    bool    trace_6_show
+    color   trace_o_color
+    string  trace_o_style
+    int     trace_o_size
+    color   trace_c_color
+    string  trace_c_style
+    int     trace_c_size
+    color   trace_h_color
+    string  trace_h_style
+    int     trace_h_size
+    color   trace_l_color
+    string  trace_l_style
+    int     trace_l_size
+    bool    label_show
+    bool    label_1_show
+    bool    label_2_show
+    bool    label_3_show
+    bool    label_4_show
+    bool    label_5_show
+    bool    label_6_show
+    color   label_color
+    string  label_size
+    bool    fvg_show
+    color   fvg_color
+    bool    vi_show
+    color   vi_color
+    bool    htf_label_show
+    color   htf_label_color
+    string  htf_label_size
+
+Settings settings = Settings.new()
+
+settings.htf_1_show      := input.bool(true, "HTF 1", inline="htf1")
+htf_1                     = input.timeframe("5", "", inline="htf1")
+settings.htf_1           := htf_1
+settings.max_candles_1   := input.int(10, "", inline="htf1")
+settings.htf_2_show      := input.bool(false, "HTF 2", inline="htf2")
+
+htf_2                     = input.timeframe("15", "", inline="htf2")
+settings.htf_2           := htf_2
+settings.max_candles_2   := input.int(10, "", inline="htf2")
+settings.htf_3_show      := input.bool(false, "HTF 3", inline="htf3")
+htf_3                     = input.timeframe("60", "", inline="htf3")
+settings.htf_3           := htf_3
+settings.max_candles_3   := input.int(10, "", inline="htf3")
+settings.htf_4_show      := input.bool(false, "HTF 4", inline="htf4")
+htf_4                     = input.timeframe("240", "", inline="htf4")
+settings.htf_4           := htf_4
+settings.max_candles_4   := input.int(4, "", inline="htf4")
+settings.htf_5_show      := input.bool(false, "HTF 5", inline="htf5")
+htf_5                     = input.timeframe("1D", "", inline="htf5")
+settings.htf_5           := htf_5
+settings.max_candles_5   := input.int(2, "", inline="htf5")
+settings.htf_6_show      := input.bool(false, "HTF 6", inline="htf6")
+htf_6                     = input.timeframe("1W", "", inline="htf6")
+settings.htf_6           := htf_6
+settings.max_candles_6   := input.int(1, "", inline="htf6")
+settings.bull_body       := input.color(#02ff0a, "Body??", inline="body")
+settings.bear_body       := input.color(#fc0202, "", inline="body")
+settings.bull_border     := input.color(#8e92a1, "Borders", inline="borders")
+settings.bear_border     := input.color(#8e92a1, "", inline="borders")
+settings.bull_wick       := input.color(#8e92a1, "Wick??", inline="wick")
+settings.bear_wick       := input.color(#8e92a1, "", inline="wick")
+settings.offset          := input.int(10, "отступ от текущих свечей", minval = 1)
+settings.buffer          := input.int(1, "пространство между свечами", minval = 1, maxval = 4)
+settings.htf_buffer      := input.int(10, "пространство между старшими таймфреймами", minval = 1, maxval = 10)
+settings.width           := input.int(1, "Ширина свечи", minval = 1, maxval = 4)*2
+
+settings.htf_label_show  := input.bool(true, "HTF Label???????????", inline="HTFlabel")
+settings.htf_label_color := input.color(#ffffff, "", inline='HTFlabel')
+settings.htf_label_size  := input.string(size.large, "", [size.tiny, size.small, size.normal, size.large, size.huge], inline="HTFlabel")
+
+settings.fvg_show        := input.bool(true, "Разрыв справедливой стоимости Gap???", group="Imbalance", inline="fvg")
+settings.fvg_color       := input.color(#339df34d, "", inline='fvg', group="Imbalance")
+
+settings.vi_show         := input.bool(true, "Volume Imbalance", group="Imbalance", inline="vi")
+settings.vi_color        := input.color(#ff52523a, "", inline='vi', group="Imbalance")
+
+settings.trace_show      := input.bool(true, "Трассировка линий", group="trace")
+settings.trace_o_color   := input.color(#8e92a1, "Open??", inline='1', group="trace")
+settings.trace_o_style   := input.string('····', '', options = ['???', '----', '····'], inline='1', group="trace")
+settings.trace_o_size    := input.int(1, '', options = [1,2,3,4], inline='1', group="trace")
+settings.trace_c_color   := input.color(#8e92a1, "Close??", inline='2', group="trace")
+settings.trace_c_style   := input.string('····', '', options = ['???', '----', '····'], inline='2', group="trace")
+settings.trace_c_size    := input.int(1, '', options = [1,2,3,4], inline='2', group="trace")
+settings.trace_h_color   := input.color(#8e92a1, "High???", inline='3', group="trace")
+settings.trace_h_style   := input.string('····', '', options = ['???', '----', '····'], inline='3', group="trace")
+settings.trace_h_size    := input.int(1, '', options = [1,2,3,4], inline='3', group="trace")
+settings.trace_l_color   := input.color(#8e92a1, "Low???", inline='4', group="trace")
+settings.trace_l_style   := input.string('····', '', options = ['???', '----', '····'], inline='4', group="trace")
+settings.trace_l_size    := input.int(1, '', options = [1,2,3,4], inline='4', group="trace")
+
+settings.trace_1_show    := input.bool(true, "HTF 1??????", group="trace", inline="traces")
+settings.trace_2_show    := input.bool(false, "HTF 2??????", group="trace", inline="traces")
+settings.trace_3_show    := input.bool(false, "HTF 3", group="trace", inline="traces")
+settings.trace_4_show    := input.bool(false, "HTF 4??????", group="trace", inline="traces2")
+settings.trace_5_show    := input.bool(false, "HTF 5??????", group="trace", inline="traces2")
+settings.trace_6_show    := input.bool(false, "HTF 6", group="trace", inline="traces2")
+
+settings.label_show      := input.bool(true, "Label?", inline="label")
+settings.label_color     := input.color(color.new(color.black, 10), "", inline='label')
+settings.label_size      := input.string(size.small, "", [size.tiny, size.small, size.normal, size.large, size.huge], inline="label")
+
+settings.label_1_show    := input.bool(true, "HTF 1??????", inline="labels")
+settings.label_2_show    := input.bool(false, "HTF 2??????", inline="labels")
+settings.label_3_show    := input.bool(false, "HTF 3", inline="labels")
+settings.label_4_show    := input.bool(false, "HTF 4??????", inline="labels2")
+settings.label_5_show    := input.bool(false, "HTF 5??????", inline="labels2")
+settings.label_6_show    := input.bool(false, "HTF 6", inline="labels2")
+
+// Variables
+var Candle[] candles_1        = array.new<Candle>(0)
+var Candle[] candles_2        = array.new<Candle>(0)
+var Candle[] candles_3        = array.new<Candle>(0)
+var Candle[] candles_4        = array.new<Candle>(0)
+var Candle[] candles_5        = array.new<Candle>(0)
+var Candle[] candles_6        = array.new<Candle>(0)
+
+var Imbalance[] imbalance_1   = array.new<Imbalance>(0)
+var Imbalance[] imbalance_2   = array.new<Imbalance>(0)
+var Imbalance[] imbalance_3   = array.new<Imbalance>(0)
+var Imbalance[] imbalance_4   = array.new<Imbalance>(0)
+var Imbalance[] imbalance_5   = array.new<Imbalance>(0)
+var Imbalance[] imbalance_6   = array.new<Imbalance>(0)
+
+var label[] htf_labels        = array.new<label>(6)
+var Trace[]   traces          = array.new<Trace>(6)
+
+color color_transparent     = #ffffff00
+
+//+--- Debugging                                                                                           
+var table infobox = table.new(position.top_right, 2, 10, border_width=1)
+f_debug(_row, _value) =>
+    table.cell(infobox, 0, _row, str.tostring(_row+1), bgcolor=#ffffff, text_size=size.auto)
+    table.cell(infobox, 1, _row, str.tostring(_value), bgcolor=#ffffff, text_size=size.auto)
+
+f_get_line_style(style) =>
+    out = switch style
+        '???'  => line.style_solid
+        '----' => line.style_dashed
+        '····' => line.style_dotted
+
+Validtimeframe(tf) =>
+    n1 = timeframe.in_seconds()
+    n2 = timeframe.in_seconds(tf)
+    n3 = n1 % n2
+    (n1 < n2 and math.round(n2/n1) == n2/n1)
+
+f_get_htf_text(idx) =>
+    tf = ""
+    
+    switch idx
+        1 =>
+            tf := settings.htf_1
+        2 =>
+            tf := settings.htf_2
+        3 =>
+            tf := settings.htf_3
+        4 =>
+            tf := settings.htf_4
+        5 =>
+            tf := settings.htf_5
+        6 =>
+            tf := settings.htf_6
+
+    formatted = tf
+    seconds = timeframe.in_seconds(tf)
+
+    if seconds < 60
+        formatted := str.tostring(seconds) + "s"
+    else if (seconds / 60) < 60
+        formatted := str.tostring((seconds/60)) + "m"
+    else if (seconds/60/60) < 24
+        formatted := str.tostring((seconds/60/60)) + "H"
+    
+    formatted
+
+f_show_trace(idx) =>
+    switch idx
+        1 =>
+            settings.trace_show and settings.trace_1_show
+        2 =>
+            settings.trace_show and settings.trace_2_show
+        3 =>
+            settings.trace_show and settings.trace_3_show
+        4 =>
+            settings.trace_show and settings.trace_4_show
+        5 =>
+            settings.trace_show and settings.trace_5_show
+        6 =>
+            settings.trace_show and settings.trace_6_show
+
+f_show_labels(idx) =>
+    switch idx
+        1 =>
+            settings.label_show and settings.label_1_show
+        2 =>
+            settings.label_show and settings.label_2_show
+        3 =>
+            settings.label_show and settings.label_3_show
+        4 =>
+            settings.label_show and settings.label_4_show
+        5 =>
+            settings.label_show and settings.label_5_show
+        6 =>
+            settings.label_show and settings.label_6_show
+
+f_get_candles_high(candles) =>
+    h = 0.0
+    if array.size(candles) > 0
+        for i = 0 to array.size(candles)-1
+            Candle c = array.get(candles, i)
+            if c.h > h
+                h := c.h
+
+    h
+
+f_compute_label_position(idx) =>
+    h = 0.0
+
+    h1 = f_get_candles_high(candles_1)
+    if h1 > h
+        h:= h1
+
+    h2 = f_get_candles_high(candles_2)
+    if h2 > h
+        h := h2
+
+    h3 = f_get_candles_high(candles_3)
+    if h3 > h
+        h := h3
+
+    h4 = f_get_candles_high(candles_4)
+    if h4 > h
+        h := h4
+
+    h5 = f_get_candles_high(candles_5)
+    if h5 > h
+        h := h5
+
+    h6 = f_get_candles_high(candles_6)
+    if h6 > h
+        h := h6
+    
+    h
+
+f_compute_htf_offset(idx) =>
+    o1 = settings.offset
+    o2 = settings.offset
+    o3 = settings.offset
+    o4 = settings.offset
+    o5 = settings.offset
+    o6 = settings.offset
+
+    if settings.htf_1_show and Validtimeframe(settings.htf_1)
+        o2 := o1 + (settings.max_candles_1 * (settings.width + settings.buffer)) + settings.htf_buffer
+
+    if settings.htf_2_show and Validtimeframe(settings.htf_2)
+        o3 := o2 + (settings.max_candles_2 * (settings.width + settings.buffer)) + settings.htf_buffer
+
+    if settings.htf_3_show and Validtimeframe(settings.htf_3)
+        o4 := o3 + (settings.max_candles_3 * (settings.width + settings.buffer)) + settings.htf_buffer
+
+    if settings.htf_4_show and Validtimeframe(settings.htf_4)
+        o5 := o4 + (settings.max_candles_4 * (settings.width + settings.buffer)) + settings.htf_buffer
+
+    if settings.htf_5_show and Validtimeframe(settings.htf_5)
+        o6 := o5 + (settings.max_candles_5 * (settings.width + settings.buffer)) + settings.htf_buffer
+
+    switch idx
+        1 =>
+            o1
+        2 =>
+            o2
+        3 =>
+            o3
+        4 =>
+            o4
+        5 =>
+            o5
+        6 =>
+            o6
+
+f_reorder_candles(idx, candles) =>
+    
+    computed_offset = f_compute_htf_offset(idx)
+
+    size = array.size(candles)
+    index = bar_index+settings.offset
+
+    if size > 0
+        for i = size-1 to 0
+            Candle candle = array.get(candles, i)
+            t_buffer = computed_offset + ((settings.width+settings.buffer)*(size-i))
+            box.set_left(candle.body, bar_index+ t_buffer)
+            box.set_right(candle.body, bar_index+settings.width + t_buffer)
+            line.set_x1(candle.wick_up, bar_index+((settings.width)/2) + t_buffer)
+            line.set_x2(candle.wick_up, bar_index+((settings.width)/2) + t_buffer)
+            line.set_x1(candle.wick_down, bar_index+((settings.width)/2) + t_buffer)
+            line.set_x2(candle.wick_down, bar_index+((settings.width)/2) + t_buffer)
+
+    if settings.htf_label_show
+        var label l = array.get(htf_labels, idx-1)
+
+        top = f_compute_label_position(idx)
+        left = bar_index+computed_offset+(size*(settings.width+settings.buffer))/2 + (settings.width+settings.buffer)
+
+        if not na(l)
+            label.set_xy(l, left, top)
+            1
+        else
+            l := label.new(left, top, f_get_htf_text(idx), color=color_transparent, textcolor = settings.htf_label_color, style=label.style_label_down, size = settings.htf_label_size)
+
+            1
+
+f_find_imbalances(candles, imbalance) =>
+    if array.size(imbalance) > 0
+        for i = array.size(imbalance)-1 to 0
+            Imbalance del = array.get(imbalance, i)
+            box.delete(del.b)
+            array.pop(imbalance)
+
+    if array.size(candles) > 3 and settings.fvg_show
+        for i = 1 to array.size(candles) -3
+            candle1 = array.get(candles, i)
+            candle2 = array.get(candles, i+2)
+            candle3 = array.get(candles, i+1)
+            if (candle1.l > candle2.h and math.min(candle1.o, candle1.c) > math.max(candle2.o, candle2.c))
+                Imbalance imb = Imbalance.new()
+                imb.b := box.new(box.get_left(candle2.body), candle2.h, box.get_right(candle1.body), candle1.l, bgcolor=settings.fvg_color, border_color = color_transparent)
+                array.push(imbalance, imb)
+            if  (candle1.h < candle2.l and  math.max(candle1.o, candle1.c) < math.min(candle2.o, candle2.c))
+                Imbalance imb = Imbalance.new()
+                imb.b := box.new(box.get_right(candle1.body), candle1.h, box.get_left(candle2.body), candle2.l, bgcolor=settings.fvg_color, border_color = color_transparent)
+                array.push(imbalance, imb)
+            box temp = box.copy(candle3.body)
+            box.delete(candle3.body)
+            candle3.body := temp
+
+    if array.size(candles) > 2 and settings.vi_show
+        for i = 1 to array.size(candles) -2
+            candle1 = array.get(candles, i)
+            candle2 = array.get(candles, i+1)
+            if (candle1.l < candle2.h and math.min(candle1.o, candle1.c) > math.max(candle2.o, candle2.c))
+                Imbalance imb = Imbalance.new()
+                imb.b := box.new(box.get_left(candle2.body), math.min(candle1.o, candle1.c), box.get_right(candle1.body), math.max(candle2.o, candle2.c), bgcolor=settings.vi_color, border_color = color_transparent)
+                array.push(imbalance, imb)
+            if  (candle1.h > candle2.l and math.max(candle1.o, candle1.c) < math.min(candle2.o, candle2.c))
+                Imbalance imb = Imbalance.new()
+                imb.b := box.new(box.get_right(candle1.body),  math.min(candle2.o, candle2.c), box.get_left(candle2.body), math.max(candle1.o, candle1.c), bgcolor=settings.vi_color, border_color = color_transparent)
+                array.push(imbalance, imb)
+        
+f_render_candles(htf, max, candles) =>
+    HTFBarTime = time(htf)
+    isNewHTFCandle = ta.change(HTFBarTime)
+    log.info("Render {0}: {1}", htf, isNewHTFCandle)
+    if bool(isNewHTFCandle)
+        Candle candle = Candle.new()
+        candle.o    := open
+        candle.c    := close
+        candle.h    := high
+        candle.l    := low
+        candle.o_idx    := bar_index
+        candle.c_idx    := bar_index
+        candle.h_idx    := bar_index
+        candle.l_idx    := bar_index
+
+        bull = candle.c > candle.o
+        index = bar_index
+
+        candle.body         := box.new(index, math.max(candle.o, candle.c), index, math.min(candle.o, candle.c), bull ? settings.bull_border : settings.bear_border, 1, bgcolor = bull ? settings.bull_body : settings.bear_body)
+        candle.wick_up      := line.new(index, candle.h, index, math.max(candle.o, candle.c), color=bull ? settings.bull_wick : settings.bear_wick)
+        candle.wick_down    := line.new(index, math.min(candle.o, candle.c), index, candle.l, color=bull ? settings.bull_wick : settings.bear_wick)
+
+        array.unshift(candles, candle)
+
+        if array.size(candles) > max
+            Candle delCandle = array.pop(candles)
+            box.delete(delCandle.body)
+            line.delete(delCandle.wick_up)
+            line.delete(delCandle.wick_down)
+
+
+f_update_last(idx, candles, imbalance) =>
+    if array.size(candles) > 0
+        Candle candle = array.get(candles, 0)
+        candle.h_idx    := high > candle.h ? bar_index : candle.h_idx
+        candle.h        := high > candle.h ? high : candle.h
+        candle.l_idx    := low < candle.l ? bar_index : candle.l_idx
+        candle.l        := low < candle.l ? low : candle.l
+        candle.c        := close
+        candle.c_idx    := bar_index
+        
+        bull = candle.c > candle.o
+
+        box.set_top(candle.body, candle.o)
+        box.set_bottom(candle.body, candle.c)
+        box.set_bgcolor(candle.body, bull ? settings.bull_body : settings.bear_body)
+        box.set_border_color(candle.body, bull ? settings.bull_border : settings.bear_border)
+
+        line.set_y1(candle.wick_up, candle.h)
+        line.set_y2(candle.wick_up, math.max(candle.o, candle.c))
+        line.set_y1(candle.wick_down, candle.l)
+        line.set_y2(candle.wick_down, math.min(candle.o, candle.c))
+
+        if barstate.isrealtime or barstate.islast
+            f_reorder_candles(idx, candles)
+
+        if barstate.isrealtime or barstate.islast
+            if f_show_trace(idx)
+                var Trace trace = array.get(traces, idx-1)
+                if na(trace)
+                    trace := Trace.new()
+
+                if na(trace.o)
+                    trace.o := line.new(candle.o_idx, candle.o, box.get_left(candle.body), candle.o, color=settings.trace_o_color, style=f_get_line_style(settings.trace_o_style), width=settings.trace_o_size)
+                    1
+                else
+                    line.set_y1(trace.o, candle.o)
+                    line.set_y2(trace.o, candle.o)
+                    line.set_x2(trace.o, box.get_left(candle.body))
+
+                if na(trace.c)
+                    trace.c := line.new(candle.c_idx, candle.c, box.get_left(candle.body), candle.c, color=settings.trace_c_color, style=f_get_line_style(settings.trace_c_style), width=settings.trace_c_size)
+                else
+                    line.set_y1(trace.c, candle.c)
+                    line.set_y2(trace.c, candle.c)
+                    line.set_x2(trace.c, box.get_left(candle.body))
+
+                if na(trace.h)
+                    trace.h := line.new(candle.h_idx, candle.h, line.get_x1(candle.wick_up), candle.h, color=settings.trace_h_color, style=f_get_line_style(settings.trace_h_style), width=settings.trace_h_size)
+                else
+                    line.set_y1(trace.h, candle.h)
+                    line.set_y2(trace.h, candle.h)
+                    line.set_x2(trace.h, line.get_x1(candle.wick_up))
+
+                if na(trace.l)
+                    trace.l := line.new(candle.l_idx, candle.l, line.get_x1(candle.wick_down), candle.l, color=settings.trace_l_color, style=f_get_line_style(settings.trace_l_style), width=settings.trace_l_size)
+                    1
+                else
+                    line.set_y1(trace.l, candle.l)
+                    line.set_y2(trace.l, candle.l)
+                    line.set_x2(trace.l, line.get_x1(candle.wick_down))
+                    1
+
+            if f_show_labels(idx)
+                var Trace trace = array.get(traces, idx-1)
+                if na(trace)
+                    trace := Trace.new()
+
+                if na(trace.o_l)
+                    trace.o_l := label.new(box.get_right(candle.body), candle.o, str.tostring(candle.o),  textalign = text.align_center, style=label.style_label_left, size=settings.label_size, color=color_transparent, textcolor=settings.label_color)
+                    1
+                else
+                    label.set_y(trace.o_l, candle.o)
+                    label.set_x(trace.o_l, box.get_right(candle.body))
+                    label.set_text(trace.o_l, str.tostring(candle.o))
+                    1
+        
+                if na(trace.c_l)
+                    trace.c_l := label.new(box.get_right(candle.body), candle.c, str.tostring(candle.c),  textalign = text.align_center, style=label.style_label_left, size=settings.label_size, color=color_transparent, textcolor=settings.label_color)
+                    1
+                else
+                    label.set_y(trace.c_l, candle.c)
+                    label.set_x(trace.c_l, box.get_right(candle.body))
+                    label.set_text(trace.c_l, str.tostring(candle.c))
+                    1
+                if na(trace.h_l)
+                    trace.h_l := label.new(box.get_right(candle.body), candle.h, str.tostring(candle.h),  textalign = text.align_center, style=label.style_label_left, size=settings.label_size, color=color_transparent, textcolor=settings.label_color)
+                    1
+                else
+                    label.set_y(trace.h_l, candle.h)
+                    label.set_x(trace.h_l, box.get_right(candle.body))
+                    label.set_text(trace.h_l, str.tostring(candle.o))
+                    1
+
+                if na(trace.l_l)
+                    trace.l_l := label.new(box.get_right(candle.body), candle.l, str.tostring(candle.l),  textalign = text.align_center, style=label.style_label_left, size=settings.label_size, color=color_transparent, textcolor=settings.label_color)
+                    1
+                else
+                    label.set_y(trace.l_l, candle.l)
+                    label.set_x(trace.l_l, box.get_right(candle.body))
+                    label.set_text(trace.l_l, str.tostring(candle.o))
+                    1
+        
+        f_find_imbalances(candles, imbalance)
+
+log.info("{0}", Validtimeframe(settings.htf_5))
+if settings.htf_1_show and Validtimeframe(settings.htf_1)
+    f_render_candles(settings.htf_1, settings.max_candles_1, candles_1)
+if settings.htf_2_show and Validtimeframe(settings.htf_2)
+    f_render_candles(settings.htf_2, settings.max_candles_2, candles_2)
+if settings.htf_3_show and Validtimeframe(settings.htf_3)
+    f_render_candles(settings.htf_3, settings.max_candles_3, candles_3)
+if settings.htf_4_show and Validtimeframe(settings.htf_4)
+    f_render_candles(settings.htf_4, settings.max_candles_4, candles_4)
+if settings.htf_5_show and Validtimeframe(settings.htf_5)
+    f_render_candles(settings.htf_5, settings.max_candles_5, candles_5)
+if settings.htf_6_show and Validtimeframe(settings.htf_6)
+    f_render_candles(settings.htf_6, settings.max_candles_6, candles_6)
+
+if settings.htf_1_show
+    f_update_last(1, candles_1, imbalance_1)
+if settings.htf_2_show
+    f_update_last(2, candles_2, imbalance_2)
+if settings.htf_3_show
+    f_update_last(3, candles_3, imbalance_3)
+if settings.htf_4_show
+    f_update_last(4, candles_4, imbalance_4)
+if settings.htf_5_show
+    f_update_last(5, candles_5, imbalance_5)
+if settings.htf_6_show
+    f_update_last(6, candles_6, imbalance_6)   

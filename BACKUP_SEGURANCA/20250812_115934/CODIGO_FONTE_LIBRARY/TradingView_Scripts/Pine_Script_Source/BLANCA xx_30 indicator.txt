@@ -1,0 +1,115 @@
+//@version=5
+indicator("xx:30 with Configurable New Futures", overlay=true)
+
+// Input parameters for each 30-minute mark
+show_0030 = input.bool(true, "00:30", group="Show Lines")
+show_0130 = input.bool(true, "01:30", group="Show Lines")
+show_0230 = input.bool(true, "02:30", group="Show Lines")
+show_0330 = input.bool(true, "03:30", group="Show Lines")
+show_0430 = input.bool(true, "04:30", group="Show Lines")
+show_0530 = input.bool(true, "05:30", group="Show Lines")
+show_0630 = input.bool(true, "06:30", group="Show Lines")
+show_0730 = input.bool(true, "07:30", group="Show Lines")
+show_0830 = input.bool(true, "08:30", group="Show Lines")
+show_0930 = input.bool(true, "09:30", group="Show Lines")
+show_1030 = input.bool(true, "10:30", group="Show Lines")
+show_1130 = input.bool(true, "11:30", group="Show Lines")
+show_1230 = input.bool(true, "12:30", group="Show Lines")
+show_1330 = input.bool(true, "13:30", group="Show Lines")
+show_1430 = input.bool(true, "14:30", group="Show Lines")
+show_1530 = input.bool(true, "15:30", group="Show Lines")
+show_1630 = input.bool(true, "16:30", group="Show Lines")
+show_1730 = input.bool(true, "17:30", group="Show Lines")
+show_1830 = input.bool(true, "18:30", group="Show Lines")
+show_1930 = input.bool(true, "19:30", group="Show Lines")
+show_2030 = input.bool(true, "20:30", group="Show Lines")
+show_2130 = input.bool(true, "21:30", group="Show Lines")
+show_2230 = input.bool(true, "22:30", group="Show Lines")
+show_2330 = input.bool(true, "23:30", group="Show Lines")
+
+// Color input parameters
+vertical_line_color = input.color(color.new(#f0f0f0, 0), "Vertical Line Color", group="Line Colors")
+horizontal_line_color = input.color(color.new(#8B0000, 0), "Horizontal Line Color", group="Line Colors")
+
+// Open = Low or High parameters
+show_open_low_high = input.bool(true, "Horizontal Line", group="Open = Low or High Line")
+open_low_high_color = input.color(color.new(#FFFFFF, 0), "Line Color", group="Open = Low or High Line")
+
+// Function to check if the current bar is on a 30-minute mark and if it should be shown
+is_30min_mark_and_shown(t) =>
+    if minute(t) == 30
+        h = hour(t)
+        result = 
+             (h == 0 and show_0030) or (h == 1 and show_0130) or (h == 2 and show_0230) or
+             (h == 3 and show_0330) or (h == 4 and show_0430) or (h == 5 and show_0530) or
+             (h == 6 and show_0630) or (h == 7 and show_0730) or (h == 8 and show_0830) or
+             (h == 9 and show_0930) or (h == 10 and show_1030) or (h == 11 and show_1130) or
+             (h == 12 and show_1230) or (h == 13 and show_1330) or (h == 14 and show_1430) or
+             (h == 15 and show_1530) or (h == 16 and show_1630) or (h == 17 and show_1730) or
+             (h == 18 and show_1830) or (h == 19 and show_1930) or (h == 20 and show_2030) or
+             (h == 21 and show_2130) or (h == 22 and show_2230) or (h == 23 and show_2330)
+        result
+    else
+        false
+
+// Function to draw a vertical line
+draw_vertical_line(t) =>
+    if t <= time
+        line.new(bar_index, low, bar_index, high, extend=extend.both, color=vertical_line_color, style=line.style_dashed)
+
+// Function to draw a horizontal line
+draw_horizontal_line(t, p, c) =>
+    line.new(bar_index, p, bar_index + 1, p, color=c, style=line.style_solid)
+
+// Get the current time
+current_time = time
+
+// Calculate the time 3 days ago
+three_days_ago = current_time - 3 * 24 * 60 * 60 * 1000
+
+// Variables to store the last drawn time, horizontal lines, and their start times
+var int last_drawn_time = 0
+var line current_horizontal_line = na
+var line current_open_low_high_line = na
+var int horizontal_line_start_time = 0
+var int open_low_high_line_start_time = 0
+
+// Draw vertical lines
+if barstate.islast
+    for i = 0 to 3 * 24 * 2 - 1
+        check_time = current_time - i * 30 * 60 * 1000
+        if check_time >= three_days_ago and is_30min_mark_and_shown(check_time) and check_time > last_drawn_time
+            draw_vertical_line(check_time)
+            last_drawn_time := check_time
+
+// Draw a vertical line for the current bar if it's on a 30-minute mark and should be shown
+if is_30min_mark_and_shown(time) and time > last_drawn_time
+    draw_vertical_line(time)
+    last_drawn_time := time
+
+// Handle horizontal lines and Open = Low or High feature
+if is_30min_mark_and_shown(time)
+    // Close the previous horizontal lines if they have been open for 60 minutes
+    if not na(current_horizontal_line) and (time - horizontal_line_start_time) >= 60 * 60 * 1000
+        line.set_x2(current_horizontal_line, bar_index)
+        current_horizontal_line := na
+    
+    if not na(current_open_low_high_line) and (time - open_low_high_line_start_time) >= 60 * 60 * 1000
+        line.set_x2(current_open_low_high_line, bar_index)
+        current_open_low_high_line := na
+    
+    // Draw a new horizontal line
+    current_horizontal_line := draw_horizontal_line(time, open, horizontal_line_color)
+    horizontal_line_start_time := time
+    
+    // Check for Open = Low or High condition on the 30-minute candle
+    if show_open_low_high and (open == low or open == high)
+        current_open_low_high_line := draw_horizontal_line(time, open, open_low_high_color)
+        open_low_high_line_start_time := time
+
+// Extend the current horizontal lines
+if not na(current_horizontal_line)
+    line.set_x2(current_horizontal_line, bar_index)
+
+if not na(current_open_low_high_line)
+    line.set_x2(current_open_low_high_line, bar_index)

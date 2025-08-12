@@ -1,0 +1,32 @@
+{
+  "id": "d07d1918ff066d7b",
+  "arquivo": "Adaptive Renko.mq5",
+  "hash": "d07d1918ff066d7b",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "H1",
+    "H4"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 65,
+  "riscos_detectados": [
+    "No Stop Loss detected",
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 85,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

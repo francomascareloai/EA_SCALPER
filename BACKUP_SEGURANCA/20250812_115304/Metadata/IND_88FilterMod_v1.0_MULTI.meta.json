@@ -1,0 +1,35 @@
+{
+  "arquivo": "88_filter_mod-m.mq5",
+  "nome_padronizado": "IND_88FilterMod_v1.0_MULTI",
+  "tipo": "Indicator",
+  "categoria": "Oscillators",
+  "estrategia": "Filter_Signal",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "descricao": "Indicador 88 Filter Modified v1.0. Filtro de sinais com 122 linhas exibindo histograma UP/DOWN em janela separada. Utiliza cores verde e vermelha para sinais de compra e venda. Arquivo com codificação corrompida.",
+  "funcoes_principais": [
+    "OnInit",
+    "OnCalculate",
+    "Filter Signal Processing",
+    "UP/DOWN Signal Generation",
+    "Histogram Display",
+    "Signal Filtering"
+  ],
+  "parametros_expostos": [
+    "Len (55) - Comprimento do filtro",
+    "HistoryBars (300) - Barras históricas"
+  ],
+  "ftmo_score": 9,
+  "ftmo_ready": true,
+  "riscos_detectados": [
+    "Arquivo com codificação corrompida"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Corrigir codificação do arquivo"
+  ],
+  "tags": ["#Indicator", "#88_Filter", "#Filter", "#Histogram", "#Oscillator", "#MULTI", "#FTMO_Ready", "#Corrupted_Encoding"],
+  "caminho_origem": "All_MQ5/88_filter_mod-m.mq5",
+  "caminho_final": "Indicators/Oscillators/IND_88FilterMod_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "Indicador de filtro com sinais UP/DOWN em histograma. Codificação corrompida precisa ser corrigida. Útil para filtragem de sinais de trading."
+}

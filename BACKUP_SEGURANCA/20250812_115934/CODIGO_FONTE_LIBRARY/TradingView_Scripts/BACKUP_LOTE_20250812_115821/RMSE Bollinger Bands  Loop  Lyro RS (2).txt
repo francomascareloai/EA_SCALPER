@@ -1,0 +1,354 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © LyroRS
+
+//@version=6
+indicator("RMSE Bollinger Bands + Loop | Lyro RS", "RMSE BB + Loop | Lyro RS",overlay = false)
+
+
+//─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+//─██████─────────████████──████████─████████████████───██████████████───────████████████████───██████████████─
+//─██░░██─────────██░░░░██──██░░░░██─██░░░░░░░░░░░░██───██░░░░░░░░░░██───────██░░░░░░░░░░░░██───██░░░░░░░░░░██─
+//─██░░██─────────████░░██──██░░████─██░░████████░░██───██░░██████░░██───────██░░████████░░██───██░░██████████─
+//─██░░██───────────██░░░░██░░░░██───██░░██────██░░██───██░░██──██░░██───────██░░██────██░░██───██░░██─────────
+//─██░░██───────────████░░░░░░████───██░░████████░░██───██░░██──██░░██───────██░░████████░░██───██░░██████████─
+//─██░░██─────────────████░░████─────██░░░░░░░░░░░░██───██░░██──██░░██───────██░░░░░░░░░░░░██───██░░░░░░░░░░██─
+//─██░░██───────────────██░░██───────██░░██████░░████───██░░██──██░░██───────██░░██████░░████───██████████░░██─
+//─██░░██───────────────██░░██───────██░░██──██░░██─────██░░██──██░░██───────██░░██──██░░██─────────────██░░██─
+//─██░░██████████───────██░░██───────██░░██──██░░██████─██░░██████░░██───────██░░██──██░░██████─██████████░░██─
+//─██░░░░░░░░░░██───────██░░██───────██░░██──██░░░░░░██─██░░░░░░░░░░██───────██░░██──██░░░░░░██─██░░░░░░░░░░██─
+//─██████████████───────██████───────██████──██████████─██████████████───────██████──██████████─██████████████─
+//─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+//                                                 LyroRS v1.0
+
+
+// Library
+import TradingView/ta/9 as ta
+import LyroRS/LMAs/1 as DynamicMA
+
+
+// Input Groups
+indi_settings_g = "𝗜𝗡𝗗𝗜𝗖𝗔𝗧𝗢𝗥 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦"
+bb_g = "𝗕𝗢𝗟𝗟𝗜𝗡𝗚𝗘𝗥 𝗕𝗔𝗡𝗗𝗦"
+fl_g = "𝗙𝗢𝗥 𝗟𝗢𝗢𝗣"
+combined_sig_g = "𝗖𝗢𝗠𝗕𝗜𝗡𝗘𝗗 𝗦𝗜𝗚𝗡𝗔𝗟"
+table_g = "𝗧𝗔𝗕𝗟𝗘"
+colors_g = "𝗖𝗢𝗟𝗢𝗥𝗦"
+
+
+
+// Inputs
+
+// -- Indicator Settings
+source = input.source(close, "Source", tooltip="Select the price source (e.g., close, open, high, low) used for calculations.", group= indi_settings_g)
+
+signal_mode = input.string("Bollinger Bands", "Signal Mode", 
+ tooltip="Select the logic used to generate signals: BB, Loop, or Combined Signal.",
+ group=indi_settings_g, 
+ options=["Bollinger Bands", "For Loop", "Combined Signal"])
+
+
+// -- BB
+ma_benchmark_type_bb = input.string("EMA", "Select Moving Average BB", options=["SMA", "EMA", "WMA", "VWMA", "DEMA", "TEMA", "RMA", "HMA", "LSMA", "SMMA", "ALMA", "ZLSMA", "FRAMA", "KAMA", "JMA", "T3"], group=bb_g, tooltip="Choose a moving average type to be applied in calculations.")
+rmse_length_bb = input.int(20, "BB MA Length", tooltip="The lookback period for calculating the Root Mean Squared Error (RMSE) around the selected moving average (for Bollinger Band style calculation).", group=bb_g)
+rmse_mult_bb = input.float(1, "Multiplier", tooltip="A multiplier applied to the RMSE distance from the average to create upper and lower RMSE bands.", group=bb_g)
+
+
+// -- For Loop
+ma_benchmark_type_fl = input.string("ALMA", "Select Moving Average BB", options=["SMA", "EMA", "WMA", "VWMA", "DEMA", "TEMA", "RMA", "HMA", "LSMA", "SMMA", "ALMA", "ZLSMA", "FRAMA", "KAMA", "JMA", "T3"], group=fl_g, tooltip="Select a moving average type used in For Loop calculations.")
+rmse_length_fl = input.int(10, "For Loop Length", tooltip="The lookback period for calculating the Root Mean Squared Error (RMSE) around the selected moving average (for loop style calculation).", group=fl_g)
+
+a_ = input.int(10, "From", tooltip="Sets the starting index for the loop iteration.", group=fl_g)
+b_ = input.int(60, "To", tooltip="Sets the ending index for the loop iteration.", group=fl_g)
+
+Threshold_L_Fl = input.int(23, "Threshold Long", step=1, tooltip="Defines the threshold level above which an uptrend is detected.", group=fl_g)
+Threshold_S_Fl = input.int(3, "Threshold Short", step=1, tooltip="Defines the threshold level below which a downtrend is detected.", group=fl_g)
+
+
+// -- Combined Signal
+Threshold_L_C = input.float(0, "Threshold Long", step=0.01, 
+ tooltip="Combined signal must be ≥ this to trigger a long signal.", 
+ group=combined_sig_g, maxval=1, minval=0)
+
+Threshold_S_C = input.float(0, "Threshold Short", step=0.01, 
+ tooltip="Combined signal must be < this to trigger a short signal.", 
+ group=combined_sig_g, maxval=0, minval=-1)
+
+
+
+// -- Tables
+fo = input.bool(false, 'Force Table Overlay', display = display.none, group =table_g, tooltip = 'Allows forcing the overlay of the table on the chart.')
+enable_table = input.bool(true, '', display = display.none, group =table_g, inline= "T")
+pos_table = input.string('Middle Right', 'RMSE Trend Modes Table', options = ['Top Left', 'Middle Left', 'Bottom Left', 'Top Right', 'Middle Right', 'Bottom Right', 'Top Center', "Middle Center", 'Bottom Center'], group = table_g, display = display.none, inline= "T")
+table_size_input = input.string("Normal", '', options= ["Huge", "Large", "Normal", "Small", "Tiny"], group= table_g, tooltip= "Settings for the RMSE Trend Modes table.", display = display.none, inline= "T")
+
+
+
+
+// Color Inputs
+ColMode = input.string("Mystic", "Custom Color Palette", inline="drop", options=["Classic", "Mystic", "Accented", "Royal"], display=display.none, group=colors_g,  tooltip="Choose a predefined color scheme for indicator visualization.")
+
+cpyn = input.bool(true, "Use Custom Palette", tooltip= "Enable manual selection of custom colors for trend signals.", group=colors_g, display=display.none)
+cp_UpC = input.color(#00ff00, "Custom Up", inline= "Custom Palette", tooltip= "Set a custom color for bullish signals.", group=colors_g, display=display.none)
+cp_DnC = input.color(#ff0000, "Custom Down", inline= "Custom Palette", tooltip= "Set a custom color for bearish signals.", group=colors_g, display=display.none)
+
+
+
+// Colors
+color UpC = na
+color DnC = na
+
+switch ColMode
+    "Classic" =>
+        UpC := #00E676
+        DnC := #880E4F
+    "Mystic" =>
+        UpC := #30FDCF
+        DnC := #E117B7
+    "Accented" =>
+        UpC := #9618F7
+        DnC := #FF0078
+    "Royal" =>
+        UpC := #FFC107
+        DnC := #673AB7
+
+
+if cpyn
+    UpC := cp_UpC
+    DnC := cp_DnC
+
+
+
+
+// Table
+
+// -- Defining Table Size
+var string table_size = na
+
+
+// -- Switching Table Size
+switch table_size_input
+    "Huge" =>
+        table_size := size.huge
+    "Large" =>
+        table_size :=  size.large
+    "Normal" =>
+        table_size :=  size.normal
+    "Small" =>
+        table_size :=  size.small
+    "Tiny" =>
+        table_size :=  size.tiny
+
+
+// -- Position Switching
+pot(position) =>
+    var pos = switch position
+        'Top Left' => position.top_left
+        'Middle Left' => position.middle_left
+        'Bottom Left' => position.bottom_left
+        'Top Right' => position.top_right
+        'Middle Right' => position.middle_right
+        'Bottom Right' => position.bottom_right
+        'Top Center' => position.top_center
+        "Middle Center" => position.middle_center
+        'Bottom Center' => position.bottom_center
+    pos
+
+
+// Root Mean Squared Error Function
+rmse(src, benchmark, length) =>
+    sum_squared_diff = 0.0
+    for i = 0 to length - 1
+        diff = src[i] - benchmark[i]
+        squared_diff = diff * diff
+        sum_squared_diff := sum_squared_diff + squared_diff
+    math.sqrt(sum_squared_diff / length)
+
+
+// For Loop
+system(src, a, b) =>
+    total  = 0.0
+    for i  = a to b by 1
+        total += (src > src[i] ? 1 : -1)
+        total
+    total
+
+
+
+// Moving Average Switch
+ma_switch(src, length, avg_type) =>
+    avg = switch avg_type
+        "SMA" =>    DynamicMA.SMA(src, length)
+        "EMA" =>    DynamicMA.EMA(src, length)
+        "WMA" =>    DynamicMA.WMA(src, length)
+        "VWMA" =>   DynamicMA.VWMA(src, volume, length)
+        "DEMA" =>   DynamicMA.DEMA(src, length)
+        "TEMA" =>   DynamicMA.TEMA(src, length)
+        "RMA" =>   DynamicMA.RMA(src, length)
+        "HMA" =>    DynamicMA.HMA(src, length)
+        "LSMA" =>   DynamicMA.LSMA(src, length, 0)
+        "SMMA" =>   DynamicMA.SMMA(src, length)
+        "ALMA" =>   DynamicMA.ALMA(src, length, 0, 20)
+        "ZLSMA" =>  DynamicMA.ZLSMA(src, length)
+        "FRAMA" =>  DynamicMA.FRAMA(src, length)
+        "KAMA" =>   DynamicMA.KAMA(src, length)
+        "JMA" =>   DynamicMA.JMA(src, length, 0.5)
+        "T3" =>   DynamicMA.T3(src, length, 0.5)
+
+
+// Final Processing
+
+// -- Defining Variables
+avg_bb = ma_switch(source, rmse_length_bb, ma_benchmark_type_bb)
+avg_fl = ma_switch(source, rmse_length_fl, ma_benchmark_type_fl)
+
+rmse = rmse(source, avg_bb, rmse_length_bb)
+rmse2 = rmse(source, avg_fl, rmse_length_fl)
+
+
+// -- BB 
+bb_positive_band = avg_bb + (rmse * rmse_mult_bb)
+bb_negative_band = avg_bb - (rmse * rmse_mult_bb)
+
+
+// For Loop
+rmse_w_src =  ma_switch(source*rmse2, rmse_length_fl, ma_benchmark_type_fl) / ma_switch(rmse2, rmse_length_fl, ma_benchmark_type_fl) // RMSE combined with the source of the indicator
+rmse_fl = system(rmse_w_src, a_, b_)
+
+
+// Score Variable
+var int score = 0
+var int bb_score = 0
+var int fl_score = 0
+var int combined_signal = 0
+
+// Conditions
+// -- BB
+if ta.crossover(source, bb_positive_band)
+    bb_score := 1
+
+if ta.crossunder(source, bb_negative_band)
+    bb_score := -1
+
+
+
+if signal_mode == "Bollinger Bands"
+    if ta.crossover(source, bb_positive_band)
+        score := 1
+
+    if ta.crossunder(source, bb_negative_band)
+        score := -1
+
+
+// -- FL
+if ta.crossover(rmse_fl, Threshold_L_Fl)
+    fl_score := 1
+
+if ta.crossunder(rmse_fl, Threshold_S_Fl)
+    fl_score := -1
+
+
+
+if signal_mode == "For Loop"
+    if ta.crossover(rmse_fl, Threshold_L_Fl)
+        score := 1
+
+    if ta.crossunder(rmse_fl, Threshold_S_Fl)
+        score := -1
+
+
+
+// -- Combined Signal
+c_signal = math.avg(bb_score, fl_score)
+
+if ta.crossover(c_signal, Threshold_L_C)
+    combined_signal := 1
+
+
+if ta.crossunder(c_signal, Threshold_S_C)
+    combined_signal := -1
+
+
+
+if signal_mode == "Combined Signal"
+    if ta.crossover(c_signal, Threshold_L_C)
+        score := 1
+
+    if ta.crossunder(c_signal, Threshold_S_C)
+        score := -1
+
+
+
+
+// Plot Color
+pc = score == 1 ? UpC : score == -1 ? DnC : color.gray
+pc_bb = bb_score == 1 ? UpC : bb_score == -1 ? DnC : color.gray
+pc_fl = fl_score == 1 ? UpC : fl_score == -1 ? DnC : color.gray
+pc_combined = combined_signal == 1 ? UpC : combined_signal == -1 ? DnC : color.gray
+
+
+
+// Tables
+var table mode_stat_table = na
+
+
+// -- Force Overlay Conditions
+if fo // 'fo' is an input, but used in an if block, not directly in table.new
+    mode_stat_table := table.new(pot(pos_table), 100, 100, frame_width = 1, frame_color = color.gray, force_overlay = true, border_color = color.gray, border_width = 1)
+
+else
+    mode_stat_table := table.new(pot(pos_table), 100, 100, frame_width = 1, frame_color = color.gray, force_overlay = false, border_color = color.gray, border_width = 1)
+
+
+
+// -- Table Cells
+if enable_table
+    table.cell(mode_stat_table, 0, 0, 'RMSE Trend Modes Table | 𝓛𝓎𝓻𝓸 𝓡𝓢', text_color = color.white, bgcolor = #000000, text_size=table_size)
+    table.cell(mode_stat_table, 1, 0, '', text_color = color.white, bgcolor = #000000, text_size=table_size)
+
+
+    table.cell(mode_stat_table, 0, 1, 'Modes:', text_color = color.white, bgcolor = #000000, text_size=table_size)
+    table.cell(mode_stat_table, 0, 2, 'Bollinger Bands', text_color = color.gray, bgcolor = #000000, text_size=table_size)
+    table.cell(mode_stat_table, 0, 3, 'For Loop', text_color = color.gray, bgcolor = #000000, text_size=table_size)
+    table.cell(mode_stat_table, 0, 4, 'Combined Signal', text_color = color.gray, bgcolor = #000000, text_size=table_size)
+
+    table.cell(mode_stat_table, 1, 1, 'Signals:', text_color = color.white, bgcolor = #000000, text_size=table_size)
+    table.cell(mode_stat_table, 1, 2, bb_score == 1 ? "⬆️Long ⬆️" : bb_score == -1 ? "⬇️Short ⬇️" : na, text_color = pc_bb, bgcolor = #000000, text_size=table_size)
+    table.cell(mode_stat_table, 1, 3, fl_score == 1 ? "📈Up 📈" : fl_score == -1 ? "📉Down 📉" : na, text_color = pc_fl, bgcolor = #000000, text_size=table_size)
+    table.cell(mode_stat_table, 1, 4, combined_signal == 1 ? "🚀Up-Trend 🚀" : combined_signal == -1 ? "🪂 Down-Trend 🪂" : na , text_color = pc_combined, bgcolor = #000000, text_size=table_size)
+
+    table.merge_cells(mode_stat_table, 0, 0, 1, 0)
+
+
+
+
+
+
+// Plots
+
+// -- Bollinger Bands Plot
+plot(bb_positive_band, color= color.new(UpC, 50), title= "Positive Band", display= display.pane + display.price_scale, force_overlay = true)
+plot(bb_negative_band, color= color.new(DnC, 50), title= "Negative Band", display= display.pane + display.price_scale, force_overlay = true)
+plot(avg_bb, color= pc_bb, title= "Moving Average", force_overlay = true)
+plot(avg_bb, color = color.new(pc_bb, 85), title= "Bollinger Bands Glow Effect 1", linewidth = 10, force_overlay = true, display= display.pane)
+
+
+// -- For Loop Plot
+plot(rmse_fl, color = pc_fl, title= "RMSE For Loop")
+plot(rmse_fl, color = color.new(pc_fl, 75), title= "For Loop Glow Effect", linewidth = 10, display= display.pane)
+
+
+
+plot(Threshold_L_Fl, color = UpC, title= "Long Threshold", display= display.pane)
+plot(Threshold_S_Fl, color = DnC, title= "Short Threshold", display= display.pane)
+
+
+
+
+
+barcolor(pc)
+plotcandle(open, high, low, close, color= pc, wickcolor=pc, bordercolor = pc, force_overlay = true, title= "Plot Candle", display=display.pane)
+
+
+// Alerts
+alertcondition(score == 1, "Root Mean Squared Error Trend - Long", "Root Mean Squared Error Trend is Long {{exchange}}:{{ticker}}")
+alertcondition(score == -1, "Root Mean Squared Error Trend - Short", "Root Mean Squared Error Trend is Short {{exchange}}:{{ticker}}")

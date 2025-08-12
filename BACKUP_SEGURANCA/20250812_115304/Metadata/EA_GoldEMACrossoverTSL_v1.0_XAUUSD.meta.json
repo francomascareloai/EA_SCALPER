@@ -1,0 +1,47 @@
+{
+  "nome_arquivo": "EA_GoldEMACrossoverTSL_v1.0_XAUUSD.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "mercado": "XAUUSD",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "autor": "ChatGPT",
+  "descricao": "EA de cruzamento de EMAs para Gold com trailing stop. Utiliza EMA rápida (5) e lenta (8) para sinais de entrada, com trailing stop configurável.",
+  "funcoes_principais": [
+    "Cruzamento de EMAs para sinais",
+    "Trailing stop em pips",
+    "Stop loss e take profit opcionais",
+    "Controle de posição única",
+    "Magic number para identificação"
+  ],
+  "parametros_expostos": [
+    "FastEMAPeriod",
+    "SlowEMAPeriod",
+    "TrailingStopPips",
+    "StopLossPips",
+    "TakeProfitPips"
+  ],
+  "conformidade_ftmo": {
+    "score": 5,
+    "status": "Moderado",
+    "observacoes": "EA simples com lógica básica. Stop loss configurável como 0 (desabilitado) pode violar regras FTMO. Trailing stop é positivo."
+  },
+  "riscos_identificados": [
+    "Stop loss pode ser desabilitado (valor 0)",
+    "EMAs de período muito curto podem gerar sinais falsos",
+    "Ausência de filtros adicionais",
+    "Código gerado por IA pode ter limitações"
+  ],
+  "observacoes_tecnicas": [
+    "Código simples e direto (139 linhas)",
+    "Gerado por ChatGPT",
+    "Lógica básica de cruzamento",
+    "Adequado para Gold (XAUUSD)",
+    "Estrutura limpa e compreensível"
+  ],
+  "tags": ["#EA", "#Trend", "#XAUUSD", "#EMA_Crossover", "#Trailing_Stop", "#Moderado", "#ChatGPT"],
+  "caminho_arquivo": "EAs/Trend/EA_GoldEMACrossoverTSL_v1.0_XAUUSD.mq5",
+  "data_classificacao": "2025-01-27",
+  "status_revisao": "Classificado"
+}

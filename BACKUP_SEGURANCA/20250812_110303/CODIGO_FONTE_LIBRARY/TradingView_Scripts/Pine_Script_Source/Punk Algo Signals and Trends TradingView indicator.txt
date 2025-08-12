@@ -1,0 +1,300 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+//PunkChainer Indicator
+
+//@version=5
+
+indicator("Punk Algo [Signals and Trends]", overlay=true, max_labels_count=500,explicit_plot_zorder = 1000,max_lines_count = 500,max_boxes_count = 500,precision = 10)
+
+// Control Colors
+sky = color.new(color.rgb(0, 219, 255), 60)
+PunkCyan = #2157f3
+PunkPink = #ff1100
+PunkBuy = color.new(color.rgb(0, 255, 100), 50)
+PunkSell = color.new(color.rgb(255, 17, 0), 50)
+
+
+// Get user settings
+showBuySell       = input(true, "Smart Signals", group="Smart Signals", tooltip="Confirm that the price will move strongly in the direction that the trend points")
+sensitivity       = 1.3
+float percentStop = na
+offsetSignal      = 5
+smooth1           = 35
+smooth2           = 45
+lineColor         = sky
+labelColor        = sky
+showEmas          = false
+srcEma1           = close
+lenEma1           = 55
+srcEma2           = close
+lenEma2           = 200
+//showSwing         = input(false, "Show SFP Signals", group="SFP SIGNALS")
+//prdSwing          = input.int(10, "SFP Period", 2, group="SFP SIGNALS")
+colorPos          = input(color.new(PunkBuy, 50), "Buy Signal Color")
+colorNeg          = input(color.new(PunkSell, 50), "Sell Signal Color")
+showDashboard     = input(true, "Show Dashboard", group="TREND DASHBOARD")
+locationDashboard = input.string("Top Right", "Table Location", ["Top Right", "Middle Right", "Bottom Right", "Top Center", "Middle Center", "Bottom Center", "Top Left", "Middle Left", "Bottom Left"], group="TREND DASHBOARD")
+tableTextColor    = input(color.white, "Table Text Color", group="TREND DASHBOARD")
+tableBgColor      = input(#000000, "Table Background Color", group="TREND DASHBOARD")
+sizeDashboard     = input.string("Small", "Table Size", ["Large", "Normal", "Small", "Tiny"], group="TREND DASHBOARD")
+
+// Functions
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), t)
+    smoothrng = ta.ema(avrng, wper) * m
+rngfilt(x, r) =>
+    rngfilt = x
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r : x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+percWidth(len, perc) => (ta.highest(len) - ta.lowest(len)) * perc / 100
+securityNoRep(sym, res, src) => request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_on)
+swingPoints(prd) =>
+    pivHi = ta.pivothigh(prd, prd)
+    pivLo = ta.pivotlow (prd, prd)
+    last_pivHi = ta.valuewhen(pivHi, pivHi, 1)
+    last_pivLo = ta.valuewhen(pivLo, pivLo, 1)
+    hh = pivHi and pivHi > last_pivHi ? pivHi : na
+    lh = pivHi and pivHi < last_pivHi ? pivHi : na
+    hl = pivLo and pivLo > last_pivLo ? pivLo : na
+    ll = pivLo and pivLo < last_pivLo ? pivLo : na
+    [hh, lh, hl, ll]
+f_chartTfInMinutes() =>
+    float _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1                   :
+      timeframe.isminutes ? 1.                  :
+      timeframe.isdaily   ? 60. * 24            :
+      timeframe.isweekly  ? 60. * 24 * 7        :
+      timeframe.ismonthly ? 60. * 24 * 30.4375  : na)
+f_kc(src, len, sensitivity) =>
+    basis = ta.sma(src, len)
+    span  = ta.atr(len)
+    [basis + span * sensitivity, basis - span * sensitivity]
+wavetrend(src, chlLen, avgLen) =>
+    esa = ta.ema(src, chlLen)
+    d = ta.ema(math.abs(src - esa), chlLen)
+    ci = (src - esa) / (0.015 * d)
+    wt1 = ta.ema(ci, avgLen)
+    wt2 = ta.sma(wt1, 3)
+    [wt1, wt2]
+f_top_fractal(src) => src[4] < src[2] and src[3] < src[2] and src[2] > src[1] and src[2] > src[0]
+f_bot_fractal(src) => src[4] > src[2] and src[3] > src[2] and src[2] < src[1] and src[2] < src[0]
+f_fractalize (src) => f_top_fractal(src) ? 1 : f_bot_fractal(src) ? -1 : 0
+f_findDivs(src, topLimit, botLimit) =>
+    fractalTop = f_fractalize(src) > 0 and src[2] >= topLimit ? src[2] : na
+    fractalBot = f_fractalize(src) < 0 and src[2] <= botLimit ? src[2] : na
+    highPrev = ta.valuewhen(fractalTop, src[2], 0)[2]
+    highPrice = ta.valuewhen(fractalTop, high[2], 0)[2]
+    lowPrev = ta.valuewhen(fractalBot, src[2], 0)[2]
+    lowPrice = ta.valuewhen(fractalBot, low[2], 0)[2]
+    bearSignal = fractalTop and high[2] > highPrice and src[2] < highPrev
+    bullSignal = fractalBot and low[2] < lowPrice and src[2] > lowPrev
+    [bearSignal, bullSignal]
+// Get components
+source    = close
+smrng1    = smoothrng(source, 27, 1.5)
+smrng2    = smoothrng(source, 55, sensitivity)
+smrng     = (smrng1 + smrng2) / 2
+filt      = rngfilt(source, smrng)
+up        = 0.0, up := filt > filt[1] ? nz(up[1]) + 1 : filt < filt[1] ? 0 : nz(up[1])
+dn        = 0.0, dn := filt < filt[1] ? nz(dn[1]) + 1 : filt > filt[1] ? 0 : nz(dn[1])
+bullCond  = bool(na), bullCond := source > filt and source > source[1] and up > 0 or source > filt and source < source[1] and up > 0
+bearCond  = bool(na), bearCond := source < filt and source < source[1] and dn > 0 or source < filt and source > source[1] and dn > 0
+lastCond  = 0, lastCond := bullCond ? 1 : bearCond ? -1 : lastCond[1]
+bull      = bullCond and lastCond[1] == -1
+bear      = bearCond and lastCond[1] == 1
+countBull = ta.barssince(bull)
+countBear = ta.barssince(bear)
+trigger   = nz(countBull, bar_index) < nz(countBear, bar_index) ? 1 : 0
+rsi       = ta.rsi(close, 21)
+rsiOb     = rsi > 70 and rsi > ta.ema(rsi, 10)
+rsiOs     = rsi < 30 and rsi < ta.ema(rsi, 10)
+dHigh     = securityNoRep(syminfo.tickerid, "D", high [1])
+dLow      = securityNoRep(syminfo.tickerid, "D", low  [1])
+dClose    = securityNoRep(syminfo.tickerid, "D", close[1])
+ema1      = ta.ema(srcEma1, lenEma1)
+ema2      = ta.ema(srcEma2, lenEma2)
+ema = ta.ema(close, 144)
+emaBull = close > ema
+equal_tf(res) => str.tonumber(res) == f_chartTfInMinutes() and not timeframe.isseconds
+higher_tf(res) => str.tonumber(res) > f_chartTfInMinutes() or timeframe.isseconds
+too_small_tf(res) => (timeframe.isweekly and res=="1") or (timeframe.ismonthly and str.tonumber(res) < 10)
+securityNoRep1(sym, res, src) =>
+    bool bull_ = na
+    bull_ := equal_tf(res) ? src : bull_
+    bull_ := higher_tf(res) ? request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_on) : bull_
+    bull_array = request.security_lower_tf(syminfo.tickerid, higher_tf(res) ? str.tostring(f_chartTfInMinutes()) + (timeframe.isseconds ? "S" : "") : too_small_tf(res) ? (timeframe.isweekly ? "3" : "10") : res, src)
+    if array.size(bull_array) > 1 and not equal_tf(res) and not higher_tf(res)
+        bull_ := array.pop(bull_array)
+    array.clear(bull_array)
+    bull_
+TF1Bull   = securityNoRep1(syminfo.tickerid, "1"   , emaBull)
+TF3Bull   = securityNoRep1(syminfo.tickerid, "3"   , emaBull)
+TF5Bull   = securityNoRep1(syminfo.tickerid, "5"   , emaBull)
+TF15Bull  = securityNoRep1(syminfo.tickerid, "15"  , emaBull)
+TF30Bull  = securityNoRep1(syminfo.tickerid, "30"  , emaBull)
+TF60Bull  = securityNoRep1(syminfo.tickerid, "60"  , emaBull)
+TF120Bull = securityNoRep1(syminfo.tickerid, "120" , emaBull)
+TF240Bull = securityNoRep1(syminfo.tickerid, "240" , emaBull)
+TF480Bull = securityNoRep1(syminfo.tickerid, "480" , emaBull)
+TFDBull   = securityNoRep1(syminfo.tickerid, "1440", emaBull)
+[wt1, wt2] = wavetrend(hlc3, 9, 12)
+[wtDivBear1, wtDivBull1] = f_findDivs(wt2, 15, -40)
+[wtDivBear2, wtDivBull2] = f_findDivs(wt2, 45, -65)
+wtDivBull = wtDivBull1 or wtDivBull2
+wtDivBear = wtDivBear1 or wtDivBear2
+// Colors
+white = #ffffff, white30 = color.new(white, 70)
+grey = #9598a1, grey30 = color.new(grey, 70)
+cyan = #2157f3, cyan30 = color.new(cyan, 70)
+pink = #ff1100, pink30 = color.new(pink, 70)
+red  = #FF5252, red30  = color.new(red , 70)
+PunkGrey = color.new(color.rgb(93, 96, 107), 50)
+
+
+// Plot
+off = percWidth(300, offsetSignal)
+plotshape(showBuySell and bull ? low  - off : na, "Bullish Signal" ,  shape.labelup  ,  location.belowbar, PunkBuy, 0, "▲" , color.white, size=size.small)
+plotshape(showBuySell and bear ? high + off : na, "Bearish Signal", shape.labeldown, location.abovebar, PunkSell, 0, "▼", color.white, size=size.small)
+plotshape(ta.crossover(wt1, wt2) and wt2 <= -53, "TP" , shape.xcross, location.belowbar, cyan, size=size.tiny)
+plotshape(ta.crossunder(wt1, wt2) and wt2 >= 53, "TP", shape.xcross, location.abovebar, pink, size=size.tiny)
+
+
+srcStop = close
+atrBand = srcStop * (percentStop / 100)
+atrStop = trigger ? srcStop - atrBand : srcStop + atrBand
+lastTrade(src) => ta.valuewhen(bull or bear, src, 0)
+entry_y = lastTrade(srcStop)
+stop_y = lastTrade(atrStop)
+tp1_y = (entry_y - lastTrade(atrStop)) * 1 + entry_y
+tp2_y = (entry_y - lastTrade(atrStop)) * 2 + entry_y
+tp3_y = (entry_y - lastTrade(atrStop)) * 3 + entry_y
+labelTpSl(y, txt, color) =>
+    label labelTpSl = percentStop != 0 ? label.new(bar_index + 1, y, txt, xloc.bar_index, yloc.price, color, label.style_label_left, color.white, size.normal) : na
+    label.delete(labelTpSl[1])
+labelTpSl(entry_y, "Entry: " + str.tostring(math.round_to_mintick(entry_y)), color.gray)
+labelTpSl(stop_y , "Stop Loss: " + str.tostring(math.round_to_mintick(stop_y)), color.red)
+labelTpSl(tp1_y, "Take Profit 1: " + str.tostring(math.round_to_mintick(tp1_y)), color.green)
+labelTpSl(tp2_y, "Take Profit 2: " + str.tostring(math.round_to_mintick(tp2_y)), color.green)
+labelTpSl(tp3_y, "Take Profit 3: " + str.tostring(math.round_to_mintick(tp3_y)), color.green)
+lineTpSl(y, color) =>
+    line lineTpSl = percentStop != 0 ? line.new(bar_index - (trigger ? countBull : countBear) + 4, y, bar_index + 1, y, xloc.bar_index, extend.none, color, line.style_solid) : na
+    line.delete(lineTpSl[1])
+lineTpSl(entry_y, color.gray)
+lineTpSl(stop_y, color.red)
+lineTpSl(tp1_y, color.green)
+lineTpSl(tp2_y, color.green)
+lineTpSl(tp3_y, color.green)
+var dashboard_loc  = locationDashboard == "Top Right" ? position.top_right : locationDashboard == "Middle Right" ? position.middle_right : locationDashboard == "Bottom Right" ? position.bottom_right : locationDashboard == "Top Center" ? position.top_center : locationDashboard == "Middle Center" ? position.middle_center : locationDashboard == "Bottom Center" ? position.bottom_center : locationDashboard == "Top Left" ? position.top_left : locationDashboard == "Middle Left" ? position.middle_left : position.bottom_left
+var dashboard_size = sizeDashboard == "Large" ? size.tiny : sizeDashboard == "Normal" ? size.normal : sizeDashboard == "Small" ? size.small : size.tiny
+var dashboard      = showDashboard ? table.new(dashboard_loc, 2, 15, tableBgColor, #000000, 2, tableBgColor, 1) : na
+dashboard_cell(column, row, txt, signal=false) => table.cell(dashboard, column, row, txt, 0, 0, signal ? #000000 : tableTextColor, text_size=dashboard_size)
+dashboard_cell_bg(column, row, col) => table.cell_set_bgcolor(dashboard, column, row, col)
+if barstate.islast and showDashboard
+    dashboard_cell(0, 0 , "Punk Signals")
+    dashboard_cell(0, 1 , "Current Position")
+    dashboard_cell(0, 2 , "Current Trend")
+    dashboard_cell(0, 3 , "Volume")
+    dashboard_cell(0, 4 , "Timeframe")
+    dashboard_cell(0, 10, "1 H:")
+    dashboard_cell(0, 11, "2 H:")
+    dashboard_cell(0, 12, "4 H:")
+    dashboard_cell(0, 13, "8 H:")
+    dashboard_cell(0, 14, "Daily:")
+    dashboard_cell(1, 0 , "V.1")
+    dashboard_cell(1, 1 , trigger ? "Buy" : "Sell", true), dashboard_cell_bg(1, 1, trigger ? color.green : color.red)
+    dashboard_cell(1, 2 , emaBull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 2, emaBull ? color.green : color.red)
+    dashboard_cell(1, 3 , str.tostring(volume))
+    dashboard_cell(1, 4 , "Trends")
+    dashboard_cell(1, 10, TF60Bull  ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 10, TF60Bull  ? color.green : color.red)
+    dashboard_cell(1, 11, TF120Bull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 11, TF120Bull ? color.green : color.red)
+    dashboard_cell(1, 12, TF240Bull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 12, TF240Bull ? color.green : color.red)
+    dashboard_cell(1, 13, TF480Bull ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 13, TF480Bull ? color.green : color.red)
+    dashboard_cell(1, 14, TFDBull   ? "Bullish" : "Bearish", true), dashboard_cell_bg(1, 14, TFDBull   ? color.green : color.red)
+
+// Alerts
+alert02 = bull
+alert03 = wtDivBull
+alert04 = wtDivBear
+alert05 = bull or bear
+alert06 = ta.crossover(wt1, wt2) and wt2 <= -53
+alert07 = ta.crossunder(wt1, wt2) and wt2 >= 53
+alert09 = rsiOb or rsiOs
+alert10 = bear
+alerts(sym) =>
+    if alert02 or alert03 or alert04 or alert06 or alert07 or alert10
+        alert_text = alert02 ? "Strong Bullish PunkAlgo" : alert03 ? "Strong Bearish Signal PunkAlgo" : alert04 ? "Strong Bearish Signal PunkAlgo" : alert06 ? "TP Short Signal PunkAlgo" : alert07 ? "TP Long Signal PunkAlgo" : "Sell Signal PunkAlgo"
+        alert(alert_text,  alert.freq_once_per_bar_close)
+alerts(syminfo.tickerid)
+alertcondition(alert02, "Buy Signal", "Buy Signal PunkAlgo")
+alertcondition(alert05, "Either Buy or Sell Signal", "PunkAlgo Signal")
+alertcondition(alert06, "Mild Buy Alert", "TP Long Signal PunkAlgo, TimeFrame={{interval}}")
+alertcondition(alert07, "Mild Sell Alert", "TP Short Signal PunkAlgo, TimeFrame={{interval}}")
+alertcondition(alert10, "Sell Signal", "Sell Signal PunkAlgo")
+
+
+// Intelligent Trend
+
+showIndicator = input(true,"Show Intelligent Trend", group ="Intelligent Trend Function", tooltip="A powerful tool capable of predicting support and resistance automatically.")
+inp1 = input(5.00, "Trend Multiplier")
+inp2 = input(34, "Trend Length")
+inp3 = input(1.00, "Trend Zone Width")
+atrs = ta.atr(inp2)
+[showIndicator3, direction2] = ta.supertrend(math.round(math.avg(7, inp1)), inp2*2)
+hullup = ta.hma(high, math.round(math.avg(21, inp2))) + atrs*math.round(inp1/2.5)
+hulldown = ta.hma(low, math.round(math.avg(21, inp2))) - atrs*math.round(inp1/2.5)
+up2 = ta.highest(high, inp2) + atrs*math.round(inp1/3)
+lo = ta.lowest(low, inp2) - atrs*math.round(inp1/3)
+supert = 0.00
+supert := if close > showIndicator3
+    math.avg(showIndicator3, hulldown, showIndicator3, up2)
+else if close < showIndicator3
+    math.avg(showIndicator3, hullup, showIndicator3, lo)
+supert2 = 0.00
+supert2 := if close > supert
+    supert + atrs*inp3
+else if close < supert
+    supert - atrs*inp3
+
+tool1 = plot(showIndicator ? supert : na, "Intelligent Trend line", color = close > supert ? #2962ff : #e91e63)
+tool2 = plot(showIndicator ? supert2 : na, "Intelligent Trend Zone line", color = color.new(color.gray, 95))
+fill(tool1, tool2, color = close > supert ? color.new(#2962ff, 80) : color.new(#e91e63, 80), fillgaps=false)
+
+// MOMENTUM CANDLES
+
+factor = input.float(0.8, "Factor", step = 0.01, group="Smart Candles", inline="z")
+atrPeriod = input.int(1, "ATR Period", step = 20, group="Smart Candles", inline="z")
+smartOverlay    = input.bool(true, title="[Smart Overlay]", inline="z", group="Candle Colors")
+bullColor1      = input.color(#00db0a, title="[-Bull Candle-]", inline="z", group="Candle Colors")
+bearColor1      = input.color(#e10000, title="[Bear Candle]", inline="z", group="Candle Colors")
+momentumSwitch  = input.bool(true, title="[Momentum Switch]", inline="z", group="Candle Colors")
+momentumSwitchBull      = input.color(#56328f, title="[--Switch Bull--]", inline="z", group="Candle Colors")
+momentumSwitchBear      = input.color(#56328f, title="[--Switch Bear--]", inline="z", group="Candle Colors")
+
+closeRrealtime = true
+barState = (closeRrealtime == true) ? barstate.isconfirmed : barstate.isrealtime
+
+[supertrend, direction] = ta.supertrend(factor, atrPeriod)
+
+bull_STC = close > supertrend and close[1] < supertrend[1]
+bear_STC = close < supertrend and close[1] > supertrend[1]
+
+bar_DEX =(bar_index > 10)
+
+howManyGB = (ta.barssince(bull_STC)) + 1
+howManyRB = (ta.barssince(bear_STC)) + 1
+
+howManyGBX = ta.barssince(bull_STC)
+howManyRBX =ta.barssince(bear_STC)
+
+howManyGBText = str.tostring(howManyGBX)
+howManyRBText = str.tostring(howManyRBX)
+
+// lookbackperiod so i dont get ZEROS in my look back period
+lookBack  =  howManyGB > howManyRB  ? howManyGB : howManyRB 
+
+// change color based  on current charts momentum
+trendColor  = bull_STC and momentumSwitch and smartOverlay ? momentumSwitchBull : bear_STC and momentumSwitch and smartOverlay ? momentumSwitchBear : close > supertrend and smartOverlay ? bullColor1 : close < supertrend and smartOverlay ? bearColor1 : na
+barcolor(trendColor, title="Current Chart Momentum",editable=false)
+
+
+// ==========================================================================================

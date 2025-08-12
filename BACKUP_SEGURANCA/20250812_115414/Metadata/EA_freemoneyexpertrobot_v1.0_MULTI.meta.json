@@ -1,0 +1,30 @@
+{
+  "id": "c24e17a9170cb610",
+  "arquivo": "free_money_expert_robot_bot_hide_sl_and_tp_fixed_live_and_demo.mq5",
+  "hash": "c24e17a9170cb610",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Custom",
+  "subestrategias": [],
+  "mercados": [
+    "MULTI"
+  ],
+  "timeframes": [
+    "MULTI"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 70,
+  "riscos_detectados": [
+    "No risk management detected"
+  ],
+  "qualidade_codigo_score": 90,
+  "compilacao": {
+    "status": "desconhecido",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

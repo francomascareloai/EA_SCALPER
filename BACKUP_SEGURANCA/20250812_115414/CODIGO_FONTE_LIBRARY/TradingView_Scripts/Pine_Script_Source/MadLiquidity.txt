@@ -1,0 +1,1961 @@
+//@version=5
+
+indicator(title='MadLiquidity', shorttitle='ML')
+
+length = input.int(14, minval=1, title='Stochastic Length - Default 14')
+smoothK = input.int(5, minval=1, title='Smooth K - Default 5')
+ul = input.int(60, minval=50, title='Buy Entry/Exit Line')
+ll = input.int(30, maxval=50, title='Sell Entry/Exit Line')
+st = input(false, title='Change Barcolor To Show Long, Short, or No Trades')
+
+//Stochastic Calculation
+k = ta.sma(ta.stoch(close, high, low, length), smoothK)
+
+//Upper and Lower Entry Lines
+uline = ul
+lline = ll
+
+//Bar Color Definitions
+Long() =>
+    st and k >= uline ? 1 : 0
+Short() =>
+    st and k <= lline ? 1 : 0
+NoTrade() =>
+    st and k > lline and k < uline ? 1 : 0
+
+//Color Definition for Stochastic Line
+col = k >= uline ? color.green : k <= lline ? color.red : color.blue
+
+//Stochastic Plots
+plot(k, title='Stochastic', style=plot.style_line, linewidth=4, color=col)
+p1 = plot(uline, title='Upper Line', style=plot.style_line, linewidth=4, color=color.new(color.green, 0))
+p2 = plot(100, title='100 Line', color=color.new(color.white, 0))
+fill(p1, p2, title='Long Trade Fill Color', color=color.new(color.green, 90))
+p3 = plot(lline, title='Lower Line', style=plot.style_line, linewidth=4, color=color.new(color.red, 0))
+p4 = plot(0, title='0 Line', color=color.new(color.white, 0))
+fill(p1, p3, title='No Trade Fill Color', color=color.new(color.blue, 90))
+fill(p3, p4, title='Short Trade Fill Color', color=color.new(color.red, 90))
+
+//Bar Color Plots
+barcolor(Long() ? color.green : na)
+barcolor(NoTrade() ? color.blue : na)
+barcolor(Short() ? color.red : na)
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Functions
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Range Size Function
+rng_size(x, qty, n) =>
+//    AC       = Cond_EMA(abs(x - x[1]), 1, n)
+    wper = n * 2 - 1
+    avrng = ta.ema(math.abs(x - x[1]), n)
+    AC = ta.ema(avrng, wper) * qty
+    rng_size = AC
+    rng_size
+
+//Range Filter Function
+rng_filt(x, rng_, n) =>
+    r = rng_
+    var rfilt = array.new_float(2, x)
+    array.set(rfilt, 1, array.get(rfilt, 0))
+    if x - r > array.get(rfilt, 1)
+        array.set(rfilt, 0, x - r)
+    if x + r < array.get(rfilt, 1)
+        array.set(rfilt, 0, x + r)
+    rng_filt1 = array.get(rfilt, 0)
+
+    hi_band = rng_filt1 + r
+    lo_band = rng_filt1 - r
+    rng_filt = rng_filt1
+    [hi_band, lo_band, rng_filt]
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Inputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Range Source
+rng_src = input(defval=close, title='Swing Source')
+
+//Range Period
+rng_per = input.int(defval=20, minval=1, title='Swing Period')
+
+//Range Size Inputs
+rng_qty = input.float(defval=3.5, minval=0.0000001, title='Swing Multiplier')
+
+//Bar Colors
+use_barcolor = input(defval=false, title='Bar Colors On/Off')
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Definitions
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Range Filter Values
+[h_band, l_band, filt] = rng_filt(rng_src, rng_size(rng_src, rng_qty, rng_per), rng_per)
+
+//Direction Conditions
+var fdir = 0.0
+fdir := filt > filt[1] ? 1 : filt < filt[1] ? -1 : fdir
+upward = fdir == 1 ? 1 : 0
+downward = fdir == -1 ? 1 : 0
+
+//Trading Condition
+longCond = rng_src > filt and rng_src > rng_src[1] and upward > 0 or rng_src > filt and rng_src < rng_src[1] and upward > 0
+shortCond = rng_src < filt and rng_src < rng_src[1] and downward > 0 or rng_src < filt and rng_src > rng_src[1] and downward > 0
+
+CondIni = 0
+CondIni := longCond ? 1 : shortCond ? -1 : CondIni[1]
+longCondition = longCond and CondIni[1] == -1
+shortCondition = shortCond and CondIni[1] == 1
+
+//Colors
+filt_color = upward ? #05ff9b : downward ? #ff0583 : #cccccc
+bar_color = upward and rng_src > filt ? rng_src > rng_src[1] ? #05ff9b : #00b36b : downward and rng_src < filt ? rng_src < rng_src[1] ? #ff0583 : #b8005d : #cccccc
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+//Outputs
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Filter Plot
+filt_plot = plot(filt, color=filt_color, linewidth=3, title='Filter', transp=67,force_overlay = true)
+
+//Band Plots
+h_band_plot = plot(h_band, color=color.new(#05ff9b, 100), title='High Band',force_overlay = true)
+l_band_plot = plot(l_band, color=color.new(#ff0583, 100), title='Low Band',force_overlay = true)
+
+//Band Fills
+fill(h_band_plot, filt_plot, color=color.new(#00b36b, 92), title='High Band Fill')
+fill(l_band_plot, filt_plot, color=color.new(#b8005d, 92), title='Low Band Fill')
+
+//Bar Color
+barcolor(use_barcolor ? bar_color : na)
+
+//Plot Buy and Sell Labels
+plotshape(longCondition, title='Buy Signal', text='BUY', textcolor=color.white, style=shape.labelup, size=size.normal, location=location.belowbar, color=color.new(color.green, 0),force_overlay = true)
+plotshape(shortCondition, title='Sell Signal', text='SELL', textcolor=color.white, style=shape.labeldown, size=size.normal, location=location.abovebar, color=color.new(color.red, 0),force_overlay = true)
+
+//Alerts
+alertcondition(longCondition, title='Buy Alert', message='BUY')
+alertcondition(shortCondition, title='Sell Alert', message='SELL')
+
+
+
+
+const bool DEBUG = false
+
+const int maxBoxesCount = 500
+
+const float overlapThresholdPercentage = 0
+
+const int maxDistanceToLastBar = 1750 // Affects Running Time
+
+const int maxOrderBlocks = 30
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+//Settings
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+len = input(50, 'CHoCH Detection Period')
+
+shortLen = input(3, 'IDM Detection Period')
+
+//Styling
+
+
+
+bullCss = input(#089981, 'Bullish Elements', group = 'Style')
+
+
+
+bearCss = input(#ff5252, 'Bearish Elements', group = 'Style')
+
+
+
+showChoch = input(true, "Show CHoCH", group = 'Style')
+
+
+showBos = input(true, "Show BOS", group = 'Style')
+
+
+showIdm = input(true, "Show Inducements", inline = 'idm', group = 'Style')
+
+
+idmCss = input(color.rgb(229, 231, 239), "", inline = 'idm', group = 'Style')
+
+
+showSweeps = input(true, "Show Sweeps", inline = 'sweeps', group = 'Style')
+
+
+
+sweepsCss = input(color.rgb(224, 227, 237), "", inline = 'sweeps', group = 'Style')
+
+showCircles = input(true, "Show Swings", group = 'Style')
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+//Functions
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+
+//Swings detection/measurements
+
+n = bar_index
+
+
+
+swings(len)=>
+
+
+
+    var os = 0
+
+
+
+    var int topx = na
+
+
+
+    var int btmx = na
+
+    upper = ta.highest(len)
+
+    lower = ta.lowest(len)
+
+    os := high[len] > upper ? 0 : low[len] < lower ? 1 : os[1]
+
+    top = os == 0 and os[1] != 0 ? high[len] : na
+
+    topx := os == 0 and os[1] != 0 ? n[len] : topx
+
+    btm = os == 1 and os[1] != 1 ? low[len] : na
+
+    btmx := os == 1 and os[1] != 1 ? n[len] : btmx
+
+    [top, topx, btm, btmx]
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+//Swings
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+[top, topx, btm, btmx] = swings(len)
+
+
+
+[stop, stopx, sbtm, sbtmx] = swings(shortLen)
+
+
+
+var os = 0
+
+
+
+var top_crossed = false
+
+
+
+var btm_crossed = false
+
+
+
+var float max = na
+
+
+
+var float min = na
+
+
+
+var int max_x1 = na
+
+
+var int min_x1 = na
+
+
+
+var float topy = na
+
+
+var float btmy = na
+
+
+
+var stop_crossed = false
+
+
+
+var sbtm_crossed = false    
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+//CHoCH Detection
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+
+if top
+
+
+
+    topy := top
+
+
+
+    top_crossed := false
+
+
+
+if btm
+
+
+
+    btmy := btm
+
+
+
+    btm_crossed := false
+
+
+
+//Test for CHoCH
+
+
+
+if close > topy and not top_crossed
+
+
+
+    os := 1
+
+
+
+    top_crossed := true
+
+
+
+if close < btmy and not btm_crossed
+
+
+
+    os := 0
+
+
+
+    btm_crossed := true
+
+
+
+//Display CHoCH
+
+
+
+if os != os[1]
+
+
+
+    max := high
+
+
+
+    min := low
+
+
+
+    max_x1 := n
+
+
+
+    min_x1 := n
+
+
+
+    stop_crossed := false
+
+
+
+    sbtm_crossed := false
+
+
+
+
+    if os == 1 and showChoch
+
+
+
+        line.new(topx, topy, n, topy, color = bullCss, style = line.style_dashed,force_overlay = true)
+
+
+
+        label.new(int(math.avg(n, topx)), topy, 'CHoCH', color = color(na), style = label.style_label_down, textcolor = bullCss, size = size.tiny,force_overlay = true)
+
+
+
+    else if showChoch
+
+
+
+        line.new(btmx, btmy, n, btmy, color = bearCss, style = line.style_dashed,force_overlay = true)
+
+
+
+        label.new(int(math.avg(n, btmx)), btmy, 'CHoCH', color = color(na), style = label.style_label_up, textcolor = bearCss, size = size.tiny,force_overlay = true)
+
+
+
+
+stopy = fixnan(stop)
+
+
+
+sbtmy = fixnan(sbtm)
+
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+
+
+//Bullish BOS
+
+
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+
+//IDM
+
+
+
+if low < sbtmy and not sbtm_crossed and os == 1 and sbtmy != btmy
+
+
+
+    if showIdm
+
+
+
+        line.new(sbtmx, sbtmy, n, sbtmy, color = color.gray, style = line.style_dotted,force_overlay = true)
+
+
+
+        label.new(int(math.avg(n, sbtmx)), sbtmy, 'IDM', color = color(na), style = label.style_label_up, textcolor = color.gray, size = size.tiny,force_overlay = true)
+
+
+
+    sbtm_crossed := true
+
+
+
+//BOS
+
+
+
+if close > max and sbtm_crossed and os == 1
+
+
+
+    if showBos
+
+
+
+        line.new(max_x1, max, n, max, color = bullCss,force_overlay = true)
+
+
+
+        label.new(int(math.avg(n, max_x1)), max, 'BOS', color = color(na), style = label.style_label_down, textcolor = bullCss, size = size.tiny,force_overlay = true)
+
+
+
+
+    sbtm_crossed := false
+
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+
+
+//Bearish BOS
+
+
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+
+//IDM
+
+
+
+if high > stopy and not stop_crossed and os == 0 and stopy != topy
+
+
+
+    if showIdm
+
+
+
+        line.new(stopx, stopy, n, stopy, color = color.gray, style = line.style_dotted,force_overlay = true)
+
+
+
+        label.new(int(math.avg(n, stopx)), stopy, 'IDM', color = color(na), style = label.style_label_down, textcolor = color.gray, size = size.tiny,force_overlay = true)
+
+
+
+
+    stop_crossed := true
+
+
+
+
+
+//BOS
+
+
+
+if close < min and stop_crossed and os == 0
+
+
+
+    if showBos
+
+
+
+        line.new(min_x1, min, n, min, color = bearCss,force_overlay = true)
+
+
+
+        label.new(int(math.avg(n, min_x1)), min, 'BOS', color = color(na), style = label.style_label_up, textcolor = bearCss, size = size.tiny,force_overlay = true)
+
+
+
+
+    stop_crossed := false
+
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+
+
+//Sweeps
+
+
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+
+if high > max and close < max and os == 1 and n - max_x1 > 1 and showSweeps
+
+
+
+    line.new(max_x1, max, n, max, color = color.gray, style = line.style_dotted,force_overlay = true)
+
+
+
+    label.new(int(math.avg(n, max_x1)), max, 'x', color = color(na), style = label.style_label_down, textcolor = color.gray,force_overlay = true)
+
+
+
+
+
+
+
+if low < min and close > min and os == 0 and n - min_x1 > 1 and showSweeps
+
+
+
+    line.new(min_x1, min, n, min, color = color.gray, style = line.style_dotted,force_overlay = true)
+
+
+
+    label.new(int(math.avg(n, min_x1)), min, 'x', color = color(na), style = label.style_label_up, textcolor = color.gray,force_overlay = true)
+
+
+
+//Trailing max/min
+
+
+
+max := math.max(high, max)
+
+
+
+min := math.min(low, min)
+
+
+
+
+
+if max > max[1]
+
+
+
+    max_x1 := n
+
+
+
+if min < min[1]
+
+
+
+    min_x1 := n
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+
+
+//Extensions
+
+
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+
+var ext_choch = line.new(na,na,na,na, style = line.style_dashed,force_overlay = true)
+
+
+
+var ext_bos   = line.new(na,na,na,na,force_overlay = true)
+
+
+
+var ext_idm   = line.new(na,na,na,na, style = line.style_dotted, color = idmCss,force_overlay = true)
+
+
+
+var ext_choch_lbl = label.new(na,na, 'CHoCH', color = color(na), size = size.tiny,force_overlay = true)
+
+
+
+var ext_bos_lbl   = label.new(na,na, 'BOS'  , color = color(na), size = size.tiny,force_overlay = true)
+
+
+
+var ext_idm_lbl   = label.new(na,na, 'IDM'  , color = color(na), size = size.tiny, textcolor = idmCss,force_overlay = true)
+
+
+
+
+if barstate.islast
+
+
+
+    if os == 1
+
+
+
+        ext_choch.set_xy1(btmx, btmy), ext_choch.set_xy2(n, btmy), ext_choch.set_color(bearCss)    
+
+
+
+        ext_choch_lbl.set_xy(n, btmy), ext_choch_lbl.set_style(label.style_label_up), ext_choch_lbl.set_textcolor(bearCss)
+
+
+
+
+        ext_bos.set_xy1(max_x1, max), ext_bos.set_xy2(n, max), ext_bos.set_color(bullCss)    
+
+
+
+        ext_bos_lbl.set_xy(n, max), ext_bos_lbl.set_style(label.style_label_down), ext_bos_lbl.set_textcolor(bullCss)
+
+
+
+
+        if not sbtm_crossed
+
+
+
+            ext_idm.set_xy1(sbtmx, sbtmy), ext_idm.set_xy2(n+15, sbtmy)   
+
+
+
+            ext_idm_lbl.set_xy(n+15, sbtmy), ext_idm_lbl.set_style(label.style_label_up)
+
+
+
+            ext_idm.set_color(idmCss), ext_idm_lbl.set_textcolor(idmCss)
+
+
+
+        else
+
+
+
+            ext_idm.set_color(na)
+
+
+
+            ext_idm_lbl.set_textcolor(na)
+
+
+
+    else
+
+
+
+        ext_choch.set_xy1(topx, topy), ext_choch.set_xy2(n, topy), ext_choch.set_color(bullCss)    
+
+
+
+        ext_choch_lbl.set_xy(n, topy), ext_choch_lbl.set_style(label.style_label_down), ext_choch_lbl.set_textcolor(bullCss)
+
+
+
+        ext_bos.set_xy1(min_x1, min), ext_bos.set_xy2(n, min), ext_bos.set_color(bearCss)    
+
+
+
+        ext_bos_lbl.set_xy(n, min), ext_bos_lbl.set_style(label.style_label_up), ext_bos_lbl.set_textcolor(bearCss)
+
+
+
+        if not stop_crossed
+
+
+
+            ext_idm.set_xy1(stopx, stopy), ext_idm.set_xy2(n+15, stopy)   
+
+
+
+            ext_idm_lbl.set_xy(n+15, stopy), ext_idm_lbl.set_style(label.style_label_down)
+
+
+
+            ext_idm.set_color(idmCss), ext_idm_lbl.set_textcolor(idmCss)
+
+
+
+        else
+
+
+
+            ext_idm.set_color(na)
+
+
+
+            ext_idm_lbl.set_textcolor(na)
+
+
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+
+
+//Plots
+
+
+
+//---------------------------------------------------------------------------------------------------------------------{
+
+
+
+plot(showCircles ? top : na, 'Swing High', color.new(bearCss, 50), 5, plot.style_circles, offset = -len,force_overlay = true)
+
+
+
+plot(showCircles ? btm : na, 'Swing Low', color.new(bullCss, 50), 5, plot.style_circles, offset = -len,force_overlay = true)
+
+
+
+
+//---------------------------------------------------------------------------------------------------------------------}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////FVG//////////////////////////////////////////////////////////////////
+
+//
+
+//------------------------------------------------------------------------------
+
+
+
+//Settings
+
+
+
+//-----------------------------------------------------------------------------{
+
+
+
+len12    = input.int(5, 'Swings', minval=1, group='Liquidity Sweeps')
+
+
+
+opt    = input.string('Only Wicks', 'options'
+
+
+
+       , options=['Only Wicks', 'Only Outbreaks & Retest', 'Wicks + Outbreaks & Retest'], group='Liquidity Sweeps')
+
+
+
+
+colBl  = input.color(#089981, 'BullÂ ', group='Liquidity Sweeps', inline='c1')
+
+
+
+colBr  = input.color(#f23645, 'Bear' , group='Liquidity Sweeps', inline='c2')
+
+
+
+colBl2 = input.color(#08998180,  ''  , group='Liquidity Sweeps', inline='c1')
+
+
+
+colBr2 = input.color(#f2364580,  ''  , group='Liquidity Sweeps', inline='c2')
+
+
+
+
+extend = input.bool(true, 'Extend', group='Sweep Area') 
+
+
+
+maxB   = input.int(300, 'Max bars', minval=1, maxval=5000, group='Sweep Area')
+
+
+
+colBl3 = input.color(#08998141, 'BullÂ ', group='Sweep Area')
+
+
+
+colBr3 = input.color(#f2364541, 'Bear' , group='Sweep Area')
+
+
+
+
+oW = opt == 'Only Wicks'
+
+
+
+oO = opt == 'Only Outbreaks & Retest'
+
+
+
+WO = opt == 'Wicks + Outbreaks & Retest'
+
+
+
+n12 = bar_index 
+
+
+
+
+//-----------------------------------------------------------------------------}      
+
+
+
+//-----------------------------------------------------------------------------}      
+
+
+
+//UDT's
+
+
+
+//-----------------------------------------------------------------------------{
+
+
+
+type piv
+
+
+
+    float prc // price
+
+
+
+    int   bix // bar_index
+
+
+
+    bool  brk // broken
+
+
+
+    bool  mit // mitigated
+
+
+
+    bool  tak // taken
+
+
+
+    bool  wic // wick
+
+
+
+    line  lin 
+
+
+
+
+
+
+
+type boxBr 
+
+
+
+    box  bx 
+
+
+
+    line ln
+
+
+
+    bool br
+
+
+
+    int  dr
+
+
+
+
+//-----------------------------------------------------------------------------}      
+
+
+
+//Variables
+
+
+
+//-----------------------------------------------------------------------------{
+
+
+
+var array< piv >aPivH  = array.new< piv >(1, piv.new  ())
+
+
+
+var array< piv >aPivL  = array.new< piv >(1, piv.new  ())
+
+
+
+var array<boxBr>aBoxBr = array.new<boxBr>(1, boxBr.new())
+
+
+
+//-----------------------------------------------------------------------------}      
+
+
+
+//Methods - functions
+
+
+
+//-----------------------------------------------------------------------------{
+
+
+
+method n(float piv) => bool out = not na(piv)
+
+
+
+method p(piv piv, float val) => float out = (100 / piv.prc * val) - 100
+
+
+
+
+method l(piv get, color c, string s='sd') => 
+
+
+
+    style = switch s 
+
+
+
+        'dt' => line.style_dotted
+
+
+
+        'ds' => line.style_dashed
+
+
+
+        =>      line.style_solid 
+
+
+
+    line.new(get.bix, get.prc, n12, get.prc, color=c, style = style,force_overlay = true)
+
+
+
+
+method br(piv get, color c3, color c, int d) =>
+
+
+
+    y1 = d == 1 ? high : get.prc
+
+
+
+    y2 = d == 1 ? get.prc : low
+
+
+
+    boxBr.new( 
+
+
+
+     box.new(n -1, y1, n +1, y2
+
+
+
+     , border_color
+
+
+
+     = color.new(
+
+
+
+       na, na   )
+
+
+
+     , bgcolor=c3,force_overlay = true)
+
+
+
+     , line.new(n12 , y1, n12, y2, color=c, width=3,force_overlay = true)
+
+
+
+     , false
+
+
+
+     , d)
+
+
+
+
+lnDot(y, c) => line.new(n12, y, n12+3, y, color=c, style=line.style_dotted,force_overlay = true)
+
+
+
+
+//-----------------------------------------------------------------------------}      
+
+
+
+//Execution
+
+
+
+//-----------------------------------------------------------------------------{
+
+
+
+ph = ta.pivothigh(len12, len12)
+
+
+
+pl = ta.pivotlow (len12, len12)
+
+
+
+if ph.n() 
+
+
+
+    aPivH.unshift(piv.new(ph, n12 -len12, false, false, false, false))
+
+
+
+
+if pl.n() 
+
+
+
+    aPivL.unshift(piv.new(pl, n12 -len12, false, false, false, false)) 
+
+
+
+
+for i = aPivH.size() -1 to 0
+
+
+
+    get = aPivH.get(i)
+
+
+
+    if not get.mit
+
+
+
+        if not get.brk
+
+
+
+            if close > get.prc 
+
+
+
+                if not oW
+
+
+
+                    get.brk := true
+
+
+
+                else 
+
+
+
+                    get.mit := true
+
+
+
+            if not oO and not get.wic 
+
+
+
+                if high > get.prc and close < get.prc                   
+
+
+
+                    aBoxBr.unshift(get.br(colBr3, colBr, 1))       
+
+
+
+                    get.l(colBr2, 'dt'), lnDot(low, colBr)
+
+
+
+                    get.wic := true  
+
+
+
+        else 
+
+
+
+            if close < get.prc 
+
+
+
+                get.mit := true
+
+
+
+            if not oW and low < get.prc and close > get.prc                    
+
+
+
+                aBoxBr.unshift(get.br(colBl3, colBl, -1))    
+
+
+
+                get.l(colBl2, 'ds'), lnDot(high, colBl)
+
+
+
+                get.tak := true 
+
+
+
+
+
+
+
+    if n12 - get.bix > 2000 or get.mit or get.tak 
+
+
+
+        aPivH.remove(i).lin.delete()
+
+
+
+
+
+
+
+for i = aPivL.size() -1 to 0
+
+
+
+    get = aPivL.get(i)
+
+
+
+    if not get.mit
+
+
+
+        if not get.brk
+
+
+
+            if close < get.prc 
+
+
+
+                if not oW
+
+
+
+                    get.brk := true
+
+
+
+                else 
+
+
+
+                    get.mit := true
+
+
+
+            if not oO and not get.wic 
+
+
+
+                if low < get.prc and close > get.prc                              
+
+
+
+                    aBoxBr.unshift(get.br(colBl3, colBl, -1))     
+
+
+
+                    get.l(colBl2, 'dt'), lnDot(high, colBl)
+
+
+
+                    get.wic := true 
+
+
+
+        else 
+
+
+
+            if close > get.prc 
+
+
+
+                get.mit := true
+
+
+
+            if not oW and high > get.prc and close < get.prc                     
+
+
+
+                aBoxBr.unshift(get.br(colBr3, colBr, 1))    
+
+
+
+                get.l(colBr2, 'ds'), lnDot(low, colBr)
+
+
+
+                get.tak := true  
+
+
+
+
+
+    if n12 - get.bix > 2000 or get.mit or get.tak 
+
+
+
+        aPivL.remove(i).lin.delete()
+
+
+
+if extend
+
+
+
+    for bx in aBoxBr 
+
+
+
+        if not bx.br and n12 - bx.bx.get_left() -1 <= maxB 
+
+
+
+            bx.bx.set_right(bar_index)
+
+
+
+            if bx.dr == -1 and close < bx.bx.get_bottom() 
+
+
+
+                bx.br := true 
+
+
+
+            if bx.dr ==  1 and close > bx.bx.get_top   () 
+
+
+
+                bx.br := true 
+
+
+
+//-----------------------------------------------------------------------------} 
+
+
+
+// Inputs
+
+
+
+src     = close
+
+length2  = input(title='Length', defval=200)
+
+factor  = input.float(title='Factor', defval=0.7, step=0.1)
+
+
+degree  = input.int(title='Degree', minval=1, maxval=5, defval=3, tooltip='1-5', group="DEGREE & TYPE")
+
+
+ma_type = input.string(title="Type", defval="EMA", options=["EMA", "RMA", "EVMA", "GAUS", "HULLT", "MCGD", "TSF"], group="DEGREE & TYPE")
+
+
+
+// MA Functions
+
+
+// EVMA [Elastic Volume Weighted Moving Average]
+
+
+f_evma(data, u1) =>
+
+
+    x = ta.sma(data, u1)
+
+
+
+    a = math.sum(volume, u1)
+
+
+
+    r = 0.0
+
+
+
+    r := na(r[1]) ? x : nz(r[1]) * (a - volume) / a + volume * data / a
+
+
+//
+
+// GAUS [Ehlers - Gaussian Filter]
+
+
+f_gaus(data, u1) =>
+
+
+
+    a = (1 - math.cos(2 * math.pi / u1)) / (math.sqrt(2) - 1)
+
+
+
+    b = -a + math.sqrt(math.pow(a, 2) + 2 * a)
+
+
+
+    r = 0.0
+
+
+
+    r := na(r[1]) ? data : math.pow(b, 2) * data + 2 * (1 - b) * nz(r[1]) - math.pow(1 - b, 2) * nz(r[2])
+
+
+//
+
+
+
+
+
+
+
+// HULLT [Triple Hull Moving Average]    
+
+
+
+f_hullt(data, u1) =>
+
+
+
+    a = u1 < 3 ? 1 : u1 / 2
+
+
+
+    b = u1 < 3 ? 1 : u1 / 3
+
+
+    r = ta.wma(ta.wma(data, b) * 3 - ta.wma(data, a) - ta.wma(data, u1), u1)
+
+
+//
+
+
+
+// MCGD [McGinley Dynamic Moving Average]
+
+
+
+
+f_mcgd(data, u1) =>
+
+
+
+    a = ta.ema(data, u1)
+
+
+
+    r = 0.0
+
+
+
+    r := na(r[1]) ? a : r[1] + (data - r[1]) / (u1 * math.pow(data / r[1], 4))
+
+
+
+
+//
+
+
+
+// TSF [Time Series Function]
+
+
+
+f_tsf(data, u1) => 
+
+
+
+      2 * ta.linreg(data, u1, 0) - ta.linreg(data, u1, 1)
+
+
+
+
+// MA Return
+
+
+f_ma(data, u1) => 
+
+
+
+      ma_type == "EMA"   ? ta.ema(data, u1)  :
+
+
+      ma_type == "EVMA"  ? f_evma(data, u1)  :
+
+
+
+      ma_type == "GAUS"  ? f_gaus(data, u1)  :
+
+
+
+      ma_type == "HULLT" ? f_hullt(data, u1) :
+
+
+      ma_type == "MCGD"  ? f_mcgd(data, u1)  :
+
+
+      ma_type == "RMA"   ? ta.rma(data, u1)  :      
+
+
+      ma_type == "TSF"   ? f_tsf(data, u1)   :
+
+
+
+      na
+
+
+
+//
+
+
+
+// Variables
+
+
+x = factor
+
+
+y = factor + 1
+
+
+z = f_ma(src, length2)
+
+
+n1 = f_ma(z, length2)
+
+
+// Degreed Tillson MA Functions
+
+
+
+
+d1(src, length2) =>
+
+
+    a0 = f_ma(n1, length2)
+
+
+    a1 = f_ma(a0, length2)
+
+
+
+    b0 = -1 * 1 * math.pow(x, 1) * math.pow(y, 0)
+
+
+    b1 = +1 * 1 * math.pow(x, 0) * math.pow(y, 1)
+
+
+
+    r = b0 * a1 + b1 * a0
+
+
+//
+
+
+d2(src, length2) =>
+
+
+    a0 = f_ma(n1, length2)
+
+
+
+    a1 = f_ma(a0, length2)
+
+
+
+    a2 = f_ma(a1, length2)
+
+
+
+    b0 = +1 * 1 * math.pow(x, 2) * math.pow(y, 0)
+
+
+    b1 = -1 * 2 * math.pow(x, 1) * math.pow(y, 1)
+
+
+    b2 = +1 * 1 * math.pow(x, 0) * math.pow(y, 2)
+
+
+    r = b0 * a2 + b1 * a1 + b2 * a0
+
+
+//
+
+
+
+
+d3(src, length2) =>
+
+
+
+    a0 = f_ma(n1, length2)
+
+
+
+    a1 = f_ma(a0, length2)
+
+
+
+    a2 = f_ma(a1, length2)
+
+
+
+    a3 = f_ma(a2, length2)
+
+
+
+    b0 = -1 * 1 * math.pow(x, 3) * math.pow(y, 0)
+
+
+
+    b1 = +1 * 3 * math.pow(x, 2) * math.pow(y, 1)
+
+
+
+    b2 = -1 * 3 * math.pow(x, 1) * math.pow(y, 2)
+
+
+    b3 = +1 * 1 * math.pow(x, 0) * math.pow(y, 3)
+
+
+    r = b0 * a3 + b1 * a2 + b2 * a1 + b3 * a0
+
+
+//
+
+
+
+d4(src, length2) =>
+
+    a0 = f_ma(n1, length2)
+
+
+    a1 = f_ma(a0, length2)
+
+
+    a2 = f_ma(a1, length2)
+
+
+
+    a3 = f_ma(a2, length2)
+
+
+
+    a4 = f_ma(a3, length2)
+
+
+    b0 = +1 * 1 * math.pow(x, 4) * math.pow(y, 0)
+
+
+    b1 = -1 * 4 * math.pow(x, 3) * math.pow(y, 1)
+
+
+    b2 = +1 * 6 * math.pow(x, 2) * math.pow(y, 2)
+
+
+
+    b3 = -1 * 4 * math.pow(x, 1) * math.pow(y, 3)
+
+
+
+    b4 = +1 * 1 * math.pow(x, 0) * math.pow(y, 4)
+
+
+    r = b0 * a4 + b1 * a3 + b2 * a2 + b3 * a1 + b4 * a0
+
+
+//
+
+
+
+
+
+d5(src, length2) =>
+
+
+
+
+
+
+
+    a0 = f_ma(n1, length2)
+
+
+
+
+
+
+
+    a1 = f_ma(a0, length2)
+
+
+
+
+
+
+
+    a2 = f_ma(a1, length2)
+
+
+
+
+
+
+
+    a3 = f_ma(a2, length2)
+
+
+
+
+
+
+
+    a4 = f_ma(a3, length2)
+
+
+
+
+
+
+
+    a5 = f_ma(a4, length2)
+
+
+
+
+
+
+
+    b0 = -1 * 1  * math.pow(x, 5) * math.pow(y, 0)
+
+
+
+
+
+
+
+    b1 = +1 * 5  * math.pow(x, 4) * math.pow(y, 1)
+
+
+
+
+
+
+
+    b2 = -1 * 10 * math.pow(x, 3) * math.pow(y, 2)
+
+
+
+
+
+
+
+    b3 = +1 * 10 * math.pow(x, 2) * math.pow(y, 3)
+
+
+
+
+
+
+
+    b4 = -1 * 5  * math.pow(x, 1) * math.pow(y, 4)
+
+
+
+
+
+
+
+    b5 = +1 * 1  * math.pow(x, 0) * math.pow(y, 5)
+
+
+
+
+
+
+
+    r = b0 * a5 + b1 * a4 + b2 * a3 + b3 * a2 + b4 * a1 + b5 * a0
+
+
+
+
+//
+
+
+
+// Out
+
+
+out = 
+
+
+
+  degree == 1  ? d1(src, length2) : 
+
+
+
+  degree == 2  ? d2(src, length2) : 
+
+
+
+
+  degree == 3  ? d3(src, length2) : 
+
+
+
+
+  degree == 4  ? d4(src, length2) : 
+
+
+
+
+  degree == 5  ? d5(src, length2) :  
+
+
+
+
+  na
+
+
+
+
+//
+
+Call_out(tf) => request.security(syminfo.tickerid, tf, out, lookahead = barmerge.lookahead_on)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Out3 = Call_out('3')
+
+
+
+
+
+
+
+Out15 = Call_out('15')
+
+
+
+
+
+
+
+Out5 = Call_out('5')
+
+
+
+
+
+
+
+Out1 = Call_out('1')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Print
+
+
+
+
+
+
+
+plot(Out3, color=#3081a5, title='Tillson MA 3M',force_overlay = true) 
+
+
+
+
+
+
+
+
+
+
+
+plot(Out15, color=#3081a5, title='Tillson MA 15M',force_overlay = true) 
+
+
+
+
+
+
+
+plot(Out5, color=#3081a5, title='Tillson MA 5M',force_overlay = true)
+
+
+
+
+
+
+
+plot(Out1, color=#3081a5, title='Tillson MA 1M',force_overlay = true)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Print
+
+
+
+
+
+
+
+//plot(out, color=#3081a5, title='Tillson MA')
+
+
+
+
+
+
+
+barcolor(out > out[1] ? #00bb00 : out < out[1] ? #bb0000 : #333333)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Bitti
+
+
+
+
+
+
+
+plotshape(barstate.isfirst, title="@ dg_factor", color=#13172200, editable=false,force_overlay = true)
+

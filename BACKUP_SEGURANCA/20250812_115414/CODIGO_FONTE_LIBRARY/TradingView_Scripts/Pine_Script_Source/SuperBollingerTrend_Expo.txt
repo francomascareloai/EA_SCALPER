@@ -1,0 +1,106 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © Zeiierman
+
+//@version=5
+indicator("SuperBollingerTrend (Expo)","",true,max_labels_count = 500)
+
+//~~ Inputs {
+int prd         = input.int(12,"Period",minval=1,inline="setting")
+float mult      = input.float(2.0,"Mult",minval=0.1,step=.1,inline="setting", tooltip = "Set the Bollinger Band period. \n\nSet the multiplier.")
+bool showZigZag = input.bool(true,"ZigZag",inline="zigzag")
+string signal   = input.string("Signal","",["Signal","Peak Distance"],inline="zigzag")
+string dev      = input.string("ZigZag","",["ZigZag","High/Low","Close"],inline="zigzag", tooltip = "Enable the ZigZag Bollinger Signals. \n\nSelect if you only want to display the signals or the Peak Signal Distance between each signal. \n\nThe Signal Distance can be calculated using the ZigZag, High/Low, or Close.")
+bool showTable  = input.bool(false,"Average/Median Distance",inline="", tooltip = "Enable the Table that displays the Average or Median ZigZag move.")
+bool showTP     = input.bool(false,"Take Profit",inline="tp")
+string Tp       = input.string("Median","",["Median","Average"],inline="tp", tooltip = "Enable the Take-Profit line. \n\nSelect if the TP should be based on the Average or Median move.")
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Types & Variables {
+//Types
+type ZigZag
+    int   [] x1
+    float [] y1
+    float [] diff
+type SuperBollingerTrend
+    float s
+    color c
+type Alerts
+    bool Long = false
+    bool Short = false
+    bool LongTp = false
+    bool ShortTp = false
+
+var zz  = ZigZag.new(array.new<int>(),array.new<float>(),array.new<float>())
+var sbt = SuperBollingerTrend.new(0.0,na)
+alerted = Alerts.new() 
+//Variables
+int b      = bar_index
+float bbup = ta.sma(high,prd)+ta.stdev(high,prd)*mult
+float bbdn = ta.sma(low,prd)-ta.stdev(low,prd)*mult
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Methods{
+//ZigZag
+method zigzag(ZigZag z,c,p,l)=>
+    y2 = dev=="ZigZag"?sbt.s:
+         dev=="High/Low"?p:
+         close
+    if z.x1.size()>0
+        x1 = z.x1.get(0)
+        y1 = z.y1.get(0)
+        z.diff.unshift(math.abs(y2-y1))
+        line.new(x1,y1,b,y2,color=color.new(color.gray,0),style=line.style_dashed)
+        style = signal=="Signal"?(l?label.style_triangleup:label.style_triangledown) : 
+                                 (l?label.style_label_up:label.style_label_down)
+        txt   = signal=="Signal"?na : str.tostring(y2-y1,format.mintick)+"p"
+        label.new(b,sbt.s,txt,color=c,size=size.small,style=style,textcolor=chart.bg_color)
+    z.x1.unshift(b)
+    z.y1.unshift(y2)
+//SuperBollingerTrend Calculation
+method SBT(SuperBollingerTrend s,cond,val,col,p,l)=>
+    s.s := na(bbdn) or na(bbup)?0.0 : close>sbt.s?math.max(sbt.s,bbdn) : close<sbt.s?math.min(sbt.s,bbup) : 0.0
+    if cond
+        s.s := val
+        s.c := col
+        if showZigZag
+            zz.zigzag(col,p,l)
+        alerted.Long  := l?true:false
+        alerted.Short := l?false:true
+//Run Methods
+sbt.SBT(ta.crossover(close,sbt.s),bbdn,color.lime,low,true)
+sbt.SBT(ta.crossunder(close,sbt.s),bbup,color.red,high,false)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Plot & Table {
+//Plot
+plot(sbt.s,"SuperBollingerTrend",sbt.c)
+
+//TP Line
+var tp  = line.new(na,na,na,na,color=color.lime)
+var ltp = label.new(na,na,"TP",color=color(na),style=label.style_label_left,textcolor=chart.fg_color,size=size.normal)
+dist    = Tp=="Median"?zz.diff.median():zz.diff.avg()
+if showTP and zz.y1.size()>0
+    pos  = close>sbt.s?true:false
+    x    = zz.x1.get(0)
+    y    = pos?zz.y1.get(0)+dist:zz.y1.get(0)-dist
+    tp.set_xy1(x,y)
+    tp.set_xy2(b+10,y)
+    ltp.set_xy(b+10,y)
+    alerted.LongTp  := pos?high>=y and high[1]<y:false
+    alerted.ShortTp := pos?false:low<=y and low[1]>y
+
+//Table
+var table tbl = na
+if barstate.islast and showZigZag and showTable
+    tbl := table.new(position.top_right, 1, 1, chart.bg_color,
+         frame_color=color.new(color.gray,50), frame_width=3, border_width=1)
+    tbl.cell(0,0,Tp=="Median"?"Median ZigZag Distance: "+str.tostring(dist,format.mintick)+"p":"Avg ZigZag Distance: "+str.tostring(dist,format.mintick)+"p",text_color=chart.fg_color)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}
+
+//~~ Alerts {
+alertcondition(alerted.Long,"Long Alert","Long Signal")
+alertcondition(alerted.Short,"Short Alert","Short Signal")
+alertcondition(alerted.LongTp,"Long TP Alert","Long TP")
+alertcondition(alerted.ShortTp,"Short TP Alert","Short TP")
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~}

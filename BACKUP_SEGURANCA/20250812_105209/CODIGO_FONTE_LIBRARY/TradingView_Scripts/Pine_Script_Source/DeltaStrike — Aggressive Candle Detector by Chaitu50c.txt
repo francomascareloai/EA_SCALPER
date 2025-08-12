@@ -1,0 +1,58 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © chaitu50c
+
+//@version=6
+indicator('DeltaStrike — Aggressive Candle Detector by Chaitu50c', overlay = true)
+
+// Inputs
+timeframe = input.timeframe(title = 'Timeframe', defval = '')
+stddevlookback = input.int(title = 'Lookback for Averages', defval = 150)
+thresholdMultiplier = input.float(3.5, 'Threshold Multiplier (StdDev)', minval = 0.1, step = 0.1)
+
+// Delta calculations
+uptop = request.security(syminfo.tickerid, timeframe, high - close)
+upbot = request.security(syminfo.tickerid, timeframe, open - low)
+dntop = request.security(syminfo.tickerid, timeframe, high - open)
+dnbot = request.security(syminfo.tickerid, timeframe, close - low)
+up_delta = upbot - uptop
+down_delta = dntop - dnbot
+
+// Volume-weighted delta for improved robustness
+volumeWeightedDelta = up_delta * volume - down_delta * volume
+delta = volumeWeightedDelta != 0 ? volumeWeightedDelta : up_delta != 0 ? up_delta : down_delta != 0 ? down_delta : 0
+
+// Averages
+avgDelta = ta.sma(math.abs(delta), stddevlookback)
+avgRange = ta.sma(high - low, stddevlookback)
+avgVolume = ta.sma(volume, stddevlookback)
+
+// Current candle values
+candleRange = high - low
+volumeRatio = avgVolume != 0 ? volume / avgVolume : 0
+deltaRatio = avgDelta != 0 ? math.abs(delta) / avgDelta : 0
+rangeRatio = avgRange != 0 ? candleRange / avgRange : 0
+
+// Aggressiveness Score (simple formula — best)
+AggressivenessScore = deltaRatio + rangeRatio + volumeRatio
+
+// Dynamic threshold
+avgScore = ta.sma(AggressivenessScore, stddevlookback)
+stddevScore = ta.stdev(AggressivenessScore, stddevlookback)
+dynamicThreshold = avgScore + thresholdMultiplier * stddevScore
+
+// Aggressiveness marker: diamond below bullish, above bearish
+plotshape(AggressivenessScore > dynamicThreshold and close > open, title = 'Aggressive Bullish', location = location.belowbar, color = color.green, style = shape.diamond, size = size.tiny)
+
+plotshape(AggressivenessScore > dynamicThreshold and close < open, title = 'Aggressive Bearish', location = location.abovebar, color = color.red, style = shape.diamond, size = size.tiny)
+
+// Enhanced Dashboard (Table) in top-right corner
+var table dashboard = table.new(position.top_right, 2, 4, border_width = 1, border_color = color.gray)
+if barstate.islast
+    table.cell(dashboard, 0, 0, 'Aggressiveness Score', bgcolor = color.new(color.gray, 80), text_color = color.white)
+    table.cell(dashboard, 1, 0, str.tostring(AggressivenessScore, '#.##'), bgcolor = AggressivenessScore > dynamicThreshold ? color.new(color.red, 80) : color.new(color.green, 80), text_color = color.white)
+    table.cell(dashboard, 0, 1, 'Delta Ratio', bgcolor = color.new(color.gray, 80), text_color = color.white)
+    table.cell(dashboard, 1, 1, str.tostring(deltaRatio, '#.##'), bgcolor = color.new(color.gray, 80), text_color = color.white)
+    table.cell(dashboard, 0, 2, 'Range Ratio', bgcolor = color.new(color.gray, 80), text_color = color.white)
+    table.cell(dashboard, 1, 2, str.tostring(rangeRatio, '#.##'), bgcolor = color.new(color.gray, 80), text_color = color.white)
+    table.cell(dashboard, 0, 3, 'Volume Ratio', bgcolor = color.new(color.gray, 80), text_color = color.white)
+    table.cell(dashboard, 1, 3, str.tostring(volumeRatio, '#.##'), bgcolor = color.new(color.gray, 80), text_color = color.white)

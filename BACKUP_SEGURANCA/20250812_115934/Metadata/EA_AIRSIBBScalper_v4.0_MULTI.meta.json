@@ -1,0 +1,53 @@
+{
+  "id": "EA_AIRSIBBScalper_v4.0_MULTI",
+  "nome_original": "AIRSIBBScalper_v4.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Advanced_Scalping",
+  "mercado": "MULTI",
+  "timeframe": "M1",
+  "versao": "4.0",
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "caminho": "CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/Advanced_Scalping/EA_AIRSIBBScalper_v4.0_MULTI.mq5",
+  "descricao": "Expert Advisor de scalping avançado versão 4.0 com sistema completo de proteção e filtros",
+  "funcoes_principais": [
+    "OnInit",
+    "OnTick",
+    "OnDeinit"
+  ],
+  "parametros_expostos": [
+    "Lots",
+    "TakeProfit",
+    "StopLoss",
+    "RSI_Period",
+    "BB_Period",
+    "BB_Deviation",
+    "Magic",
+    "MaxPositions",
+    "RiskManagement",
+    "SessionFilter"
+  ],
+  "ftmo_score": 8,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Sistema de grid ainda presente"
+  ],
+  "qualidade_codigo": 9,
+  "ajustes_ftmo_sugeridos": [
+    "Remover completamente o sistema de grid",
+    "Implementar proteção de perda diária de 5%",
+    "Garantir risco máximo de 1% por trade"
+  ],
+  "tags": [
+    "#EA",
+    "#Advanced_Scalping",
+    "#RSI",
+    "#BollingerBands",
+    "#RiskManagement",
+    "#SessionFilter",
+    "#M1",
+    "#MULTI",
+    "#Nao_FTMO"
+  ]
+}

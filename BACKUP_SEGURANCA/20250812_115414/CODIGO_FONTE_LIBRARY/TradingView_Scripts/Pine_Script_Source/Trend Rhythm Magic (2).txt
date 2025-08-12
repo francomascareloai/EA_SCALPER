@@ -1,0 +1,67 @@
+﻿//@version=5
+indicator("!<*Магия Трендового Ритма*>!",shorttitle = "*Trend Rhythm Magic*", overlay=true)
+
+// === INPUTS ===
+res    = input.timeframe(title='TIMEFRAME', defval='', group ="NON REPAINT")
+useRes = input(defval=true, title='Use Alternate Signals')
+intRes = input(defval=10, title='Multiplier for Alernate Signals')
+stratRes = timeframe.ismonthly ? str.tostring(timeframe.multiplier * intRes, '###M') : timeframe.isweekly ? str.tostring(timeframe.multiplier * intRes, '###W') : timeframe.isdaily ? str.tostring(timeframe.multiplier * intRes, '###D') : timeframe.isintraday ? str.tostring(timeframe.multiplier * intRes, '####') : '60'
+basisType = input.string(defval='HullMA', title='MA Type: ', options=['TEMA', 'HullMA', 'SMMA'])
+basisLen = input.int(defval=2, title='MA Period', minval=1)
+delayOffset = input.int(defval=0, title='Delay Open/Close MA (Forces Non-Repainting)', minval=0, step=1)
+
+// === BASE FUNCTIONS ===
+variant(type, src, len) =>
+    v1 = ta.sma(src, len)
+    v2 = ta.ema(src, len)
+    v3 = 2 * v2 - ta.ema(v2, len)
+    v4 = 3 * (v2 - ta.ema(v2, len)) + ta.ema(ta.ema(v2, len), len)
+    v5 = ta.wma(src, len)
+    v6 = ta.vwma(src, len)
+    v7 = 0.0
+    sma_1 = ta.sma(src, len)
+    v7 := na(v7[1]) ? sma_1 : (v7[1] * (len - 1) + src) / len
+    v8 = ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))
+    a1 = math.exp(-1.414 * 3.14159 / len)
+    b1 = 2 * a1 * math.cos(1.414 * 3.14159 / len)
+    c2 = b1
+    c3 = -a1 * a1
+    c1 = 1 - c2 - c3
+    v12 = 0.0
+    v12 := c1 * (src + nz(src[1])) / 2 + c2 * nz(v12[1]) + c3 * nz(v12[2])
+    type == 'EMA' ? v2 : type == 'DEMA' ? v3 : type == 'TEMA' ? v4 : type == 'WMA' ? v5 : type == 'VWMA' ? v6 : type == 'SMMA' ? v7 : type == 'HullMA' ? v8 : type == 'LSMA' ? v12 : v1
+
+f_nrpSecurity(_exp) =>
+    request.security(syminfo.tickerid, stratRes, _exp[barstate.isrealtime ? 1 : 0])[barstate.isrealtime ? 0 : 1]
+
+// === SERIES SETUP ===
+closeSeries = variant(basisType, close[delayOffset], basisLen)
+openSeries = variant(basisType, open[delayOffset], basisLen)
+
+closeSeriesAlt = f_nrpSecurity(closeSeries)
+openSeriesAlt = f_nrpSecurity(openSeries)
+
+trendColour = closeSeriesAlt > openSeriesAlt ? #008000FF : #8B0000FF
+
+// === PLOTTING ===
+plot(closeSeriesAlt, title='Close Series', color=trendColour, linewidth=2, style=plot.style_line)
+plot(openSeriesAlt, title='Open Series', color=trendColour, linewidth=2, style=plot.style_line)
+plot((openSeriesAlt + closeSeriesAlt) / 2, title='Average Series', color=trendColour, linewidth=2, style=plot.style_line)
+
+longCond = ta.crossover(closeSeriesAlt, openSeriesAlt)
+shortCond = ta.crossunder(closeSeriesAlt, openSeriesAlt)
+
+bgcolor(longCond ? #0080001a : na)
+bgcolor(shortCond ? #8b00001a : na)
+
+// === ALERTS (Optional) ===
+alertcondition(longCond, title='Long Entry', message='Long Entry')
+alertcondition(shortCond, title='Short Entry', message='Short Entry')
+
+// === SIGNALS ===
+plotshape(series=longCond, title="Long Signal", color=#01ff01, style=shape.triangleup, size=size.small, location=location.belowbar)
+plotshape(series=shortCond, title="Short Signal", color=#fa0101, style=shape.triangledown, size=size.small, location=location.abovebar)
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, 'DM', text_size=size.normal, text_color=#00897b)   

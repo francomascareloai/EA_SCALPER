@@ -1,0 +1,44 @@
+{
+  "session_info": {
+    "start_time": "2025-08-12T11:40:55.466172",
+    "end_time": "2025-08-12T11:41:06.473791",
+    "duration": 11.007625
+  },
+  "final_metrics": {
+    "timestamp": "2025-08-12 11:41:04.981395",
+    "files_processed": 20,
+    "files_successful": 17,
+    "files_failed": 3,
+    "processing_rate": 2.1018985714131073,
+    "success_rate": 85.0,
+    "memory_usage": 78,
+    "cpu_usage": 53.5,
+    "current_file": "EA_Example_20.mq4",
+    "errors_last_minute": 0
+  },
+  "performance_summary": {
+    "avg_processing_rate": 22.209054481522184,
+    "avg_success_rate": 88.68655804549768,
+    "max_processing_rate": 399.2015968063873,
+    "min_processing_rate": 2.1018985714131073,
+    "total_processed": 20,
+    "total_successful": 17,
+    "total_failed": 3
+  },
+  "all_alerts": [],
+  "trend_analysis": {
+    "trend": "overall_trend",
+    "processing_rate": {
+      "trend": "declining",
+      "recent_avg": 2.140194521982957,
+      "older_avg": 42.27791444106141,
+      "change_percent": -94.93779541806266
+    },
+    "success_rate": {
+      "trend": "declining",
+      "recent_avg": 83.82946529734456,
+      "older_avg": 93.5436507936508,
+      "change_percent": -10.384655092984232
+    }
+  }
+}

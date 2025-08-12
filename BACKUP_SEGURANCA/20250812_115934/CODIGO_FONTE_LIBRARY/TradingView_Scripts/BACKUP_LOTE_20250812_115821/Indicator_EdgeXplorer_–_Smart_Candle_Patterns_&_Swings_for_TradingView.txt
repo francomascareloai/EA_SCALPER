@@ -1,0 +1,122 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator("EdgeXplorer - Smart Candle Patterns + Swings", overlay=true, max_labels_count=500)
+
+// === INPUTS ===
+length = input.int(21, "Pivot Length")
+swingHighColor = input.color(color.red, "Swing High Label", group="Style")
+swingLowColor = input.color(color.green, "Swing Low Label", group="Style")
+
+// === DESCRIPTIONS ===
+hammerDesc = "Hammer: Small body with long lower wick, shows strong buying after a downtrend."
+invHammerDesc = "Inverted Hammer: Long upper wick, weak bearish push followed by strong buying."
+bullEngulfDesc = "Bullish Engulfing: Green candle completely engulfs red one. Bullish sign."
+hangingDesc = "Hanging Man: Appears after an uptrend with long lower wick, often bearish."
+shootingDesc = "Shooting Star: Long upper wick after uptrend, indicating selling pressure."
+bearEngulfDesc = "Bearish Engulfing: Red candle engulfs green one. Signals bearish pressure."
+dojiDesc = "Doji: Candle with nearly equal open and close, signals market indecision."
+morningStarDesc = "Morning Star: Bullish reversal with three candles: down, indecision, and strong up."
+eveningStarDesc = "Evening Star: Bearish reversal with up candle, indecision, and strong down."
+spinningTopDesc = "Spinning Top: Small body, long wicks both sides, shows indecision."
+marubozuBullDesc = "Bullish Marubozu: Strong green candle with no wicks, full conviction."
+marubozuBearDesc = "Bearish Marubozu: Strong red candle with no wicks, full bearish pressure."
+threeWhiteSoldiersDesc = "Three White Soldiers: Three long green candles in a row, bullish trend signal."
+threeBlackCrowsDesc = "Three Black Crows: Three long red candles in a row, bearish trend signal."
+
+// === PRICE CALCULATIONS ===
+o = open[length]
+c = close[length]
+h = high[length]
+l = low[length]
+body = math.abs(c - o)
+ph = ta.pivothigh(high, length, length)
+pl = ta.pivotlow(low, length, length)
+
+var float prevHigh = na
+var float prevLow = na
+
+// === PATTERN CONDITIONS ===
+hammerMatch = pl and (math.min(o, c) - l > body) and (h - math.max(o, c) < body)
+invHammerMatch = pl and (h - math.max(o, c) > body) and (math.min(o, c) - l < body)
+bullEngulfMatch = c > o and c[1] < o[1] and c > o[1] and o < c[1]
+hangingMatch = ph and (math.min(c, o) - l > body) and (h - math.max(o, c) < body)
+shootingMatch = ph and (h - math.max(o, c) > body) and (math.min(c, o) - l < body)
+bearEngulfMatch = c < o and c[1] > o[1] and c < o[1] and o > c[1]
+dojiMatch = math.abs(c - o) <= ((h - l) * 0.1)
+morningStarMatch = c[2] < o[2] and dojiMatch[1] and c > (h[1] + l[1]) / 2
+eveningStarMatch = c[2] > o[2] and dojiMatch[1] and c < (h[1] + l[1]) / 2
+spinningTopMatch = body < ((h - l) * 0.3)
+marubozuBullMatch = c > o and h == c and l == o
+marubozuBearMatch = o > c and h == o and l == c
+threeWhiteSoldiersMatch = c > o and c[1] > o[1] and c[2] > o[2]
+threeBlackCrowsMatch = c < o and c[1] < o[1] and c[2] < o[2]
+
+// === PATTERN NAME + DESCRIPTION ASSIGNMENT ===
+patternTitle = hammerMatch ? "Hammer" :
+     invHammerMatch ? "Inverted Hammer" :
+     bullEngulfMatch ? "Bullish Engulfing" :
+     hangingMatch ? "Hanging Man" :
+     shootingMatch ? "Shooting Star" :
+     bearEngulfMatch ? "Bearish Engulfing" :
+     dojiMatch ? "Doji" :
+     morningStarMatch ? "Morning Star" :
+     eveningStarMatch ? "Evening Star" :
+     spinningTopMatch ? "Spinning Top" :
+     marubozuBullMatch ? "Bullish Marubozu" :
+     marubozuBearMatch ? "Bearish Marubozu" :
+     threeWhiteSoldiersMatch ? "Three White Soldiers" :
+     threeBlackCrowsMatch ? "Three Black Crows" : na
+
+patternTooltip = hammerMatch ? hammerDesc :
+     invHammerMatch ? invHammerDesc :
+     bullEngulfMatch ? bullEngulfDesc :
+     hangingMatch ? hangingDesc :
+     shootingMatch ? shootingDesc :
+     bearEngulfMatch ? bearEngulfDesc :
+     dojiMatch ? dojiDesc :
+     morningStarMatch ? morningStarDesc :
+     eveningStarMatch ? eveningStarDesc :
+     spinningTopMatch ? spinningTopDesc :
+     marubozuBullMatch ? marubozuBullDesc :
+     marubozuBearMatch ? marubozuBearDesc :
+     threeWhiteSoldiersMatch ? threeWhiteSoldiersDesc :
+     threeBlackCrowsMatch ? threeBlackCrowsDesc : ""
+
+
+
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+
+
+// === LABELING ===
+n = bar_index
+
+if ph
+    hhLabel = ph > prevHigh ? "HH" : "LH"
+    label.new(n[length], ph,
+     text=hhLabel + "\n" + (na(patternTitle) ? "None" : patternTitle),
+     style=label.style_label_down,
+     textcolor=color.white,
+     color=swingHighColor,
+     tooltip=patternTooltip)
+    prevHigh := ph
+
+else if pl
+    llLabel = pl < prevLow ? "LL" : "HL"
+    label.new(n[length], pl,
+     text=llLabel + "\n" + (na(patternTitle) ? "None" : patternTitle),
+     style=label.style_label_up,
+     textcolor=color.white,
+     color=swingLowColor,
+     tooltip=patternTooltip)
+    prevLow := pl
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

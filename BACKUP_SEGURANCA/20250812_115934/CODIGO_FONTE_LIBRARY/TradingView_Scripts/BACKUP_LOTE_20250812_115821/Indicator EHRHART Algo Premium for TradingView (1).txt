@@ -1,0 +1,445 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join us https://t.me/simpleforextools
+
+//@version=5
+
+indicator('EHRHART Algo Premium 💎 (V.2.2)', overlay=true)
+
+// Inputs EMA
+len1 = input.int(9, title = "Main Flow EMA", group = "CANDLES COLORS 🌈")
+src1 = close
+out1 = ta.ema(src1, len1)
+
+len2 = input.int(21, title = "")
+src2 = close
+out2 = ta.ema(src2, len2)
+
+// Sensitivity inputs for violet candles
+sensitivity_violet = input.float(0.3, title=" \n Sensitivity Violet", step=0.01)
+sensitivity_rose = input.float(0.1, title="Sensitivity Rose", step=0.01)
+
+// Calculate the difference between EMAs for long and short signals
+ema_diff_long_short = out1 - out2
+
+// Define the conditions for long and short signals
+long_signal = ema_diff_long_short > 0
+short_signal = ema_diff_long_short < 0
+
+// Calculate the difference between the two violet EMAs
+ema_diff_violet = out1 - out2
+
+// Define the conditions for the EMAs to be close based on sensitivities
+emas_close_violet1 = ema_diff_violet >= -sensitivity_violet * ta.atr(14) and ema_diff_violet <= sensitivity_violet * ta.atr(14)
+emas_close_violet2 = ema_diff_violet >= -sensitivity_rose * ta.atr(14) and ema_diff_violet <= sensitivity_rose * ta.atr(14)
+
+// Imputs EMA Trend
+
+len3 = input.int(20, minval=1, title='Trend EMA', group = "Trend 📊")
+src3 = close
+out3 = ta.ema(src3, len3)
+
+len4 = input.int(50, minval=1, title='')
+src4 = close
+out4 = ta.ema(src4, len4)
+
+// Show Trend Checkbox
+show_trend = input.bool(true, "Show Trend")
+
+// Use plotcandle to color bars based on the conditions
+plotcandle(open, high, low, close, color=emas_close_violet1 ? color.new(#7E57C2, 0) : (long_signal ? color.new(#00FF1A, 0) : (short_signal ? color.new(#FF0000,00) : na)), wickcolor=emas_close_violet1 ? color.new(#7E57C2, 00) : (long_signal ? color.new(#00FF1A, 00) : (short_signal ? color.new(#FF0000, 00) : na)), bordercolor=emas_close_violet1 ? color.new(#7E57C2, 00) : (long_signal ? color.new(#00FF1A, 00) : (short_signal ? color.new(#FF0000, 0) : na)), editable = true)
+
+// Use plotcandle to color bars based on the conditions with different sensitivity
+plotcandle(open, high, low, close, color=emas_close_violet2 ? color.new(#AB47BC, 0) : (long_signal ? color.new(#00FF1A,100) : (short_signal ? color.new(#FF0000, 100) : na)), wickcolor=emas_close_violet2 ? color.new(#AB47BC, 0) : (long_signal ? color.new(#00FF1A,100) : (short_signal ? color.new(#FF0000, 100) : na)), bordercolor=emas_close_violet2 ? color.new(#AB47BC, 0) : (long_signal ? color.new(#00FF1A, 100) : (short_signal ? color.new(#FF0000,100) : na)), editable = true)
+
+// Entrée pour afficher ou masquer les bougies bearish
+showBearishCandles = input.bool(true, "Show Bearish Candle", group = "BEARISH CANDLE 🐻")
+
+// Color bearish candles body in red or hide them based on user input
+bearishCandleColor = showBearishCandles ? (close > open ? na : #131722) : na
+plotcandle(open, high, low, close, color=bearishCandleColor, wickcolor=color.rgb(54, 58, 69, 100), bordercolor=color.rgb(54, 58, 69, 100), editable=true)
+
+
+// Define the conditions for blue or red trend based on show_trend input
+ema1_color_trend = show_trend ? out3 > out4 ? color.new(#2962FF, 100) : color.new(#F23645, 100) : na
+ema2_color_trend = show_trend ? out3 > out4 ? color.new(#2962FF, 0) : color.new(#F23645, 0) : na
+
+ema1plot = plot(out3, color=show_trend ? ema1_color_trend : na, style=plot.style_line, linewidth=1, title='EMA-1', editable=true)
+ema2plot = plot(out4, color=show_trend ? ema2_color_trend : na, style=plot.style_line, linewidth=1, title='EMA-2', editable=true)
+
+// Define the fill color based on the condition of show_trend input
+fill_color = show_trend ? out3 > out4 ? #2962FF : #F23645 : na
+
+// Fill between EMAs when they cross
+fill(ema1plot, ema2plot, color=fill_color, transp=85, editable=true)
+
+// RSI Settings
+rsi_len = 14
+rsi_overbought = 75
+rsi_oversold = 25
+
+// RSI Calculation
+rsi = ta.rsi(close, rsi_len)
+
+// Detection of the first occurrence of overbought (RSI > 75)
+first_overbought = ta.crossover(rsi, rsi_overbought)
+
+// Detection of the first occurrence of oversold (RSI < 25)
+first_oversold = ta.crossunder(rsi, rsi_oversold)
+
+// Show Triangles Checkbox
+show_triangles = input.bool(true, "Show RSI Print", group = "RSI 📊")
+
+// Showing shapes conditionally based on checkbox value
+plotshape(show_triangles and first_overbought, style=shape.triangledown, color=#FF0000, size=size.tiny, location=location.abovebar, title="RSI Overbought", editable = false)
+plotshape(show_triangles and first_oversold, style=shape.triangleup, color=#00FF1A, size=size.tiny, location=location.belowbar, title="RSI Oversold", editable = false)
+
+//
+toggleBreaks = true
+leftBars = 50
+rightBars = 50
+volumeThresh = 20
+
+// Show support and resistance
+show_support = input.bool(true, "📈 Show Support", group = "Support & Resistance 📊")
+show_resistance = input.bool(true, "📉 Show Resistance")
+
+// Calcule resistance and support
+highUsePivot = fixnan(ta.pivothigh(leftBars, rightBars)[1])
+lowUsePivot = fixnan(ta.pivotlow(leftBars, rightBars)[1])
+
+// Plot resistance
+r1 = plot(show_resistance ? highUsePivot : na, color=ta.change(highUsePivot) ? na : color.green, linewidth=1, offset=-(rightBars + 1), title='Resistance', editable=true)
+
+// Plot support
+s1 = plot(show_support ? lowUsePivot : na, color=ta.change(lowUsePivot) ? na : color.red, linewidth=1, offset=-(rightBars + 1), title='Support', editable=true)
+
+//Volume %
+short = ta.ema(volume, 5)
+long = ta.ema(volume, 10)
+osc = 100 * (short - long) / long
+
+// Inputs Zero Lag EMA
+
+length0 = 144
+highlightMovements = true
+src0 = close
+
+lag = math.floor((length0 - 1) / 2)
+
+zlema = ta.ema(src0 + src0 - src0[lag], length0)
+
+// Show Zero Lag EMA Checkbox
+show_zlema = input.bool(true, "Show Zero Lag EMA", group = "Zero Lag EMA 0️⃣")
+
+zlemaColor = show_zlema ? (highlightMovements ? zlema > zlema[1] ? #00FF1A : #FF0000 : #6d1e7f) : na
+
+// Plot Zero Lag EMA
+plot(zlema, color=zlemaColor, title="Zero Lag EMA", linewidth=2, editable = true)
+
+// Input variables for each table cell
+cell_00_text = "EHRHART Algo Dashboard"
+cell_01_text = "🔎 Stock :"
+cell_02_text = "📖 Order Book"
+cell_03_text = "Price Enter"
+cell_04_text = "Stop Lost"
+cell_05_text = "Take Profit "
+
+
+cell_10_text = "0"
+cell_11_text = input.string("-",title="🔎 Stock", group = "EHRHART Algo Dashboard")
+cell_12_text = input.string("0", title="Price Enter")
+cell_13_text = input.string("0", title="Stop Lost")
+cell_14_text = input.string("0", title="Take Profit")
+cell_15_text = "0"
+
+
+cell_20_text = "0"
+cell_21_text = "🏁 TRADE"
+cell_22_text = "0"
+cell_23_text = "0"
+cell_24_text = "0"
+cell_25_text = "0"
+
+cell_27_text = "0"
+cell_28_text = input.string("-", title="  🏁 TRADE", options = ["BUY", "SELL", "-"])
+cell_29_text = "0"
+cell_30_text = "0"
+cell_31_text = "0"
+cell_32_text = "0"
+
+// Added checkbox to show/hide table
+var show_table = input.bool(false, "Show Dashboard Table")
+
+// Input variable for column separation color
+var tbl = table.new(position.bottom_right, 4, 7, frame_color=#000000, frame_width=1, border_width=0)
+
+// Draw the table if enabled
+if show_table
+    // Add all cells in the first row
+    table.cell(tbl, 0, 0, cell_00_text)
+    table.cell(tbl, 0, 1, cell_01_text)
+    table.cell(tbl, 0, 2, cell_02_text)
+    table.cell(tbl, 0, 3, cell_03_text)
+    table.cell(tbl, 0, 4, cell_04_text)
+    table.cell(tbl, 0, 5, cell_05_text)
+
+    // Merge cells horizontally
+    table.merge_cells(tbl, 0, 0, 3, 0)
+    table.merge_cells(tbl, 1, 3,3,3)
+    table.merge_cells(tbl, 1, 4,3,4)
+    table.merge_cells(tbl, 1,5,3,5)
+    table.merge_cells(tbl, 0, 2,3,2)
+
+    // Add the cells of the second row
+    table.cell(tbl, 1, 0, cell_10_text)
+    table.cell(tbl, 1, 1, cell_11_text)
+    table.cell(tbl, 1, 2, cell_12_text)
+    table.cell(tbl, 1, 3, cell_13_text)
+    table.cell(tbl, 1, 4, cell_14_text)
+    table.cell(tbl, 1, 5, cell_15_text)
+
+    // Add the cells of the third row
+    table.cell(tbl, 2, 0, cell_20_text)
+    table.cell(tbl, 2, 1, cell_21_text)
+    table.cell(tbl, 2, 2, cell_22_text)
+    table.cell(tbl, 2, 3, cell_23_text)
+    table.cell(tbl, 2, 4, cell_24_text)
+    table.cell(tbl, 2, 5, cell_25_text)
+
+    // Add the cells of the third row
+    table.cell(tbl, 3, 0, cell_27_text)
+    table.cell(tbl, 3, 1, cell_28_text)
+    table.cell(tbl, 3, 2, cell_29_text)
+    table.cell(tbl, 3, 3, cell_30_text)
+    table.cell(tbl, 3, 4, cell_31_text)
+    table.cell(tbl, 3, 5, cell_32_text)
+// Draw the table if enabled
+if show_table
+    table.cell(tbl, 0, 0, cell_00_text, bgcolor = #2A2E39, text_halign = text.align_left, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+     
+    table.cell(tbl, 0, 1, cell_01_text, bgcolor = #191D26, text_halign = text.align_left, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 1, 1, cell_11_text, bgcolor = #191D26,   text_halign = text.align_center, bgcolor = #feffff, text_color = #9598A1, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 2, 1, cell_21_text, bgcolor = #191D26,   text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+// Set text color based on cell content "🏁 TRADE"
+    if cell_28_text == "BUY"
+        table.cell(tbl, 3, 1, cell_28_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.green, width =2, height = 2.5, text_size = size.normal)
+    else if cell_28_text == "SELL"
+        table.cell(tbl, 3, 1, cell_28_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.red, width =2, height = 2.5, text_size = size.normal)
+    else
+        table.cell(tbl, 3, 1, cell_28_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width =2, height = 2.5, text_size = size.normal)
+     
+    table.cell(tbl, 0, 2, cell_02_text, bgcolor = #2A2E39, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff ,width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 0, 3, cell_03_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 0, 4, cell_04_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 0, 5, cell_05_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 1, 3, cell_12_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.orange, width = 7, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 1, 4, cell_13_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.red, width = 7, height = 2.5, text_size = size.normal)
+    table.cell(tbl, 1, 5, cell_14_text, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.green, width = 7, height = 2.5, text_size = size.normal)
+
+// Input variables for each table cell
+cell_00_text1 = "EHRHART Algo Second Dashboard"
+cell_01_text1 = "🔎 Stock :"
+cell_02_text1 = "📖 Order Book"
+cell_03_text1 = "Price Enter"
+cell_04_text1 = "Stop Lost"
+cell_05_text1 = "Take Profit "
+
+
+cell_10_text1 = "0"
+cell_11_text1 = input.string("-",title="🔎 Stock", group = "EHRHART Algo Second Dashboard")
+cell_12_text1 = input.string("0", title="Price Enter")
+cell_13_text1 = input.string("0", title="Stop Lost")
+cell_14_text1 = input.string("0", title="Take Profit")
+cell_15_text1 = "0"
+
+
+cell_20_text1 = "0"
+cell_21_text1 = "🏁 TRADE"
+cell_22_text1 = "0"
+cell_23_text1 = "0"
+cell_24_text1 = "0"
+cell_25_text1 = "0"
+
+cell_27_text1 = "0"
+cell_28_text1 = input.string("-", title="  🏁 TRADE", options = ["BUY", "SELL", "-"])
+cell_29_text1 = "0"
+cell_30_text1 = "0"
+cell_31_text1 = "0"
+cell_32_text1 = "0"
+
+// Added checkbox to show/hide table
+var show_table1 = input.bool(false, "Show Dashboard Table")
+
+// Input variable for column separation color
+var tbl1 = table.new(position.bottom_center, 4, 7, frame_color=#000000, frame_width=1, border_width=0)
+
+// Draw the table if enabled
+if show_table1
+    // Add all cells in the first row
+    table.cell(tbl1, 0, 0, cell_00_text1)
+    table.cell(tbl1, 0, 1, cell_01_text1)
+    table.cell(tbl1, 0, 2, cell_02_text1)
+    table.cell(tbl1, 0, 3, cell_03_text1)
+    table.cell(tbl1, 0, 4, cell_04_text1)
+    table.cell(tbl1, 0, 5, cell_05_text1)
+
+    // Merge cells horizontally
+    table.merge_cells(tbl1, 0, 0, 3, 0)
+    table.merge_cells(tbl1, 1, 3,3,3)
+    table.merge_cells(tbl1, 1, 4,3,4)
+    table.merge_cells(tbl1, 1,5,3,5)
+    table.merge_cells(tbl1, 0, 2,3,2)
+
+    // Add the cells of the second row
+    table.cell(tbl1, 1, 0, cell_10_text1)
+    table.cell(tbl1, 1, 1, cell_11_text1)
+    table.cell(tbl1, 1, 2, cell_12_text1)
+    table.cell(tbl1, 1, 3, cell_13_text1)
+    table.cell(tbl1, 1, 4, cell_14_text1)
+    table.cell(tbl1, 1, 5, cell_15_text1)
+
+    // Add the cells of the third row
+    table.cell(tbl1, 2, 0, cell_20_text1)
+    table.cell(tbl1, 2, 1, cell_21_text1)
+    table.cell(tbl1, 2, 2, cell_22_text1)
+    table.cell(tbl1, 2, 3, cell_23_text1)
+    table.cell(tbl1, 2, 4, cell_24_text1)
+    table.cell(tbl1, 2, 5, cell_25_text1)
+
+    // Add the cells of the third row
+    table.cell(tbl1, 3, 0, cell_27_text1)
+    table.cell(tbl1, 3, 1, cell_28_text1)
+    table.cell(tbl1, 3, 2, cell_29_text1)
+    table.cell(tbl1, 3, 3, cell_30_text1)
+    table.cell(tbl1, 3, 4, cell_31_text1)
+    table.cell(tbl1, 3, 5, cell_32_text1)
+// Draw the table if enabled
+if show_table1
+    table.cell(tbl1, 0, 0, cell_00_text1, bgcolor = #2A2E39, text_halign = text.align_left, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+     
+    table.cell(tbl1, 0, 1, cell_01_text1, bgcolor = #191D26, text_halign = text.align_left, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 1, 1, cell_11_text1, bgcolor = #191D26,   text_halign = text.align_center, bgcolor = #feffff, text_color = #9598A1, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 2, 1, cell_21_text1, bgcolor = #191D26,   text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+// Set text color based on cell content "🏁 TRADE"
+    if cell_28_text1 == "BUY"
+        table.cell(tbl1, 3, 1, cell_28_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.green, width =2, height = 2.5, text_size = size.normal)
+    else if cell_28_text1 == "SELL"
+        table.cell(tbl, 3, 1, cell_28_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.red, width =2, height = 2.5, text_size = size.normal)
+    else
+        table.cell(tbl1, 3, 1, cell_28_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width =2, height = 2.5, text_size = size.normal)
+     
+    table.cell(tbl1, 0, 2, cell_02_text1, bgcolor = #2A2E39, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff ,width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 0, 3, cell_03_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 0, 4, cell_04_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 0, 5, cell_05_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 1, 3, cell_12_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.orange, width = 7, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 1, 4, cell_13_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.red, width = 7, height = 2.5, text_size = size.normal)
+    table.cell(tbl1, 1, 5, cell_14_text1, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.green, width = 7, height = 2.5, text_size = size.normal)
+
+// Input variables for each table cell
+cell_00_text2 = "EHRHART Algo Third Dashboard"
+cell_01_text2 = "🔎 Stock :"
+cell_02_text2 = "📖 Order Book"
+cell_03_text2 = "Price Enter"
+cell_04_text2 = "Stop Lost"
+cell_05_text2 = "Take Profit "
+
+
+cell_10_text2 = "0"
+cell_11_text2 = input.string("-",title="🔎 Stock", group = "EHRHART Algo Third Dashboard")
+cell_12_text2 = input.string("0", title="Price Enter")
+cell_13_text2 = input.string("0", title="Stop Lost")
+cell_14_text2 = input.string("0", title="Take Profit")
+cell_15_text2 = "0"
+
+
+cell_20_text2 = "0"
+cell_21_text2 = "🏁 TRADE"
+cell_22_text2 = "0"
+cell_23_text2 = "0"
+cell_24_text2 = "0"
+cell_25_text2 = "0"
+
+cell_27_text2 = "0"
+cell_28_text2 = input.string("-", title="  🏁 TRADE", options = ["BUY", "SELL", "-"])
+cell_29_text2 = "0"
+cell_30_text2 = "0"
+cell_31_text2 = "0"
+cell_32_text2 = "0"
+
+// Added checkbox to show/hide table
+var show_table2 = input.bool(false, "Show Dashboard Table")
+
+// Input variable for column separation color
+var tbl2 = table.new(position.bottom_left, 4, 7, frame_color=#000000, frame_width=1, border_width=0)
+
+// Draw the table if enabled
+if show_table2
+    // Add all cells in the first row
+    table.cell(tbl2, 0, 0, cell_00_text2)
+    table.cell(tbl2, 0, 1, cell_01_text2)
+    table.cell(tbl2, 0, 2, cell_02_text2)
+    table.cell(tbl2, 0, 3, cell_03_text2)
+    table.cell(tbl2, 0, 4, cell_04_text2)
+    table.cell(tbl2, 0, 5, cell_05_text2)
+
+    // Merge cells horizontally
+    table.merge_cells(tbl2, 0, 0, 3, 0)
+    table.merge_cells(tbl2, 1, 3,3,3)
+    table.merge_cells(tbl2, 1, 4,3,4)
+    table.merge_cells(tbl2, 1,5,3,5)
+    table.merge_cells(tbl2, 0, 2,3,2)
+
+    // Add the cells of the second row
+    table.cell(tbl2, 1, 0, cell_10_text2)
+    table.cell(tbl2, 1, 1, cell_11_text2)
+    table.cell(tbl2, 1, 2, cell_12_text2)
+    table.cell(tbl2, 1, 3, cell_13_text2)
+    table.cell(tbl2, 1, 4, cell_14_text2)
+    table.cell(tbl2, 1, 5, cell_15_text2)
+
+    // Add the cells of the third row
+    table.cell(tbl2, 2, 0, cell_20_text2)
+    table.cell(tbl2, 2, 1, cell_21_text2)
+    table.cell(tbl2, 2, 2, cell_22_text2)
+    table.cell(tbl2, 2, 3, cell_23_text2)
+    table.cell(tbl2, 2, 4, cell_24_text2)
+    table.cell(tbl2, 2, 5, cell_25_text2)
+
+    // Add the cells of the third row
+    table.cell(tbl2, 3, 0, cell_27_text2)
+    table.cell(tbl2, 3, 1, cell_28_text2)
+    table.cell(tbl2, 3, 2, cell_29_text2)
+    table.cell(tbl2, 3, 3, cell_30_text2)
+    table.cell(tbl2, 3, 4, cell_31_text2)
+    table.cell(tbl2, 3, 5, cell_32_text2)
+// Draw the table if enabled
+if show_table2
+    table.cell(tbl2, 0, 0, cell_00_text2, bgcolor = #2A2E39, text_halign = text.align_left, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+     
+    table.cell(tbl2, 0, 1, cell_01_text2, bgcolor = #191D26, text_halign = text.align_left, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 1, 1, cell_11_text2, bgcolor = #191D26,   text_halign = text.align_center, bgcolor = #feffff, text_color = #9598A1, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 2, 1, cell_21_text2, bgcolor = #191D26,   text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+// Set text color based on cell content "🏁 TRADE"
+    if cell_28_text2 == "BUY"
+        table.cell(tbl2, 3, 1, cell_28_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.green, width =2, height = 2.5, text_size = size.normal)
+    else if cell_28_text2 == "SELL"
+        table.cell(tbl2, 3, 1, cell_28_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.red, width =2, height = 2.5, text_size = size.normal)
+    else
+        table.cell(tbl2, 3, 1, cell_28_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width =2, height = 2.5, text_size = size.normal)
+     
+    table.cell(tbl2, 0, 2, cell_02_text2, bgcolor = #2A2E39, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff ,width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 0, 3, cell_03_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 0, 4, cell_04_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 0, 5, cell_05_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = #ffffff, width = 5, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 1, 3, cell_12_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.orange, width = 7, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 1, 4, cell_13_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.red, width = 7, height = 2.5, text_size = size.normal)
+    table.cell(tbl2, 1, 5, cell_14_text2, bgcolor = #191D26, text_halign = text.align_center, bgcolor = #feffff, text_color = color.green, width = 7, height = 2.5, text_size = size.normal)
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

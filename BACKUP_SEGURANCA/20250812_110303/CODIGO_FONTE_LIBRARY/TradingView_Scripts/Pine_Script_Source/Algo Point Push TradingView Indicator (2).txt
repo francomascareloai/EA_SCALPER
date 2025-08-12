@@ -1,0 +1,291 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Zahidkashmiri
+
+//@version=6
+plot(close)
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Zahidkashmiri
+
+//@version=6
+plot(close)
+// @version=5
+indicator("Algo Point Push", overlay=true)
+
+// User Inputs for Moving Averages and ATR
+fastMA = input(10, title="Fast MA")
+slowMA = input(30, title="Slow MA")
+atrLength = input(14, title="ATR Length")
+atrMultiplierSL = input.float(1.5, title="ATR Stop Multiplier")
+tp1Multiplier = input.float(0.5, title="TP1 Multiplier")
+tp2Multiplier = input.float(1.0, title="TP2 Multiplier")
+tp3Multiplier = input.float(1.5, title="TP3 Multiplier")
+
+// Inputs for RSI
+rsiLength = input.int(14, title="RSI Length", minval=1)
+thresholdBuy = input.int(50, title="Buyers Threshold", minval=1, maxval=100)
+thresholdSell = input.int(50, title="Sellers Threshold", minval=1, maxval=100)
+
+// Indicators
+fastMA_val = ta.ema(close, fastMA)
+slowMA_val = ta.ema(close, slowMA)
+atr_val = ta.atr(atrLength)
+rsiValue = ta.rsi(close, rsiLength)
+
+// Entry Conditions
+longCondition = ta.crossover(fastMA_val, slowMA_val)
+shortCondition = ta.crossunder(fastMA_val, slowMA_val)
+
+// Stop Loss and Take Profit Levels
+longStopLoss = close - (atr_val * atrMultiplierSL)
+shortStopLoss = close + (atr_val * atrMultiplierSL)
+
+longTP1 = close + (atr_val * tp1Multiplier)
+longTP2 = close + (atr_val * tp2Multiplier)
+longTP3 = close + (atr_val * tp3Multiplier)
+
+shortTP1 = close - (atr_val * tp1Multiplier)
+shortTP2 = close - (atr_val * tp2Multiplier)
+shortTP3 = close - (atr_val * tp3Multiplier)
+
+// Buyers and Sellers Strength Calculation (ATR-based)
+buyerStrength = (close > open) ? volume : na
+sellerStrength = (close < open) ? volume : na
+
+// Buyers and Sellers Strength based on RSI
+buyStrength = rsiValue >= thresholdBuy ? "Strong" : "Weak"
+sellStrength = rsiValue <= thresholdSell ? "Strong" : "Weak"
+
+// Set missing values to 0 for clarity
+buyerStrength := na(buyerStrength) ? 0 : buyerStrength
+sellerStrength := na(sellerStrength) ? 0 : sellerStrength
+
+// Volume as percentage of average
+avgVolume = ta.sma(volume, 20)
+relativeVolume = volume / avgVolume * 100
+
+// High/Low Volume Determination
+highVolume = relativeVolume > 100 ? "High Volume" : "Low Volume"
+
+// **Volatility Calculation**
+atrChange = ta.change(atr_val)
+bullishVolatility = atrChange > 0 and close > open
+bearishVolatility = atrChange > 0 and close < open
+
+bullishVolatilityText = bullishVolatility ? "High Bullish Volatility" : "Low Volatility"
+bearishVolatilityText = bearishVolatility ? "High Bearish Volatility" : "Low Volatility"
+
+// **Order Flow Strength**
+orderFlowStrength = close > open ? "Bullish Order Flow" : "Bearish Order Flow"
+
+// **Dashboard Colors**
+signalColor = longCondition ? #32CD32 : #FF0000 // Green for long, Red for short
+tpColor = #008000 // Green for TP
+slColor = #FF0000 // Red for SL
+strengthColor = #000000 // Black for Strength
+volatilityColor = bullishVolatility ? #00FF00 : (bearishVolatility ? #FF4500 : #808080) // Green for bullish, Orange for bearish
+symbolColor = #FFD700 // Gold for Symbol
+
+// **Create Dashboard Table**
+var table myTable = table.new(position.top_right, 2, 14, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Update dashboard when long or short condition is triggered
+if (longCondition or shortCondition)
+    signalText = longCondition ? "LONG" : "SHORT"
+
+    
+    // **Current Symbol**
+    table.cell(myTable, 0, 1, "Symbol", bgcolor=symbolColor, text_color=color.black, text_size=size.tiny)
+    table.cell(myTable, 1, 1, syminfo.ticker, bgcolor=symbolColor, text_color=color.black, text_size=size.tiny)
+
+    // **Signal**
+    table.cell(myTable, 0, 2, "Signal", bgcolor=signalColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 2, signalText, bgcolor=signalColor, text_color=color.white, text_size=size.tiny)
+
+    // **Take Profit Levels**
+    table.cell(myTable, 0, 3, "TP1", bgcolor=tpColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 3, str.tostring(longCondition ? longTP1 : shortTP1), bgcolor=tpColor, text_color=color.white, text_size=size.tiny)
+
+    table.cell(myTable, 0, 4, "TP2", bgcolor=tpColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 4, str.tostring(longCondition ? longTP2 : shortTP2), bgcolor=tpColor, text_color=color.white, text_size=size.tiny)
+
+    table.cell(myTable, 0, 5, "TP3", bgcolor=tpColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 5, str.tostring(longCondition ? longTP3 : shortTP3), bgcolor=tpColor, text_color=color.white, text_size=size.tiny)
+
+    // **Stop Loss**
+    table.cell(myTable, 0, 6, "Stop Loss", bgcolor=slColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 6, str.tostring(longCondition ? longStopLoss : shortStopLoss), bgcolor=slColor, text_color=color.white, text_size=size.tiny)
+
+    // **ATR-based Buyers Strength**
+    table.cell(myTable, 0, 7, "ATR Buyers Strength", bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 7, str.tostring(buyerStrength), bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+
+    // **ATR-based Sellers Strength**
+    table.cell(myTable, 0, 8, "ATR Sellers Strength", bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 8, str.tostring(sellerStrength), bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+
+    // **RSI-based Buyers Strength**
+    table.cell(myTable, 0, 9, "RSI Buyers Strength", bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 9, buyStrength, bgcolor=strengthColor, text_color=color.green, text_size=size.tiny)
+
+    // **RSI-based Sellers Strength**
+    table.cell(myTable, 0, 10, "RSI Sellers Strength", bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 10, sellStrength, bgcolor=strengthColor, text_color=color.red, text_size=size.tiny)
+
+    // **Volatility Status**
+    table.cell(myTable, 0, 11, "Volatility", bgcolor=volatilityColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 11, bullishVolatility ? bullishVolatilityText : bearishVolatilityText, bgcolor=volatilityColor, text_color=color.white, text_size=size.tiny)
+
+    // **Order Flow Strength**
+    table.cell(myTable, 0, 12, "Order Flow Strength", bgcolor=color.blue, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 12, orderFlowStrength, bgcolor=color.blue, text_color=color.white, text_size=size.tiny)
+
+    // **Relative Volume**
+    table.cell(myTable, 0, 13, "Rel. Volume (%)", bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+    table.cell(myTable, 1, 13, str.tostring(relativeVolume, "#.##") + "%", bgcolor=strengthColor, text_color=color.white, text_size=size.tiny)
+
+// **Plot Moving Averages**
+plot(fastMA_val, color=color.green, title="Fast MA")
+plot(slowMA_val, color=color.red, title="Slow MA")
+//@version=5
+
+
+//----------------------  Engulfing  ------------------------------
+//barcolor(open[1] > close[1] ? close > open ? close >= open[1] ? close[1] >= open ? close - open > open[1] - close[1] ? color.yellow :na :na : na : na : na)
+//-----------------------------------------------------------------
+
+
+var timeF = timeframe.period
+getResolution(tf) =>
+    switch tf    
+        '1' => '3'
+        '3' => '5'
+        '5' => '15'
+        '15'=> '15'
+        '30'=> '45'
+        '45'=> '60'
+        '60'=> '120'
+        '120'=> '180'
+        '180'=> '240'
+        '240'=> 'D'
+        'D'=> 'W'
+        'W'=> 'M'
+
+var atrP = 10
+var atrF = 5
+
+res = getResolution(timeF)
+
+trailType = input.string('modified', 'Trailtype', options=['modified', 'unmodified'])
+
+var int ATRPer = 0
+var int ATRFac = 0
+
+
+if timeF == '45'
+    ATRPer := 12
+    ATRFac := 12
+else if timeF == '15'
+    ATRPer := 9
+    ATRFac := 9
+else
+    ATRPer := 7
+    ATRFac := 7
+
+manualFts = input.bool(false, title = 'use manual FTS')
+ATRPeriod = manualFts ? input.int(15, title = 'ATRPeriod') : ATRPer
+ATRFactor = manualFts ? input.int(15, title = 'ATRFactor') : ATRFac
+
+var testTable = table.new(position=position.bottom_left, columns=2, rows=4, bgcolor=color.new(color.gray,50), border_width=2, border_color=color.black)
+
+if barstate.islast
+    table.cell(testTable, 0, 0, 'Chart Time',text_color = color.red,text_size = size.small)
+    table.cell(testTable, 1, 0, timeF,text_color = color.green,text_size = size.small)
+
+    table.cell(testTable, 0, 1, 'NTS Time',text_color = color.red,text_size = size.small)
+    table.cell(testTable, 1, 1, res,text_color = color.green,text_size = size.small)
+    
+    table.cell(testTable, 0, 2, 'ATRPeriod',text_color = color.red,text_size = size.small)
+    table.cell(testTable, 1, 2, str.tostring(ATRPeriod),text_color = color.green,text_size = size.small)
+
+    table.cell(testTable, 0, 3, 'ATRFactor',text_color = color.red,text_size = size.small)
+    table.cell(testTable, 1, 3, str.tostring(ATRFactor),text_color = color.green,text_size = size.small)
+
+norm_o = request.security(ticker.new(syminfo.prefix, syminfo.ticker), res, open)
+norm_h = request.security(ticker.new(syminfo.prefix, syminfo.ticker), res, high)
+norm_l = request.security(ticker.new(syminfo.prefix, syminfo.ticker), res, low)
+norm_c = request.security(ticker.new(syminfo.prefix, syminfo.ticker), res, close)
+
+Wild_ma(_src, _malength) =>
+    _wild = 0.0
+    _wild := nz(_wild[1]) + (_src - nz(_wild[1])) / _malength
+    _wild
+
+/////////// TRUE RANGE CALCULATIONS /////////////////
+HiLo = math.min(norm_h - norm_l, 1.5 * nz(ta.sma(norm_h - norm_l, ATRPeriod)))
+
+HRef = norm_l <= norm_h[1] ? norm_h - norm_c[1] : norm_h - norm_c[1] - 0.5 * (norm_l - norm_h[1])
+
+LRef = norm_h >= norm_l[1] ? norm_c[1] - norm_l : norm_c[1] - norm_l - 0.5 * (norm_l[1] - norm_h)
+
+trueRange = trailType == 'modified' ? math.max(HiLo, HRef, LRef) : math.max(norm_h - norm_l, math.abs(norm_h - norm_c[1]), math.abs(norm_l - norm_c[1]))
+
+
+loss = ATRFactor * Wild_ma(trueRange, ATRPeriod)
+
+Up = norm_c - loss
+Dn = norm_c + loss
+
+TrendUp = Up
+TrendDown = Dn
+Trend = 1
+
+TrendUp := norm_c[1] > TrendUp[1] ? math.max(Up, TrendUp[1]) : Up
+TrendDown := norm_c[1] < TrendDown[1] ? math.min(Dn, TrendDown[1]) : Dn
+
+Trend := norm_c > TrendDown[1] ? 1 : norm_c < TrendUp[1] ? -1 : nz(Trend[1], 1)
+trail = Trend == 1 ? TrendUp : TrendDown
+
+ex = 0.0
+ex := ta.crossover(Trend, 0) ? norm_h : ta.crossunder(Trend, 0) ? norm_l : Trend == 1 ? math.max(ex[1], norm_h) : Trend == -1 ? math.min(ex[1], norm_l) : ex[1]
+
+state = Trend == 1 ? 'long' : 'short'
+
+fib1Level = 61.8
+fib2Level = 78.6
+fib3Level = 88.6
+
+f1 = ex + (trail - ex) * fib1Level / 100
+f2 = ex + (trail - ex) * fib2Level / 100
+f3 = ex + (trail - ex) * fib3Level / 100
+l100 = trail + 0
+
+Fib1 = plot(f1, 'Fib 1', style=plot.style_line, color=color.new(#ff7811, 0))
+Fib2 = plot(f2, 'Fib 2', style=plot.style_line, color=color.new(color.gray, 0))
+Fib3 = plot(f3, 'Fib 3', style=plot.style_line, color=color.new(#00ff3c, 0))
+L100 = plot(l100, 'l100', style=plot.style_line, color=color.rgb(120, 123, 134))
+
+fill(Fib3, L100, color=state == 'long' ? color.new(#00eaff, 12) : state == 'short' ? #ff5280e9 : na)
+
+changcDir = ta.cross(f3,l100)
+alertcondition(changcDir, title="Alert: FTS Direction Change", message="FTS has changed direction!")
+
+
+l1 = state[1] == "long" and ta.crossunder(norm_c, f1[1])
+l2 = state[1] == "long" and ta.crossunder(norm_c, f2[1])
+l3 = state[1] == "long" and ta.crossunder(norm_c, f3[1])
+s1 = state[1] == "short" and ta.crossover(norm_c, f1[1])
+s2 = state[1] == "short" and ta.crossover(norm_c, f2[1])
+s3 = state[1] == "short" and ta.crossover(norm_c, f3[1])
+
+atr = ta.sma(trueRange, 14)
+
+//////////// FIB ALERTS /////////////////////
+
+alertcondition(l1, title = "cross over Fib1",  message = "Price crossed below Fib1 level in long trend")
+alertcondition(l2, title = "cross over Fib2",  message = "Price crossed below Fib2 level in long trend")
+alertcondition(l3, title = "cross over Fib3",  message = "Price crossed below Fib3 level in long trend")
+alertcondition(s1, title = "cross under Fib1", message = "Price crossed above Fib1 level in short trend")
+alertcondition(s2, title = "cross under Fib2", message = "Price crossed above Fib2 level in short trend")
+alertcondition(s3, title = "cross under Fib3", message = "Price crossed above Fib3 level in short trend")
+
+alertcondition(fixnan(f1)!=fixnan(f1[1]), title = "Stop Line Change", message = "Stop Line Change")

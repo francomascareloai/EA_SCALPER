@@ -1,0 +1,54 @@
+{
+  "arquivo": "EA_CCIMartingale_v1.002_MULTI.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "mercado_alvo": "MULTI",
+  "timeframe_recomendado": "M15-H1",
+  "versao": "1.002",
+  "autor": "Voloshin Yuri",
+  "descricao": "EA baseado em CCI com estratégia martingale e trailing stop",
+  "funcoes_principais": [
+    "OnInit",
+    "OnTick",
+    "OrderSend",
+    "PositionSelect",
+    "PositionModify",
+    "iCCI",
+    "CopyBuffer"
+  ],
+  "parametros_expostos": [
+    "InpLots",
+    "InpStopLoss",
+    "InpTakeProfit",
+    "InpTrailingStop",
+    "InpTrailingStep",
+    "Inp_ma_period",
+    "Inp_applied_price",
+    "InpMartin",
+    "InpMartinCoeff",
+    "InpMartinMaxMultiplications"
+  ],
+  "indicadores_utilizados": ["CCI"],
+  "pares_suportados": ["MULTI"],
+  "timeframes_suportados": ["M15", "M30", "H1"],
+  "ftmo_score": 3,
+  "codigo_qualidade_score": 7,
+  "riscos_detectados": [
+    "Estratégia martingale",
+    "Multiplicação de lotes",
+    "Alto risco de drawdown",
+    "CCI como único indicador"
+  ],
+  "ajustes_necessarios_ftmo": [
+    "Desabilitar martingale",
+    "Implementar stop loss obrigatório",
+    "Limitar drawdown máximo",
+    "Adicionar filtros adicionais",
+    "Implementar gestão de risco baseada em %"
+  ],
+  "tags": ["#EA", "#Grid_Martingale", "#CCI", "#MULTI", "#TrailingStop", "#Alto_Risco", "#Nao_FTMO"],
+  "caminho_completo": "CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/Grid_Martingale/EA_CCIMartingale_v1.002_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "status": "Classificado"
+}

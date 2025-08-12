@@ -1,0 +1,1202 @@
+﻿//@version=5
+//strategy("Volume Delta Methods (Chart) [LuxAlgo] - Ganesh", "LuxAlgo - Volume Delta Methods (Chart)", pyramiding=10, overlay=true, initial_capital = 1000, commission_value=0.075, use_bar_magnifier = false, default_qty_value = 100, default_qty_type = strategy.percent_of_equity, calc_on_every_tick = true, max_lines_count = 500, max_boxes_count = 500, max_labels_count = 500, max_bars_back = 500)
+indicator("Setup-1", max_lines_count = 500, max_boxes_count = 500, max_bars_back = 1000, overlay = true)
+//Restrict calculation from 2020
+startyear = 2020  //input(defval = 2020, title = "Start Year")
+startmonth = 1  //input(defval = 1, title = "Start Month")
+startday = 1  //input(defval = 1, title = "Start day")
+starttime = timestamp(startyear, startmonth, startday, 0, 0, 0)
+
+// ————— Converts current chart timeframe into a float minutes value.
+f_tfInMinutes() => 
+    _tfInMinutes = (
+      timeframe.period == '1' ? '3' :
+      timeframe.period == '3' ? '5' :
+      timeframe.period == '5' ? '15' :
+      timeframe.period == '15' ? '30' :
+      timeframe.period == '30' ? '60' :
+      timeframe.period == '60' ? '240' : 'D')
+my_time = f_tfInMinutes()
+
+//auto higher time frame
+autoHTF(str) => str == '1S' ? '1' : 
+  str == '1' ? '5' : 
+  str == '2' ? '5' : 
+  str == '3' ? '15' : 
+  str == '5' ? '15' : 
+  str == '10' ? '15' : 
+  str == '15' ? '60' : 
+  str == '30' ? '60' : 
+  str == '45' ? '120' : 
+  str == '60' ? '120' : 
+  str == '120' ? '240' : 
+  str == '180' ? '240' : 
+  str == '240' ? 'D' : 
+  str == 'D' ? 'W' :
+  '5W'
+
+gethtf(res, src) =>
+    gethtfvalue = 0.0
+    gethtfvalue := request.security(syminfo.tickerid, res, src, gaps=barmerge.gaps_off,lookahead=barmerge.lookahead_on)
+//gethtf = gethtf(res, src)
+
+//////////////////////////////////
+//      Variables Initialize    //
+//////////////////////////////////
+
+period = my_time //input.timeframe(title='Primary TL Period', defval='15', group = GROUP_PIVOT)
+period1 = '' //input.timeframe(title='Secondary TL Period', defval='5', group = GROUP_PIVOT)
+
+var dest = 0
+var dest_value = 0.0
+var origin = 0
+var org_value = 0.0
+var count = 0
+
+var dest2 = 0
+var dest2_value = 0.0
+var origin2 = 0
+var org2_value = 0.0
+var count2 = 0
+
+Multicalc(customperiod) =>
+    m = 1
+    s = 1
+    // chartperiod = timeframe.period
+    // isintraday = timeframe.isintraday
+    if customperiod == '1D' or customperiod == 'D'
+        m := 24
+        m
+    if customperiod == '1W' or customperiod == 'W'
+        m := 24 * 7
+        m
+    if customperiod == '1M' or customperiod == 'M'
+        if month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12
+            m := 24 * 7 * 31
+            m
+        if month == 2
+            m := 24 * 7 * 28
+            m
+        else
+            m := 24 * 7 * 30
+            m
+    else
+        if customperiod == '1'
+            s := 1
+            m := s / 60
+            m
+        if customperiod == '3'
+            s := 3
+            m := s / 60
+            m
+        if customperiod == '5'
+            s := 5
+            m := s / 60
+            m
+        if customperiod == '15'
+            s := 15
+            m := s / 60
+            m
+        if customperiod == '30'
+            s := 30
+            m := s / 60
+            m
+        if customperiod == '60' or customperiod == ''
+            s := 60
+            m := s / 60
+            m
+        if customperiod == '120'
+            s := 120
+            m := s / 60
+            m
+        if customperiod == '180'
+            s := 180
+            m := s / 60
+            m
+        if customperiod == '240'
+            s := 240
+            m := s / 60
+            m
+    m
+
+//////////////////////////////////
+//      William's fractals      //
+//////////////////////////////////
+
+// Define "n" as the number of periods and keep a minimum value of 2 for error handling.
+n = 2
+x = 0, x1 = 0
+
+if period == ''
+    x := Multicalc(timeframe.period)
+    x
+else
+    x := Multicalc(period)
+    x
+z = Multicalc(timeframe.period)
+
+if period1 == ''
+    x1 := Multicalc(timeframe.period)
+    x1
+else
+    x1 := Multicalc(period1)
+    x1
+z1 = Multicalc(timeframe.period)
+
+x := math.floor(x / z)
+x1 := math.floor(x1 / z1)
+
+//@version=5
+//indicator('Date Filtering', '', true)
+i_dateFilter = false //input(false, '═════ Date Range Filtering ═════')
+i_fromYear = 2020 //input.int(2020, 'From Year', minval=1900)
+i_fromMonth = 1 //input.int(1, 'From Month', minval=1, maxval=12)
+i_fromDay = 1 //input.int(1, 'From Day', minval=1, maxval=31)
+i_toYear = 2999 //input.int(2999, 'To Year', minval=1900)
+i_toMonth = 1 //input.int(1, 'To Month', minval=1, maxval=12)
+i_toDay = 1 //input.int(1, 'To Day', minval=1, maxval=31)
+
+fromDate = timestamp(i_fromYear, i_fromMonth, i_fromDay, 00, 00)
+toDate = timestamp(i_toYear, i_toMonth, i_toDay, 23, 59)
+
+f_tradeDateIsAllowed() =>
+    not i_dateFilter or time >= fromDate and time <= toDate
+
+//enterLong = f_tradeDateIsAllowed() and ta.crossover(ta.rsi(close, 14), 50)
+//plotchar(enterLong, 'enterLong', '▲', location.belowbar, color.new(color.lime, 0), size=size.tiny)
+// if barstate.islast       
+//     label.new(bar_index,close,period)
+
+showBSP = input(false, title="Book Short Profit", group = "Book Short Profit")
+TD = 0
+TD := close > close[4] ? nz(TD[1])+1 : 0
+TDUp = TD - ta.valuewhen(TD < TD[1], TD, 1 )
+plotshape(showBSP ? TDUp==7?true:na : na,style=shape.triangledown, color=color.red, text="7",textcolor=color.red, location=location.abovebar)
+plotshape(showBSP ? TDUp==8?true:na : na,style=shape.triangledown, color=color.red, text="8",textcolor=color.red, location=location.abovebar)
+plotshape(showBSP ? TDUp==9 ? true : na : na, style=shape.triangledown, color=color.red, text="⛔️", textcolor=color.red, location=location.abovebar)
+TS = 0
+TS := close < close[4] ? nz(TS[1])+1 : 0
+TDDn = TS - ta.valuewhen(TS < TS[1], TS, 1 )
+plotshape(showBSP ? TDDn==7?true:na : na,style=shape.triangleup, color=color.green, text="7",textcolor=color.green, location=location.belowbar)
+plotshape(showBSP ? TDDn==8?true:na : na,style=shape.triangleup, color=color.green, text="8",textcolor=color.green, location=location.belowbar)
+plotshape(showBSP ? TDDn==9?true:na : na,style=shape.triangleup, color=color.green,text="✅",textcolor=color.green, location=location.belowbar)
+
+// Display the probabilities in a table
+//text01_ = "Probability Upward: " + str.tostring(probabilityUpward) + "%" + "\n" + "Probability Downward: " + str.tostring(probabilityDownward) + "%"
+
+//t = timenow + math.round(ta.change(time) * 25)
+//var label lab01 = na
+//label.delete(lab01)
+//lab01 := label.new(t, close, text=text01_, style=label.style_label_left, yloc=yloc.price, xloc=xloc.bar_time, textalign=text.align_left, textcolor=color.white)
+
+//indicator("Nadaraya-Watson Envelope [LUX]",overlay=true,max_bars_back=1000,max_lines_count=500,max_labels_count=500)
+showNWB = input(false, title="Nadaraya-Watson Envelope", group = "Nadaraya-Watson Envelope")
+
+length = input.float(500,'Window Size',maxval=500,minval=0)
+nwh      = input.float(45.,'Bandwidth')
+nwmult   = input.float(3.) 
+src    = input.source(hl2,'Source')
+
+up_col = input.color(#39ff14,'Colors',inline='col')
+dn_col = input.color(#ff1100,'',inline='col')
+//----
+nwn = bar_index
+var k = 2
+var nwupper = array.new_line(0) 
+var nwlower = array.new_line(0) 
+
+lset(l,x1,y1,x2,y2,col)=>
+    line.set_xy1(l,x1,y1)
+    line.set_xy2(l,x2,y2)
+    line.set_color(l,col)
+    line.set_width(l,2)
+
+if barstate.isfirst
+    for i = 0 to length/k-1
+        array.push(nwupper,line.new(na,na,na,na))
+        array.push(nwlower,line.new(na,na,na,na))
+//----
+line nwup = na
+line nwdn = na
+//----
+cross_up = 0.
+cross_dn = 0.
+if barstate.islast and showNWB
+    y = array.new_float(0)
+    
+    sum_e = 0.
+    for i = 0 to length-1
+        sum = 0.
+        sumw = 0.
+        
+        for j = 0 to length-1
+            w = math.exp(-(math.pow(i-j,2)/(nwh*nwh*2)))
+            sum += src[j]*w
+            sumw += w
+        
+        y2 = sum/sumw
+        sum_e += math.abs(src[i] - y2)
+        array.push(y,y2)
+
+    mae = sum_e/length*nwmult
+    
+    for i = 1 to length-1
+        y2 = array.get(y,i)
+        y1 = array.get(y,i-1)
+        
+        nwup := array.get(nwupper,i/k)
+        nwdn := array.get(nwlower,i/k)
+        
+        lset(nwup,nwn-i+1,y1 + mae,nwn-i,y2 + mae,up_col)
+        lset(nwdn,nwn-i+1,y1 - mae,nwn-i,y2 - mae,dn_col)
+        
+        if src[i] > y1 + mae and src[i+1] < y1 + mae
+            label.new(nwn-i,src[i],'▼',color=#00000000,style=label.style_label_down,textcolor=dn_col,textalign=text.align_center)
+        if src[i] < y1 - mae and src[i+1] > y1 - mae
+            label.new(nwn-i,src[i],'▲',color=#00000000,style=label.style_label_up,textcolor=up_col,textalign=text.align_center)
+    
+    cross_up := array.get(y,0) + mae
+    cross_dn := array.get(y,0) - mae
+
+//************************************************//
+//indicator("Pivot TrendLine", shorttitle="P_L", overlay=true)
+var string GROUP_PIVOT      = "████ Pivot Trendline ████"
+//PivotTrendline              = input.bool (true, "Pivot TrendLine", group = GROUP_PIVOT)
+
+//plot(z)
+//dnFractal = ta.pivothigh(high, 2 * x, 2 * x)
+//upFractal = ta.pivotlow(low, 2 * x, 2 * x)
+
+PrimaryTrendline            = input.bool (false, "Primary TrendLine", group = GROUP_PIVOT)
+SecondaryTrendline          = input.bool (false, "Secondary TrendLine", group = GROUP_PIVOT)
+
+htfpivotLength = input(21, group = GROUP_PIVOT)
+ltfpivotLength = input(21, group = GROUP_PIVOT)
+
+htfleftBars = htfpivotLength * x
+htfrightBars = htfpivotLength * x
+
+ltfleftBars = ltfpivotLength //* x1
+ltfrightBars = ltfpivotLength //* x1
+
+htfonlyLastLine = input(false, "Show Primary Last TrendLine")
+ltfonlyLastLine = input(false, "Show Secondary Last TrendLine")
+
+// HTF Pivot High
+htfswh = ta.pivothigh(htfleftBars, htfrightBars)
+htfswh_cond = not na(htfswh)
+htfhprice = 0.0
+htfhprice := htfswh_cond ? htfswh : htfhprice[1]
+htfhindex = 0
+htfhindex := htfswh_cond ? bar_index - htfrightBars : htfhindex[1]
+
+// HTF Pivot Low
+htfswl = ta.pivotlow(htfleftBars, htfrightBars)
+htfswl_cond = not na(htfswl)
+htflprice = 0.0
+htflprice := htfswl_cond ? htfswl : htflprice[1]
+htflindex = 0
+htflindex := htfswl_cond ? bar_index - htfrightBars : htflindex[1]
+
+// LTF Pivot High
+ltfswh = ta.pivothigh(ltfleftBars, ltfrightBars)[2]
+ltfswh_cond = not na(ltfswh)
+ltfhprice = 0.0
+ltfhprice := ltfswh_cond ? ltfswh : ltfhprice[1]
+ltfhindex = 0
+ltfhindex := ltfswh_cond ? bar_index - ltfrightBars : ltfhindex[1]
+
+// LTF Pivot Low
+ltfswl = ta.pivotlow(ltfleftBars, ltfrightBars)[2]
+ltfswl_cond = not na(ltfswl)
+ltflprice = 0.0
+ltflprice := ltfswl_cond ? ltfswl : ltflprice[1]
+ltflindex = 0
+ltflindex := ltfswl_cond ? bar_index - ltfrightBars : ltflindex[1]
+
+// Plot
+var htflineHigh = PrimaryTrendline ? line.new(0,0,0,0, xloc.bar_time, extend=extend.right) : na
+var ltflineHigh = SecondaryTrendline ? line.new(0,0,0,0, xloc.bar_time, extend=extend.right) : na
+
+if htfhindex != htfhindex[1] and PrimaryTrendline
+    if not htfonlyLastLine
+        line.delete(htflineHigh)
+    line.set_color(htflineHigh, color.new(color.red, 50))
+    line.set_extend(htflineHigh, extend.none)
+    htflineHigh := line.new(htfhindex[1], htfhprice[1], htfhindex, htfhprice, extend=extend.right, color=color.new(color.red,25), width=4)
+
+if ltfhindex != ltfhindex[1] and SecondaryTrendline
+    if not ltfonlyLastLine
+        line.delete(ltflineHigh)
+    line.set_color(ltflineHigh, color.new(color.red, 50))
+    line.set_extend(ltflineHigh, extend.none)
+    ltflineHigh := line.new(ltfhindex[1], ltfhprice[1], ltfhindex, ltfhprice, extend=extend.right, color=color.new(color.white,25), width=2)
+
+var htflineLow = PrimaryTrendline ? line.new(0,0,0,0, xloc.bar_time, extend=extend.right) : na
+var ltflineLow = SecondaryTrendline ? line.new(0,0,0,0, xloc.bar_time, extend=extend.right) : na
+
+if htflindex != htflindex[1] and PrimaryTrendline
+    if not htfonlyLastLine
+        line.delete(htflineLow)
+    line.set_color(htflineLow, color.new(color.green, 50))
+    line.set_extend(htflineLow, extend.none)
+    htflineLow := line.new(htflindex[1], htflprice[1], htflindex, htflprice, extend=extend.right,color=color.new(color.green,25), width=4)
+
+if ltflindex != ltflindex[1] and SecondaryTrendline
+    if not ltfonlyLastLine
+        line.delete(ltflineLow)
+    line.set_color(ltflineLow, color.new(color.green, 50))
+    line.set_extend(ltflineLow, extend.none)
+    ltflineLow := line.new(ltflindex[1], ltflprice[1], ltflindex, ltflprice, extend=extend.right,color=color.new(color.white,25), width=2)
+
+// ---------------------------------------------------------------------------------------------- //
+// Functions  ----------------------------------------------------------------------------------- //
+
+f_getPrice(_osc, _thresh, _cross) =>
+    avgHigh = math.avg(high, close)
+    avgLow  = math.avg(low , close)
+
+    var return_1 = 0.
+
+    if _cross == 'over' or _cross == 'both'
+        if ta.crossover(_osc, _thresh)
+            return_1 := avgHigh
+            return_1
+    if _cross == 'under' or _cross == 'both'
+        if ta.crossunder(_osc, _thresh)
+            return_1 := avgLow
+            return_1
+    return_1
+
+normalize(_src, _min, _max) =>
+    // Normalizes series with unknown min/max using historical min/max.
+    // _src      : series to rescale.
+    // _min, _min: min/max values of rescaled series.
+    var _historicMin =  10e10
+    var _historicMax = -10e10
+    _historicMin := math.min(nz(_src, _historicMin), _historicMin)
+    _historicMax := math.max(nz(_src, _historicMax), _historicMax)
+    _min + (_max - _min) * (_src - _historicMin) / math.max(_historicMax - _historicMin, 10e-10)
+
+// Functions  ----------------------------------------------------------------------------------- //
+// ---------------------------------------------------------------------------------------------- //
+    
+//indicator('RSI Support & Resistance by DGT', 'RSI S&R ʙʏ DGT ☼☾', true, max_lines_count = 500, max_bars_back = 500)
+group_rsi_osc   = '████ RSI Oscillator Overlay Display Settings ████'
+rsi_osc         = input.bool(false, 'Enable RSI Overlay Display'                               , group = group_rsi_osc)
+
+RSIi_source      = input.string('Price (close)', 'Source', options=['Price (close)', 'On Balance Volume (OBV)'], inline='RSI', group='RSI Settings')
+RSIi_length      = input.int(14, '  Length'  , minval=1             , inline='RSI'    , group='RSI Settings')
+RSIi_obThreshold = 70 //input.int(70, 'Overbought', minval=50, maxval=100, inline='Thresh1', group='Threshold Settings')
+RSIi_bullZone    = 60 //input.int(60, 'Bull Zone' , minval=50, maxval=65 , inline='Thresh1', group='Threshold Settings')
+RSIi_bearZone    = 40 //input.int(40, 'Bear Zone' , minval=35, maxval=50 , inline='Thresh2', group='Threshold Settings')
+RSIi_osThreshold = 30 // input.int(30, ' Oversold' , minval=1 , maxval=50 , inline='Thresh2', group='Threshold Settings')
+
+// -Calculations ════════════════════════════════════════════════════════════════════════════════ //
+
+//oscillator = normalize(ta.rsi(i_source == 'Price (close)' ? close : ta.obv, i_length), 0, 100)
+oscillator = ta.rsi(RSIi_source == 'Price (close)' ? close : ta.obv, RSIi_length)
+
+crossover_overbought  = f_getPrice(oscillator, RSIi_obThreshold, 'over' )
+crossunder_overbought = f_getPrice(oscillator, RSIi_obThreshold, 'under')
+bullZone              = f_getPrice(oscillator, RSIi_bullZone   , 'both' )
+bearZone              = f_getPrice(oscillator, RSIi_bearZone   , 'both' )
+crossover_oversold    = f_getPrice(oscillator, RSIi_osThreshold, 'over' )
+crossunder_oversold   = f_getPrice(oscillator, RSIi_osThreshold, 'under')
+
+// RSI OSC  ------------------------------------------------------------------------------------- //
+
+oscPlacement    = input.string('Bottom', 'Placment', options = ['Top', 'Bottom'], inline='VOL'   , group = group_rsi_osc)
+oscHight        = 11 - input.int(10, ' Hight' , minval = 3, maxval = 10        , inline='VOL'  , group = group_rsi_osc)
+lookbackLength  = input.int(90, 'Overlay Indicator Display Length', minval = 10, maxval = 495, group = group_rsi_osc) // max lines allowed is 500, where 5 of them to be used for zone definitions 
+
+var a_lines     = array.new_line()
+var a_fill      = array.new_linefill()
+
+priceHighest    = ta.highest(high, lookbackLength)
+priceLowest     = ta.lowest (low , lookbackLength)
+    
+if barstate.islast and rsi_osc and time >= starttime
+    if array.size(a_lines) > 0
+        for i = 1 to array.size(a_lines)
+            line.delete(array.shift(a_lines))
+
+    if array.size(a_fill) > 0
+        for i = 1 to array.size(a_fill)
+            linefill.delete(array.shift(a_fill))
+
+    priceChangeRate = (priceHighest - priceLowest) / priceHighest / oscHight / 100
+    
+    obLevel   = (oscPlacement == 'Top' ? priceHighest : priceLowest) * (1 + (oscPlacement == 'Top' ? RSIi_obThreshold : -1 * (100 - RSIi_obThreshold))  * priceChangeRate)
+    bullLevel = (oscPlacement == 'Top' ? priceHighest : priceLowest) * (1 + (oscPlacement == 'Top' ? RSIi_bullZone    : -1 * (100 - RSIi_bullZone))     * priceChangeRate)
+    midLevel  = (oscPlacement == 'Top' ? priceHighest : priceLowest) * (1 + (oscPlacement == 'Top' ? 50               : -1 * (100 - 50))                * priceChangeRate)
+    bearLevel = (oscPlacement == 'Top' ? priceHighest : priceLowest) * (1 + (oscPlacement == 'Top' ? RSIi_bearZone    : -1 * (100 - RSIi_bearZone))     * priceChangeRate)
+    osLevel   = (oscPlacement == 'Top' ? priceHighest : priceLowest) * (1 + (oscPlacement == 'Top' ? RSIi_osThreshold : -1 * (100 - RSIi_osThreshold))  * priceChangeRate)
+    
+    array.push(a_lines, line.new(bar_index[lookbackLength], obLevel  , bar_index, obLevel  , xloc.bar_index, extend.none, color.green, line.style_dotted, 2))
+    array.push(a_lines, line.new(bar_index[lookbackLength], bullLevel, bar_index, bullLevel, xloc.bar_index, extend.none, color.green, line.style_dotted, 1))
+    array.push(a_fill, linefill.new(array.get(a_lines, 0), array.get(a_lines, 1), color.new(color.green, 90)))
+    
+    array.push(a_lines, line.new(bar_index[lookbackLength], bearLevel, bar_index, bearLevel, xloc.bar_index, extend.none, color.red  , line.style_dotted, 1))
+    array.push(a_lines, line.new(bar_index[lookbackLength], osLevel  , bar_index, osLevel  , xloc.bar_index, extend.none, color.red  , line.style_dotted, 2))
+    array.push(a_fill, linefill.new(array.get(a_lines, 2), array.get(a_lines, 3), color.new(color.red, 90)))
+
+    array.push(a_lines, line.new(bar_index[lookbackLength], midLevel , bar_index, midLevel , xloc.bar_index, extend.none, color.gray , line.style_dotted, 1))
+ 
+    for barIndex = 0 to lookbackLength - 1
+        array.push(a_lines, line.new(bar_index[barIndex]    , (oscPlacement == 'Top' ? priceHighest : priceLowest) * (1 + (oscPlacement == 'Top' ? oscillator[barIndex]     : -1 * (100 - oscillator[barIndex]    ) ) * priceChangeRate ), 
+                                     bar_index[barIndex + 1], (oscPlacement == 'Top' ? priceHighest : priceLowest) * (1 + (oscPlacement == 'Top' ? oscillator[barIndex + 1] : -1 * (100 - oscillator[barIndex + 1]) ) * priceChangeRate ), xloc.bar_index, extend.none, #7e57c2, line.style_solid, 2))
+
+// RSI OSC  ------------------------------------------------------------------------------------- //
+// ---------------------------------------------------------------------------------------------- //
+  
+//indicator('ADX Support & Resistance by DGT', 'ADX S&R ʙʏ DGT ☼☾', true, max_lines_count = 500, max_bars_back = 500)
+group_ADX_osc   = '████ ADX Oscillator Overlay Display Settings ████'
+ADX_osc         = input.bool(false, 'Enable ADX Overlay Display'                               , group = group_ADX_osc)
+
+ADXi_source      = input.string('Price (close)', 'Source', options=['Price (close)', 'On Balance Volume (OBV)'], inline='ADX', group='ADX Settings')
+ADXi_length      = input.int(14, '  Length'  , minval=1             , inline='ADX'    , group='ADX Settings')
+adxSmoothing     = input.int(14, title="ADX Smoothing", minval=1, maxval=50           , group='ADX Settings')
+ADXi_obThreshold = 70 //input.int(70, 'Overbought', minval=50, maxval=100, inline='Thresh1', group='Threshold Settings')
+ADXi_bullZone    = 60 //input.int(60, 'Bull Zone' , minval=50, maxval=65 , inline='Thresh1', group='Threshold Settings')
+ADXi_bearZone    = 40 //input.int(40, 'Bear Zone' , minval=35, maxval=50 , inline='Thresh2', group='Threshold Settings')
+ADXi_osThreshold = 30 //input.int(30, ' Oversold' , minval=1 , maxval=50 , inline='Thresh2', group='Threshold Settings')
+
+// -Calculations ════════════════════════════════════════════════════════════════════════════════ //
+// ADX Colored DMI Line Calculations 
+
+[diplus, diminus, adxValue] = ta.dmi(ADXi_length, adxSmoothing)
+
+dmiBull = diplus >= diminus and adxValue >= 40
+dmiBear = diplus < diminus and adxValue >= 40
+dmiWeak = adxValue < 40 and adxValue > 20
+
+dxValue = normalize(adxValue, 0, 100)
+oladxValue = adxValue * 1.7
+
+//dmiColor = dmiBull ? adxValue > adxValue[1] ? #006400 : color.green : dmiBear ? adxValue > adxValue[1] ? #910000 : color.red : dmiWeak ? adxValue > adxValue[1] ? color.black : color.gray : adxValue > adxValue[1] ? #FFC40C : color.gray
+
+//oscillator = ta.dmi(diLength, adxSmoothing)
+
+ADXcrossover_overbought  = f_getPrice(oladxValue, ADXi_obThreshold, 'over' )
+ADXcrossunder_overbought = f_getPrice(oladxValue, ADXi_obThreshold, 'under')
+ADXbullZone              = f_getPrice(oladxValue, ADXi_bullZone   , 'both' )
+ADXbearZone              = f_getPrice(oladxValue, ADXi_bearZone   , 'both' )
+ADXcrossover_oversold    = f_getPrice(oladxValue, ADXi_osThreshold, 'over' )
+ADXcrossunder_oversold   = f_getPrice(oladxValue, ADXi_osThreshold, 'under')
+
+// ADX OSC  ------------------------------------------------------------------------------------- //
+
+ADXoscPlacement    = input.string('Top', 'Placment', options = ['Top', 'Bottom'], inline='VOL'   , group = group_ADX_osc)
+ADXoscHight        = 11 - input.int(10, ' Hight' , minval = 3, maxval = 10        , inline='VOL'  , group = group_ADX_osc)
+ADXlookbackLength  = input.int(90, 'Overlay Indicator Display Length', minval = 10, maxval = 495, group = group_ADX_osc) // max lines allowed is 500, where 5 of them to be used for zone definitions 
+
+var ADXa_lines     = array.new_line()
+var ADXa_fill      = array.new_linefill()
+
+ADXpriceHighest    = ta.highest(high, ADXlookbackLength)
+ADXpriceLowest     = ta.lowest (low , ADXlookbackLength)
+    
+if barstate.islast and ADX_osc and time >= starttime
+    if array.size(ADXa_lines) > 0
+        for i = 1 to array.size(ADXa_lines)
+            line.delete(array.shift(ADXa_lines))
+
+    if array.size(ADXa_fill) > 0
+        for i = 1 to array.size(ADXa_fill)
+            linefill.delete(array.shift(ADXa_fill))
+
+    ADXpriceChangeRate = (ADXpriceHighest - ADXpriceLowest) / ADXpriceHighest / ADXoscHight / 100
+    
+    ADXobLevel   = (ADXoscPlacement == 'Top' ? ADXpriceHighest : ADXpriceLowest) * (1 + (ADXoscPlacement == 'Top' ? ADXi_obThreshold : -1 * (100 - ADXi_obThreshold))  * ADXpriceChangeRate)
+    ADXbullLevel = (ADXoscPlacement == 'Top' ? ADXpriceHighest : ADXpriceLowest) * (1 + (ADXoscPlacement == 'Top' ? ADXi_bullZone    : -1 * (100 - ADXi_bullZone))     * ADXpriceChangeRate)
+    ADXmidLevel  = (ADXoscPlacement == 'Top' ? ADXpriceHighest : ADXpriceLowest) * (1 + (ADXoscPlacement == 'Top' ? 50            : -1 * (100 - 50))                   * ADXpriceChangeRate)
+    ADXbearLevel = (ADXoscPlacement == 'Top' ? ADXpriceHighest : ADXpriceLowest) * (1 + (ADXoscPlacement == 'Top' ? ADXi_bearZone    : -1 * (100 - ADXi_bearZone))     * ADXpriceChangeRate)
+    ADXosLevel   = (ADXoscPlacement == 'Top' ? ADXpriceHighest : ADXpriceLowest) * (1 + (ADXoscPlacement == 'Top' ? ADXi_osThreshold : -1 * (100 - ADXi_osThreshold))  * ADXpriceChangeRate)
+    
+    array.push(ADXa_lines, line.new(bar_index[ADXlookbackLength], ADXobLevel  , bar_index, ADXobLevel  , xloc.bar_index, extend.none, color.green, line.style_dotted, 2))
+    array.push(ADXa_lines, line.new(bar_index[ADXlookbackLength], ADXbullLevel, bar_index, ADXbullLevel, xloc.bar_index, extend.none, color.green, line.style_dotted, 1))
+    array.push(ADXa_fill, linefill.new(array.get(ADXa_lines, 0), array.get(ADXa_lines, 1), color.new(color.green, 90)))
+    
+    array.push(ADXa_lines, line.new(bar_index[ADXlookbackLength], ADXbearLevel, bar_index, ADXbearLevel, xloc.bar_index, extend.none, color.red  , line.style_dotted, 1))
+    array.push(ADXa_lines, line.new(bar_index[ADXlookbackLength], ADXosLevel  , bar_index, ADXosLevel  , xloc.bar_index, extend.none, color.red  , line.style_dotted, 2))
+    array.push(ADXa_fill, linefill.new(array.get(ADXa_lines, 2), array.get(ADXa_lines, 3), color.new(color.red, 90)))
+
+    array.push(ADXa_lines, line.new(bar_index[ADXlookbackLength], ADXmidLevel , bar_index, ADXmidLevel , xloc.bar_index, extend.none, color.gray , line.style_dotted, 1))
+ 
+    for barIndex = 0 to ADXlookbackLength - 1
+        array.push(ADXa_lines, line.new(bar_index[barIndex]    , (ADXoscPlacement == 'Top' ? ADXpriceHighest : ADXpriceLowest) * (1 + (ADXoscPlacement == 'Top' ? oladxValue[barIndex]     : -1 * (100 - oladxValue[barIndex]    ) ) * ADXpriceChangeRate ), 
+                                     bar_index[barIndex + 1], (ADXoscPlacement == 'Top' ? ADXpriceHighest : ADXpriceLowest) * (1 + (ADXoscPlacement == 'Top' ? oladxValue[barIndex + 1] : -1 * (100 - oladxValue[barIndex + 1]) ) * ADXpriceChangeRate ), xloc.bar_index, extend.none, #7e57c2, line.style_solid, 2))
+
+// ADX OSC  ------------------------------------------------------------------------------------- //
+// ---------------------------------------------------------------------------------------------- //
+
+//indicator("Triple Confirmation Kernel Regression Oscillator Overlay [QuantraAI]",  "ᏦᏒᎧ ᏫᏉᏋᏒႱᎯᎽ [QuantraAI]", true, format.price)
+RO_group = "████ Kernel Regression Oscillator ████"
+ROpoints = input.bool (true, "Kernel Regression Oscillator", group=RO_group, inline='Switch1')
+
+var string KRS = "ᏦᏒᎧ ᏫᏉᏋᏒႱᎯᎽ - Settings", var string KRU = "ᏦᏒᎧ ᏫᏉᏋᏒႱᎯᎽ - UI"
+// Kernel Regression Settings
+source    = input.source(close,      "Source",                                                                          group = KRS)
+bandwidth = input.int   (45,         "Bandwidth", 1,                                                                    group = KRS, tooltip = "Length of the Kernel Regression calculation")
+bbwidth   = input.float (2,          "Width", step = 0.2,                                                               group = KRS, tooltip = "Smoothes the Signal")
+sdLook    = input.int   (200,        "Standard Deviation Lookback",                                                     group = KRS, tooltip = "Length of the SD bands lookback period") 
+sdMult    = input.float (3,          "Standard Deviation Extreme for OB/OS Border", step = 0.5,                         group = KRS, tooltip = "Defines the outer border of the SD bands. \nThe inner border begins at 50% of the SD Multiplier")
+ColMode   = input.string("Modern",   "Color Palette Choice", ["Classic", "Modern", "Robust", "Accented", "Monochrome"], group = KRU, inline  = "drop")
+man       = input.bool  (true,       "Custom Palette",                                                                  group = KRU, inline  = "drop")
+manUpC    = input.color (color.new(#00ff00,50),  "Custom Up",                                                         group = KRU, inline  = "man") 
+manDnC    = input.color (color.new(#ff0000,50),  "Custom Down",                                                       group = KRU, inline  = "man")
+
+bbsig     = input.bool  (false,      "Show Trend Signals",                                                              group = KRU)
+BCol      = input.bool  (true,       "Enable Bar Coloring",                                                             group = KRU)
+devS      = input.bool  (true,       "Enable Deviation Band Shading",                                                   group = KRU)
+OBOS      = input.bool  (true,       "Enable Overbought/Oversold Shading",                                              group = KRU)   
+//TR        = input.int   (85,         "Shading Transparency", 0, 100,                                                    group = KRU)
+//BOB       = input.bool  (false,      "Bollinger Band", group=RO_group, inline='Switch2')
+
+// Initialize color variables
+var color UpC = na
+var color DnC = na 
+var color BgC = na 
+
+// Assign colors based on the selected color mode
+if ColMode == "Classic"     
+    UpC := color.lime
+    DnC := color.maroon 
+    BgC := color.green
+if ColMode == "Modern"     
+    UpC := #5ffae0
+    DnC := #c22ed0
+    BgC := #9ef6fb
+if ColMode == "Robust"     
+    UpC := #ffbb00
+    DnC := #770737
+    BgC := #a23061  
+if ColMode == "Accented"  
+    UpC := #9618f7
+    DnC := #ff0078
+    BgC := #801155
+if ColMode == "Monochrome"
+    UpC := #dee2e6
+    DnC := #495057
+    BgC := #212529
+
+// Switch to manual palette if selected
+[UpCol, DnCol] = switch man
+    false => [UpC, DnC]
+    true  => [manUpC, manDnC]
+
+kernel(source, bandwidth, kernel_type) =>
+    switch kernel_type
+        "Epanechnikov" => math.abs(source) <= 1 ? 0.75 * (1 - math.pow(source, 2)) : 0.0
+        "Logistic"     => 1/math.exp(source + 2 + math.exp(-source))
+        "Wave"         => math.abs(source) <= 0.5 ? (1 - math.abs(source)) * math.cos(math.pi * source) : 0.
+
+kernelRegression(src, bandwidth, kernel_type) =>
+    sumWeightedY = 0.
+    sumKernels   = 0.
+    for i = 0 to bandwidth - 1
+        base          = i*i/math.pow(bandwidth, 2)
+        kernel        = kernel(base, 1, kernel_type)
+        sumWeightedY += kernel * src[i]
+        sumKernels   += kernel
+    (src - sumWeightedY/sumKernels)/src
+
+// Define the calculation
+waveCalculation(source, bandwidth, bbwidth) =>
+    sum  = 0.0
+    sumw = 0.0
+    for i = 0 to bandwidth
+        val    = (i * i) / (bandwidth * bandwidth) / bbwidth
+        weight = if val <= 0.5
+            (1 - val) * math.cos(math.pi * val)
+        else
+            0.0
+        sum  := sum  + source[i] * weight
+        sumw := sumw + weight
+    kernel_regression = sum / sumw
+    kernel_regression
+
+Wave = waveCalculation(source, bandwidth, bbwidth)
+
+// Triple Confirmations
+Ep = kernelRegression(source, bandwidth, 'Epanechnikov' )
+Lo = kernelRegression(source, bandwidth, 'Logistic'     )
+Wa = kernelRegression(source, bandwidth, 'Wave'         )
+
+// Average
+AV    = math.avg(Ep, Lo, Wa) + close
+bbMid   = ta.sma  (AV, sdLook)
+arrUp = Wave > Wave[1] and not (Wave[1] > Wave[2])
+arrDn = Wave < Wave[1] and not (Wave[1] < Wave[2])
+
+// Base Plots
+//bbmid = plot(BOB ? bbMid : na, "Mid", color.gray, 2)
+
+// Calculate Dynamic OB/OS Zones
+stdv_bands(_src, _length, _mult) =>
+    float basis = ta.sma  (_src, _length)
+    float dev   = ta.stdev(_src, _length) * _mult
+    [basis, basis + dev, basis - dev]
+
+[_, u1, l1] = stdv_bands(AV, sdLook, sdMult/2)
+[_, u2, l2] = stdv_bands(AV, sdLook, sdMult)
+
+// Final Plots + Fill
+//pu11  = plot(BOB ? u1 : na, "1.𝓢𝓓 +", color.new(DnCol, 70))
+//pl11  = plot(BOB ? l1 : na, "1.𝓢𝓓 -", color.new(UpCol, 70))
+//pu12  = plot(BOB ? u2 : na, "2.𝓢𝓓 +", color.new(DnCol, 70))
+//pl12  = plot(BOB ? l2 : na, "2.𝓢𝓓 -", color.new(UpCol, 70))
+//fill(pu11, pu12, u2, u1, devS ? color.new(DnCol, 60) : na, color.new(chart.bg_color, 55))
+//fill(pl11, pl12, l2, l1, devS ? color.new(UpCol, 60) : na, color.new(chart.bg_color, 55))
+
+HL2  = plot(ROpoints ? hl2 : na, color = color(na))
+wave = plot(ROpoints ? Wave : na, "𝓢𝓲𝓰𝓷𝓪𝓵 𝓦𝓪𝓿𝓮", BCol ? color(na) : Wave > Wave[1] ? UpCol : DnCol, 3)
+fill(wave, HL2, Wave, hl2, BCol ? color.new(Wave > Wave[1] ? UpCol : DnCol, 50) : na, color.new(chart.bg_color, 75)) 
+
+//plotshape(arrUp, "Trend", shape.arrowup,   location.belowbar, UpCol, 0, "🡹",   UpCol, size = size.normal, display = bbsig? display.all : display.none)
+//plotshape(arrDn, "Trend", shape.arrowdown, location.abovebar, DnCol, 0, "🢃", DnCol, size = size.normal, display = bbsig? display.all : display.none)
+//plotchar(arrUp, title="Buy", color=UpCol, location=location.belowbar, char = '🡹', size=size.tiny)
+//plotchar(arrDn, title="Sell", color=DnCol, location=location.abovebar, char = '🢃', size=size.tiny)
+
+plotshape(true, style=shape.square, location=location.bottom, size=size.tiny, color=Wave > Wave[1] ? color.rgb(0, 255, 0, 20) : Wave < Wave[1] ? color.rgb(255, 0, 0, 20) : color.rgb(0, 0, 0, 90))
+
+//HA Cndles
+//HAC = "████ HA Candles ████"
+//showHAC = input.bool(true , title="ATR Trend Bands [Misu]", tooltip="Checkmarks provide confirmation",  group = HAC)
+haClose = (open + high + low + close) / 4
+haOpen = float(na)
+haOpen := na(haOpen[1]) ? (open + close) / 2 : (nz(haOpen[1]) + nz(haClose[1])) / 2
+haHigh = math.max(high, math.max(haOpen, haClose))
+haLow = math.min(low, math.min(haOpen, haClose))
+//plotcandle(haOpen, haHigh, haLow, close, color=ADXColor ? c_sig : na, bordercolor=ADXColor ? c_sig : na, title='Heikin Ashi Candles - Actual Close')
+//plotcandle(open, high, low, close, color=close > open ? UpCol : DnCol, title='Heikin Ashi Candles - Actual Close')
+//bgcolor (OBOS ? (AV > u2 ? color.new(DnCol, TR) : AV < l2 ? color.new(UpCol, TR) : na) : na)
+//barcolor(BCol ? Wave > Wave[1]? UpCol : DnCol: na)
+
+// ---- Setup ----
+pptimeframe = my_time //input.timeframe(defval = '240', title = "Time Frame", group = "Setup")
+leftBars  = 2 //input.int(defval = 2, title = "Left Bars", minval = 1, group = "Setup")
+rightBars = 2 //input.int(defval = 2, title = "Right Bars", minval = 1, group = "Setup")
+pivotsBack = 1 //input.int(defval = 1, title = "Pivots Back (High/Low)", minval = 1, group = "Setup")
+extendBoxLeft = 6 //input.int(defval = 6, title = "Extend Box", minval = 3, maxval = 100, group = "Setup")
+showCB = input.bool(defval = false, title = "Show Consolidation Box", group = "Setup")
+showMid = showCB //input.bool(defval = true, title = "Show Box Mid", group = "Setup")
+showPivots = false //input.bool(defval = false, title = "Show Pivots", group = "Setup")
+showTfLabel = showCB //input.bool(defval = true, title = "Show Labels", group = "Setup")
+boxlinestyle = "Solid" //input.string(defval = "Solid", title = "Border Style/Width", options = ["Solid", "Dotted", "Dashed"], inline = "boxbs", group = "Consolidation Box")
+boxlinewidth = 1 //input.int(defval = 1, title = "", minval = 1, maxval = 10, inline = "boxbs", group = "Consolidation Box")
+boxmidlinestyle = "Dashed" //input.string(defval = "Dashed", title = "Mid Style/Width", options = ["Solid", "Dotted", "Dashed"], inline = "boxmidbs", group = "Consolidation Box")
+boxmidlinewidth = 1 //input.int(defval = 1, title = "", minval = 1, maxval = 10, inline = "boxmidbs", group = "Consolidation Box")
+boxtheme = 'Three' //input.string(defval = "One", title = "Colors", options = ["One", "Three", "Five"], inline = "self", group = "Consolidation Box")
+boxbreakupcol = color.lime //input.color(defval = color.lime, title = "Break Up Color/Fill", inline = "bcup", group = "Consolidation Box")
+boxfillbreakupcol = color.new(color.lime, 95) //input.color(defval = color.new(color.lime, 95), title = "", inline = "bcup", group = "Consolidation Box")
+boxmidupcol = color.teal //input.color(defval = color.teal, title = "Mid Up Color/Fill", inline = "bcmup", group = "Consolidation Box")
+boxfillmidupcol = color.new(color.teal, 95) //input.color(defval = color.new(color.teal, 95), title = "", inline = "bcmup", group = "Consolidation Box")
+boxcol = color.silver //input.color(defval = color.silver, title = "Neutral Color/Fill", inline = "bcn", group = "Consolidation Box")
+boxfillcol = color.new(color.silver, 95) //input.color(defval = color.new(color.silver, 95), title = "", inline = "bcn", group = "Consolidation Box")
+boxmiddncol = color.maroon //input.color(defval = color.maroon, title = "Mid Down Color/Fill", inline = "bcmdn", group = "Consolidation Box")
+boxfillmiddncol = color.new(color.maroon, 95) //input.color(defval = color.new(color.maroon, 95), title = "", inline = "bcmdn", group = "Consolidation Box")
+boxbreakdncol = color.red //input.color(defval = color.red, title = "Break Down Color/Fill", inline = "bcdn", group = "Consolidation Box")
+boxfillbreakdncol = color.new(color.red, 95) //input.color(defval = color.new(color.red, 95), title = "", inline = "bcdn", group = "Consolidation Box")
+phlinecol = color.blue //input.color(defval = color.blue, title = "Pivot High/Low Line Colors", inline = "lc", group = "Pivot Points")
+pllinecol = color.red //input.color(defval = color.red, title = "", inline = "lc", group = "Pivot Points")
+phbgcol = color.new(#131722, 20) //input.color(defval = color.new(#131722, 20), title = "Pivot High BG/Text Colors", inline = "ph", group = "Pivot Points")
+phtextcol = color.blue //input.color(defval = color.blue, title = "", inline = "ph", group = "Pivot Points")
+plbgcol = color.new(#131722, 20) //input.color(defval = color.new(#131722, 20), title = "Pivot Low BG/Text Colors", inline = "pl", group = "Pivot Points")
+pltextcol = color.red //input.color(defval = color.red, title = "", inline = "pl", group = "Pivot Points")
+textSizeLabel = "Normal" //input.string("Normal", title = "Label Size", options = ["Normal", "Small", "Tiny"], group = "Labels")
+// ---- Setup ----
+
+// ---- Type Decalaration(s) ----
+type PPData
+    int ppStart
+    float ppVal
+// ---- Type Decalaration(s) ----
+
+// ---- Helper functions ----
+// Converts current chart resolution into a float minutes value.
+f_resInMinutes() => 
+    _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1. / 60             :
+      timeframe.isminutes ? 1.                  :
+      timeframe.isdaily   ? 60. * 24            :
+      timeframe.isweekly  ? 60. * 24 * 7        :
+      timeframe.ismonthly ? 60. * 24 * 30.4375  : na)
+
+// Calculates a +/- time offset in variable units from the current bar's time or from the current time.
+// WARNING:
+//      This functions does not solve the challenge of taking into account irregular gaps between bars when calculating time offsets.
+//      Optimal behavior occurs when there are no missing bars at the chart resolution between the current bar and the calculated time for the offset.
+//      Holidays, no-trade periods or other irregularities causing missing bars will produce unpredictable results.
+f_timeFrom(_from, _qty, _units, _in = time) =>
+    // _from  : starting time from where the offset is calculated: "bar" to start from the bar's starting time, "close" to start from the bar's closing time, "now" to start from the current time.
+    // _qty   : the +/- qty of _units of offset required. A "series float" can be used but it will be cast to a "series int".
+    // _units : string containing one of the seven allowed time units: "chart" (chart's resolution), "seconds", "minutes", "hours", "days", "months", "years".
+    // Dependency: f_resInMinutes().
+    int _timeFrom = na
+    // Remove any "s" letter in the _units argument, so we don't need to compare singular and plural unit names.
+    _unit = str.replace_all(_units, "s", "")
+    // Determine if we will calculate offset from the bar's time or from current time.
+    _t = switch _from
+        "bar" => time
+        "close" => time_close
+        "now" => timenow
+        "base" => _in
+    // Calculate time at offset.
+    if _units == "chart"
+        // Offset in chart res multiples.
+        _timeFrom := int(_t + (f_resInMinutes() * 60 * 1000 * _qty))
+    else
+        // Add the required _qty of time _units to the _from starting time.
+        _year   = year(_t)       + (_unit == "year"   ? int(_qty) : 0)
+        _month  = month(_t)      + (_unit == "month"  ? int(_qty) : 0)
+        _day    = dayofmonth(_t) + (_unit == "day"    ? int(_qty) : 0)
+        _hour   = hour(_t)       + (_unit == "hour"   ? int(_qty) : 0)
+        _minute = minute(_t)     + (_unit == "minute" ? int(_qty) : 0)
+        _second = second(_t)     + (_unit == "econd"  ? int(_qty) : 0)
+        // Return the resulting time in ms Unix time format.
+        _timeFrom := timestamp(_year, _month, _day, _hour, _minute, _second)
+
+f_timeFrameStr(_tf) =>
+    tfstr = switch _tf
+        "1" => "1m"
+        "2" => "2m"
+        "3" => "3m"
+        "4" => "4m"
+        "5" => "5m"
+        "6" => "6m"
+        "7" => "7m"
+        "8" => "8m"
+        "9" => "9m"
+        "10" => "10m"
+        "11" => "11m"
+        "12" => "12m"
+        "13" => "13m"
+        "14" => "14m"
+        "15" => "15m"
+        "16" => "16m"
+        "17" => "17m"
+        "18" => "18m"
+        "19" => "19m"
+        "20" => "20m"
+        "21" => "21m"
+        "22" => "22m"
+        "23" => "23m"
+        "24" => "24m"
+        "25" => "25m"
+        "26" => "26m"
+        "27" => "27m"
+        "28" => "28m"
+        "29" => "29m"
+        "30" => "30m"
+        "31" => "31m"
+        "32" => "32m"
+        "33" => "33m"
+        "34" => "34m"
+        "35" => "35m"
+        "36" => "36m"
+        "37" => "37m"
+        "38" => "38m"
+        "39" => "39m"
+        "40" => "40m"
+        "41" => "41m"
+        "42" => "42m"
+        "43" => "43m"
+        "44" => "44m"
+        "45" => "45m"
+        "46" => "46m"
+        "47" => "47m"
+        "48" => "48m"
+        "49" => "49m"
+        "50" => "50m"
+        "51" => "51m"
+        "52" => "52m"
+        "53" => "53m"
+        "54" => "54m"
+        "55" => "55m"
+        "56" => "56m"
+        "57" => "57m"
+        "58" => "58m"
+        "59" => "59m"
+        "60" => "1h"
+        "120" => "2h"
+        "180" => "3h"
+        "240" => "4h"
+        "300" => "5h"
+        "360" => "6h"
+        "420" => "7h"
+        "480" => "8h"
+        "540" => "9h"
+        "600" => "10h"
+        "660" => "11h"
+        "720" => "12h"
+        "780" => "13h"
+        "840" => "14h"
+        "900" => "15h"
+        "960" => "16h"
+        "1020" => "17h"
+        "1080" => "18h"
+        "1140" => "19h"
+        "1200" => "20h"
+        "1260" => "21h"
+        "1320" => "22h"
+        "1380" => "23h"
+        => _tf
+// ---- Helper functions ----
+
+// ---- Pivot Points ----
+get_phpl() =>
+    float crph = ta.pivothigh(leftBars, rightBars)
+    float crpl = ta.pivotlow(leftBars, rightBars)
+    phtimestart = crph ? time[rightBars] : na
+    phtimeend = crph ? time[rightBars - 1] : na
+    pltimestart = crpl ? time[rightBars] : na
+    pltimeend = crpl ? time[rightBars - 1] : na
+
+    [crph, phtimestart, phtimeend, crpl, pltimestart, pltimeend]
+// ---- Pivot Points ----
+
+// ---- Pivot Points Array ----
+truncate_pp_array_size_from_back(pointer) =>
+    while array.size(pointer) > math.max(0, pivotsBack)
+        ppData = array.pop(pointer)
+
+add_pp_array_front(pointer, ppData, enforceSize = true) =>
+    array.unshift(pointer, ppData)
+    if enforceSize
+        truncate_pp_array_size_from_back(pointer)
+// ---- Pivot Points Array ----
+
+// ---- Main Algo ----
+// get if there if Pivot High/low and their start/end times
+[crph, phtimestart, phtimeend, crpl, pltimestart, pltimeend] = request.security(syminfo.tickerid, pptimeframe, get_phpl(), lookahead = barmerge.lookahead_on)
+
+// keep time of each bars, this is used for lines/labels
+var mytime = array.new_int(0)
+array.unshift(mytime, time)
+
+var ppHighArr = array.new<PPData>(0)
+var ppLowArr = array.new<PPData>(0)
+
+// calculate end of the line/time for pivot high/low
+bhend = array.get(mytime, math.min(array.indexof(mytime, phtimeend) + 1, array.size(mytime) - 1))
+blend = array.get(mytime, math.min(array.indexof(mytime, pltimeend) + 1, array.size(mytime) - 1))
+
+// to draw once
+float pivothigh = na(crph[1]) and crph ? crph : na
+float pivotlow  = na(crpl[1]) and crpl ? crpl : na
+
+crwidth = (ta.highest(300) - ta.lowest(300)) / 50
+if not na(pivothigh) and time >= starttime and showCB
+    ppData = PPData.new(phtimestart, pivothigh)
+    add_pp_array_front(ppHighArr, ppData)
+    if showPivots and time >= starttime
+        line.new(x1 = phtimestart, y1 = pivothigh, x2 = bhend, y2 = pivothigh, color = phlinecol, xloc = xloc.bar_time, width = 2)
+        line.new(x1 = phtimestart, y1 = pivothigh, x2 = phtimestart, y2 = pivothigh + crwidth, color = phlinecol, xloc = xloc.bar_time, width = 2)
+        line.new(x1 = bhend, y1 = pivothigh, x2 = bhend, y2 = pivothigh + crwidth, color = phlinecol, xloc = xloc.bar_time, width = 2)
+        label.new(x = (phtimestart + bhend) / 2, y = pivothigh + crwidth,
+              text = str.tostring(math.round_to_mintick(pivothigh)),
+              color = phbgcol,
+              textcolor = phtextcol,
+              xloc = xloc.bar_time)
+
+if not na(pivotlow) and time >= starttime and showCB
+    ppData = PPData.new(pltimestart, pivotlow)
+    add_pp_array_front(ppLowArr, ppData)
+
+    if showPivots and time >= starttime
+        line.new(x1 = pltimestart, y1 = pivotlow, x2 = blend, y2 = pivotlow, color = pllinecol, xloc = xloc.bar_time, width = 2)
+        line.new(x1 = pltimestart, y1 = pivotlow, x2 = pltimestart, y2 = pivotlow - crwidth, color = pllinecol, xloc = xloc.bar_time, width = 2)
+        line.new(x1 = blend, y1 = pivotlow, x2 = blend, y2 = pivotlow - crwidth, color = pllinecol, xloc = xloc.bar_time, width = 2)
+        label.new(x = (pltimestart + blend) / 2, y = pivotlow - crwidth,
+              text = str.tostring(math.round_to_mintick(pivotlow)),
+              color = plbgcol,
+              textcolor = pltextcol,
+              style = label.style_label_up,
+              xloc = xloc.bar_time)
+
+int startTime = na
+float minPP = na
+float maxPP = na
+var box consolidationBox = na
+var line consolidationBoxMid = na
+var label timeFrameLabel = na
+if barstate.islast and f_resInMinutes() <= (timeframe.in_seconds(pptimeframe) / 60) and time >= starttime and showCB
+    if array.size(ppHighArr) >= 1 and array.size(ppLowArr) >= 1
+        for i = 0 to (array.size(ppHighArr) == 0 ? na : array.size(ppHighArr) - 1)
+            ppdata = array.get(ppHighArr, i)
+
+            if na(minPP) or ppdata.ppVal < minPP
+                minPP := ppdata.ppVal
+
+            if na(maxPP) or ppdata.ppVal > maxPP
+                maxPP := ppdata.ppVal
+
+            if na(startTime) or ppdata.ppStart < startTime
+                startTime := ppdata.ppStart
+
+        for i = 0 to (array.size(ppLowArr) == 0 ? na : array.size(ppLowArr) - 1)
+            ppdata = array.get(ppLowArr, i)
+
+            if na(minPP) or ppdata.ppVal < minPP
+                minPP := ppdata.ppVal
+
+            if na(maxPP) or ppdata.ppVal > maxPP
+                maxPP := ppdata.ppVal
+
+            if na(startTime) or ppdata.ppStart < startTime
+                startTime := ppdata.ppStart
+
+        extendTime = f_timeFrom("base", extendBoxLeft, "chart", time)
+
+        midPoint = (maxPP + minPP) / 2
+
+        box.delete(consolidationBox[1])
+        if showMid
+            line.delete(consolidationBoxMid[1])
+        if showTfLabel
+            label.delete(timeFrameLabel[1])
+        
+        actualBoxColor = color.yellow
+        actualBoxFillColor = color.yellow
+        if boxtheme == "One"
+            actualBoxColor := boxcol
+            actualBoxFillColor := boxfillcol
+        else if boxtheme == "Three"
+            if close >= minPP and close <= maxPP
+                actualBoxColor := boxcol
+                actualBoxFillColor := boxfillcol
+            else if close > maxPP
+                actualBoxColor := boxbreakupcol
+                actualBoxFillColor := boxfillbreakupcol
+            else if close < minPP
+                actualBoxColor := boxbreakdncol
+                actualBoxFillColor := boxfillbreakdncol
+        else if boxtheme == "Five"
+            if close >= minPP and close <= maxPP
+                if close == midPoint
+                    actualBoxColor := boxcol
+                    actualBoxFillColor := boxfillcol
+                else if close > midPoint
+                    actualBoxColor := boxmidupcol
+                    actualBoxFillColor := boxfillmidupcol
+                else
+                    actualBoxColor := boxmiddncol
+                    actualBoxFillColor := boxfillmiddncol
+            else if close > maxPP
+                actualBoxColor := boxbreakupcol
+                actualBoxFillColor := boxfillbreakupcol
+            else if close < minPP
+                actualBoxColor := boxbreakdncol
+                actualBoxFillColor := boxfillbreakdncol
+
+        boxLineStyle = switch boxlinestyle
+            "Solid" => line.style_solid
+            "Dotted" => line.style_dotted
+            "Dashed" => line.style_dashed
+        
+        consolidationBox := box.new(startTime, minPP, extendTime, maxPP, xloc = xloc.bar_time, border_color = actualBoxColor, bgcolor = actualBoxFillColor, border_style = boxLineStyle, border_width = boxlinewidth, extend = extend.none)
+        if showMid
+            boxMidLineStyle = switch boxmidlinestyle
+                "Solid" => line.style_solid
+                "Dotted" => line.style_dotted
+                "Dashed" => line.style_dashed
+            consolidationBoxMid := line.new(startTime, midPoint, extendTime, midPoint, xloc = xloc.bar_time, color = actualBoxColor, style = boxMidLineStyle, width = boxmidlinewidth, extend = extend.none)
+        if showTfLabel
+            lSize = switch textSizeLabel
+                "Normal" => size.normal
+                "Small" => size.small
+                "Tiny" => size.tiny
+            timeFrameLabel := label.new(extendTime, maxPP, text = f_timeFrameStr(pptimeframe), xloc = xloc.bar_time, color = color.new(actualBoxColor, 100), style = label.style_label_lower_right, textcolor = actualBoxColor, size = lSize)
+
+// Parameters
+// ---------------------------
+showDSP = input.bool(title="Directional Strength Panel", defval=true)
+grp1 = 'Table Settings'
+grp2 = 'Symbol List'
+grp3 = 'MA Settings'
+var lbl_list = array.new_string()
+mom_val = array.new_float()
+tips = 'Write the name for label in the second box'
+tips2 = 'Applicable only for ALMA'
+
+in_theme = 'Dark' //input.string('Dark', title='Chart Theme', group=grp1, options=['Light', 'Dark'])
+in_size = 'Small' //input.string('Small', title='Table Size', group=grp1, options=['Small', 'Large'])
+// -------
+ma_typ = 'ALMA' //input.string('ALMA', title='MA Type', group=grp3, options=['ALMA', 'EMA', 'SuperSmoother'])
+ma_len = 20 //input.int(20, title='MA Length', group=grp3)
+offset = 0.6 //input.float(0.6, title='  Offset', group=grp3, tooltip=tips2)
+sigma = 6 //input.float(6, title='  Sigma', group=grp3, tooltip=tips2)
+// -------
+ticker_1 = 'TVC:USOIL' //input.symbol('TVC:USOIL', title='Ticker 1', group=grp2, inline='Ticker 1')
+ticker_2 = 'OANDA:XAUUSD' //input.symbol('OANDA:XAUUSD', title='Ticker 2', group=grp2, inline='Ticker 2')
+
+if barstate.isfirst  //Index
+    array.push(lbl_list, 'USOIL') //input.string('USOIL', title='', group=grp2, inline='Ticker 1', tooltip=tips))  //0
+    array.push(lbl_list, 'XAUUSD') //input.string('XAUUSD', title='', group=grp2, inline='Ticker 2', tooltip=tips))  //1
+// ---------------------------
+// Variables
+// ---------------------------
+var t_position = position.middle_right
+var col_text = in_theme == 'Dark' ? color.white : color.black
+
+// -------
+var PTable = table.new(position=t_position, columns=7, rows=65)
+var dash = '■'
+var lim = '-------------'
+var row_max = in_size == 'Small' ? 20 : 40  // Number of 'dash'
+var row_mul = 100 / row_max
+
+// Functions
+// ---------------------------
+//Supersmoother 2-pole
+f_ss(_src, _length) =>
+    s_a1 = math.exp(-math.sqrt(2) * math.pi / _length)
+    s_b1 = 2 * s_a1 * math.cos(math.sqrt(2) * math.pi / _length)
+    s_c3 = -math.pow(s_a1, 2)
+    s_c2 = s_b1
+    s_c1 = 1 - s_c2 - s_c3
+    ss = 0.0
+    ss := s_c1 * _src + s_c2 * nz(ss[1], _src[1]) + s_c3 * nz(ss[2], _src[2])
+    ss
+
+// Multiple Moving Average
+get_MA(typ, len, _ofs, _sig) =>
+    float maVal = na
+    if typ == 'EMA'
+        maVal := ta.ema(close, len)
+        maVal
+    if typ == 'ALMA'
+        maVal := ta.alma(close, len, _ofs, _sig)
+        maVal
+    if typ == 'SuperSmoother'
+        maVal := f_ss(close, len)
+        maVal
+    maVal
+
+// Function to retrieve value for drawing
+get_data(_sym, _typ, _len, _ofs, _sig) =>
+    request.security(_sym, timeframe.period, ta.rsi(get_MA(_typ, _len, _ofs, _sig), 14))  // Value should be between 0-100
+
+// Function to update the color of each row
+f_Fill(_table, column_i, _title, _val) =>
+    for row_i = row_max to 1 by 1
+        x1 = _val / row_mul
+        x2 = row_max - x1
+        _col = na(_val) ? #00000000 : row_i == row_max ? #FF3333 : x2 > row_i - 1 ? #00000000 : color.from_gradient(row_i * row_mul, 10, 100, #00CC00, #FF3333)
+        table.cell_set_text_color(_table, column_i, row_i, _col)
+
+    table.cell_set_text(_table, column_i, row_max + 1, na(_val) ? 'n/a' : str.tostring(_val, '0.0'))
+
+// Calculate
+// ---------------------------
+// push value for each ticker to array (same sequence with lbl_list)                Index
+array.push(mom_val, get_data(ticker_1, ma_typ, ma_len, offset, sigma))  // 0
+array.push(mom_val, get_data(ticker_2, ma_typ, ma_len, offset, sigma))  // 1
+
+// Fill Table
+// ---------------------------
+if barstate.isfirst and showDSP
+    // Update first column with 25/50/75/100 levels
+    for idx = 0 to 3 by 1
+        table.cell(PTable, 0, idx * (row_max / 4) + 1, str.tostring(100 - 25 * idx) + ' -', height=1, text_color=color.new(col_text, 30), text_size=size.tiny, text_halign=text.align_right)
+
+    //fill the whole thing 1 time, each subsequent update will only update the color
+    for col_i = 1 to 2 by 1
+        _lbl = array.get(lbl_list, col_i - 1)
+        table.cell(PTable, col_i, 0, lim, height=3.2, width=2.5, text_color=col_text, text_size=size.tiny, text_halign=text.align_center, text_valign=text.align_center)
+        for row_i = row_max to 1 by 1
+            bg_col = row_i == 2 * (row_max / 4) + 1 ? color.new(col_text, 95) : #00000000
+            table.cell(PTable, col_i, row_i, dash, height=1.2, width=0, text_color=#00000000, text_size=size.normal, text_halign=text.align_center, bgcolor=bg_col)
+        table.cell(PTable, col_i, row_max + 1, lim, height=1, width=2.5, text_color=col_text, text_size=size.tiny, text_halign=text.align_center, text_valign=text.align_center)
+        table.cell(PTable, col_i, row_max + 2, '', width=0, text_color=col_text, text_size=size.small, text_halign=text.align_center)
+        table.cell(PTable, col_i, row_max + 3, lim, height=0.5, width=2.5, text_color=col_text, text_size=size.tiny, text_halign=text.align_center)
+        table.cell(PTable, col_i, row_max + 4, _lbl, width=2.5, text_color=col_text, text_size=size.tiny, text_halign=text.align_center)
+
+if barstate.islast and showDSP
+    //Fill color based on calculated value
+    for i = 1 to 2 by 1
+        f_Fill(PTable, i, array.get(lbl_list, i - 1), array.get(mom_val, i - 1))
+
+//indicator("Dynamic Fibonacci Retracement [HG]", overlay = true)
+showFIBLevels   = input.bool(title='Show Fibonacci Levels?', defval=false)
+input_lookback  = input.int(defval = 50, title = 'Lookback Range', minval = 5)
+input_extend    = input.string(defval = 'None', title = 'Extend', options = ['None', 'Right', 'Left', 'Both'])
+input_width     = input.int(defval = 1, title = 'Width', minval = 0)
+input_labels    = input.bool(defval = true, title = 'Labels', inline = 'Labels')
+input_offset    = input.int(defval = 15, title = '| Offset Right', inline = 'Labels')
+input_prices    = input.bool(defval = true, title = 'Prices', tooltip = 'Prints the price of the level next to the retracement level.')
+input_bullColor = input.color(defval = color.green, title = 'Bull', inline = 'color')
+input_bearColor = input.color(defval = color.red, title = 'Bear', inline = 'color')
+input_trendline = input.bool(defval = true, title = 'Use Trendline', group = 'Levels')
+input_use236    = input.bool(defval = true, title = '', inline = '0', group = 'Levels')
+input_236       = input.float(defval = 0.236, title = '', inline = '0', group = 'Levels', step = 0.01)
+input_use382    = input.bool(defval = false, title = '', inline = '382', group = 'Levels')
+input_382       = input.float(defval = 0.382, title = '', inline = '382', group = 'Levels', step = 0.01)
+input_use5      = input.bool(defval = true, title = '', inline = '382', group = 'Levels')
+input_5         = input.float(defval = 0.5, title = '', inline = '382', group = 'Levels', step = 0.01)
+input_use618    = input.bool(defval = false, title = '', inline = '618', group = 'Levels')
+input_618       = input.float(defval = 0.618, title = '', inline = '618', group = 'Levels', step = 0.01)
+input_use786    = input.bool(defval = true, title = '', inline = '618', group = 'Levels')
+input_786       = input.float(defval = 0.786, title = '', inline = '618', group = 'Levels', step = 0.01)
+
+exType = switch input_extend
+    'None' => extend.none
+    'Right' => extend.right
+    'Left' => extend.left
+    'Both' => extend.both
+
+fpl = fixnan(ta.pivotlow(input_lookback * x, input_lookback * x))
+fph = fixnan(ta.pivothigh(input_lookback * x, input_lookback * x))
+fplC = ta.barssince(ta.change(fpl))
+fphC = ta.barssince(ta.change(fph))
+
+var string dir = na
+since = fphC < fplC ? fplC + input_lookback : fphC + input_lookback
+if ta.change(fph) or ta.crossunder(low, fpl)
+    dir := 'bear'
+if ta.change(fpl) or ta.crossover(high, fph)
+    dir := 'bull'
+col = dir == 'bull' ? input_bullColor : input_bearColor
+
+getOuter(pivot, src) =>
+    var srcValue = src
+    if ta.change(pivot)
+        srcValue := pivot
+    if pivot == fph ? src > srcValue : src < srcValue
+        srcValue := src
+    [srcValue]
+
+[h] = getOuter(fph, high)
+[l] = getOuter(fpl, low)
+
+calcFib(float lo, float hi, float perc) => dir == 'bull' ? lo - (lo - hi) * perc : hi - (hi - lo) * perc
+
+levelsArr = array.from(0, input_use236 ? input_236 : na, input_use382 ? input_382 : na, input_use5 ? input_5 : na, input_use618 ? input_618 : na, input_use786 ? input_786 : na, 1)
+var trendline  = line.new(na, na, na, na, style = line.style_dotted, width = input_width)
+var innerLines = array.new<line>()
+if showFIBLevels
+    for i = 0 to 6
+        if innerLines.size() < 7
+            innerLines.push(line.new(na, na, na, na, width = input_width, style = line.style_dotted))
+        innerLines.get(i).set_xy1(bar_index - since, calcFib(l, h, levelsArr.get(i)))
+        innerLines.get(i).set_xy2(bar_index, calcFib(l, h, levelsArr.get(i)))
+        innerLines.get(i).set_color(col)
+        innerLines.get(i).set_extend(exType)
+        if input_labels
+            var labelArray = array.new<label>()
+            if labelArray.size() < 7
+                labelArray.push(label.new(na, na, na, style = label.style_none))
+            labelArray.get(i).set_xy(bar_index + input_offset, calcFib(l, h, levelsArr.get(i)))
+            labelArray.get(i).set_text(str.tostring(levelsArr.get(i)) + (input_prices ? ' (' + str.tostring(calcFib(l, h, levelsArr.get(i)), format.mintick) + ')' : na))
+            labelArray.get(i).set_textcolor(col)    
+
+if input_trendline and showFIBLevels
+    if dir == 'bull'
+        trendline.set_xy1(bar_index - since, l)
+        trendline.set_xy2(bar_index, h)
+    else
+        trendline.set_xy1(bar_index - since, h)
+        trendline.set_xy2(bar_index, l)
+trendline.set_color(col)

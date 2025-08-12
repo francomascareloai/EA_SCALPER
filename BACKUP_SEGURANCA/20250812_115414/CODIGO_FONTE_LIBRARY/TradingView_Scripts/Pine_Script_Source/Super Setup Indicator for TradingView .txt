@@ -1,0 +1,383 @@
+
+//@version=5
+indicator('Super Setup indicator v1.5', overlay=true, max_labels_count=500)
+
+candle_stability_index_param = input.float(0.4, 'Candle Stability Index', 0, 1, step=0.1, group='Technical', tooltip='Candle Stability Index measures the ratio between the body and the wicks of a candle. Higher - more stable.')
+rsi_index_param = input.int(50, 'RSI Index', 0, 100, group='Technical', tooltip='RSI Index measures how overbought/oversold is the market. Higher - more overbought/oversold.')
+candle_delta_length_param  = input.int(5, 'Candle Delta Length', 3, group='Technical', tooltip='Candle Delta Length measures the period over how many candles the price increased/decreased. Higher - longer period.')
+disable_repeating_signals_param = input.bool(false, 'Disable Repeating Signals', group='Technical', tooltip='Removes repeating signals. Useful for removing clusters of signals and general clarity')
+
+GREEN = #0c7e12
+RED = color.rgb(199, 18, 18)
+TRANSPARENT = color.rgb(0, 0, 0, 100)
+
+label_size = input.string('small', 'Label Size', options=['huge', 'large', 'normal', 'small', 'tiny'], group='Cosmetic')
+label_style = input.string('text bubble', 'Label Style', ['text bubble', 'triangle', 'arrow'], group='Cosmetic')
+buy_label_color = input(GREEN, 'BUY Label Color', inline='Highlight', group='Cosmetic')
+sell_label_color = input(RED, 'SELL Label Color', inline='Highlight', group='Cosmetic')
+label_text_color = input(color.white, 'Label Text Color', inline='Highlight', group='Cosmetic')
+
+stable_candle = math.abs(close - open) / ta.tr > candle_stability_index_param
+rsi = ta.rsi(close, 14)
+
+bullish_engulfing = close[1] < open[1] and close > open and close > open[1]
+rsi_below = rsi < rsi_index_param
+decrease_over = close < close[candle_delta_length_param]
+
+bull = bullish_engulfing and stable_candle and rsi_below and decrease_over and barstate.isconfirmed
+
+bearish_engulfing = close[1] > open[1] and close < open and close < open[1]
+rsi_above = rsi > 100 - rsi_index_param
+increase_over = close > close[candle_delta_length_param]
+
+bear = bearish_engulfing and stable_candle and rsi_above and increase_over and barstate.isconfirmed
+
+var last_signal = ''
+
+
+if bull and (disable_repeating_signals_param ? (last_signal != 'buy' ? true : na) : true)
+    if label_style == 'text bubble'
+        label.new(bull ? bar_index : na, low, '? BOTTOM', color=buy_label_color, style=label.style_label_up, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(bull ? bar_index : na, low, '? BOTTOM', yloc=yloc.belowbar, color=buy_label_color, style=label.style_triangleup, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(bull ? bar_index : na, low, '? BOTTOM', yloc=yloc.belowbar, color=buy_label_color, style=label.style_arrowup, textcolor=TRANSPARENT, size=label_size)
+
+    last_signal := 'buy'
+
+if bear and (disable_repeating_signals_param ? (last_signal != 'sell' ? true : na) : true)
+    if label_style == 'text bubble'
+        label.new(bear ? bar_index : na, high, '? TOP', color=sell_label_color, style=label.style_label_down, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(bear ? bar_index : na, high, '? TOP', yloc=yloc.abovebar, color=sell_label_color, style=label.style_triangledown, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(bear ? bar_index : na, high, '? TOP', yloc=yloc.abovebar, color=sell_label_color, style=label.style_arrowdown, textcolor=TRANSPARENT, size=label_size)
+    last_signal := 'sell'
+  
+
+alertcondition(bull, 'BUY Signals', 'New signal: ? BOTTOM')
+alertcondition(bear, 'SELL Signals', 'New signal: ? TOP')
+
+
+
+// Add VWAP in black
+vwap = ta.vwap
+plot(vwap, color=color.black, linewidth=2, title="VWAP")
+
+// Add 9 EMA in red
+ema9 = ta.ema(close, 9)
+plot(ema9, color=#dcff19, linewidth=2, title="9 EMA")
+
+// Add 20 EMA in red
+ema20 = ta.ema(close, 20)
+plot(ema20, color=#ff52bd, linewidth=2, title="20 EMA")
+
+// Add 50 EMA in red
+ema50 = ta.ema(close, 50)
+plot(ema50, color=color.rgb(82, 255, 91), linewidth=2, title="50 EMA")
+
+// Add 200 EMA in red
+ema200 = ta.ema(close, 200)
+plot(ema200, color=color.red, linewidth=2, title="200 EMA")
+
+
+
+// Daily High/Low Tracking
+var float day_high = na
+var float day_low = na
+
+if (barstate.isnew and (na(time('1440', session.extended)[1]) or time('1440', session.extended)[1] < time('1440', session.extended)))
+    day_high := high
+    day_low := low
+else
+    day_high := math.max(day_high[1], high)
+    day_low := math.min(day_low[1], low)
+
+plot(day_high, color=color.new(color.lime, 0))
+plot(day_low, color=color.new(color.red, 0))
+
+
+
+
+
+bullcolor = #16e045
+bearcolor = #e1320f
+
+gr_customalert = "CUSTOM ALERTS CREATOR"
+
+gr_signal = "MAIN SETTINGS"
+gr_Basic_Settings = "BASIC SETTINGS"
+gr_PullBacksignal = "PULLBACK SIGNALS SETTINGS"
+gr_Other_Settings = "CLOUD SETTINGS"
+gr_TrendTracer = "TREND TRACER SETTINGS"
+gr_signalfilter = "SIGNAL FILTERS"
+gr_candle = "CANDLE COLORING"
+gr_RiskManage = "RISK MANAGEMENT"
+gr_dash = "SMART PANEL"
+gr_Conso = "CONSOLIDATION ZONE"
+
+// Get user input
+
+showSignals       = input(true, "Show Signal's", group=gr_signal)
+//showSignals       = true
+sensitivity       = input.float(2.4, "Sensitivity", 0.1, step=0.1, group=gr_signal)
+STuner            = input.int(15, "Signal Tuner(1-25)", minval = 1, maxval = 25, group=gr_signal)
+Presets           = input.string("All Signals", "Presets", ["All Signals", "Strong+", "Trend Scalper"], group=gr_signal)
+TextStyle         = input.string("Minimal", "Signal Style", ["Normal", "Minimal"], group=gr_signal)
+
+
+
+Show_PR   = input.bool(true, title="Show PullBack Signals", group = gr_PullBacksignal , inline = "Features1")
+MSTuner       = input.int(5, "PullBack Tuner(2-30)", minval = 2, maxval = 30, group=gr_PullBacksignal)
+
+
+
+tpLabels          = input(true, "Dynamic Take Profit Lables", group=gr_RiskManage)
+ShowTpSlAreas   = input(false, "Show take Profit/Stop-loss Area", group=gr_RiskManage)
+
+
+usePercSL         = input(false, "SL/TRAILING", inline="1", group=gr_RiskManage)
+percTrailingSL    = input.float(1, "", 0, step=0.1, inline="1", group=gr_RiskManage)
+useTP1            = input(true, "", inline="1", group=gr_RiskManage)
+multTP1           = input.float(1, "TP 1", 0, inline="1", group=gr_RiskManage)
+
+useTP2            = input(true, "", inline="4", group=gr_RiskManage)
+multTP2           = input.float(2, "TP 2           ", 0, inline="4", group=gr_RiskManage)
+useTP3            = input(true, "", inline="4", group=gr_RiskManage)
+multTP3           = input.float(3, "TP 3", 0, inline="4", group=gr_RiskManage)
+
+countBull = ta.barssince(bull)
+countBear = ta.barssince(bear)
+
+trigger = nz(countBull, bar_index) < nz(countBear, bar_index) ? 1 : 0
+
+
+// Colors
+green    = bullcolor, green50  = color.new(green, 50),  green20  = color.new(green, 80)
+red      = bearcolor, red50    = color.new(red, 50),    red20    = color.new(red, 80)
+silver   = #B2B5BE, silver50 = color.new(silver, 50), silver20 = color.new(silver, 80)
+// Plots
+atrBand = usePercSL ? (trigger ? low : high) * (percTrailingSL / 100) : ta.atr(14) * 2.2
+
+atrStop = trigger ? low - atrBand : high + atrBand
+
+lastTrade(src) => ta.valuewhen(bull or bear, src, 0)
+
+entry_y = lastTrade(close)
+
+tp1_y = (entry_y-lastTrade(atrStop))*multTP1 + entry_y
+
+tp2_y = (entry_y-lastTrade(atrStop))*multTP2 + entry_y
+
+tp3_y = (entry_y-lastTrade(atrStop))*multTP3 + entry_y
+
+
+tpLabels(tp) =>
+    tp1Bull = ta.crossover (rsi, 55), tp2Bull = ta.crossover (rsi, 55), tp3Bull = ta.crossover (rsi, 60)
+    tp1Bear = ta.crossunder(rsi, 43), tp2Bear = ta.crossunder(rsi, 30), tp3Bear = ta.crossunder(rsi, 20)
+    tp1Bull := tp1Bull and (nz(ta.barssince(tp1Bull)[1], 9999) > countBull), tp2Bull := tp2Bull and (ta.barssince(tp1Bull)[1] <= countBull), tp2Bull := tp2Bull and (nz(ta.barssince(tp2Bull)[1], 9999) > countBull), tp3Bull := tp3Bull and (ta.barssince(tp2Bull)[1] <= countBull), tp3Bull := tp3Bull and (nz(ta.barssince(tp3Bull)[1], 9999) > countBull)
+    tp1Bear := tp1Bear and (nz(ta.barssince(tp1Bear)[1], 9999) > countBear), tp2Bear := tp2Bear and (ta.barssince(tp1Bear)[1] <= countBear), tp2Bear := tp2Bear and (nz(ta.barssince(tp2Bear)[1], 9999) > countBear), tp3Bear := tp3Bear and (ta.barssince(tp2Bear)[1] <= countBear), tp3Bear := tp3Bear and (nz(ta.barssince(tp3Bear)[1], 9999) > countBear)
+    
+    if Presets != "Trend Scalper" and tpLabels
+        trigger ? (tp == 1 ? tp1Bull : tp == 2 ? tp2Bull : tp3Bull) : (tp == 1 ? tp1Bear : tp == 2 ? tp2Bear : tp3Bear)
+plotshape(tpLabels(1), "", shape.xcross, location.abovebar, trigger ? green : na , 0, "Exit", trigger ? green : na , false)
+plotshape(tpLabels(2), "", shape.xcross, location.abovebar, trigger ? green : na , 0, "Exit", trigger ? green : na , false)
+plotshape(tpLabels(3), "", shape.xcross, location.abovebar, trigger ? green : na , 0, "Exit", trigger ? green : na , false)
+plotshape(tpLabels(1), "", shape.xcross, location.belowbar, trigger ? na    : red, 0, "Exit", trigger ? na    : red, false)
+plotshape(tpLabels(2), "", shape.xcross, location.belowbar, trigger ? na    : red, 0, "Exit", trigger ? na    : red, false)
+plotshape(tpLabels(3), "", shape.xcross, location.belowbar, trigger ? na    : red, 0, "Exit", trigger ? na    : red, false)
+
+// Inputs
+pvtLenL = input.int(7, minval=1, title='Pivot Length Left Hand Side')
+pvtLenR = input.int(1, minval=1, title='Pivot Length Right Hand Side')
+showStop = input(true, title='Show Recent Low Stop?')
+
+// Get High and Low Pivot Points
+pvthi_ = ta.pivothigh(high, pvtLenL, pvtLenR)
+pvtlo_ = ta.pivotlow(low, pvtLenL, pvtLenR)
+
+// Force Pivot completion before plotting.
+Shunt = 1  //Wait for close before printing pivot? 1 for true 0 for flase
+maxLvlLen = 0  //Maximum Extension Length
+pvthi = pvthi_[Shunt]
+pvtlo = pvtlo_[Shunt]
+
+// Count How many candles for current Pivot Level, If new reset.
+counthi = ta.barssince(not na(pvthi))
+countlo = ta.barssince(not na(pvtlo))
+
+pvthis = fixnan(pvthi)
+pvtlos = fixnan(pvtlo)
+hipc = ta.change(pvthis) != 0 ? na : #fd1515
+lopc = ta.change(pvtlos) != 0 ? na : color.green
+
+
+
+// ATR calculation for profit target
+atr_length = input.int(7, title="ATR Length")
+atr_multiplier = input.float(1.5, title="ATR Multiplier for Book Profit")
+atr_value = ta.atr(atr_length)
+
+
+var float buy_entry_price = na
+var float sell_entry_price = na
+var bool buy_label_plotted = false
+var bool sell_label_plotted = false
+
+if bull and (disable_repeating_signals_param ? (last_signal != 'buy' ? true : na) : true)
+    buy_entry_price := close
+    buy_label_plotted := false  // Reset label plotted flag when a new buy signal occurs
+    if label_style == 'text bubble'
+        label.new(bull ? bar_index : na, low, '? Bottom', color=buy_label_color, style=label.style_label_up, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(bull ? bar_index : na, low, '? Bottom', yloc=yloc.belowbar, color=buy_label_color, style=label.style_triangleup, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(bull ? bar_index : na, low, '? Bottom', yloc=yloc.belowbar, color=buy_label_color, style=label.style_arrowup, textcolor=TRANSPARENT, size=label_size)
+    
+    last_signal := 'buy'
+
+if bear and (disable_repeating_signals_param ? (last_signal != 'sell' ? true : na) : true)
+    sell_entry_price := close
+    sell_label_plotted := false  // Reset label plotted flag when a new sell signal occurs
+    if label_style == 'text bubble'
+        label.new(bear ? bar_index : na, high, '? TOP', color=sell_label_color, style=label.style_label_down, textcolor=label_text_color, size=label_size)
+    else if label_style == 'triangle'
+        label.new(bear ? bar_index : na, high, '? TOP', yloc=yloc.abovebar, color=sell_label_color, style=label.style_triangledown, textcolor=TRANSPARENT, size=label_size)
+    else if label_style == 'arrow'
+        label.new(bear ? bar_index : na, high, '? TOP', yloc=yloc.abovebar, color=sell_label_color, style=label.style_arrowdown, textcolor=TRANSPARENT, size=label_size)
+    
+    last_signal := 'sell'
+
+// Book profit labels based on ATR, only plot once
+if not na(buy_entry_price) and not buy_label_plotted
+    buy_profit_target = buy_entry_price + atr_multiplier * atr_value
+    if close >= buy_profit_target
+        label.new(bar_index, high, "Book Profit", color=color.blue, style=label.style_label_down, textcolor=color.white, size=label_size)
+        buy_label_plotted := true  // Mark label as plotted
+
+if not na(sell_entry_price) and not sell_label_plotted
+    sell_profit_target = sell_entry_price - atr_multiplier * atr_value
+    if close <= sell_profit_target
+        label.new(bar_index, low, "Book Profit", color=color.blue, style=label.style_label_up, textcolor=color.white, size=label_size)
+        sell_label_plotted := true  // Mark label as plotted
+
+// Market Structure Break (MSB) Detection
+
+// Function to detect swing highs and lows
+f_swingHighLow(_src, _len) =>
+    _sw = high >= ta.highest(high, _len)
+    _lw = low <= ta.lowest(low, _len)
+    [_sw, _lw]
+
+// User inputs for market structure break
+var len = input.int(20, minval=1, title='Loopback')
+var mult = input.float(1, minval=0.1, title='Multiplier')
+bullish_MSB_Color = input.color(color.green, title='Bullish MSB Color', inline='Bullish MSB Style')
+bearish_MSB_Color = input.color(color.red, title='Bearish MSB Color', inline='Bearish MSB Style')
+bullish_MSB_Width = input.int(1, minval=1, maxval=5, title='Line Width', inline='Bullish MSB Style')
+bearish_MSB_Width = input.int(1, minval=1, maxval=5, title='Line Width', inline='Bearish MSB Style')
+
+// Calculation of swing highs and lows
+[sh, sl] = f_swingHighLow(close, len)
+
+// Identify market structure break
+break_up = sh and sh[1] == false and close > high[1] * mult
+break_down = sl and sl[1] == false and close < low[1] * mult
+
+// Draw lines on market structure break
+var line bullish_MSB = na
+var line bearish_MSB = na
+var float highest_MSB = na
+var float lowest_MSB = na
+
+if break_up
+    // Find the bar_index where the swing high is and draw a line until the candle CLOSES ABOVE the market structure
+    for i = 1 to 100 by 1
+        if sh[i]
+            bullish_MSB := line.new(bar_index[i], high[i], bar_index, high[i], color=bullish_MSB_Color, width=bullish_MSB_Width)
+            highest_MSB := high[i]
+            break
+
+if break_down
+    // Find the bar_index where the swing low is and draw a line until the candle CLOSES BELOW the market structure
+    for i = 1 to 100 by 1
+        if sl[i]
+            bearish_MSB := line.new(bar_index[i], low[i], bar_index, low[i], color=bearish_MSB_Color, width=bearish_MSB_Width)
+            lowest_MSB := low[i]
+            break
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Global variables to set candle colors and track phases
+var color candle_color = na  // Global variable to set candle colors
+var bool in_buy_phase = false  // Track if in a buy phase
+var bool in_sell_phase = false // Track if in a sell phase
+
+// Define low and high levels
+low_level = close[1] - atr_multiplier * atr_value
+high_level = close[1] + atr_multiplier * atr_value
+
+
+// Reset phases when signals occur, but ensure valid conditions
+if bull and close > low_level  // Only enter BUY phase if price is above low level
+    in_buy_phase := true
+    in_sell_phase := false
+else if bull and close <= low_level
+    in_buy_phase := false  // Avoid changing to BUY phase
+    in_sell_phase := false  // Reset any previous SELL phase just in case
+
+if bear and close < high_level  // Only enter SELL phase if price is below high level
+    in_sell_phase := true
+    in_buy_phase := false
+else if bear and close >= high_level
+    in_sell_phase := false  // Avoid changing to SELL phase
+    in_buy_phase := false  // Reset any previous BUY phase just in case
+
+// Reset phases when book profit conditions are met
+if not na(buy_entry_price) and in_buy_phase
+    buy_profit_target = buy_entry_price + atr_multiplier * atr_value
+    if close >= buy_profit_target
+        in_buy_phase := false  // Exit buy phase
+
+if not na(sell_entry_price) and in_sell_phase
+    sell_profit_target = sell_entry_price - atr_multiplier * atr_value
+    if close <= sell_profit_target
+        in_sell_phase := false  // Exit sell phase
+
+// Detect buy low and sell high triggers (disable bar coloring if either condition is met)
+buy_low_trigger = low < low_level  // Buy trigger when candle's low is below the low_level
+sell_high_trigger = high > high_level  // Sell trigger when candle's high is above the high_level
+
+// Apply color logic after all candles have formed
+if buy_low_trigger or sell_high_trigger
+    candle_color := na  // Disable coloring
+else if in_buy_phase
+    candle_color := color.green  // Color green for buy phase
+else if in_sell_phase
+    candle_color := #160000  // Color red for sell phase
+else
+    candle_color := na  // Default to no color if no phase is active
+
+// Apply the candle color globally after the candle is fully formed
+barcolor(candle_color)
+
+
+
+
+
+
+
+
+
+

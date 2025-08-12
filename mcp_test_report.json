@@ -1,0 +1,168 @@
+{
+  "timestamp": "2025-08-12T09:47:24.624219",
+  "summary": {
+    "total_tests": 5,
+    "successful": 5,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "results": [
+    {
+      "server": "File Analyzer",
+      "success": true,
+      "execution_time": 0.06,
+      "output": {
+        "file_path": "test_ea_temp.mq4",
+        "file_type": "MQL4",
+        "initial_analysis": "Completed"
+      }
+    },
+    {
+      "server": "Code Classifier",
+      "success": true,
+      "execution_time": 0.06,
+      "output": {
+        "success": true,
+        "classification": {
+          "file_type": "EA",
+          "strategy": "Scalping",
+          "market": "MULTI",
+          "timeframe": "M5",
+          "suggested_name": "EA_test_ea_temp_v1.0_M5.mq4",
+          "target_folder": "CODIGO_FONTE_LIBRARY/MQL4_Source/EAs/Scalping",
+          "tags": [
+            "#EA",
+            "#Scalping",
+            "#M5"
+          ]
+        }
+      }
+    },
+    {
+      "server": "FTMO Validator",
+      "success": true,
+      "execution_time": 0.06,
+      "output": {
+        "file_path": "test_ea_temp.mq4",
+        "ftmo_compliant": true,
+        "validation_details": "Stop Loss and Risk % checks passed."
+      }
+    },
+    {
+      "server": "Metadata Generator",
+      "success": true,
+      "execution_time": 0.08,
+      "output": {
+        "success": true,
+        "metadata": {
+          "file_info": {
+            "original_name": "test_ea_temp.mq4",
+            "file_size": 1755,
+            "created_date": "2025-08-12T09:47:24.239433",
+            "file_type": "unknown"
+          },
+          "classification": {
+            "type": "EA",
+            "strategy": "Scalping",
+            "market": "MULTI",
+            "timeframe": "unknown"
+          },
+          "ftmo_compliance": {
+            "score": 0,
+            "risk_level": "high",
+            "compliant": false,
+            "issues": []
+          },
+          "tags": [],
+          "description": "",
+          "version": "1.0",
+          "status": "classified",
+          "last_updated": "2025-08-12T09:47:24.239475"
+        },
+        "file_path": "test_ea_temp.mq4"
+      }
+    },
+    {
+      "server": "Batch Processor",
+      "success": true,
+      "execution_time": 0.37,
+      "output": {
+        "success": true,
+        "statistics": {
+          "total_files": 1,
+          "successful": 1,
+          "failed": 0,
+          "success_rate": 100.0
+        },
+        "results": [
+          {
+            "file_path": "test_ea_temp.mq4",
+            "processed_at": "2025-08-12T09:47:24.375821",
+            "success": true,
+            "analysis": {
+              "file_path": "test_ea_temp.mq4",
+              "file_type": "MQL4",
+              "initial_analysis": "Completed"
+            },
+            "classification": {
+              "success": true,
+              "classification": {
+                "file_type": "EA",
+                "strategy": "Scalping",
+                "market": "MULTI",
+                "timeframe": "M5",
+                "suggested_name": "EA_test_ea_temp_v1.0_M5.mq4",
+                "target_folder": "CODIGO_FONTE_LIBRARY/MQL4_Source/EAs/Scalping",
+                "tags": [
+                  "#EA",
+                  "#Scalping",
+                  "#M5"
+                ]
+              }
+            },
+            "ftmo_validation": {
+              "file_path": "test_ea_temp.mq4",
+              "ftmo_compliant": true,
+              "validation_details": "Stop Loss and Risk % checks passed."
+            },
+            "metadata": {
+              "success": true,
+              "metadata": {
+                "file_info": {
+                  "original_name": "test_ea_temp.mq4",
+                  "file_size": 1755,
+                  "created_date": "2025-08-12T09:47:24.606270",
+                  "file_type": "EA"
+                },
+                "classification": {
+                  "type": "unknown",
+                  "strategy": "Scalping",
+                  "market": "MULTI",
+                  "timeframe": "M5"
+                },
+                "ftmo_compliance": {
+                  "score": 0,
+                  "risk_level": "high",
+                  "compliant": false,
+                  "issues": []
+                },
+                "tags": [
+                  "#EA",
+                  "#Scalping",
+                  "#M5"
+                ],
+                "description": "",
+                "version": "1.0",
+                "status": "classified",
+                "last_updated": "2025-08-12T09:47:24.606298"
+              },
+              "file_path": "test_ea_temp.mq4"
+            }
+          }
+        ],
+        "failed_files": [],
+        "processed_at": "2025-08-12T09:47:24.612320"
+      }
+    }
+  ]
+}

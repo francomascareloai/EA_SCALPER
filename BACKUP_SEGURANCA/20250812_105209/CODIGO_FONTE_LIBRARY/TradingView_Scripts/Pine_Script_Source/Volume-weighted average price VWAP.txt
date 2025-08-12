@@ -1,0 +1,83 @@
+
+//@version=5
+indicator(title="<*Volume-weighted average price VWAP*>", shorttitle="VWAP", overlay=true, timeframe="", timeframe_gaps=true)
+
+hideonDWM = input(false, title="Hide VWAP on 1D or Above", group="VWAP Settings")
+var anchor = input.string(defval = "Session", title="Anchor Period",
+ options=["Session", "Week", "Month", "Quarter", "Year", "Decade", "Century", "Earnings", "Dividends", "Splits"], group="VWAP Settings")
+src = input(title = "Source", defval = hlc3, group="VWAP Settings")
+offset = input(0, title="Offset", group="VWAP Settings")
+
+showBand_1 = input(true, title="", group="Standard Deviation Bands Settings", inline="band_1")
+stdevMult_1 = input(0.6, title="Bands Multiplier #1", group="Standard Deviation Bands Settings", inline="band_1")
+showBand_2 = input(true, title="", group="Standard Deviation Bands Settings", inline="band_2")
+stdevMult_2 = input(0.8, title="Bands Multiplier #2", group="Standard Deviation Bands Settings", inline="band_2")
+showBand_3 = input(true, title="", group="Standard Deviation Bands Settings", inline="band_3")
+stdevMult_3 = input(1.9, title="Bands Multiplier #3", group="Standard Deviation Bands Settings", inline="band_3")
+showBand_4 = input(true, title="", group="Standard Deviation Bands Settings", inline="band_4")
+stdevMult_4 = input(2.4, title="Bands Multiplier #4", group="Standard Deviation Bands Settings", inline="band_4")
+
+
+if barstate.islast and ta.cum(volume) == 0
+    runtime.error("No volume is provided by the data vendor.")
+
+new_earnings = request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol=true)
+new_dividends = request.dividends(syminfo.tickerid, dividends.gross, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol=true)
+new_split = request.splits(syminfo.tickerid, splits.denominator, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol=true)
+
+isNewPeriod = switch anchor
+	"Earnings"  => not na(new_earnings)
+	"Dividends" => not na(new_dividends)
+	"Splits"    => not na(new_split)
+	"Session"   => timeframe.change("D")
+	"Week"      => timeframe.change("W")
+	"Month"     => timeframe.change("M")
+	"Quarter"   => timeframe.change("3M")
+	"Year"      => timeframe.change("12M")
+	"Decade"    => timeframe.change("12M") and year % 10 == 0
+	"Century"   => timeframe.change("12M") and year % 100 == 0
+	=> false
+
+isEsdAnchor = anchor == "Earnings" or anchor == "Dividends" or anchor == "Splits"
+if na(src[1]) and not isEsdAnchor
+	isNewPeriod := true
+
+float vwapValue = na
+float upperBandValue1 = na
+float lowerBandValue1 = na
+float upperBandValue2 = na
+float lowerBandValue2 = na
+float upperBandValue3 = na
+float lowerBandValue3 = na
+float upperBandValue4 = na
+float lowerBandValue4 = na
+
+if not (hideonDWM and timeframe.isdwm)
+    [_vwap, _stdevUpper, _] = ta.vwap(src, isNewPeriod, 1)
+	vwapValue := _vwap
+    stdevAbs = _stdevUpper - _vwap
+	upperBandValue1 := _vwap + stdevAbs * stdevMult_1
+	lowerBandValue1 := _vwap - stdevAbs * stdevMult_1
+	upperBandValue2 := _vwap + stdevAbs * stdevMult_2
+	lowerBandValue2 := _vwap - stdevAbs * stdevMult_2
+	upperBandValue3 := _vwap + stdevAbs * stdevMult_3
+	lowerBandValue3 := _vwap - stdevAbs * stdevMult_3
+	upperBandValue4 := _vwap + stdevAbs * stdevMult_4
+	lowerBandValue4 := _vwap - stdevAbs * stdevMult_4
+
+plot(vwapValue, title="VWAP", color=#ff9800, offset=offset)
+
+upperBand_1 = plot(upperBandValue1, title="Upper Band #1", color=#ffeb3b, offset=offset, display = showBand_1 ? display.all : display.none)
+lowerBand_1 = plot(lowerBandValue1, title="Lower Band #1", color=#ffeb3b, offset=offset, display = showBand_1 ? display.all : display.none)
+upperBand_2 = plot(upperBandValue2, title="Upper Band #2", color=#ffeb3b, offset=offset, display = showBand_2 ? display.all : display.none)
+lowerBand_2 = plot(lowerBandValue2, title="Lower Band #2", color=#ffeb3b, offset=offset, display = showBand_2 ? display.all : display.none)
+upperBand_3 = plot(upperBandValue3, title="Upper Band #3", color=#4caf50, offset=offset, display = showBand_3 ? display.all : display.none)
+lowerBand_3 = plot(lowerBandValue3, title="Lower Band #3", color=#ff5252, offset=offset, display = showBand_3 ? display.all : display.none)
+upperBand_4 = plot(upperBandValue4, title="Upper Band #4", color=#00bcd4, offset=offset, display = showBand_4 ? display.all : display.none)
+lowerBand_4 = plot(lowerBandValue4, title="Lower Band #4", color=#00bcd4, offset=offset, display = showBand_4 ? display.all : display.none)
+fill(upperBand_1, upperBand_2, title="Bands Fill Upper #1", color=#ffeb3b54, display = showBand_1 ? display.all : display.none)
+fill(lowerBand_1, lowerBand_2, title="Bands Fill Lower #1", color=#ffeb3b54, display = showBand_2 ? display.all : display.none)
+fill(upperBand_2, upperBand_3 , title="Bands Fill Upper #2", color=#4caf5036, display = showBand_3 ? display.all : display.none)
+fill(lowerBand_2, lowerBand_3, title="Bands Fill Lower #2", color=#ff525236, display = showBand_4 ? display.all : display.none)
+fill(upperBand_3, upperBand_4 , title="Bands Fill Upper #3", color=#00bcd454, display = showBand_3 ? display.all : display.none)
+fill(lowerBand_3, lowerBand_4, title="Bands Fill Lower #4", color=#00bcd454, display = showBand_4 ? display.all : display.none)  

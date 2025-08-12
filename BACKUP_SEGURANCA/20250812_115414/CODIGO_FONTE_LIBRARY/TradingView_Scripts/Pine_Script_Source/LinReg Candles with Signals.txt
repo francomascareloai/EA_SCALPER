@@ -1,0 +1,31 @@
+
+//@version=5
+indicator(title='LinReg Candles with Signals', shorttitle='LinReg Candles + Signals', format=format.price, precision=4, overlay=true)
+
+signal_length = input.int(title='Signal Smoothing', minval=1, maxval=200, defval=7)
+sma_signal = input(title='Simple MA (Signal Line)', defval=true)
+
+lin_reg = input(title='Lin Reg', defval=true)
+linreg_length = input.int(title='Linear Regression Length', minval=1, maxval=200, defval=11)
+
+bopen = lin_reg ? ta.linreg(open, linreg_length, 0) : open
+bhigh = lin_reg ? ta.linreg(high, linreg_length, 0) : high
+blow = lin_reg ? ta.linreg(low, linreg_length, 0) : low
+bclose = lin_reg ? ta.linreg(close, linreg_length, 0) : close
+
+r = bopen < bclose
+
+signal = sma_signal ? ta.sma(bclose, signal_length) : ta.ema(bclose, signal_length)
+
+plotcandle(r ? bopen : na, r ? bhigh : na, r ? blow : na, r ? bclose : na, title='LinReg Candles', color=color.green, wickcolor=color.green, bordercolor=color.green, editable=true)
+plotcandle(r ? na : bopen, r ? na : bhigh, r ? na : blow, r ? na : bclose, title='LinReg Candles', color=color.red, wickcolor=color.red, bordercolor=color.red, editable=true)
+
+plot(signal, color=color.new(color.yellow, 0))
+
+// Adding Signal Labels
+buySignal = ta.crossover(bclose, signal)
+sellSignal = ta.crossunder(bclose, signal)
+
+plotshape(series=buySignal ? low : na, location=location.belowbar, color=color.new(#03f80b, 0), style=shape.triangleup, title='Buy Signal', size=size.small)
+plotshape(series=sellSignal ? high : na, location=location.abovebar, color=color.new(#f80505, 0), style=shape.triangledown, title='Sell Signal', size=size.small)
+

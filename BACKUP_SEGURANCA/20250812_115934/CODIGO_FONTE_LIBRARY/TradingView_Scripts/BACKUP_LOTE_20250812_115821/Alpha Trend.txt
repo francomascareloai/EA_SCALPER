@@ -1,0 +1,491 @@
+// This work is licensed under an Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0) 
+// https://creativecommons.org/licenses/by-sa/4.0/
+// © Uptrick
+//@version=6
+
+
+//    ██╗   ██╗██████╗ ████████╗██████╗ ██╗ ██████╗██╗  ██╗
+//    ██║   ██║██╔══██╗╚══██╔══╝██╔══██╗██║██╔════╝██║ ██╔╝
+//    ██║   ██║██████╔╝   ██║   ██████╔╝██║██║     █████╔╝ 
+//    ██║   ██║██╔═══╝    ██║   ██╔══██╗██║██║     ██╔═██╗ 
+//    ╚██████╔╝██║        ██║   ██║  ██║██║╚██████╗██║  ██╗
+//     ╚═════╝ ╚═╝        ╚═╝   ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝  ╚═╝
+
+indicator("Uptrick: Alpha Trend", overlay=true)
+
+// =============================================================================
+// PREDEFINED COLOR SCHEMES
+// =============================================================================
+string selectedColorScheme = input.string("Default", "Color Scheme", 
+     options=["Default", "Emerald", "Sapphire", "Golden Blaze", "Mystic", "Monochrome", "Pastel", "Vibrant", "Earth", "Neon"])
+
+// Define colors based on the selected scheme:
+var color bull_main    = na
+var color bear_main    = na
+var color neutral_main = na
+var color bull_shadow  = na
+var color bear_shadow  = na
+var color bg_fill      = na
+
+if selectedColorScheme == "Default"
+    bull_main    := #5CF0D7
+    bear_main    := #B32AC3
+    neutral_main := #FFFFFF
+    bull_shadow  := #58EDD4C3
+    bear_shadow  := #B129C0C3
+    bg_fill      := #001d3d
+else if selectedColorScheme == "Emerald"
+    bull_main    := #00FF00
+    bear_main    := #FF0000
+    neutral_main := #CCCCCC
+    bull_shadow  := #00CC00
+    bear_shadow  := #CC0000
+    bg_fill      := #333333
+else if selectedColorScheme == "Sapphire"
+    bull_main    := #1E90FF
+    bear_main    := #FF69B4
+    neutral_main := #FFFFFF
+    bull_shadow  := #1C86EE
+    bear_shadow  := #FF1493
+    bg_fill      := #2C2C2C
+else if selectedColorScheme == "Golden Blaze"
+    bull_main    := #FFD700
+    bear_main    := #8B0000
+    neutral_main := #F5F5F5
+    bull_shadow  := #FFC107
+    bear_shadow  := #A52A2A
+    bg_fill      := #2F4F4F
+else if selectedColorScheme == "Mystic"
+    bull_main    := #00CED1
+    bear_main    := #9400D3
+    neutral_main := #F0F8FF
+    bull_shadow  := #40E0D0
+    bear_shadow  := #9932CC
+    bg_fill      := #191970
+else if selectedColorScheme == "Monochrome"
+    bull_main    := #FFFFFF
+    bear_main    := #4D4D4D
+    neutral_main := #808080
+    bull_shadow  := #CCCCCC
+    bear_shadow  := #333333
+    bg_fill      := #222222
+else if selectedColorScheme == "Pastel"
+    bull_main    := #A8E6CF
+    bear_main    := #FF8B94
+    neutral_main := #FFD3B6
+    bull_shadow  := #DCEDC2
+    bear_shadow  := #FFAB91
+    bg_fill      := #FFF3E0
+else if selectedColorScheme == "Vibrant"
+    bull_main    := #00FF7F
+    bear_main    := #FF4500
+    neutral_main := #FFFF00
+    bull_shadow  := #32CD32
+    bear_shadow  := #FF6347
+    bg_fill      := #00008B
+else if selectedColorScheme == "Earth"
+    bull_main    := #8FBC8F
+    bear_main    := #A0522D
+    neutral_main := #DEB887
+    bull_shadow  := #98FB98
+    bear_shadow  := #CD853F
+    bg_fill      := #2E8B57
+else if selectedColorScheme == "Neon"
+    bull_main    := #39FF14
+    bear_main    := #FF073A
+    neutral_main := #E0FFFF
+    bull_shadow  := #00FFFF
+    bear_shadow  := #FF1493
+    bg_fill      := #191970
+
+// =============================================================================
+// INPUTS & BASIC CALCULATIONS
+// =============================================================================
+int trend_length       = input.int(30, "Trend Length")
+float trend_damping    = input.float(0.75, "Trend Damping", minval=0.1, maxval=1.0, step=0.01)
+int signal_threshold   = input.int(5, "Signal Strength Threshold")
+bool enable_barcolor   = input.bool(true, "Enable Bar Coloring")
+bool enable_signals    = input.bool(true, "Enable Signals")
+bool enable_fill       = input.bool(false, "Enable Standard Gradient Fill")
+bool enable_fading_gradient = input.bool(true, "Enable Fading Gradient Fill")
+string trade_mode      = input.string("Position", "Trading Mode", options=["Scalp", "Swing", "Position"])
+
+// Adjust parameters based on trading mode:
+int effectiveTrendLength = trade_mode == "Scalp"   ? int(trend_length * 0.5) :
+                           trade_mode == "Position" ? int(trend_length * 2)   : trend_length
+int effectiveSignalThreshold = trade_mode == "Scalp"   ? int(math.max(signal_threshold * 0.5, 1)) :
+                               trade_mode == "Position" ? signal_threshold * 2            : signal_threshold
+
+// Use different ATR periods per mode:
+int atr_period = trade_mode == "Scalp" ? 50 : trade_mode == "Position" ? 200 : 100
+float atr_val = ta.atr(atr_period) * 1.2
+
+// --------------------------
+// Define smoothing functions:
+// For Scalp: Hull Moving Average (HMA)
+hma(src, len) =>
+    wma1 = ta.wma(src, math.round(len / 2))
+    wma2 = ta.wma(src, len)
+    diff = 2 * wma1 - wma2
+    ta.wma(diff, math.round(math.sqrt(len)))
+
+// For Swing: EMA and for Position: WMA (built-in)
+
+// --------------------------
+// Calculate Trend Signal using different smoothing methods:
+float trend_signal = na
+if trade_mode == "Scalp"
+    trend_signal := hma(close, effectiveTrendLength)
+else if trade_mode == "Swing"
+    trend_signal := ta.ema(close, effectiveTrendLength)
+else
+    trend_signal := ta.wma(close, effectiveTrendLength)
+
+// --------------------------
+// Determine Trend Validity and Direction:
+bool is_valid   = not na(trend_signal) and not na(trend_signal[2])
+bool is_bullish = is_valid and (trend_signal > trend_signal[2])
+bool is_bearish = is_valid and (trend_signal < trend_signal[2])
+
+var int bullish_momentum = 0
+var int bearish_momentum = 0
+var float trend_strength = 0
+
+if is_bullish
+    bullish_momentum += 1
+    bearish_momentum := 0
+    trend_strength := math.min(trend_strength + 1, 15)
+if is_bearish
+    bullish_momentum := 0
+    bearish_momentum += 1
+    trend_strength := math.max(trend_strength - 1, -15)
+
+float trend_delta  = trend_signal - trend_signal[1]  // First derivative of the trend
+int net_momentum   = bullish_momentum - bearish_momentum
+
+// ---------- FIX: Separate Return and Trend Acceleration ----------
+// "Return" now uses price change instead of trend change.
+float ret_val   = close - close[1]  // Price return
+
+// Trend Acceleration is the second derivative of the trend line:
+float trend_acceleration = na
+if bar_index > effectiveTrendLength + 1
+    trend_acceleration := trend_delta - trend_delta[1]
+
+// --------------------------
+// Additional Advanced Metrics:
+float price_deviation = close - trend_signal
+float trend_slope = na
+if bar_index > effectiveTrendLength
+    trend_slope := trend_signal - trend_signal[effectiveTrendLength]
+float atr_ratio = atr_val / close
+float rsi_val   = ta.rsi(close, 14)
+float downside  = ret_val < 0 ? ret_val : 0
+float downside_std = ta.stdev(downside, trend_length)
+float sortino   = downside_std != 0 ? ret_val / downside_std : na
+
+// --------------------------
+// Arrow Signals for Metrics:
+string arrow_pd  = price_deviation > 0 ? "⬆️" : price_deviation < 0 ? "⬇️" : "→"
+string arrow_ts  = not na(trend_slope) ? (trend_slope > 0 ? "⬆️" : trend_slope < 0 ? "⬇️" : "→") : "NA"
+string arrow_atr = atr_ratio > 0.02 ? "⬆️" : atr_ratio < 0.01 ? "⬇️" : "→"
+string arrow_rsi = rsi_val > 50 ? "⬆️" : rsi_val < 50 ? "⬇️" : "→"
+string arrow_nm  = net_momentum > 0 ? "⬆️" : net_momentum < 0 ? "⬇️" : "→"
+
+// Use the second derivative for Trend Acceleration arrow:
+string arrow_ta = not na(trend_acceleration) ? (trend_acceleration > 0 ? "⬆️" : trend_acceleration < 0 ? "⬇️" : "→") : "NA"
+
+// Use price return for Return arrow:
+string arrow_ret = "→"
+if ret_val > 0
+    arrow_ret := ret_val >= atr_val * 0.5 ? "⏫" : (ret_val < atr_val * 0.1 ? "↗️" : "⬆️")
+else if ret_val < 0
+    arrow_ret := ret_val <= -atr_val * 0.5 ? "⏬" : (ret_val > -atr_val * 0.1 ? "↘️" : "⬇️")
+else
+    arrow_ret := "→"
+
+string arrow_td = "→"
+if is_bullish
+    arrow_td := trend_strength >= 10 ? "⏫" : (trend_strength < 3 ? "↗️" : "⬆️")
+else if is_bearish
+    arrow_td := trend_strength <= -10 ? "⏬" : (trend_strength > -3 ? "↘️" : "⬇️")
+else
+    arrow_td := "→"
+
+string arrow_sr = "→"
+if not na(sortino)
+    arrow_sr := sortino >= 1 ? "⏫" : (sortino > 0.2 ? "⬆️" : (sortino > 0 ? "↗️" : (sortino <= -1 ? "⏬" : (sortino < -0.2 ? "⬇️" : (sortino < 0 ? "↘️" : "→")))))
+else
+    arrow_sr := "NA"
+
+// =============================================================================
+// PLOTTING & GRADIENT FILLS
+// =============================================================================
+p_trend     = plot(trend_signal, "Trend Filter", color = is_bullish ? bull_main : is_bearish ? bear_main : neutral_main, linewidth = 3)
+p_bear_zone = plot(trend_signal - atr_val, "Bearish Zone", color = na)
+p_bull_zone = plot(trend_signal + atr_val, "Bullish Zone", color = na)
+
+fill(p_bear_zone, plot(trend_signal, color = na), trend_signal - atr_val, trend_signal, enable_fill ? #363a4500 : na, enable_fill ? bear_shadow : na)
+fill(plot(trend_signal, color = na), p_bull_zone, trend_signal, trend_signal + atr_val, enable_fill ? bull_shadow : na, enable_fill ? #363a4500 : na)
+
+// Fading gradient fill from trend line to price:
+fill(plot(trend_signal, color = na), plot(open, color = na), trend_signal, open, enable_fading_gradient and is_bearish ? bear_main : na, enable_fading_gradient and is_bearish ? color.new(bear_main, 90) : na)
+fill(plot(trend_signal, color = na), plot(high, color = na), trend_signal, high, enable_fading_gradient and is_bullish ? bull_main : na, enable_fading_gradient and is_bullish ? color.new(bull_main, 90) : na)
+
+// =============================================================================
+// SIGNAL MARKERS
+// =============================================================================
+bool buy_signal  = ta.crossover(bullish_momentum, effectiveSignalThreshold) and barstate.isconfirmed and enable_signals
+bool sell_signal = ta.crossover(bearish_momentum, effectiveSignalThreshold) and barstate.isconfirmed and enable_signals
+
+if (buy_signal)
+    label.new(x=bar_index, y=trend_signal - atr_val, text="▲", color=bull_main, textcolor=color.white, size=size.small, style=label.style_label_up)
+
+if (sell_signal)
+    label.new(x=bar_index, y=trend_signal + atr_val, text="▼", color=bear_main, textcolor=color.white, size=size.small, style=label.style_label_down)
+
+
+barcolor(enable_barcolor ? (is_bullish ? bull_main : is_bearish ? bear_main : neutral_main) : na)
+
+// =============================================================================
+// TABLES SETUP (Existing)
+// =============================================================================
+string pos_insider = input.string("bottom_left", "Insider Info Table Position", 
+     options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"])
+string pos_metrics = input.string("bottom_center", "Indicator Metrics Table Position", 
+     options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"])
+string pos_market  = input.string("bottom_right", "Market Analysis Table Position", 
+     options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"])
+
+var tablePosition_in = pos_insider == "top_left"    ? position.top_left    :
+                         pos_insider == "top_center"  ? position.top_center  :
+                         pos_insider == "top_right"   ? position.top_right   :
+                         pos_insider == "middle_left" ? position.middle_left :
+                         pos_insider == "middle_center" ? position.middle_center :
+                         pos_insider == "middle_right"? position.middle_right:
+                         pos_insider == "bottom_left" ? position.bottom_left :
+                         pos_insider == "bottom_center" ? position.bottom_center :
+                         pos_insider == "bottom_right" ? position.bottom_right :
+                         position.bottom_left
+
+var tablePosition_metrics = pos_metrics == "top_left"    ? position.top_left    :
+                             pos_metrics == "top_center"  ? position.top_center  :
+                             pos_metrics == "top_right"   ? position.top_right   :
+                             pos_metrics == "middle_left" ? position.middle_left :
+                             pos_metrics == "middle_center" ? position.middle_center :
+                             pos_metrics == "middle_right"? position.middle_right:
+                             pos_metrics == "bottom_left" ? position.bottom_left :
+                             pos_metrics == "bottom_center" ? position.bottom_center :
+                             pos_metrics == "bottom_right" ? position.bottom_right :
+                             position.bottom_center
+
+var tablePosition_market = pos_market == "top_left"    ? position.top_left    :
+                             pos_market == "top_center"  ? position.top_center  :
+                             pos_market == "top_right"   ? position.top_right   :
+                             pos_market == "middle_left" ? position.middle_left :
+                             pos_market == "middle_center" ? position.middle_center :
+                             pos_market == "middle_right"? position.middle_right:
+                             pos_market == "bottom_left" ? position.bottom_left :
+                             pos_market == "bottom_center" ? position.bottom_center :
+                             pos_market == "bottom_right" ? position.bottom_right :
+                             position.bottom_right
+
+// New Inputs for Deep Market Data Table Positions
+string pos_deep1 = input.string("top_left", "Price & Trend Dynamics Table Position", 
+     options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"])
+string pos_deep2 = input.string("top_right", "Momentum & Volatility Insights Table Position", 
+     options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"])
+string pos_deep3 = input.string("middle_right", "Performance & Acceleration Metrics Table Position", 
+     options=["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"])
+
+var tablePosition_deep1 = pos_deep1 == "top_left" ? position.top_left :
+                             pos_deep1 == "top_center" ? position.top_center :
+                             pos_deep1 == "top_right" ? position.top_right :
+                             pos_deep1 == "middle_left" ? position.middle_left :
+                             pos_deep1 == "middle_center" ? position.middle_center :
+                             pos_deep1 == "middle_right" ? position.middle_right :
+                             pos_deep1 == "bottom_left" ? position.bottom_left :
+                             pos_deep1 == "bottom_center" ? position.bottom_center :
+                             pos_deep1 == "bottom_right" ? position.bottom_right :
+                             position.top_left
+
+var tablePosition_deep2 = pos_deep2 == "top_left" ? position.top_left :
+                             pos_deep2 == "top_center" ? position.top_center :
+                             pos_deep2 == "top_right" ? position.top_right :
+                             pos_deep2 == "middle_left" ? position.middle_left :
+                             pos_deep2 == "middle_center" ? position.middle_center :
+                             pos_deep2 == "middle_right" ? position.middle_right :
+                             pos_deep2 == "bottom_left" ? position.bottom_left :
+                             pos_deep2 == "bottom_center" ? position.bottom_center :
+                             pos_deep2 == "bottom_right" ? position.bottom_right :
+                             position.top_right
+
+var tablePosition_deep3 = pos_deep3 == "top_left" ? position.top_left :
+                             pos_deep3 == "top_center" ? position.top_center :
+                             pos_deep3 == "top_right" ? position.top_right :
+                             pos_deep3 == "middle_left" ? position.middle_left :
+                             pos_deep3 == "middle_center" ? position.middle_center :
+                             pos_deep3 == "middle_right" ? position.middle_right :
+                             pos_deep3 == "bottom_left" ? position.bottom_left :
+                             pos_deep3 == "bottom_center" ? position.bottom_center :
+                             pos_deep3 == "bottom_right" ? position.bottom_right :
+                             position.middle_right
+
+// Insider Info Table
+var table insiderTable = table.new(tablePosition_in, 4, 7, border_width=1)
+bool show_insider_info = input.bool(false, "Insider Info", group="Tables")
+if show_insider_info
+    table.cell(insiderTable, 0, 0, "✨ 𝓘𝓷𝓼𝓲𝓭𝓮𝓻 𝓘𝓷𝓯𝓸 ✨", text_color=neutral_main, bgcolor=bg_fill)
+    table.merge_cells(insiderTable, 0, 0, 1, 1)
+    table.cell(insiderTable, 0, 1, "Trend Signal", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 1, 1, str.tostring(trend_signal, format.mintick), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 0, 2, "Bullish Momentum", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 1, 2, str.tostring(bullish_momentum), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 0, 3, "Bearish Momentum", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 1, 3, str.tostring(bearish_momentum), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 0, 4, "Trend Strength", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 1, 4, str.tostring(trend_strength), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 0, 5, "ATR Value", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 1, 5, str.tostring(atr_val, format.mintick), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 0, 6, "Trend Delta", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(insiderTable, 1, 6, str.tostring(trend_delta, format.mintick), text_color=neutral_main, bgcolor=bg_fill)
+else
+    table.clear(insiderTable, 0, 0)
+
+// Indicator Metrics Table
+var table metricsTable = table.new(tablePosition_metrics, 4, 9, border_width=1)
+bool show_indicator_metrics = input.bool(false, "Indicator Metrics", group="Tables")
+if show_indicator_metrics
+    table.cell(metricsTable, 0, 0, "✨ 𝓘𝓷𝓭𝓲𝓬𝓪𝓽𝓸𝓻 𝓜𝓮𝓽𝓻𝓲𝓬𝓼 ✨", text_color=neutral_main, bgcolor=bg_fill)
+    table.merge_cells(metricsTable, 0, 0, 1, 1)
+    table.cell(metricsTable, 0, 1, "Trend Length", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 1, 1, str.tostring(trend_length), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 0, 2, "Trend Damping", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 1, 2, str.tostring(trend_damping), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 0, 3, "Signal Threshold", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 1, 3, str.tostring(signal_threshold), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 0, 4, "Trade Mode", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 1, 4, trade_mode, text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 0, 5, "Net Momentum", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(metricsTable, 1, 5, str.tostring(net_momentum), text_color=neutral_main, bgcolor=bg_fill)
+else
+    table.clear(metricsTable, 0, 0)
+
+// Market Analysis Table
+var table marketTable = table.new(tablePosition_market, 10, 12, border_width=1)
+bool show_market_analysis = input.bool(false, "Market Analysis", group="Tables")
+if show_market_analysis
+    table.cell(marketTable, 0, 0, "✨ 𝓜𝓪𝓻𝓴𝓮𝓽 𝓐𝓷𝓪𝓵𝔂𝓼𝓲𝓼 ✨", text_color=neutral_main, bgcolor=bg_fill)
+    table.merge_cells(marketTable, 0, 0, 2, 1)
+    table.cell(marketTable, 0, 1, "Trend Direction", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 1, 1, is_bullish ? "Bullish" : is_bearish ? "Bearish" : "Neutral", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 2, 1, arrow_td, text_color=neutral_main, bgcolor=is_bullish ? bull_main : is_bearish ? bear_main : bg_fill)
+    table.cell(marketTable, 0, 2, "Trend Strength", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 1, 2, str.tostring(trend_strength), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 2, 2, arrow_td, text_color=neutral_main, bgcolor=trend_strength > 0 ? bull_main : trend_strength < 0 ? bear_main : bg_fill)
+    table.cell(marketTable, 0, 3, "Sortino Ratio", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 1, 3, not na(sortino) ? str.tostring(sortino, "#.##") : "NA", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 2, 3, arrow_sr, text_color=neutral_main, bgcolor= not na(sortino) ? (sortino > 0 ? bull_main : sortino < 0 ? bear_main : bg_fill) : bg_fill)
+    table.cell(marketTable, 0, 4, "Trend Shape", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 1, 4, effectiveTrendLength > 0.5 ? "Smooth" : "Sharp", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 2, 4, "→", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 0, 5, "Return", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 1, 5, str.tostring(ret_val, format.mintick), text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 2, 5, arrow_ret, text_color=neutral_main, bgcolor= ret_val > 0 ? bull_main : ret_val < 0 ? bear_main : bg_fill)
+    table.cell(marketTable, 0, 6, "Volatility", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(marketTable, 1, 6, str.tostring(ta.stdev(close, trend_length), "#.##"), text_color=neutral_main, bgcolor=bg_fill)
+else
+    table.clear(marketTable, 0, 0)
+
+// =============================================================================
+// DEEP MARKET DATA TABLES
+// =============================================================================
+bool show_deep_table1 = input.bool(false, "Price & Trend Dynamics", group = "Tables")
+bool show_deep_table2 = input.bool(false, "Momentum & Volatility Insights", group="Tables")
+bool show_deep_table3 = input.bool(false, "Performance & Acceleration Metrics", group="Tables")
+
+// Create Deep Tables with positions based on new inputs
+var table deepTable1 = table.new(tablePosition_deep1, 3, 4, border_width=1)    // 1 header + 3 rows
+var table deepTable2 = table.new(tablePosition_deep2, 3, 4, border_width=1)   // 1 header + 3 rows
+var table deepTable3 = table.new(tablePosition_deep3, 3, 5, border_width=1) // 1 header + 4 rows
+
+// Deep Table 1: Price & Trend Dynamics
+if show_deep_table1
+    table.cell(deepTable1, 0, 0, "✨ 𝓟𝓻𝓲𝓬𝓮 & 𝓣𝓻𝓮𝓷𝓭 𝓓𝔂𝓷𝓪𝓶𝓲𝓬𝓼 ✨", text_color=neutral_main, bgcolor=bg_fill)
+    table.merge_cells(deepTable1, 0, 0, 2, 1)
+    // Row 1: Price Deviation
+    table.cell(deepTable1, 0, 1, "Price Deviation", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable1, 1, 1, str.tostring(price_deviation, "#.##"), text_color=neutral_main, bgcolor=bg_fill)
+    color pd_bg = price_deviation > 0 ? bull_main : price_deviation < 0 ? bear_main : neutral_main
+    table.cell(deepTable1, 2, 1, arrow_pd, text_color=neutral_main, bgcolor=pd_bg)
+    // Row 2: Trend Slope
+    table.cell(deepTable1, 0, 2, "Trend Slope", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable1, 1, 2, not na(trend_slope) ? str.tostring(trend_slope, "#.##") : "NA", text_color=neutral_main, bgcolor=bg_fill)
+    color ts_bg = not na(trend_slope) ? (trend_slope > 0 ? bull_main : trend_slope < 0 ? bear_main : neutral_main) : neutral_main
+    table.cell(deepTable1, 2, 2, arrow_ts, text_color=neutral_main, bgcolor=ts_bg)
+    // Row 3: ATR Ratio
+    table.cell(deepTable1, 0, 3, "ATR Ratio", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable1, 1, 3, str.tostring(atr_ratio, "#.##"), text_color=neutral_main, bgcolor=bg_fill)
+    color atr_bg = atr_ratio > 0.02 ? bull_main : atr_ratio < 0.01 ? bear_main : neutral_main
+    table.cell(deepTable1, 2, 3, arrow_atr, text_color=neutral_main, bgcolor=atr_bg)
+else
+    table.clear(deepTable1, 0, 0)
+
+// Deep Table 2: Momentum & Volatility Insights
+if show_deep_table2
+    table.cell(deepTable2, 0, 0, "✨ 𝓜𝓸𝓶𝓮𝓷𝓽𝓾𝓶 & 𝓥𝓸𝓵𝓪𝓽𝓲𝓵𝓲𝓽𝔂 𝓘𝓷𝓼𝓲𝓰𝓱𝓽𝓼 ✨", text_color=neutral_main, bgcolor=bg_fill)
+    table.merge_cells(deepTable2, 0, 0, 2, 1)
+    // Row 1: RSI (14)
+    table.cell(deepTable2, 0, 1, "RSI (14)", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable2, 1, 1, str.tostring(rsi_val, "#.##"), text_color=neutral_main, bgcolor=bg_fill)
+    color rsi_bg = rsi_val > 50 ? bull_main : rsi_val < 50 ? bear_main : neutral_main
+    table.cell(deepTable2, 2, 1, arrow_rsi, text_color=neutral_main, bgcolor=rsi_bg)
+    // Row 2: Volatility
+    float vol_val = ta.stdev(close, trend_length)
+    table.cell(deepTable2, 0, 2, "Volatility", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable2, 1, 2, str.tostring(vol_val, "#.##"), text_color=neutral_main, bgcolor=bg_fill)
+    string arrow_vol = vol_val > 1 ? "⬆️" : vol_val < 1 ? "⬇️" : "→"
+    color vol_bg = vol_val > 1 ? bull_main : vol_val < 1 ? bear_main : neutral_main
+    table.cell(deepTable2, 2, 2, arrow_vol, text_color=neutral_main, bgcolor=vol_bg)
+    // Row 3: Net Momentum
+    table.cell(deepTable2, 0, 3, "Net Momentum", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable2, 1, 3, str.tostring(net_momentum), text_color=neutral_main, bgcolor=bg_fill)
+    color nm_bg = net_momentum > 0 ? bull_main : net_momentum < 0 ? bear_main : neutral_main
+    table.cell(deepTable2, 2, 3, arrow_nm, text_color=neutral_main, bgcolor=nm_bg)
+else
+    table.clear(deepTable2, 0, 0)
+
+// Deep Table 3: Performance & Acceleration Metrics
+if show_deep_table3
+    table.cell(deepTable3, 0, 0, "✨ 𝓟𝓮𝓻𝓯𝓸𝓻𝓶𝓪𝓷𝓬𝓮 & 𝓐𝓬𝓬𝓮𝓵𝓮𝓻𝓪𝓽𝓲𝓸𝓷 𝓜𝓮𝓽𝓻𝓲𝓬𝓼 ✨", text_color=neutral_main, bgcolor=bg_fill)
+    table.merge_cells(deepTable3, 0, 0, 2, 1)
+    // Row 1: Sortino Ratio
+    table.cell(deepTable3, 0, 1, "Sortino Ratio", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable3, 1, 1, not na(sortino) ? str.tostring(sortino, "#.##") : "NA", text_color=neutral_main, bgcolor=bg_fill)
+    color sr_bg = not na(sortino) ? (sortino > 0 ? bull_main : sortino < 0 ? bear_main : neutral_main) : neutral_main
+    table.cell(deepTable3, 2, 1, arrow_sr, text_color=neutral_main, bgcolor=sr_bg)
+    // Row 2: Trend Acceleration
+    table.cell(deepTable3, 0, 2, "Trend Acceleration", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable3, 1, 2, not na(trend_acceleration) ? str.tostring(trend_acceleration, "#.##") : "NA", text_color=neutral_main, bgcolor=bg_fill)
+    color ta_bg = not na(trend_acceleration) ? (trend_acceleration > 0 ? bull_main : trend_acceleration < 0 ? bear_main : neutral_main) : neutral_main
+    table.cell(deepTable3, 2, 2, arrow_ta, text_color=neutral_main, bgcolor=ta_bg)
+    // Row 3: Return
+    table.cell(deepTable3, 0, 3, "Return", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable3, 1, 3, str.tostring(ret_val, format.mintick), text_color=neutral_main, bgcolor=bg_fill)
+    color ret_bg = ret_val > 0 ? bull_main : ret_val < 0 ? bear_main : neutral_main
+    table.cell(deepTable3, 2, 3, arrow_ret, text_color=neutral_main, bgcolor=ret_bg)
+    // Row 4: Trend Strength
+    table.cell(deepTable3, 0, 4, "Trend Strength", text_color=neutral_main, bgcolor=bg_fill)
+    table.cell(deepTable3, 1, 4, str.tostring(trend_strength), text_color=neutral_main, bgcolor=bg_fill)
+    color ts2_bg = trend_strength > 0 ? bull_main : trend_strength < 0 ? bear_main : neutral_main
+    table.cell(deepTable3, 2, 4, arrow_td, text_color=neutral_main, bgcolor=ts2_bg)
+else
+    table.clear(deepTable3, 0, 0)
+
+
+//    ██╗   ██╗██████╗ ████████╗██████╗ ██╗ ██████╗██╗  ██╗
+//    ██║   ██║██╔══██╗╚══██╔══╝██╔══██╗██║██╔════╝██║ ██╔╝
+//    ██║   ██║██████╔╝   ██║   ██████╔╝██║██║     █████╔╝ 
+//    ██║   ██║██╔═══╝    ██║   ██╔══██╗██║██║     ██╔═██╗ 
+//    ╚██████╔╝██║        ██║   ██║  ██║██║╚██████╗██║  ██╗
+//     ╚═════╝ ╚═╝        ╚═╝   ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝  ╚═╝

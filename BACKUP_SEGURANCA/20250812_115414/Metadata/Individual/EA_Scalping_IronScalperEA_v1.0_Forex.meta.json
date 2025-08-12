@@ -1,0 +1,68 @@
+{
+  "file_info": {
+    "original_name": "Iron Scalper EA.mq4",
+    "suggested_name": "EA_Scalping_IronScalperEA_v1.0_Forex.mq4",
+    "file_size": 32170,
+    "file_hash": "47984c9a218fe08d334945cf335bc91b",
+    "language": "MQL4"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": "scalping",
+    "markets": [
+      "Forex"
+    ],
+    "timeframes": [
+      "Multi"
+    ]
+  },
+  "ftmo_analysis": {
+    "risk_management": true,
+    "position_sizing": true,
+    "session_filters": false,
+    "news_filters": false,
+    "max_trades": false,
+    "stop_loss": true,
+    "drawdown_protection": true,
+    "score": 4,
+    "level": "Partially_Compliant"
+  },
+  "code_quality": {
+    "total_lines": 382,
+    "code_lines": 282,
+    "comment_lines": 77,
+    "comment_ratio": 0.202,
+    "complexity_score": 64,
+    "function_count": 21,
+    "extern_params": 10,
+    "quality_score": 6,
+    "quality_level": "High"
+  },
+  "risk_assessment": {
+    "level": "Medium",
+    "factors": []
+  },
+  "organization": {
+    "target_folder": "MQL4_Source/EAs/Scalping",
+    "tags": [
+      "#EA",
+      "#Scalping",
+      "#Forex",
+      "#Multi",
+      "#Partially_Compliant",
+      "#MediumRisk",
+      "#HighQuality"
+    ]
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-12T10:51:39.159384",
+    "analyzer_version": "1.0",
+    "confidence_score": 100
+  },
+  "special_analysis": {
+    "special_flags": [],
+    "is_exceptional": false,
+    "attention_required": false,
+    "quality_indicator": "STANDARD"
+  }
+}

@@ -1,0 +1,175 @@
+study("AGHYAD_Renko+Sniper+PAB+TZ+ICHIMOKU_V2", overlay=true, shorttitle="AGHYAD_STRATEGY_V2")
+
+//============================================
+//Modified - Renko_Bars--------------------------------------------------------------------------------------------------------------------------------- //       Signal 1
+//============================================
+
+//rt = input(true, title="ATR Based REnko is the Default, UnCheck to use Traditional ATR?")
+atrLen = input(2, minval=1, title="RENKO_ATR Look Back Length")
+isATR = input(true, title="RENKO_If You Uncheck Box Read Below")
+def = input(false, title="RENKO_Number Below is Multiplied by 1")
+tradLen1 = input(100, minval=0, title="RENKO_Input for Non-ATR Renkos")
+
+//Code to be implemented in V2
+//mul = input(1, "Number Of minticks")
+//value = mul * syminfo.mintick
+
+tradLen = tradLen1 * 1
+
+param = isATR ? renko(tickerid, "open", "ATR", atrLen) : renko(tickerid, "open", "Traditional", tradLen)
+
+renko_close = security(param, period, close)
+renko_open = security(param, period, open)
+
+col2 = renko_close < renko_open ? red : yellow
+
+p11=plot(renko_close, style=circles, linewidth=3, color=col2, title="RENKO_1", transp=0)
+p22=plot(renko_open, style=circles, linewidth=3, color=col2, title="RENKO_2", transp=100)
+
+//============================================
+//Modified - Sniper------------------------------------------------------------------------------------------------------------------------------------- //       Signal 2
+//============================================
+
+Factor=input(1, minval=1,maxval = 1000, title="SNIPER_Trend Transition Signal")
+Pd=input(1, minval=1,maxval = 1000, title="SNIPER_Period")
+Up=hl2-(Factor*atr(Pd))
+Dn=hl2+(Factor*atr(Pd))
+TrendUp=renko_close[1]>TrendUp[1]? max(Up,TrendUp[1]) : Up
+TrendDown=renko_close[1]<TrendDown[1]? min(Dn,TrendDown[1]) : Dn
+Trend = renko_close > TrendDown[1] ? 1: close< TrendUp[1]? -1: nz(Trend[1],0)
+plotarrow(Trend == 1 and Trend[1] == -1 ? Trend : na, title="SNIPER_Up Entry Arrow", colorup=yellow, maxheight=1000, minheight=50, transp=75)
+plotarrow(Trend == -1 and Trend[1] == 1 ? Trend : na, title="SNIPER_Down Entry Arrow", colordown=red, maxheight=1000, minheight=50, transp=75)
+
+//============================================
+//Modified - Price-Action-Bars-------------------------------------------------------------------------------------------------------------------------- //       Signal 3
+//============================================
+
+pctP = input(70, minval=1, maxval=99, title="PAB_What % The Wick Of Candle Has To Be")
+pblb = input(6, minval=1, maxval=100, title="PAB_Look Back Period To Define The Trend")
+pctS = input(5, minval=1, maxval=99, title="PAB_Percentage Input For Shaved Bars")
+spb = input(true, title="PAB_Show Pin Bars?")
+ssb = input(true, title="PAB_Show Shaved Bars?")
+sib = input(false, title="PAB_Show Inside Bars?")
+sob = input(false, title="PAB_Show Outside Bars?")
+sgb = input(false, title="PAB_Check Box To Turn Bars Gray?")
+
+//PBar Percentages
+pctCp = pctP * .01
+pctCPO = 1 - pctCp
+
+//Shaved Bars Percentages
+pctCs = pctS * .01
+pctSPO = pctCs
+
+range = high - low
+
+///PinBars
+pBarUp() => spb and open > high - (range * pctCPO) and close > high - (range * pctCPO) and low <= lowest(pblb) ? 1 : 0
+pBarDn() => spb and open < high - (range *  pctCp) and close < high-(range * pctCp) and high >= highest(pblb) ? 1 : 0
+
+//Shaved Bars 
+sBarUp() => ssb and (close >= (high - (range * pctCs))) and renko_open < renko_close
+sBarDown() => ssb and close <= (low + (range * pctCs)) and renko_close < renko_open
+
+//Inside Bars
+insideBar() => sib and high <= high[1] and low >= low[1] ? 1 : 0
+outsideBar() => sob and (high > high[1] and low < low[1]) ? 1 : 0
+
+//PinBars
+barcolor(pBarUp() ? lime : na, title="PAB_PinBar1")
+barcolor(pBarDn() ? red : na, title="PAB_PinBar2")
+//Shaved Bars
+barcolor(sBarDown() ? fuchsia : na, title="PAB_Shaved_Bar1")
+barcolor(sBarUp() ? aqua : na, title="PAB_Shaved_Bar2")
+//Inside and Outside Bars
+barcolor(insideBar() ? yellow : na, title="PAB_Inside/Outside_Bar1")
+barcolor(outsideBar() ? orange : na, title="PAB_Inside/Outside_Bar2" )
+
+barcolor(sgb and close ? gray : na, title="PAB_Candles")
+
+//============================================
+//Modified - TransientZones------------------------------------------------------------------------------------------------------------------------------ //       Signal 4
+//============================================
+
+//inputs
+h_left = input(title="TZ_H left", type=integer, defval=6)
+h_right = input(title="TZ_H right", type=integer, defval=6)
+sample_period = input(title="TZ_Sample bars for % TZ", type=integer, defval=5000)
+show_ptz = input(title="TZ_Show PTZ", type=bool, defval=true)
+show_channel = input(title="TZ_Show channel", type=bool, defval=false)
+
+//barCount = nz(barCount[1]) + 1
+//check history and realtime PTZ
+h_left_low = lowest(h_left)
+h_left_high = highest(h_left)
+newlow = low <= h_left_low
+newhigh = high >= h_left_high
+plotshape(newlow and show_ptz, style=shape.triangledown, location=location.abovebar, color=red, title="TZ_sell")
+plotshape(newhigh and show_ptz, style=shape.triangleup, location=location.belowbar, color=yellow, title="TZ_buy")
+
+//============================================
+//Modified - ICHIMOKU------------------------------------------------------------------------------------------------------------------------------------- //       Signal 5
+//============================================
+
+turningPeriods = input(9, minval=1, title="Ichimoku_Tenkan-Sen")
+standardPeriods = input(26, minval=1, title="Ichimoku_Kijun-Sen")
+specialAPeriods = input(52, minval=1, title="Ichimoku_Kijun-Sen (auxiliary)")
+
+leadingSpan2Periods = input(52, minval=1, title="Ichimoku_Senkou Span B")
+displacement = input(26, minval=1, title="Ichimoku_ChikouSpan/+SenkouSpan A")
+sts = input(true, title="Ichimoku_Show Tenkan-Sen")
+sks = input(true, title="Ichimoku_Show Kijun-Sen")
+sksA = input(true, title="Ichimoku_Show Kijun-Sen (auxiliary)")
+sll = input(true, title="Ichimoku_Show Chikou Span (lagging span)?")
+sc = input(true, title="Ichimoku_Show cloud")
+cr1 = input(true, title="Ichimoku_Show crossings Tenkan/Kijun")
+
+//Definitions for Tenkan-Sen (9 Period), Kijun-Sen (26 Period), Chikou Span (Lagging Line)
+donchian(len) => avg(lowest(len), highest(len))
+turning = donchian(turningPeriods)
+standard = donchian(standardPeriods)
+specialA = donchian(specialAPeriods)
+leadingSpan1 = avg(turning, standard)
+leadingSpan2 = donchian(leadingSpan2Periods)
+
+//Crosses up/down Tenkan-Sen (9 Period) and Kijun-Sen (26 Period)
+crossUpTenkanKinjun = turning[1] < standard[1] and turning >= standard ? 1 : 0
+crossDnTenkanKinjun = turning[1] > standard[1] and turning <= standard ? 1 : 0
+
+//First Definition for Ability to Color Cloud based on Trend.
+leadingSpan1Above = leadingSpan1 >= leadingSpan2 ? 1 : na
+leadingSpan2Below = leadingSpan1 <= leadingSpan2 ? 1 : na
+
+//Next 4 lines are code used as plots in order to Color Cloud based on Trend
+span1plotU = leadingSpan1Above ? leadingSpan1 : na
+span2plotU = leadingSpan1Above ? leadingSpan2 : na
+
+span1plotD = leadingSpan2Below ? leadingSpan1 : na
+span2plotD = leadingSpan2Below ? leadingSpan2 : na
+
+col = leadingSpan1 >= leadingSpan2 ? #7D71FC : #E68F8F // bullish, bearish
+
+//Cloud Lines Plot Statements - ***Regular Lines to Fill in Break in Gap
+plot(sc and leadingSpan1 ? leadingSpan1 : na, title = 'Ichimoku_Senkou Span A cloud', style=line, linewidth=1, offset = displacement, color=col, transp=100)
+plot(sc and leadingSpan2 ? leadingSpan2 : na, title = 'Ichimoku_Senkou Span B cloud', style=line, linewidth=3, offset = displacement, color=col, transp=100)
+
+//Cloud Lines Plot Statements - ***linebr to create rules for change in Shading
+p1 = plot(sc and span1plotU ? span1plotU  : na, title = 'Ichimoku_Senkou Span A above Span B Cloud', style=linebr, linewidth=1, offset = displacement, color=col, transp=100)
+p2 = plot(sc and span2plotU ? span2plotU  : na, title = 'Ichimoku_Senkou Span B below Span A Cloud', style=linebr, linewidth=1, offset = displacement, color=col, transp=100)
+p3 = plot(sc and span1plotD ? span1plotD  : na, title = 'Ichimoku_Senkou Span A below Span B Cloud', style=linebr, linewidth=1, offset = displacement, color=col, transp=100)
+p4 = plot(sc and span2plotD ? span2plotD  : na, title = 'Ichimoku_Senkou Span B above Span A Cloud', style=linebr, linewidth=1, offset = displacement, color=col, transp=100)
+
+//Fills that color cloud based on Trend.
+fill(p1, p2, color=green  ,title='Ichimoku_Kumo (bullish_Cloud)')    // bullish cloud
+fill(p3, p4, color=red , title='Ichimoku_Kumo (bearish_Cloud)')    // bearish cloud
+
+//plots for 3 lines other than cloud.
+plot(sts and turning ? turning : na, title = 'Ichimoku_Tenkan-Sen', linewidth=2, color=orange, transp=100)
+plot(sks and standard ? standard : na, title = 'Ichimoku_Kijun-Sen', linewidth=3, color=blue, transp=100)
+plot(sksA and specialA ? specialA : na, title = 'Ichimoku_Kijun-Sen auxiliary I', linewidth=2, color=black, transp=100)
+
+plot(sll and close ? close : na, title='Ichimoku_Chikou Span (Lagging Span)', linewidth=2, offset = -displacement, color=#A900FF, transp=100)
+
+//Arrow Plots At Tenkan-Sen (9 Period) and Kinjun-Sen (26 Period)
+plotchar(cr1 and crossUpTenkanKinjun ? leadingSpan1 : na, title="Ichimoku_CrossUp Tenkan Kijun Entry Arrow",char='▲', color=green, transp=0, location=location.bottom, size=size.small,transp=0)
+plotchar(cr1 and crossDnTenkanKinjun ? leadingSpan1 : na, title="Ichimoku_CrossUp Tenkan Kijun Entry Arrow",char='▼', color=red, transp=0, location=location.bottom, size=size.small,transp=0)

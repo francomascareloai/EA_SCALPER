@@ -1,0 +1,356 @@
+//@version=5
+// 
+ 
+strategy(title='Open Open Cross Strategy R7.1b revised by MZ'
+     , shorttitle='OCC Strategy R7.1'
+     , overlay=true
+     , pyramiding=0
+     , default_qty_type=strategy.percent_of_equity
+     , default_qty_value=100
+     , calc_on_every_tick=true  
+     , process_orders_on_close=true
+     , commission_value=0.08)
+
+// For Testing & Debug
+// security wrapper for repeat calls
+//reso(exp, use, res) =>
+//    security_1 =  request.security(syminfo.tickerid, res, exp[barstate.isrealtime ? 1 : 0], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+//    use ? security_1 : exp[barstate.isrealtime ? 1 : 0]
+ 
+//As opposed to the recommendation that TV gives, I am trying to get the fastest non repainting by ensuring that barclose - barisconfirmed, we get the most recent values.
+//Otherwise, the strategy is looking at the most recent previous period until the bar close - this was altered from the version I was given
+reso(exp, use, res) => //v3
+    //security_1 =  request.security(syminfo.tickerid, res, exp[barstate.isconfirmed ? 0 : 1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+    security_1 =  request.security(syminfo.tickerid, res, exp[barstate.isconfirmed ? 0 : 1],gaps=barmerge.gaps_off)[barstate.isconfirmed ? 0 : 1]
+    use ? security_1 : exp[barstate.isconfirmed ? 0 : 1]
+
+//Thse I also created from similar concept for repaint security calcs I make throughout the strategy
+rp_security(_symbol, _res, _src) => request.security(_symbol, _res, _src[barstate.isconfirmed ? 0 : 1])[barstate.isconfirmed ? 0 : 1]
+rp_security_merged(_symbol, _res, _src) => request.security(_symbol, _res, _src[barstate.isconfirmed ? 0 : 1], gaps=barmerge.gaps_on)[barstate.isconfirmed ? 0 : 1]
+
+// Returns MA input selection variant, default to SMA if blank or typo.
+variant(type, src, len, offSig, offALMA) =>
+    v1 = ta.sma(src, len)  // Simple
+    v2 = ta.ema(src, len)  // Exponential
+    v3 = 2 * v2 - ta.ema(v2, len)  // Double Exponential
+    v4 = 3 * (v2 - ta.ema(v2, len)) + ta.ema(ta.ema(v2, len), len)  // Triple Exponential
+    v5 = ta.wma(src, len)  // Weighted
+    v6 = ta.vwma(src, len)  // Volume Weighted
+    v7 = 0.0
+    sma_1 = ta.sma(src, len)  // Smoothed
+    v7 := na(v7[1]) ? sma_1 : (v7[1] * (len - 1) + src) / len
+    v8 = ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))  // Hull
+    v9 = ta.linreg(src, len, offSig)  // Least Squares
+    v10 = ta.alma(src, len, offALMA, offSig)  // Arnaud Legoux
+    v11 = ta.sma(v1, len)  // Triangular (extreme smooth)
+    // SuperSmoother filter
+    // © 2013  John F. Ehlers
+    a1 = math.exp(-1.414 * 3.14159 / len)
+    b1 = 2 * a1 * math.cos(1.414 * 3.14159 / len)
+    c2 = b1
+    c3 = -a1 * a1
+    c1 = 1 - c2 - c3
+    v12 = 0.0
+    v12 := c1 * (src + nz(src[1])) / 2 + c2 * nz(v12[1]) + c3 * nz(v12[2])
+    type == 'EMA' ? v2 : type == 'DEMA' ? v3 : type == 'TEMA' ? v4 : type == 'WMA' ? v5 : type == 'VWMA' ? v6 : type == 'SMMA' ? v7 : type == 'HullMA' ? v8 : type == 'LSMA' ? v9 : type == 'ALMA' ? v10 : type == 'TMA' ? v11 : type == 'SSMA' ? v12 : v1
+
+// === INPUTS === 
+useRes = input(defval=true, title='Use Alt Res?', group="Strategy", inline="1", tooltip="This Strategy modified to use LONG only")
+intRes = input(defval=3, title='Mult Res', group="Strategy", inline="1")
+calcOffset = input(defval=0, title='Interval Offset', group="Strategy", inline="1")
+offset = input(defval=0, title='Cross Offset', group="Strategy", inline="1")
+
+stratRes = timeframe.ismonthly ? str.tostring(timeframe.multiplier * intRes, '###M') : timeframe.isweekly ? str.tostring(timeframe.multiplier * intRes, '###W') : timeframe.isdaily ? str.tostring(timeframe.multiplier * intRes, '###D') : timeframe.isintraday ? str.tostring(timeframe.multiplier * intRes, '####') : '60'
+basisType = input.string(defval='TEMA', title='MA Type: ', group="Basis", inline="1", options=['SMA', 'EMA', 'DEMA', 'TEMA', 'WMA', 'VWMA', 'SMMA', 'HullMA', 'LSMA', 'ALMA', 'SSMA', 'TMA'])
+basisLen = input.int(defval=8, title='MA Period', minval=1, group="Basis", inline="1")
+offsetSigma = input.int(defval=6, title='Offset LSMA/Sigma ALMA', minval=0, group="Strategy", group="Basis", inline="2")
+offsetALMA = input.float(defval=0.85, title='Offset ALMA', minval=0, step=0.01, group="Basis", inline="2")
+scolor = input(true, title='Show Trend?', group="Basis", inline="3")
+delayOffset = 0 //input.int(defval=0, title='Delay O/C MA', minval=0, step=1, group="Basis", inline="3")
+tradeType = 'LONG' //input.string('LONG', title='What trades should be taken : ', options=['LONG', 'SHORT', 'BOTH', 'NONE'], group="Basis", inline="3")
+
+enableTrailing = input.bool(defval = true, title = 'Trailing', tooltip = 'Enable or disable the trailing for take profit.', group = 'Trailing Profit',inline='1')
+longTakeProfitPerc = input.float(title="Long TP (%)", minval=0.0, step=0.1, defval=4, group = 'Trailing Profit', inline='1') * 0.01
+trailingTakeProfitDeviationPerc = input.float(defval = 0.5, title = 'TTP Dev %%', minval = 0.01, maxval = 100, step = 0.1, tooltip = 'The step to follow the price when the take profit limit is reached.', group = 'Trailing Profit', inline='1') / 100
+longLossPerc = input.float(6, title="Fixed SL (%)", minval=0.0, step=0.1, defval=1, tooltip="Use 100 to turn off - Stop loss % even if ATR did not catch it") * 0.01
+longStopPrice = strategy.position_avg_price * (1 - longLossPerc)
+belowStopLoss = strategy.position_avg_price <= longStopPrice 
+longTPPrice  = strategy.position_avg_price * (1 + longTakeProfitPerc)
+aboveTakeProfit = strategy.position_avg_price >= longTPPrice 
+ 
+
+//Filter out false positives via moving average - try using LSMA 3 MIN varying length 
+useVariantFilter = input.bool(false, title="Use MA", group="Filters", inline='1')
+VariantFilterType = input.string(defval='LSMA', title='Type: ', group="Filters", inline="1", options=['SMA', 'EMA', 'DEMA', 'TEMA', 'WMA', 'VWMA', 'SMMA', 'HullMA', 'LSMA', 'ALMA', 'SSMA', 'TMA'])
+VariantTimeFrame = input.timeframe(defval='3',title='TF: ', group="Filters", inline='1')
+VariantFilterLength  = input.int(20, minval=1, title="Len", group="Filters", inline='1') // used to calculate RSI
+//aboveVariant = input.float(0, title="Min ATR", minval=0.0, step=0.001, defval=1,group="Filters", inline='3', tooltip="Use 0 to turn off - can remove periods of low volatility where less likely profitable")
+variantFilter = reso(variant(VariantFilterType, close[barstate.isrealtime ? 1 : 0], VariantFilterLength, offsetSigma, offsetALMA),true,VariantTimeFrame) // reso(variant(VariantFilterType, close[1], VariantFilterLength, offsetSigma, offsetALMA), 1, VariantTimeFrame) 
+passesVariantFilter = (close[barstate.isrealtime ? 1 : 0] >= variantFilter) or not(useVariantFilter)
+variantFilterP = plot(variantFilter, title='VariantFilter', color=color.blue, linewidth=4, style=plot.style_line, transp=20)
+
+//This seems to work rather well when you are filtering longer time periods (30-40 length) and start filtering below 55-45, which means that its not overboughtht
+useRSI = input.bool(false, title="Use RSI", group="Filters", inline='2')
+rsiTimeFrame = input.timeframe(defval='30',title='TF: ', group="Filters", inline='2')
+RSILength  = input.int(20, minval=1, title="RSI Length", group="Filters", inline='2') // used to calculate RSI
+aboveRSIFilter =input.int(40, minval=1, title="Buy Above RSI", group="Filters", inline='2')
+belowRSIFilter  = input.int(75, minval=1, title="Buy Below RSI", group="Filters", inline='2') // only buy if its below this RSI - doesn't seem to work as expected
+rsiTmp = ta.rsi(close[barstate.isconfirmed ? 0 : 1],RSILength)
+//rsiRisingLen  = input.int(2, minval=1, title="Rising Len", group="Filters", inline='2') // only buy if its below this RSI - doesn't seem to work as expected
+//rsiMinROC  = input.float(-5, minval=-5, title="Rising", group="Filters", inline='2') // only buy if its below this RSI - doesn't seem to work as expected
+rsi = rp_security(syminfo.tickerid, rsiTimeFrame, rsiTmp) //rp_security(sys, _res, _src)
+passesRSIfilter = (rsi <= belowRSIFilter and rsi >= aboveRSIFilter)  or not(useRSI)  
+//and ta.rising(ta.sma(rsi,rsiRisingLen),2) and ta.roc(rsi,rsiRisingLen)>rsiMinROC)
+//Filter via min ATR so you can make sure that there is enough volatility to make a profitable trade
+useATR = input.bool(false, title="Use ATR", group="Filters", inline='3')
+ATRLength  = input.int(34, minval=1, title="ATR Length", group="Filters", inline='3') // used to calculate RSI
+minATR = input.float(0, title="Min ATR", minval=0.0, step=0.001, defval=1,group="Filters", inline='3', tooltip="Use 0 to turn off - can remove periods of low volatility where less likely profitable")
+atr = ta.atr(ATRLength)
+isAboveATR = atr >= minATR or not(useATR)
+
+
+// ======= ADX FILTER  ======= 
+useADX = input.bool(true, title="Use ADX", group="Filters", inline='adx1')
+useDiplus = input.bool(false, title="Uptrend Only", group="Filters", inline='adx1')
+adxTF = input.timeframe("5", title="ADX TF", group="Filters", inline='adx1_2')
+length = input(14, title="Length",group="Filters", inline='adx1_2')
+smoothing = input(40, title="Smooth", group="Filters", inline='adx1_2')
+adxMin = input(20, title="Min", group="Filters", inline='adx1_2')
+adxMax = input(100, title="Max", group="Filters", inline='adx1_2')
+[diplus, diminus, adx] = ta.dmi(length, smoothing)
+adxHTF = rp_security(syminfo.tickerid, adxTF, adx) 
+diplusHTF = rp_security(syminfo.tickerid, adxTF, diplus)
+diminusHTF =  rp_security(syminfo.tickerid, adxTF, diminus)
+diCalc = diplusHTF - diminusHTF
+diEMA = ta.ema(diCalc,2)
+//upTrendTrue = diplusHTF - diminusHTF > 0
+upTrendTrue = diEMA > 0
+adxMsg = '\ndiplus : ' +str.tostring(diplusHTF) + '\ndiminus : ' +str.tostring(diminusHTF)+'\nadx : ' +str.tostring(adxHTF) + '\ndiEMA: '+str.tostring(diEMA) + '\ndiUptrend : ' + str.tostring(upTrendTrue)
+passesADXFilters = (adxHTF >= adxMin and adxHTF <=adxMax) or not(useADX)
+passUptrendOnlyFilter = upTrendTrue or not(useDiplus)
+//END ADX - use passesADXFilters and passUpTrendOnlyFilter
+ 
+// ======= ADX2 FILTER  ======= 
+//ADX2 Filter - a second filter that could be used on a higher time frame etc
+useADX2 = input.bool(false, title="Use ADX2", group="Filters", inline='Adx2')
+useDiplus2 = input.bool(false, title="Uptrend Only", group="Filters", inline='Adx2', tooltip="If you want to use a second ADX filter for a higher time frame, etc")
+adxTF2 = input.timeframe("5", title="ADX TF", group="Filters", inline='Adx23')
+length2 = input(14, title="Length",group="Filters", inline='Adx23')
+smoothing2 = input(40, title="Smooth", group="Filters", inline='Adx23')
+adxMin2 = input(20, title="Min", group="Filters", inline='Adx23')
+adxMax2 = input(100, title="Max", group="Filters", inline='Adx23')
+[diplus2, diminus2, adx2] = ta.dmi(length2, smoothing2)
+adxHTF2 = rp_security(syminfo.tickerid, adxTF2, adx2)
+diplusHTF2 = rp_security(syminfo.tickerid, adxTF2, diplus2)
+diminusHTF2 =  rp_security(syminfo.tickerid, adxTF2, diminus2)
+diCalc2 = diplusHTF2 - diminusHTF2
+diEMA2 = ta.ema(diCalc2,2)
+upTrendTrue2 = diEMA2 > 0 //diplusHTF2 - diminusHTF2 > 0
+//adxMsg2 = '\ndiplus2 : ' +str.tostring(diplusHTF2) + '\ndiminus2 : ' +str.tostring(diminusHTF2)+'\nadx2 : ' +str.tostring(adxHTF2)
+adxMsg2 = '\ndiplus2 : ' +str.tostring(diplusHTF2) + '\ndiminus2 : ' +str.tostring(diminusHTF2)+'\nadx2 : ' +str.tostring(adxHTF2) + '\ndiEMA2: '+str.tostring(diEMA2) + '\ndiUptrend2 : ' + str.tostring(upTrendTrue2)
+passesADXFilters2 = (adxHTF2 >= adxMin2 and adxHTF2 <=adxMax2) or not(useADX2)
+passUptrendOnlyFilter2 = upTrendTrue2 or not(useDiplus2)
+//END ADX - use passesADXFilters and passUpTrendOnlyFilter
+//Concat both adx msgs
+adxMsg := adxMsg + adxMsg2
+
+
+// === /INPUTS ===
+passesFilters = isAboveATR and passesRSIfilter and passesVariantFilter and passesADXFilters and passUptrendOnlyFilter and passesADXFilters2 and passUptrendOnlyFilter2
+
+// Constants colours that include fully non-transparent option. 
+green100 = #008000FF
+lime100 = #00FF00FF
+red100 = #FF0000FF
+blue100 = #0000FFFF
+aqua100 = #00FFFFFF
+darkred100 = #8B0000FF
+gray100 = #808080FF
+
+
+
+// === BASE FUNCTIONS ===
+// === /BASE FUNCTIONS ===
+
+// === SERIES SETUP ===
+//closeNRP = rp_security(syminfo.tickerid, str.tostring(intRes), close)
+//openNRP = rp_security(syminfo.tickerid, str.tostring(intRes), open)
+
+//closeSeries = variant(basisType, open[barstate.isconfirmed ? 0 : 1], basisLen, offsetSigma, offsetALMA)
+//openSeries = variant(basisType, open[barstate.isconfirmed ? 0 : 1], basisLen, offsetSigma, offsetALMA)
+closeSeries = variant(basisType, open[0], basisLen, offsetSigma, offsetALMA) //we are running one bar behind so we assume the current open is the previous bars close
+openSeries = variant(basisType, open[1], basisLen, offsetSigma, offsetALMA) //this might not work for other assets such as currencies- will have to look into it
+// === /SERIES ===
+
+// === PLOTTING ===
+closeSeriesAlt = 0.0
+openSeriesAlt = 0.0
+closeTrade = false
+xlong = false
+xshort = false
+modulus = intRes
+//modulus := 1
+// only update calc if its at the end of the period or beginning of next
+if ((bar_index + calcOffset) % modulus == 0 and barstate.isconfirmed) or ((bar_index + calcOffset + 1) % intRes == 0) //and barstate.isconfirmed //if it is the current period and also the next minute after the current period then recalc
+    closeSeriesAlt := reso(closeSeries, useRes, stratRes)
+    openSeriesAlt := reso(openSeries, useRes, stratRes)
+else 
+    closeSeriesAlt := closeSeriesAlt[1]
+    openSeriesAlt := openSeriesAlt[1]
+//closeSeriesAlt := reso(closeSeries, useRes, stratRes)
+//openSeriesAlt := reso(openSeries, useRes, stratRes)
+//closeTrade :=  ta.crossunder(reso(closeSeries, useRes, stratRes),reso(openSeries, useRes, stratRes)) // special calc that does not overrides repaint fix for closing trades
+//xlong = closeSeriesAlt > openSeriesAlt and passesFilters'
+//xlong := (ta.crossover(closeSeriesAlt, openSeriesAlt)[offset] ) and passesFilters //and (bar_index+intRes+1  % (intRes) == 0) //
+xlong := (ta.crossover(closeSeriesAlt, openSeriesAlt)[offset] ) and passesFilters //and (bar_index+intRes+1  % (intRes) == 0)
+//xlong := ta.crossover(closeSeriesAlt, openSeriesAlt)[2] and passesFilters //and (bar_index+intRes+1  % (intRes) == 0) //
+//closeTrade = ta.crossunder(closeSeriesAlt, openSeriesAlt)
+//xlong := closeSeries[0] > openSeries[0] and closeSeriesAlt[0] > openSeriesAlt[0]
+xshort := closeSeries < longStopPrice // ta.crossunder(closeSeriesAlt, openSeriesAlt)    
+
+trendColour = closeSeriesAlt > openSeriesAlt ? color.green : color.red
+bcolour = closeSeriesAlt > openSeriesAlt ? color.green : color.red
+barcolor(scolor ? bcolour : na, title='Bar Colours')
+closeP = plot(closeSeriesAlt, title='Close Series', color=trendColour, linewidth=2, style=plot.style_line, transp=20)
+openP = plot(openSeriesAlt, title='Open Series', color=trendColour, linewidth=2, style=plot.style_line, transp=20)
+fill(closeP, openP, color=trendColour, transp=80)
+
+// DEBUG 
+//if (bar_index % (intRes) == 0)
+//    label.new(bar_index, na, "BarIndex"+str.tostring(bar_index)+"\nRSI = " + str.tostring(rsi, format.mintick) + "\nATR = "+ str.tostring(atr, format.mintick), yloc = yloc.abovebar, style = label.style_none, textcolor = color.white, size = size.normal)
+
+
+longCond = xlong  // alternative: longCond[1]? false : (xlong or xlong[1]) and close>closeSeriesAlt and close>=open
+shortCond = xshort  // alternative: shortCond[1]? false : (xshort or xshort[1]) and close<closeSeriesAlt and close<=open
+// === /ALERT conditions.>
+
+showData = true
+if longCond and strategy.position_size == 0 and showData
+    label.new(bar_index, na, "RSI = " + str.tostring(rsi, format.mintick) + "\nATR = "+ str.tostring(atr, format.mintick)+adxMsg, yloc = yloc.abovebar, style = label.style_none, textcolor = color.white, size = size.normal)
+
+// === STRATEGY ===
+
+
+// stop loss - These are depracrated and replaced by fixed stop loss and trailing profit
+slPercentage = 0 //input.int(defval=0, title='Initial Stop Loss Points (zero to disable)', minval=0)
+tpPercentage = 0 //input.int(defval=0, title='Initial Target Profit Points (zero for disable)', minval=0)
+// Include bar limiting algorithm
+ebar = input.int(defval=10000, title='Number of Bars for Back Testing', minval=0)
+dummy = input(false, title='- SET to ZERO for Daily or Longer Timeframes')
+//
+// Calculate how many mars since last bar
+tdays = (timenow - time) / 60000.0  // number of minutes since last bar
+tdays := timeframe.ismonthly ? tdays / 1440.0 / 5.0 / 4.3 / timeframe.multiplier : timeframe.isweekly ? tdays / 1440.0 / 5.0 / timeframe.multiplier : timeframe.isdaily ? tdays / 1440.0 / timeframe.multiplier : tdays / timeframe.multiplier  // number of bars since last bar
+//
+//set up exit parameters
+TP = tpPercentage > 0 ? tpPercentage : na
+SL = slPercentage > 0 ? slPercentage : na
+
+exitLong = belowStopLoss or shortCond == true or aboveTakeProfit
+openlongcomment = ""
+closelongcomment = ""
+olc = input.string(title="Open Long Comment", defval="",group="Strategy", inline="2")
+clc = input.string(title="Close Long Comment",  defval="",group="Strategy", inline="2")
+if not(olc == "")
+    openlongcomment := olc
+if not(clc == "")
+    closelongcomment := clc
+    
+// LOGIC for Trailing Profit  ============================================================================================================
+bool longIsActive = longCond or strategy.position_size > 0
+float longTakeProfitPrice = na
+longTakeProfitPrice := if longIsActive
+    if longCond and not (strategy.position_size > 0)
+        close * (1 + longTakeProfitPerc)
+    else
+        nz(longTakeProfitPrice[1], close * (1 + longTakeProfitPerc))
+else
+    na
+longTrailingTakeProfitStepTicks = longTakeProfitPrice * trailingTakeProfitDeviationPerc / syminfo.mintick
+//END TRAILNG PROFIT
+
+// Make sure we are within the bar range, Set up entries and exit 
+//entry signal on barstate is confirmed, but exit should be on any tick
+//passes filter var already checks if barstate is confirmed
+if (ebar == 0 or tdays <= ebar) and tradeType != 'NONE'
+
+    strategy.entry('long', strategy.long, when=longCond == true and tradeType != 'SHORT', comment=openlongcomment)
+    alert(openlongcomment, alert.freq_once_per_bar)
+      //strategy.entry('short', strategy.short, when=shortCond == true and tradeType != 'LONG')
+    strategy.close('long', when=exitLong and tradeType == 'LONG',comment=closelongcomment)
+    //strategy.close('short', when=longCond == true and tradeType == 'SHORT')
+    //strategy.exit('long', from_entry='long', profit=TP, loss=SL, comment=closelongcomment) //longTPPrice
+    //strategy.exit('XS', from_entry='short', profit=TP, loss=SL)
+    if (strategy.position_size > 0) and close > longTPPrice or exitLong or closeTrade
+    //strategy.exit(id="long", profit = longTPPrice, comment=closelongcomment)
+    // submit exit orders for trailing take profit price
+        strategy.exit(id = 'Long Trailing Profit', from_entry = 'long',  comment=closelongcomment, limit = enableTrailing ? na : longTakeProfitPrice, trail_price = enableTrailing ? longTakeProfitPrice : na, trail_offset = enableTrailing ? longTrailingTakeProfitStepTicks : na, when = longIsActive, alert_message = 'Long(' + syminfo.ticker + '): Take Profit activated')
+   
+// === /STRATEGY ===
+// eof
+
+//
+// Revision:        5
+// Original Author: @JayRogers
+// Revision Author: JustUncleL revisions 3, 4, 5
+//
+// *** USE AT YOUR OWN RISK ***
+//  - There are drawing/painting issues in pinescript when working across resolutions/timeframes that I simply
+//    cannot fix here.. I will not be putting any further effort into developing this until such a time when
+//    workarounds become available. 
+//    NOTE: Re-painting has been observed infrequently with default settings and seems OK up to Alternate 
+//          multiplier of 5.
+//          Non-repainting mode is available by setting "Delay Open/Close MA" to 1 or more, but the reported
+//          performance will drop dramatically.
+//
+// R5.1 Changes by JustUncleL
+//  - Upgraded to Version 3 Pinescript.
+//  - Added option to select Trade type (Long, Short, Both or None)
+//  - Added bar colouring work around patch.
+//  - Small code changes to improve efficiency.
+//  - NOTE: To enable non-Repainting mode set "Delay Open/Close MA" to 1 or more.
+//  9-Aug-2017
+//  - Correction on SuperSmooth MA calculation.
+//
+// R5 Changes by JustUncleL
+//  - Corrected cross over calculations, sometimes gave false signals.
+//  - Corrected Alternate Time calculation to allow for Daily,Weekly and Monthly charts.
+//  - Open Public release.
+// R4 Changes By JustUncleL
+//  - Change the way the Alternate resolution in selected, use a Multiplier of the base Time Frame instead,
+//    this makes it easy to switch between base time frames.
+//  - Added TMA and SSMA moving average options. But DEMA is still giving the best results.
+//  - Using "calc_on_every_tick=false" ensures results between backtesting and real time are similar.
+//  - Added Option to Disable the coloring of the bars.
+//  - Updated default settings.
+//
+// R3 Changes by JustUncleL:
+//  - Returned a simplified version of the open/close channel, it shows strength of current trend.
+//  - Added Target Profit Option.
+//  - Added option to reduce the number of historical bars, overcomes the too many trades limit error.
+//  - Simplified the strategy code.
+//  - Removed Trailing Stop option, not required and in my opion does not work well in Trading View,
+//    it also gives false and unrealistic performance results in backtesting.
+//
+// R2 Changes:
+//  - Simplified and cleaned up plotting, now just shows a Moving Average derived from the average of open/close.
+//  - Tried very hard to alleviate painting issues caused by referencing alternate resolution..
+//
+// Description:
+//  - Strategy based around Open-Close Crossovers.
+// Setup:
+//  - I have generally found that setting the strategy resolution to 3-4x that of the chart you are viewing
+//    tends to yield the best results, regardless of which MA option you may choose (if any) BUT can cause
+//    a lot of false positives - be aware of this
+//  - Don't aim for perfection. Just aim to get a reasonably snug fit with the O-C band, with good runs of
+//    green and red.
+//  - Option to either use basic open and close series data, or pick your poison with a wide array of MA types.
+//  - Optional trailing stop for damage mitigation if desired (can be toggled on/off)
+//  - Positions get taken automagically following a crossover - which is why it's better to set the resolution
+//    of the script greater than that of your chart, so that the trades get taken sooner rather than later.
+//  - If you make use of the stops, be sure to take your time tweaking the values. Cutting it too fine
+//    will cost you profits but keep you safer, while letting them loose could lead to more drawdown than you
+//    can handle.
+//  - To enable non-Repainting mode set "Delay Open/Close MA" to 1 or more.
+//
+ 

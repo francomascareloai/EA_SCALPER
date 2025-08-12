@@ -1,0 +1,1295 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © SC97880021
+
+//@version=5
+strategy("AI RSI MTF STRATEGY (Join Telegram @free_fx_pro)", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=100)
+
+// === ⏱ TIMEFRAME INPUTS ===
+rsiTF = input.timeframe("", "RSI Timeframe")
+rsiPeriod = input.int(14, title="RSI Period")
+neutralLower = input.int(40, title="Neutral Lower Bound")
+neutralUpper = input.int(60, title="Neutral Upper Bound")
+bullishThreshold = input.int(60, title="Bullish Threshold")
+bearishThreshold = input.int(40, title="Bearish Threshold")
+
+// === 📊 RSI Signal ===
+rsiVal = request.security(syminfo.tickerid, rsiTF, ta.rsi(close, rsiPeriod))
+
+// === 🔁 Buy/Sell Logic ===
+var bool hasstcBuy = false
+var bool hasstcSell = false
+
+stcBuy = rsiVal > bullishThreshold and not hasstcBuy
+stcSell = rsiVal < bearishThreshold and not hasstcSell
+
+if stcBuy
+    hasstcBuy := true
+    hasstcSell := false
+
+if stcSell
+    hasstcSell := true
+    hasstcBuy := false
+
+// === 📈 Entry Conditions ===
+longCondition = stcBuy
+shortCondition = stcSell
+
+// === 🛑 Exit Conditions ===
+exitLong = stcSell
+exitShort = stcBuy
+
+// === 📌 Strategy Orders ===
+if longCondition
+    strategy.entry("Long", strategy.long)
+
+if shortCondition
+    strategy.entry("Short", strategy.short)
+
+if exitLong
+    strategy.close("Long")
+
+if exitShort
+    strategy.close("Short")
+
+// === 🔎 Optional Chart Visualization ===
+plotshape(series=stcBuy, title="LONG Signal", location=location.belowbar, color=#036806fc, style=shape.labelup, text="L", size=size.small, textcolor=color.white)
+plotshape(series=stcSell, title="SHORT Signal", location=location.abovebar, color=color.rgb(245, 5, 5, 2), style=shape.labeldown, text="S", size=size.small, textcolor=color.white)
+
+//plotshape(buySignal and showsignals ? up : na, title="Buy", text="L", style=shape.labelup, location=location.belowbar, size=size.auto, color=color.rgb(16, 228, 24), textcolor=color.white)
+//plotshape(sellSignal and showsignals ? dn : na, title="Sell", text="S", style=shape.labeldown, location=location.abovebar, size=size.auto, color=color.rgb(255, 0, 0), textcolor=color.white)
+
+// === BRANDING===
+var table myTable = table.new(position.bottom_center, 2, 2, border_width=1, frame_color=color.black, bgcolor=color.white)
+table.cell(myTable, 0, 0, "Join Telegram @free_fx_pro", bgcolor=color.orange, text_color=color.white, text_size=size.normal)
+
+
+//@version=5
+//indicator(title="All Market Action indicator", shorttitle="All Market", overlay=true)
+showVWAP = input(title='Show VWAP', defval=true)
+ema2= input(title='Data 1', defval=false)
+ema3= input(title='Data 2', defval=true)
+showhhll = input(title='Real Time HH-LL', defval=true)
+prd1 = input.int(defval=8, title='HH-LL /Length', minval=2, maxval=20)
+prd = input.int(defval=10, title='S/R Length', minval=2, maxval=100)
+maxnumsr = input.int(defval=5, title='Number of S/R', minval=1, maxval=20) - 1
+loopback = 200////
+float ph = ta.pivothigh(close, prd,prd)
+float pl = ta.pivotlow(low, prd,prd)
+prdhighest = ta.highest(200)
+prdlowest = ta.lowest(200)
+cwidth = (prdhighest - prdlowest) * 2 / 100
+var pivotvals = array.new_float(0)
+var pivotlocs = array.new_float(0)
+if ph or pl
+    array.unshift(pivotvals, ph ? ph : pl)
+    array.unshift(pivotlocs, bar_index)
+    for x = array.size(pivotvals) - 1 to 0 by 1
+        if bar_index - array.get(pivotlocs, x) > loopback
+            array.pop(pivotvals)
+            array.pop(pivotlocs)
+get_sr_vals(ind) =>
+    float lo = array.get(pivotvals, ind)
+    float hi = lo
+    int numpp = 0
+    for y = 0 to array.size(pivotvals) - 1 by 1
+        float cpp = array.get(pivotvals, y)
+        float wdth = cpp <= hi ? hi - cpp : cpp - lo
+        if wdth <= cwidth
+            if cpp <= hi
+                lo := math.min(lo, cpp)
+                hi := math.max(hi, cpp)
+            numpp += 20
+    [hi, lo, numpp]
+var sup = array.new_float(20, 0)
+changeit(x, y) =>
+    tmp = array.get(sup, y * 2)
+    array.set(sup, y * 2, array.get(sup, x * 2))
+    array.set(sup, x * 2, tmp)
+    tmp := array.get(sup, y * 2 + 1)
+    array.set(sup, y * 2 + 1, array.get(sup, x * 2 + 1))
+    array.set(sup, x * 2 + 1, tmp)
+if ph or pl
+    supres = array.new_float(0)
+    stren = array.new_float(10, 0)
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        [hi, lo, strength] = get_sr_vals(x)
+        array.push(supres, strength)
+        array.push(supres, hi)
+        array.push(supres, lo)
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        h = array.get(supres, x * 3 + 1)
+        l = array.get(supres, x * 3 + 2)
+        s = 0
+        for y = 0 to loopback by 1
+            if high[y] <= h and high[y] >= l or low[y] <= h and low[y] >= l
+                s += 1
+        array.set(supres, x * 3, array.get(supres, x * 3) + s)
+    array.fill(sup, 0)
+    src = 0
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        stv = -1.
+        stl = -1
+        for y = 0 to array.size(pivotvals) - 1 by 1
+            if array.get(supres, y * 3) > stv and array.get(supres, y * 3) >= 1 * 20
+                stv := array.get(supres, y * 3)
+                stl := y
+                stl
+        if stl >= 0
+            hh = array.get(supres, stl * 3 + 1)
+            ll = array.get(supres, stl * 3 + 2)
+            array.set(sup, src * 2, hh)
+            array.set(sup, src * 2 + 1, ll)
+            array.set(stren, src, array.get(supres, stl * 3))
+            for y = 0 to array.size(pivotvals) - 1 by 1
+                if array.get(supres, y * 3 + 1) <= hh and array.get(supres, y * 3 + 1) >= ll or 
+                   array.get(supres, y * 3 + 2) <= hh and array.get(supres, y * 3 + 2) >= ll
+                    array.set(supres, y * 3, -1)
+            src += 1
+            if src >= 10
+                break
+    for x = 0 to 8 by 1
+        for y = x + 1 to 9 by 1
+            if array.get(stren, y) > array.get(stren, x)
+                tmp = array.get(stren, y)
+                array.set(stren, y, array.get(stren, x))
+                changeit(x, y)
+get_level(ind) =>
+    float ret = na
+    if ind < array.size(sup)
+        if array.get(sup, ind) != 0
+            ret := array.get(sup, ind)
+get_color(ind) =>
+    color ret = na
+    if ind < array.size(sup)
+        if array.get(sup, ind) != 0
+            ret := array.get(sup, ind) > close and array.get(sup, ind + 1) > close ? #ff525259
+                                             : array.get(sup, ind) < close and array.get(sup, ind + 1) < close ? #089981b3 : #787b86b3
+var srchannels = array.new_box(10)
+for x = 0 to math.min(9, maxnumsr) by 1
+    box.delete(array.get(srchannels, x))
+    srcol = get_color(x * 2)
+    if not na(srcol)
+        array.set(srchannels, x, box.new(left=bar_index - 180, top=get_level(x * 2)
+                                 ,right=bar_index + 2, bottom=get_level(x * 2 + 1), border_color=srcol, border_width=1, bgcolor=srcol))
+emalen2= input.int(21, minval=1, title="Data 1")
+source2= input(close, title="Data 1")
+eout2= ta.ema(source2, emalen2)
+plot(ema2 ? eout2 : na, title="Data 1", color=#00bcd4bf, linewidth=2)
+emalen3= input.int(50, minval=1, title="Data 2")
+source3= input(close, title="Data 2")
+eout3= ta.ema(source3, emalen3)
+plot(ema3 ? eout3 : na, title="Data 2", color=#f23645b3, linewidth=2)
+cvwap = ta.vwap(hlc3)
+plotvwap = plot(timeframe.isintraday ? showVWAP ? cvwap : na  : na, title='VWAP', color=color.new(#ff9800, 0), linewidth=2)
+liceco = input(defval = #5369a5b0, title = "Color Size HH-LL",inline='#4')
+size = input.string("tiny", title="", options=["tiny", "small", "large"],inline='#4')
+ph1 = ta.highestbars(high, prd1) == 0 ? high : na, pl1 = ta.lowestbars(low, prd1) == 0 ? low : na, var dir1 = 0
+iff_1 = pl1 and na(ph1) ? -1 : dir1, dir1 := ph1 and na(pl1) ? 1 : iff_1
+var max_array_size = 10, var zigzag1 = array.new_float(0),oldzigzag1 = array.copy(zigzag1)
+add_to_zigzag(pointer, value, bindex) =>
+    array.unshift(pointer, bindex), array.unshift(pointer, value)
+    if array.size(pointer) > max_array_size
+        array.pop(pointer),array.pop(pointer)
+update_zigzag(pointer, value, bindex, dir) =>
+    if array.size(pointer) == 0
+        add_to_zigzag(pointer, value, bindex)
+    else
+        if dir == 1 and value > array.get(pointer, 0) or dir == -1 and value < array.get(pointer, 0)
+            array.set(pointer, 0, value), array.set(pointer, 1, bindex)
+        0.
+dir1changed = ta.change(dir1), if ph1 or pl1
+    if dir1changed
+        add_to_zigzag(zigzag1, dir1 == 1 ? ph1 : pl1, bar_index)
+    else
+        update_zigzag(zigzag1, dir1 == 1 ? ph1 : pl1, bar_index, dir1)
+if array.size(zigzag1) >= 6
+    var line zzline1 = na, var label zzlabel1 = na
+    if array.get(zigzag1, 0) != array.get(oldzigzag1, 0) or array.get(zigzag1, 1) != array.get(oldzigzag1, 1)
+        if array.get(zigzag1, 2) == array.get(oldzigzag1, 2) and array.get(zigzag1, 3) == array.get(oldzigzag1, 3)
+            line.delete(zzline1), label.delete(zzlabel1)
+        if showhhll == true
+            hhlltxt = dir1 == 1 ? array.get(zigzag1, 0) > array.get(zigzag1, 4) ? 'HH' : 'LH' : array.get(zigzag1, 0) < array.get(zigzag1, 4) ? 'LL':'HL'
+            l= dir1 == 1 ? array.get(zigzag1, 0) > array.get(zigzag1, 4) ? liceco : liceco : array.get(zigzag1, 0) < array.get(zigzag1, 4) ? liceco : liceco
+            zzlabel1 :=label.new(x=math.round(array.get(zigzag1, 1)),y=array.get(zigzag1,0),text=hhlltxt,color=l,size=size,textcolor=#ffffff,style=dir1==1?
+                       label.style_label_lower_right:label.style_label_upper_right)////(zigzag1,0),text=hhlltxt,color=l,size=size,textcolor=#ffffff,style=dir1==1?
+///////////////////////////////////////////////END OF LINE/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// === Trade Setup Settings ===
+sl_mult   = input.float(0.10, title="SL %")
+tp1_mult  = input.float(0.10, title="TP1 %")
+tp2_mult  = input.float(0.20, title="TP2 %")
+tp3_mult  = input.float(0.30, title="TP3 %")
+tp4_mult  = input.float(0.40, title="TP4 %")
+tp5_mult  = input.float(0.50, title="TP5 %")
+
+show_sl   = input.bool(true, title="Show SL")
+show_tp1  = input.bool(true, title="Show TP1")
+show_tp2  = input.bool(true, title="Show TP2")
+show_tp3  = input.bool(true, title="Show TP3")
+show_tp4  = input.bool(true, title="Show TP4")
+show_tp5  = input.bool(true, title="Show TP5")
+
+// === Colors ===
+col_entry = color.rgb(33, 149, 243, 53)
+col_sl    = color.rgb(255, 82, 82, 52)
+col_tp    = color.rgb(76, 175, 79, 48)
+
+
+
+
+// === Trade State ===
+var bool inLong = false
+var bool inShort = false
+
+
+
+if stcBuy
+    inLong := true
+    inShort := false
+if stcSell
+    inShort := true
+    inLong := false
+
+//plotshape(stcBuy, title="STC Buy", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.small)
+//plotshape(stcSell, title="STC Sell", location=location.abovebar, color=color.red, style=shape.triangledown, size=size.small)
+
+// === Price Targets
+entry   = close
+sl      = stcBuy ? entry * (1 - sl_mult / 100) : entry * (1 + sl_mult / 100)
+tp1     = stcBuy ? entry * (1 + tp1_mult / 100) : entry * (1 - tp1_mult / 100)
+tp2     = stcBuy ? entry * (1 + tp2_mult / 100) : entry * (1 - tp2_mult / 100)
+tp3     = stcBuy ? entry * (1 + tp3_mult / 100) : entry * (1 - tp3_mult / 100)
+tp4     = stcBuy ? entry * (1 + tp4_mult / 100) : entry * (1 - tp4_mult / 100)
+tp5     = stcBuy ? entry * (1 + tp5_mult / 100) : entry * (1 - tp5_mult / 100)
+
+dir = stcBuy ? strategy.long : strategy.short
+tag = stcBuy ? "BUY" : "SELL"
+
+// === TP Trail Flags
+var bool hitTP1 = false
+var bool hitTP2 = false
+var bool hitTP3 = false
+var bool hitTP4 = false
+var bool hitTP5 = false
+
+if strategy.position_size != 0
+    if not hitTP1 and (stcBuy ? high >= tp1 : low <= tp1)
+        hitTP1 := true
+    if not hitTP2 and (stcBuy ? high >= tp2 : low <= tp2)
+        hitTP2 := true
+    if not hitTP3 and (stcBuy ? high >= tp3 : low <= tp3)
+        hitTP3 := true
+    if not hitTP4 and (stcBuy ? high >= tp4 : low <= tp4)
+        hitTP4 := true
+    if not hitTP5 and (stcBuy ? high >= tp5 : low <= tp5)
+        hitTP5 := true
+else
+    // Reset on exit
+    hitTP1 := false
+    hitTP2 := false
+    hitTP3 := false
+    hitTP4 := false
+    hitTP5 := false
+
+// === Trailing SL Logic
+trailSL = sl
+trailSL := hitTP1 ? entry : trailSL
+trailSL := hitTP2 ? tp1   : trailSL
+trailSL := hitTP3 ? tp2   : trailSL
+trailSL := hitTP4 ? tp3   : trailSL
+trailSL := hitTP5 ? tp4   : trailSL
+
+// === Execute Trade
+if stcBuy or stcSell
+    strategy.entry(tag, dir)
+strategy.exit("Trail Exit " + tag, from_entry=tag, stop=trailSL)
+
+// === Chart Visuals
+var line entryLine = na
+var line slLine    = na
+var line tp1Line   = na
+var line tp2Line   = na
+var line tp3Line   = na
+var line tp4Line   = na
+var line tp5Line   = na
+
+var label entryLabel = na
+var label slLabel    = na
+var label tp1Label   = na
+var label tp2Label   = na
+var label tp3Label   = na
+var label tp4Label   = na
+var label tp5Label   = na
+
+if stcBuy or stcSell
+    // Clear previous visuals
+    if entryLine != na
+        line.delete(entryLine)
+    if slLine != na
+        line.delete(slLine)
+    if tp1Line != na
+        line.delete(tp1Line)
+    if tp2Line != na
+        line.delete(tp2Line)
+    if tp3Line != na
+        line.delete(tp3Line)
+    if tp4Line != na
+        line.delete(tp4Line)
+    if tp5Line != na
+        line.delete(tp5Line)
+
+    if entryLabel != na
+        label.delete(entryLabel)
+    if slLabel != na
+        label.delete(slLabel)
+    if tp1Label != na
+        label.delete(tp1Label)
+    if tp2Label != na
+        label.delete(tp2Label)
+    if tp3Label != na
+        label.delete(tp3Label)
+    if tp4Label != na
+        label.delete(tp4Label)
+    if tp5Label != na
+        label.delete(tp5Label)
+
+    // Draw New Trade Levels
+    entryLine := line.new(bar_index - 1, entry, bar_index + 10, entry, color=col_entry, width=2)
+    entryLabel := label.new(bar_index - 1, entry, tag + " @ " + str.tostring(entry, format.mintick), style=label.style_label_right, color=col_entry, textcolor=color.white)
+
+    if show_sl
+        slLine := line.new(bar_index, sl, bar_index + 10, sl, color=col_sl, style=line.style_dashed)
+        slLabel := label.new(bar_index - 1, sl, "SL @ " + str.tostring(sl, format.mintick), style=label.style_label_right, color=col_sl, textcolor=color.white)
+
+    if show_tp1
+        tp1Line := line.new(bar_index, tp1, bar_index + 10, tp1, color=col_tp)
+        tp1Label := label.new(bar_index - 1, tp1, "TP1 @ " + str.tostring(tp1, format.mintick), style=label.style_label_right, color=col_tp, textcolor=color.white)
+
+    if show_tp2
+        tp2Line := line.new(bar_index, tp2, bar_index + 10, tp2, color=col_tp)
+        tp2Label := label.new(bar_index - 1, tp2, "TP2 @ " + str.tostring(tp2, format.mintick), style=label.style_label_right, color=col_tp, textcolor=color.white)
+
+    if show_tp3
+        tp3Line := line.new(bar_index, tp3, bar_index + 10, tp3, color=col_tp)
+        tp3Label := label.new(bar_index - 1, tp3, "TP3 @ " + str.tostring(tp3, format.mintick), style=label.style_label_right, color=col_tp, textcolor=color.white)
+
+    if show_tp4
+        tp4Line := line.new(bar_index, tp4, bar_index + 10, tp4, color=col_tp)
+        tp4Label := label.new(bar_index - 1, tp4, "TP4 @ " + str.tostring(tp4, format.mintick), style=label.style_label_right, color=col_tp, textcolor=color.white)
+
+    if show_tp5
+        tp5Line := line.new(bar_index, tp5, bar_index + 10, tp5, color=col_tp)
+        tp5Label := label.new(bar_index - 1, tp5, "TP5 @ " + str.tostring(tp5, format.mintick), style=label.style_label_right, color=col_tp, textcolor=color.white)
+
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+length = input.int(14, 'Swing Detection Lookback')
+mult = input.float(1., 'Slope', minval = 0, step = .1)
+calcMethod = input.string('Linreg', 'Slope Calculation Method', options = ['Atr','Stdev','Linreg'])
+backpaint = input(true, tooltip = 'Backpainting offset displayed elements in the past. Disable backpainting to see real time information returned by the indicator.')
+
+//Style
+upCss = input.color(#28c4df8c, 'Up Trendline Color', group = 'Style')
+dnCss = input.color(color.rgb(223, 40, 214, 53), 'Down Trendline Color', group = 'Style')
+showExt = input(true, 'Show Extended Lines')
+
+//-----------------------------------------------------------------------------}
+//Calculations
+//-----------------------------------------------------------------------------{
+var upper = 0.
+var lower = 0.
+var slope_phX = 0.
+var slope_plX = 0.
+
+var offset = backpaint ? length : 0
+
+n = bar_index
+src = close
+
+phX = ta.pivothigh(length, length)
+plX = ta.pivotlow(length, length)
+
+//Slope Calculation Method
+slope = switch calcMethod
+    'Atr'    => ta.atr(length) / length * mult
+    'Stdev'  => ta.stdev(src,length) / length * mult
+    'Linreg' => math.abs(ta.sma(src * n, length) - ta.sma(src, length) * ta.sma(n, length)) / ta.variance(n, length) / 2 * mult
+
+//Get slopes and calculate trendlines
+slope_phX := phX ? slope : slope_phX
+slope_plX := plX ? slope : slope_plX
+
+upper := phX ? phX : upper - slope_phX
+lower := plX ? plX : lower + slope_plX
+
+var upos = 0
+var dnos = 0
+upos := phX ? 0 : close > upper - slope_phX * length ? 1 : upos
+dnos := plX ? 0 : close < lower + slope_plX * length ? 1 : dnos
+
+//-----------------------------------------------------------------------------}
+//Extended Lines
+//-----------------------------------------------------------------------------{
+var uptl  = line.new(na,na,na,na, color = upCss, style = line.style_dashed, extend = extend.right)
+var dntl  = line.new(na,na,na,na, color = dnCss, style = line.style_dashed, extend = extend.right)
+
+if phX and showExt
+    uptl.set_xy1(n-offset, backpaint ? phX : upper - slope_phX * length)
+    uptl.set_xy2(n-offset+1, backpaint ? phX - slope : upper - slope_phX * (length+1))
+
+if plX and showExt
+    dntl.set_xy1(n-offset, backpaint ? plX : lower + slope_plX * length)
+    dntl.set_xy2(n-offset+1, backpaint ? plX + slope : lower + slope_plX * (length+1))
+
+//-----------------------------------------------------------------------------}
+//plXots
+//-----------------------------------------------------------------------------{
+plot(backpaint ? upper : upper - slope_phX * length, 'Upper', color = phX ? na : upCss, offset = -offset)
+plot(backpaint ? lower : lower + slope_plX * length, 'Lower', color = plX ? na : dnCss, offset = -offset)
+
+//Breakouts
+plotshape(upos > upos[1] ? low : na, "Upper Break"
+  , shape.labelup
+  , location.absolute
+  , upCss
+  , text = "💚"
+  , textcolor = color.white
+  , size = size.tiny)
+
+plotshape(dnos > dnos[1] ? high : na, "Lower Break"
+  , shape.labeldown
+  , location.absolute
+  , dnCss
+  , text = "🤍"
+  , textcolor = color.white
+  , size = size.tiny)
+
+//-----------------------------------------------------------------------------}
+//Alerts
+//-----------------------------------------------------------------------------{
+alertcondition(upos > upos[1], 'Upward Breakout', 'Price broke the down-trendline upward')
+alertcondition(dnos > dnos[1], 'Downward Breakout', 'Price broke the up-trendline downward')
+
+//-----------------------------------------------------------------------------}
+
+//@version=6
+//indicator('AI OB MTF (Join Telegram @free_fx_pro)', overlay = true,max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500, max_bars_back = 5000)
+//plot(close)
+// Add timeframe setting to the input
+inputTimeframe = input.timeframe("", "Timeframe Setting", group = "General Configuration")
+
+// Replace the static timeframe assignment with the input value
+timeframe1 = inputTimeframe
+
+
+const bool DEBUG = false
+const int maxBoxesCount = 500
+const float overlapThresholdPercentage = 0
+const int maxDistanceToLastBar = 1750 // Affects Running Time
+const int maxOrderBlocks = 30
+
+
+showInvalidated = input.bool(true, "Show Historic Zones", group = "General Configuration", display = display.none)
+OBsEnabled = true
+orderBlockVolumetricInfo = input.bool(true, "Volumetric Info", group = "General Configuration", inline="EV", display = display.none)
+obEndMethod = input.string("Wick", "Zone Invalidation", options = ["Wick", "Close"],  group = "General Configuration", display = display.none)
+combineOBs = DEBUG ? input.bool(true, "Combine Zones", group = "General Configuration", display = display.none) : true
+maxATRMult = DEBUG ? input.float(3.5,"Max Atr Multiplier", group = "General Configuration") : 3.5
+swingLength = input.int(21, 'Swing Length', minval = 3, tooltip="Swing length is used when finding order block formations. Smaller values will result in finding smaller order blocks.",group = "General Configuration", display = display.none)
+zoneCount = input.string("Low", 'Zone Count', options = ["High", "Medium", "Low", "One"], tooltip = "Number of Order Block Zones to be rendered. Higher options will result in older Order Blocks shown.",  group = "General Configuration", display = display.none)
+bullOrderBlockColor = input(#87d3e375, 'Bullish', inline = 'obColor', group = 'General Configuration', display = display.none)
+bearOrderBlockColor = input(color.rgb(227, 75, 41, 43), 'Bearish', inline = 'obColor', group = 'General Configuration', display = display.none)
+
+bullishOrderBlocks = zoneCount == "One" ? 1 : zoneCount == "Low" ? 3 : zoneCount == "Medium" ? 5 : 10
+bearishOrderBlocks = zoneCount == "One" ? 1 : zoneCount == "Low" ? 3 : zoneCount == "Medium" ? 5 : 10
+
+timeframe1Enabled = true
+//timeframe1 = ""
+
+textColor = input.color(#110707a4, "Text Color", group = "Style")
+extendZonesBy = DEBUG ? input.int(15, "Extend Zones", group = "Style", minval = 1, maxval = 30, inline = "ExtendZones") : 15
+extendZonesDynamic = DEBUG ? input.bool(true, "Dynamic", group = "Style", inline = "ExtendZones") : true
+combinedText = DEBUG ? input.bool(false, "Combined Text", group = "Style", inline = "CombinedColor") : false
+volumeBarsPlace = DEBUG ? input.string("Left", "Show Volume Bars At", options = ["Left", "Right"], group = "Style", inline = "volumebars") : "Left"
+mirrorVolumeBars = DEBUG ? input.bool(true, "Mirror Volume Bars", group = "Style", inline = "volumebars") : true
+
+volumeBarsLeftSide = (volumeBarsPlace == "Left")
+extendZonesByTime = extendZonesBy * timeframe.in_seconds(timeframe.period) * 1000
+
+atr = ta.atr(10)
+
+type orderBlockInfo
+    float top
+    float bottom
+    float obVolume
+    string obType
+    int startTime
+    float bbVolume
+    float obLowVolume
+    float obHighVolume
+    bool breaker
+    int breakTime
+    string timeframeStr
+    bool disabled = false
+    string combinedTimeframesStr = na
+    bool combined = false
+
+type orderBlock
+    orderBlockInfo info
+    bool isRendered = false
+
+    box orderBox = na
+    box breakerBox = na
+
+    line orderBoxLineTop = na
+    line orderBoxLineBottom = na
+    line breakerBoxLineTop = na
+    line breakerBoxLineBottom = na
+    //
+    box orderBoxText = na
+    box orderBoxPositive = na
+    box orderBoxNegative = na
+
+    line orderSeperator = na
+    line orderTextSeperator = na
+
+createOrderBlock (orderBlockInfo orderBlockInfoF) =>
+    orderBlock newOrderBlock = orderBlock.new(orderBlockInfoF)
+    newOrderBlock
+
+safeDeleteOrderBlock (orderBlock orderBlockF) =>
+    orderBlockF.isRendered := false
+
+    box.delete(orderBlockF.orderBox)
+    box.delete(orderBlockF.breakerBox)
+    box.delete(orderBlockF.orderBoxText)
+    box.delete(orderBlockF.orderBoxPositive)
+    box.delete(orderBlockF.orderBoxNegative)
+
+    line.delete(orderBlockF.orderBoxLineTop)
+    line.delete(orderBlockF.orderBoxLineBottom)
+    line.delete(orderBlockF.breakerBoxLineTop)
+    line.delete(orderBlockF.breakerBoxLineBottom)
+    line.delete(orderBlockF.orderSeperator)
+    line.delete(orderBlockF.orderTextSeperator)
+
+type timeframeInfo
+    int index = na
+    string timeframeStr = na
+    bool isEnabled = false
+
+    orderBlockInfo[] bullishOrderBlocksList = na
+    orderBlockInfo[] bearishOrderBlocksList = na
+
+newTimeframeInfo (index, timeframeStr, isEnabled) =>
+    newTFInfo = timeframeInfo.new()
+    newTFInfo.index := index
+    newTFInfo.isEnabled := isEnabled
+    newTFInfo.timeframeStr := timeframeStr
+
+    newTFInfo
+
+type obSwing
+    int x = na    
+    float y = na
+    float swingVolume = na
+    bool crossed = false
+
+// ____ TYPES END ____
+
+var timeframeInfo[] timeframeInfos = array.from(newTimeframeInfo(1, timeframe1, timeframe1Enabled))
+var bullishOrderBlocksList = array.new<orderBlockInfo>(0)
+var bearishOrderBlocksList = array.new<orderBlockInfo>(0)
+
+var allOrderBlocksList = array.new<orderBlock>(0)
+
+moveLine(_line, _x, _y, _x2) =>
+    line.set_xy1(_line, _x,  _y)
+    line.set_xy2(_line, _x2, _y)
+
+moveBox (_box, _topLeftX, _topLeftY, _bottomRightX, _bottomRightY) =>
+    box.set_lefttop(_box, _topLeftX, _topLeftY)
+    box.set_rightbottom(_box, _bottomRightX, _bottomRightY)
+
+isTimeframeLower (timeframe1F, timeframe2F) =>
+    timeframe.in_seconds(timeframe1F) < timeframe.in_seconds(timeframe2F)
+
+getMinTimeframe (timeframe1F, timeframe2F) =>
+    if isTimeframeLower(timeframe1F, timeframe2F)
+        timeframe1F
+    else
+        timeframe2F
+
+getMaxTimeframe (timeframe1F, timeframe2F) =>
+    if isTimeframeLower(timeframe1F, timeframe2F)
+        timeframe2F
+    else
+        timeframe1F
+
+formatTimeframeString (formatTimeframe) =>
+    timeframeF = formatTimeframe == "" ? timeframe.period : formatTimeframe
+    
+    if str.contains(timeframeF, "D") or str.contains(timeframeF, "W") or str.contains(timeframeF, "S") or str.contains(timeframeF, "M")
+        timeframeF
+    else
+        seconds = timeframe.in_seconds(timeframeF)
+        if seconds >= 3600
+            hourCount = int(seconds / 3600)
+            str.tostring(hourCount) + " Hour" + (hourCount > 1 ? "s" : "")
+        else
+            timeframeF + " Min"
+
+betterCross(s1, s2) =>
+    string ret = na
+    if s1 >= s2 and s1[1] < s2
+        ret := "Bull"
+    if s1 < s2 and s1[1] >= s2
+        ret := "Bear"
+    ret
+
+colorWithTransparency (colorF, transparencyX) =>
+    color.new(colorF, color.t(colorF) * transparencyX)
+
+createOBBox (boxColor, transparencyX = 1.0, xlocType = xloc.bar_time) =>
+    box.new(na, na, na, na, text_size = size.normal, xloc = xlocType, extend = extend.none, bgcolor = colorWithTransparency(boxColor, transparencyX), text_color = textColor, text_halign = text.align_center, border_color = #00000000)
+
+renderOrderBlock (orderBlock ob) =>
+    orderBlockInfo info = ob.info
+    ob.isRendered := true
+    orderColor = ob.info.obType == "Bull" ? bullOrderBlockColor : bearOrderBlockColor
+
+    if OBsEnabled and (not false or not (false and info.breaker)) and not (not showInvalidated and info.breaker)
+        ob.orderBox := createOBBox(orderColor, 1.5)
+        if ob.info.combined
+            ob.orderBox.set_bgcolor(colorWithTransparency(orderColor, 1.1))
+        ob.orderBoxText := createOBBox(color.new(color.white, 100))
+        if orderBlockVolumetricInfo
+            ob.orderBoxPositive := createOBBox(bullOrderBlockColor)
+            ob.orderBoxNegative := createOBBox(bearOrderBlockColor)
+            ob.orderSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_dashed,1)
+            ob.orderTextSeperator := line.new(na,na,na,na,xloc.bar_time,extend.none,textColor,line.style_solid,1)
+
+        zoneSize = extendZonesDynamic ? na(info.breakTime) ? extendZonesByTime : (info.breakTime - info.startTime) : extendZonesByTime
+        if na(info.breakTime)
+            zoneSize := (time + 1) - info.startTime
+
+        startX = volumeBarsLeftSide ? info.startTime : info.startTime + zoneSize - zoneSize / 3
+        maxEndX = volumeBarsLeftSide ? info.startTime + zoneSize / 3 : info.startTime + zoneSize
+
+        moveBox(ob.orderBox, info.startTime, info.top, info.startTime + zoneSize, info.bottom)
+        moveBox(ob.orderBoxText, volumeBarsLeftSide ? maxEndX : info.startTime, info.top, volumeBarsLeftSide ? info.startTime + zoneSize : startX, info.bottom)
+
+        percentage = int((math.min(info.obHighVolume, info.obLowVolume) / math.max(info.obHighVolume, info.obLowVolume)) * 100.0)
+        OBText = (na(ob.info.combinedTimeframesStr) ? formatTimeframeString(ob.info.timeframeStr) : ob.info.combinedTimeframesStr) + " OB"
+        box.set_text(ob.orderBoxText, (orderBlockVolumetricInfo ? str.tostring(ob.info.obVolume, format.volume) + " (" + str.tostring(percentage) + "%)\n" : "") + (combinedText and ob.info.combined ? "[Combined]\n" : "") + OBText)
+
+        if orderBlockVolumetricInfo
+            showHighLowBoxText = false
+
+            curEndXHigh = int(math.ceil((info.obHighVolume / info.obVolume) * (maxEndX - startX) + startX))
+            curEndXLow = int(math.ceil((info.obLowVolume / info.obVolume) * (maxEndX - startX) + startX))
+
+            moveBox(ob.orderBoxPositive, mirrorVolumeBars ? startX : curEndXLow, info.top, mirrorVolumeBars ? curEndXHigh : maxEndX, (info.bottom + info.top) / 2)
+            box.set_text(ob.orderBoxPositive, showHighLowBoxText ? str.tostring(info.obHighVolume, format.volume) : "")
+
+            moveBox(ob.orderBoxNegative, mirrorVolumeBars ? startX : curEndXHigh, info.bottom, mirrorVolumeBars ? curEndXLow : maxEndX, (info.bottom + info.top) / 2)
+            box.set_text(ob.orderBoxNegative, showHighLowBoxText ? str.tostring(info.obLowVolume, format.volume) : "")
+
+            moveLine(ob.orderSeperator, volumeBarsLeftSide ? startX : maxEndX, (info.bottom + info.top) / 2, volumeBarsLeftSide ? maxEndX : startX)
+
+            line.set_xy1(ob.orderTextSeperator, volumeBarsLeftSide ? maxEndX : startX, info.top)
+            line.set_xy2(ob.orderTextSeperator, volumeBarsLeftSide ? maxEndX : startX, info.bottom)
+
+findOBSwings(len) =>
+    var swingType = 0
+    var obSwing top = obSwing.new(na, na)
+    var obSwing bottom = obSwing.new(na, na)
+    
+    upper = ta.highest(len)
+    lower = ta.lowest(len)
+
+    swingType := high[len] > upper ? 0 : low[len] < lower ? 1 : swingType
+
+    if swingType == 0 and swingType[1] != 0
+        top := obSwing.new(bar_index[len], high[len], volume[len])
+    
+    if swingType == 1 and swingType[1] != 1
+        bottom := obSwing.new(bar_index[len], low[len], volume[len])
+
+    [top, bottom]
+
+findOrderBlocks () =>
+    if bar_index > last_bar_index - maxDistanceToLastBar
+        [top, btm] = findOBSwings(swingLength)
+        useBody = false
+        max = useBody ? math.max(close, open) : high
+        min = useBody ? math.min(close, open) : low
+
+        // Bullish Order Block
+        bullishBreaked = 0
+
+        if bullishOrderBlocksList.size() > 0
+            for i = bullishOrderBlocksList.size() - 1 to 0
+                currentOB = bullishOrderBlocksList.get(i)
+            
+                if not currentOB.breaker 
+                    if (obEndMethod == "Wick" ? low : math.min(open, close)) < currentOB.bottom
+                        currentOB.breaker := true
+                        currentOB.breakTime := time
+                        currentOB.bbVolume := volume
+                else
+                    if high > currentOB.top
+                        bullishOrderBlocksList.remove(i)
+                    else if i < bullishOrderBlocks and top.y < currentOB.top and top.y > currentOB.bottom 
+                        bullishBreaked := 1
+
+        if close > top.y and not top.crossed
+            top.crossed := true
+
+            boxBtm = max[1]
+            boxTop = min[1]
+            boxLoc = time[1]
+
+            for i = 1 to (bar_index - top.x) - 1
+                boxBtm := math.min(min[i], boxBtm)
+                boxTop := boxBtm == min[i] ? max[i] : boxTop
+                boxLoc := boxBtm == min[i] ? time[i] : boxLoc
+
+            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, volume + volume[1] + volume[2], "Bull", boxLoc)
+            newOrderBlockInfo.obLowVolume := volume[2]
+            newOrderBlockInfo.obHighVolume := volume + volume[1]
+            
+            obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
+            if obSize <= atr * maxATRMult
+                bullishOrderBlocksList.unshift(newOrderBlockInfo)
+                if bullishOrderBlocksList.size() > maxOrderBlocks
+                    bullishOrderBlocksList.pop()
+
+        // Bearish Order Block
+        
+        bearishBreaked = 0
+
+        if bearishOrderBlocksList.size() > 0
+            for i = bearishOrderBlocksList.size() - 1 to 0
+                currentOB = bearishOrderBlocksList.get(i)
+
+                if not currentOB.breaker 
+                    if (obEndMethod == "Wick" ? high : math.max(open, close)) > currentOB.top
+                        currentOB.breaker := true
+                        currentOB.breakTime := time
+                        currentOB.bbVolume := volume
+                else
+                    if low < currentOB.bottom
+                        bearishOrderBlocksList.remove(i)
+                    else if i < bearishOrderBlocks and btm.y > currentOB.bottom and btm.y < currentOB.top 
+                        bearishBreaked := 1
+
+        if close < btm.y and not btm.crossed
+            btm.crossed := true
+
+            boxBtm = min[1]
+            boxTop = max[1]
+            boxLoc = time[1]
+
+            for i = 1 to (bar_index - btm.x) - 1
+                boxTop := math.max(max[i], boxTop)
+                boxBtm := boxTop == max[i] ? min[i] : boxBtm
+                boxLoc := boxTop == max[i] ? time[i] : boxLoc
+
+            newOrderBlockInfo = orderBlockInfo.new(boxTop, boxBtm, volume + volume[1] + volume[2], "Bear", boxLoc)
+            newOrderBlockInfo.obLowVolume := volume + volume[1]
+            newOrderBlockInfo.obHighVolume := volume[2]
+
+            obSize = math.abs(newOrderBlockInfo.top - newOrderBlockInfo.bottom)
+            if obSize <= atr * maxATRMult
+                bearishOrderBlocksList.unshift(newOrderBlockInfo)
+                if bearishOrderBlocksList.size() > maxOrderBlocks
+                    bearishOrderBlocksList.pop()
+    true
+
+areaOfOB (orderBlockInfo OBInfoF) =>
+    float XA1 = OBInfoF.startTime
+    float XA2 = na(OBInfoF.breakTime) ? time + 1 : OBInfoF.breakTime
+    float YA1 = OBInfoF.top
+    float YA2 = OBInfoF.bottom
+    float edge1 = math.sqrt((XA2 - XA1) * (XA2 - XA1) + (YA2 - YA2) * (YA2 - YA2))
+    float edge2 = math.sqrt((XA2 - XA2) * (XA2 - XA2) + (YA2 - YA1) * (YA2 - YA1))
+    float totalArea = edge1 * edge2
+    totalArea
+
+doOBsTouch (orderBlockInfo OBInfo1, orderBlockInfo OBInfo2) =>
+    float XA1 = OBInfo1.startTime
+    float XA2 = na(OBInfo1.breakTime) ? time + 1 : OBInfo1.breakTime
+    float YA1 = OBInfo1.top
+    float YA2 = OBInfo1.bottom
+
+    float XB1 = OBInfo2.startTime
+    float XB2 = na(OBInfo2.breakTime) ? time + 1 : OBInfo2.breakTime
+    float YB1 = OBInfo2.top
+    float YB2 = OBInfo2.bottom
+    float intersectionArea = math.max(0, math.min(XA2, XB2) - math.max(XA1, XB1)) * math.max(0, math.min(YA1, YB1) - math.max(YA2, YB2))
+    float unionArea = areaOfOB(OBInfo1) + areaOfOB(OBInfo2) - intersectionArea
+    
+    float overlapPercentage = (intersectionArea / unionArea) * 100.0
+
+    if overlapPercentage > overlapThresholdPercentage
+        true
+    else
+        false
+
+isOBValid (orderBlockInfo OBInfo) =>
+    valid = true
+    if OBInfo.disabled
+        valid := false
+    valid
+
+combineOBsFunc () =>
+    if allOrderBlocksList.size() > 0
+        lastCombinations = 999
+        while lastCombinations > 0
+            lastCombinations := 0
+            for i = 0 to allOrderBlocksList.size() - 1
+                curOB1 = allOrderBlocksList.get(i)
+                for j = 0 to allOrderBlocksList.size() - 1
+                    curOB2 = allOrderBlocksList.get(j)
+                    if i == j
+                        continue
+                    if not isOBValid(curOB1.info) or not isOBValid(curOB2.info)
+                        continue
+                    if curOB1.info.obType != curOB2.info.obType
+                        continue
+                    if doOBsTouch(curOB1.info, curOB2.info)
+                        curOB1.info.disabled := true
+                        curOB2.info.disabled := true
+                        orderBlock newOB = createOrderBlock(orderBlockInfo.new(math.max(curOB1.info.top, curOB2.info.top), math.min(curOB1.info.bottom, curOB2.info.bottom), curOB1.info.obVolume + curOB2.info.obVolume, curOB1.info.obType))
+                        newOB.info.startTime := math.min(curOB1.info.startTime, curOB2.info.startTime)
+                        newOB.info.breakTime := math.max(nz(curOB1.info.breakTime), nz(curOB2.info.breakTime))
+                        newOB.info.breakTime := newOB.info.breakTime == 0 ? na : newOB.info.breakTime
+                        newOB.info.timeframeStr := curOB1.info.timeframeStr
+
+                        newOB.info.obVolume := curOB1.info.obVolume + curOB2.info.obVolume
+                        newOB.info.obLowVolume := curOB1.info.obLowVolume + curOB2.info.obLowVolume
+                        newOB.info.obHighVolume := curOB1.info.obHighVolume + curOB2.info.obHighVolume
+                        newOB.info.bbVolume := nz(curOB1.info.bbVolume, 0) + nz(curOB2.info.bbVolume, 0)
+                        newOB.info.breaker := curOB1.info.breaker or curOB2.info.breaker
+                        
+                        newOB.info.combined := true
+                        if timeframe.in_seconds(curOB1.info.timeframeStr) != timeframe.in_seconds(curOB2.info.timeframeStr)
+                            newOB.info.combinedTimeframesStr := (na(curOB1.info.combinedTimeframesStr) ? formatTimeframeString(curOB1.info.timeframeStr) : curOB1.info.combinedTimeframesStr) + " & " + (na(curOB2.info.combinedTimeframesStr) ? formatTimeframeString(curOB2.info.timeframeStr) : curOB2.info.combinedTimeframesStr)
+                        allOrderBlocksList.unshift(newOB)
+                        lastCombinations += 1
+
+
+reqSeq (timeframeStr) =>
+    [bullishOrderBlocksListF, bearishOrderBlocksListF] = request.security(syminfo.tickerid, timeframeStr, [bullishOrderBlocksList, bearishOrderBlocksList])
+    [bullishOrderBlocksListF, bearishOrderBlocksListF]
+
+getTFData (timeframeInfo timeframeInfoF, timeframeStr) =>
+    if not isTimeframeLower(timeframeInfoF.timeframeStr, timeframe.period) and timeframeInfoF.isEnabled
+        [bullishOrderBlocksListF, bearishOrderBlocksListF] = reqSeq(timeframeStr)
+        [bullishOrderBlocksListF, bearishOrderBlocksListF]
+    else
+        [na, na]
+
+handleTimeframeInfo (timeframeInfo timeframeInfoF, bullishOrderBlocksListF, bearishOrderBlocksListF) =>
+    if not isTimeframeLower(timeframeInfoF.timeframeStr, timeframe.period) and timeframeInfoF.isEnabled
+        timeframeInfoF.bullishOrderBlocksList := bullishOrderBlocksListF
+        timeframeInfoF.bearishOrderBlocksList := bearishOrderBlocksListF
+
+
+handleOrderBlocksFinal () =>
+    if DEBUG
+        log.info("Bullish OB Count " + str.tostring(bullishOrderBlocksList.size()))
+        log.info("Bearish OB Count " + str.tostring(bearishOrderBlocksList.size()))
+
+    if allOrderBlocksList.size () > 0
+        for i = 0 to allOrderBlocksList.size() - 1
+            safeDeleteOrderBlock(allOrderBlocksList.get(i))
+    allOrderBlocksList.clear()    
+
+    for i = 0 to timeframeInfos.size() - 1
+        curTimeframe = timeframeInfos.get(i)
+        if not curTimeframe.isEnabled
+            continue
+        if curTimeframe.bullishOrderBlocksList.size() > 0
+            for j = 0 to math.min(curTimeframe.bullishOrderBlocksList.size() - 1, bullishOrderBlocks - 1)
+                orderBlockInfoF = curTimeframe.bullishOrderBlocksList.get(j)
+                orderBlockInfoF.timeframeStr := curTimeframe.timeframeStr
+                allOrderBlocksList.unshift(createOrderBlock(orderBlockInfo.copy(orderBlockInfoF)))
+
+        if curTimeframe.bearishOrderBlocksList.size() > 0
+            for j = 0 to math.min(curTimeframe.bearishOrderBlocksList.size() - 1, bearishOrderBlocks - 1)
+                orderBlockInfoF = curTimeframe.bearishOrderBlocksList.get(j)
+                orderBlockInfoF.timeframeStr := curTimeframe.timeframeStr
+                allOrderBlocksList.unshift(createOrderBlock(orderBlockInfo.copy(orderBlockInfoF)))
+
+    if combineOBs
+        combineOBsFunc()    
+
+    if allOrderBlocksList.size() > 0
+        for i = 0 to allOrderBlocksList.size() - 1
+            curOB = allOrderBlocksList.get(i)
+            if isOBValid(curOB.info)
+                renderOrderBlock(curOB)
+
+findOrderBlocks()
+
+[bullishOrderBlocksListTimeframe1, bearishOrderBlocksListTimeframe1] = getTFData(timeframeInfos.get(0), timeframe1)
+
+if barstate.isconfirmed
+    handleTimeframeInfo(timeframeInfos.get(0), bullishOrderBlocksListTimeframe1, bearishOrderBlocksListTimeframe1)
+    handleOrderBlocksFinal()    
+
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © SC97880021
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © SC97880021
+
+
+
+//@version=5
+//indicator("AI TRENDLINES WITH SWING HIGH LOW", overlay=true, max_lines_count=500, max_boxes_count = 500, max_bars_back=5000)
+
+
+
+
+
+len  = input.int  (5        , "Period  "      ,     tooltip = "Lookback period",  inline = "a", group = "SETTINGS")
+cup   = input.color(#0044ff, ""              , "" ,                              inline = "a", group = "SETTINGS")
+cdn   = input.color(color.rgb(239, 147, 10), ""              , "" ,                              inline = "a", group = "SETTINGS")
+space = input.float(6        , "Padding"       ,     tooltip = "Padding distance", inline = "b", group = "SETTINGS", step = 0.1)
+shs   = input.bool (true     , "Show Breakouts",                                   inline = "z", group = "SETTINGS")
+
+phZ = ta.pivothigh(high, len, len)
+plZ = ta.pivotlow (low , len, len)
+
+type store
+    float src
+    int   n
+
+type bar
+    float o = open
+    float h = high
+    float l = low
+    float c = close
+    int   n = bar_index
+    float v = volume
+
+type draw
+    line[] upln
+    line[] dnln
+
+var store[] upbin = array.new<store>()
+var store[] dnbin = array.new<store>()
+
+var draw d = draw.new(array.new<line>(), array.new<line>())
+
+bar b = bar.new()
+atrS   = ta.atr(200)
+
+method slope(line ln) =>
+    x = ln.get_x2() - ln.get_x1()
+    y = ln.get_y2() - ln.get_y1()
+    y / x
+
+vol() =>
+    math.min(atrS * 0.1, close * (0.1/100))
+
+var bool broken  = false
+color    active  = na
+bool plup = false
+bool pldn = false
+
+if phZ 
+    bool   remove = false
+    var bool valid = false
+
+    upbin.unshift(store.new(b.h[len], b.n[len]))
+    if upbin.size() > 1
+        current = upbin.get(0)
+        before  = upbin.get(1)
+        if current.src < before.src
+            if broken
+                valid := true
+
+            else
+                valid := false
+                if upbin.size() > 3
+                    pastold = upbin.get(3)
+                    pastcur = upbin.get(2)
+                    now     = upbin.get(1)
+                    late    = upbin.get(0)
+                    if now.src < pastcur.src and now.src < pastold.src and late.src < pastcur.src and late.src < pastold.src
+                        valid := true
+
+                    else
+                        valid := false
+
+                else 
+                    valid := false
+
+            if valid
+
+                d.upln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src                , y2 = current.src                , color = cdn))
+                d.upln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src - vol() * space, y2 = current.src - vol() * space, color = cdn))
+
+                ln = d.upln.get(1)
+                for i = 0 to (b.n - before.n)
+                    slope = ln.slope()
+                    ln.set_x2(b.n[i])
+                    ln.set_y2(ln.get_y2() - slope)
+                    if low[i] > ln.get_y2()
+                        remove := true
+                        break
+
+                if remove
+                    d.upln.get(0).delete()
+                    d.upln.get(1).delete()
+                    d.upln       .clear()
+                    upbin        .clear()
+                    broken := true
+
+                else
+                    d.upln.get(0).delete()
+                    d.upln.get(1).delete()   
+                    d.upln       .clear ()
+
+                    d.upln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src                , y2 = current.src                , color = cdn))
+                    d.upln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src - vol() * space, y2 = current.src - vol() * space, color = cdn))
+
+                    linefill.new(d.upln.get(0), d.upln.get(1), color = color.new(cdn, 75))
+                    upbin.clear()
+                    broken := false
+
+
+if d.upln.size() > 1
+
+    btm = d.upln.get(0)
+    top = d.upln.get(1)
+    
+    if b.l > top.get_y2()
+        d.upln.clear()
+        broken := true
+        upbin.clear()
+        plup   := true
+
+    if d.upln.size() > 1
+
+        slup = top.slope()
+        sldn = btm.slope()
+
+        top.set_x2(b.n)
+        top.set_y2(top.get_y2() + slup)
+
+        btm.set_x2(b.n)
+        btm.set_y2(btm.get_y2() + sldn)
+ 
+
+
+if plZ
+    bool    remove = false
+    var bool valid = false
+
+    dnbin.unshift(store.new(b.l[len], b.n[len]))
+    if dnbin.size() > 1
+        current = dnbin.get(0)
+        before  = dnbin.get(1)
+        if current.src > before.src
+            if broken
+                valid := true
+
+            else
+                valid := false
+                if dnbin.size() > 3
+                    pastold = dnbin.get(3)
+                    pastcur = dnbin.get(2)
+                    now     = dnbin.get(1)
+                    late    = dnbin.get(0)
+
+                    if now.src > pastcur.src and now.src > pastold.src and late.src > pastcur.src and late.src > pastold.src
+                        valid := true
+
+                    else
+                        valid := false
+
+                else 
+                    valid := false
+
+            if valid
+                d.dnln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src                , y2 = current.src                , color = cup))
+                d.dnln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src + vol() * space, y2 = current.src + vol() * space, color = cup))
+
+                ln = d.dnln.get(1)
+
+                for i = 0 to (b.n - before.n)
+                    slope = ln.slope()
+                    ln.set_x2(b.n[i])
+                    ln.set_y2(ln.get_y2() - slope)
+                    if high[i] < ln.get_y2()
+                        remove := true
+                        break
+
+                if remove
+                    d.dnln.get(0).delete()
+                    d.dnln.get(1).delete()
+                    d.dnln       .clear ()
+                    dnbin        .clear ()
+                    broken := true
+
+                else
+                    d.dnln.get(0).delete()
+                    d.dnln.get(1).delete()   
+                    d.dnln       .clear ()
+
+                    d.dnln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src, y2 = current.src, color = cup))
+                    d.dnln.unshift(line.new(x1 = before.n, x2 = current.n, y1 = before.src + vol() * space, y2 = current.src + vol() * space, color = cup))
+
+                    linefill.new(d.dnln.get(0), d.dnln.get(1), color = color.new(cup, 75))
+                    dnbin.clear()
+                    broken := false
+
+if d.dnln.size() > 1
+
+    btm = d.dnln.get(0)
+    top = d.dnln.get(1)
+    
+    if b.h < btm.get_y2()
+        d.dnln.clear()
+        broken := true
+        dnbin.clear()
+        pldn   := true
+
+    if d.dnln.size() > 1
+
+        slup = top.slope()
+        sldn = btm.slope()
+
+        top.set_x2(b.n)
+        top.set_y2(top.get_y2() + slup)
+
+        btm.set_x2(b.n)
+        btm.set_y2(btm.get_y2() + sldn)
+
+plotshape(pldn and shs ? b.h[1] : na, "Breaking Down", shape.triangledown, location = location.abovebar, color = cdn  , offset = -1, size = size.small)
+plotshape(plup and shs ? b.l[1] : na, "Breaking Up"  , shape.triangleup  , location = location.belowbar, color = cup, offset = -1, size = size.small)
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// ― SETTINGS
+lenS     = input.int(5, "Pivot Lookback", group="SETTINGS", inline="a")
+spaceX   = input.float(1.0, "Padding", step=0.1, group="SETTINGS", inline="b")
+cupX     = input.color(color.rgb(0, 255, 47), "", inline="c", group="SETTINGS")
+cdnX     = input.color(#ee00ff, "", inline="c", group="SETTINGS")
+
+max_span = 500  // Maximum number of future bars allowed
+
+// ― Helper Functions
+vol_pad() => math.min(ta.atr(200) * 0.1, close * 0.001)
+slope(ln) => (ln.get_y2() - ln.get_y1()) / math.max(ln.get_x2() - ln.get_x1(), 1)
+
+// ― Containers
+var line bull_top = na
+var line bull_base = na
+var line bear_top = na
+var line bear_base = na
+
+var bool brokenX = false
+var bool plupX = false
+var bool pldnX = false
+
+// ― Local TF Pivot High/Low
+phS = ta.pivothigh(high, lenS, lenS)
+pivotvalsS = ta.pivotlow(low, lenS, lenS)
+
+// ― Bullish Zone Setup
+if phS
+    bull_top := line.new(x1=bar_index - lenS, x2=bar_index, y1=high[lenS], y2=high[lenS], color=cupX, width=1)
+    bull_base := line.new(x1=bar_index - lenS, x2=bar_index, y1=high[lenS] - vol_pad() * spaceX, y2=high[lenS] - vol_pad() * spaceX, color=cupX, width=1)
+    linefill.new(bull_top, bull_base, color=color.new(cupX, 85))
+    brokenX := false
+
+// ― Bearish Zone Setup
+if pl
+    bear_base := line.new(x1=bar_index - lenS, x2=bar_index, y1=low[lenS], y2=low[lenS], color=cdnX, width=1)
+    bear_top := line.new(x1=bar_index - lenS, x2=bar_index, y1=low[lenS] + vol_pad() * spaceX, y2=low[lenS] + vol_pad() * spaceX, color=cdnX, width=1)
+    linefill.new(bear_base, bear_top, color=color.new(cdnX, 85))
+    brokenX := false
+
+// ― Extension Logic
+if not na(bull_top) and not na(bull_base)
+    sl_top = slope(bull_top)
+    sl_base = slope(bull_base)
+    bull_top.set_x2(bar_index)
+    bull_top.set_y2(bull_top.get_y1() + sl_top * (bar_index - bull_top.get_x1()))
+    bull_base.set_x2(bar_index)
+    bull_base.set_y2(bull_base.get_y1() + sl_base * (bar_index - bull_base.get_x1()))
+    plupX := low > bull_top.get_y2()
+
+if not na(bear_top) and not na(bear_base)
+    sl_top = slope(bear_top)
+    sl_base = slope(bear_base)
+    bear_top.set_x2(bar_index)
+    bear_top.set_y2(bear_top.get_y1() + sl_top * (bar_index - bear_top.get_x1()))
+    bear_base.set_x2(bar_index)
+    bear_base.set_y2(bear_base.get_y1() + sl_base * (bar_index - bear_base.get_x1()))
+
+    pldnX := high < bear_base.get_y2()
+
+
+
+
+
+
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © SC97880021
+
+//@version=5
+//indicator("SFI Magic Indicator Aradya 5.0", shorttitle="SFI Magic Aradya", overlay=true)
+
+// === INPUTS ===
+Periods = input.int(10, title="ATR Period", minval=1)
+srcD = input.source(ohlc4, title="Source")
+Multiplier = input.float(1.7, title="ATR Multiplier")
+changeATR = input.bool(true, title="Use True ATR?")
+showsignals = input.bool(true, title="Show Buy/Sell Signals")
+highlighting = input.bool(true, title="Enable Trend Highlighting")
+
+// === MTF INPUT ===
+mtf_tf = input.timeframe("5", title="Higher Timeframe (optional)")
+
+// === ATR Calculation ===
+atr2 = ta.sma(ta.tr, Periods)
+atrVal_raw = changeATR ? ta.atr(Periods) : atr2
+atrVal = request.security(syminfo.tickerid, mtf_tf, atrVal_raw)
+
+// === Trend Calculation ===
+src_mtf = request.security(syminfo.tickerid, mtf_tf, srcD)
+close_mtf = request.security(syminfo.tickerid, mtf_tf, close)
+up = src_mtf - (Multiplier * atrVal)
+up1 = nz(up[1], up)
+up := close_mtf[1] > up1 ? math.max(up, up1) : up
+dn = src_mtf + (Multiplier * atrVal)
+dn1 = nz(dn[1], dn)
+dn := close_mtf[1] < dn1 ? math.min(dn, dn1) : dn
+var trend = 1
+trend := trend == -1 and close_mtf > dn1 ? 1 : trend == 1 and close_mtf < up1 ? -1 : trend
+
+// === Plotting Up/Down Trend Lines ===
+plot(trend == 1 ? up : na, title="Up Trend", style=plot.style_steplinebr, linewidth=3, color=color.rgb(4, 255, 12))
+plot(trend == -1 ? dn : na, title="Down Trend", style=plot.style_steplinebr, linewidth=3, color=color.rgb(255, 0, 0))
+
+// === Buy/Sell Signals ===
+buySignal = trend == 1 and trend[1] == -1
+sellSignal = trend == -1 and trend[1] == 1
+
+//plotshape(buySignal and showsignals ? up : na, title="Buy", text="L", style=shape.labelup, location=location.belowbar, size=size.auto, color=color.rgb(16, 228, 24), textcolor=color.white)
+//plotshape(sellSignal and showsignals ? dn : na, title="Sell", text="S", style=shape.labeldown, location=location.abovebar, size=size.auto, color=color.rgb(255, 0, 0), textcolor=color.white)
+
+// === Candle Coloring ===
+//barColor = buySignal ? color.rgb(16, 228, 24) : sellSignal ? color.rgb(255, 0, 0) : trend == 1 ? color.rgb(16, 228, 24) : trend == -1 ? color.rgb(255, 0, 0) : na
+//barcolor(barColor)
+
+// === Alerts ===
+alertcondition(buySignal, title="SFI Magic Indicator Buy", message="SFI Magic Indicator Buy!")
+alertcondition(sellSignal, title="SFI Magic Indicator Sell", message="SFI Magic Indicator Sell!")
+alertcondition(trend != trend[1], title="SFI Magic Indicator Direction Change", message="SFI Magic Indicator has changed direction!")
+

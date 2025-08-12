@@ -1,0 +1,285 @@
+//@version=5
+// Author @ moneymovesalgo and @ AhmetToprakKavran and CC @FrostAlgo
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// This Script can be only be used for personal use its not meant to resell it
+// Its a replica of NAS Ultimate Algo no code is copied from the original algo 
+
+
+indicator("NAS Ultimate Algo | Remastered+", overlay=true, precision=0, explicit_plot_zorder=true, max_labels_count=500)
+//------------------ NAS Ultimate Algo | Remastered+ | https://moneymovesalgo.com/ / ---------------//
+
+
+// Get user input
+sensitivity = input.int(defval=4, title="Sensitivity", minval=1, maxval=20)
+
+enCloud   = input.bool(true, 'Enable Trend Ribbon', group='Cloud')
+// Risk Management
+
+levels      = input.bool(false, "Show TP/SL Levels" , group = "Risk Management" , inline = "MMDB2")
+lvlLines    = input.bool(false, "Show Lines ", inline="levels", group = "Risk Management")
+linesStyle  = input.string("SOLID", "", ["SOLID", "DASHED", "DOTTED"], inline="levels", group = "Risk Management")
+lvlDistance = input.int(1, "Distance", 1, inline="levels2", group = "Risk Management")
+lvlDecimals = input.int(2, "   Decimals", 1, 8, inline="levels2", group = "Risk Management")
+atrRisk     = input.int(1, "Risk % ", 1, group = "Risk Management" , inline="levels3")
+atrLen      = input.int(14, "  ATR Length", 1, group = "Risk Management" , inline="levels3")
+decimals  = lvlDecimals == 1 ? "#.#" : lvlDecimals == 2 ? "#.##" : lvlDecimals == 3 ? "#.###" : lvlDecimals == 4 ? "#.####" : lvlDecimals == 5 ? "#.#####" : lvlDecimals == 6 ? "#.######" : lvlDecimals == 7 ? "#.#######" : "#.########"
+
+
+// Signal Generation
+supertrend(_src, factor, atrLen) =>
+	atr = ta.atr(atrLen)
+	upperBand = _src + factor * atr
+	lowerBand = _src - factor * atr
+	prevLowerBand = nz(lowerBand[1])
+	prevUpperBand = nz(upperBand[1])
+	lowerBand := lowerBand > prevLowerBand or close[1] < prevLowerBand ? lowerBand : prevLowerBand
+	upperBand := upperBand < prevUpperBand or close[1] > prevUpperBand ? upperBand : prevUpperBand
+	int direction = na
+	float superTrend = na
+	prevSuperTrend = superTrend[1]
+	if na(atr[1])
+		direction := 1
+	else if prevSuperTrend == prevUpperBand
+		direction := close > upperBand ? -1 : 1
+	else
+		direction := close < lowerBand ? 1 : -1
+	superTrend := direction == -1 ? lowerBand : upperBand
+	[superTrend, direction] 
+	
+
+
+// SMA 
+ocAvg       = math.avg(open, close)
+sma4        = ta.sma(close, 8)
+sma5        = ta.sma(close, 9)
+sma9        = ta.sma(close, 13)
+psar        = ta.sar(0.02, 0.02, 0.2)
+
+//*in Easy Words Super Trend + SMA = Signals
+[supertrend, direction] = supertrend(close, sensitivity, 11)
+
+
+source = close, period = 150
+
+// Colors
+green       = #2BBC4D, green2   = #00DD00
+red         = #C51D0B, red2     = #DD0000
+
+//barcolor(close > supertrend ? #2BE300 : red2)
+// Candle Colouring By SpyDank
+//TradingView standard RSI calculation
+src = close
+len = input.int(14, minval=1, title='RSI Length')
+up = ta.rma(math.max(ta.change(src), 0), len)
+down = ta.rma(-math.min(ta.change(src), 0), len)
+rsi = down == 0 ? 100 : up == 0 ? 0 : 100 - 100 / (1 + up / down)
+
+//Defining ranges by 10% increments
+tier1 = rsi <= 20
+tier2 = rsi > 20 and rsi <= 21
+tier3 = rsi > 21 and rsi <= 22
+tier4 = rsi > 22 and rsi <= 23
+tier5 = rsi > 23 and rsi <= 24
+tier6 = rsi > 24 and rsi <= 25
+tier7 = rsi > 25 and rsi <= 26
+tier8 = rsi > 26 and rsi <= 27
+tier9 = rsi > 27 and rsi <= 28
+tier10 = rsi > 28 and rsi <=29
+tier11 = rsi > 29 and rsi <=30
+tier12 = rsi > 30 and rsi <=31
+tier13 = rsi > 31 and rsi <=32
+tier14 = rsi > 32 and rsi <=33
+tier15 = rsi > 33 and rsi <=34
+tier16 = rsi > 34 and rsi <=35
+tier17 = rsi > 35 and rsi <=36
+tier18 = rsi > 36 and rsi <=37
+tier19 = rsi > 37 and rsi <=38
+tier20 = rsi > 38 and rsi <=39
+tier21 = rsi > 39 and rsi <=40
+tier22 = rsi > 40 and rsi <=41
+tier23 = rsi > 41 and rsi <=42
+tier24 = rsi > 42 and rsi <=43
+tier25 = rsi > 43 and rsi <=44
+tier26 = rsi > 44 and rsi <=45
+tier27 = rsi > 45 and rsi <=46
+tier28 = rsi > 46 and rsi <=47
+tier29 = rsi > 47 and rsi <=48
+tier30 = rsi > 48 and rsi <=49
+tier31 = rsi > 49 and rsi <=50
+tier32 = rsi > 50 and rsi <=51
+tier33 = rsi > 51 and rsi <=52
+tier34 = rsi > 52 and rsi <=53
+tier35 = rsi > 53 and rsi <=54
+tier36 = rsi > 54 and rsi <=55
+tier37 = rsi > 55 and rsi <=56
+tier38 = rsi > 56 and rsi <=57
+tier39 = rsi > 57 and rsi <=58
+tier40 = rsi > 58 and rsi <=59
+tier41 = rsi > 59 and rsi <=60
+tier42 = rsi > 60 and rsi <=61
+tier43 = rsi > 61 and rsi <=62
+tier44 = rsi > 62 and rsi <=63
+tier45 = rsi > 63 and rsi <=64
+tier46 = rsi > 64 and rsi <=65
+tier47 = rsi > 65 and rsi <=66
+tier48 = rsi > 66 and rsi <=67
+tier49 = rsi > 67 and rsi <=68
+tier50 = rsi > 68 and rsi <=69
+tier51 = rsi > 69 and rsi <=70
+tier52 = rsi > 70 and rsi <=71
+tier53 = rsi > 71 and rsi <=72
+tier54 = rsi > 72 and rsi <=73
+tier55 = rsi > 73 and rsi <=74
+tier56 = rsi > 74 and rsi <=75
+tier57 = rsi > 75 and rsi <=76
+tier58 = rsi > 76 and rsi <=77
+tier59 = rsi > 77 and rsi <=78
+tier60 = rsi > 78 and rsi <=79
+tier61 = rsi > 79 and rsi <=80
+
+
+//Assign color based on range
+barcolor(tier1 ? #FF0000 : na)
+barcolor(tier2 ? #FB0009 : na)
+barcolor(tier3 ? #F2001A : na)
+barcolor(tier4 ? #ED0023 : na)
+barcolor(tier5 ? #E9002C : na)
+barcolor(tier6 ? #E50035 : na)
+barcolor(tier7 ? #E0003E : na)
+barcolor(tier8 ? #DC0046 : na)
+barcolor(tier9 ? #D7004F : na)
+barcolor(tier10 ? #D30058 : na)
+barcolor(tier11 ? #CE0061 : na)
+barcolor(tier12 ? #CA006A : na)
+barcolor(tier13 ? #C60072 : na)
+barcolor(tier14 ? #C1007B : na)
+barcolor(tier15 ? #BD0084 : na)
+barcolor(tier16 ? #B8008D : na)
+barcolor(tier17 ? #B40095 : na)
+barcolor(tier18 ? #B0009E : na)
+barcolor(tier19 ? #AB00A7 : na)
+barcolor(tier20 ? #A700B0 : na)
+barcolor(tier21 ? #A200B9 : na)
+barcolor(tier22 ? #9E00C1 : na)
+barcolor(tier23 ? #9900CA : na)
+barcolor(tier24 ? #9500D3 : na)
+barcolor(tier25 ? #9100DC : na)
+barcolor(tier26 ? #8C00E5 : na)
+barcolor(tier27 ? #8800ED : na)
+barcolor(tier28 ? #8300F6 : na)
+barcolor(tier29 ? #7F00FF : na)
+barcolor(tier30 ? #7F00FF : na)
+barcolor(tier31 ? #7B09F6 : na)
+barcolor(tier32 ? #7612ED : na)
+barcolor(tier33 ? #721AE5 : na)
+barcolor(tier34 ? #6D23DC : na)
+barcolor(tier35 ? #692CD3 : na)
+barcolor(tier36 ? #6535CA : na)
+barcolor(tier37 ? #603EC1 : na)
+barcolor(tier38 ? #5C46B9 : na)
+barcolor(tier39 ? #584FB0 : na)
+barcolor(tier40 ? #5358A7 : na)
+barcolor(tier41 ? #4F619E : na)
+barcolor(tier42 ? #4A6A95 : na)
+barcolor(tier43 ? #46728D : na)
+barcolor(tier44 ? #427B84 : na)
+barcolor(tier45 ? #3D847B : na)
+barcolor(tier46 ? #398D72 : na)
+barcolor(tier47 ? #35956A : na)
+barcolor(tier48 ? #309E61 : na)
+barcolor(tier48 ? #2CA758 : na)
+barcolor(tier50 ? #27B04F : na)
+barcolor(tier51 ? #23B946 : na)
+barcolor(tier52 ? #1FC13E : na)
+barcolor(tier53 ? #1ACA35 : na)
+barcolor(tier54 ? #16D32C : na)
+barcolor(tier55 ? #12DC23 : na)
+barcolor(tier56 ? #0DE51A : na)
+barcolor(tier57 ? #09ED12 : na)
+barcolor(tier58 ? #04F609 : na)
+barcolor(tier59 ?  #00FF00 : na)
+
+
+
+
+// High Lows
+y1 = low - (ta.atr(30) * 2), y1B = low - ta.atr(30)
+y2 = high + (ta.atr(30) * 2), y2B = high + ta.atr(30)
+
+bull = ta.crossover(close, supertrend) and close >= sma9
+bear = ta.crossunder(close, supertrend) and close <= sma9
+
+
+// Plots
+
+// ---------------------------- Fast ---------------------------- \\
+candle  = ta.sma(close, 21)
+reach   = ta.sma(close, 34)
+candlep = plot(enCloud ? candle : na, color=color.new(color.white, 100))
+reachp  = plot(enCloud ? reach  : na, color=color.new(color.white, 100))
+fill(reachp, candlep, color= candle > reach ? color.new(#00CC00, 75) : color.new(#CC0000, 75))
+
+
+
+buy  =  bull ? label.new(bar_index, y1, sma4 >= sma5 ? "Buy" : "Strong Buy", xloc.bar_index, yloc.price, #00CC00, label.style_label_up, #141923, size.normal) : na
+sell =  bear ? label.new(bar_index, y2, sma4 <= sma5 ? "Sell" : "Strong Sell", xloc.bar_index, yloc.price, #CC0000, label.style_label_down, color.white, size.normal) : na
+
+trigger2 = bull ? 1 : 0
+countBull = ta.barssince(bull)
+countBear = ta.barssince(bear)
+trigger   = nz(countBull, bar_index) < nz(countBear, bar_index) ? 1 : 0
+atrBand = ta.atr(atrLen) * atrRisk
+atrStop = trigger == 1 ? low - atrBand : high + atrBand
+
+
+lastTrade(src) => ta.valuewhen(bull or bear , src, 0)
+
+
+entry = levels ? label.new(time, close, "ENTRY " + str.tostring(lastTrade(close), decimals), xloc.bar_time, yloc.price, color.rgb(0, 255, 251), label.style_label_left, color.white, size.normal) : na
+label.set_x(entry, label.get_x(entry) + math.round(ta.change(time) * lvlDistance))
+label.set_y(entry, lastTrade(close))
+label.delete(entry[1])
+
+
+
+stop_y = lastTrade(atrStop)
+stop  = levels ? label.new(time, close, "SL " + str.tostring(stop_y, decimals), xloc.bar_time, yloc.price, red2, label.style_label_left, color.white, size.normal) : na
+label.set_x(stop, label.get_x(stop) + math.round(ta.change(time) * lvlDistance))
+label.set_y(stop, stop_y)
+label.delete(stop[1])
+
+tp1Rl_y = (lastTrade(close)-lastTrade(atrStop))*1 + lastTrade(close)
+tp1Rl   = levels ? label.new(time, close, "1:1 TP " + str.tostring(tp1Rl_y, decimals), xloc.bar_time, yloc.price, green2, label.style_label_left, color.white, size.normal ) : na
+label.set_x(tp1Rl, label.get_x(tp1Rl) + math.round(ta.change(time) * lvlDistance))
+label.set_y(tp1Rl, tp1Rl_y)
+label.delete(tp1Rl[1])
+
+tp2RL_y = (lastTrade(close)-lastTrade(atrStop))*2 + lastTrade(close)
+tp2RL   = levels ? label.new(time, close, "2:1 TP " + str.tostring(tp2RL_y, decimals), xloc.bar_time, yloc.price, green2, label.style_label_left, color.white, size.normal) : na
+label.set_x(tp2RL, label.get_x(tp2RL) + math.round(ta.change(time) * lvlDistance))
+label.set_y(tp2RL, tp2RL_y)
+label.delete(tp2RL[1])
+
+tp3RL_y = (lastTrade(close)-lastTrade(atrStop))*3 + lastTrade(close)
+tp3RL   = levels ? label.new(time, close, "3:1 TP " + str.tostring(tp3RL_y, decimals), xloc.bar_time, yloc.price, green2, label.style_label_left, color.white, size.normal) : na
+label.set_x(tp3RL, label.get_x(tp3RL) + math.round(ta.change(time) * lvlDistance))
+label.set_y(tp3RL, tp3RL_y)
+label.delete(tp3RL[1])
+
+style = linesStyle == "SOLID" ? line.style_solid : linesStyle == "DASHED" ? line.style_dashed : line.style_dotted
+lineEntry = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), lastTrade(close), bar_index + lvlDistance, lastTrade(close), xloc.bar_index, extend.none, color.rgb(0, 255, 251), style, 2) : na, line.delete(lineEntry[1])
+lineStop  = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), stop_y, bar_index + lvlDistance, stop_y, xloc.bar_index, extend.none, #CC0000, style, 2) : na, line.delete(lineStop[1])
+lineTp1Rl   = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp1Rl_y, bar_index + lvlDistance, tp1Rl_y, xloc.bar_index, extend.none, green2, style, 2) : na, line.delete(lineTp1Rl[1])
+lineTp2RL   = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp2RL_y, bar_index + lvlDistance, tp2RL_y, xloc.bar_index, extend.none, green2, style, 2) : na, line.delete(lineTp2RL[1])
+lineTp3RL   = levels and lvlLines ? line.new(bar_index - (trigger == 0 ? countBull : countBear), tp3RL_y, bar_index + lvlDistance, tp3RL_y, xloc.bar_index, extend.none, green2, style, 2) : na, line.delete(lineTp3RL[1])
+
+
+
+
+alertcondition(bull, title='Buy Signal', message = "BUY")
+alertcondition(bear, title='Buy Signal', message = "BUY") 
+
+
+import protradingart/pta_plot/6 as pp 
+pp.peakprofit(bull, bear)
+

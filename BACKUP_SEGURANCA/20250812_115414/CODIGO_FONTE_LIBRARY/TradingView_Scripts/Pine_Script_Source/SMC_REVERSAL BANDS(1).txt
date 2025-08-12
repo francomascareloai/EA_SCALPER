@@ -1,0 +1,344 @@
+//@version=5
+indicator("<[SMC_REVERSAL BANDS]>", shorttitle="*SMC_REVERSAL BANDS*", overlay=true, max_labels_count=500)
+
+// Get user settings
+showRevBands      = input.bool(true, "Show Reversal Bands", group="REVERSAL BANDS")
+lenRevBands       = input.int(30, "Length", group="REVERSAL BANDS")
+// Functions
+f_kc(src, len, sensitivity) =>
+
+    basis = ta.sma(src, len)
+    span  = ta.atr(len)
+    [basis + span * sensitivity, basis - span * sensitivity]
+
+// Get components
+[upperKC1, lowerKC1] = f_kc(close, lenRevBands, 3)
+[upperKC2, lowerKC2] = f_kc(close, lenRevBands, 4)
+[upperKC3, lowerKC3] = f_kc(close, lenRevBands, 5)
+[upperKC4, lowerKC4] = f_kc(close, lenRevBands, 6)
+
+//colorrr
+cyan = #3179f5, cyan30 = color.new(cyan, 70)
+pink = #f23645, pink30  =color.new(pink, 70)
+red  = #f23645, red30 = color.new(red , 70)
+
+// Plot
+zoneupper1=plot(showRevBands ? upperKC1 : na, "Rev.Zone Upper 1", red30)
+zoneupper2=plot(showRevBands ? upperKC2 : na, "Rev.Zone Upper 2", red30)
+zonelower2=plot(showRevBands ? lowerKC2 : na, "Rev.Zone Lower 2", cyan30)
+zonelower1=plot(showRevBands ? lowerKC1 : na, "Rev.Zone Lower 1", cyan30)
+
+fill(zoneupper1, zoneupper2, color = red30)
+fill(zonelower1, zonelower2, color = cyan30)
+
+// INDICATOR SETTINGS
+swing_length = input.int(10, title = 'Swing High/Low Length', group = 'Settings', minval = 1, maxval = 50)
+history_of_demand_to_keep = input.int(20, title = 'History To Keep', minval = 5, maxval = 50)
+box_width = input.float(2.5, title = 'Supply/Demand Box Width', group = 'Settings', minval = 1, maxval = 10, step = 0.5)
+
+// INDICATOR VISUAL SETTINGS
+show_zigzag = input.bool(false, title = 'Show Zig Zag', group = 'Visual Settings', inline = '1')
+show_price_action_labels = input.bool(false, title = 'Show Price Action Labels', group = 'Visual Settings', inline = '2')
+supply_color = input.color(#b228334d, title = '', group = 'Visual Settings', inline = '3')
+supply_outline_color = input.color(#ff525280, title = 'Outline', group = 'Visual Settings', inline = '3')
+demand_color = input.color(#1848cc4d, title = '', group = 'Visual Settings', inline = '4')
+demand_outline_color = input.color(#2196f380, title = 'Outline', group = 'Visual Settings', inline = '4')
+bos_label_color = input.color(#ffffff, title = 'BOS Label', group = 'Visual Settings', inline = '5')
+poi_label_color = input.color(#363a45, title = 'POI Label', group = 'Visual Settings', inline = '7')
+swing_type_color = input.color(#363a45, title = 'Price Action Label', group = 'Visual Settings', inline = '8')
+zigzag_color = input.color(#000000, title = 'Zig Zag', group = 'Visual Settings', inline = '9')
+
+// FUNCTION TO ADD NEW AND REMOVE LAST IN ARRAY
+f_array_add_pop(array, new_value_to_add) =>
+
+    array.unshift(array, new_value_to_add)
+    array.pop(array)
+
+// FUNCTION SWING H & L LABELS
+f_sh_sl_labels(array, swing_type) =>
+    var string label_text = na
+    if swing_type == 1
+        if array.get(array, 0) >= array.get(array, 1)
+            label_text := 'HH'
+
+        else
+
+            label_text := 'LH'
+
+        label.new(bar_index - swing_length, array.get(array,0), text = label_text, style=label.style_label_down, textcolor = swing_type_color, color = color.new(swing_type_color, 100), size = size.tiny)
+
+    else if swing_type == -1
+        if array.get(array, 0) >= array.get(array, 1)
+            label_text := 'HL'
+
+        else
+
+            label_text := 'LL'
+
+        label.new(bar_index - swing_length, array.get(array,0), text = label_text, style=label.style_label_up, textcolor = swing_type_color, color = color.new(swing_type_color, 100), size = size.tiny)
+
+//  FUNCTION MAKE SURE SUPPLY ISNT OVERLAPPING
+f_check_overlapping(new_poi, box_array, atr) =>
+
+    atr_threshold = atr * 2
+    okay_to_draw = true
+
+    for i = 0 to array.size(box_array) - 1
+
+        top = box.get_top(array.get(box_array, i))
+        bottom = box.get_bottom(array.get(box_array, i))
+        poi = (top + bottom) / 2
+
+        upper_boundary = poi + atr_threshold
+        lower_boundary = poi - atr_threshold
+
+        if new_poi >= lower_boundary and new_poi <= upper_boundary
+            okay_to_draw := false
+
+            break
+
+        else 
+
+            okay_to_draw := true
+
+    okay_to_draw
+
+//  FUNCTION TO DRAW SUPPLY OR DEMAND ZONE
+f_supply_demand(value_array, bn_array, box_array, label_array, box_type, atr) =>
+
+    atr_buffer = atr * (box_width / 10)
+    box_left = array.get(bn_array, 0)
+    box_right = bar_index
+
+    var float box_top = 0.00
+    var float box_bottom = 0.00
+    var float poi = 0.00
+
+    if box_type == 1
+        box_top := array.get(value_array, 0)
+        box_bottom := box_top - atr_buffer
+        poi := (box_top + box_bottom) / 2
+
+    else if box_type == -1
+        box_bottom := array.get(value_array, 0)
+        box_top := box_bottom + atr_buffer
+        poi := (box_top + box_bottom) / 2
+
+    okay_to_draw = f_check_overlapping(poi, box_array, atr)
+
+    // okay_to_draw = true
+
+    //delete oldest box, and then create a new box and add it to the array
+    if box_type == 1 and okay_to_draw
+
+        box.delete( array.get(box_array, array.size(box_array) - 1) )
+        f_array_add_pop(box_array, box.new( left = box_left, top = box_top, right = box_right, bottom = box_bottom, border_color = supply_outline_color,
+
+             bgcolor = supply_color, extend = extend.right, text = 'SUPPLY', text_halign = text.align_center, text_valign = text.align_center, text_color = poi_label_color, text_size = size.tiny, xloc = xloc.bar_index))
+
+        box.delete( array.get(label_array, array.size(label_array) - 1) )
+        f_array_add_pop(label_array, box.new( left = box_left, top = poi, right = box_right, bottom = poi, border_color = color.new(poi_label_color,90),
+
+             bgcolor = color.new(poi_label_color,90), extend = extend.right, text = 'POI', text_halign = text.align_left, text_valign = text.align_center, text_color = poi_label_color, text_size = size.tiny, xloc = xloc.bar_index))
+
+    else if box_type == -1 and okay_to_draw
+
+        box.delete( array.get(box_array, array.size(box_array) - 1) )
+        f_array_add_pop(box_array, box.new( left = box_left, top = box_top, right = box_right, bottom = box_bottom, border_color = demand_outline_color,
+
+             bgcolor = demand_color, extend = extend.right,  text = 'DEMAND', text_halign = text.align_center, text_valign = text.align_center, text_color = poi_label_color, text_size = size.tiny, xloc = xloc.bar_index))
+
+        box.delete( array.get(label_array, array.size(label_array) - 1) )
+        f_array_add_pop(label_array, box.new( left = box_left, top = poi, right = box_right, bottom = poi, border_color = color.new(poi_label_color,90),
+
+             bgcolor = color.new(poi_label_color,90), extend = extend.right,  text = 'POI', text_halign = text.align_left, text_valign = text.align_center, text_color = poi_label_color, text_size = size.tiny, xloc = xloc.bar_index))
+
+// 
+f_sd_to_bos(box_array, bos_array, label_array, zone_type) =>
+    if zone_type == 1
+        for i = 0 to array.size(box_array) - 1
+            level_to_break = box.get_top(array.get(box_array,i))
+
+            // if ta.crossover(close, level_to_break)
+            if close >= level_to_break
+                copied_box = box.copy(array.get(box_array,i))
+                f_array_add_pop(bos_array, copied_box)
+                mid = (box.get_top(array.get(box_array,i)) + box.get_bottom(array.get(box_array,i))) / 2
+                box.set_top(array.get(bos_array,0), mid)
+                box.set_bottom(array.get(bos_array,0), mid)
+                box.set_extend( array.get(bos_array,0), extend.none)
+                box.set_right( array.get(bos_array,0), bar_index)
+                box.set_text( array.get(bos_array,0), 'BOS' )
+                box.set_text_color( array.get(bos_array,0), bos_label_color)
+                box.set_text_size( array.get(bos_array,0), size.tiny)
+                box.set_text_halign( array.get(bos_array,0), text.align_center)
+                box.set_text_valign( array.get(bos_array,0), text.align_center)
+                box.delete(array.get(box_array, i))
+                box.delete(array.get(label_array, i))
+
+    if zone_type == -1
+
+        for i = 0 to array.size(box_array) - 1
+            level_to_break = box.get_bottom(array.get(box_array,i))
+            // if ta.crossunder(close, level_to_break)
+            if close <= level_to_break
+                copied_box = box.copy(array.get(box_array,i))
+                f_array_add_pop(bos_array, copied_box)
+                mid = (box.get_top(array.get(box_array,i)) + box.get_bottom(array.get(box_array,i))) / 2
+                box.set_top(array.get(bos_array,0), mid)
+                box.set_bottom(array.get(bos_array,0), mid)
+                box.set_extend( array.get(bos_array,0), extend.none)
+                box.set_right( array.get(bos_array,0), bar_index)
+                box.set_text( array.get(bos_array,0), 'BOS' )
+                box.set_text_color( array.get(bos_array,0), bos_label_color)
+                box.set_text_size( array.get(bos_array,0), size.tiny)
+                box.set_text_halign( array.get(bos_array,0), text.align_center)
+                box.set_text_valign( array.get(bos_array,0), text.align_center)
+                box.delete(array.get(box_array, i))
+                box.delete(array.get(label_array, i))
+// 
+f_extend_box_endpoint(box_array) =>
+
+    for i = 0 to array.size(box_array) - 1
+        box.set_right(array.get(box_array, i), bar_index + 100)
+
+//
+atr = ta.atr(50)
+//  
+swing_high = ta.pivothigh(high, swing_length, swing_length)
+swing_low = ta.pivotlow(low, swing_length, swing_length)
+// 
+var swing_high_values = array.new_float(5,0.00)
+var swing_low_values = array.new_float(5,0.00)
+var swing_high_bns = array.new_int(5,0)
+var swing_low_bns = array.new_int(5,0)
+//  
+var current_supply_box = array.new_box(history_of_demand_to_keep, na)
+var current_demand_box = array.new_box(history_of_demand_to_keep, na)
+// 
+var current_supply_poi = array.new_box(history_of_demand_to_keep, na)
+var current_demand_poi = array.new_box(history_of_demand_to_keep, na)
+// 
+var supply_bos = array.new_box(5, na)
+var demand_bos = array.new_box(5, na)
+//
+if not na(swing_high)
+    f_array_add_pop(swing_high_values, swing_high)
+    f_array_add_pop(swing_high_bns, bar_index[swing_length])
+
+    if show_price_action_labels
+        f_sh_sl_labels(swing_high_values, 1)
+
+    f_supply_demand(swing_high_values, swing_high_bns, current_supply_box, current_supply_poi, 1, atr)
+
+//  NEW SWING LOW
+else if not na(swing_low)
+    f_array_add_pop(swing_low_values, swing_low)
+    f_array_add_pop(swing_low_bns, bar_index[swing_length])
+
+    if show_price_action_labels
+        f_sh_sl_labels(swing_low_values, -1)
+
+    f_supply_demand(swing_low_values, swing_low_bns, current_demand_box, current_demand_poi, -1, atr)
+
+f_sd_to_bos(current_supply_box, supply_bos, current_supply_poi, 1)
+f_sd_to_bos(current_demand_box, demand_bos, current_demand_poi, -1)
+
+f_extend_box_endpoint(current_supply_box)
+f_extend_box_endpoint(current_demand_box)
+
+h = ta.highest(high, swing_length * 2 + 1)
+l = ta.lowest(low, swing_length * 2 + 1)
+
+f_isMin(len) =>
+    l == low[len]
+
+f_isMax(len) =>
+    h == high[len]
+
+var dirUp = false
+var lastLow = high * 100
+var lastHigh = 0.0
+var timeLow = bar_index
+var timeHigh = bar_index
+var line li = na
+
+f_drawLine() =>
+    _li_color = show_zigzag ? zigzag_color : color.new(#ffffff,100)
+    line.new(timeHigh - swing_length, lastHigh, timeLow - swing_length, lastLow, xloc.bar_index, color=_li_color, width=1)
+
+if dirUp
+
+    if f_isMin(swing_length) and low[swing_length] < lastLow
+        lastLow := low[swing_length]
+        timeLow := bar_index
+        line.delete(li)
+        li := f_drawLine()
+        li
+
+    if f_isMax(swing_length) and high[swing_length] > lastLow
+        lastHigh := high[swing_length]
+        timeHigh := bar_index
+        dirUp := false
+        li := f_drawLine()
+        li
+
+if not dirUp
+
+    if f_isMax(swing_length) and high[swing_length] > lastHigh
+        lastHigh := high[swing_length]
+        timeHigh := bar_index
+        line.delete(li)
+        li := f_drawLine()
+        li
+
+    if f_isMin(swing_length) and low[swing_length] < lastHigh
+
+        lastLow := low[swing_length]
+        timeLow := bar_index
+        dirUp := true
+        li := f_drawLine()
+
+        if f_isMax(swing_length) and high[swing_length] > lastLow
+
+            lastHigh := high[swing_length]
+            timeHigh := bar_index
+            dirUp := false
+            li := f_drawLine()
+            li
+
+// Inputs
+p = input(55, "Period")
+atr_factor = input.float(1.0, "Factor", step = 0.1)
+// 
+n = ta.atr(p)
+e = atr * atr_factor 
+
+afr = close 
+afr := nz(afr[1], afr)
+atr_factoryHigh = close + e
+atr_factoryLow = close - e 
+
+if atr_factoryLow > afr 
+    afr := atr_factoryLow
+
+if atr_factoryHigh < afr 
+    afr := atr_factoryHigh
+
+col = afr > afr[1] ? #2962ff : #FF0000
+col := afr == afr[1] ? col[1] : col
+
+buy  = afr > afr[1] and not (afr[1] > afr[2])
+sell = afr < afr[1] and not (afr[1] < afr[2])
+
+ls = 0
+ls := buy ? 1 : sell ? -1 : ls[1]
+// Plottings
+plot(afr, "AFR", col, 2)
+plotshape(buy  and ls != ls[1], "Buy" , shape.circle  , location.belowbar, #000000, 0, size = size.auto)
+plotshape(sell and ls != ls[1], "Sell", shape.circle, location.abovebar, #000000, 0, size = size.auto)
+// Alerts
+alertcondition(buy and ls != ls[1] , "AFR: Buy" , "AFR Buy Signal")
+alertcondition(sell and ls != ls[1], "AFR: Sell", "AFR Sell Signal")
+
+//=========================================================================================================//
