@@ -29,6 +29,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from Core.classificador_lote_avancado import ClassificadorLoteAvancado
 from Core.monitor_tempo_real import MonitorTempoReal
 from Core.gerador_relatorios_avancados import GeradorRelatoriosAvancados
+from Scripts.auto_backup_integration import AutoBackupIntegration
 
 class StatusSistema(Enum):
     """Estados possíveis do sistema"""
@@ -118,6 +119,9 @@ class OrquestradorCentral:
             self.componentes['relatorios'] = GeradorRelatoriosAvancados(
                 base_path=str(self.base_path)
             )
+            
+            # Sistema de Backup Automático
+            self.componentes['backup'] = AutoBackupIntegration()
             
             self.log_sistema("Todos os componentes inicializados com sucesso")
             
@@ -282,6 +286,18 @@ class OrquestradorCentral:
             resultados["sucesso"] = True
             
             self.log_sistema("Classificação completa finalizada com sucesso")
+            
+            # Backup automático após classificação
+            if self.config.get("auto_backup", True) and 'backup' in self.componentes:
+                try:
+                    backup_success, backup_msg = self.componentes['backup'].backup_after_classification("classificação completa")
+                    resultados["backup_realizado"] = backup_success
+                    resultados["backup_mensagem"] = backup_msg
+                    self.log_sistema(f"Backup automático: {backup_msg}")
+                except Exception as backup_error:
+                    self.log_sistema(f"Erro no backup automático: {backup_error}", "WARNING")
+                    resultados["backup_realizado"] = False
+                    resultados["backup_erro"] = str(backup_error)
             
         except Exception as e:
             resultados["erro"] = str(e)
@@ -709,6 +725,14 @@ class OrquestradorCentral:
             
             if stats_report.get("sucesso"):
                 relatorios_gerados.extend(stats_report.get("arquivos", []))
+            
+            # Backup automático após geração de relatórios
+            if self.config.get("auto_backup", True) and 'backup' in self.componentes:
+                try:
+                    backup_success, backup_msg = self.componentes['backup'].backup_after_report_generation()
+                    self.log_sistema(f"Backup após relatórios: {backup_msg}")
+                except Exception as backup_error:
+                    self.log_sistema(f"Erro no backup após relatórios: {backup_error}", "WARNING")
             
             return {
                 "sucesso": True,
