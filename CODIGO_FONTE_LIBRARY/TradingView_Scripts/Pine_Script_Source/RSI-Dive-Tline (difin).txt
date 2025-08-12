@@ -1,0 +1,286 @@
+//@version=5
+//
+indicator('RSI Line with trendlines', shorttitle='difin RSI Tline and Dive', overlay=false)
+
+// RSI Oscillator Chart ════════════════════════════════════════════════════════
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+show_brs = input(false, title='RSI Chart Selection criteria ═════════════════')
+std_bar = input.string('std', title='═> Show bar or Line RSI', options=['bar', 'std'])
+src = input(close, title='═> RSI source')
+len = input.int(14, title='═> RSI length parameter', minval=2, maxval=100)
+
+//==calculation ==//
+
+norm = if std_bar == 'std'
+    1
+else
+    math.avg(src, src[1])
+
+gain_loss = ta.change(src) / norm
+
+RSI = 50 + 50 * ta.rma(gain_loss, len) / ta.rma(math.abs(gain_loss), len)
+
+//==Draw RSIB==//
+o = std_bar == 'bar' ? RSI[1] : RSI
+h = std_bar == 'bar' ? RSI : RSI
+l = std_bar == 'bar' ? RSI[1] : RSI
+c = std_bar == 'bar' ? RSI : RSI
+
+plotbar(o, h, l, c, title='RSIB', color=src[1] < src ? color.blue : color.red)
+
+//==Draw RSI==//
+plot(std_bar == 'bar' ? na : RSI, color=#A64D79FF, title='RSI')
+
+//==Draw a channel==//
+b1 = hline(30, color=color.green, linestyle=hline.style_dotted, linewidth=1, title='oversold')
+b2 = hline(70, color=color.red, linestyle=hline.style_dotted, linewidth=1, title='overbought')
+b3 = hline(50, color=color.white, linestyle=hline.style_dotted, linewidth=1, title='middle')
+
+//Trendlines 2 lots ════════════════════════════════════════════════════════
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+// Input variables
+show_text = input(false, title='Trendlines Selection criteria ═══════════════')
+log_chart = input(false, title='═> Use Log Chart?')
+ShowTrendCandles = input(false, title='═> Highlight Trend Candles')
+a_Color_Type = input.string(defval='Colored', title='═> Use Trendlines Color Scheme', options=['Colored', 'Monochrome'])
+
+a_Show_Primary = input(true, title='1 ═> Display Primary Trendlines')
+a_len = input(20, title='═> Primary Lookback Length')
+a_Extensions = input.string(title='═> Primary Trendline Extensions', defval='  30', options=['Infinate', '  25', '  30', '  50', ' 100', ' 150', ' 200', ' 300', ' 400', ' 500', ' 750', '1000'])
+a_width = input.int(1, title='═> Primary Line Width', minval=0, maxval=10)
+a_Show_Breaks = 'n/a'  //input(      title = "═> Primary Trendline Breaks",      defval="n/a",   options=["Barcolor", "Triangles + Barcolor", "Triangles" , "n/a"])
+a_trendline_nr = 0  //input(3,    title = "═> Primary Trendline Breaks - Number of Past Trendlines to Check for Breaks",minval=0,maxval=10)
+a_Rising_Upper_Falling_Lower = false  //input(false,  "1 - Primary - Rising Upper and Falling Lower Trendlines")
+
+
+b_Show_Secondary = input(true, title='2 ═> Display Secondary Trendlines')
+b_len = input(14, title='═> Secondary Lookback Length')
+b_Extensions = input.string(title='═> Secondary Trendline Extensions', defval='  25', options=['Infinate', '  25', '  30', '  50', ' 100', ' 150', ' 200', ' 300', ' 400', ' 500', ' 750', '1000'])
+b_width = input.int(1, title='═> Secondary Line Width', minval=0, maxval=10)
+b_Show_Breaks = 'n/a'  //input(      title = "═> Secondary Trendline Breaks",      defval="n/a",   options=["Barcolor", "Triangles + Barcolor", "Triangles" , "n/a"])
+b_trendline_nr = 0  //input(5,    title = "═> Secondary Trendline Breaks - Number of Past Trendlines to Check for Breaks",minval=0,maxval=10)
+b_Rising_Upper_Falling_Lower = false  //input(false,  "2 - Secondary - Rising Upper and Falling Lower Trendlines")
+
+a_bar_time = time - time[1]
+b_bar_time = time - time[1]
+
+
+///// Primary Trendlines /////
+// Trendline Extensions
+
+a_Extension_Multiplier = a_Extensions == '  25' ? 1 : a_Extensions == '  30' ? 2 : a_Extensions == '  50' ? 3 : a_Extensions == ' 100' ? 4 : a_Extensions == ' 150' ? 6 : a_Extensions == ' 200' ? 8 : a_Extensions == ' 300' ? 12 : a_Extensions == ' 400' ? 16 : a_Extensions == ' 500' ? 20 : a_Extensions == ' 750' ? 30 : a_Extensions == '1000' ? 40 : a_Extensions == 'Infinate' ? 0 : na
+
+
+// Declaration of trendline function
+a_f_trendline(a__input_function, a__delay, a__only_up, a__extend) =>
+    // Calculate line coordinates (Ax,Ay) - (Bx,By)
+    var int a_Ax = 1
+    var int a_Bx = 1
+    var float a_By = 0
+    var float a_slope = 0
+    a_Ay = fixnan(a__input_function)
+    if ta.change(a_Ay) != 0
+        a_Ax := time[a__delay]
+        a_By := a_Ay[1]
+        a_Bx := a_Ax[1]
+        a_slope := log_chart ? (math.log(a_Ay) - math.log(a_By)) / (a_Ax - a_Bx) : (a_Ay - a_By) / (a_Ax - a_Bx)
+        a_slope
+    else
+        a_Ax := a_Ax[1]
+        a_Bx := a_Bx[1]
+        a_By := a_By[1]
+        a_By
+    // Draw trendlines
+    var line a_trendline = na
+    var int a_Axbis = 0
+    var float a_Aybis = 0
+    var bool a__xtend = true
+    a_extension_time = a_Extension_Multiplier * a_bar_time * 25
+    a_Axbis := a_Ax + a_extension_time
+    a_Aybis := log_chart ? a_Ay * math.exp(a_extension_time * a_slope) : a_Ay + a_extension_time * a_slope
+    if a_Extension_Multiplier != 0
+        a__xtend := false
+        a__xtend
+    if ta.change(a_Ay) != 0
+
+        a_line_color_Rising_Falling = a_slope * time < 0 ? a__only_up ? a_Rising_Upper_Falling_Lower ? a_Color_Type == 'Colored' ? color.gray : color.teal : na : a_Color_Type == 'Colored' ? #cf0a83 : color.teal : a__only_up ? a_Color_Type == 'Colored' ? #027521 : color.teal : a_Rising_Upper_Falling_Lower ? a_Color_Type == 'Colored' ? color.gray : color.teal : na
+        a_line_color_Not_Rising_Falling = a_slope * time < 0 ? a__only_up ? na : a_Color_Type == 'Colored' ? #cf0a83 : color.teal : a__only_up ? a_Color_Type == 'Colored' ? #027521 : color.teal : na
+
+        a_line_color = a_Show_Primary and not a_Rising_Upper_Falling_Lower ? a_line_color_Not_Rising_Falling : a_Show_Primary and a_Rising_Upper_Falling_Lower ? a_line_color_Rising_Falling : na
+
+        if not na(a_line_color)
+            a_trendline = line.new(a_Bx, a_By, a_Axbis, a_Aybis, xloc.bar_time, extend=a__xtend ? extend.right : extend.none, color=a_line_color, style=line.style_solid, width=a_width)
+            a_trendline
+    [a_Bx, a_By, a_Axbis, a_Aybis, a_slope]
+
+// Calculate pivot points    
+a_high_point = ta.pivothigh(c > o ? c : o, a_len, a_len / 2)
+a_low_point = ta.pivotlow(c > o ? o : c, a_len, a_len / 2)
+
+// Call trendline function for high and low pivot points
+[a_phx1, a_phy1, a_phx2, a_phy2, a_slope_high] = a_f_trendline(a_high_point, a_len / 2, false, true)
+[a_plx1, a_ply1, a_plx2, a_ply2, a_slope_low] = a_f_trendline(a_low_point, a_len / 2, true, true)
+
+// ///// Secondary Trendlines /////
+
+// // Trendline Extensions
+
+b_Extension_Multiplier = b_Extensions == '  25' ? 1 : b_Extensions == '  30' ? 2 : b_Extensions == '  50' ? 3 : b_Extensions == ' 100' ? 4 : b_Extensions == ' 150' ? 6 : b_Extensions == ' 200' ? 8 : b_Extensions == ' 300' ? 12 : b_Extensions == ' 400' ? 16 : b_Extensions == ' 500' ? 20 : b_Extensions == ' 750' ? 30 : b_Extensions == '1000' ? 40 : b_Extensions == 'Infinate' ? 0 : na
+
+
+// Declaration of trendline function
+b_f_trendline(b__input_function, b__delay, b__only_up, b__extend) =>
+    // Calculate line coordinates (Ax,Ay) - (Bx,By)
+    var int b_Ax = 1
+    var int b_Bx = 1
+    var float b_By = 0
+    var float b_slope = 0
+    b_Ay = fixnan(b__input_function)
+    if ta.change(b_Ay) != 0
+        b_Ax := time[b__delay]
+        b_By := b_Ay[1]
+        b_Bx := b_Ax[1]
+        b_slope := log_chart ? (math.log(b_Ay) - math.log(b_By)) / (b_Ax - b_Bx) : (b_Ay - b_By) / (b_Ax - b_Bx)
+        b_slope
+    else
+        b_Ax := b_Ax[1]
+        b_Bx := b_Bx[1]
+        b_By := b_By[1]
+        b_By
+    // Draw trendlines
+    var line b_trendline = na
+    var int b_Axbis = 0
+    var float b_Aybis = 0
+    var bool b__xtend = true
+    b_extension_time = b_Extension_Multiplier * b_bar_time * 25
+    b_Axbis := b_Ax + b_extension_time
+    b_Aybis := log_chart ? b_Ay * math.exp(b_extension_time * b_slope) : b_Ay + b_extension_time * b_slope
+    if b_Extension_Multiplier != 0
+        b__xtend := false
+        b__xtend
+    if ta.change(b_Ay) != 0
+
+        b_line_color_Rising_Falling = b_slope * time < 0 ? b__only_up ? b_Rising_Upper_Falling_Lower ? a_Color_Type == 'Colored' ? color.gray : color.teal : na : a_Color_Type == 'Colored' ? color.red : color.teal : b__only_up ? a_Color_Type == 'Colored' ? color.green : color.teal : b_Rising_Upper_Falling_Lower ? a_Color_Type == 'Colored' ? color.gray : color.teal : na
+        b_line_color_Not_Rising_Falling = b_slope * time < 0 ? b__only_up ? na : a_Color_Type == 'Colored' ? color.red : color.teal : b__only_up ? a_Color_Type == 'Colored' ? color.green : color.teal : na
+
+        b_line_color = b_Show_Secondary and not b_Rising_Upper_Falling_Lower ? b_line_color_Not_Rising_Falling : b_Show_Secondary and b_Rising_Upper_Falling_Lower ? b_line_color_Rising_Falling : na
+
+        if not na(b_line_color)
+            b_trendline = line.new(b_Bx, b_By, b_Axbis, b_Aybis, xloc.bar_time, extend=b__xtend ? extend.right : extend.none, color=b_line_color, style=line.style_dashed, width=b_width)
+            b_trendline
+    [b_Bx, b_By, b_Axbis, b_Aybis, b_slope]
+
+
+// Calculate pivot points    
+b_high_point = ta.pivothigh(c > o ? c : o, b_len, b_len / 2)
+b_low_point = ta.pivotlow(c > o ? o : c, b_len, b_len / 2)
+
+// Call trendline function for high and low pivot points
+[b_phx1, b_phy1, b_phx2, b_phy2, b_slope_high] = b_f_trendline(b_high_point, b_len / 2, false, true)
+[b_plx1, b_ply1, b_plx2, b_ply2, b_slope_low] = b_f_trendline(b_low_point, b_len / 2, true, true)
+
+// Plot and connect pivot points
+b_color_high = b_slope_high * time < 0 ? color.green : na
+b_color_low = b_slope_low * time > 0 ? color.red : na
+
+
+// Trend Candles //
+//UCS_Trend by ucsgears copy Trend Candles
+//Interpretation of TTM Trend bars. It is really close to the actual. 
+
+haclose = c
+haopen = 0.0
+haopen := na(haopen[1]) ? (o + c) / 2 : (haopen[1] + haclose[1]) / 2
+
+ccolor = haclose - haopen > 0 ? 1 : 0
+inside6 = haopen <= math.max(haopen[6], haclose[6]) and haopen >= math.min(haopen[6], haclose[6]) and haclose <= math.max(haopen[6], haclose[6]) and haclose >= math.min(haopen[6], haclose[6]) ? 1 : 0
+inside5 = haopen <= math.max(haopen[5], haclose[5]) and haopen >= math.min(haopen[5], haclose[5]) and haclose <= math.max(haopen[5], haclose[5]) and haclose >= math.min(haopen[5], haclose[5]) ? 1 : 0
+inside4 = haopen <= math.max(haopen[4], haclose[4]) and haopen >= math.min(haopen[4], haclose[4]) and haclose <= math.max(haopen[4], haclose[4]) and haclose >= math.min(haopen[4], haclose[4]) ? 1 : 0
+inside3 = haopen <= math.max(haopen[3], haclose[3]) and haopen >= math.min(haopen[3], haclose[3]) and haclose <= math.max(haopen[3], haclose[3]) and haclose >= math.min(haopen[3], haclose[3]) ? 1 : 0
+inside2 = haopen <= math.max(haopen[2], haclose[2]) and haopen >= math.min(haopen[2], haclose[2]) and haclose <= math.max(haopen[2], haclose[2]) and haclose >= math.min(haopen[2], haclose[2]) ? 1 : 0
+inside1 = haopen <= math.max(haopen[1], haclose[1]) and haopen >= math.min(haopen[1], haclose[1]) and haclose <= math.max(haopen[1], haclose[1]) and haclose >= math.min(haopen[1], haclose[1]) ? 1 : 0
+
+colorvalue = inside6 ? ccolor[6] : inside5 ? ccolor[5] : inside4 ? ccolor[4] : inside3 ? ccolor[3] : inside2 ? ccolor[2] : inside1 ? ccolor[1] : ccolor
+Trend_Candle_Color = colorvalue ? color.lime : color.fuchsia
+
+// Bar Color according to Trend Candles
+barcolor(ShowTrendCandles ? Trend_Candle_Color : na, title='Trend Candles')
+
+// // Alerts for Trend Candle Color Changes 
+// Trend_Candle_Change_Green = colorvalue ? 1 : 0
+// Trend_Candle_Change_Red   = colorvalue ? 0 : 1
+
+// alertcondition(Trend_Candle_Change_Green, title = "Alert - Trend Candle Color Change - GREEN", message = "GREEN Trend Candles - Color Change")
+// alertcondition(Trend_Candle_Change_Red,   title = "Alert - Trend Candle Color Change - RED",   message = "RED Trend Candles - Color Change")
+
+
+// FUNCTION {
+ma(source, length, type)=> 
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)//} 
+
+// MENU { 
+oscSrc = input.source(close, "Source", inline='A', group = "Oscillator")
+oscLen = input.int(14, minval = 1, title = "Length", inline='A', group = "Oscillator")
+maTypeInput = input.string("SMA", title = "Type", options = ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"], inline='B', group = "Moving Average")
+maLengthInput = input.int(14, title = "Length", inline="B", group = "Moving Average")
+plotBull = input(title = 'Bullish', defval = true, inline = "A", group = "Divergence Plots")
+plotBear = input(title = 'Bearish', defval = true, inline = "A", group = "Divergence Plots")
+plotHiddenBull = input(title = 'Hidden Bull',  defval = false, inline = "B", group = "Divergence Plots")
+plotHiddenBear = input(title = 'Hidden Bear', defval = false, inline = "B", group = "Divergence Plots")
+lbR = 5
+lbL = 5
+rangeUpper = 60
+rangeLower = 5//}
+up = ta.rma(math.max(ta.change(oscSrc), 0), oscLen)
+down = ta.rma(-math.min(ta.change(oscSrc), 0), oscLen)
+osc = ta.rsi(oscSrc,oscLen)
+oscMA = ma(osc, maLengthInput, maTypeInput)
+
+_inRange(cond) =>
+    bars = ta.barssince(cond == true)
+    rangeLower <= bars and bars <= rangeUpper
+
+// TREND ID{
+plFound = na(ta.pivotlow(osc, lbL, lbR)) ? false : true
+phFound = na(ta.pivothigh(osc, lbL, lbR)) ? false : true
+oscHL = osc[lbR] > ta.valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+oscLL = osc[lbR] < ta.valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+oscHH = osc[lbR] > ta.valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+oscLH = osc[lbR] < ta.valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+priceLL = low[lbR] < ta.valuewhen(plFound, low[lbR], 1)
+priceHL = low[lbR] > ta.valuewhen(plFound, low[lbR], 1)
+priceHH = high[lbR] > ta.valuewhen(phFound, high[lbR], 1)
+priceLH = high[lbR] < ta.valuewhen(phFound, high[lbR], 1)
+bullCond = plotBull and priceLL and oscHL and plFound
+hiddenBullCond = plotHiddenBull and priceHL and oscLL and plFound
+bearCond = plotBear and priceHH and oscLH and phFound
+hiddenBearCond = plotHiddenBear and priceLH and oscHH and phFound//} 
+
+// COLORS {
+bearColor = color.red
+bullColor = color.green
+hiddenBullColor = color.new(color.yellow, 0)
+hiddenBearColor = color.new(color.orange, 0)
+textColor = color.white
+noneColor = color.new(color.white, 100)//}
+
+// PLOTTING {  
+
+plot(oscMA, "Moving Average", color = color.yellow)
+plot(plFound ? osc[lbR] : na, offset = -lbR, title = 'Regular Bullish', linewidth = 2, color = bullCond ? bullColor : noneColor)
+plot(plFound ? osc[lbR] : na, offset = -lbR, title = 'Hidden Bullish', linewidth = 1, color = hiddenBullCond ? hiddenBullColor : noneColor)
+plot(phFound ? osc[lbR] : na, offset = -lbR, title = 'Regular Bearish', linewidth = 2, color = bearCond ? bearColor : noneColor)
+plot(phFound ? osc[lbR] : na, offset = -lbR, title = 'Hidden Bearish', linewidth = 1, color = hiddenBearCond ? hiddenBearColor : noneColor)//}
+
+// ALERT CONDITIONS { 
+alertcondition(bullCond,title = 'Bullish Divergence',message = 'Bullish Divergence')
+alertcondition(hiddenBullCond,title = 'Hidden Bull Divergence',message = 'Hidden Bull Divergence')
+alertcondition(bearCond,title = 'Bearish Divergence',message = 'Bearish Divergence')
+alertcondition(hiddenBearCond,title = 'Hidden Bear Divergence',message = 'Hidden Bearish Divergence')//} 

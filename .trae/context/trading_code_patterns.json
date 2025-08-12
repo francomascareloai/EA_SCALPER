@@ -1,0 +1,16 @@
+{
+  "file_types": {
+    "ea": { "extensions": [".mq4", ".mq5"], "required": ["OnTick"], "trade_calls": ["OrderSend", "trade.Buy", "trade.Sell"] },
+    "indicator": { "extensions": [".mq4", ".mq5"], "required": ["OnCalculate"], "buffers": ["SetIndexBuffer", "PlotIndexSetInteger"] },
+    "script": { "extensions": [".mq4", ".mq5"], "required": ["OnStart"] },
+    "pine": { "extensions": [".pine", ".txt"], "required": ["study", "strategy", "plot"] }
+  },
+  "strategies": {
+    "scalping": ["scalp", "M1", "M5", "quick", "fast"],
+    "grid_martingale": ["grid", "martingale", "recovery", "lot_multiplier"],
+    "smc": ["order_block", "fvg", "liquidity", "institutional", "bos", "choch"],
+    "trend": ["trend", "momentum", "ma", "moving_average", "breakout"],
+    "volume": ["volume", "obv", "profile", "poc", "flow"]
+  },
+  "markets": ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "Multi"]
+}

@@ -1,0 +1,342 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+indicator('Matrix Vix Fix with VWAP CCI and QQE', shorttitle='Matrix Vix Fix with VWAP CCI and QQE', precision=2)
+
+// Function to select the type of source
+get_src(Type) =>
+    switch Type 
+        "VWAP" => ta.vwap
+        "Close" => close
+        "Open" => open
+        "HL2" => hl2
+        "HLC3" => hlc3
+        "OHLC4" => ohlc4
+        "HLCC4" => hlcc4
+        "High" => high
+        "Low" => low
+        "TR" => ta.tr
+        "vwap(Close)" => ta.vwap(close)
+        "vwap(Open)" => ta.vwap(open)
+        "vwap(High)" => ta.vwap(high)
+        "vwap(Low)" => ta.vwap(low)
+        "AVG(vwap(H,L))" => math.avg(ta.vwap(high), ta.vwap(low))
+        "AVG(vwap(O,C))" => math.avg(ta.vwap(open), ta.vwap(close))        
+//__________________________________________________________________
+// https://www.tradingview.com/script/2X2cVLhb-Matrix-Series/
+//__________________________________________________________________
+higherTF = input.timeframe("15", title="Timeframe") // Выбор таймфрейма выше
+
+alert_Buy_Matrix  = input.bool(false, "◁ Alert: [Buy - Matrix]",  inline="alertMatrix")
+alert_Sell_Matrix = input.bool(false, "◁ Alert: [Sell - Matrix]", inline="alertMatrix")
+show_buy_signal   = input.bool(true,  "Show buy signal",  inline="show_signal")
+show_sell_signal  = input.bool(true,  "Show sell signal", inline="show_signal")
+show_dot          = input.bool(true,  "Show Watch/Warning Point", inline="show_signal")
+//--- Trend Bought/Sold Detail
+dynamic      = input.bool(true,  "Show Dynamic Zones ᚛ᚔ᚜ ", inline="show_limit")
+OBOS         = input.bool(false, "Show OB/OS", inline="show_limit")
+show_candles = input.bool(true,  "Show Matrix Candles  ᚛ᚔ᚜ ", inline="s_matrix")
+show_hist    = input.bool(false, "Show Matrix Histogram", inline="s_matrix")
+//--- Sup/Res Detail
+PricePeriod      = input.int(16,  "Price Period", 1, inline="period")
+Smoother         = input.int(5,   "Smoother", 2, inline="period")
+SupResPeriod     = input.int(50,  "Superior Resolution Period", 1, inline="Superior Resolution")
+SupResPercentage = input.int(100, "Percentage", 1, inline="Superior Resolution")
+//--- Line Detail 
+ob = input.int(200,  "OverBought Above", inline="line")
+os = input.int(-200, "OverSold Bellow",  inline="line")
+
+ys1  = request.security(syminfo.tickerid, higherTF, (high + low + close * 2) / 4)
+rk3  = request.security(syminfo.tickerid, higherTF, ta.ema(ys1, Smoother))
+rk4  = request.security(syminfo.tickerid, higherTF, ta.stdev(ys1, Smoother))
+rk5  = (ys1 - rk3) * 200 / rk4
+rk6  = request.security(syminfo.tickerid, higherTF, ta.ema(rk5, Smoother))
+up   = request.security(syminfo.tickerid, higherTF, ta.ema(rk6, Smoother))
+down = request.security(syminfo.tickerid, higherTF, ta.ema(up, Smoother))
+Oo   = up < down ? up : down
+Hh   = Oo
+Ll   = up < down ? down : up
+Cc   = Ll
+sell_matrix = ta.cross(up, ob) == 1 and up[1] > up 
+buy_matrix  = ta.cross(up, os) == 1 and up[1] < up 
+
+coral     = #FF8080
+lavender  = #8080FF
+amber     = color.new(#FFE500, 60)
+vcolor = show_candles and (Oo > Cc) ? coral : show_candles and (up > down) ? lavender : show_candles ? coral : na
+
+plotcandle(Oo, Hh, Ll, Cc, "Matrix Candles", color = vcolor, wickcolor = vcolor, bordercolor = vcolor)
+plotshape(show_sell_signal and sell_matrix, "Sell", shape.triangledown, location.top, coral)
+bgcolor(show_sell_signal and sell_matrix ? color.new(coral, 70) : na, title="Sell")
+plotshape(show_buy_signal and buy_matrix, "Buy", shape.triangleup, location.bottom, lavender)
+bgcolor(show_buy_signal and buy_matrix ? color.new(lavender, 70) : na, title="Buy")
+
+//-------S/R Zones------
+Lookback = SupResPeriod
+PerCent  = SupResPercentage
+
+Value1 = ta.cci(close, PricePeriod)
+Value2 = ta.highest(Value1, Lookback)
+Value3 = ta.lowest(Value1, Lookback)
+Value4 = Value2 - Value3
+Value5 = Value4 * (PerCent / 100)
+ResistanceLine = Value3 + Value5
+SupportLine    = Value2 - Value5
+plot(dynamic ? ResistanceLine : na, "Resistance Line", color.new(coral, 5))
+plot(dynamic ? ResistanceLine : na, "Resistance Line", color.new(coral, 90), 7)
+plot(dynamic ? SupportLine    : na, "Support Line",    color.new(lavender, 5))
+plot(dynamic ? SupportLine    : na, "Support Line",    color.new(lavender, 90), 7)
+
+//--Overbought/Oversold/Warning Detail
+h01 = ta.highest(up, 1)   + 20
+h02 = ta.highest(down, 1) + 20
+l01 = ta.lowest(down, 1)  - 20
+l02 = ta.lowest(up, 1)    - 20
+UPshape   = up   > ob and up > down ? h01 : up   > ob and up < down ? h02 : na
+DOWNshape = down < os and up > down ? l01 : down < os and up < down ? l02 : na
+
+plot(show_dot ? UPshape   : na, "UP Shape",   amber, 4, plot.style_circles)
+plot(show_dot ? DOWNshape : na, "DOWN Shape", amber, 4, plot.style_circles)
+hline(OBOS ? ob : na, "OverBought")
+hline(OBOS ? os : na, "OverSold")
+
+AccumulationColor = color.new(#FFA07A, 60)     //"Accumulation Zone"
+WarningColor      = color.new(color.white, 60) //"Warning/Watch Signal"
+DistributionColor = color.new(#3CB371, 60)     //"Distribution Zone"
+
+rk5_210  = ( ys1 - rk3 ) * 210 / rk4
+rk6_210  = ta.ema(rk5_210, Smoother)
+UP_210   = ta.ema(rk6_210, Smoother)
+DOWN_210 = ta.ema(UP_210, Smoother)
+UPColor  = (UP_210 >= 210 ? DistributionColor : (UP_210 <= -210 ? AccumulationColor : WarningColor))
+plot(show_hist ? UP_210   : na, "UP",         UPColor, 1, plot.style_columns)
+plot(show_hist ? DOWN_210 : na, "Signal(UP)", color.aqua)
+
+if alert_Buy_Matrix and buy_matrix
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Buy [Matrix Series].-', alert.freq_once_per_bar_close)
+
+if alert_Sell_Matrix and sell_matrix
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Sell [Matrix Series].-', alert.freq_once_per_bar_close)
+
+//_____________________________________________________________________________________________
+// https://www.tradingview.com/script/pJpXG5JH
+//_____________________________________________________________________________________________
+shows_Vix_Fix = input(false, 'Show Vix Fix Histogram ᚛ᚔ᚜', inline="histVF", group='Williams Vix Fix')
+swvfm    = input.float(1.0, "Multiplier (Values 0.5 to 2)", minval = 0.5, maxval = 2, inline="histVF", group='Williams Vix Fix')
+sbcFilt  = input.bool(true, 'Show Signal For Filtered Entry [▲ FE ]', group='Williams Vix Fix') // Use FILTERED Criteria
+sbcAggr  = input.bool(true, 'Show Signal For AGGRESSIVE Filtered Entry [▲ AE ]', group='Williams Vix Fix') // Use FILTERED Criteria
+alert_AE = input.bool(false, '◁ Alert: [AGGRESSIVE Entry]', inline='AlertVF', group='Williams Vix Fix')
+alert_FE = input.bool(false, '◁ Alert: [Filtered Entry]', inline='AlertVF', group='Williams Vix Fix')
+pd       = input.int(22, 'LookBack Period Standard Deviation High', 1, group='Williams Vix Fix')
+bbl      = input.int(20, 'Bolinger Band Length', 1, group='Williams Vix Fix')
+mult     = input.float(2.0, 'Bollinger Band Standard Devaition Up', minval=1, maxval=5, group='Williams Vix Fix')
+lb       = input.int(50, 'Look Back Period Percentile High', 1, group='Williams Vix Fix')
+ph       = input.float(.85, 'Highest Percentile - 0.90=90%, 0.95=95%, 0.99=99%', minval=.05, maxval=1, group='Williams Vix Fix')
+ltLB     = input.int(40, minval=25, maxval=99, title='Long-Term Look Back Current Bar Has To Close Below This Value OR Medium Term--Default=40', group='Williams Vix Fix')
+mtLB     = input.int(14, minval=10, maxval=20, title='Medium-Term Look Back Current Bar Has To Close Below This Value OR Long Term--Default=14', group='Williams Vix Fix')
+str      = input.int(3,  minval=1,  maxval=9,  title='Entry Price Action Strength--Close > X Bars Back---Default=3', group='Williams Vix Fix')
+
+// Williams Vix Fix Formula
+wvf       = (ta.highest(close, pd) - low) / ta.highest(close, pd) * 100
+sDev      = mult * ta.stdev(wvf, bbl)
+midLine   = ta.sma(wvf, bbl)
+lowerBand = midLine - sDev
+upperBand = midLine + sDev
+rangeHigh = ta.highest(wvf, lb) * ph
+
+// Filtered Criteria
+upRange      = low > low[1] and close > high[1]
+upRange_Aggr = close > close[1] and close > open[1]
+// Filtered Criteria
+filtered      = (wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and wvf < upperBand and wvf < rangeHigh
+filtered_Aggr = (wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and not(wvf < upperBand and wvf < rangeHigh)
+
+// Alerts Criteria
+alert1  = wvf >= upperBand or wvf >= rangeHigh ? 1 : 0
+alert2  = (wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and wvf < upperBand and wvf < rangeHigh ? 1 : 0
+cond_FE = upRange and close > close[str] and (close < close[ltLB] or close < close[mtLB]) and filtered 
+alert3  = cond_FE ? 1 : 0
+cond_AE = upRange_Aggr and close > close[str] and (close < close[ltLB] or close < close[mtLB]) and filtered_Aggr
+alert4  = cond_AE ? 1 : 0
+
+color_VF = alert1 ? color.new(color.lime, 60) : alert2 ? color.new(color.teal, 60) : color.new(color.silver, 80)
+swvfm_precent = swvfm * (ResistanceLine - SupportLine) / (2.2 * rangeHigh)
+
+plot(shows_Vix_Fix ? wvf * -1 * swvfm_precent : na, 'Williams Vix Fix', color_VF, 4, plot.style_columns)
+
+plotshape(sbcAggr and alert4 ? alert4 : na, 'Aggressive Entry', shape.triangleup, location.bottom, color.new(#80FF00, 0), text='AE', textcolor=color.new(#80FF00, 0))
+bgcolor(sbcAggr and alert4 ? color.new(#80FF00, 80) : na, title='Aggressive Entry')
+plotshape(sbcFilt and alert3 ? alert3 : na, 'Filtered Entry', shape.triangleup, location.bottom, color.new(#15FF00, 0), text='FE', textcolor=color.new(#15FF00, 0))
+bgcolor(sbcFilt and alert3 ? color.new(#15FF00, 80) : na, title='Filtered Entry')
+
+if alert_AE and cond_AE
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Aggressive Entry [VixFix].-', alert.freq_once_per_bar_close)
+
+if alert_FE and cond_FE
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Filtered Entry [VixFix].-', alert.freq_once_per_bar_close)
+
+//_____________________________________________________________
+// https://www.tradingview.com/script/7R6ZxyZu-QQE-signals/
+//_____________________________________________________________
+shows_QQE       = input.bool(false, "═════════ Show QQE Signals ═════════")
+alert_Long_QQE  = input.bool(false, "◁ Alert: [Long - QQE]",  inline="alertQQE")
+alert_Short_QQE = input.bool(false, "◁ Alert: [Short - QQE]", inline="alertQQE")
+RSI_Period = input.int(14,      "RSI Length", 1)
+SF         = input.int(5,       "RSI Smoothing", 2)
+QQE        = input.float(4.238, "Fast QQE Factor", 1)
+
+Wilders_Period = RSI_Period * 2 - 1
+longband = 0.0
+shortband = 0.0
+trend = 0
+
+Rsi      = ta.rsi(close, RSI_Period)
+RSIndex  = ta.ema(Rsi, SF)
+AtrRsi   = math.abs(RSIndex[1] - RSIndex)
+MaAtrRsi = ta.ema(AtrRsi, Wilders_Period)
+
+DeltaFastAtrRsi = ta.ema(MaAtrRsi, Wilders_Period) * QQE
+newshortband = RSIndex + DeltaFastAtrRsi
+newlongband = RSIndex - DeltaFastAtrRsi
+longband := RSIndex[1] > longband[1] and RSIndex > longband[1] ? math.max(longband[1], newlongband) : newlongband
+shortband := RSIndex[1] < shortband[1] and RSIndex < shortband[1] ? math.min(shortband[1], newshortband) : newshortband
+cross_1 = ta.cross(longband[1], RSIndex)
+trend := ta.cross(RSIndex, shortband[1]) ? 1 : cross_1 ? -1 : nz(trend[1], 1)
+FastAtrRsiTL = trend == 1 ? longband : shortband
+
+// Find all the QQE Crosses
+QQExlong = 0
+QQExlong := nz(QQExlong[1])
+QQExshort = 0
+QQExshort := nz(QQExshort[1])
+QQExlong := FastAtrRsiTL < RSIndex ? QQExlong + 1 : 0
+QQExshort := FastAtrRsiTL > RSIndex ? QQExshort + 1 : 0
+
+// Conditions
+qqeLong = QQExlong == 1 ? FastAtrRsiTL[1] - 50 : na
+qqeShort = QQExshort == 1 ? FastAtrRsiTL[1] - 50 : na
+
+// Plotting
+redorange  = color.new(#FF4000, 0)
+chartreuse = color.new(#80FF00, 0)
+plotshape(shows_QQE and qqeLong,  "QQE Long",  shape.labelup,   location.bottom, color.new(chartreuse, 25), text="QQE", size=size.tiny, textcolor=color.new(#000000, 5))
+plotshape(shows_QQE and qqeShort, "QQE Short", shape.labeldown, location.top,    color.new(redorange, 25),  text="QQE", size=size.tiny, textcolor=color.new(color.white, 5))
+
+if alert_Long_QQE  and qqeLong
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Long [Quantitative Qualitative Estimation (QQE)].-', alert.freq_once_per_bar_close)
+
+if alert_Short_QQE and qqeShort
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Short [Quantitative Qualitative Estimation (QQE)].-', alert.freq_once_per_bar_close)
+
+//___________________________________________________________________________
+// VWAP CCI Signals
+//___________________________________________________________________________
+shows_VCCI = input.bool(false, "═════════ Show VWAP CCI Signals ═════════")
+len_cci    = input.int(21, "Length", 1, inline="cci")
+Type_cci   = input.string("vwap(Close)", "Source", inline="cci", options=["vwap(Close)", "vwap(Open)", "vwap(High)", "vwap(Low)", "AVG(vwap(H,L))", "AVG(vwap(O,C))", "VWAP", "Close", "Open", "HL2", "HLC3", "OHLC4", "HLCC4", "High", "Low", "TR"])
+alert_Long_cci  = input.bool(false, "◁ Alert: [Long - CCI]",  inline="alertCCI")
+alert_Short_cci = input.bool(false, "◁ Alert: [Short - CCI]", inline="alertCCI")
+
+// ALMA - Arnaud Legoux Moving Average of @kurtsmock
+enhanced_alma(_series, _length, _offset, _sigma) =>
+    length      = int(_length) // Floating point protection
+    numerator   = 0.0
+    denominator = 0.0 
+    m = _offset * (length - 1)
+    s = length / _sigma
+    for i=0 to length-1
+        weight       = math.exp(-((i-m)*(i-m)) / (2 * s * s))
+        numerator   := numerator   + weight * _series[length - 1 - i]
+        denominator := denominator + weight
+    numerator / denominator
+
+// Calculate vwap cci
+src_cci = get_src(Type_cci)
+cci = (src_cci - enhanced_alma(src_cci, len_cci, 0.85, 6.0)) / (0.015 * ta.dev(src_cci, len_cci))
+
+// Define long and short entry signal
+long_cci  = ta.crossover(cci, -200)
+short_cci = ta.crossunder(cci, 200)
+
+plotshape(shows_VCCI and long_cci,  "VWAP CCI Long",  shape.labelup,   location.bottom, color.new(chartreuse, 25), text="CCI", size=size.tiny, textcolor=color.new(#000000, 5))
+plotshape(shows_VCCI and short_cci, "VWAP CCI Short", shape.labeldown, location.top,    color.new(redorange, 25),  text="CCI", size=size.tiny, textcolor=color.new(color.white, 5))
+
+if alert_Long_cci and long_cci
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Long [Commodity Channel Index (CCI)].-', alert.freq_once_per_bar_close)
+
+if alert_Short_cci and short_cci
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Short [Commodity Channel Index (CCI)].-', alert.freq_once_per_bar_close)
+
+//___________________________________________________________________________________________
+// https://www.tradingview.com/script/NVzKGYFJ/
+// https://www.tradingview.com/script/Ejx2tEHY
+//___________________________________________________________________________________________
+show_SMI   = input.bool(false,     "Show Squeeze Momentum Indicator", group = "Squeeze Momentum Indicator")
+alert_Buy  = input.bool(false,     "◁ Alert: [Buy - Mom]",  inline = "alertMom", group = "Squeeze Momentum Indicator")
+alert_Sell = input.bool(false,     "◁ Alert: [Sell - Mom]", inline = "alertMom", group = "Squeeze Momentum Indicator")
+Type_src   = input.string("Close", "Source", inline = "s1", group = "Squeeze Momentum Indicator", options = ["VWAP", "Close", "Open", "HL2", "HLC3", "OHLC4", "HLCC4", "High", "Low", "vwap(Close)", "vwap(Open)", "vwap(High)", "vwap(Low)", "AVG(vwap(H,L))", "AVG(vwap(O,C))", "TR"])
+src0       = get_src(Type_src)
+show_sb    = input.bool(false, "Show buy/sell signal", inline = "s1", group = "Squeeze Momentum Indicator")
+lengthMom  = input.int(20,     "Momentum Length", 1, inline = "mom", group = "Squeeze Momentum Indicator")
+siglen     = input.int(5,      "Signal", 2, inline = "mom", group = "Squeeze Momentum Indicator")
+lengthSQZ  = input.int(20,     "KC/BB Length", 1, inline = "sqz", group = "Squeeze Momentum Indicator")
+multBB     = input.float(2.0,  "BB MultFactor", 0.5, step=0.05, inline = "sqz", group = "Squeeze Momentum Indicator")
+multKC     = input.float(1.3,  "KC MultFactor", 0.5, step=0.05, inline = "kc", group = "Squeeze Momentum Indicator")
+use_tr     = input.bool(true,  "Use TrueRange (KC)", inline = "kc", group = "Squeeze Momentum Indicator")
+
+// Calculate BB
+basis   = ta.sma(src0, lengthSQZ)
+dev     = ta.stdev(src0, lengthSQZ)  
+upperBB = basis + multBB * dev 
+lowerBB = basis - multBB * dev  
+
+// Calculate KC
+maKC    = ta.sma(src0, lengthSQZ)
+range_1 = use_tr ? ta.tr : high - low
+rangema = ta.sma(range_1, lengthSQZ)
+upperKC = maKC + rangema * multKC
+lowerKC = maKC - rangema * multKC
+
+// When both the upper and lower Bollinger Bands go inside the Keltner Channel, the squeeze is on.
+// When the Bollinger Bands (BOTH lines) start to come out of the Keltner Channel, the squeeze has been released (off). 
+// When one of the Bollinger Bands is out of Keltner Channel, no highlighting is done.
+sqzOn  = lowerBB > lowerKC  and upperBB < upperKC
+sqzOff = lowerBB <= lowerKC and upperBB >= upperKC
+noSqz  = sqzOn == false and sqzOff == false
+
+mom = ta.linreg(src0 - math.avg(math.avg(ta.highest(high, lengthMom), ta.lowest(low, lengthMom)), ta.sma(close, lengthMom)), lengthMom, 0)
+sig = ta.sma(mom, siglen)
+
+longSM  = ta.crossover(mom, sig)
+shortSM = ta.crossunder(mom, sig)
+sqz_pos = (sqzOff and mom >= sig)
+sqz_neg = (sqzOff and mom <  sig)
+
+plotshape(show_sb and longSM,  "Long Momentum",  shape.triangleup,   location.bottom, #05FFA6, text='M', textcolor=#05FFA6)
+plotshape(show_sb and shortSM, "Short Momentum", shape.triangledown, location.top,    #FF0AE2, text='M', textcolor=#FF0AE2)
+plotshape(show_SMI and (sqzOn  or  noSqz) ? true : na, "In Squeeze", shape.circle, location.top, color.silver)
+plotshape(show_SMI and sqz_pos ? true : na, "Squeeze Release", shape.triangleup,   location.top, #05FFA6)
+plotshape(show_SMI and sqz_neg ? true : na, "Squeeze Release", shape.triangledown, location.top, #FF0AE2)
+
+if alert_Buy and longSM
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Buy [Momentum].-', alert.freq_once_per_bar_close)
+
+if alert_Sell and shortSM
+    alert('Symbol = (' + syminfo.tickerid + ') \n TimeFrame = (' + timeframe.period + ') \n Current Price (' + str.tostring(close) + ') \n Sell [Momentum].-', alert.freq_once_per_bar_close)
+
+squeeze_ON = '{"content": "@everyone" ,"embeds": [{"title": "{{ticker}} ","description": "In Squeeze | Price ${{close}}", "color": "2092045","author": {"name":null},"timestamp": "{{timenow}}"}],"username": "Alertbot"}'
+squeeze_Long = '{"content": "@everyone" ,"embeds": [{"title": "{{ticker}} ","description": "Squeeze Release Long | Price ${{close}}", "color": "2092045","author": {"name":null},"timestamp": "{{timenow}}"}],"username": "Alertbot"}'
+squeeze_Short = '{"content": "@everyone" ,"embeds": [{"title": "{{ticker}} ","description": "Squeeze Release Short | Price ${{close}}", "color": "2092045","author": {"name":null},"timestamp": "{{timenow}}"}],"username": "Alertbot"}'
+
+alertcondition(sqzOn or noSqz, title="In Squeeze", message=squeeze_ON)
+alertcondition(sqz_pos, title="Squeeze Release | Long",  message=squeeze_Long)
+alertcondition(sqz_neg, title="Squeeze Release | Short", message=squeeze_Short)
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

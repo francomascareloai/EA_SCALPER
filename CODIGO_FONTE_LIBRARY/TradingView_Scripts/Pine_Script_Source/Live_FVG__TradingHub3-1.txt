@@ -1,0 +1,936 @@
+//@version=5
+indicator("Live FVG + TradingHub3", "Live FVG + TradingHub3", true, max_bars_back = 5000, max_labels_count = 500, max_lines_count = 500)
+
+
+//Fair Value Gaps
+
+//Settings
+//-----------------------------------------------------------------------------{
+thresholdPer = input.float(0, "Threshold %", minval = 0, maxval = 100, step = .1, inline = 'threshold')
+auto = input(false, "Auto", inline = 'threshold')
+
+showLast = input.int(0, 'Unmitigated Levels', minval = 0)
+mitigationLevels = input.bool(false, 'Mitigation Levels')
+
+tf = input.timeframe('', "Timeframe")
+
+//Style
+extend = input.int(20, 'Extend', minval = 0, inline = 'extend', group = 'Style')
+dynamic = input(false, 'Dynamic', inline = 'extend', group = 'Style')
+
+bullCss = input.color(color.new(#089981, 70), "Bullish FVG", group = 'Style')
+bearCss = input.color(color.new(#f23645, 70), "Bearish FVG", group = 'Style')
+
+//Dashboard
+showDash  = input(false, 'Show Dashboard', group = 'Dashboard')
+dashLoc  = input.string('Top Right', 'Location', options = ['Top Right', 'Bottom Right', 'Bottom Left'], group = 'Dashboard')
+textSize = input.string('Small', 'Size'        , options = ['Tiny', 'Small', 'Normal']                 , group = 'Dashboard')
+
+//-----------------------------------------------------------------------------}
+//UDT's
+//-----------------------------------------------------------------------------{
+type fvg
+    float max
+    float min
+    bool  isbull
+    int   t = time
+
+//-----------------------------------------------------------------------------}
+//Methods/Functions
+//-----------------------------------------------------------------------------{
+n = bar_index
+
+method tosolid(color id)=> color.rgb(color.r(id),color.g(id),color.b(id))
+
+detect()=>
+    var new_fvg = fvg.new(na, na, na, na)
+    threshold = auto ? ta.cum((high - low) / low) / bar_index : thresholdPer / 100
+
+    bull_fvg = low > high[2] and close[1] > high[2] and (low - high[2]) / high[2] > threshold
+    bear_fvg = high < low[2] and close[1] < low[2] and (low[2] - high) / high > threshold
+    
+    if bull_fvg
+        new_fvg := fvg.new(low, high[2], true)
+    else if bear_fvg
+        new_fvg := fvg.new(low[2], high, false)
+
+    [bull_fvg, bear_fvg, new_fvg]
+
+//-----------------------------------------------------------------------------}
+//FVG's detection/display
+//-----------------------------------------------------------------------------{
+var float max_bull_fvg = na, var float min_bull_fvg = na, var bull_count = 0, var bull_mitigated = 0
+var float max_bear_fvg = na, var float min_bear_fvg = na, var bear_count = 0, var bear_mitigated = 0
+var t = 0
+
+var fvg_records = array.new<fvg>(0)
+var fvg_areas = array.new<box>(0)
+
+[bull_fvg, bear_fvg, new_fvg] = request.security(syminfo.tickerid, tf, detect())
+
+//Bull FVG's
+if bull_fvg and new_fvg.t != t
+    if dynamic
+        max_bull_fvg := new_fvg.max
+        min_bull_fvg := new_fvg.min
+    
+    //Populate FVG array
+    if not dynamic
+        fvg_areas.unshift(box.new(n-2, new_fvg.max, n+extend, new_fvg.min, na, bgcolor = bullCss))
+    fvg_records.unshift(new_fvg)
+
+    bull_count += 1
+    t := new_fvg.t
+else if dynamic
+    max_bull_fvg := math.max(math.min(close, max_bull_fvg), min_bull_fvg)
+
+//Bear FVG's
+if bear_fvg and new_fvg.t != t
+    if dynamic
+        max_bear_fvg := new_fvg.max
+        min_bear_fvg := new_fvg.min
+    
+    //Populate FVG array
+    if not dynamic
+        fvg_areas.unshift(box.new(n-2, new_fvg.max, n+extend, new_fvg.min, na, bgcolor = bearCss))
+    fvg_records.unshift(new_fvg)
+
+    bear_count += 1
+    t := new_fvg.t
+else if dynamic
+    min_bear_fvg := math.min(math.max(close, min_bear_fvg), max_bear_fvg) 
+
+//-----------------------------------------------------------------------------}
+//Unmitigated/Mitigated lines
+//-----------------------------------------------------------------------------{
+//Test for mitigation
+if fvg_records.size() > 0
+    for i = fvg_records.size()-1 to 0
+        get = fvg_records.get(i)
+
+        if get.isbull
+            if close < get.min
+                //Display line if mitigated
+                if mitigationLevels
+                    line.new(get.t
+                      , get.min
+                      , time
+                      , get.min
+                      , xloc.bar_time
+                      , color = bullCss
+                      , style = line.style_dashed)
+
+                //Delete box
+                if not dynamic
+                    area = fvg_areas.remove(i)
+                    area.delete()
+
+                fvg_records.remove(i)
+                bull_mitigated += 1
+        else if close > get.max
+            //Display line if mitigated
+            if mitigationLevels
+                line.new(get.t
+                  , get.max
+                  , time
+                  , get.max
+                  , xloc.bar_time
+                  , color = bearCss
+                  , style = line.style_dashed)
+
+            //Delete box
+            if not dynamic
+                area = fvg_areas.remove(i)
+                area.delete()
+            
+            fvg_records.remove(i)
+            bear_mitigated += 1
+
+//Unmitigated lines
+var unmitigated = array.new<line>(0)
+
+//Remove umitigated lines 
+if barstate.islast and showLast > 0 and fvg_records.size() > 0
+    if unmitigated.size() > 0 
+        for element in unmitigated
+            element.delete()
+        unmitigated.clear()
+
+    for i = 0 to math.min(showLast-1, fvg_records.size()-1)
+        get = fvg_records.get(i)
+
+        unmitigated.push(line.new(get.t
+          , get.isbull ? get.min : get.max 
+          , time
+          , get.isbull ? get.min : get.max
+          , xloc.bar_time
+          , color = get.isbull ? bullCss : bearCss))
+
+//-----------------------------------------------------------------------------}
+//Dashboard
+//-----------------------------------------------------------------------------{
+var table_position = dashLoc == 'Bottom Left' ? position.bottom_left 
+  : dashLoc == 'Top Right' ? position.top_right 
+  : position.bottom_right
+
+var table_size = textSize == 'Tiny' ? size.tiny 
+  : textSize == 'Small' ? size.small 
+  : size.normal
+
+var tb = table.new(table_position, 3, 3
+  , bgcolor = #1e222d
+  , border_color = #373a46
+  , border_width = 1
+  , frame_color = #373a46
+  , frame_width = 1)
+
+if showDash
+    if barstate.isfirst
+        tb.cell(1, 0, 'Bullish', text_color = bullCss.tosolid(), text_size = table_size)
+        tb.cell(2, 0, 'Bearish', text_color = bearCss.tosolid(), text_size = table_size)
+    
+        tb.cell(0, 1, 'Count', text_size = table_size, text_color = color.white)
+        tb.cell(0, 2, 'Mitigated', text_size = table_size, text_color = color.white)
+    
+    if barstate.islast
+        tb.cell(1, 1, str.tostring(bull_count), text_color = bullCss.tosolid(), text_size = table_size)
+        tb.cell(2, 1, str.tostring(bear_count), text_color = bearCss.tosolid(), text_size = table_size)
+        
+        tb.cell(1, 2, str.tostring(bull_mitigated / bull_count * 100, format.percent), text_color = bullCss.tosolid(), text_size = table_size)
+        tb.cell(2, 2, str.tostring(bear_mitigated / bear_count * 100, format.percent), text_color = bearCss.tosolid(), text_size = table_size)
+
+//-----------------------------------------------------------------------------}
+//Plots
+//-----------------------------------------------------------------------------{
+//Dynamic Bull FVG
+max_bull_plot = plot(max_bull_fvg, color = na)
+min_bull_plot = plot(min_bull_fvg, color = na)
+fill(max_bull_plot, min_bull_plot, color = bullCss)
+
+//Dynamic Bear FVG
+max_bear_plot = plot(max_bear_fvg, color = na)
+min_bear_plot = plot(min_bear_fvg, color = na)
+fill(max_bear_plot, min_bear_plot, color = bearCss)
+
+//-----------------------------------------------------------------------------}
+//Alerts
+//-----------------------------------------------------------------------------{
+alertcondition(bull_count > bull_count[1], 'Bullish FVG', 'Bullish FVG detected')
+alertcondition(bear_count > bear_count[1], 'Bearish FVG', 'Bearish FVG detected')
+
+alertcondition(bull_mitigated > bull_mitigated[1], 'Bullish FVG Mitigation', 'Bullish FVG mitigated')
+alertcondition(bear_mitigated > bear_mitigated[1], 'Bearish FVG Mitigation', 'Bearish FVG mitigated')
+
+//-----------------------------------------------------------------------------}
+
+
+
+
+
+
+
+
+
+
+
+//TradingHub
+//drawing options
+showPOI = input.bool(true, "Show POI", group="POI settings")
+poi_type = input.string ("---",title='POI type', group="POI settings", options=["---", "Mother Bar"])
+mergeRatio = input.float(defval=0, minval=0, maxval=0.5, step=0.02, title="Merge Ratio", group="POI settings" )
+maxBarHistory = input.int(2000, title="Max IPA age", group="POI settings")
+
+structure_type = input.string ("Choch without IDM",title='Structure type', group="Structure", options=["Choch without IDM", "Choch with IDM"])
+showHL = input.bool(true, "Mark H/L", inline = "HL", group = "Structure")
+showCircleHL = input.bool(false, "Mark Circle", inline = "HL", group = "Structure")
+showMn = input.bool(false, "Show internal structure", group = "Structure")
+showBOS = input.bool(true, "Show B O S", group = "Structure")
+showChoCh = input.bool(true, "Show CHoCH", group = "Structure")
+showIDM = input.bool(true,"Show IDM", group = "Structure")
+showPdh = input.bool(false,"Show PDH", inline = "PDH", group = "Structure")
+lengPdh = input.int(40, title="", inline = "PDH", group="Structure")
+showPdl = input.bool(false,"Show PDL", inline = "PDL", group = "Structure")
+lengPdl = input.int(40, title="", inline = "PDL", group="Structure")
+showMid = input.bool(true, "Show Equilibrium", inline = "mid", group = "Structure")
+lengMid = input.int(40, title="", inline = "mid", group="Structure")
+showSw = input.bool(true, "Show H/L sweeping lines", inline = "sweep", group = "Structure")
+markX = input.bool(false, 'Mark "X"', inline = "sweep", group = "Structure")
+showTP = input.bool(false, 'Show Target profit',group = 'Structure')
+showliveBOS = input.bool(true,"Show live BOS", inline = "liveB", group = "Structure")
+lengBos = input.int(40, title="", inline = "liveB", group="Structure")
+showliveChoch = input.bool(true,"Show live ChoCh", inline = "liveCho", group = "Structure")
+lengChoch = input.int(40, title="", inline = "liveCho", group="Structure")
+showliveIDM = input.bool(true,"Show live IDM", inline = "liveI", group = "Structure")
+lengIDM = input.int(15, title="", inline = "liveI", group="Structure")
+showSCOB = input.bool(true, "Show SCOB", inline = "Bar", group = "Structure")
+showISB = input.bool(false, 'Show ISB', inline = "Bar", group = "Structure")
+showOSB = input.bool(false, 'Show OSB', inline = "Bar", group = "Structure")
+
+colorHL = input.color(color.yellow, "High/Low", group = "Structure | Color")
+bull = input.color(color.green, "Bullish", group = "Structure | Color")
+bear = input.color(color.red  , "Bearish", group = "Structure | Color")
+scobUp = input.color(#0b3ff9   , "Bullish SCOB", group = "Structure | Color")
+scobDn = input.color(#da781d, "Bearish SCOB", group = "Structure | Color")
+colorISB = input.color(#bb06f7,'Inside Bar', group = "Structure | Color")
+colorOSB_up = input.color(#0b3ff9,'Bullish OSB', group = "Structure | Color")
+colorOSB_down = input.color(#da781d,'Bearish OSB', group = "Structure | Color")
+colorIDM = input.color(color.rgb(255, 255, 255, 20), "IDM", group = "Structure | Color")
+colorSweep  = input.color(color.gray, "Sweeping line", group = "Structure | Color")
+colorTP = input.color(color.purple, 'Target profit', group = 'Structure | Color')
+colorDemand = input.color(color.rgb(47, 130, 96, 80), 'Demand', group = "Structure | Color")
+colorSupply = input.color(color.rgb(205, 92, 72, 80), 'Supply', group = "Structure | Color")
+colorMitigated = input.color(color.rgb(192, 192, 192, 80), 'Mitigated', group = "Structure | Color")
+
+//#region variable declaration
+//Constant
+const string IDM_TEXT = "IDM"
+const string CHOCH_TEXT = "CHoCH" 
+const string BOS_TEXT = "BOS"
+const string PDH_TEXT = "PDH"
+const string PDL_TEXT = "PDL"
+const string MID_TEXT = "0.5"
+
+//line babel
+var label idm_label = na
+var line idm_line = na
+var label choch_label = na
+var line choch_line = na
+var label bos_label = na
+var line bos_line = na
+var line pdh_line = na
+var label pdh_label = na
+var line pdl_line = na
+var label pdl_label = na
+var line mid_line = na
+var label mid_label = na
+
+//high low
+var puHigh = high
+var puLow = low
+var L = low
+var H = high
+var idmLow = low
+var idmHigh = high
+var lastH = high
+var lastL = low
+var H_lastH = high
+var L_lastHH = low
+var H_lastLL = high
+var L_lastL = low
+var motherHigh = high[1]
+var motherLow = low[1]
+
+//bar indexes
+var int motherBar = time[1]
+var int puBar = na
+var int puHBar = na
+var int puLBar = na
+var int idmLBar = na
+var int idmHBar = na
+var int HBar = time
+var int LBar = time
+var int lastHBar = time
+var int lastLBar = time
+
+//structure confirm
+var bool mnStrc = na
+var bool prevMnStrc = na
+var bool isPrevBos = na
+var bool findIDM = false
+var bool isBosUp = false
+var bool isBosDn = false
+var bool isCocUp = true
+var bool isCocDn = true
+
+//poi
+var bool isSweepOBS = false
+var int current_OBS = na
+var float high_MOBS = na
+var float low_MOBS = na
+
+var bool isSweepOBD = false
+var int current_OBD = na
+var float low_MOBD = na
+var float high_MOBD = na
+
+//Array
+var arrTopBotBar = array.new_int(1, time)
+var arrTop = array.new_float(1, high)
+var arrBot = array.new_float(1, low)
+
+var arrPbHBar= array.new_int(0)
+var arrPbHigh = array.new_float(0)
+var arrPbLBar = array.new_int(0)
+var arrPbLow = array.new_float(0)
+
+var demandZone = array.new_box(0)
+var supplyZone = array.new_box(0)
+var arrIdmHigh = array.new_float(0) 
+var arrIdmLow = array.new_float(0) 
+var arrIdmHBar = array.new_int(0) 
+var arrIdmLBar = array.new_int(0) 
+var arrLastH = array.new_float(0) 
+var arrLastHBar = array.new_int(0) 
+var arrLastL = array.new_float(0) 
+var arrLastLBar = array.new_int(0) 
+var arrIdmLine = array.new_line(0)
+var arrIdmLabel = array.new_label(0)
+var arrBCLine = array.new_line(0)
+var arrBCLabel = array.new_label(0)
+var arrHLLabel = array.new_label(0)
+var arrHLCircle = array.new_label(0)
+
+//color
+color transp = color.new(color.gray,100)
+
+//Caculate
+curTf = timeframe.in_seconds(timeframe.period)
+dayTf = timeframe.in_seconds("1D")
+i_loop = 2*dayTf/curTf
+[pdh, pdl]  = request.security(syminfo.tickerid, 'D', [high[1], low[1]])
+len = curTf*1000
+
+//#endregion
+
+//#region Inside Bar
+isb = motherHigh > high and motherLow < low
+if isb
+    motherHigh := motherHigh
+    motherLow := motherLow
+    motherBar := motherBar
+else
+    motherHigh := high
+    motherLow := low
+    motherBar := time
+
+//#endregion
+
+//#region drawing function
+isGreenBar(int bar) => close[bar] > open[bar]
+
+textCenter(int left, int right) => int(math.avg(left,right))
+
+getStyleLabel(bool style) => style ? label.style_label_down : label.style_label_up
+
+getStyleArrow(bool style) => style ? label.style_arrowdown : label.style_arrowup
+
+getYloc(bool style) =>  style ? yloc.abovebar : yloc.belowbar
+
+getDirection(bool trend, int HBar, int LBar, float H, float L) =>
+    x = trend ? HBar : LBar
+    y = trend ? H : L
+    [x, y]
+
+getTextLabel(float current, float last, string same, string diff) => current > last ? same : diff
+
+getPdhlBar(float value) =>
+    int x = na
+    if value == pdh
+        for i = i_loop to 1 by 1
+            if (high[i] == pdh)
+                x := time[i]
+                break
+    else
+        for i = i_loop to 1 by 1
+            if (low[i] == pdl)
+                x := time[i]
+                break
+    x
+
+updateTopBotValue() =>
+    array.push(arrTop, high)
+    array.push(arrBot, low) 
+    array.push(arrTopBotBar, time) 
+
+updateLastHLValue() =>
+    array.push(arrLastH,lastH)
+    array.push(arrLastHBar,lastHBar)
+    array.push(arrLastL,lastL)
+    array.push(arrLastLBar,lastLBar)
+
+updateIdmHigh() =>
+    array.push(arrIdmHigh,puHigh)
+    array.push(arrIdmHBar,puHBar)
+
+updateIdmLow() =>
+    array.push(arrIdmLow,puLow)
+    array.push(arrIdmLBar,puLBar)  
+
+getNLastValue(arr, n) =>
+    if array.size(arr) > n - 1
+        array.get(arr, array.size(arr) - n) 
+
+removeNLastLabel(arr, n) =>
+    if array.size(arr) > n - 1
+        label.delete(array.get(arr, array.size(arr) - n))
+
+removeNLastLine(arr, n) =>
+    if array.size(arr) > n - 1
+        line.delete(array.get(arr, array.size(arr) - n))    
+
+removeLastLabel(arr, n) =>
+    if array.size(arr) > n - 1
+        for i = 1 to n
+            label.delete(array.get(arr, array.size(arr) - i))
+
+removeLastLine(arr, n) =>
+    if array.size(arr) > n - 1
+        for i = 1 to n
+            line.delete(array.get(arr, array.size(arr) - i))
+
+fixStrcAfterBos() =>
+    removeLastLabel(arrBCLabel, 1)
+    removeLastLine(arrBCLine, 1)
+    removeLastLabel(arrIdmLabel, 1)
+    removeLastLine(arrIdmLine, 1)
+    removeLastLabel(arrHLLabel, 2)
+    removeLastLabel(arrHLCircle, 2)
+
+fixStrcAfterChoch() =>
+    removeLastLabel(arrBCLabel, 2)
+    removeLastLine(arrBCLine, 2)
+    removeNLastLabel(arrHLLabel, 2)
+    removeNLastLabel(arrHLLabel, 3)
+    removeNLastLabel(arrHLCircle, 2)
+    removeNLastLabel(arrHLCircle, 3)
+    removeNLastLabel(arrIdmLabel, 2)
+    removeNLastLine(arrIdmLine, 2)
+
+drawIDM(bool trend) =>
+    [x, y] = getDirection(trend, idmLBar, idmHBar, idmLow, idmHigh)
+    colorText = trend and H_lastH > L_lastHH or not trend and H_lastLL > L_lastL ? color.red : colorIDM
+    if showIDM
+        ln = line.new(x, y, time, y, xloc.bar_time, color = colorIDM, style = line.style_dotted)
+        lbl = label.new(textCenter(time, x), y, IDM_TEXT, xloc.bar_time, color = transp, textcolor = colorText, style = getStyleLabel(not trend), size = size.small)
+        array.push(arrIdmLine,ln)
+        array.push(arrIdmLabel,lbl)
+    array.clear(trend ? arrIdmLow : arrIdmHigh)    
+    array.clear(trend ? arrIdmLBar : arrIdmHBar) 
+
+drawStructure(name, trend) =>
+    [x, y] = getDirection(trend, lastHBar, lastLBar, lastH, lastL)
+    color = trend ? bull : bear
+    if name == "BOS" and showBOS
+        ln = line.new(x, y, time, y, xloc.bar_time, color = color, style = line.style_dashed)
+        lbl = label.new(textCenter(time, x), y, BOS_TEXT, xloc.bar_time, color = transp, style = getStyleLabel(trend), textcolor = color, size = size.small)
+        array.push(arrBCLine,ln)
+        array.push(arrBCLabel,lbl)
+    if name == "ChoCh" and showChoCh
+        ln = line.new(x, y, time, y, xloc.bar_time, color = color, style = line.style_dashed)
+        lbl = label.new(textCenter(time, x), y, CHOCH_TEXT, xloc.bar_time, color = transp, style = getStyleLabel(trend), textcolor = color, size = size.small)
+        array.push(arrBCLine,ln)
+        array.push(arrBCLabel,lbl)
+
+drawLiveStrc(bool condition, bool direction, color color1, color color2, string txt, int length, label lbl, line ln) =>
+    var line _ln = ln
+    var label _lbl = lbl
+    if condition
+        colorText = direction ? color1 : color2
+        [x, y] = if txt == IDM_TEXT
+            getDirection(direction, idmHBar, idmLBar, idmHigh, idmLow)
+        else
+            getDirection(direction, lastHBar, lastLBar, lastH, lastL)
+        _txt = txt + " - " + str.tostring(y)
+        _ln := line.new(x, y, time + len*length, y, xloc.bar_time, color = colorIDM, style = line.style_dotted),
+        _lbl := label.new(time + len*length, y, _txt, xloc.bar_time, color = transp, textcolor = colorText, style = label.style_label_left, size = size.small)
+    line.delete(_ln[1])
+    label.delete(_lbl[1])
+
+drawPrevStrc(bool condition, string txt, label lbl, line ln) =>
+    var line _ln = ln
+    var label _lbl = lbl
+    [x, y, color, x2, style] = switch
+        txt == PDH_TEXT => [getPdhlBar(pdh), pdh, bull, time + len*lengPdh, line.style_solid]
+        txt == PDL_TEXT => [getPdhlBar(pdl), pdl, bear, time + len*lengPdl, line.style_solid]
+        txt == MID_TEXT => [math.min(lastLBar, lastHBar), math.avg(lastL, lastH), colorIDM, time + len*lengMid, line.style_dotted]
+    _txt = txt + " - " + str.tostring(y)
+    if condition
+        _ln := line.new(x, y, x2, y, xloc.bar_time, color = color, style = style)
+        _lbl := label.new(x2, y, _txt, xloc.bar_time, color = transp, textcolor = color, style = label.style_label_left, size = size.small)
+    line.delete(_ln[1])
+    label.delete(_lbl[1])
+
+labelMn(bool trend) =>
+    [x, y] = getDirection(trend, puHBar, puLBar, puHigh, puLow)
+    color = trend ? bear : bull
+    if showMn 
+        label.new(x, y, "", xloc.bar_time, getYloc(trend), color, getStyleArrow(trend), size = size.tiny )
+
+labelHL(bool trend) =>
+    [x, y] = getDirection(trend, HBar, LBar, H, L)
+    txt = trend ? getTextLabel(H, getNLastValue(arrLastH, 1), "HH", "LH") : getTextLabel(L, getNLastValue(arrLastL, 1), "HL", "LL")
+    if showHL
+        lbl = label.new(x, y, txt, xloc.bar_time, color = transp, textcolor = colorHL, style = getStyleLabel(trend))
+        array.push(arrHLLabel, lbl)
+    if showCircleHL
+        lbl2 = label.new(x, y, '', xloc.bar_time, getYloc(trend), color = trend ? bull : bear, style = label.style_circle, size = size.tiny)     
+        array.push(arrHLCircle, lbl2)
+
+sweepHL(bool trend) =>
+    [x, y] = getDirection(trend, lastHBar, lastLBar, lastH, lastL)
+    if showSw
+        line.new(x, y, time, y, xloc.bar_time, color = colorSweep, style = line.style_dotted)
+        if markX
+            label.new(textCenter(time, x), y, "X", xloc.bar_time, color = transp, textcolor = colorSweep, style = getStyleLabel(trend), size = size.small)
+
+TP(H, L) =>
+    target = isCocUp ? high + math.abs(H - L) : low - math.abs(H - L)
+    target := target < 0 ? 0 : target
+    if showTP
+        line.new(bar_index, isCocUp ? high : low, bar_index, target, color = colorTP, style = line.style_arrow_right)  
+
+createBox(left, right, top, bottom, color) => 
+    box.new(left=left, right=right, top=top, bottom=bottom, xloc = xloc.bar_time, bgcolor=color, border_color=color, extend = extend.right)
+
+removeZone(zoneArray, box zone) =>
+    index = array.indexof(zoneArray, zone)
+    box.delete(zone)
+    array.remove(zoneArray, index)
+
+marginZone(zone) => [box.get_top(zone), box.get_bottom(zone), box.get_left(zone)]
+
+handleZone(zoneArray, left, top, bot, color) =>
+    _top = top
+    _bot = bot
+    _left = left    
+
+    zone = getNLastValue(zoneArray, 1)
+
+    [topZone, botZone, leftZone] = marginZone(zone)
+    rangeTop = math.abs(_top-topZone)/(topZone-botZone) < mergeRatio
+    rangeBot = math.abs(_bot-botZone)/(topZone-botZone) < mergeRatio
+
+    //Merge zone
+    if _top >= topZone and _bot <= botZone or rangeTop or rangeBot
+        _top := math.max(_top,topZone)
+        _bot := math.min(_bot,botZone)
+        _left := leftZone 
+        removeZone(zoneArray, zone)     
+
+    if not (_top <= topZone and _bot >= botZone)
+        array.push(zoneArray, createBox(_left, time, _top, _bot, color))
+
+processZones(zones, isSupply) =>
+    if array.size(zones) > 0
+        for i = array.size(zones) - 1 to 0 by 1
+            zone = array.get(zones, i)
+            [topZone, botZone, leftZone] = marginZone(zone)
+            
+            //Breaker block zones
+            if isSupply and low < botZone and close > topZone
+                array.push(demandZone, createBox(leftZone, time, topZone, botZone, colorDemand))
+            else if not isSupply and high > topZone and close < botZone
+                array.push(supplyZone, createBox(leftZone, time, topZone, botZone, colorSupply))
+            //Mitigated zones
+            else if (isSupply and high >= botZone and high < topZone) or (not isSupply and low <= topZone and low > botZone)
+                box.set_right(zone, time)
+                box.set_extend(zone,extend.none) 
+                box.set_bgcolor(zone, colorMitigated)
+                box.set_border_color(zone, colorMitigated) 
+
+            //Delete sweep zones     
+            if (time - leftZone > len*maxBarHistory) or (isSupply and high >= topZone) or (not isSupply and low <= botZone)
+                removeZone(zones, zone)                
+
+scob(zones, isSupply) =>
+    [topZone, botZone, leftZone] = marginZone(getNLastValue(zones, 1))
+
+    if not isb[1]
+        if not isSupply and low[1] < low[2] and low[1] < low and close > high[1] and low[1] < topZone and low[1] > botZone
+            scobUp
+        else if isSupply and high[1] > high[2] and high[1] > high and close < low[1] and high[1] < topZone and high[1] > botZone
+            scobDn
+        else
+            na  
+//#endregion
+
+//#region get value from array
+top = getNLastValue(arrTop, 1)
+bot = getNLastValue(arrBot, 1)
+topBotBar = getNLastValue(arrTopBotBar, 1)
+
+top1 = getNLastValue(arrTop, 2)
+bot1 = getNLastValue(arrBot, 2)
+topBotBar1 = getNLastValue(arrTopBotBar, 2)
+//#endregion
+
+//#region Outside Bar
+osb = high > top and low < bot
+
+//#endregion
+
+//#region Minor Structure
+if high >= top and low <= bot //notrend
+    if not na(mnStrc)
+        prevMnStrc := mnStrc ? true : false
+    else
+        if prevMnStrc and isGreenBar(0) and not isGreenBar(1)
+            puHigh := top
+            puHBar := topBotBar
+            labelMn(true)
+            labelMn(false)
+            if high > H
+                updateIdmLow()   
+
+        if not prevMnStrc and not isGreenBar(0) and isGreenBar(1)
+            puLow := bot
+            puLBar := topBotBar
+            labelMn(true)
+            labelMn(false)
+            if low < L
+                updateIdmHigh() 
+
+    if low < L and isGreenBar(0)
+        updateIdmHigh() 
+
+    if high > H and not isGreenBar(0)
+        updateIdmLow()   
+
+    updateTopBotValue()   
+    puHigh := high
+    puLow := low
+    puHBar := time
+    puLBar := time
+    mnStrc := na
+
+if high >= top and low > bot //uptrend
+    if prevMnStrc and na(mnStrc)
+        puHigh := top1
+        puHBar := topBotBar1
+        labelMn(true)
+        labelMn(false)
+    else if (not prevMnStrc and na(mnStrc)) or not mnStrc
+        labelMn(false)   
+
+    if high > H
+        updateIdmLow()   
+
+    updateTopBotValue()  
+    puHigh := high
+    puHBar := time
+    prevMnStrc := na
+    mnStrc := true
+
+if high < top and low <= bot //downtrend
+    if not prevMnStrc and na(mnStrc)
+        puLow := bot1
+        puLBar := topBotBar1
+        labelMn(false)
+        labelMn(true)
+    else if (prevMnStrc and na(mnStrc)) or mnStrc
+        labelMn(true)  
+
+    if low < L
+        updateIdmHigh() 
+        
+    updateTopBotValue()   
+    puLow := low  
+    puLBar := time 
+    prevMnStrc := na
+    mnStrc := false
+//#endregion
+
+//#region update IDM
+if high >= H
+    H := high
+    HBar := time
+    L_lastHH := low  
+    idmLow := getNLastValue(arrIdmLow, 1)
+    idmLBar := getNLastValue(arrIdmLBar, 1)
+
+if low <= L
+    L := low
+    LBar := time
+    H_lastLL := high
+    idmHigh := getNLastValue(arrIdmHigh, 1)
+    idmHBar := getNLastValue(arrIdmHBar, 1)
+
+//#endregion
+
+// #region structure mapping
+// Check for IDM
+if findIDM and isCocUp and isCocUp
+    if low < idmLow
+        if structure_type == "Choch with IDM" and idmLow == lastL
+            if isPrevBos
+                fixStrcAfterBos() 
+                lastL := getNLastValue(arrLastL, 1)    
+                lastLBar := getNLastValue(arrLastLBar, 1)    
+            else
+                fixStrcAfterChoch()
+        findIDM := false
+        isBosUp := false
+        lastH := H
+        lastHBar := HBar
+        drawIDM(true)
+        labelHL(true) //Confirm HH
+        updateLastHLValue()
+        H_lastH := getNLastValue(arrLastH, 1)
+        L := low
+        LBar := time
+
+if findIDM and isCocDn and isBosDn
+    if high > idmHigh
+        if structure_type == "Choch with IDM" and idmHigh == lastH
+            if isPrevBos
+                fixStrcAfterBos()
+                lastH := getNLastValue(arrLastH, 1)    
+                lastHBar := getNLastValue(arrLastHBar, 1)   
+            else
+                fixStrcAfterChoch()    
+        findIDM := false
+        isBosDn := false
+        lastL := L
+        lastLBar := LBar
+        drawIDM(false) 
+        labelHL(false) //Confirm LL
+        updateLastHLValue()
+        L_lastL := getNLastValue(arrLastL, 1)
+        H := high
+        HBar := time
+
+//Check for ChoCh
+if isCocDn and high > lastH
+    if structure_type == "Choch without IDM" and idmHigh == lastH and close > idmHigh
+        removeLastLabel(arrIdmLabel, 1)
+        removeLastLine(arrIdmLine, 1)
+    if close > lastH 
+        drawStructure("ChoCh", true) //Confirm CocUp 
+        findIDM := true
+        isBosUp := true
+        isCocUp := true
+        isBosDn := false
+        isCocDn := false
+        isPrevBos := false
+        L_lastL := getNLastValue(arrLastL, 1) 
+        TP(lastH,lastL)
+    else
+        if idmHigh == lastH
+            removeLastLine(arrIdmLine, 1)
+        sweepHL(true)
+      
+if isCocUp and low < lastL
+    if structure_type == "Choch without IDM" and idmLow == lastL and close < idmLow
+        removeLastLabel(arrIdmLabel, 1)
+        removeLastLine(arrIdmLine, 1)
+    if close < lastL
+        drawStructure("ChoCh", false)  //Confirm CocDn
+        findIDM := true
+        isBosUp := false
+        isCocUp := false
+        isBosDn := true
+        isCocDn := true
+        isPrevBos := false
+        H_lastH := getNLastValue(arrLastH, 1)
+        TP(lastH,lastL)
+    else
+        if idmLow == lastL
+            removeLastLine(arrIdmLine, 1)
+        sweepHL(false)
+
+//Check for BoS
+if not findIDM and not isBosUp and isCocUp
+    if high > lastH
+        if close > lastH
+            drawStructure("BOS", true)  //Confirm BosUp
+            findIDM := true
+            isBosUp := true
+            isCocUp := true
+            isBosDn := false
+            isCocDn := false
+            isPrevBos := true
+            labelHL(false) //Confirm HL
+            lastL := L
+            lastLBar := LBar
+            L_lastL := L
+            TP(lastH,lastL)
+        else
+            sweepHL(true)
+
+if not findIDM and not isBosDn and isCocDn 
+    if low < lastL
+        if close < lastL
+            drawStructure("BOS", false)  //Confirm BosDn
+            findIDM := true
+            isBosUp := false
+            isCocUp := false
+            isBosDn := true
+            isCocDn := true
+            isPrevBos := true
+            labelHL(true) //Confirm LH
+            lastH := H
+            lastHBar := HBar
+            H_lastH := H
+            TP(lastH,lastL)
+        else
+            sweepHL(false)
+//#endregion
+
+//#trigger update High and Low 
+if high > lastH
+    lastH := high
+    lastHBar := time
+
+if low < lastL
+    lastL := low
+    lastLBar := time
+
+//#endregion
+if showPOI
+    if not isSweepOBS
+        high_MOBS := high[3]
+        low_MOBS := low[3]
+        current_OBS := time[3]
+        if high_MOBS > high[4] and high_MOBS > high[2]
+            isSweepOBS := true
+    else
+        if low_MOBS > high[1]
+            handleZone(supplyZone, current_OBS, high_MOBS, low_MOBS, colorSupply)
+            isSweepOBS := false
+        else 
+            if poi_type == "Mother Bar" and isb[2]
+                high_MOBS := math.max(high_MOBS,motherHigh[2])
+                low_MOBS := math.min(low_MOBS,motherLow[2])
+                current_OBS := math.min(current_OBS,motherBar)    
+            else
+                high_MOBS := high[2]
+                low_MOBS := low[2]
+                current_OBS := time[2]        
+            
+    if not isSweepOBD
+        low_MOBD := low[3]
+        high_MOBD := high[3]
+        current_OBD := time[3]
+        if low_MOBD < low[4] and low_MOBD < low[2]
+            isSweepOBD := true
+    else
+        if high_MOBD < low[1]
+            handleZone(demandZone, current_OBD, high_MOBD, low_MOBD, colorDemand)
+            isSweepOBD := false
+        else 
+            if poi_type == "Mother Bar" and isb[2]
+                high_MOBD := math.max(high_MOBD,motherHigh[2])
+                low_MOBD := math.min(low_MOBD,motherLow[2])
+                current_OBD := math.min(current_OBD,motherBar)        
+            else
+                high_MOBD := high[2]
+                low_MOBD := low[2]
+                current_OBD := time[2]    
+//#endregion
+
+//#region run function
+barcolor(showSCOB ? scob(supplyZone, true) : na, -1)
+barcolor(showSCOB ? scob(demandZone, false) : na, -1)
+barcolor(showISB and isb ? colorISB : na, 0,title="InSide Bar")
+barcolor(osb and isGreenBar(0) and showOSB ? colorOSB_up : na)
+barcolor(osb and not isGreenBar(0) and showOSB ? colorOSB_down : na) 
+processZones(supplyZone, true)
+processZones(demandZone, false)
+drawLiveStrc(showliveIDM and findIDM, not isCocUp, colorIDM, colorIDM, IDM_TEXT, lengIDM, idm_label, idm_line)
+drawLiveStrc(showliveChoch, not isCocUp, bull, bear, CHOCH_TEXT, lengChoch, choch_label, choch_line)
+drawLiveStrc(showliveBOS and not findIDM, isCocUp, bull, bear, BOS_TEXT, lengBos, bos_label, bos_line)
+drawPrevStrc(showPdh, PDH_TEXT, pdh_label, pdh_line)
+drawPrevStrc(showPdl, PDL_TEXT, pdl_label, pdl_line)
+drawPrevStrc(showMid, MID_TEXT, mid_label, mid_line)
+//#endregion
+

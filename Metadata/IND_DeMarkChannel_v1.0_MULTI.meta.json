@@ -1,0 +1,37 @@
+{
+  "arquivo": "DeMark Channel.mq5",
+  "nome_padronizado": "IND_DeMarkChannel_v1.0_MULTI",
+  "tipo": "Indicator",
+  "categoria": "Channels",
+  "estrategia": "DeMark_Pivot_Points",
+  "mercado": "MULTI",
+  "timeframe": "D1_and_lower",
+  "descricao": "Indicador DeMark Channel que calcula e exibe pivot points (PP), resistência (R1) e suporte (S1) baseados na metodologia DeMark. Funciona apenas em timeframes D1 ou menores.",
+  "funcoes_principais": [
+    "OnInit",
+    "Pivot Point Calculation (PP)",
+    "Resistance Level (R1)",
+    "Support Level (S1)",
+    "Price Label Display",
+    "Timeframe Validation"
+  ],
+  "parametros_expostos": [
+    "InpShowLabel (true) - Mostrar preço dos níveis"
+  ],
+  "ftmo_score": 10,
+  "ftmo_ready": true,
+  "riscos_detectados": [
+    "Nenhum - é apenas indicador",
+    "Limitação de timeframe (D1 ou menor)"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Nenhum necessário - indicador puro",
+    "Considerar adicionar mais níveis de suporte/resistência",
+    "Opção para timeframes maiores que D1"
+  ],
+  "tags": ["#Indicator", "#DeMark", "#Pivot_Points", "#Channels", "#MULTI", "#FTMO_Ready", "#Support_Resistance"],
+  "caminho_origem": "All_MQ5/DeMark Channel.mq5",
+  "caminho_final": "Indicators/Channels/IND_DeMarkChannel_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "Indicador oficial MetaQuotes para canais DeMark. Implementação limpa e profissional dos pivot points DeMark."
+}

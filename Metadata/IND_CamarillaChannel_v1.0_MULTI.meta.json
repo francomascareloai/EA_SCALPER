@@ -1,0 +1,48 @@
+{
+  "file_info": {
+    "original_name": "Camarilla Channel.mq5",
+    "new_name": "IND_CamarillaChannel_v1.0_MULTI.mq5",
+    "type": "Indicator",
+    "language": "MQL5",
+    "encoding_issues": false
+  },
+  "classification": {
+    "primary_type": "Indicator",
+    "category": "Pivot_Levels",
+    "subcategory": "Camarilla",
+    "complexity_level": "Medium",
+    "market_type": "Multi-Market",
+    "timeframe": "D1_or_lower"
+  },
+  "technical_details": {
+    "core_functions": [
+      "Camarilla H1..H5 and L1..L5 level calculation",
+      "10 buffers, 10 plots",
+      "Unique object prefix for labels",
+      "Timeframe check (D1 or lower)"
+    ],
+    "exposed_parameters": {
+      "InpShowLabel": {"type": "bool", "default": true, "description": "Show price labels on levels"}
+    },
+    "buffers_used": 10,
+    "plots_used": 10,
+    "custom_functions": ["OnInit", "OnCalculate"]
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 10,
+    "ftmo_ready": true,
+    "detected_risks": ["None significant - indicator only"],
+    "ftmo_adjustments_needed": ["None"]
+  },
+  "author_info": {
+    "author": "MetaQuotes Ltd.",
+    "contact": "https://www.mql5.com",
+    "version": "1.00"
+  },
+  "tags": ["#Indicator", "#Camarilla", "#Pivot", "#Levels", "#D1_or_lower", "#FTMO_Ready"],
+  "file_metrics": {"total_lines": 250, "file_size_kb": "~9"},
+  "usage_notes": {"description": "Camarilla channel levels H1..H5 and L1..L5 with label display option"},
+  "performance_notes": {"cpu_usage": "Low", "memory_usage": "Low", "stability": "High"},
+  "last_updated": "2024-12-19",
+  "status": "Classified"
+}

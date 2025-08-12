@@ -1,0 +1,44 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © mokshtradingart
+
+//Created by CristianD
+study(title="script7", shorttitle="script7", overlay=true) 
+sr = input(true, title="Show Daily Range")
+
+range = high - low
+
+// Daily line breaks
+sopen = security(tickerid, "D", open)
+
+a=range[1]*0.382
+b=range[1]*0.618
+h=sopen+a
+h1=sopen+b
+l=sopen-a
+l1=sopen-b
+
+
+// Color
+hcolor=sopen != sopen[1] ? na : maroon
+hcolor1=sopen != sopen[1] ? na : red
+lcolor=sopen != sopen[1] ? na : green
+lcolor1=sopen != sopen[1] ? na : lime
+
+
+//Daily Range
+highrange1 = security(tickerid, 'D', h) 
+highrange2 = security(tickerid, 'D', h1) 
+lowrange1 = security(tickerid, 'D', l) 
+lowrange2 = security(tickerid, 'D', l1) 
+
+
+offs_daily = 0
+H1=plot(sr and highrange1 ? highrange1 : na, title="Daily High1",color=hcolor, linewidth=1)
+H2=plot(sr and highrange2 ? highrange2 : na, title="Daily Daily High2", color=hcolor1, linewidth=1)
+L1=plot(sr and lowrange1 ? lowrange1 : na, title="Daily Low1",color=lcolor, linewidth=1)
+L2=plot(sr and lowrange2 ? lowrange2 : na, title="Daily Daily Low2", color=lcolor1, linewidth=1)
+
+fill(H1,H2,color=lime)
+fill(L1,L2,color=maroon)
+
+

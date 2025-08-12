@@ -1,0 +1,49 @@
+{
+  "nome_arquivo": "EA_MAPSARSizeOptimized_v1.0_MULTI.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Trend",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "autor": "MetaQuotes Ltd.",
+  "descricao": "EA baseado em Moving Average com trailing stop Parabolic SAR e gestão de lote otimizada por tamanho. Utiliza framework Expert Advisor da MetaQuotes.",
+  "funcoes_principais": [
+    "Sinais baseados em Moving Average",
+    "Trailing stop com Parabolic SAR",
+    "Gestão de lote otimizada por tamanho",
+    "Framework Expert Advisor integrado",
+    "Configurações flexíveis de MA e PSAR"
+  ],
+  "parametros_expostos": [
+    "Inp_Signal_MA_Period",
+    "Inp_Signal_MA_Shift",
+    "Inp_Signal_MA_Method",
+    "Inp_Signal_MA_Applied",
+    "Inp_Trailing_ParabolicSAR_Step",
+    "Inp_Trailing_ParabolicSAR_Maximum",
+    "Inp_Money_SizeOptimized_DecreaseFactor",
+    "Inp_Money_SizeOptimized_Percent"
+  ],
+  "conformidade_ftmo": {
+    "score": 7,
+    "status": "FTMO_Ready",
+    "observacoes": "EA bem estruturado com trailing stop e gestão de risco. Baseado em indicadores técnicos sólidos. Requer configuração adequada de parâmetros."
+  },
+  "riscos_identificados": [
+    "Dependente de configuração correta de parâmetros",
+    "Pode gerar sinais falsos em mercados laterais",
+    "Trailing stop pode ser muito agressivo em alguns cenários"
+  ],
+  "observacoes_tecnicas": [
+    "Código limpo e bem estruturado",
+    "Utiliza framework oficial da MetaQuotes",
+    "Arquitetura modular com classes especializadas",
+    "Fácil manutenção e modificação",
+    "Código de exemplo/template da MetaQuotes"
+  ],
+  "tags": ["#EA", "#Trend", "#MULTI", "#Moving_Average", "#Parabolic_SAR", "#FTMO_Ready", "#MetaQuotes", "#Framework"],
+  "caminho_arquivo": "EAs/Trend/EA_MAPSARSizeOptimized_v1.0_MULTI.mq5",
+  "data_classificacao": "2025-01-27",
+  "status_revisao": "Classificado"
+}

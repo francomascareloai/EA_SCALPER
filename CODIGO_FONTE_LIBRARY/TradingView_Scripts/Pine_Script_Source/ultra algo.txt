@@ -1,0 +1,203 @@
+//@version=5
+indicator("UltraAlgo", overlay = 1) 
+
+
+// Inputs
+src = input(close, "Source", group = "Main settings")
+p = input.int(180, "Trend period", group = "Main settings", tooltip = "Changes STRONG signals' sensitivity.", minval = 1)
+atr_p = input.int(155, "ATR Period", group = "Main settings", minval = 1)
+mult = input.float(2.1, "ATR Multiplier", step = 0.1, group = "Main settings", tooltip = "Changes sensitivity: higher period = higher sensitivty.")
+mode = input.string("Type A", "Signal mode", options = ["Type A", "Type B"], group = "Mode")
+use_ema_smoother = input.string("No", "Smooth source with EMA?", options = ["Yes", "No"], group = "Source")
+src_ema_period = input(3, "EMA Smoother period", group = "Source")
+color_bars = input(true, "Color bars?", group = "Addons")
+signals_view = input.string("All", "Signals to show", options = ["All", "Buy/Sell", "Strong", "None"], group = "Signal's Addon")
+signals_shape = input.string("Labels", "Signal's shape", options = ["Labels", "Arrows"], group = "Signal's Addon")
+buy_col = input(color.rgb(0, 255, 8), "Buy colour", group = "Signal's Addon", inline = "BS")
+sell_col = input(color.rgb(255, 0, 0), "Sell colour", group = "Signal's Addon", inline = "BS")
+
+
+
+
+// Calculations
+src := use_ema_smoother == "Yes" ? ta.ema(src, src_ema_period) : src // Source;
+
+h = ta.highest(src, p) // Highest of src p-bars back;
+l = ta.lowest(src, p) // Lowest of src p-bars back.
+d = h - l
+
+ls = "" // Tracker of last signal
+
+m = (h + l) / 2 // Initial trend line;
+m := bar_index > p ? m[1] : m
+
+atr = ta.atr(atr_p)[1] // ATR;
+epsilon = mult * atr // Epsilon is a mathematical variable used in many different theorems in order to simplify work with mathematical object. Here it used as sensitivity measure.
+
+change_up = (mode == "Type B" ? ta.cross(src, m + epsilon) : ta.crossover(src, m + epsilon)) or src > m + epsilon // If price breaks trend line + epsilon (so called higher band), then it is time to update the value of a trend line;
+change_down = (mode == "Type B" ? ta.cross(src, m - epsilon) : ta.crossunder(src, m - epsilon)) or src < m - epsilon // If price breaks trend line - epsilon (so called higher band), then it is time to update the value of a trend line.
+sb = open < l + d / 8 and open >= l
+ss = open > h - d / 8 and open <= h
+strong_buy = sb or sb[1] or sb[2] or sb[3] or sb[4]
+strong_sell = ss or ss[1] or ss[2] or ss[3] or ss[4]
+
+m := (change_up or change_down) and m != m[1] ? m : change_up ? m + epsilon : change_down ? m - epsilon : nz(m[1], m) // Updating the trend line.
+
+ls := change_up ? "B" : change_down ? "S" : ls[1] // Last signal. Helps avoid multiple labels in a row with the same signal;
+colour = ls == "B" ? buy_col : sell_col // Colour of the trend line.
+buy_shape   = signals_shape == "Labels" ? shape.labelup     : shape.triangleup
+sell_shape  = signals_shape == "Labels" ? shape.labeldown   : shape.triangledown
+
+
+
+
+// Plottings
+
+// Signals with label shape
+plotshape(signals_shape == "Labels" and (signals_view == "All" or signals_view == "Buy/Sell") and change_up and ls[1] != "B" and not strong_buy, "Buy signal"       , color = colour, style = buy_shape , location = location.belowbar, size = size.normal, text = "BUY🚀", textcolor = color.white)      // Plotting the BUY signal;
+plotshape(signals_shape == "Labels" and (signals_view == "All" or signals_view == "Buy/Sell") and change_down and ls[1] != "S" and not strong_sell, "Sell signal"   , color = colour, style = sell_shape, size = size.normal, text = "SELL🐻", textcolor = color.white)                                   // Plotting the SELL signal.
+plotshape(signals_shape == "Labels" and (signals_view == "All" or signals_view == "Strong") and change_up and ls[1] != "B" and strong_buy, "Strong Buy signal"      , color = colour, style = buy_shape , location = location.belowbar, size = size.normal, text = "STRONG", textcolor = color.white)   // Plotting the STRONG BUY signal;
+plotshape(signals_shape == "Labels" and (signals_view == "All" or signals_view == "Strong") and change_down and ls[1] != "S" and strong_sell, "Strong Sell signal"  , color = colour, style = sell_shape, size = size.normal, text = "STRONG", textcolor = color.white)                                 // Plotting the STRONG SELL signal.
+
+// Signal with arrow shape
+plotshape(signals_shape == "Arrows" and (signals_view == "All" or signals_view == "Buy/Sell") and change_up and ls[1] != "B" and not strong_buy, "Buy signal"       , color = colour, style = buy_shape , location = location.belowbar, size = size.tiny) // Plotting the BUY signal;
+plotshape(signals_shape == "Arrows" and (signals_view == "All" or signals_view == "Buy/Sell") and change_down and ls[1] != "S" and not strong_sell, "Sell signal"   , color = colour, style = sell_shape, size = size.tiny)                               // Plotting the SELL signal.
+plotshape(signals_shape == "Arrows" and (signals_view == "All" or signals_view == "Strong") and change_up and ls[1] != "B" and strong_buy, "Strong Buy signal"      , color = colour, style = buy_shape , location = location.belowbar, size = size.tiny) // Plotting the STRONG BUY signal;
+plotshape(signals_shape == "Arrows" and (signals_view == "All" or signals_view == "Strong") and change_down and ls[1] != "S" and strong_sell, "Strong Sell signal"  , color = colour, style = sell_shape, size = size.tiny)                               // Plotting the STRONG SELL signal.
+
+barcolor(color_bars ? colour : na) // Bar coloring
+
+
+// Alerts
+alertcondition(change_up and ls[1] != "B", "UltraAlgo BUY", "UltraAlgo BUY signal were given.") // Buy alert.
+alertcondition(change_down and ls[1] != "S", "UltraAlgo SELL", "UltraAlgo SELL signal were given.") // Sell alert.
+alertcondition((change_up and ls[1] != "B") or (change_down and ls[1] != "S"), "UltraAlgo Signal", "UltraAlgo gave you a signal!")
+alertcondition(change_up and ls[1] != "B" and strong_buy, "Strong BUY signal", "UltraAlgo gave a Strong Buy signal!")
+alertcondition(change_down and ls[1] != "S" and strong_sell, "Strong SELL signal", "UltraAlgo gave a Strong Sell signal!")
+
+
+
+matype = input.string(title='MA Type', defval='EMA', options=['EMA', 'SMA'])
+
+ma_len1 = input(title='Short EMA1 Length', defval=5)
+ma_len2 = input(title='Long EMA1 Length', defval=7)
+ma_len3 = input(title='Short EMA2 Length', defval=5)
+ma_len4 = input(title='Long EMA2 Length', defval=34)
+ma_len5 = input(title='Short EMA3 Length', defval=98)
+ma_len6 = input(title='Long EMA3 Length', defval=45)
+ma_len7 = input(title='Short EMA4 Length', defval=7)
+ma_len8 = input(title='Long EMA4 Length', defval=11)
+ma_len9 = input(title='Short EMA5 Length', defval=11)
+ma_len10 = input(title='Long EMA5 Length', defval=15)
+
+ma_offset = input(title='Offset', defval=0)
+//res = input(title="Resolution", type=resolution, defval="240")
+
+f_ma(malen) =>
+    float result = 0
+    if matype == 'EMA'
+        result := ta.ema(src, malen)
+        result
+    if matype == 'SMA'
+        result := ta.sma(src, malen)
+        result
+    result
+
+htf_ma1 = f_ma(ma_len1)
+htf_ma2 = f_ma(ma_len2)
+htf_ma3 = f_ma(ma_len3)
+htf_ma4 = f_ma(ma_len4)
+htf_ma5 = f_ma(ma_len5)
+htf_ma6 = f_ma(ma_len6)
+htf_ma7 = f_ma(ma_len7)
+htf_ma8 = f_ma(ma_len8)
+htf_ma9 = f_ma(ma_len9)
+htf_ma10 = f_ma(ma_len10)
+
+//plot(out1, color=green, offset=ma_offset)
+//plot(out2, color=red, offset=ma_offset)
+
+//lengthshort = input(8, minval = 1, title = "Short EMA Length")
+//lengthlong = input(200, minval = 2, title = "Long EMA Length")
+//emacloudleading = input(50, minval = 0, title = "Leading Period For EMA Cloud")
+//src = input(hl2, title = "Source")
+showlong = input(false, title='Show Long Alerts')
+showshort = input(false, title='Show Short Alerts')
+showLine = input(false, title='Display EMA Line')
+ema1 = input(true, title='Show EMA Cloud-1')
+ema2 = input(true, title='Show EMA Cloud-2')
+ema3 = input(true, title='Show EMA Cloud-3')
+ema4 = input(true, title='Show EMA Cloud-4')
+ema5 = input(true, title='Show EMA Cloud-5')
+
+emacloudleading = input.int(0, minval=0, title='Leading Period For EMA Cloud')
+mashort1 = htf_ma1
+malong1 = htf_ma2
+mashort2 = htf_ma3
+malong2 = htf_ma4
+mashort3 = htf_ma5
+malong3 = htf_ma6
+mashort4 = htf_ma7
+malong4 = htf_ma8
+mashort5 = htf_ma9
+malong5 = htf_ma10
+
+cloudcolour1 = mashort1 >= malong1 ? color.rgb(0, 255, 0) : color.rgb(255, 0, 0)
+cloudcolour2 = mashort2 >= malong2 ? #4caf4f47 : #ff110047
+cloudcolour4 = mashort4 >= malong4 ? #4caf4f52 : #f2364652
+cloudcolour5 = mashort5 >= malong5 ? #33ff0026 : #ff000026
+//03abc1
+
+mashortcolor1 = mashort1 >= mashort1[1] ? color.olive : color.maroon
+mashortcolor2 = mashort2 >= mashort2[1] ? color.olive : color.maroon
+mashortcolor3 = mashort3 >= mashort3[1] ? color.olive : color.maroon
+mashortcolor4 = mashort4 >= mashort4[1] ? color.olive : color.maroon
+mashortcolor5 = mashort5 >= mashort5[1] ? color.olive : color.maroon
+
+
+mashortline1 = plot(ema1 ? mashort1 : na, color=showLine ? mashortcolor1 : na, linewidth=1, offset=emacloudleading, title='Short Leading EMA1')
+mashortline2 = plot(ema2 ? mashort2 : na, color=showLine ? mashortcolor2 : na, linewidth=1, offset=emacloudleading, title='Short Leading EMA2')
+mashortline3 = plot(ema3 ? mashort3 : na, color=showLine ? mashortcolor3 : na, linewidth=1, offset=emacloudleading, title='Short Leading EMA3')
+mashortline4 = plot(ema4 ? mashort4 : na, color=showLine ? mashortcolor4 : na, linewidth=1, offset=emacloudleading, title='Short Leading EMA4')
+mashortline5 = plot(ema5 ? mashort5 : na, color=showLine ? mashortcolor5 : na, linewidth=1, offset=emacloudleading, title='Short Leading EMA5')
+
+malongcolor1 = malong1 >= malong1[1] ? color.green : color.red
+malongcolor2 = malong2 >= malong2[1] ? color.green : color.red
+malongcolor3 = malong3 >= malong3[1] ? color.green : color.red
+malongcolor4 = malong4 >= malong4[1] ? color.green : color.red
+malongcolor5 = malong5 >= malong5[1] ? color.green : color.red
+
+malongline1 = plot(ema1 ? malong1 : na, color=showLine ? malongcolor1 : na, linewidth=3, offset=emacloudleading, title='Long Leading EMA1')
+malongline2 = plot(ema2 ? malong2 : na, color=showLine ? malongcolor2 : na, linewidth=3, offset=emacloudleading, title='Long Leading EMA2')
+malongline3 = plot(ema3 ? malong3 : na, color=showLine ? malongcolor3 : na, linewidth=3, offset=emacloudleading, title='Long Leading EMA3')
+malongline4 = plot(ema4 ? malong4 : na, color=showLine ? malongcolor4 : na, linewidth=3, offset=emacloudleading, title='Long Leading EMA4')
+malongline5 = plot(ema5 ? malong5 : na, color=showLine ? malongcolor5 : na, linewidth=3, offset=emacloudleading, title='Long Leading EMA5')
+
+fill(mashortline1, malongline1, color=cloudcolour1, title='MA Cloud1', transp=45)
+fill(mashortline2, malongline2, color=cloudcolour2, title='MA Cloud2', transp=65)
+fill(mashortline4, malongline4, color=cloudcolour4, title='MA Cloud4', transp=65)
+fill(mashortline5, malongline5, color=cloudcolour5, title='MA Cloud5', transp=65)
+
+
+
+leftBars = input(15, title='Left Bars ')
+rightBars = input(15, title='Right Bars')
+volumeThresh = input(20, title='Volume Threshold')
+//
+highUsePivot = fixnan(ta.pivothigh(leftBars, rightBars)[1])
+lowUsePivot = fixnan(ta.pivotlow(leftBars, rightBars)[1])
+r1 = plot(highUsePivot, color=ta.change(highUsePivot) ? na : #FF0000, linewidth=3, offset=-(rightBars + 1), title='Resistance')
+s1 = plot(lowUsePivot, color=ta.change(lowUsePivot) ? na : #00ff0d, linewidth=3, offset=-(rightBars + 1), title='Support')
+
+//Volume %
+short = ta.ema(volume, 5)
+long = ta.ema(volume, 10)
+osc = 100 * (short - long) / long
+
+
+
+//For bull / bear wicks
+
+
+alertcondition(ta.crossunder(close, lowUsePivot) and osc > volumeThresh, title='Support Broken', message='Support Broken')
+alertcondition(ta.crossover(close, highUsePivot) and osc > volumeThresh, title='Resistance Broken', message='Resistance Broken')

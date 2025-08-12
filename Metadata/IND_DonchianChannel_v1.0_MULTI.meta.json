@@ -1,0 +1,37 @@
+{
+  "arquivo": "Donchian Channel.mq5",
+  "nome_padronizado": "IND_DonchianChannel_v1.0_MULTI",
+  "tipo": "Indicator",
+  "categoria": "Channels",
+  "estrategia": "Donchian_Channel",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "descricao": "Indicador Donchian Channel que calcula e exibe canal baseado nos máximos e mínimos de um período específico. Inclui linha superior, média e inferior com deslocamento de 1 barra.",
+  "funcoes_principais": [
+    "OnInit",
+    "Upper Donchian Calculation",
+    "Middle Donchian Calculation",
+    "Lower Donchian Calculation",
+    "Price Label Display",
+    "1-Bar Shift Display"
+  ],
+  "parametros_expostos": [
+    "InpDonchianPeriod (20) - Período do canal",
+    "InpShowLabel (true) - Mostrar preço dos níveis"
+  ],
+  "ftmo_score": 10,
+  "ftmo_ready": true,
+  "riscos_detectados": [
+    "Nenhum - é apenas indicador"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Nenhum necessário - indicador puro",
+    "Considerar adicionar alertas de breakout",
+    "Opção para diferentes tipos de médias no canal central"
+  ],
+  "tags": ["#Indicator", "#Donchian", "#Channel", "#Breakout", "#MULTI", "#FTMO_Ready", "#Trend_Following"],
+  "caminho_origem": "All_MQ5/Donchian Channel.mq5",
+  "caminho_final": "Indicators/Channels/IND_DonchianChannel_v1.0_MULTI.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "Indicador oficial MetaQuotes para canais Donchian. Implementação clássica com período configurável e labels de preço."
+}

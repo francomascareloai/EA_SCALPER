@@ -1,0 +1,67 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ChartPrime
+
+//@version=6
+indicator("Zone Shift [ChartPrime]", max_lines_count = 500, overlay = true, max_labels_count = 500)
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 📌 𝙐𝙎𝙀𝙍 𝙄𝙉𝙋𝙐𝙏𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+
+int   length = input.int(100, "Length 60-200", minval = 60, maxval = 200)
+color upColor = input.color(color.lime, "", inline = "colors") 
+color dnColor = input.color(color.blue, "", inline = "colors") 
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 📌 𝙄𝙉𝘿𝙄𝘾𝘼𝙏𝙊𝙍 𝘾𝘼𝙇𝘾𝙐𝙇𝘼𝙏𝙄𝙊𝙉𝙎
+// --------------------------------------------------------------------------------------------------------------------{
+
+var trend       = false
+var trendStart  = float(na)
+var lastRetest  = bar_index
+
+float ema  = ta.ema(close, length)
+float hma  = ta.hma(close, length-40)
+float dist = ta.sma(high-low, 200)
+float mid  = math.avg(ema, hma)
+float top  = mid + dist
+float bot  = mid - dist
+
+if barstate.isconfirmed
+    if low > top and low[1] < top[1] and not trend 
+        trend       := true
+        trendStart  := low
+
+    if high < bot and high[1] > bot[1] and trend
+        trend       := false
+        trendStart  := high
+
+trend_col = trend ? upColor : dnColor
+
+
+
+// Retest TrendStart Level
+if barstate.isconfirmed
+    if (close > trendStart and close[1] < trendStart[1] or low > trendStart and low[1] < trendStart[1] ) and trend and bar_index - lastRetest > 5
+        lastRetest := bar_index
+        label.new(bar_index, low, "⯁", color = color.new(color.black, 100), style = label.style_label_up, textcolor = trend_col)
+
+    if (close[1] > trendStart and close < trendStart[1] or high[1] > trendStart and high < trendStart[1]) and not trend  and bar_index - lastRetest > 5
+        lastRetest := bar_index
+        label.new(bar_index, high, "⯁", color = color.new(color.black, 100), style = label.style_label_down, textcolor = trend_col)
+
+
+
+// --------------------------------------------------------------------------------------------------------------------}
+// 📌 𝙑𝙄𝙎𝙐𝘼𝙇𝙄𝙕𝘼𝙏𝙄𝙊𝙉
+// --------------------------------------------------------------------------------------------------------------------{
+plot(mid, "Middle", color = bar_index % 2 == 0 ? chart.fg_color : na)
+plot(top, "Top", color = chart.fg_color )
+plot(bot, "Bottom", color = chart.fg_color )
+
+barcolor(trend_col)
+plotcandle(open, high, low, close, title='CandleColor', color = trend_col, wickcolor=trend_col, bordercolor = trend_col, force_overlay = true)
+
+plot(trendStart != trendStart[1] ? na : trendStart, "Trend Initiation Level", style = plot.style_linebr, color = bar_index % 2 == 0 ? chart.fg_color : na)
+// --------------------------------------------------------------------------------------------------------------------}

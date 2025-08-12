@@ -1,0 +1,62 @@
+{
+  "id": "EA_SPFXRecovery_v1.5_MULTI",
+  "filename": "EA_SPFXRecovery_v1.5_MULTI.mq5",
+  "original_filename": "SPFX RECOVERY ZONE EA v1.5.mq5",
+  "file_hash": "pending_calculation",
+  "type": "EA",
+  "language": "MQL5",
+  "strategy": "Recovery_Zone",
+  "markets": ["FOREX", "XAUUSD", "INDICES"],
+  "timeframes": ["M1", "M5", "M15", "M30", "H1", "H4", "D1"],
+  "key_functions": [
+    "OnTick",
+    "OnInit",
+    "RecoveryZoneLogic",
+    "RSI_Analysis",
+    "ATR_DynamicSizing",
+    "MoneyManagement",
+    "TimerFilter"
+  ],
+  "dependencies": [
+    "Standard MQL5 libraries",
+    "RSI indicator",
+    "ATR indicator"
+  ],
+  "exposed_parameters": {
+    "RecoveryZoneSize": "Recovery Zone Size (200 points)",
+    "TakeProfit": "Take Profit (200 points)",
+    "MaxTrades": "Max Trades (0 unlimited)",
+    "InitialLotSize": "Initial Lot Size (0.1)",
+    "LotMultiplier": "Lot Multiplier (2.0)",
+    "RSIPeriod": "RSI Period (14)",
+    "OverboughtLevel": "Overbought Level (70)",
+    "OversoldLevel": "Oversold Level (30)",
+    "UseATR": "Use ATR Dynamic Sizing",
+    "UseTimer": "Use Trade Timer"
+  },
+  "ftmo_score": 4,
+  "detected_risks": [
+    "Recovery/Hedge strategy - high risk",
+    "Lot multiplier system - dangerous for FTMO",
+    "No daily loss protection",
+    "Unlimited trades option",
+    "Grid/Martingale characteristics",
+    "Complex recovery logic"
+  ],
+  "code_quality_score": 7,
+  "compilation_status": "pending",
+  "merge_readiness": 5,
+  "necessary_adjustments": [
+    "Add strict daily loss protection",
+    "Limit maximum trades to FTMO rules",
+    "Implement fixed risk per trade",
+    "Remove lot multiplier for FTMO",
+    "Add session time filters",
+    "Implement maximum drawdown protection"
+  ],
+  "author_license": "OGT Zone Recovery v1.5",
+  "tags": ["#EA", "#Recovery_Zone", "#RSI", "#ATR", "#Grid", "#Hedge", "#High_Risk", "#Nao_FTMO"],
+  "created_date": "2024-12-19",
+  "classification_date": "2024-12-19",
+  "notes": "Recovery Zone EA with RSI signals and ATR dynamic sizing. High-risk strategy not suitable for FTMO without major modifications."
+}

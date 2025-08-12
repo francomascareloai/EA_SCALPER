@@ -1,0 +1,251 @@
+#property copyright "DAY TRADING FOREX"
+#property link      ""
+
+#property indicator_chart_window
+#property indicator_buffers 3
+#property indicator_color1 DodgerBlue
+#property indicator_color2 Red
+#property indicator_color3 Red
+
+input string St_Ex = "------- Indicator Settings";
+input bool Verbose = false;
+input int MinRange = 5;
+input int MaxRange = 30;
+input int HighLowFilter = 10;
+input int MaxHistoryBars = 5000;
+input string AN_Ex = "------- Trade Analysis";
+input string AN_Ex2 = ">> Analyzes the performance of signals";
+input bool AnalysisEnabled = true;
+input bool DisplayProfits = true;
+input color AnalysisColor = Magenta;
+input color AnalysisLabel = Aqua;
+input string Se_Ex3 = "------- Drawing Boxes";
+input color BullRectangle = LightSkyBlue;
+input color BearRectangle = Tomato;
+input string Alerts_ex = "------- Alerts";
+input string AlertCaption = "My Alert";
+input bool DisplayAlerts = false;
+input bool EmailAlerts = false;
+input bool SoundAlerts = false;
+input string SoundFile = "alert.wav";
+
+double G_ibuf_188[];
+double G_ibuf_192[];
+double G_ibuf_196[];
+double G_ibuf_200[];
+double G_ibuf_204[];
+bool Gi_208 = false;
+double Gd_212;
+double G_close_220 = 0.0;
+double G_close_228 = 0.0;
+int G_datetime_236 = 0;
+int G_datetime_240 = 0;
+datetime G_time_244;
+bool Gi_248 = true;
+double G_high_252;
+double G_low_260 = 0.0;
+datetime G_time_268;
+datetime G_time_272 = 0;
+int G_count_276;
+int G_count_280;
+int Gi_284;
+int G_count_288 = 0;
+double Gd_292 = 0.0;
+int Gi_300 = 0;
+
+int OnInit() {
+   IndicatorBuffers(5);
+   G_high_252 = 0;
+   G_low_260 = 0;
+   G_time_268 = 0;
+   G_time_272 = 0;
+   G_count_276 = 0;
+   G_count_280 = 0;
+   Gi_284 = 0;
+   G_count_288 = 0;
+   G_close_220 = 0;
+   G_close_228 = 0;
+   G_datetime_236 = 0;
+   G_datetime_240 = 0;
+   Gd_292 = 0;
+   Gi_300 = 0;
+   SetIndexStyle(0, DRAW_ARROW);
+   SetIndexArrow(0, 233);
+   SetIndexStyle(1, DRAW_ARROW);
+   SetIndexArrow(1, 234);
+   SetIndexStyle(2, DRAW_ARROW);
+   SetIndexArrow(2, SYMBOL_STOPSIGN);
+   IndicatorDigits(SymbolInfoInteger(Symbol(), SYMBOL_DIGITS));
+   SetIndexBuffer(0, G_ibuf_188);
+   SetIndexBuffer(1, G_ibuf_192);
+   SetIndexBuffer(2, G_ibuf_196);
+   SetIndexBuffer(3, G_ibuf_204);
+   SetIndexBuffer(4, G_ibuf_200);
+   IndicatorShortName("DAY TRADING FOREX");
+   Comment("Copyright © DAY TRADING FOREX");
+   f0_12();
+   return(INIT_SUCCEEDED);
+}
+
+int OnDeinit(const int reason) {
+   f0_12();
+   return(INIT_SUCCEEDED);
+}
+
+int OnCalculate(const int rates_total, const int prev_calculated, const datetime &time[], const double &open[], const double &high[], const double &low[], const double &close[], const long &tick_volume[], const long &volume[], const int &spread[]) {
+   double Ld_4;
+   double Ld_12;
+   double iatr_20;
+   double Ld_28;
+   double Ld_36;
+   double Ld_44;
+   double Ld_52;
+   double Ld_60;
+   double Ld_68;
+   double close_76;
+   double Ld_84;
+   if (!Gi_208) {
+      if ((!IsConnected()) && 1) return (0);
+      Gi_208 = true;
+   }
+   if (!Gi_208) return (0);
+   int Li_92 = 1;
+   int ind_counted_96 = prev_calculated;
+   if (ind_counted_96 < 0) return (-1);
+   int Li_100 = rates_total - 1 - ind_counted_96;
+   for (int Li_104 = Li_100; Li_104 >= Li_92; Li_104--) {
+      if (Li_104 <= MaxHistoryBars) {
+         Ld_4 = f0_1(Li_104, HighLowFilter);
+         Ld_12 = f0_8(Li_104, HighLowFilter);
+         iatr_20 = iATR(Symbol(), 0, 50, Li_104);
+         Gd_212 = iatr_20 / 100.0;
+         Ld_28 = 8.0 * Gd_212;
+         Ld_36 = f0_14(Li_104);
+         Ld_44 = f0_2(Li_104);
+         Ld_52 = f0_9(Li_104);
+         G_ibuf_204[Li_104] = G_ibuf_204[Li_104 + 1];
+         G_ibuf_200[Li_104] = EMPTY_VALUE;
+         close_76 = close[Li_104];
+         Ld_84 = 1;
+         for (int Li_108 = MinRange; Li_108 <= MaxRange; Li_108++) {
+            Ld_60 = f0_1(Li_104, Li_108);
+            Ld_68 = f0_8(Li_104, Li_108);
+            if (f0_16(Li_104, Li_108) && Verbose && G_ibuf_204[Li_104] == 0.0 && (Ld_60 >= Ld_4 || high[Li_104] >= Ld_4 || 0)) {
+               if (!(f0_0(Li_104, Li_108 + 1, BullRectangle, 0, 0))) break;
+               G_ibuf_200[Li_104] = 0;
+               G_ibuf_204[Li_104] = 0;
+               break;
+            }
+            if (f0_7(Li_104, Li_108) && Verbose && G_ibuf_204[Li_104] == 1.0 && (Ld_68 <= Ld_12 || low[Li_104] <= Ld_4 || 0)) {
+               if (!(f0_0(Li_104, Li_108 + 1, BearRectangle, 0, 0))) break;
+               G_ibuf_200[Li_104] = 1;
+               G_ibuf_204[Li_104] = 1;
+               break;
+            }
+            if (f0_16(Li_104, Li_108) && 1 && ((G_ibuf_204[Li_104] != 0.0) || (G_ibuf_204[Li_104] == 0.0 && G_close_220 > close_76)) && (Ld_68 <= Ld_12 || low[Li_104] <= Ld_4 || 0)) {
+               if (G_ibuf_204[Li_104] == 0.0 && G_close_220 > close_76) Ld_84 = 0;
+               else Ld_84 = 1;
+               if (!(f0_0(Li_104, Li_108 + 1, BullRectangle, 1, Ld_84))) break;
+               f0_5();
+               G_close_220 = close_76;
+               G_ibuf_200[Li_104] = 0;
+               G_ibuf_204[Li_104] = 0;
+               break;
+            }
+            if (f0_7(Li_104, Li_108) && 1 && ((G_ibuf_204[Li_104] != 1.0) || (G_ibuf_204[Li_104] == 1.0 && G_close_228 < close_76)) && (Ld_60 >= Ld_4 || high[Li_104] >= Ld_4 || 0)) {
+               if (G_ibuf_204[Li_104] == 1.0 && G_close_228 < close_76) Ld_84 = 0;
+               else Ld_84 = 1;
+               if (!(f0_0(Li_104, Li_108 + 1, BearRectangle, 1, Ld_84))) break;
+               f0_5();
+               G_close_228 = close_76;
+               G_ibuf_200[Li_104] = 1;
+               G_ibuf_204[Li_104] = 1;
+               break;
+            }
+            if (f0_17(Li_104, Li_108) && 1 && ((G_ibuf_204[Li_104] != 0.0) || (G_ibuf_204[Li_104] == 0.0 && G_close_220 > close_76)) && (Ld_68 <= Ld_12 || low[Li_104] <= Ld_4 || 0)) {
+               if (G_ibuf_204[Li_104] == 0.0 && G_close_220 > close_76) Ld_84 = 0;
+               else Ld_84 = 1;
+               if (!(f0_0(Li_104, Li_108 + 1, BullRectangle, 1, Ld_84))) break;
+               f0_5();
+               G_close_220 = close_76;
+               G_ibuf_200[Li_104] = 0;
+               G_ibuf_204[Li_104] = 0;
+               break;
+            }
+            if (f0_13(Li_104, Li_108) && 1 && ((G_ibuf_204[Li_104] != 1.0) || (G_ibuf_204[Li_104] == 1.0 && G_close_228 < close_76)) && (Ld_60 >= Ld_4 || high[Li_104] >= Ld_4 || 0)) {
+               if (G_ibuf_204[Li_104] == 1.0 && G_close_228 < close_76) Ld_84 = 0;
+               else Ld_84 = 1;
+               if (!(f0_0(Li_104, Li_108 + 1, BearRectangle, 1, Ld_84))) break;
+               f0_5();
+               G_close_228 = close_76;
+               G_ibuf_200[Li_104] = 1;
+               G_ibuf_204[Li_104] = 1;
+               break;
+            }
+         }
+         if (AnalysisEnabled) f0_3(Li_104);
+      }
+   }
+   if (G_time_244 != time[0]) {
+      if (G_ibuf_200[1] == 0.0 && Gi_248 == false) {
+         if (DisplayAlerts == true) Alert("DAY TRADING FOREX" + " (" + AlertCaption + ") [" + Symbol() + "] Bullish Breakout");
+         if (EmailAlerts == true) SendMail("DAY TRADING FOREX" + " (" + AlertCaption + ") [" + Symbol() + "]", "[" + Symbol() + "] Bullish Breakout");
+         if (SoundAlerts == true) PlaySound(SoundFile);
+         Gi_248 = true;
+      }
+      if (G_ibuf_200[1] == 1.0 && Gi_248 == true) {
+         if (DisplayAlerts == true) Alert("DAY TRADING FOREX" + " (" + AlertCaption + ") [" + Symbol() + "] Bearish Breakout");
+         if (EmailAlerts == true) SendMail("DAY TRADING FOREX" + " (" + AlertCaption + ") [" + Symbol() + "]", "[" + Symbol() + "] Bearish Breakout");
+         if (SoundAlerts == true) PlaySound(SoundFile);
+         Gi_248 = false;
+      }
+      G_time_244 = time[0];
+   }
+   return(rates_total);
+}
+
+void f0_12() {
+   // Custom function
+}
+void f0_5() {
+   // Custom function
+}
+bool f0_0(int Li_104, int Li_108, color boxColor, int val1, int val2) {
+   // Custom function
+   return true;
+}
+double f0_1(int Li_104, int filter) {
+   // Custom function
+   return 0.0;
+}
+double f0_2(int Li_104) {
+   // Custom function
+   return 0.0;
+}
+double f0_8(int Li_104, int filter) {
+   // Custom function
+   return 0.0;
+}
+double f0_9(int Li_104) {
+   // Custom function
+   return 0.0;
+}
+bool f0_7(int Li_104, int Li_108) {
+   // Custom function
+   return true;
+}
+bool f0_16(int Li_104, int Li_108) {
+   // Custom function
+   return true;
+}
+bool f0_17(int Li_104, int Li_108) {
+   // Custom function
+   return true;
+}
+bool f0_13(int Li_104, int Li_108) {
+   // Custom function
+   return true;
+}
+void f0_3(int Li_104) {
+   // Custom function
+}

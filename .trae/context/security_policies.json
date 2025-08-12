@@ -1,0 +1,53 @@
+{
+  "file_safety_policies": {
+    "never_delete": {
+      "description": "Política de segurança absoluta: NUNCA deletar arquivos durante operações de organização",
+      "enforcement": "mandatory",
+      "exceptions": "none",
+      "rationale": "Preservar integridade dos dados e evitar perda acidental de código valioso"
+    },
+    "conflict_resolution": {
+      "naming_conflicts": {
+        "strategy": "suffix_increment",
+        "pattern": "_1, _2, _3, etc.",
+        "example": "EA_Scalper_v1.0_XAUUSD.mq4 -> EA_Scalper_v1.0_XAUUSD_1.mq4",
+        "preserve_original": true
+      },
+      "duplicate_handling": {
+        "action": "rename_new_file",
+        "keep_original_name": true,
+        "add_suffix_to_duplicate": true
+      }
+    },
+    "backup_strategy": {
+      "before_move": "verify_destination_exists",
+      "on_conflict": "create_numbered_copy",
+      "preserve_metadata": true,
+      "log_all_operations": true
+    }
+  },
+  "operation_logging": {
+    "required_fields": [
+      "timestamp",
+      "operation_type",
+      "source_path",
+      "destination_path",
+      "conflict_resolution_applied",
+      "status"
+    ],
+    "log_location": "CHANGELOG.md",
+    "format": "markdown_table"
+  },
+  "validation_rules": {
+    "before_operation": [
+      "verify_source_exists",
+      "check_destination_conflicts",
+      "validate_naming_convention"
+    ],
+    "after_operation": [
+      "confirm_file_moved",
+      "verify_metadata_preserved",
+      "update_indices"
+    ]
+  }
+}

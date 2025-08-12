@@ -1,0 +1,57 @@
+{
+  "arquivo": "IND_AutoDayFibs_v1.0_MULTI.mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Support_Resistance",
+  "mercado": "MULTI",
+  "timeframe": "D1",
+  "versao": "1.0",
+  "autor": "Jason Robinson (jnrtrading)",
+  "descricao": "Indicador automático de níveis de Fibonacci diários baseado em máximas e mínimas",
+  "funcoes_principais": [
+    "OnInit",
+    "OnCalculate",
+    "ObjectCreate",
+    "ObjectSetInteger",
+    "ObjectSetDouble",
+    "ObjectSetString"
+  ],
+  "parametros_expostos": [
+    "AutomaticallyAdjustToToday",
+    "TimeToAdjust",
+    "iDaysBackForHigh",
+    "iDaysBackForLow",
+    "TextSize",
+    "Color_fib000",
+    "Style_fib000",
+    "Width_fib000",
+    "Color_fib236",
+    "Style_fib236",
+    "Width_fib236",
+    "Color_fib382",
+    "Style_fib382",
+    "Width_fib382"
+  ],
+  "conformidade_ftmo": {
+    "score": 9,
+    "observacoes": "Indicador de suporte/resistência compatível com FTMO",
+    "riscos_detectados": [],
+    "ajustes_necessarios": []
+  },
+  "qualidade_codigo": {
+    "score": 9,
+    "observacoes": "Código bem estruturado com enumerações e parâmetros organizados"
+  },
+  "tags": [
+    "#Indicator",
+    "#Support_Resistance",
+    "#Fibonacci",
+    "#D1",
+    "#MULTI",
+    "#FTMO_Ready",
+    "#AutoFib",
+    "#DailyLevels"
+  ],
+  "data_criacao": "2024-12-19T10:30:00Z",
+  "caminho_completo": "CODIGO_FONTE_LIBRARY/MQL5_Source/Indicators/Support_Resistance/IND_AutoDayFibs_v1.0_MULTI.mq5"
+}

@@ -1,0 +1,184 @@
+//+------------------------------------------------------------------+
+//|                                       SmartMoneyConcept_SMC.mq4   |
+//|                        Developed by Forex Code Helper              |
+//+------------------------------------------------------------------+
+#property strict
+
+// Input parameters for customization
+input int LookBack = 10; // Lookback period to detect highs and lows
+input int ZoneLookBack = 50; // Lookback period to detect supply/demand zones
+input int LiquidityThreshold = 3; // Pips threshold to define stop hunts
+
+double lastHigh = 0;
+double lastLow = 0;
+int lastHighIndex = 0;
+int lastLowIndex = 0;
+
+double supplyZone = 0;
+double demandZone = 0;
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
+//+------------------------------------------------------------------+
+int OnInit()
+  {
+   // Set up indicator buffers or graphical elements here (if needed)
+   return(INIT_SUCCEEDED);
+  }
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function                              |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double &open[],
+                const double &high[],
+                const double &low[],
+                const double &close[],
+                const long &tick_volume[],
+                const long &volume[],
+                const int &spread[])
+  {
+   // Iterate through price data to detect market structure and zones
+   for(int i = LookBack; i < rates_total; i++)
+     {
+      // Detect Higher Highs and Higher Lows
+      if(IsHigherHigh(i, high))
+        {
+         lastHigh = high[i];
+         lastHighIndex = i;
+         ObjectCreate(0, "HH_"+IntegerToString(i), OBJ_TEXT, 0, time[i], high[i]);
+         ObjectSetText("HH_"+IntegerToString(i), "HH", 12, "Arial", clrGreen);
+         
+         // Update Supply Zone
+         UpdateSupplyZone(i, high);
+        }
+
+      if(IsHigherLow(i, low))
+        {
+         lastLow = low[i];
+         lastLowIndex = i;
+         ObjectCreate(0, "HL_"+IntegerToString(i), OBJ_TEXT, 0, time[i], low[i]);
+         ObjectSetText("HL_"+IntegerToString(i), "HL", 12, "Arial", clrGreen);
+         
+         // Update Demand Zone
+         UpdateDemandZone(i, low);
+        }
+
+      // Detect Lower Highs and Lower Lows
+      if(IsLowerHigh(i, high))
+        {
+         lastHigh = high[i];
+         lastHighIndex = i;
+         ObjectCreate(0, "LH_"+IntegerToString(i), OBJ_TEXT, 0, time[i], high[i]);
+         ObjectSetText("LH_"+IntegerToString(i), "LH", 12, "Arial", clrRed);
+         
+         // Update Supply Zone
+         UpdateSupplyZone(i, high);
+        }
+
+      if(IsLowerLow(i, low))
+        {
+         lastLow = low[i];
+         lastLowIndex = i;
+         ObjectCreate(0, "LL_"+IntegerToString(i), OBJ_TEXT, 0, time[i], low[i]);
+         ObjectSetText("LL_"+IntegerToString(i), "LL", 12, "Arial", clrRed);
+         
+         // Update Demand Zone
+         UpdateDemandZone(i, low);
+        }
+      
+      // Detect Stop Hunts (Liquidity Zones)
+      DetectStopHunt(i, high, low);
+
+      // Detect Institutional Order Block
+      DetectOrderBlock(i, high, low);
+     }
+
+   return(rates_total);
+  }
+//+------------------------------------------------------------------+
+//| Function to check for Higher High                                |
+//+------------------------------------------------------------------+
+bool IsHigherHigh(int index, const double &high[])
+  {
+   return (high[index] > lastHigh && index - lastHighIndex > LookBack);
+  }
+//+------------------------------------------------------------------+
+//| Function to check for Higher Low                                 |
+//+------------------------------------------------------------------+
+bool IsHigherLow(int index, const double &low[])
+  {
+   return (low[index] > lastLow && index - lastLowIndex > LookBack);
+  }
+//+------------------------------------------------------------------+
+//| Function to check for Lower High                                 |
+//+------------------------------------------------------------------+
+bool IsLowerHigh(int index, const double &high[])
+  {
+   return (high[index] < lastHigh && index - lastHighIndex > LookBack);
+  }
+//+------------------------------------------------------------------+
+//| Function to check for Lower Low                                  |
+//+------------------------------------------------------------------+
+bool IsLowerLow(int index, const double &low[])
+  {
+   return (low[index] < lastLow && index - lastLowIndex > LookBack);
+  }
+//+------------------------------------------------------------------+
+//| Function to Update Supply Zone (Resistance)                      |
+//+------------------------------------------------------------------+
+void UpdateSupplyZone(int index, const double &high[])
+  {
+   // Supply zone is set at the recent high
+   supplyZone = high[index];
+   // Draw a horizontal line to represent supply zone
+   string supplyLine = "SupplyZone_" + IntegerToString(index);
+   if(!ObjectCreate(0, supplyLine, OBJ_HLINE, 0, 0, supplyZone))
+      ObjectSetInteger(0, supplyLine, OBJPROP_COLOR, clrRed);
+  }
+//+------------------------------------------------------------------+
+//| Function to Update Demand Zone (Support)                         |
+//+------------------------------------------------------------------+
+void UpdateDemandZone(int index, const double &low[])
+  {
+   // Demand zone is set at the recent low
+   demandZone = low[index];
+   // Draw a horizontal line to represent demand zone
+   string demandLine = "DemandZone_" + IntegerToString(index);
+   if(!ObjectCreate(0, demandLine, OBJ_HLINE, 0, 0, demandZone))
+      ObjectSetInteger(0, demandLine, OBJPROP_COLOR, clrGreen);
+  }
+//+------------------------------------------------------------------+
+//| Function to detect stop hunts (liquidity sweeps)                 |
+//+------------------------------------------------------------------+
+void DetectStopHunt(int index, const double &high[], const double &low[])
+  {
+   // Check if there is a quick spike above or below recent high/low
+   if(high[index] - lastHigh > LiquidityThreshold * Point)
+     {
+      ObjectCreate(0, "StopHuntHigh_"+IntegerToString(index), OBJ_ARROW, 0, Time[index], high[index]);
+      ObjectSetInteger(0, "StopHuntHigh_"+IntegerToString(index), OBJPROP_COLOR, clrYellow);
+      ObjectSetInteger(0, "StopHuntHigh_"+IntegerToString(index), OBJPROP_ARROWCODE, SYMBOL_ARROWUP);
+     }
+   if(lastLow - low[index] > LiquidityThreshold * Point)
+     {
+      ObjectCreate(0, "StopHuntLow_"+IntegerToString(index), OBJ_ARROW, 0, Time[index], low[index]);
+      ObjectSetInteger(0, "StopHuntLow_"+IntegerToString(index), OBJPROP_COLOR, clrYellow);
+      ObjectSetInteger(0, "StopHuntLow_"+IntegerToString(index), OBJPROP_ARROWCODE, SYMBOL_ARROWDOWN);
+     }
+  }
+//+------------------------------------------------------------------+
+//| Function to detect Institutional Order Block                     |
+//+------------------------------------------------------------------+
+void DetectOrderBlock(int index, const double &high[], const double &low[])
+  {
+   // Institutional order block detected when there's sharp reversal with a large candle
+   if(high[index] > high[index-1] && low[index] < low[index-1] && (high[index] - low[index]) > (high[index-1] - low[index-1]) * 1.5)
+     {
+      ObjectCreate(0, "OrderBlock_"+IntegerToString(index), OBJ_RECTANGLE, 0, Time[index], high[index], Time[index+LookBack], low[index]);
+      ObjectSetInteger(0, "OrderBlock_"+IntegerToString(index), OBJPROP_COLOR, clrBlue);
+      ObjectSetInteger(0, "OrderBlock_"+IntegerToString(index), OBJPROP_WIDTH, 2);
+     }
+  }
+//+------------------------------------------------------------------+

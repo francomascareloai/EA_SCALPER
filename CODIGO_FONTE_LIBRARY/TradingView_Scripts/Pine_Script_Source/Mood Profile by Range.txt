@@ -1,0 +1,469 @@
+
+//@version=5
+indicator("<<Профиль настроения по диапазону и объему>>", overlay = true, max_boxes_count = 500, max_bars_back = 5000)
+
+//Подсказки
+widthTooltip = "Процент ширины ячейки. Определите длину ячейки возвращаемого профиля в процентах от настройки длины"
+offsetTooltip = "Определить количество баров, на которое смещается каждый графический элемент"
+
+//Настройки
+length = input.int(80, minval = 2)
+rows   = input.int(20, minval = 2)
+useIb  = input(false, 'Использовать внутрибарные данные', inline = 'intrabar') 
+tf     = input.timeframe('1', ''    , inline = 'intrabar')
+
+//Стиль
+width     = input.float(20, 'Ширина %', minval = 0, maxval = 100, group = 'Стиль', tooltip = widthTooltip)
+
+showRange = input(true, 'Показывать уровни диапазона', inline = 'range', group = 'Стиль')
+rangeCss  = input(color.gray, ''         , inline = 'range', group = 'Стиль')
+
+bullBin   = input(#2157f3, 'Бычья ячейка', inline = 'bull', group = 'Стиль')
+bullMax   = input(true, 'Максимум'         , inline = 'bull', group = 'Стиль') 
+bearBin   = input(#ff5d00, 'Медвежья ячейка', inline = 'bear', group = 'Стиль')
+bearMax   = input(true, 'Минимум'         , inline = 'bear', group = 'Стиль')
+
+showFill = input(true, 'Показывать закрашенную область'             , inline = 'fill', group = 'Стиль')
+bullFill = input(color.new(#2157f3, 90), ''  , inline = 'fill', group = 'Стиль')
+bearFill = input(color.new(#ff5d00, 90), ''  , inline = 'fill', group = 'Стиль')
+
+offset = input.int(8, group = 'Стиль', tooltip = offsetTooltip)
+
+//Функция
+
+get_data() => [close, open]
+
+//Основные переменные
+
+var boxes = array.new<box>(0)
+
+//Заполнение массива бинов
+if barstate.isfirst
+    for i = 0 to rows-1
+        boxes.push(box.new(na,na,na,na,na
+          , text_valign = text.align_center
+          , text_color = color.white))
+
+n = bar_index
+upper = ta.highest(length)
+lower = ta.lowest(length)
+sumad = math.sum(math.abs(close - open), length)
+
+//Получение внутрибарных данных
+[get_close, get_open] = request.security_lower_tf(syminfo.tickerid, tf, get_data())
+
+//Установка профиля
+//Уровни диапазона
+var ltop = line.new(na,na,na,na, color = rangeCss)
+var l75  = line.new(na,na,na,na, color = rangeCss, style = line.style_dashed)
+var l50  = line.new(na,na,na,na, color = rangeCss)
+var l25  = line.new(na,na,na,na, color = rangeCss, style = line.style_dashed)
+var lbtm = line.new(na,na,na,na, color = rangeCss)
+var fill = linefill.new(ltop, lbtm, na)
+
+//Максимумы / Минимумы
+var bull_max = line.new(na,na,na,na, color = bullBin)
+var bear_min = line.new(na,na,na,na, color = bearBin)
+
+//Установка профиля
+if barstate.islast
+    avg = math.avg(upper, lower)
+    avg75 = math.avg(upper, avg)
+    avg25 = math.avg(lower, avg)
+
+    //Установка координат линий
+    ltop.set_xy1(n - length, upper), ltop.set_xy2(n + offset, upper)
+    lbtm.set_xy1(n - length, lower), lbtm.set_xy2(n + offset, lower)
+    
+    //Отображение уровней диапазона
+    if showRange
+        l75.set_xy1(n - length, avg75) , l75.set_xy2(n + offset, avg75)
+        l50.set_xy1(n - length, avg)   , l50.set_xy2(n + offset, avg)
+        l25.set_xy1(n - length, avg25) , l25.set_xy2(n + offset, avg25)
+    else
+        ltop.set_color(na)
+        lbtm.set_color(na)
+
+    //Получение суммы булль/абсолютных дельт для каждой строки
+    up = upper
+    dn = upper
+    sums     = array.new_float(0)
+    sums_abs = array.new_float(0)
+
+    //Цикл по каждой строке
+    for i = 0 to rows-1
+        dn -= (upper - lower) / rows
+        sum = 0.
+        den = 0.
+        
+        //Цикл по последним барам
+        for j = 0 to length-1
+            if useIb //Цикл по внутрибарным ценам
+                for k = 0 to (get_close[j]).size()-1
+                    c = (get_close[j]).get(k)
+                    o = (get_open[j]).get(k)
+                    sum += math.max(c, o) <= up and math.min(c, o) >= dn ? c - o : 0
+            else
+                sum += high[j] > dn and low[j] < up ? close[j] - open[j] : 0
+        
+        sums.push(sum)
+        sums_abs.push(math.abs(sum))
+
+        up := dn
+
+    //Установка бинов профиля
+    max = sums_abs.max()
+    up := upper
+    dn := upper
+    
+    for [index, element] in sums
+        dn -= (upper - lower) / rows
+        x2 = n + int(element / max * length * (width / 100))
+        
+        css = element > 0 ? color.new(bullBin, 50) : color.new(bearBin, 50)
+
+        //Установка координат боксов
+        get_bx = boxes.get(index)
+        get_bx.set_lefttop(n + offset, .9 * up + .1 * dn)
+        get_bx.set_rightbottom(x2 + offset, .9 * dn + .1 * up)
+        get_bx.set_bgcolor(css)
+        get_bx.set_text(str.tostring(element / sumad * 100, format.percent))
+        
+        //Установка уровней MAX/MIN
+        if element == sums.max() and bullMax
+            bull_max_val = math.avg(up, dn)
+            bull_max.set_xy1(n + offset, bull_max_val)
+            bull_max.set_xy2(n - length, bull_max_val)
+
+        if element == sums.min() and bearMax
+            bear_min_val = math.avg(up, dn)
+            bear_min.set_xy1(x2 + offset, bear_min_val)
+            bear_min.set_xy2(n - length, bear_min_val)
+            
+        up := dn
+    
+    //Заполнение области
+    if showFill
+        fill.set_color(sums.sum() > 0 ? color.new(bullBin, 90) : color.new(bearBin, 90))
+
+//-----------------------------------------------------------------------------}
+
+// Функции
+f_drawOnlyLineX(_x1, _y1, _x2, _y2, _xloc, _extend, _color, _style, _width) =>
+    id = line.new(_x1, _y1, _x2, _y2, _xloc, _extend, _color, _style, _width)
+
+f_drawLineX(_x1, _y1, _x2, _y2, _xloc, _extend, _color, _style, _width) =>
+    var id = line.new(_x1, _y1, _x2, _y2, _xloc, _extend, _color, _style, _width)
+    line.set_xy1(id, _x1, _y1)
+    line.set_xy2(id, _x2, _y2)
+    line.set_color(id, _color)
+    id
+
+f_drawOnlyBoxX(_left, _top, _right, _bottom, _border_color, _border_width, _border_style) =>
+    box.new(_left, _top, _right, _bottom, _border_color, _border_width, _border_style, bgcolor=_border_color)
+
+f_drawOnlyLabelX(_x, _y, _text, _xloc, _yloc, _color, _style, _textcolor, _size, _textalign, _tooltip) =>
+    label.new(_x, _y, _text, _xloc, _yloc, _color, _style, _textcolor, _size, _textalign, _tooltip)
+
+f_drawLabelX(_x, _y, _text, _xloc, _yloc, _color, _style, _textcolor, _size, _textalign, _tooltip) =>
+    var id = label.new(_x, _y, _text, _xloc, _yloc, _color, _style, _textcolor, _size, _textalign, _tooltip)
+    label.set_xy(id, _x, _y)
+    label.set_text(id, _text)
+    label.set_tooltip(id, _tooltip)
+
+f_getHighLow(_len, _calc, _offset) =>
+    if _calc
+        htf_l = low [_offset]
+        htf_h = high[_offset]
+        vol   = 0.
+        
+        for x = 0 to _len - 1
+            htf_l := math.min(low [_offset + x], htf_l)
+            htf_h := math.max(high[_offset + x], htf_h)
+            vol += volume[_offset + x]
+
+        htf_l := math.min(low [_offset + _len], htf_l)
+        htf_h := math.max(high[_offset + _len], htf_h)
+        
+        [htf_h, htf_l, vol]
+
+// проверить наличие нарушений в ящиках — фрагмент кода из руководства пользователя pine
+f_checkBreaches(arrayOfBoxes, extend) =>
+    int qtyOfBoxes = array.size(arrayOfBoxes)
+    for boxNo = 0 to (qtyOfBoxes > 0 ? qtyOfBoxes - 1 : na)
+        if boxNo < array.size(arrayOfBoxes)
+            box   currentBox    = array.get(arrayOfBoxes, boxNo)
+            float boxMidLevel   = math.avg(box.get_bottom(currentBox), box.get_top(currentBox))
+            bool  boxWasCrossed = math.sign(close[1] - boxMidLevel) != math.sign(close - boxMidLevel)
+            bool  boxWasTouched = math.sign(close[1] - boxMidLevel) != math.sign(low - boxMidLevel) or math.sign(close[1] - boxMidLevel) != math.sign(high - boxMidLevel) 
+
+            if boxWasCrossed and extend == 'Until Bar Cross'
+                array.remove(arrayOfBoxes, boxNo)
+                int(na)
+            else if boxWasTouched and extend == 'Until Bar Touch'
+                array.remove(arrayOfBoxes, boxNo)
+                int(na)
+            else
+                box.set_right(currentBox, bar_index)
+                int(na)
+
+// входные данные
+group_volume_profile    = 'Профиль объема точек разворота'
+
+tooltip_pvt       = 'Индикатор Pivot Points High Low используется для определения и прогнозирования потенциальных изменений рыночной цены и разворотов.\n' +
+                     '\'Профиль объема, закрепленные точки разворота.Пользовательский индикатор дополнительно рассчитывает торговую активность между двумя точками разворота'
+pvtLength         = input.int(20, "Точки поворота влево/вправо Длина", minval=1, group = group_volume_profile, tooltip = tooltip_pvt)
+
+tooltip_vp        = 'Общий профиль интересов (общий объем) — отображает общую торговую активность за определенный период времени на определенных уровнях цен'
+volumeProfile     = input.bool(false, 'Профиль объема (общий интерес)'             , inline='BB3', group = group_volume_profile, tooltip = tooltip_vp)
+totalVolumeColor  = input.color(#f8ab03, ''                          , inline='BB3', group = group_volume_profile)
+vaVolumeColor     = input.color(#a09e9e8a, ''                          , inline='BB3', group = group_volume_profile)
+
+tooltip_va        = 'Область стоимости (VA) – диапазон ценовых уровней, в которых определенный процент от всего объема торговался в течение периода времени'
+isValueArea       = input.float(68, "Объем области значений %", minval = 0, maxval = 100               , group = group_volume_profile, tooltip = tooltip_va) / 100
+
+tooltip_poc       = 'Точка контроля (POC) — уровень цен за период времени с наибольшим объемом торгов'
+pointOfControl    = input.bool(true, 'Точка контроля (PoC)'                       , inline='PoC', group = group_volume_profile, tooltip = tooltip_poc)
+pocColor          = input.color(#ff0000, ''                           , inline='PoC', group = group_volume_profile)
+pocExtend         = input.string('None', 'Расширение точки контроля (PoC)', options=['Until Last Bar', 'Until Bar Cross', 'Until Bar Touch', 'None'], group = group_volume_profile)
+
+tooltip_vah       = 'Область значений, высокая (VAH) - Самый высокий уровень цен в ценовой зоне'
+valueAreaHigh     = input.bool(true, 'Область значений, высокая (VAH)'                        , inline='VAH', group = group_volume_profile, tooltip = tooltip_vah)
+vahColor          = input.color(#2962ff, ''                           , inline='VAH', group = group_volume_profile)
+
+tooltip_val       = 'Область значений Низкая (VAL) - Самый низкий уровень цен в ценовой зоне'
+valueAreaLow      = input.bool(true, 'Область значений Низкая (VAL)?'                        , inline='VAL', group = group_volume_profile, tooltip = tooltip_val)
+valColor          = input.color(#2962ff, ''                           , inline='VAL', group = group_volume_profile)
+
+vaBackground      = input.bool(true, 'Фоновая заливка области значений (VA)'           , inline='vBG', group = group_volume_profile)
+vaBackgroundColor = input.color(#2962ff1c, ''                          , inline='vBG', group = group_volume_profile)
+
+levels            = input.string('Pivot Points', 'Level Labels', options = ['Pivot Points', 'Profile High/Low', 'Value Area High/Low'], group = group_volume_profile)
+pvtPrice          = input(false, "Цена", inline = 'Уровни', group=group_volume_profile)
+pvtChange         = input(false, "Изменение цены", inline = 'Уровни', group=group_volume_profile)
+pvtVolume         = input(false, "Совокупный объем", inline = 'Уровни', group=group_volume_profile)
+
+profileLevels     = input.int(25, 'Количество строк' , minval = 10, maxval = 100 , step = 1         , group = group_volume_profile)
+profilePlacement  = input.string('Левый', 'Размещение', options = ['Верно', 'Левый']                  , group = group_volume_profile)
+profileWidth      = input.int(30, 'Ширина профиля %', minval = 0, maxval = 100                     , group = group_volume_profile) / 100
+backgroundFill    = input.bool(true, 'Фоновая заливка диапазона профиля'             , inline ='BG', group = group_volume_profile)
+backgroundColor   = input.color(#2962ff0d, ''                          , inline ='BG', group = group_volume_profile)
+
+// Определения
+barPriceLow       = low
+barPriceHigh      = high
+bullCandle        = close > open
+nzVolume          = nz(volume)
+
+volumeStorageT    = array.new_float(profileLevels + 1, 0.)
+
+var a_poc         = array.new_box()
+
+var x1            = 0
+var x2            = 0
+var levelAbovePoc = 0
+var levelBelowPoc = 0
+var pvtHigh1      = 0.
+var pvtLow1       = 0.
+var pvtLast       = ''
+// Definitions 
+// Calculations 
+pvtHigh  = ta.pivothigh(pvtLength, pvtLength)
+pvtLow   = ta.pivotlow (pvtLength, pvtLength)
+proceed  = not na(pvtHigh) or not na(pvtLow)
+
+if proceed
+    x1 := x2
+    x2 := bar_index
+
+if not na(pvtHigh)
+    pvtHigh1 := pvtHigh
+    pvtLast  := 'H'
+
+if not na(pvtLow)
+    pvtLow1  := pvtLow
+    pvtLast  := 'L'
+
+profileLength = x2 - x1
+
+[priceHighest, priceLowest, tradedVolume] = f_getHighLow(profileLength, proceed, pvtLength)
+priceStep = (priceHighest - priceLowest) / profileLevels
+
+if proceed and nzVolume > 0 and priceStep > 0 and bar_index > profileLength and profileLength > 0
+
+    for barIndexx = 1 to profileLength
+        level = 0
+        barIndex = barIndexx + pvtLength
+        
+        for priceLevel = priceLowest to priceHighest by priceStep
+            if barPriceHigh[barIndex] >= priceLevel and barPriceLow[barIndex] < priceLevel + priceStep
+                array.set(volumeStorageT, level, array.get(volumeStorageT, level) + nzVolume[barIndex] * ((barPriceHigh[barIndex] - barPriceLow[barIndex]) == 0 ? 1 : priceStep / (barPriceHigh[barIndex] - barPriceLow[barIndex])) )
+            level += 1
+
+    pocLevel          = array.indexof(volumeStorageT, array.max(volumeStorageT))
+    totalVolumeTraded = array.sum(volumeStorageT) * isValueArea
+    valueArea         = array.get(volumeStorageT, pocLevel)
+    levelAbovePoc    := pocLevel
+    levelBelowPoc    := pocLevel
+    
+    while valueArea < totalVolumeTraded
+        if levelBelowPoc == 0 and levelAbovePoc == profileLevels - 1
+            break
+
+        volumeAbovePoc = 0.
+        if levelAbovePoc < profileLevels - 1 
+            volumeAbovePoc := array.get(volumeStorageT, levelAbovePoc + 1)
+
+        volumeBelowPoc = 0.
+        if levelBelowPoc > 0
+            volumeBelowPoc := array.get(volumeStorageT, levelBelowPoc - 1)
+        
+        if volumeBelowPoc == 0 and volumeAbovePoc == 0
+            break
+        
+        if volumeAbovePoc >= volumeBelowPoc
+            valueArea     += volumeAbovePoc
+            levelAbovePoc += 1
+        else
+            valueArea     += volumeBelowPoc
+            levelBelowPoc -= 1
+
+    for level = 0 to profileLevels - 1
+        if volumeProfile
+            startBoxIndex = profilePlacement == 'Right' ? bar_index - int(array.get(volumeStorageT, level) / array.max(volumeStorageT) * profileLength * profileWidth)  : bar_index - profileLength
+            endBoxIndex   = profilePlacement == 'Right' ? bar_index  :  startBoxIndex + int( array.get(volumeStorageT, level) / array.max(volumeStorageT) * profileLength * profileWidth)
+            f_drawOnlyBoxX(startBoxIndex - pvtLength, priceLowest + (level + 0.1) * priceStep, endBoxIndex - pvtLength, priceLowest + (level + 0.9) * priceStep, level >= levelBelowPoc and level <= levelAbovePoc ? totalVolumeColor : vaVolumeColor, 1, line.style_solid)
+
+    if backgroundFill
+        f_drawOnlyBoxX(bar_index[pvtLength] - profileLength, priceHighest, bar_index[pvtLength], priceLowest, backgroundColor, 1, line.style_dotted)
+
+    if pointOfControl
+        array.push(a_poc, box.new(bar_index[pvtLength] - profileLength, priceLowest + (array.indexof(volumeStorageT, array.max(volumeStorageT)) + .40) * priceStep, bar_index[pvtLength], priceLowest + (array.indexof(volumeStorageT, array.max(volumeStorageT)) + .60) * priceStep, pocColor, bgcolor = pocColor ))
+
+    vah = f_drawOnlyLineX(bar_index[pvtLength] - profileLength, priceLowest + (levelAbovePoc + 1.00) * priceStep, bar_index[pvtLength], priceLowest + (levelAbovePoc + 1.00) * priceStep, xloc.bar_index, extend.none, valueAreaHigh ? vahColor : #00000000, line.style_solid, 2)
+    val = f_drawOnlyLineX(bar_index[pvtLength] - profileLength, priceLowest + (levelBelowPoc + 0.00) * priceStep, bar_index[pvtLength], priceLowest + (levelBelowPoc + 0.00) * priceStep, xloc.bar_index, extend.none, valueAreaLow  ? valColor : #00000000, line.style_solid, 2)
+
+    if vaBackground
+        linefill.new(vah, val, vaBackgroundColor)
+
+    statTip = '\n -Traded Volume : ' + str.tostring(tradedVolume, format.volume) + ' (' + str.tostring(profileLength - 1) + ' bars)' +
+                   '\n  *Average Volume/Bar : ' + str.tostring(tradedVolume / (profileLength - 1), format.volume) +
+                   '\n\nProfile High : ' + str.tostring(priceHighest, format.mintick) + ' ^ %' + str.tostring((priceHighest - priceLowest) / priceLowest  * 100, '#.##') +
+                   '\nProfile Low : '  + str.tostring(priceLowest, format.mintick) + ' v %' + str.tostring((priceHighest - priceLowest) / priceHighest  * 100, '#.##') +
+                   '\n -Point Of Control : ' + str.tostring(priceLowest + (array.indexof(volumeStorageT, array.max(volumeStorageT)) + .50) * priceStep, format.mintick) +
+                   '\n\nValue Area High : ' + str.tostring(priceLowest + (levelAbovePoc + 1.00) * priceStep, format.mintick) +
+                   '\nValue Area Low : '  + str.tostring(priceLowest + (levelBelowPoc + 0.00) * priceStep, format.mintick) +
+                   '\n -Value Area Width : %' + str.tostring(((priceLowest + (levelAbovePoc + 1.00) * priceStep) - (priceLowest + (levelBelowPoc + 0.00) * priceStep)) / (priceHighest - priceLowest) * 100, '#.##') +
+                   '\n\nNumber of Bars (Profile) : ' + str.tostring(profileLength)
+    
+    if levels != 'Pivot Points'
+        upperPriceLevel = levels == 'Value Area High/Low' ? priceLowest + (levelAbovePoc + 1.00) * priceStep : priceHighest
+        lowerPriceLevel = levels == 'Value Area High/Low' ? priceLowest + (levelBelowPoc + 0.00) * priceStep : priceLowest
+
+        upperText = (pvtPrice ? str.tostring(upperPriceLevel, format.mintick) : '') + (not na(pvtHigh) ? (pvtChange ? (pvtPrice ? ' ^ %' : '^ %') + str.tostring((pvtHigh - pvtLow1) * 100 / pvtLow1 , '#.##') : '') + (pvtVolume ? (pvtPrice or pvtChange ? '\n' : '') + str.tostring(tradedVolume, format.volume) : '') : '')
+        lowerText = (pvtPrice ? str.tostring(lowerPriceLevel, format.mintick) : '') + (not na(pvtLow) ? (pvtChange ? (pvtPrice ? ' v %' : 'v %') + str.tostring((pvtHigh1 - pvtLow) * 100 / pvtHigh1, '#.##') : '') + (pvtVolume ? (pvtPrice or pvtChange ? '\n' : '') + str.tostring(tradedVolume, format.volume) : '') : '')
+        
+        f_drawOnlyLabelX(bar_index[pvtLength] - profileLength / 2, upperPriceLevel, upperText, xloc.bar_index, yloc.price, (upperText != '' ? chart.fg_color : #00000000), label.style_label_down, chart.bg_color, size.normal, text.align_center, 'Profile High : ' + str.tostring(priceHighest, format.mintick) + '\n %' + str.tostring((priceHighest - priceLowest) / priceLowest  * 100, '#.##') + ' higher than the Profile Low' + statTip )
+        f_drawOnlyLabelX(bar_index[pvtLength] - profileLength / 2, lowerPriceLevel, lowerText, xloc.bar_index, yloc.price, (lowerText != '' ? chart.fg_color : #00000000), label.style_label_up  , chart.bg_color , size.normal, text.align_center, 'Profile Low : '  + str.tostring(priceLowest, format.mintick)  + '\n %' + str.tostring((priceHighest - priceLowest) / priceHighest * 100, '#.##') + ' lower than the Profile High' + statTip )
+    else
+        if not na(pvtHigh)
+            f_drawOnlyLabelX(bar_index[pvtLength], pvtHigh, (pvtPrice ? str.tostring(pvtHigh, format.mintick) : '') + (pvtChange ? (pvtPrice ? ' ^ %' : '^ %') + str.tostring((pvtHigh - pvtLow1) * 100 / pvtLow1 , '#.##') : '') + (pvtVolume ? (pvtPrice or pvtChange ? '\n' : '') + str.tostring(tradedVolume, format.volume) : ''), xloc.bar_index, yloc.price, chart.fg_color, label.style_label_down, chart.bg_color, (not pvtPrice and not pvtChange and not pvtVolume ? size.tiny : size.normal), text.align_center, 'Pivot High : ' + str.tostring(pvtHigh, format.mintick) + '\n -Price Change : %' + str.tostring((pvtHigh - pvtLow1) * 100 / pvtLow1 , '#.##') + statTip)
+        if not na(pvtLow)
+            f_drawOnlyLabelX(bar_index[pvtLength], pvtLow , (pvtPrice ? str.tostring(pvtLow , format.mintick) : '') + (pvtChange ? (pvtPrice ? ' v %' : 'v %') + str.tostring((pvtHigh1 - pvtLow) * 100 / pvtHigh1, '#.##') : '') + (pvtVolume ? (pvtPrice or pvtChange ? '\n' : '') + str.tostring(tradedVolume, format.volume) : ''), xloc.bar_index, yloc.price, chart.fg_color, label.style_label_up  , chart.bg_color, (not pvtPrice and not pvtChange and not pvtVolume ? size.tiny : size.normal), text.align_center, 'Pivot Low : ' + str.tostring(pvtLow, format.mintick) + '\n -Price Change : %' + str.tostring((pvtHigh1 - pvtLow) * 100 / pvtHigh1, '#.##') + statTip)
+
+if pointOfControl and pocExtend != 'None' 
+    f_checkBreaches(a_poc, pocExtend)
+
+var a_profileD    = array.new_box()
+profileLength    := barstate.islast ? last_bar_index - x2 + pvtLength  : 1
+priceHighest     := ta.highest(high, profileLength > 0 ? profileLength + 1 : 1)
+priceLowest      := ta.lowest (low , profileLength > 0 ? profileLength + 1 : 1)
+priceStep        := (priceHighest - priceLowest) / profileLevels
+var pocLevel      = 0
+
+[_, _, tradedVolume1] = f_getHighLow(profileLength, true, 0)
+    
+if barstate.islast and nzVolume > 0 and profileLength > 0 and priceStep > 0
+    
+    if array.size(a_profileD) > 0
+        for i = 0 to array.size(a_profileD) - 1
+            box.delete(array.shift(a_profileD))
+
+    for barIndex = 1 to profileLength
+        level = 0
+
+        for priceLevel = priceLowest to priceHighest by priceStep
+            if barPriceHigh[barIndex] >= priceLevel and barPriceLow[barIndex] < priceLevel + priceStep
+                array.set(volumeStorageT, level, array.get(volumeStorageT, level) + nzVolume[barIndex] * ((barPriceHigh[barIndex] - barPriceLow[barIndex]) == 0 ? 1 : priceStep / (barPriceHigh[barIndex] - barPriceLow[barIndex])) )
+            level += 1
+
+    pocLevel          := array.indexof(volumeStorageT, array.max(volumeStorageT))
+    totalVolumeTraded = array.sum(volumeStorageT) * isValueArea
+    valueArea         = array.get(volumeStorageT, pocLevel)
+    levelAbovePoc    := pocLevel
+    levelBelowPoc    := pocLevel
+    
+    while valueArea < totalVolumeTraded
+        if levelBelowPoc == 0 and levelAbovePoc == profileLevels - 1
+            break
+
+        volumeAbovePoc = 0.
+        if levelAbovePoc < profileLevels - 1 
+            volumeAbovePoc := array.get(volumeStorageT, levelAbovePoc + 1)
+
+        volumeBelowPoc = 0.
+        if levelBelowPoc > 0
+            volumeBelowPoc := array.get(volumeStorageT, levelBelowPoc - 1)
+            
+        if volumeBelowPoc == 0 and volumeAbovePoc == 0
+            break
+        
+        if volumeAbovePoc >= volumeBelowPoc
+            valueArea     += volumeAbovePoc
+            levelAbovePoc += 1
+        else
+            valueArea     += volumeBelowPoc
+            levelBelowPoc -= 1
+
+    for level = 0 to profileLevels - 1
+        if volumeProfile
+            startBoxIndex = profilePlacement == 'Right' ? bar_index - int(array.get(volumeStorageT, level) / array.max(volumeStorageT) * profileLength * profileWidth)  : bar_index - profileLength
+            endBoxIndex   = profilePlacement == 'Right' ? bar_index  :  startBoxIndex + int( array.get(volumeStorageT, level) / array.max(volumeStorageT) * profileLength * profileWidth)
+            array.push(a_profileD, box.new(startBoxIndex, priceLowest + (level + 0.1) * priceStep, endBoxIndex, priceLowest + (level + 0.9) * priceStep, level >= levelBelowPoc and level <= levelAbovePoc ? totalVolumeColor : vaVolumeColor, bgcolor = level >= levelBelowPoc and level <= levelAbovePoc ? totalVolumeColor : vaVolumeColor ))
+
+    if backgroundFill
+        array.push(a_profileD, box.new(bar_index - profileLength, priceHighest, bar_index, priceLowest, backgroundColor, bgcolor = backgroundColor ))
+
+    if pointOfControl
+        array.push(a_profileD, box.new(bar_index - profileLength, priceLowest + (pocLevel + .40) * priceStep, bar_index, priceLowest + (pocLevel + .60) * priceStep, pocColor, bgcolor = pocColor ))
+
+    vah = f_drawLineX(bar_index - profileLength, priceLowest + (levelAbovePoc + 1.00) * priceStep, bar_index, priceLowest + (levelAbovePoc + 1.00) * priceStep, xloc.bar_index, extend.none, valueAreaHigh ? vahColor : #00000000, line.style_solid, 2)
+    val = f_drawLineX(bar_index - profileLength, priceLowest + (levelBelowPoc + 0.00) * priceStep, bar_index, priceLowest + (levelBelowPoc + 0.00) * priceStep, xloc.bar_index, extend.none, valueAreaLow  ? valColor : #00000000, line.style_solid, 2)
+
+    if vaBackground
+        linefill.new(vah, val, vaBackgroundColor)
+
+    if levels != 'Pivot Points'
+        statTip = '\n -Traded Volume : ' + str.tostring(tradedVolume1, format.volume) + ' (' + str.tostring(profileLength - 1) + ' bars)' +
+                   '\n  *Average Volume/Bar : ' + str.tostring(tradedVolume1 / (profileLength - 1), format.volume) +
+                   '\n\nProfile High : ' + str.tostring(priceHighest, format.mintick) + ' ^ %' + str.tostring((priceHighest - priceLowest) / priceLowest  * 100, '#.##') +
+                   '\nProfile Low : '  + str.tostring(priceLowest, format.mintick) + ' v %' + str.tostring((priceHighest - priceLowest) / priceHighest  * 100, '#.##') +
+                   '\n -Point Of Control : ' + str.tostring(priceLowest + (array.indexof(volumeStorageT, array.max(volumeStorageT)) + .50) * priceStep, format.mintick) +
+                   '\n\nValue Area High : ' + str.tostring(priceLowest + (levelAbovePoc + 1.00) * priceStep, format.mintick) +
+                   '\nValue Area Low : '  + str.tostring(priceLowest + (levelBelowPoc + 0.00) * priceStep, format.mintick) +
+                   '\n -Value Area Width : %' + str.tostring(((priceLowest + (levelAbovePoc + 1.00) * priceStep) - (priceLowest + (levelBelowPoc + 0.00) * priceStep)) / (priceHighest - priceLowest) * 100, '#.##') +
+                   '\n\nNumber of Bars (Profile) : ' + str.tostring(profileLength) +
+                   (pvtChange ? '\n\n*price change caculated based on last pivot high/low and last price' : '')
+
+        upperPriceLevel = levels == 'Value Area High/Low' ? priceLowest + (levelAbovePoc + 1.00) * priceStep : priceHighest
+        lowerPriceLevel = levels == 'Value Area High/Low' ? priceLowest + (levelBelowPoc + 0.00) * priceStep : priceLowest
+        
+        upperText = (pvtPrice ? str.tostring(upperPriceLevel, format.mintick) : '') + (pvtLast == 'L' ? (pvtChange ? (pvtPrice ? ' ^ %' : '^ %') + str.tostring((close - pvtLow1) * 100 / pvtLow1 , '#.##') + '*' : '') + (pvtVolume ? (pvtPrice or pvtChange ? '\n' : '') + str.tostring(tradedVolume1, format.volume) : '') : '')
+        lowerText = (pvtPrice ? str.tostring(lowerPriceLevel, format.mintick) : '') + (pvtLast == 'H' ? (pvtChange ? (pvtPrice ? ' v %' : 'v %') + str.tostring((pvtHigh1 - close) * 100 / pvtHigh1, '#.##') + '*' : '') + (pvtVolume ? (pvtPrice or pvtChange ? '\n' : '') + str.tostring(tradedVolume1, format.volume) : '') : '')
+        
+        f_drawLabelX(bar_index - profileLength / 2, upperPriceLevel, upperText, xloc.bar_index, yloc.price, (upperText != '' ? chart.fg_color : #00000000), label.style_label_down, chart.bg_color, size.normal, text.align_center, 'Profile High : ' + str.tostring(priceHighest, format.mintick) + '\n %' + str.tostring((priceHighest - priceLowest) / priceLowest  * 100, '#.##') + ' higher than the Profile Low' + statTip )
+        f_drawLabelX(bar_index - profileLength / 2, lowerPriceLevel, lowerText, xloc.bar_index, yloc.price, (lowerText != '' ? chart.fg_color : #00000000), label.style_label_up  , chart.bg_color, size.normal, text.align_center, 'Profile Low : '  + str.tostring(priceLowest, format.mintick)  + '\n %' + str.tostring((priceHighest - priceLowest) / priceHighest * 100, '#.##') + ' lower than the Profile High' + statTip )
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, 'DM', text_size=size.normal, text_color=color(#00897b))

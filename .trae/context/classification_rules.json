@@ -1,0 +1,18 @@
+{
+  "ea_classification": {
+    "ftmo_ready": { "required_score": 70, "criteria": ["risk", "stop_loss", "daily_limit", "rr>=3", "max_trades", "session_filter"], "folder": "FTMO_Ready" },
+    "advanced_scalping": { "keywords": ["scalp", "M1", "M5"], "bonus": ["smc", "volume"], "folder": "Advanced_Scalping" },
+    "grid_martingale": { "keywords": ["grid", "martingale", "recovery"], "folder": "Grid_Martingale" },
+    "multi_symbol": { "keywords": ["SymbolsTotal", "SymbolName", "iSymbol"], "folder": "Multi_Symbol" }
+  },
+  "indicator_classification": {
+    "order_blocks": { "keywords": ["order_block", "bos", "choch", "fvg"], "folder": "Order_Blocks" },
+    "volume_flow": { "keywords": ["obv", "volume", "profile", "poc", "flow"], "folder": "Volume_Flow" },
+    "market_structure": { "keywords": ["structure", "support", "resistance"], "folder": "Market_Structure" }
+  },
+  "script_classification": {
+    "risk_tools": { "keywords": ["lot", "risk", "dd", "stop_loss"], "folder": "Risk_Tools" },
+    "analysis_tools": { "keywords": ["scan", "stat", "analysis"], "folder": "Analysis_Tools" }
+  },
+  "scoring_weights": { "ftmo": 35, "strategy": 25, "code_quality": 20, "risk_management": 20 }
+}

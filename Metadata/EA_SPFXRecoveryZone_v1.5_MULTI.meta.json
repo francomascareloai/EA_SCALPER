@@ -1,0 +1,140 @@
+{
+  "id": "EA_SPFXRecoveryZone_v1.5_MULTI",
+  "arquivo": "SPFX RECOVERY ZONE EA v1.5@LifeInDreamsWorld.mq5",
+  "hash": "spfx_recovery_zone_v1_5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Grid_Martingale",
+  "subestrategias": ["Recovery_Zone", "Hedge", "Grid", "ATR_Dynamic", "RSI_MTF"],
+  "mercados": ["MULTI"],
+  "timeframes": ["MULTI"],
+  "funcoes_chave": [
+    "OnTick",
+    "OnInit",
+    "OnDeinit",
+    "OpenPendingOrder",
+    "ClosePendingOrder",
+    "RecoveryLogic",
+    "HedgeLogic",
+    "ATRCalculation",
+    "RSIMultiTimeframe",
+    "LotSizeCalculation",
+    "RiskManagement"
+  ],
+  "dependencias_includes": [
+    "Trade/Trade.mqh",
+    "Trade/SymbolInfo.mqh",
+    "Trade/PositionInfo.mqh"
+  ],
+  "parametros_expostos": [
+    {
+      "nome": "RecoveryZoneSize",
+      "tipo": "int",
+      "default": 200,
+      "descricao": "Recovery Zone Size (points)"
+    },
+    {
+      "nome": "TakeProfit",
+      "tipo": "int",
+      "default": 200,
+      "descricao": "Take Profit (points)"
+    },
+    {
+      "nome": "MaxTrades",
+      "tipo": "int",
+      "default": 0,
+      "descricao": "Max Trades (0 for unlimited)"
+    },
+    {
+      "nome": "SetMaxLoss",
+      "tipo": "bool",
+      "default": false,
+      "descricao": "Max Loss after Max Trades reached?"
+    },
+    {
+      "nome": "MaxLoss",
+      "tipo": "double",
+      "default": 0.0,
+      "descricao": "Max Loss after Max Trades (0 for unlimited)"
+    },
+    {
+      "nome": "UseRecoveryTakeProfit",
+      "tipo": "bool",
+      "default": true,
+      "descricao": "Use a Recovery Take Profit"
+    },
+    {
+      "nome": "RecoveryTakeProfit",
+      "tipo": "int",
+      "default": 50,
+      "descricao": "Recovery Take Profit (points)"
+    },
+    {
+      "nome": "UseATR",
+      "tipo": "bool",
+      "default": false,
+      "descricao": "Use ATR for dynamic sizing"
+    },
+    {
+      "nome": "ATRPeriod",
+      "tipo": "int",
+      "default": 14,
+      "descricao": "ATR Period"
+    },
+    {
+      "nome": "ATRZoneFraction",
+      "tipo": "double",
+      "default": 0.2,
+      "descricao": "Fraction of ATR to use as Recovery Zone"
+    },
+    {
+      "nome": "RiskPercent",
+      "tipo": "double",
+      "default": 0.0,
+      "descricao": "Account % Initial Lot Size"
+    },
+    {
+      "nome": "InitialLotSize",
+      "tipo": "double",
+      "default": 0.1,
+      "descricao": "Initial Lot Size"
+    },
+    {
+      "nome": "LotMultiplier",
+      "tipo": "double",
+      "default": 2.0,
+      "descricao": "Multiplier for Lots (Martingale)"
+    }
+  ],
+  "ftmo_score": 1,
+  "riscos_detectados": [
+    "ESTRATEGIA_MARTINGALE_PROIBIDA",
+    "GRID_TRADING_NAO_PERMITIDO",
+    "RECOVERY_ZONE_ALTO_RISCO",
+    "HEDGE_TRADING_PROIBIDO",
+    "MULTIPLICADOR_LOTE_PERIGOSO",
+    "SEM_LIMITE_TRADES_DIARIO",
+    "SEM_DAILY_LOSS_LIMIT",
+    "PODE_EXCEDER_5_PERCENT_DAILY_LOSS"
+  ],
+  "qualidade_codigo_score": 7,
+  "compilacao": {
+    "status": "ok",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [
+    "INCOMPATÍVEL COM FTMO - Estratégia Martingale/Grid proibida",
+    "Remover multiplicador de lote",
+    "Implementar daily loss limit de 5%",
+    "Adicionar limite de trades por dia",
+    "Remover lógica de recovery/hedge",
+    "Implementar gestão de risco FTMO compliant"
+  ],
+  "licenca_autor": "A. Sweeney - OneGlanceTrader.com",
+  "tags": ["#EA", "#Grid_Martingale", "#Recovery", "#Hedge", "#MULTI", "#Nao_FTMO", "#Alto_Risco", "#Martingale"],
+  "caminho_origem": "All_MQ5/SPFX RECOVERY ZONE EA v1.5@LifeInDreamsWorld.mq5",
+  "caminho_final": "EAs/Grid_Martingale/EA_SPFXRecoveryZone_v1.5_MULTI.mq5",
+  "data_classificacao": "2025-01-27",
+  "observacoes": "EA de Recovery Zone com estratégia Martingale/Grid. INCOMPATÍVEL com FTMO devido ao uso de multiplicador de lote e estratégia de recovery. Código bem estruturado mas estratégia proibida para prop trading."
+}

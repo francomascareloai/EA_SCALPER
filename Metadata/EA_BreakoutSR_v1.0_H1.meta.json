@@ -1,0 +1,49 @@
+{
+  "arquivo": "EA_BreakoutSR_v1.0_H1.mq5",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "Breakout",
+  "mercado_alvo": "MULTI",
+  "timeframe_recomendado": "H1",
+  "versao": "1.0",
+  "autor": "Desconhecido",
+  "descricao": "EA de breakout de suporte e resistência com trailing stop para H1",
+  "funcoes_principais": [
+    "OnInit",
+    "OnTick",
+    "OrderSend",
+    "OrderSelect",
+    "OrderModify",
+    "CopyRates",
+    "SymbolInfoDouble"
+  ],
+  "parametros_expostos": [
+    "LookbackCandles",
+    "Lots",
+    "TrailingStop",
+    "Slippage"
+  ],
+  "indicadores_utilizados": [],
+  "pares_suportados": ["MULTI"],
+  "timeframes_suportados": ["H1"],
+  "ftmo_score": 5,
+  "codigo_qualidade_score": 7,
+  "riscos_detectados": [
+    "Lot size fixo",
+    "Sem stop loss inicial",
+    "Sem limite de drawdown",
+    "Sem filtro de sessão",
+    "Magic number não definido"
+  ],
+  "ajustes_necessarios_ftmo": [
+    "Implementar stop loss obrigatório",
+    "Adicionar gestão de risco dinâmica",
+    "Implementar limite de drawdown",
+    "Adicionar filtro de sessão",
+    "Definir magic number único"
+  ],
+  "tags": ["#EA", "#Breakout", "#H1", "#TrailingStop", "#SupportResistance", "#Nao_FTMO"],
+  "caminho_completo": "CODIGO_FONTE_LIBRARY/MQL5_Source/EAs/Breakout/EA_BreakoutSR_v1.0_H1.mq5",
+  "data_classificacao": "2024-12-19",
+  "status": "Classificado"
+}

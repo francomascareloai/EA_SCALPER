@@ -1,0 +1,17 @@
+{
+  "nome": "Order Blocks Manifest",
+  "versao": "1.0",
+  "descricao": "Componentes relacionados a Order Blocks e Smart Money Concepts",
+  "componentes": {
+    "deteccao_ob": [],
+    "validacao_ob": [],
+    "breaker_blocks": [],
+    "mitigation_blocks": []
+  },
+  "scores": {
+    "precisao_media": 0,
+    "ftmo_compliance": 0,
+    "performance_score": 0
+  },
+  "ultima_atualizacao": "2025-01-10"
+}

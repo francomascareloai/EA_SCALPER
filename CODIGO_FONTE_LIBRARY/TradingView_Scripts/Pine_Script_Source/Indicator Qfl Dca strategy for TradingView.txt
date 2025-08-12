@@ -1,0 +1,106 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+
+strategy("Qfl Dca strategy", overlay=true)
+
+// Parameters
+swing = input(3 , title = "Swing Points")
+mediandropmult = input.float(1.1, "Median drop Mult", step=0.1 , tooltip = "The script Calculate The Median Drop for all last Bases That Was cracked you can Increase or decrease it")
+floatinglossvalue = input(-5 , "Floating Loss" , tooltip = "Position Floating Loss to start firs DCA order")
+num_orders = input(5 , "Number of all orders" , tooltip = " The number of orders is including the base order and the DCA orders the script will alculate every order qty based on the orders number So that the position size doubles with every order")
+length = input(20, title="Length of relative volume" ,tooltip =  " the length of relative volume indicator")
+mult = input(2.0, title="Volume Multiplier" , tooltip = "you can adjust the relative volume multiplier to find best parameter")
+tpmult = input.float(1, step=0.1 ,title = "Take Profit Multiplier" ,tooltip =  " By default, the script is set to take profits based on the same median drop percent you can adjust it as you like")
+
+
+
+// Pivot Calculation
+p = ta.pivotlow(low, swing, swing)
+v = ta.valuewhen(p, low[swing], 0)
+
+// Variables
+var float[] lows = array.new_float()
+var float chn = na
+
+// Calculate drops
+if v < v[1]
+    chn := (v[1] - v) / v[1] * 100
+    if array.size(lows) < 4000
+        array.push(lows, chn)
+    else
+        array.shift(lows)
+        array.push(lows, chn)
+
+mediandrop = array.avg(lows)
+maxdrop = array.max(lows)
+mindrop = array.min(lows)
+
+// Table display
+textcolor = color.white
+// tabl = table.new(position=position.top_right, columns=4, rows=4)
+// table.cell(table_id=tabl, column=1, row=1, text="Avg Drop %", width=15, text_color=textcolor)
+// table.cell(table_id=tabl, column=2, row=1, text="Min Drop %", width=15, text_color=textcolor)
+// table.cell(table_id=tabl, column=3, row=1, text="Max Drop %", width=15, text_color=textcolor)
+// table.cell(table_id=tabl, column=1, row=2, text=str.tostring(mediandrop), width=10, text_color=textcolor)
+// table.cell(table_id=tabl, column=2, row=2, text=str.tostring(mindrop), width=10, text_color=textcolor)
+// table.cell(table_id=tabl, column=3, row=2, text=str.tostring(maxdrop), width=10, text_color=textcolor)
+
+// Plot support
+t = fixnan(ta.pivotlow(low, swing, swing))
+plot(t, color=ta.change(t) ? na : #03f590b6, linewidth=3, offset=-(swing), title="Support")
+
+// Calculate relative volume
+avgVolume = ta.sma(volume, length)
+relVolume = volume / avgVolume
+
+// Base Activation
+var bool baseisactive = na
+if not na(p)
+    baseisactive := true
+
+// Buy Signal Calculation
+buyprice = v * (1 - (mediandrop / 100) * mediandropmult)
+signal = close <= buyprice and relVolume > mult and baseisactive
+
+// Take Profit Calculation
+tpsl = (mediandrop / 100)
+tp = (strategy.position_avg_price * (1 + (tpsl * tpmult)))
+
+// Position Sizing
+capital_per_order(num_orders, equity) =>
+    equity / math.pow(2, (num_orders - 1))
+
+equity_per_order = capital_per_order(num_orders, strategy.equity)
+
+qty_per_order(equity_per_order, order_number) =>
+    equity_per_order * order_number / close
+
+// Calculate floating loss
+floatingLoss = ((close - strategy.position_avg_price) / strategy.position_avg_price) * 100
+
+// Strategy Entries
+if signal and strategy.opentrades == 0
+    strategy.entry("Buy", strategy.long, qty=qty_per_order(equity_per_order, 1))
+    baseisactive := false
+
+for i = 1 to num_orders -1
+    if signal and strategy.opentrades == i and floatingLoss <= floatinglossvalue
+        strategy.entry("Buy", strategy.long, qty=qty_per_order(equity_per_order, i), comment="DCA Order" + str.tostring(i))
+        baseisactive := false
+
+// Strategy Exit
+strategy.exit("exit", "Buy", limit=tp)
+
+// Plot
+plot(strategy.position_avg_price, color=color.rgb(238, 255, 0), style=plot.style_linebr, linewidth=2)
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

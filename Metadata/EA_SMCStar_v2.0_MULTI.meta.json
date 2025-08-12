@@ -1,0 +1,64 @@
+{
+  "id": "EA_SMCStar_v2.0_MULTI",
+  "arquivo_original": "SMCstarV02.mq5",
+  "arquivo_renomeado": "EA_SMCStar_v2.0_MULTI.mq5",
+  "hash_arquivo": "smcstar_v02_multi",
+  "tipo": "EA",
+  "linguagem": "MQL5",
+  "estrategia": "SMC",
+  "mercados": ["MULTI"],
+  "timeframes": ["M10", "H1"],
+  "funcoes_chave": [
+    "OnTick",
+    "barscann",
+    "OBbarann",
+    "OBhighann",
+    "OBlowann",
+    "barscasmc",
+    "OBbarsmc",
+    "OBhighsmc",
+    "OBlowsmc",
+    "CalculateTotalProfit",
+    "EquityManager"
+  ],
+  "dependencias": [
+    "Trade\\SymbolInfo.mqh",
+    "Trade\\OrderInfo.mqh",
+    "Trade\\Trade.mqh"
+  ],
+  "parametros_expostos": {
+    "DrawAnnOrderBlock": "Draw ANN Order Block (true)",
+    "DrawSMCOrderBlock": "Draw SMC Order Block (true)",
+    "TradeAnn": "Execute Ann Order Block Trades (true)",
+    "TradeSmc": "Execute SMC Order Block Trades (true)",
+    "BigAnnOBtimeframe": "Higher TimeFrame ANN OB (H1)",
+    "BigSMCOBtimeframe": "Higher TimeFrame SMC OB (H1)",
+    "TinyOBtimeframe": "Lower TimeFrame OB (M10)",
+    "Lots": "Lots (0.01)",
+    "InpTakeProfitPoints": "Take Profit Points (1720)",
+    "InpStopLossPoints": "Stop Loss Points (150)",
+    "EquityManager": "Equity Manager (true)",
+    "MaxFloatLoss": "Max Float Loss (1.3)",
+    "StartTradingi": "Start Trading (07:00)",
+    "EndTradingi": "End Trading (11:00)"
+  },
+  "ftmo_score": 8,
+  "riscos_detectados": [
+    "Equity manager implementado",
+    "Stop Loss fixo em pontos",
+    "Filtro de horário presente",
+    "Múltiplos timeframes"
+  ],
+  "qualidade_codigo": 7,
+  "status_compilacao": "OK",
+  "pronto_merge": true,
+  "ajustes_necessarios": [
+    "Verificar se equity loss está em % do balance",
+    "Confirmar RR ratio",
+    "Testar detecção de Order Blocks"
+  ],
+  "licenca": "Copyright 2023",
+  "autor": "simpleforextools",
+  "data_analise": "2024-12-19",
+  "tags": ["#EA", "#SMC", "#OrderBlocks", "#MULTI", "#H1", "#M10", "#FTMO_Ready", "#EquityManager", "#TimeFilter", "#MultiTimeframe"]
+}

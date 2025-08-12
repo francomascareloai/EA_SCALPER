@@ -1,0 +1,43 @@
+{
+  "id": "IND_LinearRegressionLine_v1.0_MULTI",
+  "nome": "IND_LinearRegressionLine_v1.0_MULTI.mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Trend_Analysis",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "autor": "MetaQuotes Ltd",
+  "descricao": "Indicador oficial Linear Regression Line da MetaQuotes. Desenha linha de regressão linear para identificar tendência e direção do mercado baseada em análise estatística.",
+  "parametros_principais": [
+    "InpRegressionPeriod: Período da regressão (padrão 21)",
+    "Cálculo automático da linha de tendência"
+  ],
+  "indicadores_utilizados": [
+    "Regressão Linear",
+    "Análise estatística de preços"
+  ],
+  "ftmo_compliance": {
+    "score": 9,
+    "status": "FTMO_Ready",
+    "observacoes": "Indicador técnico oficial sem riscos. Ferramenta estatística confiável para análise de tendência baseada em regressão linear."
+  },
+  "riscos_identificados": [
+    "Nenhum risco direto (apenas indicador)",
+    "Pode ser menos efetivo em mercados muito voláteis",
+    "Linha pode mudar drasticamente com novos dados"
+  ],
+  "tags": [
+    "#Indicator",
+    "#Trend_Analysis",
+    "#Linear_Regression",
+    "#Statistical_Analysis",
+    "#MetaQuotes",
+    "#FTMO_Ready",
+    "#Trend_Direction"
+  ],
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "status": "Classificado",
+  "observacoes_tecnicas": "Código oficial MetaQuotes limpo e bem estruturado. Implementa corretamente o cálculo de regressão linear para análise de tendência."
+}

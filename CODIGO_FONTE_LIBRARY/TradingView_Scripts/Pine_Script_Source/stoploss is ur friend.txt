@@ -1,0 +1,154 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Uncle-Rick-investing (modified with Advanced Pullback logic)
+
+//@version=5
+indicator('Advanced Pullback Confirmation System', shorttitle='AdvPullback', overlay=true)
+
+// === Colors ===
+colorBull = color.new(color.rgb(63, 255, 0), 0)
+colorBullFill = color.new(color.rgb(63, 255, 0), 90)
+colorBear = color.new(color.rgb(255, 0, 0), 0)
+colorBearFill = color.new(color.rgb(255, 0, 0), 90)
+colorNeutral = color.new(color.gray, 0)
+colorNeutralFill = color.new(color.gray, 90)
+
+// === Inputs for Trend (Your Original Inputs) ===
+maFastType = input.string('EMA', title='Fast MA Type', options=['SMA', 'EMA', 'WMA', 'VWMA', 'RMA', 'DEMA', 'TEMA', 'LSMA', 'Kijun'], group='1. Trend Definition')
+maFastLength = input.int(55, title='Fast MA Length', group='1. Trend Definition', minval=1)
+maSlowType = input.string('EMA', title='Slow MA Type', options=['SMA', 'EMA', 'WMA', 'VWMA', 'RMA', 'DEMA', 'TEMA', 'LSMA', 'Kijun'], group='1. Trend Definition')
+maSlowLength = input.int(200, title='Slow MA Length', group='1. Trend Definition', minval=1)
+atrLength = input.int(60, title='ATR Length (Margin)', group='1. Trend Definition', minval=1)
+atrMultiplier = input.float(0.30, step=0.01, title='ATR Multiplier (Margin)', group='1. Trend Definition')
+
+// === Inputs for Pullback Oscillator & Divergence ===
+rsiLength_adv = input.int(14, title="RSI Length", group="2. Pullback Oscillator & Divergence", minval=1)
+rsiOversold_adv = input.float(35, title="RSI Oversold Level (Buy Setup)", group="2. Pullback Oscillator & Divergence", minval=1, maxval=100)
+rsiOverbought_adv = input.float(65, title="RSI Overbought Level (Sell Setup)", group="2. Pullback Oscillator & Divergence", minval=1, maxval=100)
+divergenceLookback = input.int(15, title="Divergence Lookback Period", group="2. Pullback Oscillator & Divergence", minval=5, maxval=50)
+useHiddenDivergence = input.bool(true, title="Use Hidden Divergence Filter", group="2. Pullback Oscillator & Divergence")
+
+// === Inputs for Price Action & Volume Confirmation ===
+useCandleConfirmation = input.bool(true, title="Use Candlestick Confirmation", group="3. Price Action & Volume")
+minBodyToRangeRatio = input.float(0.6, title="Min Body/Range Ratio (Candle)", group="3. Price Action & Volume", minval=0.1, maxval=1.0, step=0.1)
+useVolumeConfirmation = input.bool(false, title="Use Volume Confirmation", group="3. Price Action & Volume")
+volumeAvgLength = input.int(20, title="Volume SMA Length", group="3. Price Action & Volume", minval=1)
+
+showAdvPullbackSignals = input.bool(true, title="Show Advanced Pullback Signals", group="4. Display Settings")
+
+// === MA Function (Your Original Function) ===
+getMA(maType, src, len) =>
+    float result = na
+    if maType == 'SMA'
+        result := ta.sma(src, len)
+    else if maType == 'EMA'
+        result := ta.ema(src, len)
+    // ... (rest of your MA types)
+    else if maType == 'WMA'
+        result := ta.wma(src, len)
+    else if maType == 'VWMA'
+        result := ta.vwma(src, len)
+    else if maType == 'RMA'
+        result := ta.rma(src, len)
+    else if maType == 'DEMA'
+        ema_val = ta.ema(src, len)
+        result := 2 * ema_val - ta.ema(ema_val, len)
+    else if maType == 'TEMA'
+        ema1 = ta.ema(src, len)
+        ema2 = ta.ema(ema1, len)
+        ema3 = ta.ema(ema2, len)
+        result := 3 * (ema1 - ema2) + ema3
+    else if maType == 'LSMA'
+        result := ta.linreg(src, len, 0)
+    else if maType == 'Kijun'
+        result := (ta.highest(high, len) + ta.lowest(low, len)) / 2
+    result
+
+// === Trend Calculations (Your Original Calculations) ===
+maFast = getMA(maFastType, close, maFastLength)
+maSlow = getMA(maSlowType, close, maSlowLength)
+maDiff = maFast - maSlow
+atrVal = ta.atr(atrLength)
+
+isBull_trend = maDiff > atrVal * atrMultiplier
+isBear_trend = maDiff < -atrVal * atrMultiplier
+
+// === Advanced Pullback Calculations ===
+rsi_adv = ta.rsi(close, rsiLength_adv)
+avgVolume = ta.sma(volume, volumeAvgLength)
+
+// --- Hidden Divergence Detection ---
+// Hidden Bullish Divergence: Price makes Higher Low, RSI makes Lower Low (in an uptrend)
+float prevLowPrice = ta.lowest(low, divergenceLookback)[1]
+float prevLowRSI = ta.lowest(rsi_adv, divergenceLookback)[1]
+hiddenBullishDivergence = isBull_trend and (low > prevLowPrice) and (rsi_adv < prevLowRSI) and (rsi_adv < rsiOversold_adv + 5) // RSI still somewhat low
+
+// Hidden Bearish Divergence: Price makes Lower High, RSI makes Higher High (in a downtrend)
+float prevHighPrice = ta.highest(high, divergenceLookback)[1]
+float prevHighRSI = ta.highest(rsi_adv, divergenceLookback)[1]
+hiddenBearishDivergence = isBear_trend and (high < prevHighPrice) and (rsi_adv > prevHighRSI) and (rsi_adv > rsiOverbought_adv - 5) // RSI still somewhat high
+
+// --- Candlestick Confirmation ---
+candleBody = math.abs(close - open)
+candleRange = high - low
+isStrongBullishCandle = (close > open) and (candleRange > 0 ? (candleBody / candleRange) >= minBodyToRangeRatio : false)
+isStrongBearishCandle = (close < open) and (candleRange > 0 ? (candleBody / candleRange) >= minBodyToRangeRatio : false)
+
+// --- Volume Confirmation ---
+volumeConfirmedUp = volume > avgVolume
+volumeConfirmedDown = volume > avgVolume
+
+
+// === ADVANCED SIGNAL LOGIC ===
+
+// --- Advanced Buy Signal ---
+// 1. Trend is Bullish
+// 2. RSI recently touched/crossed below Oversold level (setup)
+// 3. RSI now crosses back UP from Oversold (or a slightly higher threshold for confirmation)
+// 4. (Optional) Hidden Bullish Divergence is present
+// 5. (Optional) Strong Bullish Candlestick pattern
+// 6. (Optional) Volume confirmation
+buySetup = isBull_trend and ta.crossunder(rsi_adv, rsiOversold_adv) // RSI entered oversold zone
+
+advBuySignal = isBull_trend and (rsi_adv[1] < rsiOversold_adv + 5 and ta.crossover(rsi_adv, rsiOversold_adv + 5)) and  // RSI exits oversold
+     (not useHiddenDivergence or hiddenBullishDivergence[1]) and // Check divergence on prev bar to align with RSI exit
+     (not useCandleConfirmation or isStrongBullishCandle) and
+     (not useVolumeConfirmation or volumeConfirmedUp)
+
+// --- Advanced Sell Signal ---
+// 1. Trend is Bearish
+// 2. RSI recently touched/crossed above Overbought level (setup)
+// 3. RSI now crosses back DOWN from Overbought (or a slightly lower threshold for confirmation)
+// 4. (Optional) Hidden Bearish Divergence is present
+// 5. (Optional) Strong Bearish Candlestick pattern
+// 6. (Optional) Volume confirmation
+sellSetup = isBear_trend and ta.crossover(rsi_adv, rsiOverbought_adv) // RSI entered overbought zone
+
+advSellSignal = isBear_trend and (rsi_adv[1] > rsiOverbought_adv - 5 and ta.crossunder(rsi_adv, rsiOverbought_adv - 5)) and // RSI exits overbought
+     (not useHiddenDivergence or hiddenBearishDivergence[1]) and
+     (not useCandleConfirmation or isStrongBearishCandle) and
+     (not useVolumeConfirmation or volumeConfirmedDown)
+
+
+// === Plotting ===
+// Original Trend Plotting
+col = isBull_trend ? colorBull : isBear_trend ? colorBear : colorNeutral
+colFill = isBull_trend ? colorBullFill : isBear_trend ? colorBearFill : colorNeutralFill
+plot1 = plot(maFast, title='Fast MA', color=col, linewidth=2)
+plot2 = plot(maSlow, title='Slow MA', color=col, linewidth=2)
+fill(plot1, plot2, color=colFill, title="Trend Fill")
+
+// Plot Advanced Pullback Signals
+plotshape(showAdvPullbackSignals and advBuySignal, title="Adv Pullback Buy", location=location.belowbar, color=color.new(color.aqua, 0), style=shape.labelup, size=size.normal, text="BUY⚡")
+plotshape(showAdvPullbackSignals and advSellSignal, title="Adv Pullback Sell", location=location.abovebar, color=color.new(color.purple, 0), style=shape.labeldown, size=size.normal, text="SELL⚡")
+
+// Plot RSI in a separate pane for reference (if you don't have it already)
+// paneRSI = ta.rsi(close, rsiLength_adv)
+// plot(paneRSI, "RSI for Pullback", color=color.new(color.orange,0), display=display.pane)
+// hline(rsiOversold_adv, "Oversold", color.green, display=display.pane)
+// hline(rsiOverbought_adv, "Overbought", color.red, display=display.pane)
+// hline(50, "RSI Mid", color.gray, linestyle=hline.style_dotted, display=display.pane)
+
+
+// === Alerts ===
+alertcondition(advBuySignal and showAdvPullbackSignals, title="Advanced Pullback Buy", message="{{ticker}}: Adv Pullback BUY Signal at {{close}} (Trend: Bullish)")
+alertcondition(advSellSignal and showAdvPullbackSignals, title="Advanced Pullback Sell", message="{{ticker}}: Adv Pullback SELL Signal at {{close}} (Trend: Bearish)")

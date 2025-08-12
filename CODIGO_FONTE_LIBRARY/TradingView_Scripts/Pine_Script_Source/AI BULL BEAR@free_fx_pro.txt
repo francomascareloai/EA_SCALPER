@@ -1,0 +1,41 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © SC97880021
+
+
+//@version=5
+indicator("AI BULL / BEAR (KSC)", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ─── INPUTS ───────────────────────────────────────────
+lenXY = input.int(5, "Swing lenXYgth")
+showSignalsXY = input.bool(true, "Show Buy/Sell Signals")
+
+// ─── SWING HIGH / LOW ────────────────────────────────
+isSwingHighXY = high[lenXY] == ta.highest(high, lenXY * 2 + 1)
+isSwingLowXY = low[lenXY] == ta.lowest(low, lenXY * 2 + 1)
+
+var float lastSwingHighXY = na
+var float lastSwingLowXY = na
+if isSwingHighXY
+    lastSwingHighXY := high[lenXY]
+if isSwingLowXY
+    lastSwingLowXY := low[lenXY]
+
+// ─── BREAK OF STRUCTURE / Data2 ──────────────────────
+Data11 = ta.crossover(close, lastSwingHighXY)
+Data22 = ta.crossunder(close, lastSwingLowXY)
+// ─── BUY / SELL SIGNALS ─────────────────────────────
+buySignalXY = showSignalsXY and Data11 and close > lastSwingHighXY
+sellSignalXY = showSignalsXY and Data22 and close < lastSwingLowXY
+
+plotshape(buySignalXY, title="Buy Signal", location=location.belowbar, style=shape.labelup, color=color.blue, text="Bull", size=size.tiny, textcolor = color.white)
+plotshape(sellSignalXY, title="Sell Signal", location=location.abovebar, style=shape.labeldown, color=color.orange, text="Bear", size=size.tiny,textcolor = color.white)
+
+alertcondition(buySignalXY, title="Buy Alert", message="Smartflow Buy Signal")
+alertcondition(sellSignalXY, title="Sell Alert", message="Smartflow Sell Signal")
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @free_fx_pro", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

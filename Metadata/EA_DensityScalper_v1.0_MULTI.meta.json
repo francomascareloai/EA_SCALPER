@@ -1,0 +1,80 @@
+{
+  "id": "EA_DensityScalper_v1.0_MULTI",
+  "arquivo": {
+    "nome_original": "DensityScalperEA.mq4",
+    "nome_padronizado": "EA_DensityScalper_v1.0_MULTI.mq4",
+    "caminho_origem": "CODIGO_FONTE_LIBRARY/MQL4_Source/All_MQ4/DensityScalperEA.mq4",
+    "caminho_destino": "CODIGO_FONTE_LIBRARY/MQL4_Source/EAs/Scalping/EA_DensityScalper_v1.0_MULTI.mq4",
+    "tamanho_bytes": 0,
+    "data_criacao": "2024-12-19T10:30:00Z",
+    "data_modificacao": "2024-12-19T10:30:00Z"
+  },
+  "hash": "sha256_placeholder",
+  "tipo": "EA",
+  "linguagem": "MQL4",
+  "estrategia": "Scalping",
+  "mercados": ["MULTI"],
+  "timeframes": ["M5"],
+  "ftmo_score": 6,
+  "ftmo_detalhes": {
+    "compativel": false,
+    "problemas": [
+      "Sem controle de risco por trade definido",
+      "Sem stop loss obrigatório",
+      "Sem filtro de sessão de trading",
+      "Sem limite de drawdown diário"
+    ],
+    "pontos_positivos": [
+      "Usa timeframe M5 (adequado para scalping)",
+      "Tem controle de spread",
+      "Fecha posições em lucro"
+    ]
+  },
+  "compilacao": {
+    "status": "nao_testado",
+    "erros": [],
+    "warnings": []
+  },
+  "funcionalidades": {
+    "principais": [
+      "Scalping baseado em densidade de preços",
+      "Dupla estratégia (inner/outer limits)",
+      "Controle de spread",
+      "Fechamento automático em lucro"
+    ],
+    "indicadores_usados": [
+      "Moving Average (SMMA)",
+      "Densidade de preços customizada"
+    ],
+    "gestao_risco": [
+      "Controle de spread máximo",
+      "Fechamento em lucro cumulativo",
+      "Limite de slippage"
+    ]
+  },
+  "parametros_principais": {
+    "timeframe": "PERIOD_M5",
+    "inner_period": 81,
+    "outer_period": 9,
+    "inner_density": 0.06,
+    "outer_density": 0.09,
+    "spread_limit": 25,
+    "lot_option": "EquitySpplit",
+    "percent_equity": 1.67
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Density",
+    "#M5",
+    "#MULTI",
+    "#Nao_FTMO",
+    "#MovingAverage",
+    "#AutoClose"
+  ],
+  "status": "classificado",
+  "observacoes": "EA scalper baseado em densidade de preços com estratégia dupla. Não compatível com FTMO devido à falta de controles de risco adequados. Requer adaptações para conformidade FTMO.",
+  "prioridade": "media",
+  "data_classificacao": "2024-12-19T10:30:00Z",
+  "classificador": "Classificador_Trading"
+}

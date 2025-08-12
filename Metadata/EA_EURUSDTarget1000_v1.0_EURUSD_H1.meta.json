@@ -1,0 +1,38 @@
+{
+  "arquivo": "EURUSD_H1_Target1000_EA.mq5",
+  "nome_padronizado": "EA_EURUSDTarget1000_v1.0_EURUSD_H1",
+  "tipo": "EA",
+  "categoria": "Incomplete",
+  "estrategia": "Target_Based",
+  "mercado": "EURUSD",
+  "timeframe": "H1",
+  "descricao": "EA incompleto para EURUSD H1 com meta de $1000. Desenvolvido por Akhtar + ChatGPT. Arquivo contém apenas comentários, sem implementação de código.",
+  "funcoes_principais": [
+    "Nenhuma - arquivo incompleto"
+  ],
+  "parametros_expostos": [
+    "Nenhum - arquivo incompleto"
+  ],
+  "ftmo_score": 0,
+  "ftmo_ready": false,
+  "riscos_detectados": [
+    "Arquivo completamente incompleto",
+    "Apenas comentários presentes",
+    "Sem lógica de trading",
+    "Sem gestão de risco",
+    "Meta de $1000 muito alta"
+  ],
+  "ajustes_ftmo_sugeridos": [
+    "Implementar lógica de trading completa",
+    "Adicionar gestão de risco rigorosa",
+    "Reduzir meta para valores FTMO-compatíveis",
+    "Implementar stop loss obrigatório",
+    "Adicionar daily loss limit",
+    "Implementar controle de drawdown"
+  ],
+  "tags": ["#EA", "#Incomplete", "#Target_Based", "#EURUSD", "#H1", "#Nao_FTMO", "#Akhtar"],
+  "caminho_origem": "All_MQ5/EURUSD_H1_Target1000_EA.mq5",
+  "caminho_final": "EAs/Incomplete/EA_EURUSDTarget1000_v1.0_EURUSD_H1.mq5",
+  "data_classificacao": "2024-12-19",
+  "observacoes": "Arquivo incompleto com apenas comentários. Requer implementação completa antes do uso."
+}

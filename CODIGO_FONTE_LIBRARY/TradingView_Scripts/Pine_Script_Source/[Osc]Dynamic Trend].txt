@@ -1,0 +1,82 @@
+﻿//@version=6
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$                                                                                 $
+//$ Благодарность приветствуется!                                                   $
+//$ Gratitude is appreciated!                                                       $
+//$                                                                                 $
+//$ Вы можете сделать пожертвование через:                                          $
+//$ You may donate via:                                                             $
+//$                                                                                 $
+//$ Крипто-мультивалютный кошелек                                                   $
+//$ Crypto-multi-currency wallet                                                    $
+//$                                                                                 $
+//$ https://tinyurl.com/4f9dr9nw                                                    $
+//$                                                                                 $
+//$    - BTC: 1EpDN7pg1WqURcK7te5kQtgx3H17wuHiV7                                    $
+//$                                                                                 $
+//$    - LTC: MJyEtVt7EFmA18Bo1vjRMbguivHnVbbWvp                                    $
+//$                                                                                 $
+//$ - Tether TRC20 (USDT): TWQdh36osEJ3mDrG7kGEHgSVHQSgSR61ZY                       $
+//$                                                                                 $
+//$ Пожертвуйте столько, сколько считаете нужным.                                   $
+//$ Donate as much as you see fit.                                                  $
+//$                                                                                 $
+//$ Сделайте это, если найдете этот материал полезным!                              $
+//$ Do it if you find the stuff useful!                                             $
+//$                                                                                 $
+//$ Disclaimer: I am not a financial advisor.                                       $
+//$ Отказ от ответственности: я не финансовый консультант.                          $
+//$                                                                                 $
+//$ For purpose educate only. Use at your own risk.                                 $
+//$ Только в образовательных целях. Используйте на свой страх и риск.               $
+//$                                                                                 $
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+indicator('<[Osc]Dynamic Trend]>', '<[Osc_DT]>', overlay = false, max_bars_back = 1)
+
+// === Параметры индикатора ===
+sizeMode = input.string('Large', title = 'Text Size', options = ['Normal', 'Large'])
+blockWidth = input.int(100, title = 'Total Block Width (pixels)', minval = 50, maxval = 300)
+
+// Настройки линий
+bullPeriod = input.int(14, title = 'Bull SMA Period', minval = 1)
+bearPeriod = input.int(14, title = 'Bear SMA Period', minval = 1)
+
+// Цвета для отображения
+colorBull = #00ff0080
+colorBear = #ff000080
+
+// Размер текста в таблице
+titleSize = switch sizeMode
+    'Normal' => size.normal
+    'Large' => size.large
+
+// === Прямой расчёт бычьей и медвежьей силы ===
+upMoves = math.max(close - close[1], 0)
+downMoves = math.max(close[1] - close, 0)
+
+bullMove = ta.sma(upMoves, bullPeriod) // Среднее движение вверх за указанный период
+bearMove = ta.sma(downMoves, bearPeriod) // Среднее движение вниз за указанный период
+totalMoves = bullMove + bearMove
+
+// Защита от деления на 0
+buyPower = totalMoves > 0 ? bullMove / totalMoves * 100 : 0 // Бычья сила в процентах
+sellPower = totalMoves > 0 ? bearMove / totalMoves * 100 : 0 // Медвежья сила в процентах
+
+// === Построение динамического блока ===
+bullBlockWidth = math.round(blockWidth * (buyPower / 100)) // Длина блока для быков
+bearBlockWidth = blockWidth - bullBlockWidth // Оставшаяся длина для медведей
+
+// === Отображение текста и блока ===
+var table t = table.new(position.bottom_right, 2, 3)
+if barstate.islast
+    // Текстовые данные
+    table.cell(t, 0, 1, 'Sell ' + str.tostring(math.round(sellPower, 1)) + '%', text_size = titleSize, text_color = #ff0000)
+    table.cell(t, 1, 1, 'Buy ' + str.tostring(math.round(buyPower, 1)) + '%', text_size = titleSize, text_color = #00ff00)
+
+    // Динамический блок
+    table.cell(t, 0, 2, '', bgcolor = colorBear, width = bearBlockWidth)
+    table.cell(t, 1, 2, '', bgcolor = colorBull, width = bullBlockWidth)
+
+// === Линии на графике ===
+plot(buyPower, color = colorBull, linewidth = 3, title = 'Buy Strength')
+plot(sellPower, color = colorBear, linewidth = 3, title = 'Sell Strength')

@@ -1,0 +1,382 @@
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Leandrolopezf1920
+//@version=5
+
+indicator("Banker Fund Flow Trend Oscillator with TDI LEO", overlay=false,format=format.price)
+
+//functions
+xrf(values, length) =>
+    r_val = float(na)
+    if length >= 1
+        for i = 0 to length by 1
+            if na(r_val) or not na(values[i])
+                r_val  :=  values[i]
+                r_val
+    r_val
+
+xsa(src,len,wei) =>
+    sumf = 0.0
+    ma = 0.0
+    out = 0.0
+    sumf  :=  nz(sumf[1]) - nz(src[len]) + src
+    ma  :=  na(src[len]) ? na : sumf/len
+    out  :=  na(out[1]) ? ma : (src*wei+out[1]*(len-wei))/len
+    out
+    
+//set up a simple model of banker fund flow trend	
+fundtrend = ((3*xsa((close- ta.lowest(low,27))/(ta.highest(high,27)-ta.lowest(low,27))*100,5,1)-2*xsa(xsa((close-ta.lowest(low,27))/(ta.highest(high,27)-ta.lowest(low,27))*100,5,1),3,1)-50)*1.032+50)
+//define typical price for banker fund
+typ = (2*close+high+low+open)/5
+//lowest low with mid term fib # 34
+lol = ta.lowest(low,34)
+//highest high with mid term fib # 34
+hoh = ta.highest(high,34)
+//define banker fund flow bull bear line
+bullbearline = ta.ema((typ-lol)/(hoh-lol)*100,13)
+//define banker entry signal
+bankerentry = ta.crossover(fundtrend,bullbearline) and bullbearline<25
+
+
+
+//banker increase position with green candle
+plotcandle(fundtrend,bullbearline,fundtrend,bullbearline,color=fundtrend>bullbearline ? color.new(#4caf4f, 60):na)
+
+//banker decrease position with white candle
+plotcandle(fundtrend,bullbearline,fundtrend,bullbearline,color=fundtrend<(xrf(fundtrend*0.95,1)) ? color.new(#ffffff, 100):na)
+
+//banker fund exit/quit with red candle
+plotcandle(fundtrend,bullbearline,fundtrend,bullbearline,color=fundtrend<bullbearline ? color.new(#ff5252, 60):na)
+
+//banker fund Weak rebound with blue candle
+plotcandle(fundtrend,bullbearline,fundtrend,bullbearline,color=fundtrend<bullbearline and fundtrend>(xrf(fundtrend*0.95,1)) ? color.new(#2195f3, 100):na)
+
+//overbought and oversold threshold lines
+h1 = hline(85,color=color.red, linestyle=hline.style_dotted)
+h2 = hline(15, color=color.yellow, linestyle=hline.style_dotted)
+h3 = hline(10,color=color.lime, linestyle=hline.style_dotted)
+h4 = hline(90, color=color.fuchsia, linestyle=hline.style_dotted)
+fill(h2,h3,color=color.rgb(255, 153, 0, 30))
+fill(h1,h4,color=color.rgb(223, 64, 251, 30))
+
+alertcondition(bankerentry, title='Alert on Yellow Candle', message='Yellow Candle!')
+alertcondition(fundtrend>bullbearline, title='Alert on Green Candle', message='Green Candle!')
+alertcondition(fundtrend<(xrf(fundtrend*0.95,1)), title='Alert on White Candle', message='White Candle!')
+alertcondition(fundtrend<bullbearline, title='Alert on Red Candle', message='Red Candle!')
+alertcondition(fundtrend<bullbearline and fundtrend>(xrf(fundtrend*0.95,1)), title='Alert on Blue Candle', message='Blue Candle!')
+
+//-----------------------------------------------------------------------------}
+//TDI - Traders Dynamic Index
+//-----------------------------------------------------------------------------{
+
+// USER Interface
+RSI_input = input.int(title="RSI", defval=21, minval=5, group='TDI Components', inline="RSI")
+RSI_c = input.color(title="Color", defval=#1dc72b, group='TDI Components', inline="RSI")
+TL_input = input.int(title="TrendLine", defval=7, minval=3, group='TDI Components', inline="TL")
+TL_c = input.color(title="Color", defval=#FF0000, group='TDI Components', inline="TL")
+BL_input = input.int(title="BaseLine", defval=34, minval=14, group='TDI Components', inline="BL")
+BL_c = input.color(title="Color", defval=color(color.orange), group='TDI Components', inline="BL")
+VB_input = input.float(title="Volatility Bands", defval=1.6185, minval=1.0, group='TDI Components', inline="VB")
+VB_c = input.color(title="Color", defval=#b2ebf200, group='TDI Components', inline="VB")
+BU_c = input.color(title="Bullish", defval=#0066ff00, group='Color Scheme', inline="CS")
+BE_c = input.color(title="Bearish", defval=#ff000000, group='Color Scheme', inline="CS")
+is_showDataTBL = input.bool(title='Show Data Table', defval=false)
+
+// Position Size Calculator
+is_showLotSize = input.bool(title="Activate Lot Size Module", defval=false)
+i_accountCurrency = input.string('USD', title='Account Currency', options=['GBP', 'USD', 'EUR', 'AUD', 'NZD', 'JPY', 'CAD', 'CHF'])
+Capital = input.float(defval=50000, title="Account Balance", minval=0.0)
+RiskPerTrade = input.float(defval=1.0, title="Risk % on Balance", minval=0.0) / 100
+PipsRisked = input.float(defval=30, title="Pips at Risk", minval=0.1)
+
+// Convert to Base Account Currency
+sec01 = i_accountCurrency == syminfo.currency ? syminfo.ticker : syminfo.currency + i_accountCurrency
+sec03 = i_accountCurrency == syminfo.currency ? 1 : request.security(sec01, '1', close)
+pip_Movement = syminfo.mintick == 0.00001 ? 10 : syminfo.mintick == 0.001 ? 1000 : 100
+AmountRisked = math.round(Capital * RiskPerTrade)
+Lotsize = AmountRisked / (PipsRisked * pip_Movement) / sec03
+
+int mintime = time
+if time[1]
+    mintime := math.min(mintime, time - time[1])
+    mintime
+txt = 'Currency = ' + i_accountCurrency + '\nBalance = ' + str.tostring(Capital,'#,###') + '\nRisk = ' + str.tostring(RiskPerTrade*100) + '%' + '\nAmount = ' + str.tostring(AmountRisked,'#,###') + '\nPips = ' + str.tostring(PipsRisked,'#.#') + '\nLot Size = ' + str.tostring(Lotsize,'#.##')
+if is_showLotSize
+    var label psclabel = na
+    label.delete(psclabel)
+    psclabel := label.new(x=time + 15*mintime, y=40, xloc=xloc.bar_time, text=txt, color=color.black, textcolor=color.white, textalign=text.align_left, size=size.normal)
+    psclabel
+
+
+// TDI Setup
+
+r = ta.rsi(close, RSI_input)
+r_plot = ta.sma(r, 2)
+r_tl = ta.sma(r, TL_input)
+r_gbl = ta.sma(r, BL_input)
+
+SD = VB_input * ta.stdev(r, BL_input)
+VB_UP = r_gbl + SD
+VB_DOWN = r_gbl - SD
+
+
+// Higher TimeFrame RSI vs TL Bias
+
+var HTF3 = timeframe.isintraday and 3 * timeframe.multiplier <= 960 ? str.tostring(3 * timeframe.multiplier, '') : '3D'
+r_bias = r_plot - r_tl > 0 ? BU_c : BE_c
+HTF_c = request.security(syminfo.tickerid, HTF3, r_bias)
+bgcolor(color.new(HTF_c, 100))
+
+
+// Plots
+
+UL = 70, MID = 50, LL = 30
+hline(MID, 'Balance Level', color=color.rgb(10, 10, 10, 50), linestyle=hline.style_dashed)
+hline(UL, 'Upper Level', color=color.rgb(10, 10, 10, 80), linestyle=hline.style_dashed)
+hline(LL, 'Lower Level', color=color.rgb(10, 10, 10, 80), linestyle=hline.style_dashed)
+
+plot(r_plot, 'RSI', color=RSI_c, linewidth=2)
+plot(r_tl, 'RSI TrendLine', color=TL_c, linewidth=2)
+plot(r_gbl, 'Market Baseline', color=BL_c, linewidth=2)
+plot(VB_UP, 'Volatility Upper', color=VB_c, linewidth=2)
+plot(VB_DOWN, 'Volatility Lower', color=VB_c, linewidth=2)
+
+
+// MACD Zero Lag Trend Bias
+
+dema(period) => 2 * ta.ema(close, period) - ta.ema(ta.ema(close, period), period)
+mzl = dema(12) - dema(26)
+
+plotshape(mzl < 0, title='Trend DN', style=shape.labeldown, location=location.top, color=BE_c)
+plotshape(mzl > 0, title='Trend UP', style=shape.labelup, location=location.bottom, color=BU_c)
+
+
+// BTMM EMA Position vs Closing Price Scoring
+
+y1 = ta.ema(close, 13), y2 = ta.ema(close, 50), y3 = ta.ema(close, 200), y4 = ta.ema(close, 800)
+
+p_vs_y1 = close>y1 ? 1 : close<y1 ? -1 : 0
+p_vs_y2 = close>y2 ? 1 : close<y2 ? -1 : 0
+p_vs_y3 = close>y3 ? 1 : close<y3 ? -1 : 0
+p_vs_y4 = close>y4 ? 1 : close<y4 ? -1 : 0
+y1_vs_y2 = y1>y2 ? 1 : y1<y2 ? -1 : 0
+y1_vs_y3 = y1>y3 ? 1 : y1<y3 ? -1 : 0
+y1_vs_y4 = y1>y4 ? 1 : y1<y4 ? -1 : 0
+y2_vs_y3 = y2>y3 ? 1 : y2<y3 ? -1 : 0
+y2_vs_y4 = y2>y4 ? 1 : y2<y4 ? -1 : 0
+y3_vs_y4 = y3>y4 ? 1 : y3<y4 ? -1 : 0
+
+EMA_score = p_vs_y1 + p_vs_y2 + p_vs_y3 + p_vs_y4 + y1_vs_y2 + y1_vs_y3 + y1_vs_y4 + y2_vs_y3 + y2_vs_y4 + y3_vs_y4
+EMA_score_C = EMA_score>0 ? BU_c : EMA_score<0 ? BE_c : color.yellow
+
+// DataTable + Color Scheme Definitions
+
+r_plotc = r_plot > 50 ? BU_c : BE_c 
+r_tlc = r_plot > r_tl ? BU_c : BE_c
+r_gblc = r_gbl > r_gbl[1] ? BU_c : BE_c
+
+if is_showDataTBL
+    var main_table = table.new(position.middle_right, 5, 5, frame_color=#000000, frame_width=2, border_color=#000000, border_width=1)
+    table.cell(main_table, 0, 0, 'TF', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 1, 0, 't3', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 2, 0, 't2', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 3, 0, 't1', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 4, 0, 't0', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 0, 1, 'R', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 0, 2, 'TL', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 0, 3, 'BL', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+    table.cell(main_table, 0, 4, 'EMA', text_color=color.white, text_size=size.small, bgcolor=color.new(color.black, 50))
+
+    for i = 1 to 4
+        table.cell(main_table, i, 1, str.tostring(r_plot[4-i], '#.#'), text_color=#000000, text_size=size.small, bgcolor=color.new(r_plotc[4-i], 50))
+        table.cell(main_table, i, 2, str.tostring(r_tl[4-i], '#.#'), text_color=#000000, text_size=size.small, bgcolor=color.new(r_tlc[4-i], 50))
+        table.cell(main_table, i, 3, str.tostring(r_gbl[4-i], '#.#'), text_color=#000000, text_size=size.small, bgcolor=color.new(r_gblc[4-i], 50))
+        table.cell(main_table, i, 4, str.tostring(EMA_score[4-i], '#'), text_color=#000000, text_size=size.small, bgcolor=color.new(EMA_score_C[4-i], 50))
+
+//-----------------------------------------------------------------------------}
+//Divergence Indicator
+//-----------------------------------------------------------------------------{
+oscillator = input.string(title="Select Oscillator",defval="RSI",options=["RSI", "MACD", "Stochastic","Money Flow","Demand Index","Chaikin Money flow"])
+//Tradingview built-in divergence indicator script used to show Divergence
+//Thanks to Tradingview for providing this unique Built-in Divergence Indicator 
+lbR = input(title="Pivot Lookback Right", defval=2)
+lbL = input(title="Pivot Lookback Left", defval=6)
+rangeUpper = input(title="Max of Lookback Range", defval=60)
+rangeLower = input(title="Min of Lookback Range", defval=5)
+plotBull = input(title="Plot Bullish", defval=true)
+plotHiddenBull = input(title="Plot Hidden Bullish", defval=false)
+plotBear = input(title="Plot Bearish", defval=true)
+plotHiddenBear = input(title="Plot Hidden Bearish", defval=false)
+
+bearColor = color.rgb(255, 82, 82, 30)
+bullColor = color.rgb(76, 175, 79, 30)
+hiddenBullColor = color.new(color.green, 80)
+hiddenBearColor = color.new(color.red, 80)
+textColor = color.white
+noneColor = color.new(color.white, 100)
+[macdline,_,_]=ta.macd(close,12,26,9)
+
+P = (close - open) / open
+DI = 0.0
+Spread = 0.0
+H = 0.0
+L = 0.0
+
+if (high > high[1])
+    H := high
+else
+    H := high[1]
+if (low < low[1])
+    L := low
+else
+    L := low[1]
+Spread := H - L
+Spread := math.avg(Spread, 10)
+if (Spread == 0)
+    Spread := 1
+K = (3*close) / Spread
+P := P * K
+BP = 1.0
+SP = 1.0
+if (close > open) 
+    BP := volume
+    SP := volume / P
+else 
+    BP := volume / P
+    SP := volume
+if (math.abs(BP) > math.abs(SP))
+    DI := 100*SP/BP
+else
+    DI := 100*BP/SP
+DI := ta.ema(DI, 10)
+
+ad = close==high and close==low or high==low ? 0 : ((2*close-low-high)/(high-low))*volume
+cmf = (math.sum(ad, 20) / math.sum(volume, 20))*100
+
+osc = oscillator=="RSI" ? ta.rsi(close,14) : oscillator=="MACD" ? macdline : oscillator=="Stochastic" ? 
+     ta.sma(ta.stoch(close, high, low, 14), 3) : oscillator=="Money Flow" ? ta.mfi(hlc3,14) : oscillator=="Demand Index" ? DI : 
+         oscillator=="Chaikin Money flow" ? cmf : na
+
+plot(osc, title="RSI", linewidth=2, color=#8e169900)
+hline(50, title="Middle Line", linestyle=hline.style_dotted)
+obLevel = hline(70, title="Overbought", linestyle=hline.style_dotted)
+osLevel = hline(30, title="Oversold", linestyle=hline.style_dotted)
+fill(obLevel, osLevel, title="Background", color=#9a15ff00)
+
+plFound = na(ta.pivotlow(osc, lbL, lbR)) ? false : true
+phFound = na(ta.pivothigh(osc, lbL, lbR)) ? false : true
+
+_inRange(cond) =>
+    bars = ta.barssince(cond == true)
+    rangeLower <= bars and bars <= rangeUpper
+
+oscHL = osc[lbR] > ta.valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+
+// Price: Lower Low
+priceLL = low[lbR] < ta.valuewhen(plFound, low[lbR], 1)
+
+bullCond = plotBull and priceLL and oscHL and plFound
+
+plot(
+	 plFound ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Regular Bullish",
+	 linewidth=2,
+	 color=(bullCond ? bullColor : noneColor),
+	 transp=0
+	 )
+
+plotshape(
+	 bullCond ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Regular Bullish Label",
+	 text=" Bull ",
+	 style=shape.labelup,
+	 location=location.absolute,
+	 color=bullColor,
+	 textcolor=textColor,
+	 transp=0
+	 )
+
+oscLL = osc[lbR] < ta.valuewhen(plFound, osc[lbR], 1) and _inRange(plFound[1])
+
+priceHL = low[lbR] > ta.valuewhen(plFound, low[lbR], 1)
+
+hiddenBullCond = plotHiddenBull and priceHL and oscLL and plFound
+
+plot(
+	 plFound ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Hidden Bullish",
+	 linewidth=2,
+	 color=(hiddenBullCond ? hiddenBullColor : noneColor),
+	 transp=0
+	 )
+
+plotshape(
+	 hiddenBullCond ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Hidden Bullish Label",
+	 text=" H Bull ",
+	 style=shape.labelup,
+	 location=location.absolute,
+	 color=bullColor,
+	 textcolor=textColor,
+	 transp=0
+	 )
+
+oscLH = osc[lbR] < ta.valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+
+priceHH = high[lbR] > ta.valuewhen(phFound, high[lbR], 1)
+
+bearCond = plotBear and priceHH and oscLH and phFound
+
+plot(
+	 phFound ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Regular Bearish",
+	 linewidth=2,
+	 color=(bearCond ? bearColor : noneColor),
+	 transp=0
+	 )
+
+plotshape(
+	 bearCond ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Regular Bearish Label",
+	 text=" Bear ",
+	 style=shape.labeldown,
+	 location=location.absolute,
+	 color=bearColor,
+	 textcolor=textColor,
+	 transp=0
+	 )
+
+oscHH = osc[lbR] > ta.valuewhen(phFound, osc[lbR], 1) and _inRange(phFound[1])
+
+priceLH = high[lbR] < ta.valuewhen(phFound, high[lbR], 1)
+
+hiddenBearCond = plotHiddenBear and priceLH and oscHH and phFound
+
+plot(
+	 phFound ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Hidden Bearish",
+	 linewidth=2,
+	 color=(hiddenBearCond ? hiddenBearColor : noneColor),
+	 transp=0
+	 )
+
+plotshape(
+	 hiddenBearCond ? osc[lbR] : na,
+	 offset=-lbR,
+	 title="Hidden Bearish Label",
+	 text=" H Bear ",
+	 style=shape.labeldown,
+	 location=location.absolute,
+	 color=bearColor,
+	 textcolor=textColor,
+	 transp=0
+	 )
+alertcondition(condition = (bullCond or hiddenBullCond), title = "Bullish Divergence", message = "Bullish Divergence")
+alertcondition(condition = (bearCond or hiddenBearCond), title = "Bearish Divergence", message = "Bearish Divergence")

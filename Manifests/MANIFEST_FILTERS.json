@@ -1,0 +1,25 @@
+{
+  "nome": "Trading Filters Manifest",
+  "versao": "1.0",
+  "descricao": "Filtros de entrada, saída e condições de mercado",
+  "componentes": {
+    "session_filters": [],
+    "volatility_filters": [],
+    "trend_filters": [],
+    "volume_filters": [],
+    "news_filters": [],
+    "spread_filters": []
+  },
+  "configuracoes": {
+    "sessoes_permitidas": ["London", "New York"],
+    "max_spread": 3,
+    "min_volume": 100,
+    "volatility_threshold": 0.5
+  },
+  "scores": {
+    "eficiencia_filtros": 0,
+    "reducao_ruido": 0,
+    "performance_score": 0
+  },
+  "ultima_atualizacao": "2025-01-10"
+}

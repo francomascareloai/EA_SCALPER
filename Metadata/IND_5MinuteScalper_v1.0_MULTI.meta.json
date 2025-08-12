@@ -1,0 +1,35 @@
+{
+  "id": "IND_5MinuteScalper_v1.0_MULTI",
+  "nome_original": "5 minute scalper.mq5",
+  "tipo": "Indicator",
+  "linguagem": "MQL5",
+  "estrategia": "Custom",
+  "mercado": "MULTI",
+  "timeframe": "M5",
+  "versao": "1.0",
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "caminho": "CODIGO_FONTE_LIBRARY/MQL5_Source/Indicators/Custom/IND_5MinuteScalper_v1.0_MULTI.mq5",
+  "descricao": "Indicador para scalping em timeframe de 5 minutos com sinais de entrada",
+  "funcoes_principais": [
+    "OnInit",
+    "OnCalculate"
+  ],
+  "parametros_expostos": [
+    "period",
+    "shift"
+  ],
+  "ftmo_score": 8,
+  "ftmo_ready": true,
+  "riscos_detectados": [],
+  "qualidade_codigo": 7,
+  "ajustes_ftmo_sugeridos": [],
+  "tags": [
+    "#Indicator",
+    "#Custom",
+    "#Scalping",
+    "#M5",
+    "#MULTI",
+    "#FTMO_Ready"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "prefixes": { "EA": "Expert Advisor", "IND": "Indicator", "SCR": "Script", "STR": "Strategy (Pine)", "LIB": "Library" },
+  "pattern": "[PREFIX]_[NAME]_v[MAJOR.MINOR]_[MARKET].[EXT]",
+  "version_default": "v1.0",
+  "examples": {
+    "ea": "EA_OrderBlocks_v2.1_XAUUSD_FTMO.mq5",
+    "ind": "IND_VolumeFlow_v1.3_SMC.mq4",
+    "scr": "SCR_RiskCalculator_v1.0_FTMO.mq5",
+    "str": "STR_Scalper_v2.0_Backtest.pine"
+  }
+}

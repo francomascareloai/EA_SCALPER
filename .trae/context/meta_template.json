@@ -1,0 +1,21 @@
+{
+  "id": "",
+  "arquivo": "",
+  "hash": "",
+  "tipo": "",
+  "linguagem": "",
+  "estrategia": "",
+  "subestrategias": [],
+  "mercados": [],
+  "timeframes": [],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 0,
+  "riscos_detectados": [],
+  "qualidade_codigo_score": 0,
+  "compilacao": { "status": "desconhecido", "warnings": 0 },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

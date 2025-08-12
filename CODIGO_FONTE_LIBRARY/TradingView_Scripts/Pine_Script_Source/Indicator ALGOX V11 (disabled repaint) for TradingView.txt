@@ -1,0 +1,942 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Join our channel for more free tools: https://t.me/simpleforextools
+
+//@version=5
+//
+VERSION                   = 'v11 С выключенной перерисовкой' // 2024.3.20
+strategy(
+  'ALGOX',
+  shorttitle              = 'ALGOX ' + VERSION,
+  overlay                 = true,
+  explicit_plot_zorder    = true,
+  pyramiding              = 0,
+  default_qty_type        = strategy.percent_of_equity,
+  default_qty_value       = 50,
+  calc_on_every_tick      = false,
+  process_orders_on_close = true,
+  max_bars_back           = 500,
+  initial_capital         = 5000,
+  commission_type         = strategy.commission.percent,
+  commission_value        = 0.02)
+
+//
+// === ВХОДНЫЕ ПАРАМЕТРЫ ===
+res    = input.timeframe(title='ТАЙМФРЕЙМ', defval='30', group ="БЕЗ ПЕРЕРИСОВКИ")
+useRes = input(defval=true, title='Использовать альтернативные сигналы')
+intRes = input(defval=18, title='Множитель для альтернативных сигналов')
+stratRes = timeframe.ismonthly ? str.tostring(timeframe.multiplier * intRes, '###M') : timeframe.isweekly ? str.tostring(timeframe.multiplier * intRes, '###W') : timeframe.isdaily ? str.tostring(timeframe.multiplier * intRes, '###D') : timeframe.isintraday ? str.tostring(timeframe.multiplier * intRes, '####') : '60'
+basisType = input.string(defval='ALMA', title='Тип MA: ', options=['TEMA', 'HullMA', 'ALMA'])
+basisLen = input.int(defval=2, title='Период MA', minval=1)
+offsetSigma = input.int(defval=5, title='Смещение для LSMA / Сигма для ALMA', minval=0)
+offsetALMA = input.float(defval=0.85, title='Смещение для ALMA', minval=0, step=0.01)
+scolor = input(true, title='Показывать цветные бары для индикации тренда?')
+delayOffset = input.int(defval=0, title='Задержка открытия/закрытия MA (Принудительное отключение перерисовки)', minval=0, step=1)
+tradeType = input.string('BOTH', title='Какие сделки должны быть выполнены : ', options=['LONG', 'SHORT', 'BOTH', 'NONE'])
+// === /ВХОДНЫЕ ПАРАМЕТРЫ ===
+
+// Константы цветов, включая полностью непрозрачный вариант.
+green100 = #008000FF
+lime100 = #00FF00FF
+red100 = #FF0000FF
+blue100 = #0000FFFF
+aqua100 = #00FFFFFF
+darkred100 = #8B0000FF
+gray100 = #808080FF
+
+/////////////////////////////////////////////
+// Создание функции безопасности без перерисовки
+rp_security(_symbol, _res, _src) =>
+    request.security(_symbol, _res, _src[barstate.islastconfirmedhistory ? 1 : 0])
+
+htfHigh = rp_security(syminfo.tickerid, res, high)
+htfLow = rp_security(syminfo.tickerid, res, low)
+
+// Основной индикатор
+securityNoRep(sym, res, src) => request.security(sym, res, src, barmerge.gaps_off, barmerge.lookahead_off)
+f_chartTfInMinutes() =>
+    float _resInMinutes = timeframe.multiplier * (
+      timeframe.isseconds ? 1                   :
+      timeframe.isminutes ? 1.                  :
+      timeframe.isdaily   ? 60. * 24            :
+      timeframe.isweekly  ? 60. * 24 * 7        :
+      timeframe.ismonthly ? 60. * 24 * 30.4375  : na)
+
+// Получение компонентов
+rsiPeriod = input.int(14, title="Период RSI", minval=1)
+rsiOverbought = input.int(70, title="Уровень перекупленности RSI")
+rsiOversold = input.int(30, title="Уровень перепроданности RSI")
+rsi = ta.rsi(close, rsiPeriod)
+rsiOb     = rsi > 60 and rsi > ta.ema(rsi, 20)
+rsiOs     = rsi < 40 and rsi < ta.ema(rsi, 20)
+
+ema       = ta.ema(close, 20)
+emaBull   = close > ema
+
+////////////////////////////////////////////////////////
+// === БАЗОВЫЕ ФУНКЦИИ ===
+// Возвращает вариант MA ввода, по умолчанию SMA, если пусто или опечатка.
+variant(type, src, len, offSig, offALMA) =>
+    v1 = ta.sma(src, len)  // Простая
+    v2 = ta.ema(src, len)  // Экспоненциальная
+    v3 = 2 * v2 - ta.ema(v2, len)  // Двойная экспоненциальная
+    v4 = 3 * (v2 - ta.ema(v2, len)) + ta.ema(ta.ema(v2, len), len)  // Тройная экспоненциальная
+    v5 = ta.wma(src, len)  // Взвешенная
+    v6 = ta.vwma(src, len)  // Взвешенная по объему
+    v7 = 0.0
+    sma_1 = ta.sma(src, len)  // Сглаженная
+    v7 := na(v7[1]) ? sma_1 : (v7[1] * (len - 1) + src) / len
+    v8 = ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))  // Hull
+    v9 = ta.linreg(src, len, offSig)  // Наименьшие квадраты
+    v10 = ta.alma(src, len, offALMA, offSig)  // Арно Легу
+    v11 = ta.sma(v1, len)  // Треугольная (экстремально сглаженная)
+    // Фильтр SuperSmoother
+    // © 2013 Джон Ф. Элерс
+    a1 = math.exp(-1.414 * 3.14159 / len)
+    b1 = 2 * a1 * math.cos(1.414 * 3.14159 / len)
+    c2 = b1
+    c3 = -a1 * a1
+    c1 = 1 - c2 - c3
+    v12 = 0.0
+    v12 := c1 * (src + nz(src[1])) / 2 + c2 * nz(v12[1]) + c3 * nz(v12[2])
+    type == 'EMA' ? v2 : type == 'DEMA' ? v3 : type == 'TEMA' ? v4 : type == 'WMA' ? v5 : type == 'VWMA' ? v6 : type == 'SMMA' ? v7 : type == 'HullMA' ? v8 : type == 'LSMA' ? v9 : type == 'ALMA' ? v10 : type == 'TMA' ? v11 : type == 'SSMA' ? v12 : v1
+
+// оболочка безопасности для повторных вызовов
+reso(exp, use, res) =>
+    security_1 = request.security(syminfo.tickerid, res, exp, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+    use ? security_1 : exp
+
+// === /БАЗОВЫЕ ФУНКЦИИ ===
+// === НАСТРОЙКА СЕРИЙ ===
+closeSeries = variant(basisType, close[delayOffset], basisLen, offsetSigma, offsetALMA)
+openSeries = variant(basisType, open[delayOffset], basisLen, offsetSigma, offsetALMA)
+// === /СЕРИИ ===
+
+// Получение серии альтернативного разрешения, если выбрано.
+//closeSeriesAlt = rp_security(syminfo.tickerid, stratRes, closeSeries) //reso(closeSeries, useRes, stratRes) //stratRes)
+//openSeriesAlt  = rp_security(syminfo.tickerid, stratRes, openSeries) //reso(openSeries, useRes, stratRes) //stratRes)
+
+// Получение серии альтернативного разрешения, если выбрано.
+closeSeriesAlt = reso(closeSeries, useRes, stratRes)
+openSeriesAlt = reso(openSeries, useRes, stratRes)
+//
+trendColour = closeSeriesAlt > openSeriesAlt ? color.green : color.red
+bcolour = closeSeries > openSeriesAlt ? lime100 : red100
+barcolor(scolor ? bcolour : na, title='Цвет бар')
+//closeP = plot(closeSeriesAlt, title='Серия закрытия', color=trendColour, linewidth=2, style=plot.style_line, transp=20)
+//openP = plot(openSeriesAlt, title='Серия открытия', color=trendColour, linewidth=2, style=plot.style_line, transp=20)
+//fill(closeP, openP, color=trendColour, transp=80)
+//
+
+// Фильтр среднего ATR
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+// Определение параметров ATR
+i_atrFilterEnabled = input.bool(defval = false , title = "Включить фильтр среднего ATR - 1", tooltip = "Включите, если хотите, чтобы входы включали EMA в качестве фильтра, где источник выше/ниже линии ATR", group ="Фильтр среднего ATR" )
+i_atrLength = 14
+i_atrValue = ta.atr(i_atrLength)
+i_maxHistoricalATR = ta.highest(i_atrValue, 20)
+i_minHistoricalATR = ta.lowest(i_atrValue, 20)
+i_normalizedATR = (i_atrValue - i_minHistoricalATR) / (i_maxHistoricalATR - i_minHistoricalATR)
+bool i_atrConditionBull = i_atrFilterEnabled ? i_normalizedATR > 0.2 : true
+bool i_atrConditionBear = i_atrFilterEnabled ? i_normalizedATR > 0.5 : true
+
+// Фильтр ATR
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+// Определение параметров ATR
+i_atrFilterEnabled2 = input.bool(defval = false , title = "Включить фильтр среднего ATR - 2", tooltip = "Включите, если хотите, чтобы входы включали EMA в качестве фильтра, где источник выше/ниже линии ATR", group ="Фильтр среднего ATR" )
+i_atrLength2 = 14
+i_atrValue2 = ta.atr(i_atrLength)
+i_prevatrValue2 = ta.atr(i_atrLength)[2]
+bool i_atrCondition2 = i_atrFilterEnabled2 ? i_atrValue2 > i_prevatrValue2 : true
+
+// Фильтр объема
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+// Фильтр объема
+i_volumeFilterEnabled = input.bool(defval = false , title = "Включить фильтр объема - 1", tooltip = "Включите, если хотите, чтобы входы включали EMA в качестве фильтра, где источник выше/ниже линии объема EMA", group ="Фильтр объема" )
+i_minVolume = ta.sma(volume, 14) * 1.5
+i_isVolumeHigh = volume > i_minVolume
+bool isVolumeFilterEnabledAndCloseAboveMA = i_volumeFilterEnabled ? i_isVolumeHigh : true
+
+// Фильтр RSI и 20 EMA
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+i_EMARSIFilterEnabled = input.bool(defval = false , title = "Включить фильтр RSI и 20 EMA - 1", tooltip = "Включите, если хотите, чтобы входы включали EMA в качестве фильтра, где источник выше/ниже линии объема EMA", group ="Фильтр объема" )
+bool isFilterRSIandEMABull = i_EMARSIFilterEnabled ? emaBull and rsiOb : true
+bool isFilterRSIandEMABear = i_EMARSIFilterEnabled ? not emaBull and rsiOs : true
+
+// Фильтр EMA
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+i_emaFilterEnabled = input.bool(defval = false , title = "Включить фильтр EMA", tooltip = "Включите, если хотите, чтобы входы включали EMA в качестве фильтра, где источник выше/ниже линии EMA", group ="Фильтр EMA" )
+i_emaLength = input.int(200, title="Длина EMA", minval=1, group ="Фильтр EMA")
+i_emaSource = input.source(close,"Источник EMA" , group ="Фильтр EMA")
+emaValue = i_emaFilterEnabled ? ta.ema(i_emaSource, i_emaLength) : na
+bool isEMAFilterEnabledAndCloseAboveMA = i_emaFilterEnabled ? i_emaSource > emaValue : true
+bool isEMAFilterEnabledAndCloseBelowMA = i_emaFilterEnabled ? i_emaSource < emaValue : true
+
+// Фильтр ADX
+//░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+i_adxFilterEnabled = input.bool(defval = false , title = "Включить фильтр ADX", tooltip = "Включите, если хотите, чтобы входы включали ADX в качестве фильтра", group ="Фильтр ADX" )
+i_adxVariant = input.string('ORIGINAL', title='Вариант ADX', options=['ORIGINAL', 'MASANAKAMURA'], group ="Фильтр ADX" )
+i_adxSmoothing = input.int(14, title="Сглаживание ADX", group="Фильтр ADX")
+i_adxDILength = input.int(14, title="Длина DI", group="Фильтр ADX")
+i_adxLowerThreshold = input.float(25, title="Порог ADX", step=.5, group="Фильтр ADX")
+
+calcADX_Masanakamura(int _len) =>
+    _smoothedTrueRange = 0.0
+    _smoothedDirectionalMovementPlus = 0.0
+    _smoothed_directionalMovementMinus = 0.0
+    _trueRange = math.max(math.max(high - low, math.abs(high - nz(close[1]))), math.abs(low - nz(close[1])))
+    _directionalMovementPlus = high - nz(high[1]) > nz(low[1]) - low ? math.max(high - nz(high[1]), 0) : 0
+    _directionalMovementMinus = nz(low[1]) - low > high - nz(high[1]) ? math.max(nz(low[1]) - low, 0) : 0
+    _smoothedTrueRange := nz(_smoothedTrueRange[1]) - nz(_smoothedTrueRange[1]) / _len + _trueRange
+    _smoothedDirectionalMovementPlus := nz(_smoothedDirectionalMovementPlus[1]) - nz(_smoothedDirectionalMovementPlus[1]) / _len + _directionalMovementPlus
+    _smoothed_directionalMovementMinus := nz(_smoothed_directionalMovementMinus[1]) - nz(_smoothed_directionalMovementMinus[1]) / _len + _directionalMovementMinus
+    DIP = _smoothedDirectionalMovementPlus / _smoothedTrueRange * 100
+    DIM = _smoothed_directionalMovementMinus / _smoothedTrueRange * 100
+    _DX = math.abs(DIP - DIM) / (DIP + DIM) * 100
+    adx = ta.sma(_DX, _len)
+    [DIP, DIM, adx]
+
+[DIPlusO, DIMinusO, ADXO] = ta.dmi(i_adxDILength, i_adxSmoothing)
+[DIPlusM, DIMinusM, ADXM] = calcADX_Masanakamura(i_adxDILength)
+
+adx = i_adxFilterEnabled and i_adxVariant == "ORIGINAL" ? ADXO : ADXM
+bool isADXFilterEnabledAndAboveThreshold = i_adxFilterEnabled ? adx > i_adxLowerThreshold and adx > adx[1]: true
+
+// РАСЧЕТЫ ИНДИКАТОРА
+
+// УСЛОВИЯ
+
+i_RSIFilterEnabled = input.bool(defval = false , title = "Включить фильтр RSI", tooltip = "Включите, если хотите, чтобы входы включали RSI в качестве фильтра, где источник выше/ниже линии RSI", group ="Фильтр RSI" )
+// 2. Расчет RSI
+rma(float source = close, float length = 9)=>
+    float alpha = 1 / length
+    var float smoothed = na
+    smoothed := alpha * source + (1 - alpha) * nz(smoothed[1])
+
+rsi(float source, int length)=>
+    float up = math.max(source - source[1], 0)
+    float down = math.max(source[1] - source, 0)
+    float rs = ta.ema(up, length) / ta.ema(down, length)
+    float rsi = 100 - 100 / (1 + rs)
+    rsi
+xRSI = rsi(close, 14)
+bool isRSILong = i_RSIFilterEnabled ? xRSI > 50 or xRSI > ta.ema(xRSI, 30): true
+bool isRSIShort = i_RSIFilterEnabled ? xRSI < 50 or xRSI < ta.ema(xRSI, 30) : true
+
+// 4. Условие для полос Боллинджера
+i_BBFilterEnabled = input.bool(defval = false , title = "Включить фильтр BB", tooltip = "Включите, если хотите, чтобы входы включали ADX в качестве фильтра, где источник выше/ниже линии BB", group ="Фильтр BB" )
+// 4. Расчет полос Боллинджера
+[middle, upper, lower] = ta.bb(close, 20, 2)
+bool isBBLong = i_BBFilterEnabled ? upper > upper [1] : true
+bool isBBShort = i_BBFilterEnabled ? lower < lower [1] : true
+
+//<триггеры>
+lxTrigger    = false
+sxTrigger    = false
+leTrigger    = ta.crossover (closeSeriesAlt, openSeriesAlt) and isRSILong and isBBLong and isEMAFilterEnabledAndCloseAboveMA and i_atrCondition2 and i_atrConditionBull and isVolumeFilterEnabledAndCloseAboveMA
+seTrigger    = ta.crossunder(closeSeriesAlt, openSeriesAlt) and isRSIShort and isBBShort and isEMAFilterEnabledAndCloseBelowMA and i_atrCondition2 and i_atrConditionBear and isVolumeFilterEnabledAndCloseAboveMA
+
+// === УСЛОВИЯ АЛЕРТОВ
+xlong = leTrigger //ta.crossover(closeSeriesAlt, openSeriesAlt)
+xshort = seTrigger //ta.crossunder(closeSeriesAlt, openSeriesAlt)
+longCond = xlong  // альтернатива: longCond[1]? false : (xlong or xlong[1]) and close>closeSeriesAlt and close>=open
+shortCond = xshort  // альтернатива: shortCond[1]? false : (xshort or xshort[1]) and close<closeSeriesAlt and close<=open
+// === /УСЛОВИЯ АЛЕРТОВ.
+buy = xlong //ta.crossover(closeSeriesAlt, openSeriesAlt)
+sell = xshort //ta.crossunder(closeSeriesAlt, openSeriesAlt)
+
+plotshape(buy,  title = "Buy",  text = 'Buy',  style = shape.labelup,   location = location.belowbar, color= #39ff14, textcolor = #FFFFFF, transp = 0, size = size.tiny)
+plotshape(sell, title = "Sell", text = 'Sell', style = shape.labeldown, location = location.abovebar, color= #ff1100, textcolor = #FFFFFF, transp = 0, size = size.tiny)
+
+// === СТРАТЕГИЯ ===
+// стоп-лосс
+slPoints = input.int(defval=0, title='Начальный стоп-лосс в пунктах (ноль для отключения)', minval=0)
+tpPoints = input.int(defval=0, title='Начальная цель прибыли в пунктах (ноль для отключения)', minval=0)
+// Включить алгоритм ограничения количества баров
+ebar = input.int(defval=4000, title='Количество баров для бэктестинга', minval=0)
+dummy = input(false, title='- УСТАНОВИТЕ НА НОЛЬ для дневных или более длительных таймфреймов')
+//
+// Рассчитать, сколько марс с последнего бара
+tdays = (timenow - time) / 60000.0  // количество минут с последнего бара
+tdays := timeframe.ismonthly ? tdays / 1440.0 / 5.0 / 4.3 / timeframe.multiplier : timeframe.isweekly ? tdays / 1440.0 / 5.0 / timeframe.multiplier : timeframe.isdaily ? tdays / 1440.0 / timeframe.multiplier : tdays / timeframe.multiplier  // количество баров с последнего бара
+//
+// настроить параметры выхода
+TP = tpPoints > 0 ? tpPoints : na
+SL = slPoints > 0 ? slPoints : na
+
+i_alert_txt_entry_long = "Short Exit" //input.text_area(defval = "Short Exit", title = "Сообщение входа в лонг", group = "Алерты")
+i_alert_txt_exit_long = "Long Exit" //input.text_area(defval = "Long Exit", title = "Сообщение выхода из лонга", group = "Алерты")
+i_alert_txt_entry_short = "Go Short" //input.text_area(defval = "Go Short", title = "Сообщение входа в шорт", group = "Алерты")
+i_alert_txt_exit_short = "Go Long" //input.text_area(defval = "Go Long", title = "Сообщение выхода из шорта", group = "Алерты")
+// Входы и выходы с TP/SL
+if buy
+//    strategy.close("Short" , alert_message = i_alert_txt_exit_short)
+    strategy.entry("Long" , strategy.long , alert_message = i_alert_txt_entry_long)
+
+if sell
+    strategy.close("Long" , alert_message = i_alert_txt_exit_long)
+//    strategy.entry("Short" , strategy.short, alert_message = i_alert_txt_entry_short)
+
+// Этот исходный код подчиняется условиям лицензии Mozilla Public License 2.0 на https://mozilla.org/MPL/2.0/
+// © TraderHalai
+// Этот скрипт родился из моего стремления иметь возможность отображать статистику бэктестинга стратегий на графиках для облегчения бэктестинга на устройствах, которые не поддерживают движок бэктестинга (например, мобильные телефоны, когда я тестирую стратегии вдали от компьютера). Уже есть несколько хороших скриптов на TradingView, но большинство/многие из них слишком сложны для моих нужд.
+//
+// Я нашел отличный движок отображения бэктестов от 'The Art of Trading'. Этот скрипт является отрывком из его усердной работы с некоторыми очень незначительными изменениями. Большое уважение оригинальному автору.
+//
+// Полный кредит оригинальному автору этого скрипта. Его можно найти здесь: https://www.tradingview.com/script/t776tkZv-Hammers-Stars-Strategy/?offer_id=10&aff_id=15271
+//
+// Этот скрипт можно копировать и интегрировать в существующие стратегические скрипты, и он работает "из коробки" без реализации дополнительных функций. Я также планирую добавить больше метрик производительности в будущем, по мере разработки этого скрипта.
+//
+// Наслаждайтесь! :)
+// @version=5
+// strategy("Strategy BackTest Display Statistics - TraderHalai", overlay=true, default_qty_value= 5, default_qty_type = strategy.percent_of_equity, initial_capital=10000,  commission_type=strategy.commission.percent, commission_value=0.1)
+
+// DEMO базовая стратегия - Используйте свою собственную стратегию здесь -  Jaws Mean Reversion из моего профиля используется здесь
+// source = input(title = "Source", defval = close)
+
+///////////////////////////// --- НАЧАЛО КОДА ТЕСТЕРА --- ////////////////////////
+// СКОПИРУЙТЕ нижеуказанное в свою стратегию, чтобы включить отображение
+////////////////////////////////////////////////////////////////////////////////
+
+// Объявить переменные отслеживания производительности
+drawTester = input.bool(true, "Отобразить тестер")
+var balance = strategy.initial_capital
+var drawdown = 0.0
+var maxDrawdown = 0.0
+var maxBalance = 0.0
+var totalWins = 0
+var totalLoss = 0
+
+// Подготовить статистическую таблицу
+var table testTable = table.new(position.top_right, 5, 2, border_width=1)
+f_fillCell(_table, _column, _row, _title, _value, _bgcolor, _txtcolor) =>
+    _cellText = _title + "\n" + _value
+    table.cell(_table, _column, _row, _cellText, bgcolor=_bgcolor, text_color=_txtcolor)
+
+// Пользовательская функция для обрезки лишних десятичных знаков
+truncate(_number, _decimalPlaces) =>
+    _factor = math.pow(10, _decimalPlaces)
+    int(_number * _factor) / _factor
+
+// Нарисовать статистическую таблицу
+var bgcolor = color.new(color.black,0)
+if drawTester
+    if barstate.islastconfirmedhistory
+        // Обновить таблицу
+        dollarReturn = strategy.netprofit
+        f_fillCell(testTable, 0, 0, "Всего сделок:", str.tostring(strategy.closedtrades), bgcolor, color.white)
+        f_fillCell(testTable, 0, 1, "Процент выигрыша:", str.tostring(truncate((strategy.wintrades/strategy.closedtrades)*100,2)) + "%", bgcolor, color.white)
+        f_fillCell(testTable, 1, 0, "Начальный капитал:", "$" + str.tostring(strategy.initial_capital), bgcolor, color.white)
+        f_fillCell(testTable, 1, 1, "Конечный капитал:", "$" + str.tostring(truncate(strategy.initial_capital + strategy.netprofit,2)), bgcolor, color.white)
+        f_fillCell(testTable, 2, 0, "Средняя прибыль:", "$"+ str.tostring(truncate(strategy.grossprofit / strategy.wintrades, 2)), bgcolor, color.white)
+        f_fillCell(testTable, 2, 1, "Средний убыток:", "$"+ str.tostring(truncate(strategy.grossloss / strategy.losstrades, 2)), bgcolor, color.white)
+        f_fillCell(testTable, 3, 0, "Коэффициент прибыли:", str.tostring(truncate(strategy.grossprofit / strategy.grossloss,2)), strategy.grossprofit > strategy.grossloss ? color.green : color.red, color.white)
+        f_fillCell(testTable, 3, 1, "Макс. рост:",  str.tostring(truncate(strategy.max_runup, 2 )), bgcolor, color.white)
+        f_fillCell(testTable, 4, 0, "Доходность:", (dollarReturn > 0 ? "+" : "") + str.tostring(truncate((dollarReturn / strategy.initial_capital)*100,2)) + "%", dollarReturn > 0 ? color.green : color.red, color.white)
+        f_fillCell(testTable, 4, 1, "Макс. просадка:", str.tostring(truncate((strategy.max_drawdown / strategy.equity) * 100 ,2)) + "%", color.red, color.white)
+// --- КОНЕЦ КОДА ТЕСТЕРА --- ///////////////
+
+// Глобальные переменные дашборда
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+// Переменные размера текста дашборда
+i_tableTextSize = input.string(title="Размер дашборда", defval="Normal", options=["Auto",  "Huge",  "Large", "Normal", "Small", "Tiny"], group="Дашборды")
+table_text_size(s) =>
+    switch s
+        "Auto"   => size.auto
+        "Huge"   => size.huge
+        "Large"  => size.large
+        "Normal" => size.normal
+        "Small"  => size.small
+        => size.tiny
+tableTextSize = table_text_size(i_tableTextSize)
+
+// Ежемесячная таблица производительности дашборда от @QuantNomad
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+i_showMonthlyPerformance = input.bool(true, 'Ежемесячная производительность', group='Дашборды', inline="Показать дашборды")
+i_monthlyReturnPercision = 2
+
+if i_showMonthlyPerformance
+    new_month = month(time) != month(time[1])
+    new_year  = year(time)  != year(time[1])
+
+    eq = strategy.equity
+
+    bar_pnl = eq / eq[1] - 1
+
+    cur_month_pnl = 0.0
+    cur_year_pnl  = 0.0
+
+    // Текущая ежемесячная P&L
+    cur_month_pnl := new_month ? 0.0 :
+                     (1 + cur_month_pnl[1]) * (1 + bar_pnl) - 1
+
+    // Текущая годовая P&L
+    cur_year_pnl := new_year ? 0.0 :
+                     (1 + cur_year_pnl[1]) * (1 + bar_pnl) - 1
+
+    // Массивы для хранения годовых и ежемесячных P&L
+    var month_pnl  = array.new_float(0)
+    var month_time = array.new_int(0)
+
+    var year_pnl  = array.new_float(0)
+    var year_time = array.new_int(0)
+
+    last_computed = false
+
+    if (not na(cur_month_pnl[1]) and (new_month or barstate.islastconfirmedhistory))
+        if (last_computed[1])
+            array.pop(month_pnl)
+            array.pop(month_time)
+
+        array.push(month_pnl , cur_month_pnl[1])
+        array.push(month_time, time[1])
+
+    if (not na(cur_year_pnl[1]) and (new_year or barstate.islastconfirmedhistory))
+        if (last_computed[1])
+            array.pop(year_pnl)
+            array.pop(year_time)
+
+        array.push(year_pnl , cur_year_pnl[1])
+        array.push(year_time, time[1])
+
+    last_computed := barstate.islastconfirmedhistory ? true : nz(last_computed[1])
+
+    // Таблица ежемесячной P&L
+    var monthly_table = table(na)
+
+    if (barstate.islastconfirmedhistory)
+        monthly_table := table.new(position.bottom_right, columns = 14, rows = array.size(year_pnl) + 1, border_width = 1)
+
+        table.cell(monthly_table, 0,  0, "",     bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 1,  0, "Jan",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 2,  0, "Feb",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 3,  0, "Mar",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 4,  0, "Apr",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 5,  0, "May",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 6,  0, "Jun",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 7,  0, "Jul",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 8,  0, "Aug",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 9,  0, "Sep",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 10, 0, "Oct",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 11, 0, "Nov",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 12, 0, "Dec",  bgcolor = #cccccc, text_size=tableTextSize)
+        table.cell(monthly_table, 13, 0, "Year", bgcolor = #999999, text_size=tableTextSize)
+
+        for yi = 0 to array.size(year_pnl) - 1
+            table.cell(monthly_table, 0,  yi + 1, str.tostring(year(array.get(year_time, yi))), bgcolor = #cccccc, text_size=tableTextSize)
+
+            y_color = array.get(year_pnl, yi) > 0 ? color.new(color.teal, transp = 40) : color.new(color.gray, transp = 40)
+            table.cell(monthly_table, 13, yi + 1, str.tostring(math.round(array.get(year_pnl, yi) * 100, i_monthlyReturnPercision)), bgcolor = y_color, text_color=color.new(color.white, 0),text_size=tableTextSize)
+
+        for mi = 0 to array.size(month_time) - 1
+            m_row   = year(array.get(month_time, mi))  - year(array.get(year_time, 0)) + 1
+            m_col   = month(array.get(month_time, mi))
+            m_color = array.get(month_pnl, mi) > 0 ? color.new(color.teal, transp = 40) : color.new(color.maroon, transp = 40)
+
+            table.cell(monthly_table, m_col, m_row, str.tostring(math.round(array.get(month_pnl, mi) * 100, i_monthlyReturnPercision)), bgcolor = m_color, text_color=color.new(color.white, 0), text_size=tableTextSize)
+
+// @version=5
+// ######################################################################################################## //
+// Этот индикатор изменен или разработан [DM] D.Martinez
+// Оригинальный автор: # Дата выпуска: # Публикация: #
+// Авторские права: © D.Martinez 2020 по настоящее время
+// Название: 000.2 b1 Alma Moving Average Ribbon Reverse Length [ [DM]
+// Дата выпуска: СЕН/1192021 : Первый релиз
+// Обновление: МММ/ДД/ГГГГ : na
+// Скрипт может быть свободно распространяем по лицензии MIT
+// ######################################################################################################## //
+// indicator(title='Alma Moving Average Ribbon Reverse Length [', shorttitle='RLA MA', overlay=true)
+/// Функция безопасности ///
+// f_security(_symbol, _res, _src, _repaint) =>
+//    request.security(_symbol, _res, _src[_repaint ? 0 : barstate.isrealtime ? 1 : 0])[_repaint ? 0 : barstate.isrealtime ? 0 : 1]
+/// Входные данные ///
+useMAS   = input(false,            'Использовать скользящие средние', group='Настройки источника')
+source   = close
+cstm_res = input.timeframe(defval='', title='Разрешение', group='Настройки источника', tooltip='Пользовательское разрешение для функции безопасности, будьте осторожны, иногда вы выводите графики из неправильных ссылок.')
+frep_src = input.bool(defval=false, title='Разрешить перерисовку', group='Настройки источника', tooltip='Функция перерисовки')
+src_opt = input.source(defval=close, title='Основной источник', group='Настройки источника', tooltip='Основной источник')
+alrt_00 = input.bool(defval=true, title='Активные алерты', group='Настройки алертов', tooltip='Активировать или деактивировать все алерты Активировать или деактивировать все алерты')
+alrt_04 = input.bool(defval=false, title='Активные визуальные алерты тренда', group='Настройки алертов', tooltip='Активировать или деактивировать все plotshape с алертами тренда')
+sfty_rnge = input.int(defval=00001, minval=00000, maxval=01000, step=00001, title='Смещение для визуальных алертов', group='Настройки алертов', tooltip='Значение смещения для вывода визуальных алертов')
+alrt_01 = input.string(defval='#08', title='Первый сигнал источника для активации алерта', options=['#08', '#07', '#06', '#05', '#04', '#03', '#02', '#01'], group='Настройки алертов', tooltip='Первый сигнал, используемый для пересечения со вторым сигналом, затем в третьем поле выберите тип пересечения ')
+alrt_02 = input.string(defval='#07', title='Второй сигнал источника для активации алерта', options=['#07', '#06', '#05', '#04', '#03', '#02', '#01'], group='Настройки алертов', tooltip='Второй сигнал, используемый для пересечения с первым сигналом, затем в третьем поле выберите тип пересечения ')
+alrt_03 = input.string(defval='ALL', title='Условие для активации алерта', options=['OVER', 'UNDER', 'ALL'], group='Настройки алертов', tooltip='Выберите тип пересечения для обоих сигналов')
+log_swch = input.bool(defval=false, title='Использовать логарифмическую шкалу?', group='Настройки источника', tooltip='Использовать логарифмическую шкалу в индикаторе')
+fill_opt = input.bool(defval=true, title='Заполнить тело графиков', group='Параметры цвета', tooltip='Показать или скрыть цветное пространство между графиками')
+main_len = input.int(defval=00423, minval=00001, maxval=01000, step=00001, title='Основная длина ALMA', group='Настройки длины', tooltip='Значение по умолчанию 423')
+ofs_alma = input.float(defval=00.85, minval=00.01, maxval=00001, step=00.01, title='Основное смещение ALMA', group='Настройки длины', tooltip='Значение по умолчанию 0.85')
+sig_alma = input.int(defval=00006, minval=00001, maxval=01000, step=00001, title='Основная сигма ALMA', group='Настройки длины', tooltip='Значение по умолчанию 6')
+/// Источник ///
+// ALMAsource = log_swch ? f_secureSecurity(syminfo.tickerid, cstm_res, math.log(open), frep_src) : f_secureSecurity(syminfo.tickerid, cstm_res, open)
+ALMAsource = log_swch ? rp_security(syminfo.tickerid, cstm_res, math.log(open)) : rp_security(syminfo.tickerid, cstm_res, open)
+/// Мозг и автодлина  ///
+alma_ma_01 = ta.alma(source, main_len, ofs_alma, sig_alma)
+length_02 = math.round(main_len / math.phi)
+alma_ma_02 = ta.alma(source, length_02, ofs_alma, sig_alma)
+length_03 = math.round(length_02 / math.phi)
+alma_ma_03 = ta.alma(source, length_03, ofs_alma, sig_alma)
+length_04 = math.round(length_03 / math.phi)
+alma_ma_04 = ta.alma(source, length_04, ofs_alma, sig_alma)
+length_05 = math.round(length_04 / math.phi)
+alma_ma_05 = ta.alma(source, length_05, ofs_alma, sig_alma)
+length_06 = math.round(length_05 / math.phi)
+alma_ma_06 = ta.alma(source, length_06, ofs_alma, sig_alma)
+length_07 = math.round(length_06 / math.phi)
+alma_ma_07 = ta.alma(source, length_07, ofs_alma, sig_alma)
+length_08 = math.round(length_07 / math.phi)
+alma_ma_08 = ta.alma(source, length_08, ofs_alma, sig_alma)
+length_0x = math.round(length_08 / math.phi)
+alma_ma_0x = ta.alma(source, length_0x, ofs_alma, sig_alma)
+/// Цвета ///
+fxc_heatmap_ad_pro_0(_source) =>  //(_source, _center, _steps, _c_bearWeak, _c_bearStrong, _c_bullWeak, _c_bullStrong)
+    ad_center = input.int(defval=000, minval=-100, maxval=100, step=001, title='центральная линия', group='Цвета градиента графиков A/D', tooltip='(- ∞ до ∞) центральная линия, используемая для определения, является ли сигнал бычьим/медвежьим')
+    ad_steps = input.int(defval=020, minval=0002, maxval=423, step=001, title='Шаги в градиенте', group='Цвета градиента графиков A/D', tooltip='Максимальное количество шагов в градиенте от слабого цвета к сильному цвету')
+    ca_bullStrong = input.color(color.rgb(000, 255, 000, 035), title='Расширенный сигнал быка сильный%', group='Цвета градиента графиков A/D', tooltip='Настройка цветов AD')
+    ca_bullWeak = input.color(color.rgb(000, 255, 050, 055), title='Расширенный сигнал быка слабый', group='Цвета градиента графиков A/D', tooltip='Настройка цветов AD')
+    cd_bearWeak = input.color(color.rgb(255, 000, 050, 055), title='Сниженный сигнал медведя слабый', group='Цвета градиента графиков A/D', tooltip='Настройка цветов AD')
+    cd_bearStrong = input.color(color.rgb(255, 000, 000, 035), title='Сниженный сигнал медведя сильный', group='Цвета градиента графиков A/D', tooltip='Настройка цветов AD')
+    var float _qtyAdvDec = 0.
+    var float _maxSteps = math.max(1, ad_steps)
+    bool _xUp = ta.crossover(_source, ad_center)
+    bool _xDn = ta.crossunder(_source, ad_center)
+    float _chg = ta.change(_source)
+    bool _up = _chg > 0
+    bool _dn = _chg < 0
+    bool _srcBull = _source > ad_center
+    bool _srcBear = _source < ad_center
+    _qtyAdvDec := _srcBull ? _xUp ? 1 : _up ? math.min(_maxSteps, _qtyAdvDec + 1) : _dn ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _srcBear ? _xDn ? 1 : _dn ? math.min(_maxSteps, _qtyAdvDec + 1) : _up ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _qtyAdvDec
+    var color _return = na
+    _return := _srcBull ? color.from_gradient(_qtyAdvDec, 1, _maxSteps, ca_bullWeak, ca_bullStrong) : _srcBear ? color.from_gradient(_qtyAdvDec, 1, _maxSteps, cd_bearWeak, cd_bearStrong) : _return
+    _return
+
+fxc_heatmap_ad_pro_2(_source) =>  //(_source, _center, _steps, _c_bearWeak, _c_bearStrong, _c_bullWeak, _c_bullStrong)
+    ad_center = input.int(defval=000, minval=-100, maxval=100, step=001, title='центральная линия', group='Цвета заливки градиента', tooltip='(- ∞ до ∞) центральная линия, используемая для определения, является ли сигнал бычьим/медвежьим')
+    ad_steps = input.int(defval=020, minval=0002, maxval=423, step=001, title='Шаги в градиенте', group='Цвета заливки градиента', tooltip='Максимальное количество шагов в градиенте от слабого цвета к сильному цвету')
+    ca_bullStrong = input.color(color.rgb(000, 255, 000, 070), title='Расширенный сигнал быка сильный%', group='Цвета заливки градиента', tooltip='Настройка цветов AD')
+    ca_bullWeak = input.color(color.rgb(000, 255, 050, 085), title='Расширенный сигнал быка слабый', group='Цвета заливки градиента', tooltip='Настройка цветов AD')
+    cd_bearWeak = input.color(color.rgb(255, 000, 050, 085), title='Сниженный сигнал медведя слабый', group='Цвета заливки градиента', tooltip='Настройка цветов AD')
+    cd_bearStrong = input.color(color.rgb(255, 000, 000, 070), title='Сниженный сигнал медведя сильный', group='Цвета заливки градиента', tooltip='Настройка цветов AD')
+    var float _qtyAdvDec = 0.
+    var float _maxSteps = math.max(1, ad_steps)
+    bool _xUp = ta.crossover(_source, ad_center)
+    bool _xDn = ta.crossunder(_source, ad_center)
+    float _chg = ta.change(_source)
+    bool _up = _chg > 0
+    bool _dn = _chg < 0
+    bool _srcBull = _source > ad_center
+    bool _srcBear = _source < ad_center
+    _qtyAdvDec := _srcBull ? _xUp ? 1 : _up ? math.min(_maxSteps, _qtyAdvDec + 1) : _dn ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _srcBear ? _xDn ? 1 : _dn ? math.min(_maxSteps, _qtyAdvDec + 1) : _up ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _qtyAdvDec
+    var color _return = na
+    _return := _srcBull ? color.from_gradient(_qtyAdvDec, 1, _maxSteps, ca_bullWeak, ca_bullStrong) : _srcBear ? color.from_gradient(_qtyAdvDec, 1, _maxSteps, cd_bearWeak, cd_bearStrong) : _return
+    _return
+
+//=>Выходные цвета
+col_mav_01 = fxc_heatmap_ad_pro_0(alma_ma_02 - alma_ma_01)
+col_maf_01 = fxc_heatmap_ad_pro_2(alma_ma_02 - alma_ma_01)
+col_mav_02 = fxc_heatmap_ad_pro_0(alma_ma_03 - alma_ma_02)
+col_maf_02 = fxc_heatmap_ad_pro_2(alma_ma_03 - alma_ma_02)
+col_mav_03 = fxc_heatmap_ad_pro_0(alma_ma_04 - alma_ma_03)
+col_maf_03 = fxc_heatmap_ad_pro_2(alma_ma_04 - alma_ma_03)
+col_mav_04 = fxc_heatmap_ad_pro_0(alma_ma_05 - alma_ma_04)
+col_maf_04 = fxc_heatmap_ad_pro_2(alma_ma_05 - alma_ma_04)
+col_mav_05 = fxc_heatmap_ad_pro_0(alma_ma_06 - alma_ma_05)
+col_maf_05 = fxc_heatmap_ad_pro_2(alma_ma_06 - alma_ma_05)
+col_mav_06 = fxc_heatmap_ad_pro_0(alma_ma_07 - alma_ma_06)
+col_maf_06 = fxc_heatmap_ad_pro_2(alma_ma_07 - alma_ma_06)
+col_mav_07 = fxc_heatmap_ad_pro_0(alma_ma_08 - alma_ma_07)
+col_maf_07 = fxc_heatmap_ad_pro_2(alma_ma_08 - alma_ma_07)
+col_mav_08 = fxc_heatmap_ad_pro_0(alma_ma_0x - alma_ma_08)
+col_maf_08 = fxc_heatmap_ad_pro_2(alma_ma_0x - alma_ma_08)
+/// Графики ///
+pl_ma_01 = plot(series=log_swch ? math.exp(alma_ma_01) : useMAS ? alma_ma_01 : na, title='MA #01', color=col_mav_01, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #01', group='Смещение графиков MA'), editable=true, display=display.all)
+pl_ma_02 = plot(series=log_swch ? math.exp(alma_ma_02) : useMAS ? alma_ma_02 : na, title='MA #02', color=col_mav_02, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #02', group='Смещение графиков MA'), editable=true, display=display.all)
+pl_ma_03 = plot(series=log_swch ? math.exp(alma_ma_03) : useMAS ? alma_ma_03 : na, title='MA #03', color=col_mav_03, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #03', group='Смещение графиков MA'), editable=true, display=display.all)
+pl_ma_04 = plot(series=log_swch ? math.exp(alma_ma_04) : useMAS ? alma_ma_04 : na, title='MA #04', color=col_mav_04, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #04', group='Смещение графиков MA'), editable=true, display=display.all)
+pl_ma_05 = plot(series=log_swch ? math.exp(alma_ma_05) : useMAS ? alma_ma_05 : na, title='MA #05', color=col_mav_05, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #05', group='Смещение графиков MA'), editable=true, display=display.all)
+pl_ma_06 = plot(series=log_swch ? math.exp(alma_ma_06) : useMAS ? alma_ma_06 : na, title='MA #06', color=col_mav_06, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #06', group='Смещение графиков MA'), editable=true, display=display.all)
+pl_ma_07 = plot(series=log_swch ? math.exp(alma_ma_07) : useMAS ? alma_ma_07 : na, title='MA #07', color=col_mav_07, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #07', group='Смещение графиков MA'), editable=true, display=display.all)
+pl_ma_08 = plot(series=log_swch ? math.exp(alma_ma_08) : useMAS ? alma_ma_08 : na, title='MA #08', color=col_mav_08, linewidth=2, style=plot.style_line, offset=input.int(defval=00, title='Смещение MA #08', group='Смещение графиков MA'), editable=true, display=display.all)
+/// Заливка ///
+fill(plot1=pl_ma_01, plot2=pl_ma_02, color=fill_opt ? col_maf_01 : na, title='Цвет заливки', editable=false, fillgaps=true, transp=90)
+fill(plot1=pl_ma_02, plot2=pl_ma_03, color=fill_opt ? col_maf_02 : na, title='Цвет заливки', editable=false, fillgaps=true, transp=90)
+fill(plot1=pl_ma_03, plot2=pl_ma_04, color=fill_opt ? col_maf_03 : na, title='Цвет заливки', editable=false, fillgaps=true, transp=90)
+fill(plot1=pl_ma_04, plot2=pl_ma_05, color=fill_opt ? col_maf_04 : na, title='Цвет заливки', editable=false, fillgaps=true, transp=90)
+fill(plot1=pl_ma_05, plot2=pl_ma_06, color=fill_opt ? col_maf_05 : na, title='Цвет заливки', editable=false, fillgaps=true, transp=90)
+fill(plot1=pl_ma_06, plot2=pl_ma_07, color=fill_opt ? col_maf_06 : na, title='Цвет заливки', editable=false, fillgaps=true, transp=90)
+fill(plot1=pl_ma_07, plot2=pl_ma_08, color=fill_opt ? col_maf_07 : na, title='Цвет заливки', editable=false, fillgaps=true, transp=90)
+/// PlotShape ///
+cal_psh_val = 100 * (alma_ma_08 - alma_ma_07) / (alma_ma_08 + alma_ma_07) + 100 * ((alma_ma_07 - alma_ma_06) / (alma_ma_07 + alma_ma_06))
+psh_cond_all = cal_psh_val > 0 and cal_psh_val > cal_psh_val[sfty_rnge] ? 1 : cal_psh_val < 0 and cal_psh_val < cal_psh_val[sfty_rnge] ? 2 : 3
+plotshape(series=alrt_04 ? psh_cond_all == 1 ? true : na : na, title='Plotshape Alert Bull', style=shape.triangleup, location=location.bottom, color=color.new(color.green, 050), editable=true, size=size.tiny, display=display.all)
+plotshape(series=alrt_04 ? psh_cond_all == 2 ? true : na : na, title='Plotshape Alert Bear', style=shape.triangledown, location=location.top, color=color.new(color.red, 050), editable=true, size=size.tiny, display=display.all)
+///=>Функция выбора алерта
+f_crossalrt(ma01, ma02, crosstype) =>
+    src_01 = ma01 == '#08' ? alma_ma_01 : ma01 == '#07' ? alma_ma_02 : ma01 == '#06' ? alma_ma_03 : ma01 == '#05' ? alma_ma_04 : ma01 == '#04' ? alma_ma_05 : ma01 == '#03' ? alma_ma_06 : ma01 == '#02' ? alma_ma_07 : ma01 == '#01' ? alma_ma_08 : 0.0  // В случае сомнений, вернуть ноль
+    src_02 = ma02 == '#07' ? alma_ma_02 : ma02 == '#06' ? alma_ma_03 : ma02 == '#05' ? alma_ma_04 : ma02 == '#04' ? alma_ma_05 : ma02 == '#03' ? alma_ma_06 : ma02 == '#02' ? alma_ma_07 : ma02 == '#01' ? alma_ma_08 : 0.0  // В случае сомнений, вернуть ноль
+    cros_tp = crosstype == 'OVER' ? ta.crossover(src_01, src_02) : crosstype == 'UNDER' ? ta.crossunder(src_01, src_02) : crosstype == 'ALL' ? ta.cross(src_01, src_02) : na  // В случае сомнений
+    cros_tp
+signal_alert = f_crossalrt(alrt_01, alrt_02, alrt_03)
+///=>Алерт пост
+if alrt_00 and signal_alert
+    alert('Symbol = (' + syminfo.tickerid + ') TimeFrame = (' + timeframe.period + ') Current Price (' + str.tostring(close) + ') The Moving Average Oscillator MA Cross  Alarm Has Been Activated', alert.freq_once_per_bar_close)
+/// Конец кода ///
+
+// Этот скрипт Pine Script™ подчиняется условиям лицензии Mozilla Public License 2.0 на https://mozilla.org/MPL/2.0
+// © niceGear68734
+
+//@version=5
+//strategy("Table to filter trades per day",  overlay=true, use_bar_magnifier = true, initial_capital = 5000, calc_on_every_tick = true, calc_on_order_fills = true, commission_type = strategy.commission.cash_per_contract)
+
+//~ ___________________________________________________________________________
+//~ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//~ !!!!!!!!!!!!!!!_________________  START  _________________!!!!!!!!!!!!!!!!!
+
+//__________________________   User Inputs  ___________________________________
+var const string g_table    = "Table Settings"
+i_table_pos                 = input.string(defval = "Top Left", title = "Position", options = ["Bottom Right","Bottom Left", "Top Right", "Top Left"], group = g_table, inline = "1", tooltip = "It sets the location of the table")
+i_text_size                 = input.string(defval = "Normal", title = "Set the size of text", options = ["Small", "Normal", "Large"], tooltip = "This option is used to change the size of the text in the table")
+var const string g_general  = "General Settings"
+i_check_open_close          = input.string("Opened", "Check when the trade :", ["Opened", "Closed"], group = g_general, tooltip = "This parameter defines what to check for. If opened is selected, the results will show the trades that opened on that day. If closed is selected, the results will show the trades that closed on that day")
+i_timezone                  = input.string("Exchange", title = "Set the Timezone", options = ["Exchange","UTC-10","UTC-9","UTC-8","UTC-7","UTC-6","UTC-5","UTC-4","UTC-3","UTC-2","UTC-1","UTC","UTC+1","UTC+2","UTC+3","UTC+4","UTC+5","UTC+6","UTC+7","UTC+8","UTC+9","UTC+10", "UTC+11","UTC+12","UTC+13","UTC+13:45"], group = g_general, tooltip = "You can use this setting whenever you want to change the time that the trade has closed/opened")
+
+//~_____________________________  Switches  ___________________________________
+table_pos = switch i_table_pos
+    "Bottom Right"  => position.bottom_right
+    "Bottom Left"   => position.bottom_left
+    "Top Right"     => position.top_right
+    "Top Left"      => position.top_left
+
+timezone_setting = i_timezone == "Exchange" ? syminfo.timezone : i_timezone
+
+text_size = switch i_text_size
+    "Small"         => size.small
+    "Normal"        => size.normal
+    "Large"         => size.large
+
+//__________________________   Array Declaration  _____________________________
+var string[] t_column_names          = array.from( "", "Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat")  // Columns header names
+var string[] t_row_names             = array.from("", "Total\ntrades", "Loss", "Win", "Win Rate" )  // Rows header names
+var t_column_size                    = array.size(t_column_names)
+var t_row_size                       = array.size(t_row_names)
+var string[] a_closed_trades         = array.new_string()  // Save the total number of trades
+var string[]   a_loss_trades         = array.new_string()  // Save the number of losing trades
+var string[]   a_win_trades          = array.new_string()  // Save the number of winning trades
+var _a_day_week                      = array.new_int()  // Save the day of the week to split data
+
+// __________________________  Custom Functions  ________________________________
+//~ create a counter so that it gives a number to strategy.closed_trades.entry_time(counter)
+var trade_number = -1
+if strategy.closedtrades > strategy.closedtrades[1]
+    trade_number += 1
+
+f_strategy_closedtrades_hour() =>
+    switch
+        i_check_open_close =="Closed" => dayofweek(strategy.closedtrades.exit_time(trade_number), timezone_setting)
+        i_check_open_close =="Opened"  => dayofweek(strategy.closedtrades.entry_time(trade_number), timezone_setting)
+
+f_data(_i) =>
+    var _closed_trades          = 0
+    var _loss_trades            = 0
+    var _win_trades             = 0
+    var _txt_closed_trades      = ""
+    var _txt_loss_trades        = ""
+    var _txt_win_trades         = ""
+
+    if strategy.closedtrades > strategy.closedtrades[1] and f_strategy_closedtrades_hour() == _i
+        _closed_trades += 1
+        _txt_closed_trades := str.tostring(_closed_trades)
+    if strategy.losstrades > strategy.losstrades[1]     and f_strategy_closedtrades_hour() == _i
+        _loss_trades += 1
+        _txt_loss_trades := str.tostring(_loss_trades)
+    if strategy.wintrades > strategy.wintrades[1]       and f_strategy_closedtrades_hour() == _i
+        _win_trades += 1
+        _txt_win_trades := str.tostring(_win_trades)
+    [_txt_closed_trades, _txt_loss_trades, _txt_win_trades]                                                       
+
+//__________________________
+var string[] array1 = array.new_string(5)
+var string[] array2 = array.new_string(5)
+var string[] array3 = array.new_string(5)
+var string[] array4 = array.new_string(5)
+var string[] array5 = array.new_string(5)
+var string[] array6 = array.new_string(5)
+var string[] array7 = array.new_string(5)
+
+f_pass_data_to_array(_i, _array) =>
+    [cl, loss, win] = f_data(_i)
+    array.set(_array,1 , cl)
+    array.set(_array,2,loss)
+    array.set(_array,3,win)
+    if cl != ""
+        array.set(_array,4,str.tostring(str.tonumber(win) / str.tonumber(cl) * 100 , "##") + " %")
+    if cl != "" and win == ""
+        array.set(_array,4,"0 %")
+
+for i = 1 to 7
+    switch
+        i == 1 => f_pass_data_to_array(i,array1)
+        i == 2 => f_pass_data_to_array(i,array2)
+        i == 3 => f_pass_data_to_array(i,array3)
+        i == 4 => f_pass_data_to_array(i,array4)
+        i == 5 => f_pass_data_to_array(i,array5)
+        i == 6 => f_pass_data_to_array(i,array6)
+        i == 7 => f_pass_data_to_array(i,array7)
+
+f_retrieve_data_to_table(_i, _j) =>
+    switch
+        _i == 1 => array.get(array1, _j)
+        _i == 2 => array.get(array2, _j)
+        _i == 3 => array.get(array3, _j)
+        _i == 4 => array.get(array4, _j)
+        _i == 5 => array.get(array5, _j)
+        _i == 6 => array.get(array6, _j)
+        _i == 7 => array.get(array7, _j)
+
+//~ ___________________________  Create Table  ________________________________
+create_table(_col, _row, _txt) =>
+    var table _tbl = table.new(position = table_pos, columns = t_column_size , rows = t_row_size, border_width=1)
+    color _color = _row == 0 or _col == 0 ? color.rgb(3, 62, 106) : color.rgb(2, 81, 155)
+    table.cell(_tbl, _col, _row, _txt, bgcolor = _color, text_color = color.white, text_size = text_size)
+
+//~___________________________  Fill With Data  _______________________________
+if barstate.islastconfirmedhistory
+    for i = 0 to t_column_size - 1 by 1
+        for j = 0 to t_row_size - 1 by 1
+            _txt = ""
+            if i >= 0 and j == 0
+                _txt := array.get(t_column_names, i)
+            if j >= 0 and i == 0
+                _txt := array.get(t_row_names, j)
+            if  i >= 1 and j >= 1 and j <= 5
+                _txt :=  f_retrieve_data_to_table( i , j)
+            create_table(i ,j , _txt)
+
+//~ ___________________________  Notice  ______________________________________
+if timeframe.in_seconds() > timeframe.in_seconds("D")
+    x = table.new(position.middle_center,1,1,color.aqua)
+    table.cell_set_text(x,0,0,"Please select lower timeframes (Daily or lower)")
+
+//~ !!!!!!!!!!!!!!!_________________  STOP  _________________!!!!!!!!!!!!!!!!!!
+//~ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//~ ___________________________________________________________________________
+
+/////////////////////////////////////////////////////////////// © BackQuant ///////////////////////////////////////////////////////////////
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0
+// © BackQuant
+
+import TradingView/ta/4 as ta
+
+//@version=5
+//indicator(
+// title="DEMA Adjusted Average True Range [BackQuant]",
+// shorttitle = "DEMA ATR [BackQuant]",
+// overlay=true,
+// timeframe="",
+// timeframe_gaps=true
+// )
+
+// Define User Inputs
+simple bool       showAtr                 =        input.bool(true, "Plot Dema Atr on Chart?")
+simple bool       haCandles               =        input.bool(true, "Use HA Candles?")
+simple int        periodDema              =        input.int(7, "Dema Period", group = "Dema Atr")
+series float      sourceDema              =        input.source(close, "Calculation Source", group = "Dema Atr")
+simple int        periodAtr               =        input.int(14, "Period", group = "Dema Atr")
+simple float      factorAtr               =        input.float(1.7, "Factor", step = 0.01, group = "Dema Atr")
+simple color      longColour              =       #00ff00
+simple color      shortColour             =       #ff0000
+/////////////////////////////////////////////////////////////// © BackQuant ///////////////////////////////////////////////////////////////
+// Use HA Candles?
+heikinashi_close = request.security(
+ symbol = ticker.heikinashi(syminfo.tickerid),
+ timeframe =  timeframe.period,
+ expression = close,
+ gaps = barmerge.gaps_off,
+ lookahead = barmerge.lookahead_off
+ )
+
+//var series float source = close
+if haCandles == true
+    source := heikinashi_close
+if haCandles == false
+    source := sourceDema
+/////////////////////////////////////////////////////////////// © BackQuant ///////////////////////////////////////////////////////////////
+// Function
+DemaAtrWithBands(periodDema, source, lookback, atrFactor)=>
+    ema1   = ta.ema(source,  periodDema)
+    ema2   = ta.ema(ema1, periodDema)
+    demaOut = 2 * ema1 - ema2
+
+    atr = ta.atr(lookback)
+    trueRange = atr * atrFactor
+
+    DemaAtr = demaOut
+    DemaAtr := nz(DemaAtr[1], DemaAtr)
+
+    trueRangeUpper = demaOut + trueRange
+    trueRangeLower  = demaOut - trueRange
+
+    if trueRangeLower > DemaAtr
+        DemaAtr := trueRangeLower
+    if trueRangeUpper < DemaAtr
+        DemaAtr := trueRangeUpper
+    DemaAtr
+
+// Function Out
+DemaAtr = DemaAtrWithBands(periodDema, source, periodAtr, factorAtr)
+/////////////////////////////////////////////////////////////// © BackQuant ///////////////////////////////////////////////////////////////
+// Conditions
+DemaAtrLong = DemaAtr > DemaAtr[1]
+DemaAtrShort = DemaAtr < DemaAtr[1]
+
+// Colour Condtions
+var color Trend = #ffffff
+if DemaAtrLong
+    Trend := longColour
+if DemaAtrShort
+    Trend := shortColour
+
+// Plotting
+plot(
+ showAtr ? DemaAtr : na,
+ "ATR",
+ color=Trend,
+ linewidth = 2
+ )
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════ //
+//# * ══════════════════════════════════════════════════════════════════════════════════════════════
+//# *
+//# * Study       : Backtest Framework
+//# * Author      : © dgtrd
+//# * Purpose     : Ability to optimize a study and observe trade simulation statistics accordingly
+//# *
+//# * Revision History
+//# *  Release    : Nov 21, 2020  : Initial Release
+//# *  Update     : Mar 13, 2021  : Enchanced Backtest Framework
+//# *                               - long/short/stoploss conditions enchaced
+//# *                               - early warning ability added (label + alert)
+//# *
+//# * ══════════════════════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════════════════════════ //
+
+// -Inputs ══════════════════════════════════════════════════════════════════════════════════════════ //
+
+isBackTest = input.bool(true, 'Backtest On/Off', group='Backtest Framework')
+dasCapital = input.float(1000., 'Initial Capital', inline='BT1', group='Backtest Framework')
+lenBckTst = input.float(1, 'Period (Year)', minval=0, step=.1, inline='BT1', group='Backtest Framework')
+isStopLoss = input.bool(true, 'Apply Stop Loss, with Stop Loss Set To %', inline='BT2', group='Backtest Framework')
+stopLoss = input.float(50., '', step=.1, minval=0, inline='BT2', group='Backtest Framework') / 100
+isBull = input.bool(true, 'Long : Candle Direction as Confirmation : Short', inline='BT3', group='Backtest Framework')
+isBear = input.bool(true, '', inline='BT3', group='Backtest Framework')
+isSudden = input.bool(true, 'Avoid Sudden Price Changes', group='Backtest Framework')
+isTest = input.bool(false, '❗❗❗ Simulate Trade on Next Bar : Only For Test Purpose (REPAINTS)', group='Backtest Framework')
+lblInOutSL = input.bool(true, 'Trade Entry/Exit Labels  Trade Statistics Label', inline='BT4', group='Backtest Framework')
+lblTrdStat = input.bool(true, '', inline='BT4', group='Backtest Framework')
+
+// -Calculations ════════════════════════════════════════════════════════════════════════════════════ //
+
+startBckTst = time > timenow - lenBckTst * 31556952000
+
+var inTrade = false
+var entryPrice = 0.
+var exitPrice = 0.
+
+if isBackTest
+
+    var capital = dasCapital
+    var trades = 0
+    var win = 0
+    var loss = 0
+
+    bullCandle = close > open
+    bearCandle = close < open
+    stopLossTrigger = ta.crossunder(close, entryPrice * (1 - stopLoss))
+
+    longCondition3 = buy //isTest ? isBull ? isSudden ? longAlertCondition3[1] and not shortAlertCondition3 and bullCandle : longAlertCondition3[1] and bullCandle : isSudden ? longAlertCondition3[1] and not shortAlertCondition3 : longAlertCondition3[1] : isBull ? isSudden ? longAlertCondition3[2] and not shortAlertCondition3[1] and bullCandle[1] : longAlertCondition3[2] and bullCandle[1] : isSudden ? longAlertCondition3[2] and not shortAlertCondition3[1] : longAlertCondition3[1]
+
+    shortCondition3 = sell //isTest ? isBear ? isSudden ? shortAlertCondition3[1] and not longAlertCondition3 and bearCandle : shortAlertCondition3[1] and bearCandle : isSudden ? shortAlertCondition3[1] and not longAlertCondition3 : shortAlertCondition3[1] : isBear ? isSudden ? shortAlertCondition3[2] and not longAlertCondition3[1] and bearCandle[1] : shortAlertCondition3[2] and bearCandle[1] : isSudden ? shortAlertCondition3[2] and not longAlertCondition3[1] : shortAlertCondition3[1]
+
+    stopLossCondition = isStopLoss ? inTrade and not shortCondition3 ? stopLossTrigger : 0 : 0
+
+    if startBckTst and longCondition3 and not inTrade
+        entryPrice := open
+        inTrade := true
+        trades += 1
+
+        if lblInOutSL
+            label longLabel = label.new(bar_index, low, text='L', tooltip='entry price  : ' + str.tostring(entryPrice) + '\nentry value : ' + str.tostring(capital, '#.##'), color=color.green, style=label.style_label_up, textcolor=color.white, textalign=text.align_center, size=size.tiny)
+            longLabel
+
+        alert('long : probable trading opportunity, price ' + str.tostring(close), alert.freq_once_per_bar)
+
+    if (shortCondition3 or stopLossCondition) and inTrade
+        exitPrice := stopLossCondition ? close : open
+        inTrade := false
+        capital *= (exitPrice / entryPrice)
+
+        if exitPrice > entryPrice
+            win += 1
+            win
+        else
+            loss += 1
+            loss
+
+        if lblInOutSL
+            text_1 = stopLossCondition ? 'SL' : 'TP'
+            label shortLabel = label.new(bar_index, high, text=text_1, tooltip='change .......... : ' + str.tostring((exitPrice / entryPrice - 1) * 100, '#.##') + '%\nentry/exit price : ' + str.tostring(entryPrice) + ' / ' + str.tostring(exitPrice) + '\nnew capital ..... : ' + str.tostring(capital, '#.##'), color=color.red, style=label.style_label_down, textcolor=color.white, textalign=text.align_center, size=size.tiny)
+            shortLabel
+
+        alert('short : probable trading opportunity, price ' + str.tostring(close), alert.freq_once_per_bar)
+
+    var label wLabel = na
+
+    if ta.change(time)
+        label.delete(wLabel[1])
+
+    if stopLossCondition
+        alert('stop loss condition, price ' + str.tostring(close), alert.freq_once_per_bar)
+
+    if lblTrdStat
+        var years = (timenow - time) / 31556952000
+
+        var yearsTxt = ''
+        var remarks = ''
+
+        if years < lenBckTst
+            lenBckTst := years
+            yearsTxt := str.tostring(lenBckTst, '#.##') + ' Years***'
+            remarks := '\n\n*longs only\n**final value, if trade active displays estimated final value\n***max available data for selected timeframe : # of bars - ' + str.tostring(bar_index)
+            remarks
+        else
+            yearsTxt := str.tostring(lenBckTst, '#.##') + ' Year(s)'
+            remarks := '\n\n*longs only\n**final value - if in trade, displays estimated final value'
+            remarks
+
+        inTradeTxt = inTrade ? 'inTrade' : 'not inTrade'
+        estimated = inTrade ? capital * (close / entryPrice) : capital
+        entryTxt = inTrade ? str.tostring(entryPrice) : 'not inTrade'
+        lastTrdTxt = inTrade ? ', Gain/Loss ' + str.tostring((estimated / capital - 1) * 100, '#.##') + '%, Stop Loss ' + str.tostring(isStopLoss ? entryPrice * (1 - stopLoss) : na) : ''
+        stopLossTxt = isStopLoss ? 'if last value falls by ' + str.tostring(stopLoss * 100) + '% of entry price' : 'not applied'
+
+        tooltipTxt = 'entires/exit caclulations\n' + '-long entry , on next bar when ewo crosses above its signal line (green labels up)\n' + '-take profit, on next bar when ewo crosses below its signal line (red labels down)\n' + '-stop loss ' + stopLossTxt + remarks
+
+        label indiLabel = label.new(time, close, text='☼☾ Trade Statistics*, Trade Period - ' + yearsTxt + '\n═════════════════════════════════════' + '\nSuccess Ratio ...... : ' + str.tostring(win / trades * 100, '#') + '%' + ', # of Trades - ' + str.tostring(trades) + ', Win/Loss - ' + str.tostring(win) + '/' + str.tostring(loss) + '\nGain/Loss % ........ : ' + str.tostring((estimated / dasCapital - 1) * 100, '#') + '%' + ', Initial/Final Value** - ' + str.tostring(dasCapital) + ' / ' + str.tostring(estimated, '#') + '\n\nCurrent TradeStatus - ' + inTradeTxt + lastTrdTxt + '\n═════════════════════════════════════' + '\nEntry Price/Value . : ' + entryTxt + ' / ' + str.tostring(capital, '#.##') + ' ' + inTradeTxt + '\nLast Price/Value ... : ' + str.tostring(close) + ' / ' + str.tostring(estimated, '#.##') + ' ' + inTradeTxt, tooltip=tooltipTxt, color=inTrade ? estimated / dasCapital > 1 ? color.teal : color.maroon : color.gray, xloc=xloc.bar_time, style=label.style_label_left, textcolor=color.white, textalign=text.align_left)
+
+        label.set_x(indiLabel, label.get_x(indiLabel) + math.round(ta.change(time) * 5))
+        label.delete(indiLabel[1])
+
+// -Plotting ════════════════════════════════════════════════════════════════════════════════════ //
+
+bgcolor(isBackTest and startBckTst and startBckTst != startBckTst[1] ? color.blue : na, transp=90)
+plot(inTrade ? entryPrice : exitPrice > 0 ? exitPrice : na, title='Entry/Exit Price Line', color=inTrade ? color.green : color.red, style=plot.style_circles)
+
+
+// ==========================================================================================
+
+// === Dashboard with Telegram Link ===
+var table myTable = table.new(position.top_center, 1, 1, border_width=1, frame_color=color.black, bgcolor=color.white)
+
+// Add Telegram Message to Dashboard
+table.cell(myTable, 0, 0, "Join Telegram @simpleforextools", bgcolor=color.blue, text_color=color.white, text_size=size.normal)

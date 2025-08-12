@@ -1,0 +1,212 @@
+﻿//@version=5
+indicator("[$/Nadaraya-Watson Envelope v3/$]", shorttitle="📈 NWEv3 📉", overlay = true, max_lines_count = 500, max_labels_count = 500, max_bars_back=500)
+//------------------------------------------------------------------------------
+//Settings
+//-----------------------------------------------------------------------------{
+h = input.float(8.,'Bandwidth', minval = 0)
+h2 = input.float(14.,'Bandwidth2', minval = 0)
+mult = input.float(3., minval = 0)
+mult2 = input.float(3., minval = 0)
+src = input(close, 'Source')
+ 
+var ln = array.new_line(0) 
+var ln2 = array.new_line(0) 
+ 
+repaint = input(true, 'Repainting Smoothing', tooltip = 'Repainting is an effect where the indicators historical output is subject to change over time. Disabling repainting will cause the indicator to output the endpoints of the calculations')
+ 
+//Style
+upCss = input.color(color.teal, 'Colors', inline = 'inline1', group = 'Style')
+dnCss = input.color(color.red, '', inline = 'inline1', group = 'Style')
+upCss2 = input.color(color.blue, 'Colors', inline = 'inline2', group = 'Style')
+dnCss2 = input.color(color.orange, '', inline = 'inline2', group = 'Style')
+ 
+//-----------------------------------------------------------------------------}
+//Functions
+//-----------------------------------------------------------------------------{
+//Gaussian window
+gauss(x, h) => math.exp(-(math.pow(x, 2)/(h * h * 2)))
+ 
+n = bar_index
+ 
+if barstate.isfirst and repaint
+    for i = 0 to 249
+        array.push(ln,line.new(na,na,na,na))
+        array.push(ln2,line.new(na,na,na,na))
+ 
+//-----------------------------------------------------------------------------}
+//End point method
+//-----------------------------------------------------------------------------{
+var coefs = array.new_float(0)
+var den = 0.
+var coefs2 = array.new_float(0)
+var den2 = 0.
+ 
+if barstate.isfirst and not repaint
+    for i = 0 to 249
+        w = gauss(i, h)
+        coefs.push(w)
+        w2 = gauss(i, h2)
+        coefs2.push(w2)
+    den := coefs.sum()
+    den2 := coefs2.sum()
+ 
+out = 0.
+out2 = 0.
+ 
+if not repaint
+    for i = 0 to 249
+        out += src[i] * coefs.get(i)
+        out2 += src[i] * coefs2.get(i)
+out /= den
+mae = ta.sma(math.abs(src - out), 249) * mult
+upper = out + mae
+lower = out - mae
+ 
+out2 /= den2
+mae2 = ta.sma(math.abs(src - out2), 249) * mult2
+upper2 = out2 + mae2
+lower2 = out2 - mae2        
+ 
+ 
+//-----------------------------------------------------------------------------}
+//Compute and display NWE
+//-----------------------------------------------------------------------------{
+float y2 = na
+float y1 = na
+ 
+float y22 = na
+float y12 = na
+ 
+nwe = array.new<float>(0)
+nwe2 = array.new<float>(0)
+if barstate.islast and repaint
+    sae = 0.
+    sae2 = 0.
+    //Compute and set NWE point 
+    for i = 0 to math.min(249,n - 1)
+        sum = 0.
+        sumw = 0.
+        sum2 = 0.
+        sumw2 = 0.
+        //Compute weighted mean 
+        for j = 0 to math.min(249,n - 1)
+            w = gauss(i - j, h)
+            sum += src[j] * w
+            sumw += w
+            w2 = gauss(i - j, h2)
+            sum2 += src[j] * w2
+            sumw2 += w2
+ 
+        y2 := sum / sumw
+        sae += math.abs(src[i] - y2)
+        nwe.push(y2)
+ 
+        y22 := sum2 / sumw2
+        sae2 += math.abs(src[i] - y22)
+        nwe2.push(y22)
+ 
+    sae := sae / math.min(249,n - 1) * mult
+    sae2 := sae2 / math.min(249,n - 1) * mult2
+    for i = 0 to math.min(249,n - 1)
+        if i%2 != 0
+            line.new(n-i+1, y1 + sae, n-i, nwe.get(i) + sae, color = upCss)
+            line.new(n-i+1, y1 - sae, n-i, nwe.get(i) - sae, color = dnCss)
+            line.new(n-i+1, y12 + sae2, n-i, nwe2.get(i) + sae2, color = upCss)
+            line.new(n-i+1, y12 - sae2, n-i, nwe2.get(i) - sae2, color = dnCss)
+ 
+        if src[i] > nwe.get(i) + sae and src[i+1] < nwe.get(i) + sae
+            label.new(n-i, src[i], '▼', color = color(na), style = label.style_label_down, textcolor = dnCss, textalign = text.align_center)
+        if src[i] < nwe.get(i) - sae and src[i+1] > nwe.get(i) - sae
+            label.new(n-i, src[i], '▲', color = color(na), style = label.style_label_up, textcolor = upCss, textalign = text.align_center)
+ 
+        //if src[i] > nwe2.get(i) + sae2 and src[i+1] < nwe2.get(i) + sae2
+        //    label.new(n-i, src[i], '▼', color = color(na), style = label.style_label_down, textcolor = dnCss, textalign = text.align_center)
+        //if src[i] < nwe2.get(i) - sae2 and src[i+1] > nwe.get(i) - sae2
+        //    label.new(n-i, src[i], '▲', color = color(na), style = label.style_label_up, textcolor = upCss, textalign = text.align_center)
+ 
+        y1 := nwe.get(i)
+        y12 := nwe2.get(i)
+ 
+//-----------------------------------------------------------------------------}
+//Dashboard
+//-----------------------------------------------------------------------------{
+var tb = table.new(position.top_right, 1, 1
+  , bgcolor = #1e222d
+  , border_color = #373a46
+  , border_width = 1
+  , frame_color = #373a46
+  , frame_width = 1)
+ 
+if repaint
+    tb.cell(0, 0, 'Repainting Mode Enabled', text_color = color.white, text_size = size.small)
+ 
+//-----------------------------------------------------------------------------}
+//Plot
+//-----------------------------------------------------------------------------}
+plot(repaint ? na : out + mae, 'Upper', upCss)
+plot(repaint ? na : out - mae, 'Lower', dnCss)
+plot(repaint ? na : out2 + mae2, 'Upper', upCss2)
+plot(repaint ? na : out2 - mae2, 'Lower', dnCss2)
+ 
+//Crossing Arrows
+plotshape(ta.crossunder(close, out - mae) ? low : na, "Crossunder", shape.labelup, location.absolute, color(na), 0 , text = '▲', textcolor = upCss, size = size.tiny)
+plotshape(ta.crossover(close, out + mae) ? high : na, "Crossover", shape.labeldown, location.absolute, color(na), 0 , text = '▼', textcolor = dnCss, size = size.tiny)
+
+//====================================================================================================================================================================//
+
+ma_type = input.string('EMA', '➪ MA Type', ['ALMA','HMA','SMA','SWMA','VWMA','WMA','ZLEMA','EMA'], group = 'Setup')
+ma_period = input.int(9, '➪ MA Period (Length)', 1, group='Setup')
+
+alma_offset = input.float(0.85, '⫸ ALMA Shift', 0, 1, 0.05, group = 'Setup (ALMA)')
+alma_sigma = input.int(6, '⫸ ALMA Deviation', 1, step = 1, group = 'Setup (ALMA)')
+
+show_line_1(x) =>
+    input.bool(true, '⫸ Show Close line', group = 'On/Off') ? x : na
+show_line_2(x) =>
+    input.bool(false, '⫸ Show High/Low lines', group = 'On/Off') ? x : na
+show_fill(x) =>
+    input.bool(true, '⫸ Show fill', group = 'On/Off') ? x : na
+show_highlight(x) =>
+    input.bool(true, '⫸ Show highlight', group = 'On/Off') ? x : na
+    
+// Calculations 
+f(x) =>
+    switch ma_type
+        'ALMA' => ta.alma(x, ma_period, alma_offset, alma_sigma)
+        'HMA' => ta.hma(x, ma_period)
+        'SMA' => ta.sma(x, ma_period)
+        'SWMA' => ta.swma(x)
+        'VWMA' => ta.vwma(x, ma_period)
+        'WMA' => ta.vwma(x, ma_period)
+        'ZLEMA' => ta.ema(x + x - x[math.floor((ma_period - 1) / 2)], ma_period)
+        => ta.ema(x, ma_period)
+
+ma_heikinashi_open = f(request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open))
+ma_heikinashi_close = f(request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close))
+ma_heikinashi_high = f(request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, high))
+ma_heikinashi_low = f(request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, low))
+
+trend = 100 * (ma_heikinashi_close - ma_heikinashi_open) / (ma_heikinashi_high - ma_heikinashi_low)
+// Colors 
+color_positive = input.color(#26a69a, '➪ Positive color (Bullish)', group = 'Colors')
+color_negative = input.color(#ef5350, '➪ Negative color (Bearish)', group = 'Colors')
+color_neutral = input.color(#808080, '➪ Neutral color', group = 'Colors')
+
+color_trend = trend > 0 ? color_positive : color_negative
+// Plot 
+plot_open = plot(ma_heikinashi_open, 'Open line', na)
+plot_close = plot(ma_heikinashi_close, 'Close line', show_line_1(color_trend), 2)
+plot_high = plot(ma_heikinashi_high, 'High line', show_line_2(color_neutral))
+plot_low = plot(ma_heikinashi_low, 'Low line', show_line_2(color_neutral))
+
+plot_highest = plot(math.max(ma_heikinashi_open, ma_heikinashi_close),'Highest Body line', na)
+plot_lowest = plot(math.min(ma_heikinashi_open, ma_heikinashi_close),'Lowest Body line', na)
+// Fill 
+fill(plot_open, plot_close, color.new(color_trend,50), 'Open/Close Cloud')
+fill(plot_high, plot_highest, show_fill(color.new(color_neutral,87.5)), title = 'High Cloud')
+fill(plot_lowest, plot_low, show_fill(color.new(color_neutral,87.5)), title = 'Low Cloud')
+// Bgcolor 
+bgcolor(math.abs(trend) > 25 ? show_highlight(color.new(color_trend, 87.5)) : na, title = 'Pivot Highlight (Weak)')
+bgcolor(math.abs(trend) > 50 ? show_highlight(color.new(color_trend, 87.5)) : na, title = 'Pivot Highlight (Strong)')
+
+//====================================================================================================================//

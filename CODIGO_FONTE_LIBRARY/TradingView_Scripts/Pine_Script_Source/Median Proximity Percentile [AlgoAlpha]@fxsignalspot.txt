@@ -1,0 +1,63 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © AlgoAlpha
+
+//@version=5
+indicator("Median Proximity Percentile [AlgoAlpha]", "AlgoAlpha - % Median Proximity Percentile", overlay = false, timeframe = "", timeframe_gaps = false)
+
+// Inputs
+priceSource = input.source(close, "Source")
+lookbackLength = input.int(21, minval = 1, title = "Lookback Length")
+emaLookbackLength = input.int(20, minval = 1, title = "HMA Lookback Length")
+stdDevMultiplier = 1
+noise = input.bool(true, "Noise Scatterplot")
+colorUp = input.color(#00ffbb, title = "Up Color")
+colorDown = input.color(#ff1100, title = "Down Color")
+
+// Calculations
+medianValue = ta.median(priceSource, lookbackLength)
+priceDeviation = (priceSource - medianValue)
+standardDeviation = ta.stdev(priceDeviation, 45)
+normalizedValue = priceDeviation / (standardDeviation + standardDeviation)
+
+positiveValues = normalizedValue > 0 ? normalizedValue : 0
+negativeValues = normalizedValue < 0 ? normalizedValue : 0
+
+upperBoundary = ta.ema(positiveValues, lookbackLength) + ta.stdev(positiveValues, lookbackLength) * stdDevMultiplier
+lowerBoundary = ta.ema(negativeValues, lookbackLength) - ta.stdev(negativeValues, lookbackLength) * stdDevMultiplier
+
+percentileValue = 100 * (normalizedValue - lowerBoundary)/(upperBoundary - lowerBoundary) - 50
+
+emaValue = ta.hma(percentileValue, emaLookbackLength)
+
+// Color Conditions
+plotColor = percentileValue > 0 ? colorUp : 
+      percentileValue < 0 ? colorDown : na
+
+// Plots
+plot(noise ? percentileValue : na, color = color.new(plotColor, 50), style = plot.style_circles)
+hmaPlot = plot(emaValue, color = color.new(emaValue > emaValue[1] ? colorUp : colorDown, 40), title = "Hull MA")
+hmaPlot1 = plot(emaValue[1], color = color.new(emaValue > emaValue[1] ? colorUp : colorDown, 40))
+zeroLine = plot(0, color = color.gray, title = "Zero Line")
+plotchar(ta.crossover(emaValue,emaValue[1]) ? emaValue : na, "Bullish Swing", char = "o", location = location.absolute, color = colorUp, size = size.tiny)
+plotchar(ta.crossover(emaValue[1],emaValue) ? emaValue : na, "Bearish Swing", char = "o", location = location.absolute, color = colorDown, size = size.tiny)
+plotchar(ta.crossunder(emaValue,emaValue[1]) and emaValue[1] > 90 ? 160 : na, "Bearish Reversal", char = "▼", location = location.absolute, color = colorDown, size = size.tiny)
+plotchar(ta.crossunder(emaValue[1],emaValue) and emaValue[1] < -90 ? -160 : na, "Bullish Reversal", char = "▲", location = location.absolute, color = colorUp, size = size.tiny)
+
+// Hidden Levels
+maxLevelPlot = plot(150, display = display.none)
+minLevelPlot = plot(-150, display = display.none)
+upperMidLevelPlot = plot(90, display = display.none)
+lowerMidLevelPlot = plot(-90, display = display.none)
+
+// Fills
+fill(maxLevelPlot, upperMidLevelPlot, top_value = 150, bottom_value = 90, top_color = color.new(colorDown, 50), bottom_color = color.new(chart.bg_color, 90))
+fill(minLevelPlot, lowerMidLevelPlot, top_value = -90, bottom_value = -150, top_color = color.new(chart.bg_color, 90), bottom_color = color.new(colorUp, 50))
+fill(hmaPlot, hmaPlot1, color.new(emaValue > emaValue[1] ? colorUp : colorDown, 40))
+
+// Alerts
+alertcondition(ta.crossover(emaValue, 0), "Bullish Trend Shift", "Median Proximity Percentile Crossover Zero Line")
+alertcondition(ta.crossunder(emaValue, 0), "Bearish Trend Shift", "Median Proximity Percentile Crossunder Zero Line") 
+alertcondition(ta.crossover(emaValue,emaValue[1]), "Bullish Swing", "Median Proximity Percentile Swinging Upwards")
+alertcondition(ta.crossover(emaValue[1],emaValue), "Bearish Swing", "Median Proximity Percentile Swinging Downwards")
+alertcondition(ta.crossunder(emaValue,emaValue[1]) and emaValue[1] > 90, "Bearish Reversal", "Median Proximity Percentile Bearish Reversal")
+alertcondition(ta.crossunder(emaValue[1],emaValue) and emaValue[1] < -90, "Bullish Reversal", "Median Proximity Percentile Bullish Reversal")

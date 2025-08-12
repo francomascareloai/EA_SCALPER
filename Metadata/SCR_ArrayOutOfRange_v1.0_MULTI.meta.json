@@ -1,0 +1,31 @@
+{
+  "id": "SCR_ArrayOutOfRange_v1.0_MULTI",
+  "nome_original": "ARRAY OUT OF RANGE.mq5",
+  "tipo": "Script",
+  "linguagem": "MQL5",
+  "estrategia": "Educational",
+  "mercado": "MULTI",
+  "timeframe": "MULTI",
+  "versao": "1.0",
+  "data_criacao": "2025-01-27",
+  "data_modificacao": "2025-01-27",
+  "caminho": "CODIGO_FONTE_LIBRARY/MQL5_Source/Scripts/SCR_ArrayOutOfRange_v1.0_MULTI.mq5",
+  "descricao": "Script educacional demonstrando manipulação de arrays estáticos e dinâmicos em MQL5",
+  "funcoes_principais": [
+    "OnInit"
+  ],
+  "parametros_expostos": [],
+  "ftmo_score": 10,
+  "ftmo_ready": true,
+  "riscos_detectados": [],
+  "qualidade_codigo": 8,
+  "ajustes_ftmo_sugeridos": [],
+  "tags": [
+    "#Script",
+    "#Educational",
+    "#Arrays",
+    "#Learning",
+    "#MULTI",
+    "#FTMO_Ready"
+  ]
+}

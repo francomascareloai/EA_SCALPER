@@ -1,0 +1,50 @@
+//@version=5
+indicator("Contoh Indikator Multi-Kondisi", shorttitle="MultiCon", overlay=true)
+
+// Input Pengguna
+lenFastEMA = input.int(12, title="Panjang EMA Cepat")
+lenSlowEMA = input.int(26, title="Panjang EMA Lambat")
+lenRSI = input.int(14, title="Panjang RSI")
+rsiBuyLevel = input.float(50, title="Level RSI Beli (Cross Above)")
+rsiSellLevel = input.float(50, title="Level RSI Jual (Cross Below)")
+rsiOverbought = input.float(70, title="RSI Overbought")
+rsiOversold = input.float(30, title="RSI Oversold")
+useVolumeFilter = input.bool(true, title="Gunakan Filter Volume?")
+volumeLookback = input.int(20, title="Periode Rata-rata Volume")
+
+// Kalkulasi Indikator
+fastEMA = ta.ema(close, lenFastEMA)
+slowEMA = ta.ema(close, lenSlowEMA)
+rsi = ta.rsi(close, lenRSI)
+avgVolume = ta.sma(volume, volumeLookback)
+
+// Plot EMA untuk visualisasi
+plot(fastEMA, title="EMA Cepat", color=color.new(color.blue, 0))
+plot(slowEMA, title="EMA Lambat", color=color.new(color.orange, 0))
+
+// Kondisi Tren
+isUptrend = fastEMA > slowEMA
+isDowntrend = fastEMA < slowEMA
+
+// Kondisi Volume (jika diaktifkan)
+volumeConfirmed = not useVolumeFilter or (volume > avgVolume)
+
+// Kondisi Sinyal Beli
+// 1. Tren sedang naik
+// 2. RSI baru saja melewati level beli (misal 50) ke atas ATAU RSI sudah di atas level beli dan belum overbought
+// 3. Volume terkonfirmasi (jika diaktifkan)
+buySignalCondition = isUptrend and (ta.crossover(rsi, rsiBuyLevel) or (rsi > rsiBuyLevel and rsi < rsiOverbought)) and volumeConfirmed
+
+// Kondisi Sinyal Jual
+// 1. Tren sedang turun
+// 2. RSI baru saja melewati level jual (misal 50) ke bawah ATAU RSI sudah di bawah level jual dan belum oversold
+// 3. Volume terkonfirmasi (jika diaktifkan)
+sellSignalCondition = isDowntrend and (ta.crossunder(rsi, rsiSellLevel) or (rsi < rsiSellLevel and rsi > rsiOversold)) and volumeConfirmed
+
+// Plot Sinyal pada Chart
+plotshape(buySignalCondition, title="Sinyal Beli", location=location.belowbar, color=color.new(color.green, 0), style=shape.triangleup, size=size.normal)
+plotshape(sellSignalCondition, title="Sinyal Jual", location=location.abovebar, color=color.new(color.red, 0), style=shape.triangledown, size=size.normal)
+
+// Alerts (opsional)
+alertcondition(buySignalCondition, title="Sinyal Beli Terdeteksi", message="Potensi sinyal BELI untuk {{ticker}} pada {{close}}")
+alertcondition(sellSignalCondition, title="Sinyal Jual Terdeteksi", message="Potensi sinyal JUAL untuk {{ticker}} pada {{close}}")

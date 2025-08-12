@@ -1,0 +1,40 @@
+{
+  "id": "IND_AlphaTrend_v1.0_MULTI_5",
+  "file_name": "IND_AlphaTrend_v1.0_MULTI_5.mq5",
+  "file_hash": "sha256_placeholder",
+  "type": "Indicator",
+  "language": "MQL5",
+  "strategy": "Trend",
+  "markets": ["FOREX", "INDICES", "COMMODITIES", "CRYPTO"],
+  "timeframes": ["M1", "M5", "M15", "M30", "H1", "H4", "D1"],
+  "key_functions": [
+    "OnInit",
+    "OnCalculate",
+    "SetIndexBuffer",
+    "DRAW_FILLING",
+    "DRAW_ARROW"
+  ],
+  "dependencies": [],
+  "exposed_parameters": [
+    "inp_length",
+    "inp_atr_multiplier",
+    "inp_price",
+    "inp_change_calc",
+    "inp_signals"
+  ],
+  "ftmo_score": 8,
+  "detected_risks": [
+    "Codificação corrompida detectada"
+  ],
+  "code_quality_score": 7,
+  "compilation_status": "warning",
+  "merge_readiness": "needs_review",
+  "necessary_adjustments": [
+    "Corrigir codificação de caracteres",
+    "Verificar sinais de compra/venda"
+  ],
+  "license": "Custom",
+  "author": "Centaur",
+  "description": "Alpha Trend indicator with ATR-based trend detection and buy/sell signals - duplicate version 5",
+  "tags": ["#Indicator", "#Trend", "#ATR", "#Signals", "#FTMO_Ready", "#Multi_Market", "#All_Timeframes", "#Duplicate"]
+}

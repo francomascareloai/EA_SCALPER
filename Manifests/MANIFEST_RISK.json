@@ -1,0 +1,25 @@
+{
+  "nome": "Risk Management Manifest",
+  "versao": "1.0",
+  "descricao": "Componentes de gerenciamento de risco e conformidade FTMO",
+  "componentes": {
+    "calculo_lote": [],
+    "stop_loss": [],
+    "take_profit": [],
+    "daily_loss_protection": [],
+    "max_trades_control": [],
+    "drawdown_protection": []
+  },
+  "ftmo_rules": {
+    "max_daily_loss": "5%",
+    "max_total_loss": "10%",
+    "min_trading_days": 10,
+    "profit_target": "10%"
+  },
+  "scores": {
+    "ftmo_compliance": 0,
+    "risk_score": 0,
+    "safety_rating": 0
+  },
+  "ultima_atualizacao": "2025-01-10"
+}
