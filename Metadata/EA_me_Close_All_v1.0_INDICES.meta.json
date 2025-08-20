@@ -1,0 +1,92 @@
+{
+  "file_info": {
+    "original_name": "me_Close_All.mq4",
+    "current_name": "EA_me_Close_All_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Trend_Following\\EA_me_Close_All_v1.0_INDICES.mq4",
+    "file_size": 5297,
+    "lines_count": 131
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 26,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnChartEvent",
+      "CreateButtons",
+      "DeleteButtons",
+      "ButtonPressed",
+      "ToolTips_Text",
+      "CloseAll_Button",
+      "ButtonCreate",
+      "ButtonDelete"
+    ],
+    "variables": [
+      "Corner",
+      "Move_X",
+      "Move_Y",
+      "B00000",
+      "Font_Type",
+      "Font_Size",
+      "B00001",
+      "Button_Width"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#News_Trading",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:46.781559",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.695283",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

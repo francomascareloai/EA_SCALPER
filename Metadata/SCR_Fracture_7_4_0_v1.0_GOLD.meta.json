@@ -1,0 +1,141 @@
+{
+  "file_info": {
+    "original_name": "Fracture-7.4.0.mq4",
+    "current_name": "SCR_Fracture_7_4_0_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Fracture_7_4_0_v1.0_GOLD.mq4",
+    "file_size": 14824,
+    "lines_count": 307
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 79,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "marginCalculate",
+      "lotSize",
+      "setPipPoint",
+      "closeAll",
+      "prepareFractals",
+      "prepareHistory",
+      "preparePositions",
+      "prepareIndicators",
+      "prepareTrend",
+      "managePositions",
+      "openPosition",
+      "update",
+      "prepare",
+      "start"
+    ],
+    "variables": [
+      "TOOLS",
+      "CloseAll",
+      "ContinueTrading",
+      "RISK",
+      "BaseLotSize",
+      "RangeUsage",
+      "TrendUsage",
+      "TRADING",
+      "MaxTrades",
+      "MaxScalping",
+      "Aggressive",
+      "TradeSpace",
+      "DynamicSlippage",
+      "PROFITS",
+      "QueryHistory",
+      "BasketProfit",
+      "OpenProfit",
+      "MinProfit",
+      "TRENDING",
+      "CrossBars",
+      "RangingMarket",
+      "TurboStart",
+      "INDICATOR_ATR",
+      "ATRTimeFrame",
+      "ATRPeriod",
+      "ATRShift",
+      "INDICATOR_MA",
+      "MATimeFrame",
+      "MA1Period",
+      "MA2Period",
+      "MA3Period",
+      "MMAShift",
+      "MAShift",
+      "INDICATOR_ADX",
+      "ADXLine1",
+      "ADXLine2",
+      "ADXTimeFrame",
+      "ADXPeriod",
+      "ADXShift",
+      "INDICATOR_FRACTAL",
+      "FractalTimeFrame",
+      "FractalShift",
+      "FractalBars"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:05.994280",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:29.466159",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

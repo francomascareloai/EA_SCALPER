@@ -1,0 +1,104 @@
+{
+  "file_info": {
+    "original_name": "AI Gen XII EA v 1.6.mq4",
+    "current_name": "SCR_AI_Gen_XII_EA_v_1_6_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_AI_Gen_XII_EA_v_1_6_v1.0_GOLD.mq4",
+    "file_size": 21340,
+    "lines_count": 925
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco robusta",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 115,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start"
+    ],
+    "variables": [
+      "StartHour",
+      "StartMinute",
+      "EndHour",
+      "EndMinute",
+      "_",
+      "Risk",
+      "automatic",
+      "FixedLot",
+      "PropFirm",
+      "Trailing",
+      "TrailingStart",
+      "TrailingStop",
+      "_",
+      "_",
+      "MagicNumber",
+      "Comment",
+      "_",
+      "GPTModel",
+      "Aggressivity",
+      "Function",
+      "DisableAnimation"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:54.814505",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:22.995401",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

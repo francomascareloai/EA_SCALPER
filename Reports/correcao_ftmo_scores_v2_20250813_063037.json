@@ -1,0 +1,32 @@
+{
+  "correction_summary": {
+    "timestamp": "2025-08-13T06:30:37.084886",
+    "processing_time_seconds": 212.16,
+    "total_metadata_files": 8180,
+    "corrected_files": 2169,
+    "files_not_found": 4712,
+    "errors": 4,
+    "success_rate": 26.52
+  },
+  "ftmo_analysis": {
+    "ftmo_ready_before": 0,
+    "ftmo_ready_after": 0,
+    "improvement": 0,
+    "score_improvements": 498,
+    "score_reductions": 1671
+  },
+  "algorithm_used": "Sistema FTMO Rigoroso v3.0 - Ultra Crítico",
+  "criteria": {
+    "stop_loss": "0-2 pontos (obrigatório)",
+    "risk_management": "0-2 pontos",
+    "drawdown_protection": "0-1.5 pontos",
+    "take_profit": "0-1 ponto",
+    "session_filters": "0-0.5 pontos",
+    "penalties": {
+      "grid_martingale": "-3 pontos (eliminatório)",
+      "hedging": "-1 ponto",
+      "no_trade_limit": "-0.5 pontos",
+      "news_without_filter": "-0.5 pontos"
+    }
+  }
+}

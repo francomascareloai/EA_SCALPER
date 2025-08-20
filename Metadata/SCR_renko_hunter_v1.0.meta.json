@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "renko_hunter.mq4",
+    "current_name": "SCR_renko_hunter_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_renko_hunter_v1.0.mq4",
+    "file_size": 11641,
+    "lines_count": 473
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 94,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "OnEveryTick5",
+      "IfOrderExists28",
+      "TechnicalAnalysis2x31",
+      "CloseOrder35",
+      "IfOrderExists39",
+      "TechnicalAnalysis2x34",
+      "CloseOrder36",
+      "CustomCode4",
+      "TechnicalAnalysis2x25",
+      "TechnicalAnalysis3x26",
+      "IfOrderDoesNotExist16",
+      "BuyOrder27",
+      "IfOrderExists17",
+      "CloseOrder18",
+      "TechnicalAnalysis2x19",
+      "TechnicalAnalysis3x20",
+      "IfOrderDoesNotExist21",
+      "SellOrder22",
+      "IfOrderExists24",
+      "CloseOrder23",
+      "deinit"
+    ],
+    "variables": [
+      "BuyLots27",
+      "BuyStoploss27",
+      "BuyTakeprofit27",
+      "SellLots22",
+      "SellStoploss22",
+      "SellTakeprofit22"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:17.292329",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:37.434563",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "file_info": {
+    "original_name": "SergeyGukach.mq4",
+    "current_name": "UNK_SergeyGukach_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Misc\\UNK_SergeyGukach_v1.0_INDICES.mq4",
+    "file_size": 6778,
+    "lines_count": 194
+  },
+  "classification": {
+    "type": "Unknown",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 86.66666666666667,
+    "complexity": 44,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "deinit",
+      "Tral",
+      "GetLevels",
+      "ClosePosition",
+      "SetOrders",
+      "CorrectOrders",
+      "Try",
+      "start"
+    ],
+    "variables": [
+      "Lots",
+      "TP",
+      "StartHour",
+      "Filtr",
+      "SL",
+      "EndHour",
+      "TStOp",
+      "TStEp",
+      "Bezubitok"
+    ],
+    "includes": [
+      "b-Orders.mqh"
+    ],
+    "properties": []
+  },
+  "tags": [
+    "#Unknown",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:24.868922",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:36:57.176797",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

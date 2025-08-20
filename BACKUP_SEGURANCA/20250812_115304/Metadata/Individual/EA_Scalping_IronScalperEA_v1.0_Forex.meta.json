@@ -1,0 +1,76 @@
+{
+  "file_info": {
+    "original_name": "Iron Scalper EA.mq4",
+    "suggested_name": "EA_Scalping_IronScalperEA_v1.0_Forex.mq4",
+    "file_size": 32170,
+    "file_hash": "47984c9a218fe08d334945cf335bc91b",
+    "language": "MQL4"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": "scalping",
+    "markets": [
+      "Forex"
+    ],
+    "timeframes": [
+      "Multi"
+    ],
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "code_quality": {
+    "total_lines": 382,
+    "code_lines": 282,
+    "comment_lines": 77,
+    "comment_ratio": 0.202,
+    "complexity_score": 64,
+    "function_count": 21,
+    "extern_params": 10,
+    "quality_score": 6,
+    "quality_level": "High"
+  },
+  "risk_assessment": {
+    "level": "Medium",
+    "factors": []
+  },
+  "organization": {
+    "target_folder": "MQL4_Source/EAs/Scalping",
+    "tags": [
+      "#EA",
+      "#Scalping",
+      "#Forex",
+      "#Multi",
+      "#Partially_Compliant",
+      "#MediumRisk",
+      "#HighQuality"
+    ]
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:16.725119",
+    "analyzer_version": "1.0",
+    "confidence_score": 100,
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  },
+  "special_analysis": {
+    "special_flags": [],
+    "is_exceptional": false,
+    "attention_required": false,
+    "quality_indicator": "STANDARD"
+  }
+}

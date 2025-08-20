@@ -1,0 +1,127 @@
+{
+  "file_info": {
+    "original_name": "EquityGuard1.2c.mq4",
+    "current_name": "SCR_EquityGuard1_2c_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_EquityGuard1_2c_v1.0_INDICES.mq4",
+    "file_size": 11043,
+    "lines_count": 336
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Proteção de drawdown"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 74,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "DelAllTxts",
+      "ShowEAStatus",
+      "onoff",
+      "start",
+      "EquityGuard",
+      "DisableEA",
+      "DelAllPendingOrders",
+      "CloseAllActiveOrders",
+      "AllActiveOrders",
+      "AllPendingOrders",
+      "CloseOrder",
+      "CreatLabel",
+      "ShowLogo"
+    ],
+    "variables": [
+      "EAName",
+      "MonitorEquity",
+      "eg0",
+      "MaximalTargetON",
+      "MaximalTarget",
+      "DisableAllEAs1",
+      "CloseAllActiveOrders1",
+      "DeleteAllPendingOrders1",
+      "eg1",
+      "MinimalTargetON",
+      "MinimalTarget",
+      "DisableAllEAs2",
+      "CloseAllActiveOrders2",
+      "DeleteAllPendingOrders2",
+      "eg2",
+      "PercentDrawdownON",
+      "PercentDrawdown",
+      "DisableAllEAs3",
+      "CloseAllActiveOrders3",
+      "DeleteAllPendingOrders3",
+      "eg4",
+      "SoundON",
+      "SoundFile",
+      "SendEmailON",
+      "ProgrammingService"
+    ],
+    "includes": [
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:53.707146",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:27.017305",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

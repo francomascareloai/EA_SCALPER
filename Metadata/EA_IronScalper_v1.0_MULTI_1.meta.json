@@ -1,0 +1,53 @@
+{
+  "id": "EA_IronScalper_001",
+  "file_name": "EA_IronScalper_v1.0_MULTI_1.mq4",
+  "original_name": "1. Iron Scalper EA",
+  "file_hash": "",
+  "type": "EA",
+  "language": "MQL4",
+  "strategy": "Scalping",
+  "markets": ["MULTI"],
+  "timeframes": ["M1", "M5"],
+  "key_functions": [
+    "OnTick",
+    "OrderSend",
+    "Traling",
+    "ClosePos",
+    "CountBar"
+  ],
+  "dependencies": [],
+  "exposed_parameters": [
+    "Risk",
+    "StopLoss",
+    "TakeProfit",
+    "TrailingStop",
+    "MagicNumber",
+    "MaxSpread"
+  ],
+  "ftmo_score": 8.5,
+  "detected_risks": [
+    "Spread dependency",
+    "Time-based trading"
+  ],
+  "code_quality_score": 7.5,
+  "compilation_status": "unknown",
+  "merge_readiness": "high",
+  "necessary_adjustments": [
+    "Add session filters for FTMO compliance",
+    "Implement daily loss protection"
+  ],
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#MULTI",
+    "#M1",
+    "#M5",
+    "#FTMO_Ready",
+    "#Trailing",
+    "#RiskManagement"
+  ],
+  "license": "unknown",
+  "author": "unknown",
+  "created_date": "2025-08-14",
+  "classification_date": "2025-08-14"
+}

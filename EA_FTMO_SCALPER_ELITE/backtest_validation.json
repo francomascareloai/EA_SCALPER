@@ -1,0 +1,43 @@
+{
+  "validation_date": "2025-08-18T23:33:21.902178",
+  "backtest_file": "backtest_results.json",
+  "ftmo_compliance": {
+    "profit_target": {
+      "required": 10.0,
+      "achieved": 12.5,
+      "status": "PASS"
+    },
+    "max_drawdown": {
+      "required": 10.0,
+      "achieved": 3.5,
+      "status": "PASS"
+    },
+    "daily_loss": {
+      "max_allowed_loss": 5000.0,
+      "violations": 0,
+      "status": "PASS"
+    },
+    "trading_days": {
+      "required": 10,
+      "achieved": 305,
+      "status": "PASS"
+    },
+    "consistency": {
+      "max_allowed_percent": 50.0,
+      "achieved_percent": 4.4642843259033524,
+      "status": "PASS"
+    }
+  },
+  "violations": [],
+  "warnings": [],
+  "recommendations": [],
+  "overall_status": "FTMO_READY",
+  "performance_metrics": {
+    "win_rate": 65.33333333333333,
+    "profit_factor": 1.45,
+    "total_trades": 150,
+    "average_win": 255.10204081632654,
+    "average_loss": 240.3846153846154,
+    "risk_reward_ratio": 1.0612244897959184
+  }
+}

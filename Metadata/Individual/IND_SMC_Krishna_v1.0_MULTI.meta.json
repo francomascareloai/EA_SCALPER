@@ -1,0 +1,21 @@
+{
+  "id": "IND_SMC_Krishna_v1.0_MULTI",
+  "arquivo": "IND_SMC_Krishna_v1.0_MULTI.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine",
+  "estrategia": "SMC",
+  "subestrategias": ["Smart Money Concepts"],
+  "mercados": ["MULTI"],
+  "timeframes": ["MULTI"],
+  "funcoes_chave": ["Detect SMC patterns"],
+  "dependencias_includes": [],
+  "parametros_expostos": ["Various SMC parameters"],
+  "ftmo_score": 0,
+  "riscos_detectados": [],
+  "qualidade_codigo_score": 0,
+  "compilacao": { "status": "desconhecido", "warnings": 0 },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

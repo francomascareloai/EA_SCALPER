@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #030
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: M1
+
+//@version=5
+indicator("MACD_Pro_30", shorttitle="MACD_Pro", overlay=false)
+
+// Parâmetros
+length = input.int(21, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+bb = ta.bb(source, length, 2)
+
+// Plot
+plot(bb, "MACD_Pro_30", color=color.red)

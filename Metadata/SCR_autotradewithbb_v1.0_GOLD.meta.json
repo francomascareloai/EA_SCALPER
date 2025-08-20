@@ -1,0 +1,109 @@
+{
+  "file_info": {
+    "original_name": "autotradewithbb.mq4",
+    "current_name": "SCR_autotradewithbb_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_autotradewithbb_v1.0_GOLD.mq4",
+    "file_size": 7454,
+    "lines_count": 199
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 40,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "OPBUY",
+      "OPSELL",
+      "CloseSell",
+      "CloseBuy",
+      "LOT"
+    ],
+    "variables": [
+      "Program",
+      "OpenBUY",
+      "OpenSELL",
+      "GMTTrade_Start",
+      "GMTTrade_Stop",
+      "BB_Period",
+      "RSI_Period",
+      "CCI_Period",
+      "Stoch_KPeriod",
+      "Stoch_DPeriod",
+      "Stoch_Slowing",
+      "ManualLots",
+      "AutoLot",
+      "Risk",
+      "StopLoss",
+      "TakeProfit",
+      "TrailingStop",
+      "Slippage",
+      "MagicNumber"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:14.592789",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:23.907132",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

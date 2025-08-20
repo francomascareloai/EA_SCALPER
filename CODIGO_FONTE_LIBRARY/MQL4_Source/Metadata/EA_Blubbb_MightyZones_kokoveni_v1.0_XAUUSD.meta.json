@@ -1,0 +1,42 @@
+{
+  "file_info": {
+    "original_name": "Blubbb MightyZones [kokoveni].mq4",
+    "new_name": "EA_Blubbb_MightyZones_kokoveni_v1.0_XAUUSD.mq4",
+    "file_size": 8570,
+    "created_date": "2025-08-13T07:11:39.189753",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market": "XAUUSD",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 4.5,
+    "level": "Não_Adequado",
+    "ready": false,
+    "has_stop_loss": false,
+    "has_take_profit": true,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Trend_Following",
+    "#XAUUSD",
+    "#MULTI",
+    "#Nao_FTMO"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

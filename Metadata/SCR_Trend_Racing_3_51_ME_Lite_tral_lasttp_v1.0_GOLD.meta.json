@@ -1,0 +1,186 @@
+{
+  "file_info": {
+    "original_name": "Trend Racing 3.51 ME Lite_tral_lasttp.mq4",
+    "current_name": "SCR_Trend_Racing_3_51_ME_Lite_tral_lasttp_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Trend_Racing_3_51_ME_Lite_tral_lasttp_v1.0_GOLD.mq4",
+    "file_size": 62722,
+    "lines_count": 1235
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 285,
+    "issues": [
+      "Loop infinito detectado - risco de travamento",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "RecalculationB",
+      "RecalculationS",
+      "CountTrades",
+      "CountTradesB",
+      "CountTradesS",
+      "CloseThisSymbolAll",
+      "CloseThisSymbolBUY",
+      "CloseThisSymbolSELL",
+      "OPENORDER",
+      "ShowERROR",
+      "FindLastBuyPrice",
+      "FindLastSellPrice",
+      "LidingProfitOrder",
+      "CloseProfitOrder",
+      "OrderTake_ProfitS",
+      "OrderTake_ProfitB",
+      "ProfitB",
+      "ProfitS",
+      "CloseSelectOrder",
+      "Zerro",
+      "MA",
+      "CCI",
+      "ADX",
+      "MAonRSI",
+      "CalculateAveragePrice"
+    ],
+    "variables": [
+      "Set1",
+      "Lots",
+      "LotExponent",
+      "TakeProfit",
+      "slip",
+      "MaxTrades",
+      "MagicNumberB",
+      "MagicNumberS",
+      "Set2",
+      "Set3",
+      "FirstPipStep",
+      "LongPipStep",
+      "PipStepExponent",
+      "Set4",
+      "info",
+      "Zero",
+      "BarControl",
+      "debug",
+      "EconomProfil",
+      "FirstEconomOrd",
+      "Overlapping",
+      "LeadingOrder",
+      "FLPersent",
+      "UseTrailingStop",
+      "TrailTP",
+      "TrailDist",
+      "AutoTakeProfit",
+      "v1",
+      "SeparateLastTP",
+      "LastTP",
+      "LastTPNo",
+      "MASet",
+      "MA1_Period",
+      "MA2_Period",
+      "DeltaSet",
+      "Comm1",
+      "DelFX",
+      "Comm5",
+      "CCI_kontr",
+      "CCI_Lim",
+      "Comm6",
+      "Comm7",
+      "ADX_kontr",
+      "ADX_Trend",
+      "Comm8",
+      "Comm9",
+      "MAonRSI",
+      "RSI_Period",
+      "MA_Period",
+      "RSI_max",
+      "RSI_min",
+      "Comm10",
+      "AClim",
+      "Comm11",
+      "CloseAll",
+      "TradeStop",
+      "LL",
+      "LossLevel"
+    ],
+    "includes": [
+      "stderror.mqh",
+      "stdlib.mqh",
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:53.482630",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:43.839938",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

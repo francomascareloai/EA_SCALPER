@@ -1,0 +1,964 @@
+{
+  "timestamp": "2025-08-13T01:26:26.005123",
+  "system_version": "5.0",
+  "processing_config": {
+    "batch_size": 100,
+    "max_threads": 4,
+    "timeout_per_file": 60
+  },
+  "statistics": {
+    "total_files": 3373,
+    "processed_files": 3373,
+    "failed_files": 0,
+    "batches_completed": 34,
+    "total_processing_time": 0.0,
+    "quality_scores": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+    ],
+    "performance_data": []
+  },
+  "performance_summary": {
+    "total_batches": 34,
+    "total_processing_time": 339.5659008026123,
+    "average_success_rate": 100.0,
+    "average_files_per_second": 9.933281609296852,
+    "total_files_processed": 0,
+    "total_files_failed": 0
+  },
+  "detailed_results": [
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! 3LS (mtf + alerts)-rev01.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! bbpt (mod_fixed).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! ClarityIndex_2 histo.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! Coral.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! Indicador_TV_to_MT4 (mtf).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! macd of osma.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! Momentum + ma.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! Stochastic signals mtf 1.02 (arrows).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! TrueTL V1.01(1).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\! Volatility ratio.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!! pivot oscillator smoothed.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!!-MT4 123TRIANGLES v1.2_170.911(1).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!!-MT4 123TRIANGLES v1.2_170.911(2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!!-MT4 123TRIANGLES v1.2_170.911.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!!-MT4 M-MATH.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!!-MT4 X-CCI TREND-45.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!!MACD_ADX (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!!MACD_ADX.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!!rsi - nrp mtf + divergence + alerts.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!000SlopeValues@fxsignalspot (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!000SlopeValues@fxsignalspot.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!BullsEye_Forecaster_V1.0.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!ind_WSO-WRO-Trend_Line_Work.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!MT4 BACKGROUND (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!MT4 BACKGROUND.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!MY_TMA+Channel_End_Point_Trend(trueforex.pp.ua).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!Overdraft_Profit_System2_v0.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!Overdraft_Profit_System3_v0.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!Stochastic signals mtf 1.02.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!vertex_mod_3.01 alerts + arrows (1).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\![Script] Calculate Trendline (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\![Script] Calculate Trendline.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\![Script] Hide Trendline.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\!_MTF_shi_channel_1.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\# BuySell_Filter.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\# TLB OC v02 mod(1).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\# TLB OC v02 mod.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\###Daily-Weekly-Monthly Hi-Low.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#3 FFCal Panel (Black).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#4X 2010 Semafor.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#4X 2010 XARD TIME SIGNAL-B.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#4X 2011 XARD WAVE [Insider].mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#4X Bheurekso Pattern copyNOVO_wPatten-Alert-Buffers-0.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#4X Bheurekso Pattern copyNOVO_wPatten-Alert-Buffers.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#Chaos ArrZZx2=.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#DVP_V2.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#MTF_Heiken_Ashi.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#Pallada_Assistant 2(1).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#Pallada_Assistant 2.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#Stochastic_Cross_Alert_SigOverlayM_cw.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#VOLUME WAVE CORE alert_v1@fxsignalspot.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\#Хейкен Аши[MOD].mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1 (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1 (3).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\(NAS) KILLER_PRO_EA 3.0 (1) (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\(NAS) KILLER_PRO_EA 3.0 (1).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\+++Agimat Reversal_ (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\+++Agimat Reversal_.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\0 - Kijun-Sen + Envelopes - rev1 (1).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\00-PFE_v100@Amazing_owner.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\0Graal-CROSSmuvingi.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1 MA.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1 MINUTE SCALPER.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1-IndoRun1.5.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\10.2 TMA slope v.1.4B 4.30.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1000 Pips every week Indicator @FundedMillionAiress.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\10PIPS.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\10pipsOnceADayOppositeLastNHourTrend.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\10_points_3.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\123PatternsV6.03 & mtf nmc alerts bt.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1BObbsqueeze.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1H Bolinger Bands VI.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1x5 warning systemNoReDraw.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\1_row.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2-bar-reversal-indicator.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2-ema-color-alerts-indicator.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\20_All_usd_pair.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\20_pips.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2DLimits_EA_v2.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA 2.00.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2ema-4.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA (3).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA (4).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA (Johan) (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA (Johan) (3).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA (Johan) (4).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA (Johan).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA 1.04.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA-V103.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA-V104.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2EMA-EA.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2ich Disparity Ichimoku TT.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2MA Crossover.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2MA-EA.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2PSAR.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2x5 MA CROSS-3.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\2_Otkat_Sys_v1_1.mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    },
+    {
+      "file_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4\\3 Tier London Breakout V.3.2b BT (2).mq4",
+      "success": true,
+      "metadata_generated": true,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "ftmo_ready": false,
+      "processing_time": 0.1
+    }
+  ],
+  "optimization_recommendations": []
+}

@@ -1,0 +1,69 @@
+{
+  "file_info": {
+    "original_name": "Find Data Holes.mq4",
+    "current_name": "SCR_Find_Data_Holes_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Find_Data_Holes_v1.0.mq4",
+    "file_size": 1501,
+    "lines_count": 38
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Unknown"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 78.33333333333333,
+    "complexity": 4,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "start"
+    ],
+    "variables": [],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Unknown",
+    "#Nao_FTMO",
+    "#MediumQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:57.676402",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:28.095098",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "file_info": {
+    "original_name": "Support_Resistance Indicator Andre.mq4",
+    "current_name": "SCR_Support_Resistance_Indicator_Andre_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Support_Resistance_Indicator_Andre_v1.0_GOLD.mq4",
+    "file_size": 31866,
+    "lines_count": 698
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 91,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "if",
+      "ComputeDayIndices",
+      "SetLevel",
+      "SetTimeLine"
+    ],
+    "variables": [
+      "GMTSettings",
+      "LocalTimeZone",
+      "DestTimeZone",
+      "LinePlacement_",
+      "LinePlacement__",
+      "LinePlacement___",
+      "LinePlacement",
+      "Show_1Daily_2FibonacciPivots",
+      "LabelsFontSize",
+      "ShowLevelPrices",
+      "ShowPricesInMiddle",
+      "ShowLabelsOnDaily",
+      "LabelsLeft",
+      "YesterdayLabelsRight",
+      "TodayLabelsRight",
+      "SeperateDayLines",
+      "ShowRange",
+      "LinePlacement0",
+      "LinePlacement1",
+      "LinePlacement2",
+      "ShowSupportResistance",
+      "ShowPivotPoint",
+      "LineStyleSR",
+      "LineThicknessSR",
+      "LineStylePV",
+      "LineThicknessPV",
+      "SNRLinePlacement",
+      "PivotLinePlacement",
+      "ShowInnerFibs",
+      "ShowOuterFibs",
+      "FiboLineThickness",
+      "FiboLineStyle",
+      "FibosLinePlacementI",
+      "FibosLinePlacementO",
+      "ShowHighLow",
+      "ShowOpen",
+      "LineStyleY",
+      "LineThicknessY",
+      "LineStyleO",
+      "LineThicknessO",
+      "YesterdayLinePlacement",
+      "OpenLinePlacement",
+      "ShowMidPivots",
+      "MidLineStyle",
+      "MidLinePlacement",
+      "ShowQtrPivots",
+      "QtrLineStyle",
+      "QtrLinePlacement",
+      "ShowCamarilla",
+      "ShowWeakerCamarilla",
+      "LineStyleC",
+      "CamarillaLinePlacement",
+      "WeakerCamarillaLinePlacement",
+      "Comment___",
+      "ShowSweetSpots",
+      "SweetLineStyle",
+      "SweetLinePlacement",
+      "Comment_",
+      "Comment__",
+      "LineThickness",
+      "DebugLogger"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "indicator_chart_window",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:38.636944",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:41.481528",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

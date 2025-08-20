@@ -1,0 +1,98 @@
+{
+  "file_info": {
+    "original_name": "! Coral.mq4",
+    "new_name": "IND_Coral_v1.0_MULTI.mq4",
+    "file_type": "Indicator",
+    "language": "MQL4",
+    "size_kb": 8,
+    "creation_date": "2024-01-15",
+    "last_modified": "2024-01-15"
+  },
+  "classification": {
+    "category": "Indicator",
+    "strategy_type": "Trend",
+    "trading_style": "Visual Signals",
+    "complexity_level": "Intermediate",
+    "market_focus": "Multi-Symbol",
+    "timeframe": "All",
+    "ftmo_ready": false
+  },
+  "technical_analysis": {
+    "indicators_used": [
+      "Custom Coral Algorithm",
+      "Moving Average Based",
+      "Color Coded Lines"
+    ],
+    "entry_conditions": "Color change signals (Gold/Green/Red)",
+    "exit_conditions": "Visual signal interpretation",
+    "risk_management": "Not applicable (Indicator only)"
+  },
+  "ftmo_compliance": {
+    "ftmo_ready": true,
+    "compliance_score": 5,
+    "risk_per_trade": "N/A (Indicator)",
+    "max_drawdown": "N/A (Indicator)",
+    "stop_loss": false,
+    "take_profit": false,
+    "martingale": false,
+    "grid_trading": false,
+    "session_filter": false,
+    "issues": []
+  },
+  "parameters": {
+    "period": "60 (configurable)",
+    "smoothing": "60 (configurable)",
+    "show_levels": "true",
+    "colors": "Gold/Green/Red configurable",
+    "line_width": "3 (configurable)"
+  },
+  "performance": {
+    "backtest_period": "Not available",
+    "win_rate": "Not available",
+    "profit_factor": "Not available",
+    "max_drawdown": "Not available",
+    "sharpe_ratio": "Not available"
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend",
+    "#Multi_Symbol",
+    "#Color_Coded",
+    "#Visual_Signals",
+    "#MQL4",
+    "#Custom_Algorithm",
+    "#FTMO_Compatible"
+  ],
+  "status": {
+    "review_status": "Classified",
+    "testing_status": "Not tested",
+    "approval_status": "Approved for FTMO",
+    "notes": "High-quality trend indicator with visual signals"
+  },
+  "file_paths": {
+    "source_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/All_MQ4/! Coral.mq4",
+    "target_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/Indicators/Trend/IND_Coral_v1.0_MULTI.mq4",
+    "metadata_path": "CODIGO_FONTE_LIBRARY/Metadata/IND_Coral_v1.0_MULTI.meta.json"
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:14.643872",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

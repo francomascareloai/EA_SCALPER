@@ -1,0 +1,32 @@
+{
+  "arquivo": {
+    "nome": "AI SCALPER v1.1.mq4",
+    "tamanho_bytes": 29174,
+    "linhas_codigo": 766,
+    "data_modificacao": "2022-09-26T04:03:52"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de horário/sessão"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.006062507629394531,
+  "timestamp": "2025-08-13T01:11:53.051032"
+}

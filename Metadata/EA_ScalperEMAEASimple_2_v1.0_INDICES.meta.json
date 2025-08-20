@@ -1,0 +1,126 @@
+{
+  "file_info": {
+    "original_name": "ScalperEMAEASimple (2).mq4",
+    "current_name": "EA_ScalperEMAEASimple_2_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_ScalperEMAEASimple_2_v1.0_INDICES.mq4",
+    "file_size": 33284,
+    "lines_count": 869
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M5"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 132,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "SetTrailingStop",
+      "CountBuys",
+      "CountSells",
+      "GetLastOrderTypeAndOpenPrice",
+      "CheckVolumeValue",
+      "CheckMoneyForTrade",
+      "CheckLotSize",
+      "OpenBuyOrder",
+      "OpenSellOrder",
+      "CheckStopLoss",
+      "CanOpenOrder",
+      "GetDistanceFromEMA",
+      "IsDistanceLowerThanNeighboringBars",
+      "IsDistanceLowerThanBarSize",
+      "IsBreakEMAFastCondition",
+      "CrossesSignalFromAbove",
+      "CrossesSignalFromBelow",
+      "ScalperEMAStrategy"
+    ],
+    "variables": [
+      "MAGICMA",
+      "lotSize",
+      "periodEMAFast",
+      "periodEMASlow",
+      "distance",
+      "stopLossDeltaPoints",
+      "takeProfitActivationPoints",
+      "trailingStopDeltaPoints",
+      "maxOpenBuyOrders",
+      "maxOpenSellOrders",
+      "AllOrders"
+    ],
+    "includes": [
+      "stderror.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#INDICES",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:24.176673",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:57.225857",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "file_info": {
+    "original_name": "KeyLevelsEA__Ulli (6).mq4",
+    "current_name": "EA_KeyLevelsEA_Ulli_6_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Misc\\EA_KeyLevelsEA_Ulli_6_v1.0_GOLD.mq4",
+    "file_size": 9729,
+    "lines_count": 185
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "H1",
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 45,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "OnChartEvent"
+    ],
+    "variables": [
+      "strict_signals",
+      "defaultTP"
+    ],
+    "includes": [
+      "SUP\\Key_levels_Ulli.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:36.642420",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.422784",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

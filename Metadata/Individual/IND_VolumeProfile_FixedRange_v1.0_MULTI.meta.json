@@ -1,0 +1,21 @@
+{
+  "id": "IND_VolumeProfile_FixedRange_v1.0_MULTI",
+  "arquivo": "IND_VolumeProfile_FixedRange_v1.0_MULTI.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine",
+  "estrategia": "Volume_Analysis",
+  "subestrategias": ["Fixed Range Volume Profile"],
+  "mercados": ["MULTI"],
+  "timeframes": ["MULTI"],
+  "funcoes_chave": ["Volume Profile Calculation"],
+  "dependencias_includes": [],
+  "parametros_expostos": ["Range Parameters"],
+  "ftmo_score": 0,
+  "riscos_detectados": [],
+  "qualidade_codigo_score": 0,
+  "compilacao": { "status": "desconhecido", "warnings": 0 },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

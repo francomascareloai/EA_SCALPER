@@ -1,0 +1,120 @@
+{
+  "file_info": {
+    "original_name": "iCustom_EA1.mq4",
+    "current_name": "EA_iCustom_EA1_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_iCustom_EA1_v1.0_FOREX.mq4",
+    "file_size": 11875,
+    "lines_count": 318
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 64,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "inTimeInterval",
+      "SelectLastHistoryTrade",
+      "ConsecutiveLosses",
+      "TradeDayOfWeek",
+      "myAlert",
+      "OnInit",
+      "OnDeinit",
+      "OnTick"
+    ],
+    "variables": [
+      "IndicatorShortName",
+      "MaxOpenTrades",
+      "BO_Expiry",
+      "MagicNumber",
+      "NextOpenTradeAfterBars",
+      "TakeProfit_pips",
+      "StopLoss_pips",
+      "TOD_From_Hour",
+      "TOD_From_Min",
+      "TOD_To_Hour",
+      "TOD_To_Min",
+      "MM_Martingale_Start",
+      "MM_Martingale_LossFactor",
+      "MM_Martingale_RestartLoss",
+      "MM_Martingale_RestartLosses",
+      "TradeMonday",
+      "TradeTuesday",
+      "TradeWednesday",
+      "TradeThursday",
+      "TradeFriday",
+      "Audible_Alerts"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stderror.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "description"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:29.737085",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:53.419593",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

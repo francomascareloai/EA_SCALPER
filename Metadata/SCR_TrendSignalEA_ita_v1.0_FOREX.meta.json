@@ -1,0 +1,164 @@
+{
+  "file_info": {
+    "original_name": "TrendSignalEA-ita.mq4",
+    "current_name": "SCR_TrendSignalEA_ita_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_TrendSignalEA_ita_v1.0_FOREX.mq4",
+    "file_size": 43058,
+    "lines_count": 981
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 205,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "trendSignal",
+      "print",
+      "checkPoint",
+      "moneyManagement",
+      "buy",
+      "buyStop",
+      "sell",
+      "sellStop",
+      "close",
+      "closeAll"
+    ],
+    "variables": [
+      "help_lots",
+      "lots",
+      "help_spreadLimit",
+      "help_fixStopLoss",
+      "fixStopLoss",
+      "help_fixTakeProfit",
+      "fixTakeProfit",
+      "help_partialTake_1",
+      "help_partialTake_2",
+      "partialTake",
+      "partialTake1",
+      "partialLots1",
+      "partialTake2",
+      "partialLots2",
+      "partialTake3",
+      "partialLots3",
+      "partialTake4",
+      "partialLots4",
+      "partialTake5",
+      "partialLots5",
+      "help_startPips",
+      "startPips",
+      "help_trailPips",
+      "trailPips",
+      "help_signal",
+      "help_reverse",
+      "reverse",
+      "help_closeOther",
+      "closeOther",
+      "help_timeframe",
+      "timeframe",
+      "help_signalName",
+      "signalName",
+      "RISK",
+      "CountBars",
+      "help_backDays_1",
+      "help_backDays_2",
+      "backDays",
+      "help_money",
+      "help_ordersTP_1",
+      "help_ordersTP_2",
+      "ordersTP",
+      "help_dailyProfit",
+      "dailyProfit",
+      "help_targetMoney_1",
+      "help_targetMoney_2",
+      "targetMoney",
+      "help_saveMoney_1",
+      "help_saveMoney_2",
+      "saveMoney",
+      "help_moneyTrail",
+      "moneyTrail",
+      "help_closePending",
+      "closePending"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:54.087064",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:43.775167",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 customModes:
   - slug: project-research
     name: 🔍 Project Research
@@ -144,3 +145,8 @@ customModes:
       If user explicitly requests full solution now: Confirm once, then provide with labeled learning commentary sections.
       If ambiguity persists after one clarifying question: Offer 2–3 interpretations and ask them to pick.
       If user shows frustration: Reduce questioning density, provide a concise direct explanation, then reintroduce guided inquiry.
+=======
+{
+  "customModes": []
+}
+>>>>>>> 7e1634661d5dd0366f1bb5ebf2ba5e9aebce5eaa

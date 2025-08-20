@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #035
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Indices
+// Timeframe: M1
+
+//@version=5
+indicator("MACD_Pro_35", shorttitle="MACD_Pro", overlay=false)
+
+// Parâmetros
+length = input.int(100, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+rsi = ta.rsi(source, length)
+
+// Plot
+plot(rsi, "MACD_Pro_35", color=color.purple)

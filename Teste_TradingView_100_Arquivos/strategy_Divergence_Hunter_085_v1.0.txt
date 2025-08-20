@@ -1,0 +1,29 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #085
+// Tipo: STRATEGY
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: M1
+
+//@version=5
+strategy("Divergence_Hunter_85", shorttitle="Divergen", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+// Parâmetros
+length = input.int(200, "Length", minval=1)
+stop_loss = input.float(4.7, "Stop Loss %", minval=0.1, step=0.1)
+take_profit = input.float(7.5, "Take Profit %", minval=0.1, step=0.1)
+
+// Estratégia
+ema_fast = ta.ema(close, length)
+ema_slow = ta.ema(close, length*2)
+long_condition = ta.crossover(ema_fast, ema_slow)
+short_condition = ta.crossunder(ema_fast, ema_slow)
+
+// Execução
+if (long_condition)
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Exit Long", "Long", stop=close * (1 - stop_loss/100), limit=close * (1 + take_profit/100))
+
+if (short_condition)
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Exit Short", "Short", stop=close * (1 + stop_loss/100), limit=close * (1 - take_profit/100))

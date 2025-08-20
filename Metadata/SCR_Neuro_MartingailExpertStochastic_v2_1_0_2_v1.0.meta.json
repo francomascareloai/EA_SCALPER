@@ -1,0 +1,108 @@
+{
+  "file_info": {
+    "original_name": "Neuro-MartingailExpertStochastic_v2[1].0 (2).mq4",
+    "current_name": "SCR_Neuro_MartingailExpertStochastic_v2_1_0_2_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Neuro_MartingailExpertStochastic_v2_1_0_2_v1.0.mq4",
+    "file_size": 12112,
+    "lines_count": 295
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 65,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OrdersTotalMagicbuy",
+      "OrdersTotalMagicsell",
+      "orderclosebuy",
+      "orderclosesell",
+      "start",
+      "perceptron"
+    ],
+    "variables": [
+      "StopLoss",
+      "TakeProfit",
+      "step",
+      "StepMode",
+      "proffactor",
+      "mult",
+      "lotsbuy",
+      "lotssell",
+      "per_K",
+      "per_D",
+      "slow",
+      "zoneBUY",
+      "zoneSELL",
+      "Magicbuy",
+      "Magicsell",
+      "Parameters",
+      "Parameters_Stochastic",
+      "Kperiod",
+      "Dperiod",
+      "slowing",
+      "Parameters_Perceptron",
+      "shag",
+      "x1",
+      "x2",
+      "x3",
+      "x4"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:56.150059",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.329268",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "file_info": {
+    "original_name": "TrueTL V1.01.mq4",
+    "current_name": "SCR_TrueTL_V1_01_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_TrueTL_V1_01_v1.0_GOLD.mq4",
+    "file_size": 19863,
+    "lines_count": 386
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 84,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "Auto_Refresh",
+      "Normal_TL_Period",
+      "Three_Touch",
+      "M1_Fast_Analysis",
+      "M5_Fast_Analysis",
+      "Mark_Highest_and_Lowest_TL",
+      "Expiration_Day_Alert",
+      "Three_Touch_TL_Widht"
+    ],
+    "includes": [
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:56.343775",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:44.221568",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

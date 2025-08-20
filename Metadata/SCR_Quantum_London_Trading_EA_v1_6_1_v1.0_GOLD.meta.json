@@ -1,0 +1,176 @@
+{
+  "file_info": {
+    "original_name": "Quantum London Trading EA v1.6.1.mq4",
+    "current_name": "SCR_Quantum_London_Trading_EA_v1_6_1_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Quantum_London_Trading_EA_v1_6_1_v1.0_GOLD.mq4",
+    "file_size": 50540,
+    "lines_count": 1144
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 277,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "GetLots",
+      "CheckCloseTrades",
+      "CloseNormal",
+      "CloseFifo",
+      "DrawGrid",
+      "DeleteLines",
+      "CreateButton",
+      "CreateManualButton"
+    ],
+    "variables": [
+      "mn",
+      "comm",
+      "q",
+      "K",
+      "D",
+      "S",
+      "OS",
+      "OB",
+      "o",
+      "ema",
+      "had",
+      "fulltime",
+      "manual",
+      "mm",
+      "a",
+      "open1",
+      "close1",
+      "max1",
+      "cyc1",
+      "open2",
+      "close2",
+      "max2",
+      "cyc2",
+      "open3",
+      "close3",
+      "max3",
+      "cyc3",
+      "closeend",
+      "wait",
+      "onlylowerhigher",
+      "xdist",
+      "numcycles",
+      "stop",
+      "tf",
+      "fifo",
+      "mon",
+      "tue",
+      "wed",
+      "thurs",
+      "fri",
+      "xcandles",
+      "qde",
+      "qdc",
+      "reverse",
+      "l",
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "grid",
+      "drawgrid",
+      "grid1size",
+      "grid1inc",
+      "grid1maxtrades",
+      "grid1lots",
+      "grid2size",
+      "grid2inc",
+      "grid2maxtrades",
+      "grid2lots",
+      "grid3size",
+      "grid3inc",
+      "grid3maxtrades",
+      "grid3lots",
+      "ber",
+      "percbedd",
+      "pointstp",
+      "dollartp",
+      "percequitytp",
+      "pointssl",
+      "dollarsl",
+      "percequitysl",
+      "indivtp",
+      "indivsl",
+      "closex",
+      "debug"
+    ],
+    "includes": [],
+    "properties": [
+      "strict",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:15.665328",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:37.408603",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

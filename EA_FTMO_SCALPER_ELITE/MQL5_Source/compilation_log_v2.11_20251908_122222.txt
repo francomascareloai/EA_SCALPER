@@ -1,0 +1,13 @@
+========================================== 
+FTMO Scalper Elite v2.11 Compilation Log 
+Date: 19/08/2025 12:22:22,02 
+========================================== 
+ 
+Starting compilation... 
+ 
+Compilation finished at 12:22:22,72 
+ERROR: Compilation failed - .ex5 file not found 
+ 
+========================================== 
+Log saved as: compilation_log_v2.11_20251908_122222.txt 
+========================================== 

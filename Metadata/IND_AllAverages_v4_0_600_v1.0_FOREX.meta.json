@@ -1,0 +1,151 @@
+{
+  "file_info": {
+    "original_name": "AllAverages_v4.0 600+.mq4",
+    "current_name": "IND_AllAverages_v4_0_600_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_AllAverages_v4_0_600_v1.0_FOREX.mq4",
+    "file_size": 30410,
+    "lines_count": 912
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 142,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "averageSize",
+      "allAveragesOnArray",
+      "SMAOnArray",
+      "EMAOnArray",
+      "WilderOnArray",
+      "LWMAOnArray",
+      "SineWMAOnArray",
+      "TriMAOnArray",
+      "LSMAOnArray",
+      "SMMAOnArray",
+      "HMAOnArray",
+      "ZeroLagEMAOnArray",
+      "DEMAOnArray",
+      "T3_basicOnArray",
+      "ITrendOnArray",
+      "MedianOnArray",
+      "GeoMeanOnArray",
+      "REMAOnArray",
+      "ILRSOnArray",
+      "IE2OnArray",
+      "TriMA_genOnArray",
+      "VWMAOnArray",
+      "JSmoothOnArray",
+      "SMA_eqOnArray",
+      "ALMAOnArray",
+      "TEMAOnArray",
+      "T3OnArray",
+      "LaguerreOnArray",
+      "McGinleyOnArray",
+      "BF2POnArray",
+      "BF3POnArray",
+      "SuperSmuOnArray",
+      "HeikenAshi",
+      "isNewBar",
+      "BoxAlert",
+      "Pause",
+      "WarningSound",
+      "EmailAlert"
+    ],
+    "variables": [
+      "MA_Period",
+      "MA_Shift",
+      "ShowInColor",
+      "CountBars",
+      "Alerts",
+      "AlertOn",
+      "AlertShift",
+      "SoundsNumber",
+      "SoundsPause",
+      "UpSound",
+      "DnSound",
+      "EmailOn",
+      "EmailsNumber",
+      "i"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_width1",
+      "indicator_color2",
+      "indicator_width2",
+      "indicator_color3",
+      "indicator_width3"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#H1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:56.902684",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:01.383180",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

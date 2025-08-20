@@ -1,0 +1,156 @@
+{
+  "file_info": {
+    "original_name": "Jum+StoCh luis (3).mq4",
+    "current_name": "SCR_Jum_StoCh_luis_3_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Jum_StoCh_luis_3_v1.0.mq4",
+    "file_size": 18704,
+    "lines_count": 477
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "M1",
+        "D1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 97,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_1",
+      "f0_6",
+      "f0_3",
+      "f0_8",
+      "f0_9",
+      "f0_13",
+      "f0_0",
+      "f0_4",
+      "f0_2",
+      "f0_14",
+      "f0_12",
+      "f0_11",
+      "f0_7",
+      "f0_10",
+      "f0_5"
+    ],
+    "variables": [
+      "Seting_Parameter",
+      "StopTrade_Info",
+      "Khusus_Closing",
+      "Close_Panic",
+      "Close_Buy_Trend",
+      "Close_Sell_Trend",
+      "Close_Buy_Counter",
+      "Close_Sell_Counter",
+      "Seting_Risk_Target",
+      "Risk_In_Money",
+      "Risk_in_money",
+      "Target_Persen",
+      "Seting_Mode_Trend",
+      "StartHour",
+      "StopHour",
+      "Buy_Trend",
+      "Sell_Trend",
+      "Seting_Mode_Conter",
+      "Start_Hour",
+      "Stop_Hour",
+      "Buy_Counter",
+      "Sell_Counter",
+      "Seting_MM",
+      "Lot_info",
+      "Lot_mode",
+      "Lot_info2",
+      "Manage_Lot",
+      "Fix_lot",
+      "Magic",
+      "Range",
+      "Level_Max",
+      "DiMarti",
+      "SL",
+      "TP",
+      "Star_ModifTp_Bep",
+      "Tp_from_Bep",
+      "Tp_In_money",
+      "Tp_in_money",
+      "Dtrailing",
+      "StartTrail",
+      "Trailing",
+      "Indi_Seting",
+      "kperiod",
+      "dperiod",
+      "slowing",
+      "lo_level",
+      "up_level",
+      "maPereode",
+      "Indi_Stoch_2",
+      "k_period",
+      "d_period",
+      "s_lowing",
+      "lolevel",
+      "uplevel"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#M1",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:35.753409",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:33.208264",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "file_info": {
+    "original_name": "Search_patterns.mq4",
+    "current_name": "IND_Search_patterns_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Search_patterns_v1.0_GOLD.mq4",
+    "file_size": 62089,
+    "lines_count": 1306
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 234,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "ZZTalex",
+      "funk1",
+      "TimeFrame",
+      "GartleyPatternsSearch",
+      "Patterns50Search",
+      "ABCDSearch",
+      "WolfWavesSearch",
+      "CorrectObject",
+      "Commentarii",
+      "AlertGet",
+      "ExtRet",
+      "TargetAndFibo",
+      "CreateFuturePattern",
+      "CreateRealPattern",
+      "DeleteObject",
+      "WolfWavesDraw",
+      "TextEdit",
+      "AngleEdit"
+    ],
+    "variables": [
+      "FuturePattern",
+      "ExtSave",
+      "ExtDepth",
+      "ExtPoint",
+      "minDepth",
+      "maxDepth",
+      "ExtDopusk",
+      "TimeDopusk",
+      "Gartley",
+      "Pattern_50",
+      "ABCD",
+      "WolfWaves",
+      "SweetZoneStart",
+      "SweetZoneEnd",
+      "AlertPattern",
+      "endbar",
+      "endpr",
+      "fl",
+      "GPixels",
+      "varX",
+      "var50X",
+      "varabcdA",
+      "varP1",
+      "nom1"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "stacksize",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:24.536580",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:15.770045",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

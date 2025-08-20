@@ -1,0 +1,281 @@
+{
+  "timestamp": "2025-08-18T23:06:09.975652",
+  "total_tests": 46,
+  "passed": 46,
+  "failed": 0,
+  "warnings": 0,
+  "modules": {
+    "structure": {
+      "tests": [
+        {
+          "name": "File EA_FTMO_Scalper_Elite.mq5",
+          "status": "passed",
+          "message": "34689 bytes"
+        },
+        {
+          "name": "File DataStructures.mqh",
+          "status": "passed",
+          "message": "29817 bytes"
+        },
+        {
+          "name": "File Interfaces.mqh",
+          "status": "passed",
+          "message": "23202 bytes"
+        },
+        {
+          "name": "File Logger.mqh",
+          "status": "passed",
+          "message": "25924 bytes"
+        },
+        {
+          "name": "File ConfigManager.mqh",
+          "status": "passed",
+          "message": "28880 bytes"
+        },
+        {
+          "name": "File CacheManager.mqh",
+          "status": "passed",
+          "message": "30517 bytes"
+        },
+        {
+          "name": "File PerformanceAnalyzer.mqh",
+          "status": "passed",
+          "message": "33954 bytes"
+        },
+        {
+          "name": "File OrderBlockDetector.mqh",
+          "status": "passed",
+          "message": "27577 bytes"
+        },
+        {
+          "name": "File FVGDetector.mqh",
+          "status": "passed",
+          "message": "35194 bytes"
+        },
+        {
+          "name": "File LiquidityDetector.mqh",
+          "status": "passed",
+          "message": "45526 bytes"
+        },
+        {
+          "name": "File MarketStructureAnalyzer.mqh",
+          "status": "passed",
+          "message": "27819 bytes"
+        }
+      ],
+      "passed": 11,
+      "failed": 0,
+      "warnings": 0
+    },
+    "includes": {
+      "tests": [
+        {
+          "name": "Include Source/Core/DataStructures.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Core/Interfaces.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Core/Logger.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Core/ConfigManager.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Core/CacheManager.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Core/PerformanceAnalyzer.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Strategies/ICT/OrderBlockDetector.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Strategies/ICT/FVGDetector.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Strategies/ICT/LiquidityDetector.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        },
+        {
+          "name": "Include Source/Strategies/ICT/MarketStructureAnalyzer.mqh",
+          "status": "passed",
+          "message": "Encontrado"
+        }
+      ],
+      "passed": 10,
+      "failed": 0,
+      "warnings": 0
+    },
+    "ftmo": {
+      "tests": [
+        {
+          "name": "Risco por trade definido",
+          "status": "passed",
+          "message": "Padrão 'Max_Risk_Per_Trade' encontrado"
+        },
+        {
+          "name": "Limite de perda diária",
+          "status": "passed",
+          "message": "Padrão 'Daily_Loss_Limit' encontrado"
+        },
+        {
+          "name": "Limite de drawdown",
+          "status": "passed",
+          "message": "Padrão 'Max_Drawdown_Limit' encontrado"
+        },
+        {
+          "name": "Stop Loss obrigatório",
+          "status": "passed",
+          "message": "Padrão 'StopLoss' encontrado"
+        },
+        {
+          "name": "Take Profit configurado",
+          "status": "passed",
+          "message": "Padrão 'TakeProfit' encontrado"
+        },
+        {
+          "name": "Filtro de notícias",
+          "status": "passed",
+          "message": "Padrão 'News_Filter' encontrado"
+        },
+        {
+          "name": "Ausência de martingale",
+          "status": "passed",
+          "message": "Padrão proibido não encontrado"
+        },
+        {
+          "name": "Ausência de grid",
+          "status": "passed",
+          "message": "Padrão proibido não encontrado"
+        },
+        {
+          "name": "Ausência de recovery",
+          "status": "passed",
+          "message": "Padrão proibido não encontrado"
+        }
+      ],
+      "passed": 9,
+      "failed": 0,
+      "warnings": 0
+    },
+    "classes": {
+      "tests": [
+        {
+          "name": "Classe COrderBlockDetector",
+          "status": "passed",
+          "message": "Definida em OrderBlockDetector.mqh"
+        },
+        {
+          "name": "Classe CFVGDetector",
+          "status": "passed",
+          "message": "Definida em FVGDetector.mqh"
+        },
+        {
+          "name": "Classe CLiquidityDetector",
+          "status": "passed",
+          "message": "Definida em LiquidityDetector.mqh"
+        },
+        {
+          "name": "Classe CMarketStructureAnalyzer",
+          "status": "passed",
+          "message": "Definida em MarketStructureAnalyzer.mqh"
+        },
+        {
+          "name": "Classe CLogger",
+          "status": "passed",
+          "message": "Definida em Logger.mqh"
+        },
+        {
+          "name": "Classe CConfigManager",
+          "status": "passed",
+          "message": "Definida em ConfigManager.mqh"
+        },
+        {
+          "name": "Classe CCacheManager",
+          "status": "passed",
+          "message": "Definida em CacheManager.mqh"
+        },
+        {
+          "name": "Classe CPerformanceAnalyzer",
+          "status": "passed",
+          "message": "Definida em PerformanceAnalyzer.mqh"
+        }
+      ],
+      "passed": 8,
+      "failed": 0,
+      "warnings": 0
+    },
+    "functions": {
+      "tests": [
+        {
+          "name": "Função de inicialização",
+          "status": "passed",
+          "message": "Função OnInit() encontrada"
+        },
+        {
+          "name": "Função principal de trading",
+          "status": "passed",
+          "message": "Função OnTick() encontrada"
+        },
+        {
+          "name": "Função de finalização",
+          "status": "passed",
+          "message": "Função OnDeinit( encontrada"
+        },
+        {
+          "name": "Função de timer",
+          "status": "passed",
+          "message": "Função OnTimer() encontrada"
+        }
+      ],
+      "passed": 4,
+      "failed": 0,
+      "warnings": 0
+    },
+    "parameters": {
+      "tests": [
+        {
+          "name": "Quantidade de inputs",
+          "status": "passed",
+          "message": "44 parâmetros encontrados"
+        },
+        {
+          "name": "Grupo CONFIGURAÇÕES GERAIS",
+          "status": "passed",
+          "message": "Grupo encontrado"
+        },
+        {
+          "name": "Grupo GESTÃO DE RISCO FTMO",
+          "status": "passed",
+          "message": "Grupo encontrado"
+        },
+        {
+          "name": "Grupo CONFIGURAÇÕES ICT/SMC",
+          "status": "passed",
+          "message": "Grupo encontrado"
+        }
+      ],
+      "passed": 4,
+      "failed": 0,
+      "warnings": 0
+    }
+  }
+}

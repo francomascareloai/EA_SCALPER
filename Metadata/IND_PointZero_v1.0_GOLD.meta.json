@@ -1,0 +1,121 @@
+{
+  "file_info": {
+    "original_name": "PointZero.mq4",
+    "current_name": "IND_PointZero_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_PointZero_v1.0_GOLD.mq4",
+    "file_size": 22295,
+    "lines_count": 561
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 74,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "f0_8",
+      "f0_9",
+      "f0_23",
+      "f0_18",
+      "f0_20",
+      "f0_13",
+      "f0_3",
+      "f0_11",
+      "f0_24",
+      "f0_4",
+      "f0_12",
+      "f0_6",
+      "f0_7",
+      "f0_16",
+      "f0_17",
+      "f0_22",
+      "f0_14",
+      "init",
+      "deinit",
+      "start",
+      "f0_10",
+      "f0_5",
+      "f0_19",
+      "f0_0",
+      "f0_21",
+      "f0_1"
+    ],
+    "variables": [
+      "CalculateOnBarClose",
+      "Signals",
+      "ChannelPeriod",
+      "ChannelSize",
+      "Sensitivity",
+      "DisplayAlerts",
+      "EmailAlerts",
+      "AlertCaption",
+      "NameSecondIndi"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_color7",
+      "indicator_color8"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:10.621023",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:13.749896",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "timestamp": "2025-08-13T01:37:17.747146",
+  "processor_version": "7.0",
+  "processing_type": "REAL",
+  "statistics": {
+    "total_files": 3373,
+    "processed_files": 3373,
+    "failed_files": 0,
+    "moved_files": 3373,
+    "metadata_created": 3373,
+    "snippets_extracted": 5,
+    "processing_time": 402.915589094162
+  },
+  "categorization": {
+    "by_type": {
+      "EA": 408,
+      "Unknown": 950,
+      "Indicator": 1021,
+      "Script": 994
+    },
+    "by_strategy": {
+      "Scalping": 1067,
+      "SMC_ICT": 622,
+      "Trend_Following": 2394,
+      "Volume_Analysis": 522,
+      "Unknown": 956,
+      "Grid_Martingale": 1125,
+      "News_Trading": 403
+    },
+    "ftmo_compliance": {
+      "ready": 187,
+      "not_ready": 3186
+    }
+  },
+  "top_quality_files": [
+    {
+      "file_name": "! 3LS (mtf + alerts)-rev01.mq4",
+      "quality_score": 100,
+      "file_type": "EA",
+      "strategy": [
+        "Scalping",
+        "SMC_ICT",
+        "Trend_Following",
+        "Volume_Analysis"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "! ClarityIndex_2 histo.mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "SMC_ICT",
+        "Trend_Following",
+        "Volume_Analysis"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "! Coral.mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "Scalping"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "! macd of osma.mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "Scalping",
+        "SMC_ICT",
+        "Trend_Following",
+        "Volume_Analysis"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "! Momentum + ma.mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "SMC_ICT",
+        "Trend_Following",
+        "Volume_Analysis"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "! Stochastic signals mtf 1.02 (arrows).mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "Scalping",
+        "Trend_Following",
+        "Volume_Analysis"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "!!!MACD_ADX (2).mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "Scalping",
+        "Trend_Following"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "!!!MACD_ADX.mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "Scalping",
+        "Trend_Following"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "!BullsEye_Forecaster_V1.0.mq4",
+      "quality_score": 100,
+      "file_type": "Indicator",
+      "strategy": [
+        "Scalping",
+        "Trend_Following"
+      ],
+      "ftmo_ready": false
+    },
+    {
+      "file_name": "!MT4 BACKGROUND (2).mq4",
+      "quality_score": 100,
+      "file_type": "Script",
+      "strategy": [
+        "Trend_Following"
+      ],
+      "ftmo_ready": false
+    }
+  ],
+  "issues_summary": {
+    "Uso de Sleep() detectado - pode afetar performance": 465,
+    "Chaves desbalanceadas - erro de sintaxe": 272,
+    "Possível falta de modificação de ordens (SL/TP)": 277,
+    "Loop infinito detectado - risco de travamento": 25
+  }
+}

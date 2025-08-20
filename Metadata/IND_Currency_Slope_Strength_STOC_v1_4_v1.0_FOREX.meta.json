@@ -1,0 +1,159 @@
+{
+  "file_info": {
+    "original_name": "Currency Slope Strength_STOC_v1.4.mq4",
+    "current_name": "IND_Currency_Slope_Strength_STOC_v1_4_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Currency_Slope_Strength_STOC_v1_4_v1.0_FOREX.mq4",
+    "file_size": 40061,
+    "lines_count": 1156
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 128,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "initSymbols",
+      "GetCurrencyIndex",
+      "createSymbolNamesArray",
+      "deinit",
+      "start",
+      "GetSlope",
+      "GetSlope2",
+      "CalculateCurrencySlopeStrength",
+      "CalculateCurrencySlopeStrength2",
+      "ShowCurrencyTable",
+      "RightAlign",
+      "DrawButtons",
+      "OnChartEvent"
+    ],
+    "variables": [
+      "gen",
+      "autoSymbols",
+      "autoTimeFrame",
+      "symbolsToWeigh",
+      "maxBars",
+      "nonPropFont",
+      "showOnlySymbolOnChart",
+      "str4356",
+      "ShowButtons",
+      "showiRSILines",
+      "showiMALines",
+      "showHi_TF_RSI",
+      "MAPeriod",
+      "RSI_Style",
+      "RSI_Width",
+      "SMA_Style",
+      "SMA_Width",
+      "Hi_RSI_Style",
+      "Hi_RSI_Width",
+      "Lower_level_value",
+      "Higher_level_value",
+      "PERIOD",
+      "D",
+      "S",
+      "ind",
+      "ind_tf",
+      "timeFrame",
+      "Higher_TF",
+      "cur",
+      "USD",
+      "EUR",
+      "GBP",
+      "CHF",
+      "JPY",
+      "AUD",
+      "CAD",
+      "NZD",
+      "col",
+      "sep11b",
+      "cmdb",
+      "ButtonHeight",
+      "ButtonWidth",
+      "ButtonFont",
+      "ButtonFontSize",
+      "Button_X",
+      "Button_Y"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_minimum",
+      "indicator_maximum"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:30.632042",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:04.364031",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

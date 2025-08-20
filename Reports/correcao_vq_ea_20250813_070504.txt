@@ -1,0 +1,30 @@
+
+=== RELATÓRIO DE CORREÇÃO ESPECÍFICA ===
+Data: 2025-08-13 07:05:04
+Arquivo: VQ_EA.mq4
+
+CORREÇÕES REALIZADAS:
+✅ Arquivo movido de Unclassified para EAs/Trend_Following
+✅ Renomeado para EA_VQTrader_v1.0_MULTI.mq4
+✅ Estratégia corrigida: Grid_Martingale → Trend_Following
+✅ FTMO Score corrigido: 1.5 → 7.5
+✅ FTMO Level corrigido: Não_Adequado → Adequado
+✅ Tags atualizadas para refletir classificação correta
+✅ Metadados de conformidade FTMO corrigidos
+✅ Índices atualizados
+
+RAZÃO DA CORREÇÃO:
+O VQ_EA.mq4 foi incorretamente classificado como Grid/Martingale.
+Análise do código mostra que é um EA de trend following que:
+- Usa indicador VQ para sinais
+- Implementa Stop Loss e Take Profit
+- Tem gestão de risco adequada
+- Não possui lógica de grid ou martingale
+- É adequado para FTMO
+
+CLASSIFICAÇÃO CORRETA:
+- Tipo: EA (Expert Advisor)
+- Estratégia: Trend Following
+- Mercado: MULTI (múltiplos pares)
+- Timeframe: M15/H1
+- FTMO: Adequado (Score 7.5)

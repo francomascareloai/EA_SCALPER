@@ -1,0 +1,73 @@
+{
+  "file_info": {
+    "original_name": "EuroScalper MQ4 source code.ex4",
+    "suggested_name": "UNK_Custom_EuroScalperMQ4sourcecode_v1.0_Multi.ex4",
+    "file_size": 81246,
+    "file_hash": "84d207cb34c32b1b229753d03ce70c7b",
+    "language": "Unknown"
+  },
+  "classification": {
+    "type": "Unknown",
+    "strategy": "Custom",
+    "markets": [
+      "Multi"
+    ],
+    "timeframes": [
+      "Multi"
+    ],
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "code_quality": {
+    "total_lines": 1,
+    "code_lines": 1,
+    "comment_lines": 0,
+    "comment_ratio": 0.0,
+    "complexity_score": 0,
+    "function_count": 0,
+    "extern_params": 0,
+    "quality_score": 1,
+    "quality_level": "Low"
+  },
+  "risk_assessment": {
+    "level": "Low",
+    "factors": []
+  },
+  "organization": {
+    "target_folder": "Unknown/Misc/Custom",
+    "tags": [
+      "#Unknown",
+      "#Custom",
+      "#Multi",
+      "#Multi",
+      "#Non_Compliant",
+      "#LowRisk",
+      "#LowQuality"
+    ]
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:17.709242",
+    "analyzer_version": "1.0",
+    "confidence_score": 0,
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

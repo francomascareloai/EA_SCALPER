@@ -1,0 +1,70 @@
+{
+  "file_info": {
+    "original_name": "Best-Grider.ex4",
+    "suggested_name": "UNK_Custom_BestGrider_v1.0_Forex.ex4",
+    "file_size": 330922,
+    "file_hash": "bf39a8da5ef14e9c3494b0113d30c7e1",
+    "language": "Unknown"
+  },
+  "classification": {
+    "type": "Unknown",
+    "strategy": "Custom",
+    "markets": [
+      "Forex"
+    ],
+    "timeframes": [
+      "Multi"
+    ],
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "code_quality": {
+    "total_lines": 3,
+    "code_lines": 3,
+    "comment_lines": 0,
+    "comment_ratio": 0.0,
+    "complexity_score": 0,
+    "function_count": 0,
+    "extern_params": 0,
+    "quality_score": 1,
+    "quality_level": "Low"
+  },
+  "risk_assessment": {
+    "level": "Low",
+    "factors": []
+  },
+  "organization": {
+    "target_folder": "Unknown/Misc/Custom",
+    "tags": [
+      "#Unknown",
+      "#Custom",
+      "#Forex",
+      "#Multi",
+      "#Non_Compliant",
+      "#LowRisk",
+      "#LowQuality"
+    ]
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:17.186223",
+    "analyzer_version": "1.0",
+    "confidence_score": 25,
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

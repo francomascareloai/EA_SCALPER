@@ -1,0 +1,92 @@
+{
+  "id": "IND_AI_TRENDLINES_WITH_SWING_HIGH_LOWtxt_v1.0_MULT",
+  "arquivo": "AI TRENDLINES WITH SWING HIGH LOW.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine Script",
+  "estrategia": "Trend Following",
+  "subestrategias": [
+    "Moving Averages",
+    "Volume Analysis",
+    "Breakout",
+    "Pivot Points",
+    "ATR",
+    "Trend Following",
+    "RSI"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [
+    "ta.atr",
+    "line.new",
+    "color.rgb",
+    "ta.pivotlow",
+    "math.min",
+    "color.new",
+    "ta.pivothigh",
+    "pivotlow",
+    "input.",
+    "pivothigh",
+    "array.new",
+    "math.max"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [
+    "Period  ",
+    "Padding",
+    "Show Breakouts",
+    "Pivot Lookback",
+    "255"
+  ],
+  "ftmo_score": 8,
+  "riscos_detectados": [
+    "Nenhum risco critico identificado",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)"
+  ],
+  "qualidade_codigo_score": 7,
+  "compilacao": {
+    "status": "sucesso",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco"
+  ],
+  "licenca_autor": "desconhecido"
+}

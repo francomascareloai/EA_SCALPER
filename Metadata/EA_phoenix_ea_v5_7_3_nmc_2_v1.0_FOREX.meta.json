@@ -1,0 +1,182 @@
+{
+  "file_info": {
+    "original_name": "phoenix_ea_v5_7_3_nmc (2).mq4",
+    "current_name": "EA_phoenix_ea_v5_7_3_nmc_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_phoenix_ea_v5_7_3_nmc_2_v1.0_FOREX.mq4",
+    "file_size": 50580,
+    "lines_count": 1243
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 208,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "M1_A_Update_TStop_if_Applicable",
+      "M1_B_Update_TStop_if_BreakEven",
+      "M2_A_MakeSecondTrade_If_Profit",
+      "M2_A_1_CloseFirstTrade",
+      "M3_A_Mode3_OpenTrade_If_Signal",
+      "M3_A_1_NumberOfOpenPositions",
+      "M3_B_MoveSL_Trade_2_to_CurPr",
+      "M3_C_MoveSL_Trade_3_to_CalcPr",
+      "M3_D_CloseTrade23_If_Trd1_Loss",
+      "S1_Mode_1_2_OpenTrade_If_Signal",
+      "S2_Mode_ALL_NumberOfOpenOrder",
+      "X_ForceClose_or_GraceModify",
+      "Y_MM_OptimizeLotSize",
+      "Z_CheckSignal",
+      "Z_S4_Divergence",
+      "Z_S5_ValidTradeTime"
+    ],
+    "variables": [
+      "C_INIT",
+      "U_PrefSettings",
+      "C_PhoenixSettings",
+      "U_Mode",
+      "C_M1_Settings",
+      "U_M1_BreakEvenAfterPips",
+      "P_M1_TS",
+      "C_M12_Settings",
+      "P_M12_TP",
+      "P_M12_SL",
+      "U_M12_MaxTrades",
+      "U_M12_ConsecSignals",
+      "C_M2_Settings",
+      "P_M2_OpenTrade_2",
+      "P_M2_TP",
+      "P_M2_SL",
+      "U_M2_CloseTrade_1",
+      "C_M3",
+      "P_M3_CloseTrade_23",
+      "P_M3_TP",
+      "P_M3_SL",
+      "P_M3_T1adj",
+      "P_M3_T2adj",
+      "P_M3_T3adj",
+      "C_Function_Y",
+      "U_MM",
+      "U_Lots",
+      "U_MaxRisk",
+      "U_DecreaseFactor",
+      "U_AccIsMicro",
+      "U_MinLot",
+      "U_MaxLot",
+      "C_Function_X",
+      "U_GraceHours",
+      "U_ForceHours",
+      "U_Grace_TS",
+      "C_Signal1",
+      "U_UseSig1",
+      "P_Percent",
+      "P_EnvPeriod",
+      "C_Signal2",
+      "U_UseSig2",
+      "P_SMAPeriod",
+      "P_SMA2Bars",
+      "C_Signal3",
+      "U_UseSig3",
+      "P_OSMAFast",
+      "P_OSMASlow",
+      "P_OSMASignal",
+      "C_Signal4",
+      "U_UseSig4",
+      "P_Fast_Period",
+      "P_Slow_Period",
+      "P_DVBuySell",
+      "P_DVStayOut",
+      "C_Signal5",
+      "U_UseSig5",
+      "U_T1From",
+      "U_T1Until",
+      "U_T2From",
+      "U_T2Until",
+      "U_T3From",
+      "U_T3Until",
+      "U_T4From",
+      "U_T4Until"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:08.753681",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:56.343608",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

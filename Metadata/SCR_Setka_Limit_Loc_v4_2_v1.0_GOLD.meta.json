@@ -1,0 +1,132 @@
+{
+  "file_info": {
+    "original_name": "Setka Limit Loc v4.2.mq4",
+    "current_name": "SCR_Setka_Limit_Loc_v4_2_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Setka_Limit_Loc_v4_2_v1.0_GOLD.mq4",
+    "file_size": 39779,
+    "lines_count": 831
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 255,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "f0_0",
+      "deinit",
+      "start",
+      "f0_1",
+      "f0_2",
+      "f0_3",
+      "f0_4",
+      "f0_5",
+      "f0_6"
+    ],
+    "variables": [
+      "Buy",
+      "Sell",
+      "OrdersLimit",
+      "OrdersStop",
+      "OrdersTek",
+      "lotLimit",
+      "lotStop",
+      "PlusLot",
+      "K_Lot",
+      "MoveStepGread",
+      "FirstStep",
+      "Step",
+      "SLoss",
+      "TProfit",
+      "NoLoss",
+      "TrailingPercentStep",
+      "ProfitStartTrall",
+      "ProfitStartK",
+      "TrailingPercentProfit",
+      "___________________",
+      "SleepTime",
+      "magic",
+      "Diapazon",
+      "__________________",
+      "AlertOn",
+      "DrawInfo",
+      "SendMailInfo",
+      "_________________",
+      "TimeStart",
+      "TimeEnd",
+      "________________",
+      "CloseEndWeek",
+      "HourClose",
+      "Key",
+      "Lok",
+      "LokNoLoss"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:25.040626",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:39.246750",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

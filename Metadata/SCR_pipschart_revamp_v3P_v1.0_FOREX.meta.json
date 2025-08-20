@@ -1,0 +1,170 @@
+{
+  "file_info": {
+    "original_name": "pipschart_revamp_v3P.mq4",
+    "current_name": "SCR_pipschart_revamp_v3P_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_pipschart_revamp_v3P_v1.0_FOREX.mq4",
+    "file_size": 69787,
+    "lines_count": 2125
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 327,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "MAGIC_LIST_BY_SYMBOL",
+      "IsNoPosition",
+      "IsBuy",
+      "IsBuys",
+      "IsNoBuy",
+      "IsSell",
+      "IsSells",
+      "IsNoSell",
+      "status",
+      "OrderAccounting",
+      "BreakEvenPrice",
+      "ftx",
+      "showmycomment_CurrentRange",
+      "showmycomment_LastTicket",
+      "showmycomment_timeunlocked_buy",
+      "showmycomment_timeunlocked_sell",
+      "Remove_StopLoss",
+      "Trade_Market",
+      "showmycomment_ListOrder_buy",
+      "showmycomment_ListOrder_sell",
+      "Recovery_Close_All_buy",
+      "Recovery_Close_All_sell",
+      "IsTimeUnlocked_buy",
+      "IsTimeUnlocked_sell",
+      "ModifyTakeProfit",
+      "hr_sec",
+      "ModifyStopLoss",
+      "RecordMaxGAINLOSS",
+      "OrderOpenTooLongAndNotMove",
+      "BuyThenImmediateProfit",
+      "CummPL",
+      "CommonSingleOrderState",
+      "PercentileSafetyLevel",
+      "OrderCloseAll",
+      "PositionLossAfterHrsthenClose",
+      "Run_Comment",
+      "Run_State_Transition",
+      "Run_TimeStampControl",
+      "Run_CurrentStateShortCode",
+      "Run_OrderCommand",
+      "OpenTwoPending"
+    ],
+    "variables": [
+      "UseAutoID",
+      "User_define_Bot_ID",
+      "UserDefine_SpreadTooHigh",
+      "init_lot_size",
+      "exponent",
+      "squeeze_factor",
+      "atr_range",
+      "candles_range",
+      "Calm_candles",
+      "Calm_range_info",
+      "Calm_range",
+      "D1_Candles",
+      "D1_atr_range",
+      "HoldMinutes",
+      "High_Or_Low_Diff",
+      "neg_percentile",
+      "barpercentile",
+      "bar1",
+      "bar2",
+      "bar3",
+      "TrendValue",
+      "MoveLarge",
+      "MoveRecent",
+      "MAGIC"
+    ],
+    "includes": [
+      "libraries\\Trade.mq4",
+      "libraries\\OAmq4",
+      "libraries\\Lib.mq4",
+      "Trade.mq4",
+      "OA.mq4",
+      "Lib.mq4",
+      "SmallFunc.mqh",
+      "MQL4OBJ.mqh",
+      "LastOrder.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#M1",
+    "#H1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:09.122380",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:36.644902",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "ATFX_Breakout_Robot___Ver_1_Build_05.mq4",
+    "current_name": "EA_ATFX_Breakout_Robot_Ver_1_Build_05_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_ATFX_Breakout_Robot_Ver_1_Build_05_v1.0_GOLD.mq4",
+    "file_size": 4573,
+    "lines_count": 86
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 3,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "deinit"
+    ],
+    "variables": [
+      "___BKOUT_SETTINGS_______",
+      "Bkout_EnableTrading",
+      "Bkout_LongTrades",
+      "Bkout_ShortTrades",
+      "Bkout_EnableAutoStopLoss",
+      "Bkout_GhostMode",
+      "Bkout_MagicNumber",
+      "Bkout_Password",
+      "___BKOUT_MM_____________",
+      "Bkout_FixedLotSize",
+      "Bkout_EnableAutoLot",
+      "Bkout_MaxAccountRisk",
+      "Bkout_MinLotSize",
+      "Bkout_MaxLotSize",
+      "Bkout_Slippage",
+      "___BKOUT_OTHERS_________",
+      "Bkout_DelPendingsOnExit",
+      "___ROBOT_COMMON_________",
+      "RobotName",
+      "RobotVersion",
+      "RobotBuild",
+      "RobotCopyright",
+      "RobotOwner",
+      "RobotWebSite",
+      "RobotContact",
+      "ShowRobotComment"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stderror.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:58.620776",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:47.381979",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

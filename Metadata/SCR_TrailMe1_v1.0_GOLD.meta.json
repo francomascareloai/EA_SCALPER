@@ -1,0 +1,93 @@
+{
+  "file_info": {
+    "original_name": "TrailMe1.mq4",
+    "current_name": "SCR_TrailMe1_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_TrailMe1_v1.0_GOLD.mq4",
+    "file_size": 17460,
+    "lines_count": 380
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 90,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "PosCounter",
+      "MoveToBreakEven",
+      "CheckInitialSLTP",
+      "comments"
+    ],
+    "variables": [
+      "SL_TP_Trail_Options",
+      "StopLoss",
+      "TakeProfit",
+      "Trail",
+      "Trail",
+      "Move",
+      "Move",
+      "Move",
+      "Use",
+      "tsl"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:52.082968",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:43.056568",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

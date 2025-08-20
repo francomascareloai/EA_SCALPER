@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #093
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: H1
+
+//@version=5
+indicator("VWAP_Enhanced_93", shorttitle="VWAP_Enh", overlay=false)
+
+// Parâmetros
+length = input.int(14, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+bb = ta.bb(source, length, 2)
+
+// Plot
+plot(bb, "VWAP_Enhanced_93", color=color.orange)

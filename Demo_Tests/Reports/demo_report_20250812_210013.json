@@ -1,0 +1,112 @@
+{
+  "demo_info": {
+    "data_execucao": "2025-08-12T21:00:00.120384",
+    "tempo_execucao_segundos": 13.151027,
+    "request_id": "334cbbc2-800c-4e92-af94-9714e2618453"
+  },
+  "estatisticas": {
+    "arquivos_processados": 5,
+    "eas_encontrados": 0,
+    "indicadores_encontrados": 2,
+    "scripts_encontrados": 0,
+    "ftmo_ready": 4,
+    "metadados_gerados": 5
+  },
+  "distribuicao_tipos": {
+    "Indicator": 2,
+    "Unknown": 3
+  },
+  "distribuicao_estrategias": {
+    "Trend": 2,
+    "Scalping": 1,
+    "Custom": 1,
+    "Grid_Martingale": 1
+  },
+  "arquivos_detalhados": [
+    {
+      "nome_original": "FFCal.mq4",
+      "tipo": "Indicator",
+      "estrategia": "Trend",
+      "ftmo_ready": true,
+      "ftmo_score": 60,
+      "ftmo_checks": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": false,
+        "drawdown_check": false,
+        "no_martingale": true
+      },
+      "hash": "aedc26f11f225c8e13766c5a3dd60847",
+      "tamanho": 50791,
+      "data_modificacao": "2022-09-02T11:01:34"
+    },
+    {
+      "nome_original": "GMACD2.mq4",
+      "tipo": "Indicator",
+      "estrategia": "Scalping",
+      "ftmo_ready": true,
+      "ftmo_score": 60,
+      "ftmo_checks": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": false,
+        "drawdown_check": false,
+        "no_martingale": true
+      },
+      "hash": "9ed086b5f0c4070bf733cd49c40ab3c6",
+      "tamanho": 16491,
+      "data_modificacao": "2022-09-02T11:34:58"
+    },
+    {
+      "nome_original": "Iron Scalper EA.mq4",
+      "tipo": "Unknown",
+      "estrategia": "Custom",
+      "ftmo_ready": false,
+      "ftmo_score": 20,
+      "ftmo_checks": {
+        "stop_loss": false,
+        "take_profit": false,
+        "risk_management": false,
+        "drawdown_check": false,
+        "no_martingale": true
+      },
+      "hash": "6c4235758c404c42ab30da7029801854",
+      "tamanho": 32170,
+      "data_modificacao": "2025-08-10T19:38:27.584969"
+    },
+    {
+      "nome_original": "MACD Cross Zero EA v1.02.mq4",
+      "tipo": "Unknown",
+      "estrategia": "Grid_Martingale",
+      "ftmo_ready": true,
+      "ftmo_score": 80,
+      "ftmo_checks": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": true,
+        "drawdown_check": true,
+        "no_martingale": false
+      },
+      "hash": "b4a9645e89f4acb9acf4c7192e8a410f",
+      "tamanho": 34173,
+      "data_modificacao": "2022-09-02T11:52:52"
+    },
+    {
+      "nome_original": "PZ_ParabolicSar_EA.mq4",
+      "tipo": "Unknown",
+      "estrategia": "Trend",
+      "ftmo_ready": true,
+      "ftmo_score": 80,
+      "ftmo_checks": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": true,
+        "drawdown_check": false,
+        "no_martingale": true
+      },
+      "hash": "1fd2121b6f10978de83892119b1f0768",
+      "tamanho": 14227,
+      "data_modificacao": "2025-08-10T18:53:53.846760"
+    }
+  ]
+}

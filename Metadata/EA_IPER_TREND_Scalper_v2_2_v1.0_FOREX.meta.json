@@ -1,0 +1,148 @@
+{
+  "file_info": {
+    "original_name": "IPER_TREND_Scalper_v2 2.mq4",
+    "current_name": "EA_IPER_TREND_Scalper_v2_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_IPER_TREND_Scalper_v2_2_v1.0_FOREX.mq4",
+    "file_size": 63422,
+    "lines_count": 1494
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 180,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "evaluate",
+      "evaluate",
+      "ma1",
+      "ma2",
+      "evaluate",
+      "evaluate",
+      "init",
+      "OnTick",
+      "OnDeinit",
+      "OnTimer",
+      "ApplyTrailingStopToOpenOrd",
+      "CloseAllExpertOrders"
+    ],
+    "variables": [
+      "FixedLots",
+      "PercentageRiskSettings",
+      "PercentageRisk",
+      "PercentageRiskBasedOnPointsMovement",
+      "BalanceRatioSettings",
+      "ForEvery",
+      "UseLotsForEveryBalance",
+      "LotsSelection",
+      "TakeProfit",
+      "Tral",
+      "TralStart",
+      "TimeStart",
+      "TimeEnd",
+      "MaxSpread",
+      "PipsStep",
+      "OpenTime",
+      "Magic",
+      "Info",
+      "FontSizeInfo",
+      "SpeedEA",
+      "CloseTradesAtPercentageDrawdown",
+      "PercentageDrawdown",
+      "CloseTradesAtFixedDrawdown",
+      "FixedDrawdown",
+      "ResumeTradingAtNextDayAfterDrawdown",
+      "trsi",
+      "RSI_on",
+      "rsi_periods",
+      "ob_level",
+      "os_level",
+      "ma_filter_title",
+      "ma_filter_on",
+      "ma_title",
+      "ma1_period",
+      "ma1_shift",
+      "ma2_title",
+      "ma2_period",
+      "ma2_shift"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:33.394362",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:53.708879",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

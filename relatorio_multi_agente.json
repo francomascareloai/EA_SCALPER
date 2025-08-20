@@ -1,0 +1,338 @@
+{
+  "sistema": "Multi-Agente Qwen 3",
+  "timestamp": "2025-08-13T11:12:10.547322",
+  "estatisticas": {
+    "arquivos_processados": 100,
+    "tempo_total": 110.45681142807007,
+    "agentes_utilizados": 5,
+    "performance_multiplier": 5.0
+  },
+  "agentes": {
+    "classificador": {
+      "nome": "Classificador_Trading",
+      "especialidade": "Classificação e categorização de códigos",
+      "status": "ready"
+    },
+    "analisador": {
+      "nome": "Analisador_Metadados",
+      "especialidade": "Extração de metadados completos",
+      "status": "ready"
+    },
+    "gerador": {
+      "nome": "Gerador_Snippets",
+      "especialidade": "Criação de snippets reutilizáveis",
+      "status": "ready"
+    },
+    "validador": {
+      "nome": "Validador_FTMO",
+      "especialidade": "Análise de conformidade FTMO",
+      "status": "ready"
+    },
+    "documentador": {
+      "nome": "Documentador_Trading",
+      "especialidade": "Geração de documentação",
+      "status": "ready"
+    }
+  },
+  "resultados": [
+    {
+      "task_id": "task_000",
+      "arquivo": "indicator_Breakout_Scanner_091_v1.0.txt",
+      "caminho": "Teste_TradingView_100_Arquivos\\indicator_Breakout_Scanner_091_v1.0.txt",
+      "timestamp": "2025-08-13T11:10:21.197257",
+      "resultados": {
+        "classificacao": {
+          "type": "Indicator",
+          "category": "Technical_Analysis",
+          "market": "Multi",
+          "timeframe": "M15",
+          "complexity": "Medium",
+          "confidence": 0.92
+        },
+        "metadados": {
+          "name": "indicator_Breakout_Scanner_091_v1.0",
+          "version": "1.0",
+          "parameters": [
+            "length",
+            "source"
+          ],
+          "functions": [
+            "ta.sma",
+            "ta.rsi",
+            "plot"
+          ],
+          "performance_score": 0.85,
+          "confidence": 0.88
+        },
+        "snippets": {
+          "snippets_found": 0,
+          "snippets": [],
+          "confidence": 0.91
+        },
+        "ftmo": {
+          "ftmo_score": 0.6,
+          "risk_management": false,
+          "compliance_level": "Needs_Improvement",
+          "confidence": 0.89
+        },
+        "documentacao": {
+          "readme_generated": true,
+          "index_updated": true,
+          "tags": [
+            "#Pine",
+            "#TradingView",
+            "#Test"
+          ],
+          "confidence": 0.93
+        }
+      },
+      "status": "success"
+    },
+    {
+      "task_id": "task_001",
+      "arquivo": "indicator_Breakout_Scanner_094_v1.0.txt",
+      "caminho": "Teste_TradingView_100_Arquivos\\indicator_Breakout_Scanner_094_v1.0.txt",
+      "timestamp": "2025-08-13T11:10:22.301803",
+      "resultados": {
+        "classificacao": {
+          "type": "Indicator",
+          "category": "Technical_Analysis",
+          "market": "Multi",
+          "timeframe": "M15",
+          "complexity": "Medium",
+          "confidence": 0.92
+        },
+        "metadados": {
+          "name": "indicator_Breakout_Scanner_094_v1.0",
+          "version": "1.0",
+          "parameters": [
+            "length",
+            "source"
+          ],
+          "functions": [
+            "ta.sma",
+            "ta.rsi",
+            "plot"
+          ],
+          "performance_score": 0.85,
+          "confidence": 0.88
+        },
+        "snippets": {
+          "snippets_found": 0,
+          "snippets": [],
+          "confidence": 0.91
+        },
+        "ftmo": {
+          "ftmo_score": 0.6,
+          "risk_management": false,
+          "compliance_level": "Needs_Improvement",
+          "confidence": 0.89
+        },
+        "documentacao": {
+          "readme_generated": true,
+          "index_updated": true,
+          "tags": [
+            "#Pine",
+            "#TradingView",
+            "#Test"
+          ],
+          "confidence": 0.93
+        }
+      },
+      "status": "success"
+    },
+    {
+      "task_id": "task_002",
+      "arquivo": "indicator_Correlation_Matrix_046_v1.0.txt",
+      "caminho": "Teste_TradingView_100_Arquivos\\indicator_Correlation_Matrix_046_v1.0.txt",
+      "timestamp": "2025-08-13T11:10:23.405515",
+      "resultados": {
+        "classificacao": {
+          "type": "Indicator",
+          "category": "Technical_Analysis",
+          "market": "Multi",
+          "timeframe": "M15",
+          "complexity": "Medium",
+          "confidence": 0.92
+        },
+        "metadados": {
+          "name": "indicator_Correlation_Matrix_046_v1.0",
+          "version": "1.0",
+          "parameters": [
+            "length",
+            "source"
+          ],
+          "functions": [
+            "ta.sma",
+            "ta.rsi",
+            "plot"
+          ],
+          "performance_score": 0.85,
+          "confidence": 0.88
+        },
+        "snippets": {
+          "snippets_found": 0,
+          "snippets": [],
+          "confidence": 0.91
+        },
+        "ftmo": {
+          "ftmo_score": 0.6,
+          "risk_management": false,
+          "compliance_level": "Needs_Improvement",
+          "confidence": 0.89
+        },
+        "documentacao": {
+          "readme_generated": true,
+          "index_updated": true,
+          "tags": [
+            "#Pine",
+            "#TradingView",
+            "#Test"
+          ],
+          "confidence": 0.93
+        }
+      },
+      "status": "success"
+    },
+    {
+      "task_id": "task_003",
+      "arquivo": "indicator_Divergence_Hunter_016_v1.0.txt",
+      "caminho": "Teste_TradingView_100_Arquivos\\indicator_Divergence_Hunter_016_v1.0.txt",
+      "timestamp": "2025-08-13T11:10:24.509371",
+      "resultados": {
+        "classificacao": {
+          "type": "Indicator",
+          "category": "Technical_Analysis",
+          "market": "Multi",
+          "timeframe": "M15",
+          "complexity": "Medium",
+          "confidence": 0.92
+        },
+        "metadados": {
+          "name": "indicator_Divergence_Hunter_016_v1.0",
+          "version": "1.0",
+          "parameters": [
+            "length",
+            "source"
+          ],
+          "functions": [
+            "ta.sma",
+            "ta.rsi",
+            "plot"
+          ],
+          "performance_score": 0.85,
+          "confidence": 0.88
+        },
+        "snippets": {
+          "snippets_found": 1,
+          "snippets": [
+            {
+              "name": "SMA_Calculator",
+              "category": "Technical_Indicators",
+              "reusability": 0.95
+            }
+          ],
+          "confidence": 0.91
+        },
+        "ftmo": {
+          "ftmo_score": 0.6,
+          "risk_management": false,
+          "compliance_level": "Needs_Improvement",
+          "confidence": 0.89
+        },
+        "documentacao": {
+          "readme_generated": true,
+          "index_updated": true,
+          "tags": [
+            "#Pine",
+            "#TradingView",
+            "#Test"
+          ],
+          "confidence": 0.93
+        }
+      },
+      "status": "success"
+    },
+    {
+      "task_id": "task_004",
+      "arquivo": "indicator_Divergence_Hunter_063_v1.0.txt",
+      "caminho": "Teste_TradingView_100_Arquivos\\indicator_Divergence_Hunter_063_v1.0.txt",
+      "timestamp": "2025-08-13T11:10:25.614257",
+      "resultados": {
+        "classificacao": {
+          "type": "Indicator",
+          "category": "Technical_Analysis",
+          "market": "Forex",
+          "timeframe": "M15",
+          "complexity": "Medium",
+          "confidence": 0.92
+        },
+        "metadados": {
+          "name": "indicator_Divergence_Hunter_063_v1.0",
+          "version": "1.0",
+          "parameters": [
+            "length",
+            "source"
+          ],
+          "functions": [
+            "ta.sma",
+            "ta.rsi",
+            "plot"
+          ],
+          "performance_score": 0.85,
+          "confidence": 0.88
+        },
+        "snippets": {
+          "snippets_found": 1,
+          "snippets": [
+            {
+              "name": "SMA_Calculator",
+              "category": "Technical_Indicators",
+              "reusability": 0.95
+            }
+          ],
+          "confidence": 0.91
+        },
+        "ftmo": {
+          "ftmo_score": 0.6,
+          "risk_management": false,
+          "compliance_level": "Needs_Improvement",
+          "confidence": 0.89
+        },
+        "documentacao": {
+          "readme_generated": true,
+          "index_updated": true,
+          "tags": [
+            "#Pine",
+            "#TradingView",
+            "#Test"
+          ],
+          "confidence": 0.93
+        }
+      },
+      "status": "success"
+    }
+  ],
+  "logs": [
+    "[11:12:08]   🔍 Classificador analisando strategy_VWAP_Enhanced_068_v1.0.txt...",
+    "[11:12:08]   📊 Analisador extraindo metadados de strategy_VWAP_Enhanced_068_v1.0.txt...",
+    "[11:12:08]   🧩 Gerador criando snippets de strategy_VWAP_Enhanced_068_v1.0.txt...",
+    "[11:12:09]   ✅ Validador analisando FTMO de strategy_VWAP_Enhanced_068_v1.0.txt...",
+    "[11:12:09]   📝 Documentador gerando docs de strategy_VWAP_Enhanced_068_v1.0.txt...",
+    "[11:12:09] ✅ Concluído: strategy_VWAP_Enhanced_068_v1.0.txt (99/100)",
+    "[11:12:09] 📄 Processando: strategy_VWAP_Enhanced_076_v1.0.txt",
+    "[11:12:09]   🔍 Classificador analisando strategy_VWAP_Enhanced_076_v1.0.txt...",
+    "[11:12:09]   📊 Analisador extraindo metadados de strategy_VWAP_Enhanced_076_v1.0.txt...",
+    "[11:12:09]   🧩 Gerador criando snippets de strategy_VWAP_Enhanced_076_v1.0.txt...",
+    "[11:12:10]   ✅ Validador analisando FTMO de strategy_VWAP_Enhanced_076_v1.0.txt...",
+    "[11:12:10]   📝 Documentador gerando docs de strategy_VWAP_Enhanced_076_v1.0.txt...",
+    "[11:12:10] ✅ Concluído: strategy_VWAP_Enhanced_076_v1.0.txt (100/100)",
+    "[11:12:10] 📊 Progresso: 100/100 (100.0%) - Velocidade: 0.9 arq/s - Restante: 0.0s",
+    "[11:12:10] 🎉 Processamento concluído!",
+    "[11:12:10] 📊 Estatísticas finais:",
+    "[11:12:10]    - Arquivos processados: 100",
+    "[11:12:10]    - Tempo total: 110.46s",
+    "[11:12:10]    - Velocidade média: 0.91 arquivos/segundo",
+    "[11:12:10]    - Performance: 4.5x mais rápido que sequencial"
+  ]
+}

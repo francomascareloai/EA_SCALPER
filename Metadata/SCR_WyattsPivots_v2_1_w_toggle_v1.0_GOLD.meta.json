@@ -1,0 +1,142 @@
+{
+  "file_info": {
+    "original_name": "WyattsPivots_v2.1_w_toggle.mq4",
+    "current_name": "SCR_WyattsPivots_v2_1_w_toggle_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_WyattsPivots_v2_1_w_toggle_v1.0_GOLD.mq4",
+    "file_size": 55598,
+    "lines_count": 1262
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 84,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "OnTimer",
+      "start",
+      "SendPushNotifications",
+      "SendPushNotifications_Touch",
+      "LevelsDraw",
+      "GetShiftInfo",
+      "GetPivotPoints",
+      "DeleteAllObjects",
+      "LevelsDelete",
+      "PlotTrend",
+      "PlotRectangle",
+      "PlotText",
+      "OnChartEvent",
+      "CreateButton"
+    ],
+    "variables": [
+      "iCountPeriods",
+      "iShiftHours",
+      "iPlotPivots",
+      "iPlotPivotFutures",
+      "iPlotPivotLabels",
+      "iPlotPivotPrices",
+      "iPlotPivotWidths",
+      "iPlotMidpoints",
+      "iPlotMidpointWidths",
+      "iPlotZones",
+      "iPlotBorders",
+      "iPlotBorderWidths",
+      "iPushNotifications_AllPivotsMidpoints",
+      "iPushNotifications_TouchPP",
+      "iPushNotifications_TouchR1S1",
+      "iPushNotifications_TouchR2S2",
+      "iPushNotifications_TouchR3S3",
+      "iPushNotifications_TouchM2M3",
+      "iPushNotifications_TouchM1M4",
+      "iPushNotifications_TouchM0M5",
+      "iPushNotifications_TouchToleranceInDigits",
+      "Toggle_Button",
+      "btn_show",
+      "btn_pressed",
+      "btn_unpressed",
+      "btn_offset_x",
+      "btn_offset_y",
+      "btn_font_size",
+      "btn_width",
+      "btn_height"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_chart_window",
+      "indicator_buffers"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:06.777530",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:45.256141",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

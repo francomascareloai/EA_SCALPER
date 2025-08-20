@@ -1,0 +1,136 @@
+{
+  "file_info": {
+    "original_name": "GPSForexRobotUSDCHF_edu.mq4",
+    "current_name": "SCR_GPSForexRobotUSDCHF_edu_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_GPSForexRobotUSDCHF_edu_v1.0_FOREX.mq4",
+    "file_size": 40954,
+    "lines_count": 1210
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 220,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "ErrorDescription",
+      "OrderTypeToStr",
+      "GetGMTCorrection",
+      "SetOrderLevels",
+      "WatchOrderLevels",
+      "LotsOptimized",
+      "OpenOrder",
+      "CloseOrder",
+      "HaveOrdersInDay",
+      "WatchReverseAfterSL",
+      "AutoGMTOffset",
+      "SetCommentPrint",
+      "PrintInformation",
+      "SetVariables",
+      "Authentication",
+      "Rand"
+    ],
+    "variables": [
+      "GPS_Forex_Robot_USDCHF",
+      "____Authentication________",
+      "EMail",
+      "CBReceipt",
+      "____Size_of_lots________",
+      "UseMM",
+      "Lots",
+      "LotsRiskReductor",
+      "MaxLots",
+      "____General_Options_____",
+      "AutoGMTOffset",
+      "GMTOffset",
+      "____Others______________",
+      "ExpertComment",
+      "SendEmail",
+      "SoundAlert",
+      "SoundFileAtOpen",
+      "SoundFileAtClose",
+      "WriteLog",
+      "WriteDebugLog"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:21.621981",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:30.504968",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

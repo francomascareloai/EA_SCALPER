@@ -1,0 +1,139 @@
+{
+  "file_info": {
+    "original_name": "my10trend.mq4",
+    "current_name": "SCR_my10trend_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_my10trend_v1.0_GOLD.mq4",
+    "file_size": 19982,
+    "lines_count": 403
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 105,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "TrailingPositions",
+      "TrailingPositionsBars"
+    ],
+    "variables": [
+      "Lot",
+      "Percent",
+      "StopLoss",
+      "TakeProfit",
+      "Slippage",
+      "Otstup",
+      "UseTrailing",
+      "TrailingStopLoss",
+      "TrailingStep",
+      "TSLBars",
+      "TimeToDeath",
+      "MaxDeals",
+      "Param",
+      "WPR_Period",
+      "RSI_Period",
+      "MA_Period",
+      "BB_Period",
+      "Envelopes_Period",
+      "TimeShift",
+      "StartHour",
+      "EndHour",
+      "FridayLastWorkHour",
+      "MondayFirstWorkHour",
+      "WorkOnlySelectedHours",
+      "HourPercent",
+      "Pct0H",
+      "Pct13H",
+      "wprlvl",
+      "FinalTrailingStop",
+      "PipStep",
+      "BarStep",
+      "Increment",
+      "PipStepIncrement",
+      "TimeFrames",
+      "TimeFrame",
+      "ProtectSL",
+      "NotOpenIfBigStopLevel",
+      "comment",
+      "MagicNumber",
+      "gv",
+      "time",
+      "t0"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:54.975132",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:34.728712",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

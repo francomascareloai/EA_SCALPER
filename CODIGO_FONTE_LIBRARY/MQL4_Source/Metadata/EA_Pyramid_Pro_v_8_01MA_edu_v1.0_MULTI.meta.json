@@ -1,0 +1,48 @@
+{
+  "file_info": {
+    "original_name": "Pyramid_Pro_v.8.01MA_edu.mq4",
+    "new_name": "EA_Pyramid_Pro_v_8_01MA_edu_v1.0_MULTI.mq4",
+    "file_size": 59297,
+    "created_date": "2025-08-13T07:11:45.214405",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market": "MULTI",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 8.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": true,
+    "has_grid_martingale": true
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#MULTI",
+    "#MULTI",
+    "#FTMO_Ready",
+    "#LowRisk",
+    "#HighRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "file_info": {
+    "original_name": "AI Gen XII MT4.mq4",
+    "current_name": "SCR_AI_Gen_XII_MT4_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_AI_Gen_XII_MT4_v1.0_GOLD.mq4",
+    "file_size": 15026,
+    "lines_count": 401
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M5",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 93,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "_3barHiLo",
+      "_ip",
+      "_sl",
+      "_tp",
+      "_nv",
+      "_OrderSend",
+      "_strcmd",
+      "_OrderClose",
+      "_OrderDelete",
+      "TimeZoneLocal",
+      "TimeZoneServer"
+    ],
+    "variables": [
+      "_Desc2",
+      "_exPositionsTp",
+      "_exeTPSLType",
+      "_dxTakeProfit",
+      "_dxStopLoss",
+      "_ixRisk",
+      "_dxRiskDecreaser",
+      "_bxRecovery",
+      "_ixRecoveryTrades",
+      "_dxRecoveryFactor",
+      "_bxCloseOnFriday",
+      "_ixCloseHour",
+      "_ixAutoLotSize",
+      "_dxLotSize",
+      "_bxUsePropFirm",
+      "_dxUsesBalance",
+      "_dxMaxDrawdownBalance",
+      "_dxMaxDrawdown",
+      "_bxUseTrailing",
+      "_dxTrailingStart",
+      "_dxTrailingStep",
+      "_sxTradingDays",
+      "_ixMaxSpread",
+      "_sxParamDesc1",
+      "_sxParamDesc11",
+      "_ixExpertMagic",
+      "_sxExpertComment",
+      "_sxParamDesc10",
+      "_sxParamDesc101",
+      "_ixGPTModel",
+      "_bxGPTBoost",
+      "_eixAggrsTrading",
+      "_iexGPTFunc",
+      "bxApplyNewsFilterToAllPairs",
+      "_ixNewsMinutesBefore",
+      "_ixNewsMinutesAfter",
+      "_ebxDisAnimation",
+      "_bxDrawMenu",
+      "_long",
+      "_short"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stderror.mqh"
+    ],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:54.884268",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:23.013437",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

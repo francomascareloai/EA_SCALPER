@@ -1,0 +1,29 @@
+{
+  "arquivo": {
+    "nome": "BuySell_Filter.mq4",
+    "tamanho_bytes": 4442,
+    "linhas_codigo": 143,
+    "data_modificacao": "2022-09-26T03:49:52"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0011174678802490234,
+  "timestamp": "2025-08-13T01:11:57.344706"
+}

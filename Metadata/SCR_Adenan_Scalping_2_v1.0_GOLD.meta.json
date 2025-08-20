@@ -1,0 +1,141 @@
+{
+  "file_info": {
+    "original_name": "Adenan Scalping (2).mq4",
+    "current_name": "SCR_Adenan_Scalping_2_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Adenan_Scalping_2_v1.0_GOLD.mq4",
+    "file_size": 28284,
+    "lines_count": 722
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco robusta",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 180,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_6",
+      "f0_11",
+      "f0_3",
+      "f0_18",
+      "f0_8",
+      "f0_16",
+      "f0_2",
+      "f0_10",
+      "f0_19",
+      "f0_0",
+      "f0_12",
+      "f0_17",
+      "f0_5",
+      "f0_1",
+      "f0_15",
+      "f0_9",
+      "f0_13",
+      "f0_4",
+      "f0_7",
+      "f0_14"
+    ],
+    "variables": [
+      "__1__",
+      "LotMultiplikator",
+      "__2__",
+      "MMType",
+      "__3__",
+      "_____",
+      "LotConst_or_not",
+      "Lot",
+      "RiskPercent",
+      "__4__",
+      "TakeProfit",
+      "__5__",
+      "Step",
+      "__6__",
+      "MaxTrades",
+      "__7__",
+      "UseEquityStop",
+      "TotalEquityRisk",
+      "__8__",
+      "Magic",
+      "__9__",
+      "ShowTableOnTesting",
+      "_",
+      "S1",
+      "Open_Hour",
+      "Close_Hour",
+      "TradeOnFriday",
+      "Friday_Hour"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:52.832533",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:22.862741",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "file_info": {
+    "original_name": "ZigZag Indicator by ChatGPT BT.mq4",
+    "current_name": "EA_ZigZag_Indicator_by_ChatGPT_BT_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_ZigZag_Indicator_by_ChatGPT_BT_v1.0_GOLD.mq4",
+    "file_size": 12698,
+    "lines_count": 275
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 46,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "createButton",
+      "OnDeinit",
+      "OnChartEvent",
+      "init2",
+      "start",
+      "mystart",
+      "ZigZag",
+      "AwesomeOscillator"
+    ],
+    "variables": [
+      "ExtDepth",
+      "ExtDeviation",
+      "ExtBackstep",
+      "nBars",
+      "fast_ma_period",
+      "slow_ma_period",
+      "button_note1_",
+      "btn_Subwindow",
+      "btn_text",
+      "btn_Font",
+      "btn_FontSize",
+      "button_x",
+      "button_y",
+      "btn_Width",
+      "btn_Height",
+      "UniqueButtonID",
+      "button_note2"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:12.281502",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:00.063848",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

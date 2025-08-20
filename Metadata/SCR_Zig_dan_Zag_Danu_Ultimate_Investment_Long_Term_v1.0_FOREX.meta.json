@@ -1,0 +1,160 @@
+{
+  "file_info": {
+    "original_name": "Zig_dan_Zag_Danu_Ultimate_Investment_Long_Term.mq4",
+    "current_name": "SCR_Zig_dan_Zag_Danu_Ultimate_Investment_Long_Term_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Zig_dan_Zag_Danu_Ultimate_Investment_Long_Term_v1.0_FOREX.mq4",
+    "file_size": 91083,
+    "lines_count": 1922
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.0,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Proteção de drawdown",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.0,
+    "level": "Baixo",
+    "compliance_score": 20.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 274,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "MolanisAlert",
+      "BUY",
+      "SELL",
+      "CLOSELONG",
+      "CLOSESHORT",
+      "EnoughMoney",
+      "LotManagement",
+      "CalculateOpenPositions",
+      "OrderTypetoString",
+      "CloseAll",
+      "CloseAllPositions",
+      "isTradingPossible",
+      "CheckStopLoss",
+      "CheckTrailingStop",
+      "CheckTakeProfit",
+      "PENDINGORDER",
+      "DeletePending",
+      "DELETEP",
+      "BUYP",
+      "SELLP"
+    ],
+    "variables": [
+      "EAName",
+      "IsMicroAccount",
+      "CompletedBars",
+      "TradeOrAlert",
+      "SendMailMode",
+      "PlaySounds",
+      "MySound",
+      "FiveDigits",
+      "UseTradingTime",
+      "TradingTimeStart",
+      "TradingTimeEnd",
+      "ClosePositionsNonTH",
+      "OrderIncludeTPSL",
+      "MaxNumberofPositions",
+      "MaxOrderRetry",
+      "UseMaximumPercentageatRisk",
+      "MaximumPercentageatRisk",
+      "UseRiskRatio",
+      "RiskRatio",
+      "UseLotManagement",
+      "LotManagementType",
+      "ReductionFactor",
+      "UseMartingale",
+      "MartingaleMultiplier",
+      "afterLoss",
+      "afterWin",
+      "Slippage",
+      "S_Symbol_LS_0",
+      "S_Symbol_TP_0",
+      "S_Symbol_SL_0",
+      "S_Symbol_TS_0",
+      "B_Symbol_LS_0",
+      "B_Symbol_TP_0",
+      "B_Symbol_SL_0",
+      "B_Symbol_TS_0",
+      "MagicNumberLong",
+      "MagicNumberShort",
+      "ShowWarnings",
+      "CheckTSEveryTick",
+      "UseTimeBasedTS",
+      "TimeBasedTS",
+      "Hedge"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stderror.mqh",
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#CRYPTO",
+    "#M1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:12.779882",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:45.733797",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

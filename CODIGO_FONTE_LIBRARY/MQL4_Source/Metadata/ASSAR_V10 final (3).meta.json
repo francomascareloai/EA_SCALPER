@@ -1,0 +1,33 @@
+{
+  "arquivo": {
+    "nome": "ASSAR_V10 final (3).mq4",
+    "tamanho_bytes": 67073,
+    "linhas_codigo": 1684,
+    "data_modificacao": "2025-08-10T19:46:40.559370"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de horário/sessão",
+      "Filtro de volatilidade"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.012567520141601562,
+  "timestamp": "2025-08-13T01:11:54.539401"
+}

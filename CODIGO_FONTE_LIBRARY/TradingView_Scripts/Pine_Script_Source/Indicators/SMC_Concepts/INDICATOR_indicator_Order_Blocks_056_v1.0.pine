@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #056
+// Tipo: INDICATOR
+// Categoria: SMC
+// Mercado: Indices
+// Timeframe: M5
+
+//@version=5
+indicator("Order_Blocks_56", shorttitle="Order_Bl", overlay=false)
+
+// Parâmetros
+length = input.int(14, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+ema = ta.ema(source, length)
+
+// Plot
+plot(ema, "Order_Blocks_56", color=color.green)

@@ -1,0 +1,141 @@
+{
+  "file_info": {
+    "original_name": "SistemaEA_ByFreddy~.mq4",
+    "current_name": "SCR_SistemaEA_ByFreddy_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_SistemaEA_ByFreddy_v1.0_INDICES.mq4",
+    "file_size": 20906,
+    "lines_count": 527
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 131,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "comprobarStopLoss",
+      "comprobarTakeProfit",
+      "getSL",
+      "getTP",
+      "abrirPosicion",
+      "getMagicNumber",
+      "ajustarTrailingStopTodas",
+      "ajustarTrailingStop",
+      "getPeriodAsString",
+      "NormalizeLots",
+      "mostrarGraficoHorario",
+      "init",
+      "start",
+      "deinit",
+      "abrirPosiciones"
+    ],
+    "variables": [
+      "s00",
+      "Largos",
+      "Cortos",
+      "Repetir",
+      "TamanoRejilla",
+      "s01",
+      "TakeProfit",
+      "StopLoss1",
+      "StopLoss2",
+      "StopLoss3",
+      "s02",
+      "OrderLots1",
+      "OrderLots2",
+      "OrderLots3",
+      "Slippage",
+      "SegundosParaReintentarOperar",
+      "sh60",
+      "OperarSiempre",
+      "sh70",
+      "OperarHorario1",
+      "Horario1_Desde",
+      "Horario1_Hasta",
+      "sh80",
+      "OperarHorario2",
+      "Horario2_Desde",
+      "Horario2_Hasta",
+      "sh90",
+      "OperarHorario3",
+      "Horario3_Desde",
+      "Horario3_Hasta",
+      "sh100"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:29.199401",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:40.449463",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "file_info": {
+    "original_name": "WOLF FOREX SIGNAL EA v 7.00(2)@Amazing_owner.mq4",
+    "current_name": "EA_WOLF_FOREX_SIGNAL_EA_v_7_00_2_Amazing_owner_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_WOLF_FOREX_SIGNAL_EA_v_7_00_2_Amazing_owner_v1.0_GOLD.mq4",
+    "file_size": 31112,
+    "lines_count": 710
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Proteção de drawdown",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 68,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "orderBuy",
+      "orderSell",
+      "orderClose",
+      "orderCloseStop",
+      "ordersTotal",
+      "trailingStop",
+      "tradeTime",
+      "points_to_change",
+      "change_to_points",
+      "pips_to_change",
+      "change_to_pips",
+      "pips_to_points",
+      "points_to_pips"
+    ],
+    "variables": [
+      "Star",
+      "SLp",
+      "TP",
+      "period_CC",
+      "Level_buy",
+      "Level_sell",
+      "period_Rsi",
+      "ATR",
+      "In1",
+      "In2",
+      "In3",
+      "In4",
+      "In5",
+      "CC1",
+      "CC2",
+      "ExpertName",
+      "TELWGRAMName",
+      "Slrialnumber",
+      "magic",
+      "lotSize",
+      "stopLoss",
+      "filter",
+      "ICC",
+      "R",
+      "sst",
+      "fgg",
+      "co"
+    ],
+    "includes": [
+      "cmra.mqh",
+      "kernel32.dll",
+      "Wolf.indecator"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:06.313145",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:59.240234",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

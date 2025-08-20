@@ -1,0 +1,68 @@
+{
+  "arquivo": {
+    "nome": "GMACD2.mq4",
+    "tipo": "Indicator",
+    "estrategia": "Trend_Following",
+    "mercado": "Indices",
+    "timeframe": "M1",
+    "tamanho_bytes": 16493,
+    "linhas_codigo": 327,
+    "hash_md5": "8938158be3e809bbd220287fdc05803e",
+    "data_modificacao": "2025-08-12T21:45:01.439111"
+  },
+  "ftmo": {
+    "score": 0.0,
+    "status": "PROIBIDO_FTMO",
+    "detalhes": {
+      "stop_loss": false,
+      "take_profit": false,
+      "risk_management": false,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "eliminatorio": true,
+      "penalidades_aplicadas": {
+        "no_stop_loss": -5.0,
+        "no_risk_management": -4.0
+      },
+      "riscos_detectados": [
+        "Ausência de Stop Loss",
+        "Ausência de gestão de risco"
+      ],
+      "observacoes": [
+        "EA inadequado/proibido para FTMO"
+      ],
+      "componentes_uteis": [
+        "Indicadores técnicos para entrada"
+      ],
+      "snippets_detectados": []
+    },
+    "ftmo_ready": false
+  },
+  "qualidade": {
+    "encoding_corrigido": true,
+    "validacoes": [],
+    "sugestoes_melhorias": [
+      "Implementar Stop Loss obrigatório",
+      "Adicionar gestão de risco adequada",
+      "Implementar proteção de drawdown"
+    ]
+  },
+  "componentes_uteis": [
+    "Indicadores técnicos para entrada"
+  ],
+  "snippets_detectados": [],
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#Indices",
+    "#M1",
+    "#PROIBIDO_FTMO"
+  ],
+  "analise": {
+    "timestamp": "2025-08-12T21:45:01.451857",
+    "versao_algoritmo": "3.0",
+    "inteligencia_aplicada": true,
+    "extração_snippets": false
+  }
+}

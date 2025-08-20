@@ -1,0 +1,40 @@
+{
+  "file_info": {
+    "original_name": "Close OPEN Orders by SET Pair After SET AccPROFIT EA.mq4",
+    "new_name": "EA_Close_OPEN_Orders_by_SET_Pair_After_SET_AccPROFIT_EA_v1.0_EURUSD.mq4",
+    "file_size": 2766,
+    "created_date": "2025-08-13T07:11:39.625287",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Volume_Analysis"
+    ],
+    "market": "EURUSD",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 2.0,
+    "level": "Não_Adequado",
+    "ready": false,
+    "has_stop_loss": false,
+    "has_take_profit": false,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Volume_Analysis",
+    "#EURUSD",
+    "#MULTI",
+    "#Nao_FTMO"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

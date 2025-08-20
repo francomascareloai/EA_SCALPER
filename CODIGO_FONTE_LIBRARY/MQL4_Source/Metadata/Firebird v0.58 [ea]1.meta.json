@@ -1,0 +1,31 @@
+{
+  "arquivo": {
+    "nome": "Firebird v0.58 [ea]1.mq4",
+    "tamanho_bytes": 9080,
+    "linhas_codigo": 219,
+    "data_modificacao": "2025-08-10T19:39:47.886655"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0028693675994873047,
+  "timestamp": "2025-08-13T01:12:06.983992"
+}

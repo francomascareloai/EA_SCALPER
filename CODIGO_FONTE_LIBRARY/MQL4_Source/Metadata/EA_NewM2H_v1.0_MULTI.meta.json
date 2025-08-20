@@ -1,0 +1,45 @@
+{
+  "file_info": {
+    "original_name": "NewM2H.mq4",
+    "new_name": "EA_NewM2H_v1.0_MULTI.mq4",
+    "file_size": 15365,
+    "created_date": "2025-08-13T07:11:44.243659",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market": "MULTI",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 5.0,
+    "level": "Não_Adequado",
+    "ready": false,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": false,
+    "has_grid_martingale": true
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#MULTI",
+    "#MULTI",
+    "#Nao_FTMO",
+    "#HighRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

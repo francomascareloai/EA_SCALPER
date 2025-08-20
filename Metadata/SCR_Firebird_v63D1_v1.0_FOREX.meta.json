@@ -1,0 +1,127 @@
+{
+  "file_info": {
+    "original_name": "Firebird v63D1.mq4",
+    "current_name": "SCR_Firebird_v63D1_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Firebird_v63D1_v1.0_FOREX.mq4",
+    "file_size": 22590,
+    "lines_count": 557
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Proteção de drawdown",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 88,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "divergence",
+      "MagicfromSymbol",
+      "CloseTheseTrades",
+      "CloseLoosingTrades",
+      "GoalCheck",
+      "LossCheck",
+      "LogFileName",
+      "LogWrite",
+      "MyOrdersTotal",
+      "GetCommentForOrder",
+      "GetSizeLot",
+      "GetSlippage"
+    ],
+    "variables": [
+      "MA_length",
+      "MA_timeframe",
+      "MAtype",
+      "Percent",
+      "TradeOnFriday",
+      "slip",
+      "Lots",
+      "TakeProfit",
+      "Stoploss",
+      "TrailingStop",
+      "Fast_Period",
+      "Fast_Price",
+      "Slow_Period",
+      "Slow_Price",
+      "DivergenceLimit",
+      "PipStep",
+      "IncreasementType",
+      "DVLimit",
+      "PipsGoal",
+      "PipsLoss",
+      "GMT",
+      "DST",
+      "OpeningHour",
+      "ClosingHour",
+      "writelog"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:59.249652",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:28.854822",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

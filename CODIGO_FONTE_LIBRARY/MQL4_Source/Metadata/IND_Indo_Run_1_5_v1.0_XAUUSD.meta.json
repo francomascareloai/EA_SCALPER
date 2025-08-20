@@ -1,0 +1,50 @@
+{
+  "file_info": {
+    "original_name": "Indo Run 1.5.mq4",
+    "new_name": "IND_Indo_Run_1_5_v1.0_XAUUSD.mq4",
+    "file_size": 72332,
+    "created_date": "2025-08-13T07:11:43.022720",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market": "XAUUSD",
+    "timeframe": "M1",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 8.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": true,
+    "has_grid_martingale": true
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#XAUUSD",
+    "#M1",
+    "#FTMO_Ready",
+    "#LowRisk",
+    "#HighRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

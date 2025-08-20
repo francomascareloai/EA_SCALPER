@@ -1,0 +1,100 @@
+{
+  "file_info": {
+    "original_name": "RoNz Auto SL-TS-TP(1).mq4",
+    "current_name": "EA_RoNz_Auto_SL_TS_TP_1_v1.0_GOLD_1.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Misc\\EA_RoNz_Auto_SL_TS_TP_1_v1.0_GOLD_1.mq4",
+    "file_size": 13887,
+    "lines_count": 370
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 58,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "CalculateCurrentOrders",
+      "LockProfit",
+      "RZ_TrailingStop",
+      "SetSLnTP",
+      "OnInit",
+      "OnTick",
+      "OrderTest"
+    ],
+    "variables": [
+      "note1",
+      "TakeProfit",
+      "StopLoss",
+      "note2",
+      "LockProfitAfter",
+      "ProfitLock",
+      "note3",
+      "TrailingStop",
+      "TrailingStep",
+      "note4",
+      "inpEnableAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:18.914161",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:56.583867",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

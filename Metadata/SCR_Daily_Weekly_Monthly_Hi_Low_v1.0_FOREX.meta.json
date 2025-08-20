@@ -1,0 +1,132 @@
+{
+  "file_info": {
+    "original_name": "###Daily-Weekly-Monthly Hi-Low.mq4",
+    "current_name": "SCR_Daily_Weekly_Monthly_Hi_Low_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Daily_Weekly_Monthly_Hi_Low_v1.0_FOREX.mq4",
+    "file_size": 20827,
+    "lines_count": 576
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 61,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "ObjDel",
+      "PlotLineD",
+      "PlotLineW",
+      "PlotLineM",
+      "PlotLineDLY",
+      "PlotLineWLY",
+      "PlotLineMLY",
+      "PlotLinePVT",
+      "PlotLinePVTW",
+      "PlotLinePVTM",
+      "init",
+      "deinit",
+      "Create_DailyLineHI",
+      "DeleteCreate_DailyLineHI",
+      "CreateDHI",
+      "Create_DailyLineWHI",
+      "DeleteCreate_DailyLineWHI",
+      "CreateWHI",
+      "Create_DailyLineMHI",
+      "DeleteCreate_DailyLineMHI",
+      "CreateMHI"
+    ],
+    "variables": [
+      "CountDays",
+      "Show_CurrDaily",
+      "Shift_CurrDaily_LABEL",
+      "Show_CurrWeekly",
+      "Shift_CurrWeekly_LABEL",
+      "Show_CurrMonthly",
+      "Shift_CurrMonthly_LABEL",
+      "CurrDaily_LineStyle",
+      "CurrWeekly_LineStyle",
+      "CurrMonthly_LineStyle",
+      "Show_PreviousDaily",
+      "Xtend_Prev_DailyLine",
+      "Show_PreviousWeekly",
+      "Xtend_Prev_WeeklyLine",
+      "Show_PreviousMonthly",
+      "Xtend_Prev_MonthlyLine",
+      "PreviousLine_Style",
+      "Shift_Prev_LABEL",
+      "Show_CurrRectangles_Display",
+      "Show_Rectangles",
+      "Rectangle_Curr_DayPeriod_only",
+      "Show_Daily_Rectangle",
+      "Show_Weekly_Rectangle",
+      "Show_Monthly_Rectangle",
+      "Show_Daily_Pivots",
+      "Daily_Pivot_LineWidth",
+      "Show_Weekly_Pivots",
+      "Weekly_Pivot_LineWidth",
+      "Show_Monthly_Pivots",
+      "Monthly_Pivot_LineWidth"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "link",
+      "copyright",
+      "link",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#FOREX",
+    "#INDICES",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:47.397264",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.308014",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

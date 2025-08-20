@@ -1,0 +1,126 @@
+{
+  "file_info": {
+    "original_name": "CorrelationBot.mq4",
+    "current_name": "SCR_CorrelationBot_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_CorrelationBot_v1.0_FOREX.mq4",
+    "file_size": 14734,
+    "lines_count": 371
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 74,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "getATR",
+      "getATRBuyTakeProfit",
+      "getATRBuyStopLoss",
+      "getATRSellTakeProfit",
+      "getATRSellStopLoss",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "Remark1",
+      "MagicNumber",
+      "SignalsOnly",
+      "Alerts",
+      "SignalMail",
+      "PlaySounds",
+      "EachTickMode",
+      "CloseOnOppositeSignal",
+      "Lots",
+      "MoneyManagement",
+      "Risk",
+      "Slippage",
+      "UseStopLoss",
+      "StopLoss",
+      "UseTakeProfit",
+      "TakeProfit",
+      "UseTrailingStop",
+      "TrailingStop",
+      "MoveStopOnce",
+      "MoveStopWhenPrice",
+      "MoveStopTo",
+      "Remark2",
+      "Remark3",
+      "MA1Period",
+      "MA1Shift",
+      "MA1Method",
+      "MA1Price",
+      "Remark4",
+      "Remark5",
+      "MA2Period",
+      "MA2Shift",
+      "MA2Method",
+      "MA2Price",
+      "Use_ATR_Pct",
+      "Use_ATR_Stop"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#CRYPTO",
+    "#M1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:29.834974",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.086787",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

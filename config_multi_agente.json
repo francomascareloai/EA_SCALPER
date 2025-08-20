@@ -1,0 +1,56 @@
+﻿{
+    "capacidades":  {
+                        "terminais_simultaneos":  5,
+                        "processamento_paralelo":  true,
+                        "validacao_cruzada":  true,
+                        "especializacao_profunda":  true
+                    },
+    "sistema":  "Multi-Agente Qwen 3",
+    "orquestrador":  "Trae AI (Claude 4 Sonnet)",
+    "data_criacao":  "2025-08-13 10:56:45",
+    "comandos_inicializacao":  [
+                                   "qwen chat --model qwen3-coder-plus --system-file prompts/classificador_system.txt",
+                                   "qwen chat --model qwen3-coder-plus --system-file prompts/analisador_system.txt",
+                                   "qwen chat --model qwen3-coder-plus --system-file prompts/gerador_system.txt",
+                                   "qwen chat --model qwen3-coder-plus --system-file prompts/validador_system.txt",
+                                   "qwen chat --model qwen3-coder-plus --system-file prompts/documentador_system.txt"
+                               ],
+    "agentes":  [
+                    {
+                        "Terminal":  1,
+                        "Especialidade":  "Analise e classificacao de codigos MQL4/MQL5/Pine",
+                        "Nome":  "Classificador_Trading",
+                        "Prompt":  "prompts/classificador_system.txt",
+                        "Modelo":  "qwen3-coder-plus"
+                    },
+                    {
+                        "Terminal":  2,
+                        "Especialidade":  "Extracao completa de metadados",
+                        "Nome":  "Analisador_Metadados",
+                        "Prompt":  "prompts/analisador_system.txt",
+                        "Modelo":  "qwen3-coder-plus"
+                    },
+                    {
+                        "Terminal":  3,
+                        "Especialidade":  "Extracao de snippets reutilizaveis",
+                        "Nome":  "Gerador_Snippets",
+                        "Prompt":  "prompts/gerador_system.txt",
+                        "Modelo":  "qwen3-coder-plus"
+                    },
+                    {
+                        "Terminal":  4,
+                        "Especialidade":  "Analise de conformidade FTMO",
+                        "Nome":  "Validador_FTMO",
+                        "Prompt":  "prompts/validador_system.txt",
+                        "Modelo":  "qwen3-coder-plus"
+                    },
+                    {
+                        "Terminal":  5,
+                        "Especialidade":  "Geracao de documentacao e indices",
+                        "Nome":  "Documentador_Trading",
+                        "Prompt":  "prompts/documentador_system.txt",
+                        "Modelo":  "qwen3-coder-plus"
+                    }
+                ],
+    "versao":  "1.0"
+}

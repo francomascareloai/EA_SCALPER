@@ -1,0 +1,107 @@
+{
+  "file_info": {
+    "original_name": "555 Scalper.mq4",
+    "new_name": "EA_555Scalper_v1.0_MULTI.mq4",
+    "file_type": "EA",
+    "language": "MQL4",
+    "size_kb": 25,
+    "creation_date": "2024-01-15",
+    "last_modified": "2024-01-15"
+  },
+  "classification": {
+    "category": "Expert Advisor",
+    "strategy_type": "Scalping",
+    "trading_style": "Breakout",
+    "complexity_level": "Intermediate",
+    "market_focus": "Multi-Symbol",
+    "timeframe": "M1-M15",
+    "ftmo_ready": false
+  },
+  "technical_analysis": {
+    "indicators_used": [
+      "Bollinger Bands",
+      "MACD",
+      "Stochastic",
+      "Momentum",
+      "Moving Average"
+    ],
+    "entry_conditions": "Price above MA Low with Bollinger Bands confirmation",
+    "exit_conditions": "Take Profit and Stop Loss levels",
+    "risk_management": "Fixed lot size with stop loss"
+  },
+  "ftmo_compliance": {
+    "ftmo_ready": false,
+    "compliance_score": 3,
+    "risk_per_trade": "Variable (not specified)",
+    "max_drawdown": "Not specified",
+    "stop_loss": true,
+    "take_profit": true,
+    "martingale": false,
+    "grid_trading": false,
+    "session_filter": false,
+    "issues": [
+      "No risk percentage control",
+      "No session time filter",
+      "No maximum drawdown protection"
+    ]
+  },
+  "parameters": {
+    "lot_size": "Variable (optimized)",
+    "stop_loss": "Dynamic based on price action",
+    "take_profit": "User defined (minimum 10 pips)",
+    "magic_number": "User defined",
+    "trailing_stop": true,
+    "break_even": true
+  },
+  "performance": {
+    "backtest_period": "Not available",
+    "win_rate": "Not available",
+    "profit_factor": "Not available",
+    "max_drawdown": "Not available",
+    "sharpe_ratio": "Not available"
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Multi_Symbol",
+    "#Bollinger_Bands",
+    "#MACD",
+    "#Stochastic",
+    "#Breakout",
+    "#Trailing_Stop",
+    "#Break_Even",
+    "#Nao_FTMO"
+  ],
+  "status": {
+    "review_status": "Classified",
+    "testing_status": "Not tested",
+    "approval_status": "Pending review",
+    "notes": "Requires FTMO compliance modifications"
+  },
+  "file_paths": {
+    "source_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/All_MQ4/555 Scalper.mq4",
+    "target_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/EAs/Scalping/EA_555Scalper_v1.0_MULTI.mq4",
+    "metadata_path": "CODIGO_FONTE_LIBRARY/Metadata/EA_555Scalper_v1.0_MULTI.meta.json"
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:13.396696",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "file_info": {
+    "original_name": "muhsinEA.mq4",
+    "current_name": "EA_muhsinEA_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_muhsinEA_v1.0_GOLD.mq4",
+    "file_size": 22690,
+    "lines_count": 774
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M5",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 100,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "ObjectDel",
+      "CreateButton",
+      "OnChartEvent",
+      "OnTick",
+      "NumTrade",
+      "NumTradr",
+      "Indic",
+      "CloseOrder",
+      "OpenBuy",
+      "OpenSell",
+      "GetLots",
+      "NewBar",
+      "GetSpread",
+      "GetPoint",
+      "digits",
+      "point",
+      "ask",
+      "bid",
+      "spread",
+      "stlevel",
+      "maxlot",
+      "minlot",
+      "lotsteps",
+      "lotsize",
+      "tickvalue"
+    ],
+    "variables": [
+      "Slippage",
+      "StartTime",
+      "A",
+      "MaxSpread",
+      "ShowArrows",
+      "Magic",
+      "comment",
+      "A6",
+      "LotSize",
+      "EquityStop",
+      "StopLoss",
+      "TakeProfit"
+    ],
+    "includes": [
+      "Controls/Button.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#M5",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:52.293006",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.813269",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

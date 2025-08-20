@@ -1,0 +1,102 @@
+{
+  "file_info": {
+    "original_name": "Auto_Sessions_v_1.8.mq4",
+    "current_name": "SCR_Auto_Sessions_v_1_8_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Auto_Sessions_v_1_8_v1.0_GOLD.mq4",
+    "file_size": 10673,
+    "lines_count": 321
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 46,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "Session_",
+      "createSes_",
+      "reDrawSes_",
+      "createPip_",
+      "reDrawPip_",
+      "stringExtract_",
+      "clear_"
+    ],
+    "variables": [
+      "SessionNames",
+      "SessionGMTInfo",
+      "SessionBeginInfo2",
+      "SessionEndInfo",
+      "GMTOffSet",
+      "FillColor",
+      "FrameWidth",
+      "FrameStyle",
+      "ShowPips",
+      "AppendPips",
+      "LabelSize",
+      "LabelFont"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:14.639831",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:23.956493",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

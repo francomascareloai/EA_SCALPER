@@ -1,0 +1,87 @@
+{
+  "file_info": {
+    "original_name": "autofibo-trading-zones.mq4",
+    "current_name": "IND_autofibo_trading_zones_v1.0_GOLD_1.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_autofibo_trading_zones_v1.0_GOLD_1.mq4",
+    "file_size": 7704,
+    "lines_count": 242
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Unknown"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 43,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "getPeriodHigh",
+      "getPeriodLow"
+    ],
+    "variables": [
+      "Fib_Period",
+      "Show_StartLine",
+      "Show_EndLine",
+      "Show_Channel",
+      "Fib_Style"
+    ],
+    "includes": [],
+    "properties": [
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Unknown",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:13.363786",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:02.110655",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

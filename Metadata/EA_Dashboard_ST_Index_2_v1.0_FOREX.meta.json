@@ -1,0 +1,122 @@
+{
+  "file_info": {
+    "original_name": "Dashboard-ST_Index (2).mq4",
+    "current_name": "EA_Dashboard_ST_Index_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_Dashboard_ST_Index_2_v1.0_FOREX.mq4",
+    "file_size": 29337,
+    "lines_count": 662
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 113,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTimer",
+      "get_list_status",
+      "SetText",
+      "SetObjText",
+      "SetPanel",
+      "Create_Button",
+      "OnChartEvent",
+      "closeOpenOrders",
+      "close_basket",
+      "close_profit",
+      "close_loss",
+      "OpenChart",
+      "swap",
+      "displayMeter",
+      "currency_strength",
+      "Trades",
+      "TradeManager"
+    ],
+    "variables": [
+      "usertemplate",
+      "Magic_Number",
+      "Lot",
+      "Basket_Target",
+      "Basket_StopLoss",
+      "x_axis",
+      "y_axis"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "WinUser32.mqh",
+      "ChartObjects\\ChartObjectsTxtControls.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:32.361966",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:49.368086",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

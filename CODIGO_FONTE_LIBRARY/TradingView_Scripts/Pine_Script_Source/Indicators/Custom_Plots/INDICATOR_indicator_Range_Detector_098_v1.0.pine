@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #098
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Indices
+// Timeframe: H1
+
+//@version=5
+indicator("Range_Detector_98", shorttitle="Range_De", overlay=true)
+
+// Parâmetros
+length = input.int(14, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+ema = ta.ema(source, length)
+
+// Plot
+plot(ema, "Range_Detector_98", color=color.yellow)

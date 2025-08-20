@@ -1,0 +1,135 @@
+{
+  "file_info": {
+    "original_name": "SMA_MultiHdege2.mq4",
+    "current_name": "SCR_SMA_MultiHdege2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_SMA_MultiHdege2_v1.0_FOREX.mq4",
+    "file_size": 27955,
+    "lines_count": 750
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco robusta"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 110,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "CloseHedge",
+      "Lots",
+      "Base",
+      "TotalCurProfit",
+      "TotalSwapnProfit",
+      "Val2String",
+      "bool2string",
+      "SMA",
+      "symboldif",
+      "powdif",
+      "u",
+      "Cor",
+      "ExistPositions"
+    ],
+    "variables": [
+      "TradeAllowed",
+      "_",
+      "periodSMA",
+      "_",
+      "cPeriod",
+      "_",
+      "BaseSymbol",
+      "AutoLot",
+      "MMBase",
+      "MaxRisk",
+      "Not",
+      "_",
+      "HedgeH1",
+      "H1",
+      "H1",
+      "H1",
+      "H1",
+      "_",
+      "HedgeH2",
+      "H2",
+      "H2",
+      "H2",
+      "H2",
+      "_",
+      "HedgeH3",
+      "H3",
+      "H3",
+      "H3",
+      "H3",
+      "_",
+      "Expect",
+      "MagicNo",
+      "ShowStatus",
+      "PlayAudio"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:31.278257",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:40.568068",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

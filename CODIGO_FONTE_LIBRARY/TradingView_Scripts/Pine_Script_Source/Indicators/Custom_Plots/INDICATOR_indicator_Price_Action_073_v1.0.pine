@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #073
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: H1
+
+//@version=5
+indicator("Price_Action_73", shorttitle="Price_Ac", overlay=false)
+
+// Parâmetros
+length = input.int(20, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+lowest = ta.lowest(low, length)
+
+// Plot
+plot(lowest, "Price_Action_73", color=color.yellow)

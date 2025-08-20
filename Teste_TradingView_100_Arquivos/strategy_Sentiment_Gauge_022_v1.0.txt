@@ -1,0 +1,27 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #022
+// Tipo: STRATEGY
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: M15
+
+//@version=5
+strategy("Sentiment_Gauge_22", shorttitle="Sentimen", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+// Parâmetros
+length = input.int(20, "Length", minval=1)
+stop_loss = input.float(4.4, "Stop Loss %", minval=0.1, step=0.1)
+take_profit = input.float(3.3, "Take Profit %", minval=0.1, step=0.1)
+
+// Estratégia
+long_condition = ta.crossover(close, ta.sma(close, length))
+short_condition = ta.crossunder(close, ta.sma(close, length))
+
+// Execução
+if (long_condition)
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Exit Long", "Long", stop=close * (1 - stop_loss/100), limit=close * (1 + take_profit/100))
+
+if (short_condition)
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Exit Short", "Short", stop=close * (1 + stop_loss/100), limit=close * (1 - take_profit/100))

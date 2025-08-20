@@ -1,0 +1,31 @@
+{
+  "arquivo": {
+    "nome": "Swing Cloud.mq4",
+    "tamanho_bytes": 4687,
+    "linhas_codigo": 151,
+    "data_modificacao": "2025-08-10T19:38:38.391335"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Filtro de volatilidade"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0016090869903564453,
+  "timestamp": "2025-08-13T01:12:38.894237"
+}

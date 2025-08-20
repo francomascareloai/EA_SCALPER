@@ -1,0 +1,82 @@
+{
+  "file_info": {
+    "original_name": "OCO_EA(1) (2).mq4",
+    "current_name": "SCR_OCO_EA_1_2_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_OCO_EA_1_2_v1.0.mq4",
+    "file_size": 8605,
+    "lines_count": 214
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 33,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "dtbahl",
+      "GlobalVar_init",
+      "init",
+      "deinit",
+      "reset_variable",
+      "start"
+    ],
+    "variables": [],
+    "includes": [
+      "stdlib.mqh",
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:01.454330",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.631571",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

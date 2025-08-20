@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #088
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: H1
+
+//@version=5
+indicator("EMA_Cross_88", shorttitle="EMA_Cros", overlay=false)
+
+// Parâmetros
+length = input.int(100, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+ma = ta.sma(source, length)
+
+// Plot
+plot(ma, "EMA_Cross_88", color=color.red)

@@ -1,0 +1,121 @@
+{
+  "file_info": {
+    "original_name": "MTF_MCP_TrendStop_HeatMap.mq4",
+    "current_name": "IND_MTF_MCP_TrendStop_HeatMap_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_MTF_MCP_TrendStop_HeatMap_v1.0_FOREX.mq4",
+    "file_size": 8988,
+    "lines_count": 303
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 45,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "GenerateIndicatorName",
+      "init",
+      "deinit",
+      "start",
+      "Etiqueta",
+      "Limpiar"
+    ],
+    "variables": [
+      "Periods",
+      "Comment0",
+      "Currency_Pair"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_color7",
+      "indicator_color8",
+      "indicator_color9",
+      "indicator_color10",
+      "indicator_color11",
+      "indicator_color12",
+      "indicator_color13",
+      "indicator_color14",
+      "indicator_color15",
+      "indicator_color16",
+      "indicator_color17",
+      "indicator_color18",
+      "indicator_color19",
+      "indicator_color20",
+      "indicator_color21",
+      "indicator_minimum",
+      "indicator_maximum"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#FOREX",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:52.225443",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:11.221147",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "IND_GainzAlgo_Pro_v1.0_MULTI",
+  "arquivo": "IND_GainzAlgo_Pro_v1.0_MULTI.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine Script",
+  "estrategia": "Trend Following",
+  "subestrategias": [
+    "RSI Divergence",
+    "Engulfing Patterns",
+    "Candle Stability"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [
+    "ta.rsi",
+    "ta.tr",
+    "label.new",
+    "math.abs"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [
+    "Candle Stability Index",
+    "RSI Index",
+    "Candle Delta Length",
+    "Disable Repeating Signals",
+    "Label Size",
+    "Label Style"
+  ],
+  "ftmo_score": 7,
+  "riscos_detectados": [
+    "Sinal pode ser sensível a ruído de mercado",
+    "Repetição de sinais se não configurado adequadamente"
+  ],
+  "qualidade_codigo_score": 8,
+  "compilacao": {
+    "status": "sucesso",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Adicionar filtro de volatilidade",
+    "Adicionar proteção contra slippage"
+  ],
+  "licenca_autor": "MIT"
+}

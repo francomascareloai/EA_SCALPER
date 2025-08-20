@@ -1,0 +1,129 @@
+{
+  "file_info": {
+    "original_name": "Greezly Bot Pro MQ4 (3).mq4",
+    "current_name": "SCR_Greezly_Bot_Pro_MQ4_3_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Greezly_Bot_Pro_MQ4_3_v1.0_GOLD.mq4",
+    "file_size": 27798,
+    "lines_count": 711
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "H4",
+        "D1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 174,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_11",
+      "f0_1",
+      "f0_14",
+      "f0_16",
+      "f0_3",
+      "f0_15",
+      "f0_12",
+      "f0_0",
+      "f0_17",
+      "f0_4",
+      "f0_5",
+      "f0_18",
+      "f0_7",
+      "f0_2",
+      "f0_6",
+      "f0_9",
+      "f0_13",
+      "f0_10",
+      "f0_8"
+    ],
+    "variables": [
+      "__1__",
+      "MMType",
+      "__2__",
+      "LotMultiplikator",
+      "__3__",
+      "_____",
+      "LotConst_or_not",
+      "Lot",
+      "RiskPercent",
+      "__4__",
+      "TakeProfit",
+      "__5__",
+      "Step",
+      "__6__",
+      "MaxTrades",
+      "__7__",
+      "UseEquityStop",
+      "TotalEquityRisk",
+      "__8__",
+      "Magic",
+      "__9__",
+      "ShowTableOnTesting",
+      "_"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:21.802957",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:30.532550",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

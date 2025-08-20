@@ -1,0 +1,181 @@
+{
+  "timestamp": "2025-08-18T10:10:18.539695",
+  "duration_seconds": 8.582164,
+  "total_tests": 34,
+  "passed_tests": 32,
+  "failed_tests": 2,
+  "success_rate": 94.11764705882352,
+  "status": "FALHOU",
+  "test_results": {
+    "Arquivo mcp.json existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.kilocode\\mcp.json",
+      "timestamp": "10:10:09"
+    },
+    "Configuração MCP válida": {
+      "success": true,
+      "details": "13 servidores configurados",
+      "timestamp": "10:10:10"
+    },
+    "Servidor mcp_code_checker existe": {
+      "success": false,
+      "details": "Arquivo não encontrado: C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_code_checker.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor file_analyzer existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_file_analyzer.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor ftmo_validator existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_ftmo_validator.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor metadata_generator existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_metadata_generator.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor code_classifier existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_code_classifier.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor batch_processor existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_batch_processor.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor task_manager existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_task_manager.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor trading_classifier existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\trading_classifier_mcp.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor api_integration existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\api_integration_mcp.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor code_analysis existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\code_analysis_mcp.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor project_scaffolding existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\project_scaffolding_mcp.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor python_dev_accelerator existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\python_dev_accelerator_mcp.py",
+      "timestamp": "10:10:10"
+    },
+    "Servidor youtube_transcript existe": {
+      "success": true,
+      "details": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_youtube_transcript.py",
+      "timestamp": "10:10:10"
+    },
+    "Python disponível": {
+      "success": true,
+      "details": "Python 3.13.6",
+      "timestamp": "10:10:11"
+    },
+    "PYTHONPATH configurado": {
+      "success": true,
+      "details": "Padrão",
+      "timestamp": "10:10:11"
+    },
+    "Dependência pylint": {
+      "success": true,
+      "details": "pylint 3.3.8",
+      "timestamp": "10:10:12"
+    },
+    "Dependência pytest": {
+      "success": true,
+      "details": "pytest 8.4.1",
+      "timestamp": "10:10:14"
+    },
+    "Dependência flake8": {
+      "success": true,
+      "details": "7.3.0 (mccabe: 0.7.0, pycodestyle: 2.14.0, pyflakes: 3.4.0, radon: 6.0.1)",
+      "timestamp": "10:10:14"
+    },
+    "Dependência black": {
+      "success": true,
+      "details": "black, 25.1.0 (compiled: yes)",
+      "timestamp": "10:10:15"
+    },
+    "Sintaxe file_analyzer": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:15"
+    },
+    "Sintaxe ftmo_validator": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:16"
+    },
+    "Sintaxe metadata_generator": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:16"
+    },
+    "Sintaxe code_classifier": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:16"
+    },
+    "Sintaxe batch_processor": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:16"
+    },
+    "Sintaxe task_manager": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:16"
+    },
+    "Sintaxe trading_classifier": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:16"
+    },
+    "Sintaxe api_integration": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:16"
+    },
+    "Sintaxe code_analysis": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:17"
+    },
+    "Sintaxe project_scaffolding": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:17"
+    },
+    "Sintaxe python_dev_accelerator": {
+      "success": false,
+      "details": "Erro de sintaxe:   File \"C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\python_dev_accelerator_mcp.py\", line 436\n    \"\"\"Test suite for {module_name} module\"\"\"\n       ^^^^\nSyntaxError: invalid syntax\n",
+      "timestamp": "10:10:17"
+    },
+    "Sintaxe youtube_transcript": {
+      "success": true,
+      "details": "Sintaxe válida",
+      "timestamp": "10:10:17"
+    },
+    "Script quality_check": {
+      "success": true,
+      "details": "Funcionando corretamente",
+      "timestamp": "10:10:18"
+    }
+  }
+}

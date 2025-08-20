@@ -1,0 +1,147 @@
+{
+  "file_info": {
+    "original_name": "Account Protector.mq4",
+    "current_name": "EA_Account_Protector_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Misc\\EA_Account_Protector_v1.0_GOLD.mq4",
+    "file_size": 19886,
+    "lines_count": 366
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.0,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Proteção de drawdown"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.0,
+    "level": "Baixo",
+    "compliance_score": 20.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 27,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnChartEvent",
+      "OnTick",
+      "OnTimer"
+    ],
+    "variables": [
+      "____Main",
+      "EnableEmergencyButton",
+      "DoNotDisableConditions",
+      "DoNotDisableActions",
+      "DoNotDisableEquityTS",
+      "DoNotDisableTimer",
+      "ConditionDelay",
+      "CountFloatingInDailyPL",
+      "____Conditions",
+      "DisableFloatLossRisePerc",
+      "DisableFloatLossFallPerc",
+      "DisableFloatLossRiseCurr",
+      "DisableFloatLossFallCurr",
+      "DisableFloatLossRisePoints",
+      "DisableFloatLossFallPoints",
+      "DisableFloatProfitRisePerc",
+      "DisableFloatProfitFallPerc",
+      "DisableFloatProfitRiseCurr",
+      "DisableFloatProfitFallCurr",
+      "DisableFloatProfitRisePoints",
+      "DisableFloatProfitFallPoints",
+      "DisableCurrentPriceGE",
+      "DisableCurrentPriceLE",
+      "DisableEquityMinusSnapshot",
+      "DisableSnapshotMinusEquity",
+      "DisableMarginLevelGE",
+      "DisableMarginLevelLE",
+      "DisableSpreadGE",
+      "DisableSpreadLE",
+      "DisableDailyProfitLossUnitsGE",
+      "DisableDailyProfitLossUnitsLE",
+      "DisableDailyProfitLossPointsGE",
+      "DisableDailyProfitLossPointsLE",
+      "DisableDailyProfitLossPercGE",
+      "DisableDailyProfitLossPercLE",
+      "DisableNumberOfPositionsGE",
+      "DisableNumberOfOrdersGE",
+      "DisableNumberOfPositionsLE",
+      "DisableNumberOfOrdersLE",
+      "____Trading",
+      "DelayOrderClose",
+      "UseTotalVolume",
+      "BreakEvenProfitInCurrencyUnits",
+      "EquityTrailingStopInPercentage",
+      "____Miscellaneous",
+      "AlertOnEquityTS",
+      "AdditionalFunds",
+      "Instruments",
+      "GlobalSnapshots",
+      "Slippage",
+      "LogFileName",
+      "SettingsFileName",
+      "Silent"
+    ],
+    "includes": [
+      "Account Protector.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "description",
+      "description",
+      "description"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#GOLD",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:52.654506",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:46.658985",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

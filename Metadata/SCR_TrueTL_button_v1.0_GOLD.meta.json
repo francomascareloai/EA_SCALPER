@@ -1,0 +1,114 @@
+{
+  "file_info": {
+    "original_name": "TrueTL button.mq4",
+    "current_name": "SCR_TrueTL_button_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_TrueTL_button_v1.0_GOLD.mq4",
+    "file_size": 30648,
+    "lines_count": 503
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 93,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "Init",
+      "HandleButtonClicks",
+      "IsRecalcNeeded",
+      "ResetRecalc",
+      "IsVisible",
+      "createButton",
+      "GenerateIndicatorName",
+      "init",
+      "Clean",
+      "deinit",
+      "OnChartEvent",
+      "start"
+    ],
+    "variables": [
+      "Auto_Refresh",
+      "Normal_TL_Period",
+      "Three_Touch",
+      "M1_Fast_Analysis",
+      "M5_Fast_Analysis",
+      "Mark_Highest_and_Lowest_TL",
+      "Expiration_Day_Alert",
+      "Three_Touch_TL_Widht",
+      "button_x",
+      "button_y"
+    ],
+    "includes": [
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:56.322519",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:44.188378",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

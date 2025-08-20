@@ -1,0 +1,10 @@
+{
+  "status": "READY",
+  "success_rate": 100.0,
+  "total_checks": 19,
+  "successes": 19,
+  "warnings": 0,
+  "errors": 0,
+  "issues": [],
+  "warning_messages": []
+}

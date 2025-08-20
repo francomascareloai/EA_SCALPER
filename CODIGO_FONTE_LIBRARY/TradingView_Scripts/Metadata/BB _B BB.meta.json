@@ -1,0 +1,101 @@
+{
+  "id": "IND_BB__B_BBtxt_v1.0_MULTI",
+  "arquivo": "BB _B BB.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine Script",
+  "estrategia": "Trend Following",
+  "subestrategias": [
+    "Bollinger Bands",
+    "Moving Averages",
+    "RSI"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [
+    "plot(",
+    "ta.sma",
+    "input.",
+    "hline(",
+    "ta.stdev"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [
+    "minval=1",
+    "minval=0.001",
+    "title=\"Upper Level 1",
+    "title=\"Upper Level 2",
+    "title=\"Middle Level",
+    "title=\"Lower Level 1",
+    "title=\"Lower Level 2",
+    "title=\"Upper Level 1 Color",
+    "title=\"Upper Level 2 Color",
+    "title=\"Middle Level Color",
+    "title=\"Lower Level 1 Color",
+    "title=\"Lower Level 2 Color",
+    "title=\"Line Style",
+    "title=\"Upper Level 1 Color\")",
+    "title=\"Upper Level 2 Color\")",
+    "title=\"Middle Level Color\")",
+    "title=\"Lower Level 1 Color\")",
+    "title=\"Lower Level 2 Color\")"
+  ],
+  "ftmo_score": 9,
+  "riscos_detectados": [
+    "Nenhum risco critico identificado",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)"
+  ],
+  "qualidade_codigo_score": 6,
+  "compilacao": {
+    "status": "sucesso",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco"
+  ],
+  "licenca_autor": "desconhecido"
+}

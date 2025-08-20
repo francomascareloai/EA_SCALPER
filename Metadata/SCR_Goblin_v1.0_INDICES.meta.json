@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "Goblin.mq4",
+    "current_name": "SCR_Goblin_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Goblin_v1.0_INDICES.mq4",
+    "file_size": 12740,
+    "lines_count": 359
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.0,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.0,
+    "level": "Baixo",
+    "compliance_score": 20.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 78,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "OpenOrdersBasedOnTrendRSX",
+      "Check_Trend"
+    ],
+    "variables": [
+      "TakeProfit",
+      "Lots",
+      "InitialStop",
+      "TrailingStop",
+      "MaxTrades",
+      "Pips",
+      "SecureProfit",
+      "AccountProtection",
+      "OrderstoProtect",
+      "ReverseCondition",
+      "StartYear",
+      "StartMonth",
+      "EndYear",
+      "EndMonth",
+      "EndHour",
+      "EndMinute",
+      "mm",
+      "risk",
+      "AccountisNormal",
+      "Magic"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#INDICES",
+    "#M1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:12.826883",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:29.851702",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

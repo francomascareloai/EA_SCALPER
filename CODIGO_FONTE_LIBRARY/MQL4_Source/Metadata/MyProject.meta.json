@@ -1,0 +1,46 @@
+{
+  "arquivo": {
+    "nome": "MyProject.mq4",
+    "tamanho_bytes": 2103,
+    "linhas_codigo": 63,
+    "data_modificacao": "2022-09-26T04:36:10"
+  },
+  "analise_ftmo": {
+    "score_bruto": 7.0,
+    "score_final": 1.0,
+    "criterios_atendidos": {
+      "stop_loss_obrigatorio": true,
+      "sem_grid_martingale": true,
+      "daily_loss_protection": false,
+      "risk_management": false,
+      "take_profit": true,
+      "max_drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "trailing_stop": false
+    },
+    "penalidades_aplicadas": {
+      "no_risk_management": -4.0,
+      "scalping_excessivo": -2.0
+    },
+    "riscos_detectados": [
+      "Ausência de gestão de risco",
+      "Scalping com TP muito baixo (<5 pips)"
+    ],
+    "ajustes_necessarios": [
+      "CRÍTICO: Proteção de perda diária máxima (5%)",
+      "OBRIGATÓRIO: Implementar proteção de perda diária (5%)",
+      "OBRIGATÓRIO: Implementar gestão de risco por percentual",
+      "RECOMENDADO: Implementar proteção de drawdown máximo"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA inadequado/proibido para FTMO"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.004603147506713867,
+  "timestamp": "2025-08-13T01:12:27.371643"
+}

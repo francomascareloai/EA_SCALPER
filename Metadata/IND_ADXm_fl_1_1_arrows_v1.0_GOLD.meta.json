@@ -1,0 +1,150 @@
+{
+  "file_info": {
+    "original_name": "ADXm fl 1.1 arrows.mq4",
+    "current_name": "IND_ADXm_fl_1_1_arrows_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_ADXm_fl_1_1_arrows_v1.0_GOLD.mq4",
+    "file_size": 29715,
+    "lines_count": 822
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 108,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "iAdxm",
+      "iFilter",
+      "iQuantile",
+      "getPrice",
+      "manageAlerts",
+      "doAlert",
+      "averageName",
+      "iCustomMa",
+      "iSma",
+      "iEma",
+      "iSmma",
+      "iLwma",
+      "timeFrameToString",
+      "CleanPoint",
+      "PlotPoint",
+      "drawArrow"
+    ],
+    "variables": [
+      "ForSymbol",
+      "AdxmPeriod",
+      "PriceSmoothing",
+      "Filter",
+      "FilterPeriod",
+      "LevelsPeriod",
+      "LevelsUp",
+      "LevelsDown",
+      "AlertsOn",
+      "AlertsOnCurrent",
+      "AlertsMessage",
+      "AlertsSound",
+      "AlertsPushNotif",
+      "AlertsEmail",
+      "arrowsVisible",
+      "arrowsOnNewest",
+      "arrowsIdentifier",
+      "arrowsUpperGap",
+      "arrowsLowerGap",
+      "arrowsUpCode",
+      "arrowsDnCode",
+      "arrowsSize",
+      "LineWidth",
+      "ShadowWidth",
+      "Interpolate",
+      "previousAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_style2",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:53.256390",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:01.211527",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

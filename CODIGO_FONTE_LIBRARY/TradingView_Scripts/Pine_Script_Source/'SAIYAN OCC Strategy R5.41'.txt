@@ -386,7 +386,7 @@ get_line_style(style) =>
     out = switch style
         '???'  => line.style_solid
         '----' => line.style_dashed
-        '····' => line.style_dotted
+        'ï¿½ï¿½ï¿½ï¿½' => line.style_dotted
 
 //Function to get order block coordinates
 get_coordinates(condition, top, btm, ob_val)=>
@@ -700,7 +700,7 @@ variant(type, src, len, offSig, offALMA) =>
     v10 = ta.alma(src, len, offALMA, offSig)  // Arnaud Legoux
     v11 = ta.sma(v1, len)  // Triangular (extreme smooth)
     // SuperSmoother filter
-    // © 2013  John F. Ehlers
+    // ï¿½ 2013  John F. Ehlers
     a1 = math.exp(-1.414 * 3.14159 / len)
     b1 = 2 * a1 * math.cos(1.414 * 3.14159 / len)
     c2 = b1

@@ -1,0 +1,32 @@
+{
+  "arquivo": {
+    "nome": "gold_rush_pro_Fixed.mq4",
+    "tamanho_bytes": 183804,
+    "linhas_codigo": 6017,
+    "data_modificacao": "2025-08-10T18:54:05.552599"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de notícias"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.044541120529174805,
+  "timestamp": "2025-08-13T01:12:12.566435"
+}

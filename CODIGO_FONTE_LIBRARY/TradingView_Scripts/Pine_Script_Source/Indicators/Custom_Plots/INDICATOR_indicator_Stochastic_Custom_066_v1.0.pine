@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #066
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: M5
+
+//@version=5
+indicator("Stochastic_Custom_66", shorttitle="Stochast", overlay=true)
+
+// Parâmetros
+length = input.int(14, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+atr = ta.atr(length)
+
+// Plot
+plot(atr, "Stochastic_Custom_66", color=color.lime)

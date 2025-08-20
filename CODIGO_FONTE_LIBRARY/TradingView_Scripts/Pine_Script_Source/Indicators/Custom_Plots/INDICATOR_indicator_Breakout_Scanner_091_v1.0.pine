@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #091
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: M5
+
+//@version=5
+indicator("Breakout_Scanner_91", shorttitle="Breakout", overlay=false)
+
+// Parâmetros
+length = input.int(20, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+stoch = ta.stoch(high, low, close, length)
+
+// Plot
+plot(stoch, "Breakout_Scanner_91", color=color.blue)

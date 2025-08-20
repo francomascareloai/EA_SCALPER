@@ -1,0 +1,71 @@
+{
+  "demo_info": {
+    "data_execucao": "2025-08-12T21:06:31.315471",
+    "arquivos_processados": 3
+  },
+  "estatisticas": {
+    "tipos": {
+      "Indicator": 2,
+      "Unknown": 1
+    },
+    "estrategias": {
+      "Trend": 1,
+      "Scalping": 1,
+      "Custom": 1
+    },
+    "ftmo_ready": 2
+  },
+  "arquivos": [
+    {
+      "nome_original": "FFCal.mq4",
+      "tipo": "Indicator",
+      "estrategia": "Trend",
+      "ftmo_ready": true,
+      "ftmo_score": 60,
+      "ftmo_checks": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": false,
+        "drawdown_check": false,
+        "no_martingale": true
+      },
+      "hash": "aedc26f11f225c8e13766c5a3dd60847",
+      "tamanho": 50791,
+      "data_modificacao": "2022-09-02T11:01:34"
+    },
+    {
+      "nome_original": "GMACD2.mq4",
+      "tipo": "Indicator",
+      "estrategia": "Scalping",
+      "ftmo_ready": true,
+      "ftmo_score": 60,
+      "ftmo_checks": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": false,
+        "drawdown_check": false,
+        "no_martingale": true
+      },
+      "hash": "9ed086b5f0c4070bf733cd49c40ab3c6",
+      "tamanho": 16491,
+      "data_modificacao": "2022-09-02T11:34:58"
+    },
+    {
+      "nome_original": "Iron Scalper EA.mq4",
+      "tipo": "Unknown",
+      "estrategia": "Custom",
+      "ftmo_ready": false,
+      "ftmo_score": 20,
+      "ftmo_checks": {
+        "stop_loss": false,
+        "take_profit": false,
+        "risk_management": false,
+        "drawdown_check": false,
+        "no_martingale": true
+      },
+      "hash": "6c4235758c404c42ab30da7029801854",
+      "tamanho": 32170,
+      "data_modificacao": "2025-08-10T19:38:27.584969"
+    }
+  ]
+}

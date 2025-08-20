@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #012
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: M15
+
+//@version=5
+indicator("Sentiment_Gauge_12", shorttitle="Sentimen", overlay=false)
+
+// Parâmetros
+length = input.int(21, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+rsi = ta.rsi(source, length)
+
+// Plot
+plot(rsi, "Sentiment_Gauge_12", color=color.lime)

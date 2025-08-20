@@ -1,0 +1,116 @@
+{
+  "file_info": {
+    "original_name": "ZScore Diff 3 pairs EA_011 (2).mq4",
+    "current_name": "SCR_ZScore_Diff_3_pairs_EA_011_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_ZScore_Diff_3_pairs_EA_011_2_v1.0_FOREX.mq4",
+    "file_size": 16071,
+    "lines_count": 527
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 80,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "iDiff",
+      "Lots",
+      "_Long",
+      "_Short",
+      "Buy_And_Sell",
+      "Sell_And_Buy",
+      "Profit_By_Level",
+      "CheckOrders",
+      "Close_All_Orders",
+      "MagicNumber",
+      "Display",
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "Verbose",
+      "Period_",
+      "Pair2",
+      "Invert2",
+      "Pair3",
+      "Invert3",
+      "lots",
+      "HighLevelValues",
+      "LowLevelValues",
+      "ResetLevel",
+      "CloseHighAtLevel",
+      "CloseLowAtLevel",
+      "note",
+      "TP_Mode",
+      "TP",
+      "Slippage"
+    ],
+    "includes": [
+      "OrderReliable_120205.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:13.423947",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:45.758425",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

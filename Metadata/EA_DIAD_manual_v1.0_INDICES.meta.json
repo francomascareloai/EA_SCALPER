@@ -1,0 +1,116 @@
+{
+  "file_info": {
+    "original_name": "DIAD_manual.mq4",
+    "current_name": "EA_DIAD_manual_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_DIAD_manual_v1.0_INDICES.mq4",
+    "file_size": 15510,
+    "lines_count": 507
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco robusta",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 73,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "DIAD",
+      "manage",
+      "TDI_Cross",
+      "TDI_angle",
+      "setTrend",
+      "BreakEven",
+      "getLot",
+      "setStop",
+      "getStop"
+    ],
+    "variables": [
+      "enterNow",
+      "wait_4Break",
+      "enteryLevel",
+      "orderType",
+      "top1",
+      "top2",
+      "top3",
+      "TP_pips",
+      "lot2_coef",
+      "lot3_coef",
+      "lot4_coef",
+      "RISK",
+      "ab2",
+      "ab3",
+      "stopSetting",
+      "STOP_PIPs",
+      "STOP_CANDLEs",
+      "ab4",
+      "SL_MAX_PIPS",
+      "SL_MIN_PIPS",
+      "ab6",
+      "TDI_ANGLE",
+      "WRB_avoid"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:33.115048",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:49.427521",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "arquivo": {
+    "nome": "Iron_Scalper_EA.mq4",
+    "tipo": "EA",
+    "estrategia": "Scalping",
+    "mercado": "Forex",
+    "timeframe": "Multi",
+    "tamanho_bytes": 17811,
+    "linhas_codigo": 381,
+    "hash_md5": "47984c9a218fe08d334945cf335bc91b",
+    "data_modificacao": "2025-08-12T21:30:22.258928"
+  },
+  "ftmo": {
+    "score": 10.0,
+    "status": "FTMO_ELITE",
+    "detalhes": {
+      "stop_loss": true,
+      "take_profit": true,
+      "risk_management": true,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "eliminatorio": false,
+      "penalidades_aplicadas": {},
+      "riscos_detectados": [],
+      "observacoes": [
+        "EA de excelência - Pronto para FTMO Challenge"
+      ],
+      "componentes_uteis": [
+        "Indicadores técnicos para entrada"
+      ],
+      "snippets_detectados": []
+    },
+    "ftmo_ready": true
+  },
+  "qualidade": {
+    "encoding_corrigido": false,
+    "validacoes": [],
+    "sugestoes_melhorias": []
+  },
+  "componentes_uteis": [
+    "Indicadores técnicos para entrada"
+  ],
+  "snippets_detectados": [],
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Forex",
+    "#FTMO_ELITE"
+  ],
+  "analise": {
+    "timestamp": "2025-08-12T21:45:01.493361",
+    "versao_algoritmo": "3.0",
+    "inteligencia_aplicada": true,
+    "extração_snippets": false
+  }
+}

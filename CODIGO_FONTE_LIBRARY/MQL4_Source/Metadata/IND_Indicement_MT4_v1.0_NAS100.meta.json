@@ -1,0 +1,47 @@
+{
+  "file_info": {
+    "original_name": "Indicement MT4.mq4",
+    "new_name": "IND_Indicement_MT4_v1.0_NAS100.mq4",
+    "file_size": 8655,
+    "created_date": "2025-08-13T07:11:43.013537",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "SMC_ICT",
+      "Volume_Analysis"
+    ],
+    "market": "NAS100",
+    "timeframe": "D1",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 10.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": true,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#SMC_ICT",
+    "#Volume_Analysis",
+    "#NAS100",
+    "#D1",
+    "#FTMO_Ready",
+    "#LowRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

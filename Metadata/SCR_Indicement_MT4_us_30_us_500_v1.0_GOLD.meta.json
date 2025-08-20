@@ -1,0 +1,176 @@
+{
+  "file_info": {
+    "original_name": "Indicement MT4 us 30 us 500.mq4",
+    "current_name": "SCR_Indicement_MT4_us_30_us_500_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Indicement_MT4_us_30_us_500_v1.0_GOLD.mq4",
+    "file_size": 8655,
+    "lines_count": 216
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 29,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "ShowInfoPanel",
+      "InfoPanelSizeAdjust",
+      "UpdateInfoTesting",
+      "spreadfilter",
+      "Enable_BuyTrades",
+      "Enable_SellTrades",
+      "FridayStopHour",
+      "setSL_TP_After_Entry",
+      "Virtual_expiration",
+      "FakeOutFilter",
+      "ST1_MagicNumber",
+      "ST1_Comment",
+      "RemoveCommentSuffix",
+      "US500_Settings",
+      "RunUS500",
+      "US500_Symbol",
+      "US500_STRAT1",
+      "US500_STRAT2",
+      "US500_STRAT3",
+      "US500_STRAT4",
+      "US500_UnitValue",
+      "US500_MaxSpread",
+      "US500_Randomization",
+      "US30_Settings",
+      "RunUS30",
+      "US30_Symbol",
+      "US30_STRAT1",
+      "US30_STRAT2",
+      "US30_STRAT3",
+      "US30_UnitValue",
+      "US30_MaxSpread",
+      "US30_Randomization",
+      "NAS100_Settings",
+      "RunNAS100",
+      "NAS100_Symbol",
+      "NAS100_STRAT1",
+      "NAS100_STRAT2",
+      "NAS100_STRAT3",
+      "NAS100_STRAT4",
+      "NAS100_UnitValue",
+      "NAS100_MaxSpread",
+      "NAS100_Randomization",
+      "propfirmsettings",
+      "AdjustEntry",
+      "AdjustSL",
+      "AdjustTP",
+      "AdjustTrailSL",
+      "AdjustTrailTP",
+      "AdjustBreakEven",
+      "LotSizeSettings",
+      "ForceBalanceToUse",
+      "Risk",
+      "MaxRisk_Strategy",
+      "LotPerBalance_step",
+      "StartLots",
+      "PropFirmMaxDailyDD",
+      "UseEquity",
+      "OnlyUp",
+      "CheckMargin",
+      "AdjustLotsizeToVariableValues",
+      "NFP_FILTER",
+      "EnableNFP_Filter",
+      "AutoGMT",
+      "Broker_GMT_OFFSET_Winter",
+      "Broker_GMT_OFFSET_Summer",
+      "NFP_CloseOpenTrades",
+      "NFP_ClosePendingOrders",
+      "NFP_MinutesBefore",
+      "NFP_MinutesAfter",
+      "IR_FILTER",
+      "EnableIR_Filter",
+      "IR_CloseOpenTrades",
+      "IR_ClosePendingOrders",
+      "IR_MinutesBefore",
+      "IR_MinutesAfter",
+      "CPI_FILTER",
+      "EnableCPI_Filter",
+      "CPI_CloseOpenTrades",
+      "CPI_ClosePendingOrders",
+      "CPI_MinutesBefore",
+      "CPI_MinutesAfter",
+      "DisableTrades",
+      "UseTradingTimeZones",
+      "Time_Source",
+      "StartTime_string",
+      "StopTime_string"
+    ],
+    "includes": [],
+    "properties": [
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:32.998955",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:32.289063",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

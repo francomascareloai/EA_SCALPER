@@ -1,0 +1,113 @@
+{
+  "file_info": {
+    "original_name": "News Trading Pending Order EA v1.6.mq4",
+    "current_name": "EA_News_Trading_Pending_Order_EA_v1_6_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_News_Trading_Pending_Order_EA_v1_6_v1.0_FOREX.mq4",
+    "file_size": 12144,
+    "lines_count": 333
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX"
+      ],
+      "timeframes": [
+        "M5"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos",
+      "News trading sem filtros"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 51,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "Max",
+      "DeleteOrders",
+      "CheckCurrencyPairs",
+      "SetTrailingStop",
+      "ProcessOrders"
+    ],
+    "variables": [
+      "Lots",
+      "TakeProfit",
+      "StopLoss",
+      "StartDistance",
+      "SpacingBetweenOrders",
+      "TrailingStop",
+      "NumberOfOrders",
+      "ExpireMinutes",
+      "MagicNumber",
+      "Slippage",
+      "Comments",
+      "MajorsMinors",
+      "ThisChart",
+      "BuyLimit",
+      "SellLimit",
+      "BuyStop",
+      "SellStop"
+    ],
+    "includes": [
+      "stderror.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:56.521904",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.956336",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

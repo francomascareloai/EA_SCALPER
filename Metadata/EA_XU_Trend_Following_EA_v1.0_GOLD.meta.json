@@ -1,0 +1,131 @@
+{
+  "file_info": {
+    "original_name": "XU Trend Following EA.mq4",
+    "current_name": "EA_XU_Trend_Following_EA_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_XU_Trend_Following_EA_v1.0_GOLD.mq4",
+    "file_size": 9880,
+    "lines_count": 309
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M5",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Proteção de drawdown",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 65,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "ManageTrailingStop",
+      "ManageHedging",
+      "HasHedgePosition",
+      "GetHedgeProfit",
+      "CloseHedgePosition",
+      "IsNewDay",
+      "CalculateDailyLoss"
+    ],
+    "variables": [
+      "LotSize",
+      "FastMAPeriod",
+      "SlowMAPeriod",
+      "ADXPeriod",
+      "ADXThreshold",
+      "ATRPeriod",
+      "ATRVolatilityThreshold",
+      "ATRMultiplierTrailing",
+      "RSIPeriod",
+      "RSIBuyThreshold",
+      "RSISellThreshold",
+      "Slippage",
+      "TradeComment",
+      "MagicNumber",
+      "HedgeTriggerPips",
+      "HedgeLotMultiplier",
+      "MaxDrawdownPercent",
+      "MaxDailyLossPercent",
+      "MinTradeIntervalMinutes",
+      "ProfitProtectionThreshold"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:10.522696",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:00.026533",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

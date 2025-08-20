@@ -171,8 +171,18 @@ class ClassificadorLoteAvancado:
                          source_dir: str, 
                          extensions: List[str] = ['.mq4', '.mq5', '.pine'],
                          create_backup: bool = True,
-                         show_progress: bool = True) -> Dict:
+                         show_progress: bool = True,
+                         config: Dict = None) -> Dict:
         """Processa diretório completo em lote"""
+        
+        # Aplicar configurações se fornecidas
+        if config is None:
+            config = {}
+        
+        # Aplicar configurações
+        self.max_workers = config.get('parallel_workers', self.max_workers)
+        create_backup = config.get('create_backup', create_backup)
+        show_progress = config.get('show_progress', show_progress)
         
         self.stats['start_time'] = time.time()
         

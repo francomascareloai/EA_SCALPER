@@ -1,0 +1,25 @@
+{
+  "classificador": {
+    "status": "sucesso",
+    "arquivos_processados": 5,
+    "taxa_sucesso": 100.0,
+    "tempo_execucao": 0.010657310485839844
+  },
+  "relatorios": {
+    "status": "sucesso",
+    "arquivos_gerados": 2,
+    "json_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Development\\Reports\\JSON\\demo_agentes_20250812_202209.json",
+    "html_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Development\\Reports\\HTML\\demo_agentes_20250812_202209.html"
+  },
+  "monitor": {
+    "status": "sucesso",
+    "metricas_coletadas": 8,
+    "duracao": 8
+  },
+  "coordenador": {
+    "status": "sucesso",
+    "threads_gerenciadas": 4,
+    "outras_threads_monitoradas": 3,
+    "tempo_total": 11.510276556015015
+  }
+}

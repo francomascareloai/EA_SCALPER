@@ -1,0 +1,138 @@
+{
+  "file_info": {
+    "original_name": "Shafina v1.mq4",
+    "current_name": "SCR_Shafina_v1_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Shafina_v1_v1.0_FOREX.mq4",
+    "file_size": 21827,
+    "lines_count": 513
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 81,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "TimedClosing",
+      "f0_4",
+      "IIFs",
+      "RapidTrailingStop"
+    ],
+    "variables": [
+      "Filter",
+      "Filter_EU",
+      "Filter_GU",
+      "Filter_UJ",
+      "MagicNumber",
+      "TradeComment",
+      "MaxTrades",
+      "StopLoss",
+      "NoTrade_Profit_Yet_StopLoss",
+      "InTrade_Profit_StopLoss",
+      "Distance",
+      "NoTrade_Profit_Yet_Distance",
+      "InTrade_Profit_Distance",
+      "Limit",
+      "NoTrade_Profit_Yet_Limit",
+      "InTrade_Profit_Limit",
+      "Use_TrailingStep",
+      "Start_Trailing_At",
+      "TrailingStep",
+      "Use_Set_BreakEven",
+      "LockPips",
+      "Set_BreakEvenAt",
+      "MinLots",
+      "MaxLots",
+      "Risk",
+      "FixedLots",
+      "UseMM",
+      "MaxSpreadPlusCommission",
+      "MaxSpreadPlusCommission_EU",
+      "MaxSpreadPlusCommission_GU",
+      "MaxSpreadPlusCommission_UJ",
+      "MaxSpread",
+      "MaxSpread_EU",
+      "MaxSpread_GU",
+      "MaxSpread_UJ",
+      "MAPeriod",
+      "MAMethod",
+      "TimeFilter",
+      "StartHour",
+      "StartMinute",
+      "EndHour",
+      "EndMinute",
+      "IndicatorSetting",
+      "IndicatorToUse",
+      "Env_period",
+      "Env_deviation",
+      "Env_shift"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#CRYPTO",
+    "#M1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:25.430015",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:39.345257",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

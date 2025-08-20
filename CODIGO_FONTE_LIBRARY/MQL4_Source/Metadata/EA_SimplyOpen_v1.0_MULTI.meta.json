@@ -1,0 +1,42 @@
+{
+  "file_info": {
+    "original_name": "SimplyOpen.mq4",
+    "new_name": "EA_SimplyOpen_v1.0_MULTI.mq4",
+    "file_size": 3676,
+    "created_date": "2025-08-13T07:11:46.300150",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market": "MULTI",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 5.5,
+    "level": "Não_Adequado",
+    "ready": false,
+    "has_stop_loss": true,
+    "has_take_profit": false,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#MULTI",
+    "#MULTI",
+    "#Nao_FTMO"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

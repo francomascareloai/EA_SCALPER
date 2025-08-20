@@ -1,0 +1,134 @@
+{
+  "file_info": {
+    "original_name": "ea_vr-stealth.3.mq4",
+    "current_name": "EA_ea_vr_stealth_3_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_ea_vr_stealth_3_v1.0_GOLD.mq4",
+    "file_size": 71056,
+    "lines_count": 1262
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 290,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnTick",
+      "but",
+      "uroven",
+      "obj_cre_h_line",
+      "proverca_br_tr",
+      "set_object",
+      "proverca_sl_tp_ti",
+      "get_object",
+      "his_del_obj",
+      "obj_cre_v_line",
+      "obj_cre",
+      "obj_del",
+      "closeorders",
+      "SetX",
+      "openorders",
+      "Error",
+      "pr",
+      "TimeS",
+      "OnDeinit",
+      "del",
+      "ButtonCreate",
+      "getUninitReasonText",
+      "but_stat",
+      "button_off",
+      "tim",
+      "TextCreate"
+    ],
+    "variables": [
+      "StartLots",
+      "Risk",
+      "TakeProfit",
+      "StopLoss",
+      "Trailing",
+      "TrailingStop",
+      "TrailingStep",
+      "TrailStart",
+      "Breakeven",
+      "Stop_Limit",
+      "Magic",
+      "Slip",
+      "MaxSpread",
+      "MaxOrders"
+    ],
+    "includes": [
+      "Dope_mod.mqh"
+    ],
+    "properties": [
+      "version",
+      "description",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:52.544582",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:51.000856",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

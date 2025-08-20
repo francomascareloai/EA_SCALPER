@@ -1,0 +1,45 @@
+{
+  "id": "aedc26f11f22",
+  "arquivo": {
+    "nome_original": "FFCal.mq4",
+    "nome_renomeado": "FFCal.mq4",
+    "hash": "aedc26f11f225c8e13766c5a3dd60847",
+    "tamanho_bytes": 50791,
+    "data_modificacao": "2022-09-02T11:01:34"
+  },
+  "classificacao": {
+    "tipo": "Indicator",
+    "linguagem": "MQL4",
+    "estrategia": "Trend",
+    "mercados": [
+      "MULTI"
+    ],
+    "timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "ftmo_analysis": {
+    "ftmo_ready": true,
+    "score": 60,
+    "checks": {
+      "stop_loss": true,
+      "take_profit": true,
+      "risk_management": false,
+      "drawdown_check": false,
+      "no_martingale": true
+    }
+  },
+  "qualidade": {
+    "score": 85,
+    "nivel": "Alto",
+    "status_compilacao": "Não testado"
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend",
+    "#MQL4",
+    "#Demo"
+  ],
+  "data_analise": "2025-08-12T21:00:08.716427"
+}

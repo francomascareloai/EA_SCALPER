@@ -1,0 +1,48 @@
+{
+  "id": "IND_COTCustom_001",
+  "file_name": "IND_COTCustom_v1.0_FOREX.mq4",
+  "original_name": "COTCustomInd.mq4",
+  "file_hash": "",
+  "type": "Indicator",
+  "language": "MQL4",
+  "strategy": "COT_Analysis",
+  "markets": ["FOREX"],
+  "timeframes": ["ALL"],
+  "key_functions": [
+    "OnInit",
+    "OnCalculate",
+    "SetIndexBuffer",
+    "iCustom"
+  ],
+  "dependencies": [
+    "DarkMindFx\\COT\\COTData"
+  ],
+  "exposed_parameters": [
+    "BarsBack",
+    "COTMarketCode"
+  ],
+  "ftmo_score": 6.0,
+  "detected_risks": [
+    "External dependency on COTData indicator",
+    "Limited to specific market codes"
+  ],
+  "code_quality_score": 8.0,
+  "compilation_status": "unknown",
+  "merge_readiness": "medium",
+  "necessary_adjustments": [
+    "Verify COTData dependency availability",
+    "Add error handling for missing data"
+  ],
+  "tags": [
+    "#Indicator",
+    "#COT",
+    "#FOREX",
+    "#Custom",
+    "#Analysis",
+    "#DarkMindFX"
+  ],
+  "license": "Copyright 2017, DarkMindFX",
+  "author": "DarkMindFX",
+  "created_date": "2017",
+  "classification_date": "2025-08-14"
+}

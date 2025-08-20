@@ -1,0 +1,41 @@
+{
+  "file_info": {
+    "original_name": "rotating_text.mq4",
+    "new_name": "EA_rotating_text_v1.0_XAUUSD.mq4",
+    "file_size": 1793,
+    "created_date": "2025-08-13T07:11:45.495814",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market": "XAUUSD",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 7.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#XAUUSD",
+    "#MULTI",
+    "#FTMO_Ready",
+    "#LowRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

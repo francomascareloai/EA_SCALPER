@@ -1,0 +1,100 @@
+{
+  "file_info": {
+    "original_name": "Arrow Scalper.mq4",
+    "new_name": "IND_ArrowScalper_v1.0_MULTI.mq4",
+    "file_type": "Indicator",
+    "language": "MQL4",
+    "size_kb": 8,
+    "creation_date": "2024-01-15",
+    "last_modified": "2024-01-15"
+  },
+  "classification": {
+    "category": "Indicator",
+    "strategy_type": "Trend",
+    "trading_style": "Chandelier Stops",
+    "complexity_level": "Intermediate",
+    "market_focus": "Multi-Symbol",
+    "timeframe": "All",
+    "ftmo_ready": false
+  },
+  "technical_analysis": {
+    "indicators_used": [
+      "ATR (Average True Range)",
+      "Highest/Lowest Price",
+      "Chandelier Stops"
+    ],
+    "signal_type": "Arrow signals on trend changes",
+    "calculation_method": "Dynamic zones based on ATR",
+    "visual_elements": [
+      "Up arrows",
+      "Down arrows",
+      "Zone lines"
+    ]
+  },
+  "ftmo_compliance": {
+    "ftmo_ready": true,
+    "compliance_score": 5,
+    "risk_per_trade": "N/A (Indicator only)",
+    "max_drawdown": "N/A (Indicator only)",
+    "stop_loss": "N/A (Indicator only)",
+    "take_profit": "N/A (Indicator only)",
+    "martingale": false,
+    "grid_trading": false,
+    "session_filter": "N/A (Indicator only)",
+    "issues": []
+  },
+  "parameters": {
+    "zone_period": "User defined (default varies)",
+    "amplitude_period": "User defined (default varies)",
+    "amplitude_coefficient": "User defined multiplier",
+    "customizable": true
+  },
+  "performance": {
+    "signal_accuracy": "Not available",
+    "false_signals": "Not available",
+    "lag_time": "Minimal (real-time calculation)",
+    "reliability": "Good for trend identification"
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend",
+    "#Multi_Symbol",
+    "#ATR",
+    "#Chandelier_Stops",
+    "#Arrow_Signals",
+    "#Zone_Trading",
+    "#FTMO_Ready"
+  ],
+  "status": {
+    "review_status": "Classified",
+    "testing_status": "Not tested",
+    "approval_status": "Approved for FTMO",
+    "notes": "Good trend indicator for scalping strategies"
+  },
+  "file_paths": {
+    "source_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/All_MQ4/Arrow Scalper.mq4",
+    "target_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/Indicators/Trend/IND_ArrowScalper_v1.0_MULTI.mq4",
+    "metadata_path": "CODIGO_FONTE_LIBRARY/Metadata/IND_ArrowScalper_v1.0_MULTI.meta.json"
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:14.637148",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

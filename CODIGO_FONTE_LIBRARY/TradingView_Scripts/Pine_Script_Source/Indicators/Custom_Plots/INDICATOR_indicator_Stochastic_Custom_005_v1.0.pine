@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #005
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Indices
+// Timeframe: M1
+
+//@version=5
+indicator("Stochastic_Custom_5", shorttitle="Stochast", overlay=true)
+
+// Parâmetros
+length = input.int(50, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+ema = ta.ema(source, length)
+
+// Plot
+plot(ema, "Stochastic_Custom_5", color=color.aqua)

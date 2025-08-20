@@ -1,0 +1,172 @@
+{
+  "file_info": {
+    "original_name": "OndaFX-EDU.mq4",
+    "current_name": "SCR_OndaFX_EDU_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_OndaFX_EDU_v1.0_FOREX.mq4",
+    "file_size": 48046,
+    "lines_count": 1116
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 226,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "f0_35",
+      "f0_24",
+      "f0_31",
+      "f0_14",
+      "f0_8",
+      "f0_32",
+      "f0_21",
+      "f0_28",
+      "f0_40",
+      "f0_17",
+      "f0_9",
+      "f0_20",
+      "f0_37",
+      "f0_7",
+      "f0_6",
+      "f0_30",
+      "f0_13",
+      "f0_11",
+      "f0_26",
+      "f0_2",
+      "f0_10",
+      "init",
+      "f0_3",
+      "f0_29",
+      "deinit",
+      "start",
+      "f0_33",
+      "f0_4",
+      "f0_5",
+      "f0_22",
+      "f0_41",
+      "f0_18",
+      "f0_39",
+      "f0_25",
+      "f0_34",
+      "f0_36",
+      "f0_19",
+      "f0_12",
+      "f0_27",
+      "f0_15",
+      "f0_0",
+      "f0_16",
+      "f0_23",
+      "f0_1",
+      "f0_38"
+    ],
+    "variables": [
+      "e_mail",
+      "timeframe",
+      "bb_period",
+      "bb_deviation",
+      "bb_method",
+      "bb_price",
+      "atr_period",
+      "lot_size_1",
+      "lot_size_2",
+      "lot_size_3",
+      "lot_size_4",
+      "lot_size_5",
+      "lot_size_6",
+      "lot_size_7",
+      "lot_size_8",
+      "entry_rule",
+      "re_entry_rule",
+      "median_period",
+      "filter_sma",
+      "atr_take_profit",
+      "take_profit_1",
+      "take_profit_2",
+      "take_profit_3",
+      "take_profit_4",
+      "take_profit_5",
+      "take_profit_6",
+      "take_profit_7",
+      "take_profit_8",
+      "atr_stop_loss",
+      "stop_loss",
+      "atr_step_pips",
+      "step_pips",
+      "slippage",
+      "magic_buy",
+      "magic_sell",
+      "comment",
+      "text_interface"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:02.111951",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:36.245508",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

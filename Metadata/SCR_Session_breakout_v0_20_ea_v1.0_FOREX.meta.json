@@ -1,0 +1,96 @@
+{
+  "file_info": {
+    "original_name": "Session breakout v0.20 [ea].mq4",
+    "current_name": "SCR_Session_breakout_v0_20_ea_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Session_breakout_v0_20_ea_v1.0_FOREX.mq4",
+    "file_size": 2373,
+    "lines_count": 47
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX"
+      ],
+      "timeframes": [
+        "M1",
+        "M15",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 3.0,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 3.0,
+    "level": "Baixo",
+    "compliance_score": 30.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 7,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "start"
+    ],
+    "variables": [
+      "Local_start_hour_EU_session",
+      "Local_end_hour_EU_session",
+      "Local_start_hour_US_session",
+      "Local_end_hour_US_session",
+      "Trade_on_Monday",
+      "TakeProfit",
+      "Lots"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Trend_Following",
+    "#FOREX",
+    "#M1",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:24.961306",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:39.213632",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}
