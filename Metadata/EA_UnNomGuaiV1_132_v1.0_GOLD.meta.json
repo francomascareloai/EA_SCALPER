@@ -1,0 +1,169 @@
+{
+  "file_info": {
+    "original_name": "UnNomGuaiV1.132.mq4",
+    "current_name": "EA_UnNomGuaiV1_132_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_UnNomGuaiV1_132_v1.0_GOLD.mq4",
+    "file_size": 33399,
+    "lines_count": 1031
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 161,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "RemoveAllObjects",
+      "Display",
+      "SM",
+      "DisplayErrors",
+      "ShowStatus",
+      "GetLotSize",
+      "OnTick",
+      "GetBuyOrderCount",
+      "GetSellOrderCount",
+      "GetTicketOfLatestBuyOrder",
+      "GetTicketOfLatestSellOrder",
+      "CloseAllBuyOrders",
+      "CloseAllSellOrders",
+      "CloseAllOrdersOnAllPairs",
+      "TotalProfitOnAllPairs",
+      "IsNewBar",
+      "CheckTradingTime",
+      "TradesToday"
+    ],
+    "variables": [
+      "__c1",
+      "__c11",
+      "MM",
+      "Risk",
+      "Lots",
+      "__c2",
+      "multiplier",
+      "profit",
+      "globalprofit",
+      "pairglobalprofit",
+      "maximaloss",
+      "tradesperday",
+      "openonnewcandle",
+      "__c3",
+      "spacePips",
+      "spaceOrders",
+      "spaceLots",
+      "space1Pips",
+      "space1Orders",
+      "space1Lots",
+      "space2Pips",
+      "space2Orders",
+      "space2Lots",
+      "space3Pips",
+      "space3Orders",
+      "space3Lots",
+      "__c4",
+      "magicbuy",
+      "buycomment",
+      "magicsell",
+      "sellcomment",
+      "__c5",
+      "__c51",
+      "Start_Hour",
+      "Start_Minute",
+      "Finish_Hour",
+      "Finish_Minute",
+      "__c6",
+      "__c61",
+      "UseSmaParabolicEntry",
+      "__entry2",
+      "cciperiod",
+      "ccimax",
+      "ccimin",
+      "__c7",
+      "suspendtrades",
+      "closeallsellsnow",
+      "closeallbuysnow",
+      "closeallnow",
+      "__c8",
+      "KeepTextOnTop",
+      "DisplayX",
+      "DisplayY",
+      "fontSise",
+      "fontName"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:58.514807",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:58.980902",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

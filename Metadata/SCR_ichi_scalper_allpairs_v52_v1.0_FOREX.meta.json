@@ -1,0 +1,117 @@
+{
+  "file_info": {
+    "original_name": "ichi_scalper_allpairs_v52.mq4",
+    "current_name": "SCR_ichi_scalper_allpairs_v52_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_ichi_scalper_allpairs_v52_v1.0_FOREX.mq4",
+    "file_size": 29549,
+    "lines_count": 788
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 204,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_9",
+      "f0_1",
+      "f0_11",
+      "f0_13",
+      "f0_3",
+      "f0_12",
+      "f0_10",
+      "f0_0",
+      "f0_14",
+      "f0_4",
+      "f0_5",
+      "f0_15",
+      "f0_8",
+      "f0_2",
+      "f0_7",
+      "f0_6"
+    ],
+    "variables": [
+      "RiskINFO",
+      "Risk",
+      "ToCloseTrades",
+      "UseClose",
+      "PercentageOfAccountToUseINFO",
+      "PercentageOfAccount",
+      "MaxCapitalToRiskINFO",
+      "UseMaxCapitalStop",
+      "MaxCapitalToRiskPercent",
+      "ToCloseOldTrades",
+      "UseTimeOut",
+      "MaxTradeOpenHours"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:28.429078",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:30.818103",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

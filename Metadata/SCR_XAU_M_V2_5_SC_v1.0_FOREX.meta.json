@@ -1,0 +1,185 @@
+{
+  "file_info": {
+    "original_name": "XAU M V2.5 SC.mq4",
+    "current_name": "SCR_XAU_M_V2_5_SC_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_XAU_M_V2_5_SC_v1.0_FOREX.mq4",
+    "file_size": 115227,
+    "lines_count": 2882
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 596,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_4",
+      "f0_24",
+      "f0_3",
+      "f0_22",
+      "f0_11",
+      "f0_19",
+      "f0_1",
+      "f0_31",
+      "f0_35",
+      "f0_7",
+      "f0_32",
+      "f0_20",
+      "f0_5",
+      "f0_18",
+      "f0_2",
+      "f0_13",
+      "f0_33",
+      "f0_25",
+      "f0_26",
+      "f0_29",
+      "f0_21",
+      "f0_16",
+      "f0_36",
+      "f0_28",
+      "f0_12",
+      "f0_0",
+      "f0_6",
+      "f0_14",
+      "f0_23",
+      "f0_9",
+      "f0_10",
+      "f0_8",
+      "f0_34",
+      "f0_30",
+      "f0_17",
+      "f0_27",
+      "f0_15"
+    ],
+    "variables": [
+      "xXAUMINERx",
+      "LICENSED_TO",
+      "MARtiScalper",
+      "xxxxxxxxxxx",
+      "USEnewsFilter",
+      "xxSETTINGSxx",
+      "Lots",
+      "LotExponent",
+      "MaxLots",
+      "MM",
+      "TakeProfit",
+      "UseEquityStop",
+      "TotalEquityRisk",
+      "xxxxxxxxxxxx",
+      "UseTrailingStop_Hilo",
+      "TrailStart_Hilo",
+      "TrailStop_Hilo",
+      "PipStep_Hilo",
+      "MartiPRO",
+      "UseTrailingStop_15",
+      "TrailStart_15",
+      "TrailStop_15",
+      "PipStep_15",
+      "EXPERTSPro",
+      "UseTrailingStop_16",
+      "TrailStart_16",
+      "TrailStop_16",
+      "PipStep_16",
+      "CloseFriday",
+      "CloseFridayHour",
+      "OpenMondey",
+      "OpenMondeyHour",
+      "KEY"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:07.009819",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:45.503478",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

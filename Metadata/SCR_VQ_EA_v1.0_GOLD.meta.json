@@ -1,0 +1,135 @@
+{
+  "file_info": {
+    "original_name": "VQ_EA.mq4",
+    "current_name": "SCR_VQ_EA_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_VQ_EA_v1.0_GOLD.mq4",
+    "file_size": 34031,
+    "lines_count": 961
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 138,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "SetText",
+      "Alerts",
+      "subPrintDetails",
+      "CntOrd",
+      "ErrorDescription",
+      "Write",
+      "OrdSend",
+      "OrdClose",
+      "OrdModify",
+      "OrdDelete",
+      "TrailingPositions",
+      "ModifyStopLoss"
+    ],
+    "variables": [
+      "Lots",
+      "StopLoss",
+      "TakeProfit",
+      "TradeAtCloseBar",
+      "TrailingStop",
+      "TrailingStep",
+      "BreakEven",
+      "MagicNumber",
+      "Repeat",
+      "Periods",
+      "UseAlert",
+      "SendEmail",
+      "TradeLog",
+      "Slippage",
+      "Indicator_Setting",
+      "Crash",
+      "TimeFrame",
+      "Length",
+      "Method",
+      "Smoothing",
+      "Filter",
+      "RealTime",
+      "Steady",
+      "Color",
+      "Alerts",
+      "EmailON",
+      "SignalPrice",
+      "CountBars",
+      "TradeLast",
+      "prevtime"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:00.063024",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:44.366028",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

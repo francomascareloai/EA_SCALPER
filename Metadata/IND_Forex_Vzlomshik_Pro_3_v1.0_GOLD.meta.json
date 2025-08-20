@@ -1,0 +1,174 @@
+{
+  "file_info": {
+    "original_name": "Forex-Vzlomshik-Pro (3).mq4",
+    "current_name": "IND_Forex_Vzlomshik_Pro_3_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Forex_Vzlomshik_Pro_3_v1.0_GOLD.mq4",
+    "file_size": 56906,
+    "lines_count": 1524
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 375,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_28",
+      "f0_17",
+      "f0_35",
+      "f0_4",
+      "f0_13",
+      "f0_27",
+      "f0_14",
+      "f0_2",
+      "f0_24",
+      "f0_25",
+      "f0_16",
+      "f0_19",
+      "f0_38",
+      "f0_32",
+      "f0_7",
+      "f0_11",
+      "f0_9",
+      "f0_26",
+      "f0_31",
+      "f0_0",
+      "f0_33",
+      "f0_18",
+      "f0_20",
+      "f0_3",
+      "f0_23",
+      "f0_15",
+      "f0_6",
+      "f0_37",
+      "f0_8",
+      "f0_36",
+      "f0_34",
+      "f0_30",
+      "f0_10",
+      "f0_21",
+      "f0_12",
+      "f0_5",
+      "f0_22",
+      "f0_1",
+      "f0_29"
+    ],
+    "variables": [
+      "Contact",
+      "______General_Settings________",
+      "UseManualLots",
+      "Lots",
+      "Booster",
+      "TakeProfit",
+      "PipStarter",
+      "________Misc_Settinngs________",
+      "TurboMode",
+      "TurboDivider",
+      "ContinueTrading",
+      "MM",
+      "Divider",
+      "chartDisplay",
+      "____Addtional_Safe_Guards_____",
+      "UseStoplossPct",
+      "StoplossPct",
+      "UseTakeProfitPct",
+      "TakeProfitPct",
+      "UseTrailingStop",
+      "StartTrailing",
+      "StopTrailing",
+      "Slippage",
+      "___________System_1____________",
+      "UseStrategy_1",
+      "MagicNumber_1",
+      "MaxTrades_1",
+      "UseDollarTakeProfit_s1",
+      "DollarTakeProfit_s1",
+      "system1_comment",
+      "__________System_2_____________",
+      "UseStrategy_2",
+      "MagicNumber_2",
+      "MaxTrades_2",
+      "UseDollarTakeProfit_s2",
+      "DollarTakeProfit_s2",
+      "system2_comment",
+      "__________System_3___________",
+      "UseStrategy_3",
+      "MagicNumber_3",
+      "MaxTrades_3",
+      "UseDollarTakeProfit_s3",
+      "DollarTakeProfit_s3",
+      "system3_comment"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#M1",
+    "#H1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:03.814295",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:07.655315",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

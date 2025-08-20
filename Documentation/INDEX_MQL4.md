@@ -1,12 +1,12 @@
 # ÍNDICE MQL4 - CÓDIGOS ORGANIZADOS
 
 ## 📊 ESTATÍSTICAS GERAIS
-- **Total de Arquivos MQL4**: 1
-- **EAs**: 1
+- **Total de Arquivos MQL4**: 2
+- **EAs**: 2
 - **Indicadores**: 0
 - **Scripts**: 0
-- **FTMO Ready**: 0
-- **Última Atualização**: 2024-12-19
+- **FTMO Ready**: 1
+- **Última Atualização**: 2025-08-13
 
 ---
 
@@ -18,16 +18,18 @@
 | EA_DensityScalper | v1.0 | MULTI | M5 | 6/10 | ⚠️ Não FTMO | Scalper baseado em densidade de preços com estratégia dupla |
 
 ### 📊 Grid/Martingale
-*Nenhum arquivo classificado ainda*
+*Nenhum arquivo classificado*
 
 ### 🎯 SMC (Smart Money Concepts)
-*Nenhum arquivo classificado ainda*
+*Nenhum arquivo classificado*
 
 ### 📈 Trend Following
-*Nenhum arquivo classificado ainda*
+| Nome | Versão | Mercado | TF | FTMO Score | Status | Descrição |
+|------|--------|---------|----|-----------:|--------|-----------|
+| EA_VQTrader | v1.0 | MULTI | M15/H1 | 7.5/10 | ✅ FTMO Ready | EA de trend following usando indicador VQ com gestão de risco adequada |
 
 ### 📊 Volume Analysis
-*Nenhum arquivo classificado ainda*
+*Nenhum arquivo classificado*
 
 ---
 
@@ -42,7 +44,11 @@
 ---
 
 ## 🏆 TOP FTMO READY
-*Nenhum EA MQL4 FTMO-ready classificado ainda*
+1. **EA_VQTrader_v1.0_MULTI** - Score: 7.5/10
+   - ✅ Stop Loss implementado
+   - ✅ Gestão de risco adequada
+   - ✅ Sem lógica de grid/martingale
+   - ✅ Adequado para FTMO
 
 ---
 
@@ -58,4 +64,5 @@
 
 ---
 
-*Gerado automaticamente pelo Classificador_Trading em 2024-12-19*
+*Gerado automaticamente pelo Classificador_Trading em 2025-08-13*
+*Última correção: VQ_EA reclassificado de Grid/Martingale para Trend Following*

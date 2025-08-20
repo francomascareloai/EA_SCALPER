@@ -1,0 +1,174 @@
+{
+  "file_info": {
+    "original_name": "Trio Orchestra v1.0.mq4",
+    "current_name": "SCR_Trio_Orchestra_v1_0_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Trio_Orchestra_v1_0_v1.0_FOREX.mq4",
+    "file_size": 114473,
+    "lines_count": 2471
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 596,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_4",
+      "f0_24",
+      "f0_3",
+      "f0_22",
+      "f0_11",
+      "f0_19",
+      "f0_1",
+      "f0_31",
+      "f0_35",
+      "f0_7",
+      "f0_32",
+      "f0_20",
+      "f0_5",
+      "f0_18",
+      "f0_2",
+      "f0_13",
+      "f0_33",
+      "f0_25",
+      "f0_26",
+      "f0_29",
+      "f0_21",
+      "f0_16",
+      "f0_36",
+      "f0_28",
+      "f0_12",
+      "f0_0",
+      "f0_6",
+      "f0_14",
+      "f0_23",
+      "f0_9",
+      "f0_10",
+      "f0_8",
+      "f0_34",
+      "f0_30",
+      "f0_17",
+      "f0_27",
+      "f0_15"
+    ],
+    "variables": [
+      "t1",
+      "Account",
+      "Lots",
+      "LotExponent",
+      "MaxLots",
+      "MM",
+      "TakeProfit",
+      "UseEquityStop",
+      "TotalEquityRisk",
+      "t2",
+      "CloseFriday",
+      "CloseFridayHour",
+      "OpenMondey",
+      "OpenMondeyHour",
+      "t3",
+      "MaxTrades_Hilo",
+      "UseTrailingStop_Hilo",
+      "TrailStart_Hilo",
+      "TrailStop_Hilo",
+      "PipStep_Hilo",
+      "slip_Hilo",
+      "MagicNumber_Hilo",
+      "t4",
+      "MaxTrades_15",
+      "UseTrailingStop_15",
+      "TrailStart_15",
+      "TrailStop_15",
+      "PipStep_15",
+      "slip_15",
+      "G_magic_176_15",
+      "t5",
+      "MaxTrades_16",
+      "UseTrailingStop_16",
+      "TrailStart_16",
+      "TrailStop_16",
+      "PipStep_16",
+      "slip_16",
+      "G_magic_176_16",
+      "KEY"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:54.459764",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:43.963961",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

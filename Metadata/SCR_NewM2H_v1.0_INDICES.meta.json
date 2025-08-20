@@ -1,0 +1,102 @@
+{
+  "file_info": {
+    "original_name": "NewM2H.mq4",
+    "current_name": "SCR_NewM2H_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_NewM2H_v1.0_INDICES.mq4",
+    "file_size": 15365,
+    "lines_count": 480
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 81,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "Init",
+      "OpenOrder",
+      "CalcTarget",
+      "DoDown",
+      "DoUp",
+      "start",
+      "Init",
+      "OpenOrder",
+      "LotSize",
+      "SetOrders",
+      "SearchLastSellBuy",
+      "TakeProfit",
+      "MoveTP",
+      "CheckTrade",
+      "start"
+    ],
+    "variables": [
+      "Lot",
+      "Grid",
+      "LockStep",
+      "Lot",
+      "Grid"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "copyright"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:56.404543",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.456846",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

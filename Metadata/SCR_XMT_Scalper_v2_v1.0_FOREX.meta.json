@@ -1,0 +1,175 @@
+{
+  "file_info": {
+    "original_name": "XMT-Scalper_v2.mq4",
+    "current_name": "SCR_XMT_Scalper_v2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_XMT_Scalper_v2_v1.0_FOREX.mq4",
+    "file_size": 82147,
+    "lines_count": 1993
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 202,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "sub_trade",
+      "sub_Check4StrayTrades",
+      "sub_dbl2strbrokerdigits",
+      "sub_normalizebrokerdigits",
+      "sub_adjust00instring",
+      "sub_printformattedstring",
+      "sub_multiplicator",
+      "sub_magicnumber",
+      "sub_takesnapshot",
+      "sub_maketimestring",
+      "sub_makescreenshot",
+      "sub_calculatelotsize",
+      "sub_recalculatewrongrisk",
+      "sub_printdetails",
+      "sub_printandcomment",
+      "sub_errormessages",
+      "sub_printsumofbrokererrors",
+      "sub_CheckThroughAllOpenOrders",
+      "sub_CheckThroughAllClosedOrders",
+      "sub_ShowGraphInfo",
+      "sub_Display",
+      "sub_DeleteDisplay"
+    ],
+    "variables": [
+      "Configuration",
+      "ReverseTrade",
+      "Magic",
+      "OrderCmt",
+      "ECN_Mode",
+      "Debug",
+      "Verbose",
+      "TradingSettings",
+      "MaxSpread",
+      "MaxExecution",
+      "MaxExecutionMinutes",
+      "StopLoss",
+      "TakeProfit",
+      "AddPriceGap",
+      "TrailingStart",
+      "Commission",
+      "Slippage",
+      "MinimumUseStopLevel",
+      "VolatilitySettings",
+      "UseDynamicVolatilityLimit",
+      "VolatilityMultiplier",
+      "VolatilityLimit",
+      "UseVolatilityPercentage",
+      "VolatilityPercentageLimit",
+      "UseIndicatorSet",
+      "UseIndicatorSwitch",
+      "Indicatorperiod",
+      "BBDeviation",
+      "EnvelopesDeviation",
+      "OrderExpireSeconds",
+      "Money_Management",
+      "MoneyManagement",
+      "MinLots",
+      "MaxLots",
+      "Risk",
+      "ManualLotsize",
+      "MinMarginLevel",
+      "Screen_Shooter",
+      "TakeShots",
+      "DelayTicks",
+      "ShotsPerBar",
+      "DisplayGraphics",
+      "Heading_Size",
+      "Text_Size",
+      "doshot",
+      "oldphase",
+      "no"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stderror.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "version",
+      "link",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:09.337696",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:45.676174",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

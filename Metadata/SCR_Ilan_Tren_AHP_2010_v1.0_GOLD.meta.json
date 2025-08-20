@@ -1,0 +1,121 @@
+{
+  "file_info": {
+    "original_name": "Ilan_Tren_AHP_2010.mq4",
+    "current_name": "SCR_Ilan_Tren_AHP_2010_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Ilan_Tren_AHP_2010_v1.0_GOLD.mq4",
+    "file_size": 19428,
+    "lines_count": 495
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 129,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CountTrades",
+      "CloseThisSymbolAll",
+      "OpenPendingOrder",
+      "StopLong",
+      "StopShort",
+      "TakeLong",
+      "TakeShort",
+      "CalculateProfit",
+      "TrailingAlls",
+      "AccountEquityHigh",
+      "FindLastBuyPrice",
+      "FindLastSellPrice",
+      "GetLots",
+      "again"
+    ],
+    "variables": [
+      "LotExponent",
+      "a",
+      "Lot",
+      "b",
+      "risk",
+      "lotdecimal",
+      "TakeProfit",
+      "PipStep",
+      "MaxTrades",
+      "PeriodPower",
+      "Period_Bulls",
+      "Period_Bears",
+      "d",
+      "DayOfWeekOFF",
+      "e",
+      "HourAfterStop",
+      "DynamicPips",
+      "DefaultPips",
+      "Bar",
+      "g_magic_176"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:32.295176",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:31.873790",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

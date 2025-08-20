@@ -1,0 +1,104 @@
+{
+  "file_info": {
+    "original_name": "myMACD4ver2.mq4",
+    "current_name": "SCR_myMACD4ver2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_myMACD4ver2_v1.0_FOREX.mq4",
+    "file_size": 8882,
+    "lines_count": 278
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 42,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "CheckMargin",
+      "CheckBars",
+      "CheckProfit",
+      "PrintTime",
+      "CheckTime",
+      "BuyConditionsMet",
+      "SellConditionsMet",
+      "CheckOpenOrders",
+      "OpenBuyOrder",
+      "OpenSellOrder",
+      "CloseLongOrder",
+      "CloseShortOrder",
+      "ModifyLongTrail",
+      "ModifyShortTrail",
+      "CheckForClose",
+      "start"
+    ],
+    "variables": [
+      "TakeProfit",
+      "Lots",
+      "TrailingStop",
+      "MACDOpenLevel",
+      "MACDCloseLevel",
+      "MATrendPeriod",
+      "OpenTimeStart",
+      "OpenTimeEnd",
+      "CloseTime",
+      "mytime"
+    ],
+    "includes": [],
+    "properties": [
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:55.068200",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.251400",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

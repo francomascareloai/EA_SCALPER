@@ -1,0 +1,50 @@
+{
+  "id": "EA_Skynet_XAUUSD_M30_v1.0_XAUUSD",
+  "arquivo": "EA_Skynet_XAUUSD_M30_v1.0_XAUUSD.mq4",
+  "hash": "",
+  "tipo": "Strategy",
+  "linguagem": "MQL4 Settings",
+  "estrategia": "Breakout",
+  "subestrategias": [
+    "News Trading",
+    "Risk Management",
+    "Trailing Stop"
+  ],
+  "mercados": [
+    "XAUUSD"
+  ],
+  "timeframes": [
+    "M30"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [
+    "Magic",
+    "Order_Comment",
+    "Slippage",
+    "Max_Spread",
+    "Percentage_Risk",
+    "Fixed_Lot",
+    "Take_Profit",
+    "Stop_Loss",
+    "Trailing_Stop",
+    "Breakeven_Target_PipsInp"
+  ],
+  "ftmo_score": 6,
+  "riscos_detectados": [
+    "Alto risco com Percentage_Risk=30.0",
+    "Múltiplas estratégias simultâneas podem gerar conflitos"
+  ],
+  "qualidade_codigo_score": 5,
+  "compilacao": {
+    "status": "nao_aplicavel",
+    "warnings": 0
+  },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [
+    "Reduzir Percentage_Risk para <=1%",
+    "Adicionar filtro de horário de trading",
+    "Implementar proteção de drawdown diário"
+  ],
+  "licenca_autor": "desconhecido"
+}

@@ -1,0 +1,138 @@
+{
+  "file_info": {
+    "original_name": "MQLTA MT4 High Low Trailing Stop.mq4",
+    "current_name": "EA_MQLTA_MT4_High_Low_Trailing_Stop_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_MQLTA_MT4_High_Low_Trailing_Stop_v1.0_GOLD.mq4",
+    "file_size": 12475,
+    "lines_count": 323
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 44,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "OnChartEvent",
+      "GetStopLossBuy",
+      "GetStopLossSell",
+      "TrailingStop",
+      "ModifyOrder",
+      "NotifyStopLossUpdate",
+      "DrawPanel",
+      "CleanPanel",
+      "ChangeTrailingEnabled"
+    ],
+    "variables": [
+      "Comment_1",
+      "BarsToScan",
+      "Comment_2",
+      "UseMagic",
+      "MagicNumber",
+      "UseComment",
+      "CommentFilter",
+      "EnableTrailingParam",
+      "Comment_3",
+      "EnableNotify",
+      "SendAlert",
+      "SendApp",
+      "SendEmail",
+      "Comment_3a",
+      "ShowPanel",
+      "IndicatorName",
+      "Xoff",
+      "Yoff"
+    ],
+    "includes": [
+      "MQLTA ErrorHandling.mqh",
+      "MQLTA Utils.mqh"
+    ],
+    "properties": [
+      "link",
+      "version",
+      "strict",
+      "copyright",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "icon"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:51.272338",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.770917",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

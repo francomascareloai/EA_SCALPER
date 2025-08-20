@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #010
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: M1
+
+//@version=5
+indicator("Market_Structure_10", shorttitle="Market_S", overlay=true)
+
+// Parâmetros
+length = input.int(21, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+ma = ta.sma(source, length)
+
+// Plot
+plot(ma, "Market_Structure_10", color=color.purple)

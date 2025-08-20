@@ -1,0 +1,39 @@
+{
+  "arquivo": {
+    "nome": "test_ea_sample.mq4",
+    "tamanho_bytes": 2764,
+    "linhas_codigo": 73,
+    "data_modificacao": "2025-08-12T21:13:28.948595"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de horário/sessão"
+    ],
+    "snippets_detectados": [
+      {
+        "tipo": "Risk_Management",
+        "nome": "CalculateLotSize",
+        "descricao": "Função de cálculo de lot size",
+        "categoria": "FTMO_Tools"
+      }
+    ]
+  },
+  "processing_time": 0.0024862289428710938,
+  "timestamp": "2025-08-13T01:11:09.828082"
+}

@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #062
+// Tipo: INDICATOR
+// Categoria: SMC
+// Mercado: Indices
+// Timeframe: M15
+
+//@version=5
+indicator("Liquidity_Zones_62", shorttitle="Liquidit", overlay=false)
+
+// Parâmetros
+length = input.int(14, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+macd = ta.macd(source, length, length*2, length//2)
+
+// Plot
+plot(macd, "Liquidity_Zones_62", color=color.red)

@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #094
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: H4
+
+//@version=5
+indicator("Breakout_Scanner_94", shorttitle="Breakout", overlay=true)
+
+// Parâmetros
+length = input.int(21, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+rsi = ta.rsi(source, length)
+
+// Plot
+plot(rsi, "Breakout_Scanner_94", color=color.yellow)

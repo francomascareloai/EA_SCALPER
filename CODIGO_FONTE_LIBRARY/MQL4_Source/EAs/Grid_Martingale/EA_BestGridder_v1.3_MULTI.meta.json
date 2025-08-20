@@ -1,0 +1,62 @@
+{
+  "id": "EA_BestGridder_v1.3_MULTI",
+  "filename": "EA_BestGridder_v1.3_MULTI.mq4",
+  "hash": "sha256_placeholder",
+  "type": "EA",
+  "language": "MQL4",
+  "strategy": "Grid_Martingale",
+  "markets": ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "USDJPY", "USDCAD", "USDCHF", "EURJPY", "GBPJPY"],
+  "timeframes": ["M1", "M5", "M15"],
+  "key_functions": [
+    "OnTick()",
+    "OnTimer()",
+    "GridLogic()",
+    "LotCalculation()"
+  ],
+  "dependencies": [],
+  "exposed_parameters": {
+    "UseLotManual": "true - Usar lote manual",
+    "ManualLot": "0.01 - Lote manual",
+    "Risk": "1 - Risco em percentual",
+    "StopLossProcent": "0 - Stop loss em percentual",
+    "ProfitPips": "20 - Profit em pips",
+    "MinPips": "25 - Mínimo de pips",
+    "MaxOrders": "100 - Máximo de ordens",
+    "TimeStart": "2 - Hora de início",
+    "TimeEnd": "22 - Hora de fim",
+    "Magic": "1234 - Número mágico"
+  },
+  "ftmo_score": 2,
+  "detected_risks": [
+    "Sistema de grid com múltiplas ordens",
+    "Sem stop loss fixo por trade",
+    "Risco de martingale",
+    "Máximo de 100 ordens simultâneas",
+    "Multi-pares aumenta exposição"
+  ],
+  "code_quality_score": 7,
+  "compilation_status": "unknown",
+  "merge_readiness": "low",
+  "necessary_adjustments": [
+    "CRÍTICO: Implementar stop loss fixo por trade",
+    "CRÍTICO: Limitar drawdown máximo",
+    "CRÍTICO: Reduzir número máximo de ordens",
+    "Implementar controle de correlação entre pares",
+    "Adicionar proteção contra gaps de mercado"
+  ],
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#MULTI",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#HighRisk",
+    "#Nao_FTMO",
+    "#MultiPair",
+    "#MaxOrders_100"
+  ],
+  "author_license": "MFOREX.PRO",
+  "created_at": "2024-12-19",
+  "classification_notes": "EA de grid multi-pares com alto risco. Não compatível com FTMO devido à ausência de stop loss e uso de martingale. Requer modificações substanciais para uso em contas com restrições."
+}

@@ -1,0 +1,2755 @@
+{
+  "metadata": {
+    "generated_at": "2025-08-12T22:59:27.115369",
+    "system_version": "2.0",
+    "total_files": 24
+  },
+  "statistics": {
+    "total_files": 24,
+    "processed_files": 24,
+    "errors": 0,
+    "ftmo_ready": 2,
+    "avg_score": 5.366926081500566,
+    "avg_metadata_quality": 7.4944444444444445,
+    "processing_time": 1.8575067520141602
+  },
+  "report": {
+    "summary": {
+      "total_files_analyzed": 24,
+      "processing_time_seconds": 1.86,
+      "average_unified_score": 5.37,
+      "average_metadata_quality": 7.49,
+      "ftmo_ready_count": 2,
+      "errors_count": 0
+    },
+    "distributions": {
+      "file_types": {
+        "EA": 12,
+        "Indicator": 8,
+        "Unknown": 4
+      },
+      "strategies": {
+        "Trend": 9,
+        "Scalping": 11,
+        "Grid_Martingale": 2,
+        "Unknown": 2
+      },
+      "risk_levels": {
+        "Medium": 9,
+        "High": 13,
+        "Low": 2
+      }
+    },
+    "top_performers": [
+      {
+        "filename": "test_ea_sample.mq4",
+        "unified_score": 8.02,
+        "ftmo_score": 9.5,
+        "metadata_quality": 8.67,
+        "file_type": "EA",
+        "strategy": "Trend",
+        "risk_level": "Low"
+      },
+      {
+        "filename": "$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1.mq4",
+        "unified_score": 7.3,
+        "ftmo_score": 9.5,
+        "metadata_quality": 8.92,
+        "file_type": "EA",
+        "strategy": "Scalping",
+        "risk_level": "Low"
+      },
+      {
+        "filename": "PZ_ParabolicSar_EA.mq4",
+        "unified_score": 6.56,
+        "ftmo_score": 7.5,
+        "metadata_quality": 7.81,
+        "file_type": "Unknown",
+        "strategy": "Unknown",
+        "risk_level": "Medium"
+      },
+      {
+        "filename": "2PSAR.mq4",
+        "unified_score": 6.55,
+        "ftmo_score": 7,
+        "metadata_quality": 8.43,
+        "file_type": "EA",
+        "strategy": "Trend",
+        "risk_level": "Medium"
+      },
+      {
+        "filename": "!Overdraft_Profit_System2_v0.mq4",
+        "unified_score": 6.54,
+        "ftmo_score": 7,
+        "metadata_quality": 8.68,
+        "file_type": "EA",
+        "strategy": "Scalping",
+        "risk_level": "Medium"
+      },
+      {
+        "filename": "!Overdraft_Profit_System3_v0.mq4",
+        "unified_score": 6.54,
+        "ftmo_score": 7,
+        "metadata_quality": 8.68,
+        "file_type": "EA",
+        "strategy": "Scalping",
+        "risk_level": "Medium"
+      },
+      {
+        "filename": "Iron_Scalper_EA.mq4",
+        "unified_score": 6.48,
+        "ftmo_score": 7.5,
+        "metadata_quality": 7.81,
+        "file_type": "EA",
+        "strategy": "Scalping",
+        "risk_level": "Medium"
+      },
+      {
+        "filename": "2EMA-EA (Johan).mq4",
+        "unified_score": 6.42,
+        "ftmo_score": 7,
+        "metadata_quality": 8.18,
+        "file_type": "EA",
+        "strategy": "Scalping",
+        "risk_level": "Medium"
+      },
+      {
+        "filename": "2EMA-EA 1.04.mq4",
+        "unified_score": 6.35,
+        "ftmo_score": 7,
+        "metadata_quality": 8.18,
+        "file_type": "EA",
+        "strategy": "Scalping",
+        "risk_level": "Medium"
+      },
+      {
+        "filename": "2EMA-EA-V104.mq4",
+        "unified_score": 6.21,
+        "ftmo_score": 7,
+        "metadata_quality": 8.18,
+        "file_type": "EA",
+        "strategy": "Trend",
+        "risk_level": "Medium"
+      }
+    ],
+    "quality_analysis": {
+      "common_issues": [
+        "Complexidade ciclomática muito alta: 24",
+        "Gestão de risco inadequada: 24",
+        "Filtro de notícias ausente: 20",
+        "Stop Loss obrigatório ausente: 11",
+        "Baixa modularidade do código: 11",
+        "Tratamento de erros inadequado: 8",
+        "Estratégias proibidas detectadas (Martingale/Grid): 2",
+        "Código difícil de manter: 1"
+      ],
+      "common_recommendations": [
+        "Refatorar código para reduzir complexidade: 24",
+        "Melhorar sistema de gestão de risco: 24",
+        "Implementar filtro de notícias: 20",
+        "Implementar Stop Loss obrigatório para conformidade FTMO: 11",
+        "Implementar programação orientada a objetos: 11",
+        "Implementar tratamento de erros robusto: 8",
+        "Remover estratégias Martingale/Grid para conformidade FTMO: 2",
+        "Adicionar comentários e documentação: 1"
+      ]
+    },
+    "agent_performance": {
+      "Critical_Architect": {
+        "issues_count": 36,
+        "recommendations_count": 36,
+        "avg_score": 6.5,
+        "avg_confidence": 0.85
+      },
+      "Elite_FTMO": {
+        "issues_count": 57,
+        "recommendations_count": 57,
+        "avg_score": 5.25,
+        "avg_confidence": 0.86
+      },
+      "Precision_Code_Analyst": {
+        "issues_count": 8,
+        "recommendations_count": 8,
+        "avg_score": 7.41,
+        "avg_confidence": 0.92
+      }
+    },
+    "metadata_quality_breakdown": {
+      "avg_completeness": 7.12,
+      "avg_accuracy": 8.77,
+      "avg_consistency": 8.83,
+      "avg_ftmo_compliance": 5.25
+    }
+  },
+  "detailed_results": [
+    {
+      "filename": "2PSAR.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 7,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#M1",
+        "#RSI",
+        "#Stochastic",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [
+        "LotSizeCalculator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 7.612903225806451,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 16,
+            "classes_count": 0,
+            "lines_count": 372,
+            "complexity_score": 30,
+            "modularity_score": 8.602150537634408,
+            "maintainability_score": 6.10752688172043,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 2,
+            "drawdown_protection": false,
+            "position_sizing": 4,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 8.5,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 9,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 0.0,
+            "best_practices_score": 10,
+            "code_smells": [
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 6.547741935483871,
+      "metadata_quality": {
+        "completeness": 8,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7,
+        "overall_score": 8.433333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 372,
+        "code_lines": 345,
+        "comment_lines": 0,
+        "functions": 16,
+        "classes": 0,
+        "variables": 66,
+        "complexity": 17553
+      },
+      "timestamp": "2025-08-12T22:59:25.398147"
+    },
+    {
+      "filename": "2EMA-EA-V103.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "H1",
+      "ftmo_score": 3,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#XAUUSD",
+        "#H1",
+        "#RSI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 7.4186046511627906,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 10,
+            "classes_count": 0,
+            "lines_count": 258,
+            "complexity_score": 30,
+            "modularity_score": 7.751937984496124,
+            "maintainability_score": 6.310077519379845,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 2,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 8.100000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 10,
+            "code_smells": [
+              "Função muito longa",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.714453488372094,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3,
+        "overall_score": 7.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 258,
+        "code_lines": 188,
+        "comment_lines": 50,
+        "functions": 10,
+        "classes": 0,
+        "variables": 49,
+        "complexity": 11862
+      },
+      "timestamp": "2025-08-12T22:59:25.507386"
+    },
+    {
+      "filename": "Iron_Scalper_EA.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Unknown",
+      "timeframe": "Unknown",
+      "ftmo_score": 7.5,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#RSI",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 8.031413612565444,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 21,
+            "classes_count": 0,
+            "lines_count": 382,
+            "complexity_score": 30,
+            "modularity_score": 10,
+            "maintainability_score": 6.104712041884817,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7.5,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 2,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": true,
+            "max_risk_per_trade": 1.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 6.9,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 0,
+            "documentation_score": 10,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 6.481175392670156,
+      "metadata_quality": {
+        "completeness": 5,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7.5,
+        "overall_score": 7.808333333333334,
+        "issues": [
+          "Metadados incompletos"
+        ],
+        "recommendations": [
+          "Completar campos obrigatórios"
+        ]
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 382,
+        "code_lines": 282,
+        "comment_lines": 77,
+        "functions": 21,
+        "classes": 0,
+        "variables": 51,
+        "complexity": 15773
+      },
+      "timestamp": "2025-08-12T22:59:25.550793"
+    },
+    {
+      "filename": "!Overdraft_Profit_System3_v0.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "EURUSD",
+      "timeframe": "M1",
+      "ftmo_score": 7,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#EURUSD",
+        "#M1",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 8.009397024275646,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 67,
+            "classes_count": 0,
+            "lines_count": 1277,
+            "complexity_score": 30,
+            "modularity_score": 10,
+            "maintainability_score": 6.031323414252154,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 2,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 8.100000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 10,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 6.539996867658576,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7,
+        "overall_score": 8.683333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 1277,
+        "code_lines": 1045,
+        "comment_lines": 157,
+        "functions": 67,
+        "classes": 0,
+        "variables": 232,
+        "complexity": 50487
+      },
+      "timestamp": "2025-08-12T22:59:25.579075"
+    },
+    {
+      "filename": "2EMA-EA (Johan).mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 7,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#M1",
+        "#RSI",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 7.659459459459459,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 8,
+            "classes_count": 0,
+            "lines_count": 185,
+            "complexity_score": 30,
+            "modularity_score": 8.648648648648647,
+            "maintainability_score": 6.216216216216216,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.9,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 1.0810810810810811,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 6.4196351351351355,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7,
+        "overall_score": 8.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 185,
+        "code_lines": 165,
+        "comment_lines": 1,
+        "functions": 8,
+        "classes": 0,
+        "variables": 40,
+        "complexity": 8424
+      },
+      "timestamp": "2025-08-12T22:59:25.597552"
+    },
+    {
+      "filename": "UNK_Custom_GMACD2_v1.0_Multi.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "XAUUSD",
+      "timeframe": "M1",
+      "ftmo_score": 3,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#XAUUSD",
+        "#M1",
+        "#RSI",
+        "#MACD",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.587155963302752,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 3,
+            "classes_count": 0,
+            "lines_count": 327,
+            "complexity_score": 30,
+            "modularity_score": 1.8348623853211008,
+            "maintainability_score": 6.122324159021407,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.2,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 10.0,
+            "security_score": 10,
+            "error_handling": 0,
+            "documentation_score": 10,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 4.118270642201836,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3,
+        "overall_score": 7.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 327,
+        "code_lines": 238,
+        "comment_lines": 34,
+        "functions": 3,
+        "classes": 0,
+        "variables": 31,
+        "complexity": 16213
+      },
+      "timestamp": "2025-08-12T22:59:25.665720"
+    },
+    {
+      "filename": "2EMA-EA-V104.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Unknown",
+      "timeframe": "H1",
+      "ftmo_score": 7,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#H1",
+        "#RSI",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 6.876777251184834,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 13,
+            "classes_count": 0,
+            "lines_count": 422,
+            "complexity_score": 30,
+            "modularity_score": 6.161137440758294,
+            "maintainability_score": 6.0947867298578196,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 2,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.700000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 8,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 6.2073151658767785,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7,
+        "overall_score": 8.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 422,
+        "code_lines": 320,
+        "comment_lines": 66,
+        "functions": 13,
+        "classes": 0,
+        "variables": 82,
+        "complexity": 20583
+      },
+      "timestamp": "2025-08-12T22:59:25.681108"
+    },
+    {
+      "filename": "MACD Cross Zero EA v1.02.mq4",
+      "file_type": "Unknown",
+      "strategy": "Grid_Martingale",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 4,
+      "ftmo_ready": false,
+      "tags": [
+        "#Grid_Martingale",
+        "#M1",
+        "#RSI",
+        "#MACD",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 6.673366834170855,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 22,
+            "classes_count": 0,
+            "lines_count": 796,
+            "complexity_score": 30,
+            "modularity_score": 5.527638190954774,
+            "maintainability_score": 6.050251256281407,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 4,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 4,
+            "drawdown_protection": false,
+            "position_sizing": 3,
+            "forbidden_strategies": true,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 1.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Estratégias proibidas detectadas (Martingale/Grid)",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Remover estratégias Martingale/Grid para conformidade FTMO",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.300000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 6,
+            "code_smells": [
+              "Função muito longa",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.7970904522613065,
+      "metadata_quality": {
+        "completeness": 5,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 4,
+        "overall_score": 6.433333333333334,
+        "issues": [
+          "Metadados incompletos"
+        ],
+        "recommendations": [
+          "Completar campos obrigatórios"
+        ]
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 796,
+        "code_lines": 684,
+        "comment_lines": 43,
+        "functions": 22,
+        "classes": 0,
+        "variables": 104,
+        "complexity": 33668
+      },
+      "timestamp": "2025-08-12T22:59:25.856169"
+    },
+    {
+      "filename": "2EMA-EA.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "H1",
+      "ftmo_score": 3,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#XAUUSD",
+        "#H1",
+        "#RSI",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 7.701298701298701,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 10,
+            "classes_count": 0,
+            "lines_count": 231,
+            "complexity_score": 30,
+            "modularity_score": 8.658008658008658,
+            "maintainability_score": 6.346320346320346,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.9,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.728525974025974,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3,
+        "overall_score": 7.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 231,
+        "code_lines": 167,
+        "comment_lines": 45,
+        "functions": 10,
+        "classes": 0,
+        "variables": 44,
+        "complexity": 9962
+      },
+      "timestamp": "2025-08-12T22:59:25.879531"
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi_2.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 3.5,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#M1",
+        "#RSI",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.188636363636364,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 23,
+            "classes_count": 0,
+            "lines_count": 1408,
+            "complexity_score": 30,
+            "modularity_score": 3.2670454545454546,
+            "maintainability_score": 6.028409090909091,
+            "code_quality_score": 6
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3.5,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": true,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 6.9,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 4,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.177085227272728,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3.5,
+        "overall_score": 6.808333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 1408,
+        "code_lines": 830,
+        "comment_lines": 375,
+        "functions": 23,
+        "classes": 0,
+        "variables": 101,
+        "complexity": 49625
+      },
+      "timestamp": "2025-08-12T22:59:25.880362"
+    },
+    {
+      "filename": "!Overdraft_Profit_System2_v0.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "EURUSD",
+      "timeframe": "M1",
+      "ftmo_score": 7,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#EURUSD",
+        "#M1",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 8.011439466158247,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 61,
+            "classes_count": 0,
+            "lines_count": 1049,
+            "complexity_score": 30,
+            "modularity_score": 10,
+            "maintainability_score": 6.03813155386082,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 2,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 8.100000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 10,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 6.540430886558628,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7,
+        "overall_score": 8.683333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 1049,
+        "code_lines": 838,
+        "comment_lines": 143,
+        "functions": 61,
+        "classes": 0,
+        "variables": 184,
+        "complexity": 41805
+      },
+      "timestamp": "2025-08-12T22:59:25.967265"
+    },
+    {
+      "filename": "4H SWING.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 7,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#M1",
+        "#RSI",
+        "#MACD",
+        "#Stochastic",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 6.417637271214643,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 14,
+            "classes_count": 0,
+            "lines_count": 601,
+            "complexity_score": 30,
+            "modularity_score": 4.658901830282862,
+            "maintainability_score": 6.066555740432612,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.500000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 7,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 6.063747920133112,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7,
+        "overall_score": 8.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 601,
+        "code_lines": 435,
+        "comment_lines": 132,
+        "functions": 14,
+        "classes": 0,
+        "variables": 78,
+        "complexity": 25132
+      },
+      "timestamp": "2025-08-12T22:59:26.018628"
+    },
+    {
+      "filename": "test_ea_sample.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Unknown",
+      "timeframe": "Unknown",
+      "ftmo_score": 9.5,
+      "ftmo_ready": true,
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#AI"
+      ],
+      "components": [
+        "LotSizeCalculator",
+        "SessionFilter"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 7.594594594594595,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 3,
+            "classes_count": 0,
+            "lines_count": 74,
+            "complexity_score": 30,
+            "modularity_score": 8.108108108108109,
+            "maintainability_score": 6.54054054054054,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 9.5,
+          "confidence": 0.98,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 6,
+            "drawdown_protection": false,
+            "position_sizing": 7,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": true,
+            "max_risk_per_trade": 0.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.6,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 8,
+            "performance_score": 10.0,
+            "security_score": 10,
+            "error_handling": 0,
+            "documentation_score": 10,
+            "best_practices_score": 10,
+            "code_smells": [
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 8.01685135135135,
+      "metadata_quality": {
+        "completeness": 6,
+        "accuracy": 9.166666666666666,
+        "consistency": 10,
+        "ftmo_compliance": 9.5,
+        "overall_score": 8.666666666666666,
+        "issues": [
+          "Metadados incompletos"
+        ],
+        "recommendations": [
+          "Completar campos obrigatórios"
+        ]
+      },
+      "risk_level": "Low",
+      "code_metrics": {
+        "total_lines": 74,
+        "code_lines": 41,
+        "comment_lines": 21,
+        "functions": 3,
+        "classes": 0,
+        "variables": 15,
+        "complexity": 2689
+      },
+      "timestamp": "2025-08-12T22:59:26.203439"
+    },
+    {
+      "filename": "Iron Scalper EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Unknown",
+      "market": "Unknown",
+      "timeframe": "Unknown",
+      "ftmo_score": 3,
+      "ftmo_ready": false,
+      "tags": [],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 3.6,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 0,
+            "classes_count": 0,
+            "lines_count": 763,
+            "complexity_score": 30,
+            "modularity_score": 0.0,
+            "maintainability_score": 0.0,
+            "code_quality_score": 9
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código",
+            "Código difícil de manter"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos",
+            "Adicionar comentários e documentação"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 6.6000000000000005,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 10.0,
+            "security_score": 9,
+            "error_handling": 0,
+            "documentation_score": 0.0,
+            "best_practices_score": 7,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 3.5580000000000003,
+      "metadata_quality": {
+        "completeness": 0,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3,
+        "overall_score": 4.933333333333334,
+        "issues": [
+          "Metadados incompletos"
+        ],
+        "recommendations": [
+          "Completar campos obrigatórios"
+        ]
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 763,
+        "code_lines": 763,
+        "comment_lines": 0,
+        "functions": 0,
+        "classes": 0,
+        "variables": 0,
+        "complexity": 32170
+      },
+      "timestamp": "2025-08-12T22:59:26.350108"
+    },
+    {
+      "filename": "FFCal.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 3.5,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#M1",
+        "#RSI",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.188636363636364,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 23,
+            "classes_count": 0,
+            "lines_count": 1408,
+            "complexity_score": 30,
+            "modularity_score": 3.2670454545454546,
+            "maintainability_score": 6.028409090909091,
+            "code_quality_score": 6
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3.5,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": true,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 6.9,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 4,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.177085227272728,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3.5,
+        "overall_score": 6.808333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 1408,
+        "code_lines": 830,
+        "comment_lines": 375,
+        "functions": 23,
+        "classes": 0,
+        "variables": 101,
+        "complexity": 49628
+      },
+      "timestamp": "2025-08-12T22:59:26.657703"
+    },
+    {
+      "filename": "$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "XAUUSD",
+      "timeframe": "M1",
+      "ftmo_score": 9.5,
+      "ftmo_ready": true,
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#XAUUSD",
+        "#M1",
+        "#RSI",
+        "#Stochastic",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.428029344801416,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 28,
+            "classes_count": 0,
+            "lines_count": 3953,
+            "complexity_score": 30,
+            "modularity_score": 1.4166455856311662,
+            "maintainability_score": 6.010118897040223,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 9.5,
+          "confidence": 0.98,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 6,
+            "drawdown_protection": false,
+            "position_sizing": 3,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": true,
+            "max_risk_per_trade": 0.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 6.5,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 9,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 2.8332911712623323,
+            "best_practices_score": 0,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 7.303456235770301,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 9.166666666666666,
+        "consistency": 8,
+        "ftmo_compliance": 9.5,
+        "overall_score": 8.916666666666666,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Low",
+      "code_metrics": {
+        "total_lines": 3953,
+        "code_lines": 3359,
+        "comment_lines": 56,
+        "functions": 28,
+        "classes": 0,
+        "variables": 375,
+        "complexity": 185864
+      },
+      "timestamp": "2025-08-12T22:59:26.742819"
+    },
+    {
+      "filename": "GMACD2.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "XAUUSD",
+      "timeframe": "M1",
+      "ftmo_score": 3,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#XAUUSD",
+        "#M1",
+        "#RSI",
+        "#MACD",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.587155963302752,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 3,
+            "classes_count": 0,
+            "lines_count": 327,
+            "complexity_score": 30,
+            "modularity_score": 1.8348623853211008,
+            "maintainability_score": 6.122324159021407,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.2,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 10.0,
+            "security_score": 10,
+            "error_handling": 0,
+            "documentation_score": 10,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 4.118270642201836,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3,
+        "overall_score": 7.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 327,
+        "code_lines": 238,
+        "comment_lines": 34,
+        "functions": 3,
+        "classes": 0,
+        "variables": 31,
+        "complexity": 16215
+      },
+      "timestamp": "2025-08-12T22:59:26.769595"
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 3.5,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#M1",
+        "#RSI",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.188636363636364,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 23,
+            "classes_count": 0,
+            "lines_count": 1408,
+            "complexity_score": 30,
+            "modularity_score": 3.2670454545454546,
+            "maintainability_score": 6.028409090909091,
+            "code_quality_score": 6
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3.5,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": true,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 6.9,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 4,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.177085227272728,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3.5,
+        "overall_score": 6.808333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 1408,
+        "code_lines": 830,
+        "comment_lines": 375,
+        "functions": 23,
+        "classes": 0,
+        "variables": 101,
+        "complexity": 49625
+      },
+      "timestamp": "2025-08-12T22:59:26.770131"
+    },
+    {
+      "filename": "PZ_ParabolicSar_EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Unknown",
+      "market": "XAUUSD",
+      "timeframe": "D1",
+      "ftmo_score": 7.5,
+      "ftmo_ready": false,
+      "tags": [
+        "#XAUUSD",
+        "#D1",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 7.081370449678801,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 16,
+            "classes_count": 0,
+            "lines_count": 467,
+            "complexity_score": 30,
+            "modularity_score": 6.852248394004283,
+            "maintainability_score": 6.085653104925053,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7.5,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 4,
+            "drawdown_protection": false,
+            "position_sizing": 3,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": true,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 8.100000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 10,
+            "code_smells": [
+              "Função muito longa",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 6.555291220556746,
+      "metadata_quality": {
+        "completeness": 5,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7.5,
+        "overall_score": 7.808333333333334,
+        "issues": [
+          "Metadados incompletos"
+        ],
+        "recommendations": [
+          "Completar campos obrigatórios"
+        ]
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 467,
+        "code_lines": 340,
+        "comment_lines": 65,
+        "functions": 16,
+        "classes": 0,
+        "variables": 71,
+        "complexity": 13842
+      },
+      "timestamp": "2025-08-12T22:59:26.843971"
+    },
+    {
+      "filename": "UNK_Custom_GMACD2_v1.0_Multi_2.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "XAUUSD",
+      "timeframe": "M1",
+      "ftmo_score": 3,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#XAUUSD",
+        "#M1",
+        "#RSI",
+        "#MACD",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.587155963302752,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 3,
+            "classes_count": 0,
+            "lines_count": 327,
+            "complexity_score": 30,
+            "modularity_score": 1.8348623853211008,
+            "maintainability_score": 6.122324159021407,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.2,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 10.0,
+            "security_score": 10,
+            "error_handling": 0,
+            "documentation_score": 10,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 4.118270642201836,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3,
+        "overall_score": 7.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 327,
+        "code_lines": 238,
+        "comment_lines": 34,
+        "functions": 3,
+        "classes": 0,
+        "variables": 31,
+        "complexity": 16213
+      },
+      "timestamp": "2025-08-12T22:59:26.878554"
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi_1.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 3.5,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#M1",
+        "#RSI",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.188636363636364,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 23,
+            "classes_count": 0,
+            "lines_count": 1408,
+            "complexity_score": 30,
+            "modularity_score": 3.2670454545454546,
+            "maintainability_score": 6.028409090909091,
+            "code_quality_score": 6
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3.5,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": true,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 6.9,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 4,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.177085227272728,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3.5,
+        "overall_score": 6.808333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 1408,
+        "code_lines": 830,
+        "comment_lines": 375,
+        "functions": 23,
+        "classes": 0,
+        "variables": 101,
+        "complexity": 49625
+      },
+      "timestamp": "2025-08-12T22:59:26.962431"
+    },
+    {
+      "filename": "UNK_Custom_GMACD2_v1.0_Multi_1.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "XAUUSD",
+      "timeframe": "M1",
+      "ftmo_score": 3,
+      "ftmo_ready": false,
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#XAUUSD",
+        "#M1",
+        "#RSI",
+        "#MACD",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 5.587155963302752,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 3,
+            "classes_count": 0,
+            "lines_count": 327,
+            "complexity_score": 30,
+            "modularity_score": 1.8348623853211008,
+            "maintainability_score": 6.122324159021407,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta",
+            "Baixa modularidade do código"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade",
+            "Implementar programação orientada a objetos"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 3,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": false,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Stop Loss obrigatório ausente",
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Implementar Stop Loss obrigatório para conformidade FTMO",
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.2,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 10.0,
+            "security_score": 10,
+            "error_handling": 0,
+            "documentation_score": 10,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 4.118270642201836,
+      "metadata_quality": {
+        "completeness": 9,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 3,
+        "overall_score": 7.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 327,
+        "code_lines": 238,
+        "comment_lines": 34,
+        "functions": 3,
+        "classes": 0,
+        "variables": 31,
+        "complexity": 16213
+      },
+      "timestamp": "2025-08-12T22:59:26.978650"
+    },
+    {
+      "filename": "2EMA-EA 1.04.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 7,
+      "ftmo_ready": false,
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#M1",
+        "#RSI",
+        "#ATR",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 8.0,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 13,
+            "classes_count": 0,
+            "lines_count": 237,
+            "complexity_score": 30,
+            "modularity_score": 10,
+            "maintainability_score": 6.0,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 7,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 0,
+            "drawdown_protection": false,
+            "position_sizing": 0,
+            "forbidden_strategies": false,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 2.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.3,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 9,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 0,
+            "documentation_score": 0.0,
+            "best_practices_score": 9,
+            "code_smells": [
+              "Função muito longa",
+              "Muitos parâmetros",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [
+            "Tratamento de erros inadequado"
+          ],
+          "recommendations": [
+            "Implementar tratamento de erros robusto"
+          ]
+        }
+      ],
+      "unified_score": 6.354,
+      "metadata_quality": {
+        "completeness": 7,
+        "accuracy": 8.733333333333334,
+        "consistency": 10,
+        "ftmo_compliance": 7,
+        "overall_score": 8.183333333333334,
+        "issues": [],
+        "recommendations": []
+      },
+      "risk_level": "Medium",
+      "code_metrics": {
+        "total_lines": 237,
+        "code_lines": 215,
+        "comment_lines": 0,
+        "functions": 13,
+        "classes": 0,
+        "variables": 51,
+        "complexity": 9878
+      },
+      "timestamp": "2025-08-12T22:59:26.998875"
+    },
+    {
+      "filename": "MACD_Cross_Zero_EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Grid_Martingale",
+      "market": "Unknown",
+      "timeframe": "M1",
+      "ftmo_score": 4,
+      "ftmo_ready": false,
+      "tags": [
+        "#Grid_Martingale",
+        "#M1",
+        "#RSI",
+        "#MACD",
+        "#AI"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Critical_Architect",
+          "score": 6.673366834170855,
+          "confidence": 0.85,
+          "details": {
+            "functions_count": 22,
+            "classes_count": 0,
+            "lines_count": 796,
+            "complexity_score": 30,
+            "modularity_score": 5.527638190954774,
+            "maintainability_score": 6.050251256281407,
+            "code_quality_score": 8
+          },
+          "issues_found": [
+            "Complexidade ciclomática muito alta"
+          ],
+          "recommendations": [
+            "Refatorar código para reduzir complexidade"
+          ]
+        },
+        {
+          "agent_name": "Elite_FTMO",
+          "score": 4,
+          "confidence": 0.85,
+          "details": {
+            "stop_loss_mandatory": true,
+            "risk_management": 4,
+            "drawdown_protection": false,
+            "position_sizing": 3,
+            "forbidden_strategies": true,
+            "news_filter": false,
+            "session_filter": false,
+            "max_risk_per_trade": 1.0
+          },
+          "issues_found": [
+            "Gestão de risco inadequada",
+            "Estratégias proibidas detectadas (Martingale/Grid)",
+            "Filtro de notícias ausente"
+          ],
+          "recommendations": [
+            "Melhorar sistema de gestão de risco",
+            "Remover estratégias Martingale/Grid para conformidade FTMO",
+            "Implementar filtro de notícias"
+          ]
+        },
+        {
+          "agent_name": "Precision_Code_Analyst",
+          "score": 7.300000000000001,
+          "confidence": 0.92,
+          "details": {
+            "syntax_quality": 7,
+            "performance_score": 8.5,
+            "security_score": 10,
+            "error_handling": 5,
+            "documentation_score": 10,
+            "best_practices_score": 6,
+            "code_smells": [
+              "Função muito longa",
+              "Código duplicado"
+            ]
+          },
+          "issues_found": [],
+          "recommendations": []
+        }
+      ],
+      "unified_score": 4.7970904522613065,
+      "metadata_quality": {
+        "completeness": 5,
+        "accuracy": 8.733333333333334,
+        "consistency": 8,
+        "ftmo_compliance": 4,
+        "overall_score": 6.433333333333334,
+        "issues": [
+          "Metadados incompletos"
+        ],
+        "recommendations": [
+          "Completar campos obrigatórios"
+        ]
+      },
+      "risk_level": "High",
+      "code_metrics": {
+        "total_lines": 796,
+        "code_lines": 684,
+        "comment_lines": 43,
+        "functions": 22,
+        "classes": 0,
+        "variables": 104,
+        "complexity": 33670
+      },
+      "timestamp": "2025-08-12T22:59:27.068546"
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "file_info": {
+    "original_name": "MashAlam_EA_v2.3.mq4",
+    "current_name": "SCR_MashAlam_EA_v2_3_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_MashAlam_EA_v2_3_v1.0_GOLD.mq4",
+    "file_size": 11285,
+    "lines_count": 396
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 82,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CheckForExit",
+      "GetPLInMoney",
+      "CountOrders",
+      "IsNewBar",
+      "GetSignal",
+      "PlaceOrder",
+      "SetSLandTP",
+      "CalcSL",
+      "CalcTP",
+      "GetLotSize",
+      "TypeToStr",
+      "ClosePositionsByType",
+      "GetSpread"
+    ],
+    "variables": [
+      "s1",
+      "AutoLots",
+      "LotSize",
+      "RiskPerTrade",
+      "NumberOfPairs",
+      "Multiplier",
+      "TradeReverse",
+      "s2",
+      "UseArrow",
+      "UseHistogram",
+      "s3",
+      "StopLoss",
+      "ProfitTarget"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:45.554144",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:33.471275",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

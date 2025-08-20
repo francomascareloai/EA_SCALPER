@@ -1,0 +1,40 @@
+{
+  "file_info": {
+    "original_name": "TMA+CG mladen NRP Simple_alert mod.mq4",
+    "new_name": "EA_TMA_CG_mladen_NRP_Simple_alert_mod_v1.0_MULTI.mq4",
+    "file_size": 23304,
+    "created_date": "2025-08-13T07:11:47.483597",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market": "MULTI",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 3.0,
+    "level": "Não_Adequado",
+    "ready": false,
+    "has_stop_loss": false,
+    "has_take_profit": false,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#MULTI",
+    "#MULTI",
+    "#Nao_FTMO"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

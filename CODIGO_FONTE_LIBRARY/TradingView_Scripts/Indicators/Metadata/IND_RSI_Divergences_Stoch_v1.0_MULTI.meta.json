@@ -1,0 +1,57 @@
+{
+  "id": "IND_RSI_Divergences_Stoch_v1.0_MULTI",
+  "arquivo": "IND_RSI_Divergences_Stoch_v1.0_MULTI.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine Script",
+  "estrategia": "Trend Following",
+  "subestrategias": [
+    "RSI Divergences",
+    "Stochastic Oscillator",
+    "Pivot Points"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [
+    "ta.rsi",
+    "ta.ema",
+    "ta.highestbars",
+    "ta.lowestbars",
+    "ta.sma",
+    "label.new",
+    "hline"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [
+    "RSI Length",
+    "Overbought",
+    "Oversold",
+    "Div lookback period",
+    "K Length",
+    "D Length",
+    "Smoothing"
+  ],
+  "ftmo_score": 7,
+  "riscos_detectados": [
+    "Divergências podem gerar falsos positivos",
+    "Múltiplos Stochastic podem gerar confusão"
+  ],
+  "qualidade_codigo_score": 6,
+  "compilacao": {
+    "status": "sucesso",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Adicionar filtro de confirmação para divergências",
+    "Simplificar visualização dos múltiplos Stochastic"
+  ],
+  "licenca_autor": "MIT"
+}

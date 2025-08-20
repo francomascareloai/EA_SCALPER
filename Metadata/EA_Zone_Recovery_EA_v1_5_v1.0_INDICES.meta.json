@@ -1,0 +1,190 @@
+{
+  "file_info": {
+    "original_name": "Zone Recovery EA v1.5.mq4",
+    "current_name": "EA_Zone_Recovery_EA_v1_5_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_Zone_Recovery_EA_v1_5_v1.0_INDICES.mq4",
+    "file_size": 52738,
+    "lines_count": 1161
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 185,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Chaves desbalanceadas - erro de sintaxe",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "TakeTrade",
+      "PlaceTrade",
+      "Is_RSI_OBOS_on_MTF",
+      "CloseOrdersAndReset",
+      "CreateProfitLine",
+      "DeleteProfitLine",
+      "MoveProfitLine",
+      "CreateTradingPanel",
+      "OnChartEvent",
+      "DeleteTradePanel",
+      "PipPoint",
+      "GetSlippage",
+      "GetPoints",
+      "StringToPips",
+      "CloseAllMarketOrders",
+      "GetTradeVolume",
+      "CheckVolume",
+      "DeletePendingOrders",
+      "OpenPendingOrder",
+      "RetryOnError",
+      "OpenMarketOrder",
+      "GetTradeSize",
+      "CheckDailyTimer",
+      "FindOpenOrders"
+    ],
+    "variables": [
+      "RecoveryZoneSize",
+      "TakeProfit",
+      "PendingPrice",
+      "RecoverySettings",
+      "MaxTrades",
+      "SetMaxLoss",
+      "MaxLoss",
+      "UseRecoveryTakeProfit",
+      "RecoveryTakeProfit",
+      "ATRHeader",
+      "UseATR",
+      "ATRPeriod",
+      "ATRZoneFraction",
+      "ATRTPFraction",
+      "ATRRecoveryZone",
+      "MoneyManagement",
+      "RiskPercent",
+      "InitialLotSize",
+      "LotMultiplier",
+      "LotAdditions",
+      "CustomLotSizing",
+      "CustomLotSize1",
+      "CustomLotSize2",
+      "CustomLotSize3",
+      "CustomLotSize4",
+      "CustomLotSize5",
+      "CustomLotSize6",
+      "CustomLotSize7",
+      "CustomLotSize8",
+      "CustomLotSize9",
+      "CustomLotSize10",
+      "TimerSettings",
+      "UseTimer",
+      "StartHour",
+      "StartMinute",
+      "EndHour",
+      "EndMinute",
+      "UseLocalTime",
+      "TradeSettings",
+      "RSIPeriod",
+      "OverboughtLevel",
+      "OversoldLevel",
+      "UseM1Timeframe",
+      "UseM5Timeframe",
+      "UseM15Timeframe",
+      "UseM30Timeframe",
+      "UseH1Timeframe",
+      "UseH4Timeframe",
+      "UseDailyTimeframe",
+      "UseWeeklyTimeframe",
+      "UseMonthlyTimeframe",
+      "Visuals",
+      "Panel_X",
+      "Panel_Y",
+      "BacktestingSettings",
+      "MagicNumber",
+      "Slippage",
+      "TradeOnBarOpen",
+      "TestCommission"
+    ],
+    "includes": [],
+    "properties": [
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:13.015638",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:00.087910",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

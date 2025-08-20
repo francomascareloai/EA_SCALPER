@@ -1,0 +1,175 @@
+{
+  "file_info": {
+    "original_name": "colorzerolagrvi.mq4",
+    "current_name": "IND_colorzerolagrvi_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_colorzerolagrvi_v1.0_INDICES.mq4",
+    "file_size": 23921,
+    "lines_count": 838
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 82,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "GenerateIndicatorName",
+      "GetBid",
+      "GetBid",
+      "GetAsk",
+      "GetAsk",
+      "GetPipSize",
+      "GetPipSize",
+      "GetPointSize",
+      "GetSymbol",
+      "GetSpread",
+      "GetDigits",
+      "GetTickSize",
+      "GetMinLots",
+      "RoundRate",
+      "SetShift",
+      "AddRef",
+      "Release",
+      "RegisterStream",
+      "RegisterInternalStream",
+      "GetValue",
+      "AddRef",
+      "Release",
+      "SetShift",
+      "AddRef",
+      "Release",
+      "GetValue",
+      "SetMessagePrefix",
+      "GetSymbol",
+      "GetTimeframeStr",
+      "SendNotifications",
+      "Clear",
+      "RegisterStreams",
+      "AddTick",
+      "Set",
+      "RegisterStreams",
+      "RegisterStreams",
+      "Update",
+      "CreateAlert",
+      "IsPass",
+      "IsPass",
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "AlertsSection",
+      "popup_alert",
+      "notification_alert",
+      "email_alert",
+      "play_sound",
+      "sound_file",
+      "start_program",
+      "program_path",
+      "advanced_alert",
+      "advanced_key",
+      "Comment2",
+      "Comment3",
+      "Comment4",
+      "Factor1",
+      "RVI_period1",
+      "Factor2",
+      "RVI_period2",
+      "Factor3",
+      "RVI_period3",
+      "Factor4",
+      "RVI_period4",
+      "Factor5",
+      "RVI_period5",
+      "shift_arrows_pips",
+      "GetBid",
+      "GetAsk",
+      "GetPipSize"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "indicator_chart_window",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:29.258129",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:04.205484",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

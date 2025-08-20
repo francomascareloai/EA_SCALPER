@@ -1,0 +1,127 @@
+{
+  "file_info": {
+    "original_name": "Gold One MT4.mq4",
+    "current_name": "SCR_Gold_One_MT4_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Gold_One_MT4_v1.0_FOREX.mq4",
+    "file_size": 7891,
+    "lines_count": 218
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 29,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "_s1_",
+      "symbols",
+      "number_main_",
+      "strategy_type",
+      "comment_order_",
+      "_s2_",
+      "management_method_lot_",
+      "percentoftraderisk",
+      "size_fixed_lot_",
+      "sizemaximumlot",
+      "size_minimum_lot_",
+      "_s3_",
+      "maxSpread",
+      "_s4_",
+      "tradingmonday",
+      "trading_tuesday_",
+      "trading_wednesday_",
+      "trading_thursday_",
+      "trading_friday_",
+      "_s5_",
+      "max_lost_trade_per_day1_",
+      "enable_high_impact_filter1_",
+      "_enablemediumimpactnewsfilter",
+      "enable_low_impact_filter1_",
+      "_avoidhourbefore1",
+      "avoid_trading_post_news1_",
+      "_s6_",
+      "use_martingale1_",
+      "start_method_martingale1_",
+      "martingale_tp_type_",
+      "distance_tp_percent1_",
+      "fixedpipsmartingale1",
+      "martingaleperiodicatr",
+      "martingale_atr_multiplier_pip_",
+      "_maxaddmartingalepercent",
+      "martingale_profitt_profit_type_",
+      "total_cash_martingale_profit_",
+      "totalcashpercentmartingaleprofit"
+    ],
+    "includes": [],
+    "properties": [
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:13.529193",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:30.398620",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

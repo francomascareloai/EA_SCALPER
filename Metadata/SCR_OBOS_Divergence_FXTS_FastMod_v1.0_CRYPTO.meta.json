@@ -1,0 +1,118 @@
+{
+  "file_info": {
+    "original_name": "OBOS Divergence_FXTS_FastMod.mq4",
+    "current_name": "SCR_OBOS_Divergence_FXTS_FastMod_v1.0_CRYPTO.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_OBOS_Divergence_FXTS_FastMod_v1.0_CRYPTO.mq4",
+    "file_size": 17504,
+    "lines_count": 405
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 92,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "total",
+      "signal",
+      "closeall",
+      "Maxspread"
+    ],
+    "variables": [
+      "comm1",
+      "NewsFilter",
+      "MinimumImpact",
+      "MinsBeforeNews",
+      "MinsAfterNews",
+      "comm2",
+      "MaxSpread",
+      "Trade_Lot_Settings",
+      "start_lot",
+      "range",
+      "level",
+      "increment",
+      "tp_in_money",
+      "Envelope",
+      "EnvelopePeriod",
+      "EnvMaMethod",
+      "Shift",
+      "EnvelopeDeviation",
+      "Moving_Average",
+      "MAPeriod",
+      "MAMethod",
+      "MAShift",
+      "Derivative_Oscillator_Settings",
+      "RSIDer",
+      "limit",
+      "Comments",
+      "magic",
+      "PrevMinute"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#CRYPTO",
+    "#M1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:01.343099",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.624887",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "file_info": {
+    "original_name": "Pivot_Points_Lines_v1.3.mq4",
+    "current_name": "EA_Pivot_Points_Lines_v1_3_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_Pivot_Points_Lines_v1_3_v1.0_INDICES.mq4",
+    "file_size": 75219,
+    "lines_count": 2278
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 351,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "start",
+      "DrawPivotLines",
+      "DrawHistoricalLines",
+      "foundWeekend",
+      "DrawFuturePlot",
+      "DrawCPRPivotLines",
+      "DrawCPRHistoricalLines",
+      "DrawCPRFuturePlot"
+    ],
+    "variables": [
+      "indiLink",
+      "UniqueID",
+      "historicalPP",
+      "Header",
+      "ShiftLabel",
+      "Line_Length",
+      "HeaderStandardAdditionalSettings",
+      "Header2",
+      "customMSG",
+      "lineWidth",
+      "Font",
+      "labelFontSize",
+      "showHeader",
+      "showStandardPivotHeader",
+      "StandardMidPivotHeader",
+      "showCPRPivotHeader",
+      "showFibonacciPivotHeader",
+      "showWoodiePivotHeader",
+      "showCamarillaPivotHeader",
+      "showTraditionalPivotHeader",
+      "showDemarkPivotHeader",
+      "showClassicPivotHeader"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#INDICES",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:10.019875",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:56.422773",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

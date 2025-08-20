@@ -1,0 +1,133 @@
+{
+  "file_info": {
+    "original_name": "TMA slope v.1.4B 4.30.mq4",
+    "current_name": "IND_TMA_slope_v_1_4B_4_30_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_TMA_slope_v_1_4B_4_30_v1.0_GOLD.mq4",
+    "file_size": 9921,
+    "lines_count": 303
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 28,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "getTick",
+      "calcTma",
+      "calcTmaMTF"
+    ],
+    "variables": [
+      "OtherTimeFrames",
+      "select_other_tf_to_show",
+      "H_Pos_MTF",
+      "V_Pos_MTF",
+      "Font_Size_MTF",
+      "Corner_MTF",
+      "eintPeriod",
+      "edblHigh1",
+      "edblLow1",
+      "atrPeriod",
+      "H_Pos",
+      "V_Pos",
+      "Corner",
+      "Font_Size",
+      "Font_Size_text",
+      "H_Pos_text",
+      "V_Pos_text",
+      "Text_Corner"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_level1",
+      "indicator_level2",
+      "indicator_level3",
+      "indicator_level4",
+      "indicator_levelcolor",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_color7",
+      "indicator_width1",
+      "indicator_width2",
+      "indicator_width3",
+      "indicator_width4",
+      "indicator_width5",
+      "indicator_width6",
+      "indicator_width7"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:49.239534",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:18.720200",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "arquivo": {
+    "nome": "WOLF FOREX SIGNAL EA v 7.00@AutoTraderzUAE (2).mq4",
+    "tamanho_bytes": 31089,
+    "linhas_codigo": 710,
+    "data_modificacao": "2025-08-10T19:46:40.207077"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de volatilidade"
+    ],
+    "snippets_detectados": [
+      {
+        "tipo": "Order_Management",
+        "nome": "TrailingStop",
+        "descricao": "Função de trailing stop",
+        "categoria": "Risk_Management"
+      }
+    ]
+  },
+  "processing_time": 0.004221200942993164,
+  "timestamp": "2025-08-13T01:12:45.421445"
+}

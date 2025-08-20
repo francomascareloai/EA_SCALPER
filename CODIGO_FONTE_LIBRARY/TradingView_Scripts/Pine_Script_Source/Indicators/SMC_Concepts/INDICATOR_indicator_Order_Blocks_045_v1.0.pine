@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #045
+// Tipo: INDICATOR
+// Categoria: SMC
+// Mercado: Forex
+// Timeframe: M1
+
+//@version=5
+indicator("Order_Blocks_45", shorttitle="Order_Bl", overlay=false)
+
+// Parâmetros
+length = input.int(50, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+ma = ta.sma(source, length)
+
+// Plot
+plot(ma, "Order_Blocks_45", color=color.aqua)

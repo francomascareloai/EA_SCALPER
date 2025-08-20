@@ -1,0 +1,168 @@
+{
+  "file_info": {
+    "original_name": "THV EA v2.mq4",
+    "current_name": "SCR_THV_EA_v2_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_THV_EA_v2_v1.0_INDICES.mq4",
+    "file_size": 21395,
+    "lines_count": 575
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 98,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CalculateCurrentOrders",
+      "LotsOptimized",
+      "CheckForOpen",
+      "CheckForClose",
+      "orderclosebuy",
+      "orderclosesell",
+      "F_ValidTradeTime",
+      "ModifyStopLoss",
+      "TrailingPositionsBuy",
+      "TrailingPositionsSell",
+      "TrailingPositions",
+      "trix"
+    ],
+    "variables": [
+      "Lots",
+      "MaximumRisk",
+      "DecreaseFactor",
+      "PrefSettings",
+      "MM",
+      "AccountIsMicro",
+      "TakeProfit",
+      "StopLoss",
+      "TrailingStop",
+      "lTrailingStop",
+      "sTrailingStop",
+      "UseSignal1",
+      "UseSignal2",
+      "UseSignal3",
+      "UseSignal4",
+      "UseSignal5",
+      "UseSignal6",
+      "TradeFrom1",
+      "TradeUntil1",
+      "TradeFrom2",
+      "TradeUntil2",
+      "TradeFrom3",
+      "TradeUntil3",
+      "TradeFrom4",
+      "TradeUntil4",
+      "note1",
+      "Line_style",
+      "note2",
+      "MsgAlerts",
+      "SoundAlerts",
+      "eMailAlerts",
+      "AlertOnTrixCross",
+      "AlertOnTrixSigCross",
+      "AlertOnSlopeChange",
+      "TrixCrossSound",
+      "AnalyzeLabelWindow",
+      "AnalyzeLabelonoff",
+      "Trixnum_bars",
+      "seperator2",
+      "NumberOfDivergenceBars",
+      "drawPriceTrendLines",
+      "drawIndicatorTrendLines",
+      "ShowIn1MChart",
+      "_",
+      "EnableAlerts",
+      "_Info1",
+      "_Info2",
+      "_Info3",
+      "_Info4",
+      "_Info5",
+      "_Info6",
+      "_Info7",
+      "_Info8",
+      "_Info9",
+      "_Info10",
+      "_Info11",
+      "SoundAlertOnDivergence",
+      "EmailDivergenceAlerts",
+      "__",
+      "___",
+      "ClassicBullDivSound",
+      "ReverseBullDivSound",
+      "ClassicBearDivSound",
+      "ReverseBearDivSound"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:48.543866",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:42.802423",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

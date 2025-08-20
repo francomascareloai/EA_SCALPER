@@ -1,0 +1,127 @@
+{
+  "file_info": {
+    "original_name": "Cheeta xpMA.mq4",
+    "current_name": "IND_Cheeta_xpMA_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Cheeta_xpMA_v1.0_INDICES.mq4",
+    "file_size": 16622,
+    "lines_count": 624
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 88,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "DrawOnce",
+      "DrawObject",
+      "DeleteAllObjects",
+      "AlertOnce",
+      "SendMailOnce",
+      "TakeScreenShot",
+      "PeriodToText",
+      "StampVersion",
+      "DeleteStamp",
+      "GenVer"
+    ],
+    "variables": [
+      "TimeFrame",
+      "MA_Period",
+      "MA_Type",
+      "MA_Applied",
+      "T3MA_VolumeFactor",
+      "JMA_Phase",
+      "Step_Period",
+      "DebugMode",
+      "LastDraw_1",
+      "LastDraw_2",
+      "LastDraw_3",
+      "LastDraw_4",
+      "count",
+      "LastAlert_1",
+      "LastAlert_2",
+      "LastAlert_3",
+      "LastAlert_4",
+      "LastMail_1",
+      "LastMail_2",
+      "LastMail_3",
+      "LastMail_4"
+    ],
+    "includes": [],
+    "properties": [
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:22.520551",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:04.104081",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

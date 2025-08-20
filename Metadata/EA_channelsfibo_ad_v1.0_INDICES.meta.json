@@ -1,0 +1,128 @@
+{
+  "file_info": {
+    "original_name": "channelsfibo_ad.mq4",
+    "current_name": "EA_channelsfibo_ad_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Misc\\EA_channelsfibo_ad_v1.0_INDICES.mq4",
+    "file_size": 24161,
+    "lines_count": 405
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 47,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "TuningParameters",
+      "IsFiboLevelsUnique",
+      "OnDeinit",
+      "BuffersBind",
+      "BuffersInitializeAll",
+      "GetRecalcIndex",
+      "GetPriceShift",
+      "InitializePriceShifts",
+      "MovePriceShifts",
+      "ShowText",
+      "ShowDescriptions",
+      "ShowChannel",
+      "CalcIndicatorData",
+      "OnCalculate",
+      "GetStringByMessageCode",
+      "GetRussianMessage",
+      "GetEnglishMessage"
+    ],
+    "variables": [
+      "i_fiboLevel1",
+      "i_fiboLevel2",
+      "i_fiboLevel3",
+      "i_fiboLevel4",
+      "i_indBarsCount"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "strict",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_color7",
+      "indicator_color8",
+      "indicator_width4",
+      "indicator_width5",
+      "indicator_style1",
+      "indicator_style2",
+      "indicator_style3",
+      "indicator_style6",
+      "indicator_style7",
+      "indicator_style8"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:22.390996",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:48.789753",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

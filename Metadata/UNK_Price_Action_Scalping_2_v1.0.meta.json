@@ -1,0 +1,63 @@
+{
+  "file_info": {
+    "original_name": "Price Action Scalping (2).mq4",
+    "current_name": "UNK_Price_Action_Scalping_2_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Misc\\UNK_Price_Action_Scalping_2_v1.0.mq4",
+    "file_size": 52562,
+    "lines_count": 1309
+  },
+  "classification": {
+    "type": "Unknown",
+    "strategy": [
+      "Unknown"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    }
+  },
+  "ftmo_analysis": {
+    "compliance_score": 0.0,
+    "features_found": {
+      "risk_management": false,
+      "stop_loss": false,
+      "take_profit": false,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false
+    },
+    "missing_features": [
+      "risk_management",
+      "stop_loss",
+      "take_profit",
+      "drawdown_protection",
+      "session_filter",
+      "news_filter"
+    ],
+    "risk_level": "HIGH",
+    "ftmo_ready": false
+  },
+  "quality": {
+    "score": 55.0,
+    "complexity": 0,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [],
+    "variables": [],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Unknown",
+    "#Unknown",
+    "#Nao_FTMO",
+    "#LowQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:11.836939",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  }
+}

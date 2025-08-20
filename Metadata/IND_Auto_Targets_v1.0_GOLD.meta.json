@@ -1,0 +1,120 @@
+{
+  "file_info": {
+    "original_name": "Auto_Targets.mq4",
+    "current_name": "IND_Auto_Targets_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Auto_Targets_v1.0_GOLD.mq4",
+    "file_size": 11016,
+    "lines_count": 358
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 47,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "MOrderDelete",
+      "MOrderClose",
+      "MOrderModify",
+      "MOrderSend",
+      "OrderValueTicket",
+      "OrderValueType",
+      "OrderValueLots",
+      "OrderValueOpenPrice",
+      "OrderValueStopLoss",
+      "OrderValueTakeProfit",
+      "OrderValueClosePrice",
+      "OrderValueComission",
+      "OrderValueSwap",
+      "OrderValueProfit",
+      "OrderValueSymbol",
+      "OrderValueComment",
+      "PrintTrade",
+      "SetTextObject",
+      "SetLoopCount",
+      "SetIndexValue",
+      "SetIndexValue2",
+      "GetIndexValue",
+      "GetIndexValue2",
+      "SetObjectText",
+      "MoveObject",
+      "SetArrow",
+      "DelArrow",
+      "init",
+      "start"
+    ],
+    "variables": [
+      "BarsCount",
+      "depth",
+      "deviation",
+      "backstep"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_color1",
+      "indicator_buffers",
+      "indicator_color2"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:14.654543",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:02.155815",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

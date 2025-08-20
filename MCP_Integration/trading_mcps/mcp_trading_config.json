@@ -1,0 +1,56 @@
+﻿{
+  "trading_mcps": {
+    "metadata_analyzer": {
+      "enabled": true,
+      "config": {
+        "min_score_threshold": 8.0,
+        "ftmo_filter": true,
+        "analysis_depth": "deep"
+      }
+    },
+    "web_research": {
+      "enabled": true,
+      "config": {
+        "sources": ["mql5.com", "tradingview.com", "ftmo.com"],
+        "update_frequency": "daily",
+        "cache_duration": "24h"
+      }
+    },
+    "mql5_generator": {
+      "enabled": true,
+      "config": {
+        "template_version": "latest",
+        "ftmo_compliance": true,
+        "optimization_level": "high"
+      }
+    },
+    "backtesting_engine": {
+      "enabled": true,
+      "config": {
+        "timeframe_range": ["M1", "M5", "M15", "H1", "H4"],
+        "test_period": "2_years",
+        "optimization_method": "genetic"
+      }
+    },
+    "ftmo_compliance": {
+      "enabled": true,
+      "config": {
+        "strict_mode": true,
+        "real_time_monitoring": true,
+        "alert_threshold": 0.8
+      }
+    }
+  },
+  "performance_targets": {
+    "min_profit_factor": 1.5,
+    "max_drawdown": 8.0,
+    "min_win_rate": 60.0,
+    "min_sharpe_ratio": 1.0
+  },
+  "development_settings": {
+    "auto_optimization": true,
+    "continuous_testing": true,
+    "performance_monitoring": true,
+    "code_quality_checks": true
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "file_info": {
+    "original_name": "Autoprofitscalper@Amazing_owner.mq4",
+    "current_name": "SCR_Autoprofitscalper_Amazing_owner_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Autoprofitscalper_Amazing_owner_v1.0_INDICES.mq4",
+    "file_size": 34309,
+    "lines_count": 832
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 196,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "start",
+      "f0_2",
+      "f0_3",
+      "f0_11",
+      "f0_9",
+      "f0_8",
+      "f0_0",
+      "f0_7",
+      "f0_6",
+      "f0_4",
+      "deinit",
+      "f0_12",
+      "f0_1",
+      "f0_14",
+      "init",
+      "f0_10",
+      "f0_5",
+      "f0_13"
+    ],
+    "variables": [
+      "read_pr_nastr",
+      "trade",
+      "MinUr",
+      "Slippage",
+      "Lots",
+      "LotsPercent",
+      "max_lots",
+      "TakeProfit",
+      "StopLoss",
+      "FixTP",
+      "FixSL",
+      "sdvig_bid",
+      "luft",
+      "Fixspred",
+      "whc",
+      "NTrades",
+      "sound",
+      "spred_saxo",
+      "visual",
+      "visual_bid",
+      "visual_pr_kotir",
+      "new_kot",
+      "ruka",
+      "Dig",
+      "setka",
+      "mt_setka_vykl",
+      "Account"
+    ],
+    "includes": [
+      "WinUser32.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:14.560274",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:23.390015",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

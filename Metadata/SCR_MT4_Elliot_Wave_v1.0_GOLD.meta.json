@@ -1,0 +1,128 @@
+{
+  "file_info": {
+    "original_name": "MT4 Elliot Wave.mq4",
+    "current_name": "SCR_MT4_Elliot_Wave_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_MT4_Elliot_Wave_v1.0_GOLD.mq4",
+    "file_size": 92506,
+    "lines_count": 2596
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 368,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "start",
+      "init",
+      "deinit",
+      "gt_color_user",
+      "RGB",
+      "gt_dm_xvost_sell",
+      "gt_dm_xvost_buy",
+      "gt_dm_nabor_buy",
+      "gt_dm_nabor_sell",
+      "gt_d_wawe_sell",
+      "gt_d_wawe_sell_clear",
+      "gt_d_wawe_buy",
+      "gt_d_wawe_buy_clear",
+      "gt_d_wawe_open",
+      "gt_sektor_clear_up",
+      "gt_sektor_clear_down",
+      "gt_max_draw",
+      "gt_min_draw",
+      "gt_trend_3_5_7_draw",
+      "gt_trend_3_5_7_down",
+      "gt_trend_3_5_7_up",
+      "gt_trend_3_5_7_draw_trend",
+      "gt_max",
+      "gt_min",
+      "gt_move_trend",
+      "gt_move_sektor",
+      "gt_move_line_goriz",
+      "gt_move_simvol",
+      "gt_move_fibo_level",
+      "gt_move_text"
+    ],
+    "variables": [
+      "Block_1",
+      "History",
+      "Block_2",
+      "Begin_draw_down",
+      "Begin_draw_up",
+      "Sektor_bar",
+      "f_period_draw",
+      "clear_opposite",
+      "Block_3",
+      "Wawe_bar",
+      "f_draw_wawe_fibo",
+      "f_draw_target_level",
+      "Block_4",
+      "DM_sdvig",
+      "DM_xvost",
+      "Block_5",
+      "f_draw_mini_trend"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:52.153162",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:34.358476",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

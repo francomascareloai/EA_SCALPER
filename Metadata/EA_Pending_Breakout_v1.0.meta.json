@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "Pending Breakout.mq4",
+    "current_name": "EA_Pending_Breakout_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_Pending_Breakout_v1.0.mq4",
+    "file_size": 4516,
+    "lines_count": 143
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 7,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnTick"
+    ],
+    "variables": [
+      "MM",
+      "UseMoneyManagement",
+      "RiskPercent",
+      "FixedLotSize",
+      "TS",
+      "MagicNumber",
+      "HighLowBars",
+      "TakeProfit",
+      "BE",
+      "UseBreakEvenStop",
+      "MinimumProfit",
+      "LockProfit",
+      "TI",
+      "StartHour",
+      "StartMinute",
+      "EndHour",
+      "EndMinute",
+      "UseLocalTime"
+    ],
+    "includes": [
+      "Mql4Book\\Trade.mqh",
+      "Mql4Book\\Timer.mqh",
+      "Mql4Book\\TrailingStop.mqh",
+      "Mql4Book\\MoneyManagement.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:06.048798",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:56.312777",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

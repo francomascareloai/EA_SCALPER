@@ -1,0 +1,131 @@
+{
+  "file_info": {
+    "original_name": "fibo retracement 1.01.mq4",
+    "current_name": "IND_fibo_retracement_1_01_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_fibo_retracement_1_01_v1.0_GOLD.mq4",
+    "file_size": 19426,
+    "lines_count": 699
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 101,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CalculateZigZag",
+      "fillValues",
+      "CheckTouches",
+      "CheckIfTouched",
+      "doAlert",
+      "deleteCandles",
+      "ShowCandles",
+      "CheckSingle",
+      "DrawCandle",
+      "TimeFrameToString"
+    ],
+    "variables": [
+      "ExtDepth",
+      "ExtDeviation",
+      "ExtBackstep",
+      "FiboLevels",
+      "Fibo1Width",
+      "Fibo1Style",
+      "Fibo1LevelsStyle",
+      "ShowSecondFibo",
+      "Fibo2Width",
+      "Fibo2Style",
+      "Fibo2LevelsStyle",
+      "ShowThirdFibo",
+      "Fibo3Width",
+      "Fibo3Style",
+      "Fibo3LevelsStyle",
+      "_",
+      "alertsOn",
+      "alertsTolerance",
+      "touchChanell",
+      "alertsOnCurrent",
+      "alertsMessage",
+      "alertsSound",
+      "alertsNotify",
+      "alertsEmail",
+      "alertsShowTouched",
+      "soundFile",
+      "barsToShowCandles",
+      "CandleWidth",
+      "previousAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_chart_window",
+      "indicator_buffers"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:57.167581",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:06.520567",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

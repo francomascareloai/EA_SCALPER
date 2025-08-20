@@ -1,0 +1,147 @@
+{
+  "file_info": {
+    "original_name": "Elliot oscillator - waves 1.03 (mtf) BT.mq4",
+    "current_name": "EA_Elliot_oscillator_waves_1_03_mtf_BT_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_Elliot_oscillator_waves_1_03_mtf_BT_v1.0_GOLD.mq4",
+    "file_size": 17587,
+    "lines_count": 466
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 71,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "GenerateIndicatorName",
+      "OnInit",
+      "OnDeinit",
+      "createButton",
+      "handleButtonClicks",
+      "OnChartEvent",
+      "start",
+      "markLow",
+      "markHigh",
+      "drawLine",
+      "doAlert",
+      "timeFrameToString",
+      "timeFrameValue"
+    ],
+    "variables": [
+      "shortPeriod",
+      "longPeriod",
+      "linesIdentifier",
+      "alertsOn",
+      "alertsOnCurrent",
+      "alertsMessage",
+      "alertsSound",
+      "alertsEmail",
+      "alertsPush",
+      "Interpolate",
+      "button_note1",
+      "btn_Subwindow",
+      "btn_text",
+      "btn_Font",
+      "btn_FontSize",
+      "button_x",
+      "button_y",
+      "btn_Width",
+      "btn_Height",
+      "button_note2",
+      "previousAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_height",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_width1",
+      "indicator_width2",
+      "indicator_width3",
+      "indicator_width4",
+      "indicator_width5",
+      "indicator_width6",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:53.352828",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:51.577771",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

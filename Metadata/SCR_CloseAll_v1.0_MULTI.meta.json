@@ -1,0 +1,45 @@
+{
+  "id": "SCR_CloseAll_001",
+  "file_name": "SCR_CloseAll_v1.0_MULTI.mq4",
+  "original_name": "Close All.mq4",
+  "file_hash": "",
+  "type": "Script",
+  "language": "MQL4",
+  "strategy": "Utility",
+  "markets": ["MULTI"],
+  "timeframes": ["ALL"],
+  "key_functions": [
+    "OnStart",
+    "OrderSelect",
+    "OrderClose",
+    "WindowPriceOnDropped"
+  ],
+  "dependencies": [],
+  "exposed_parameters": [
+    "Text",
+    "Slippage"
+  ],
+  "ftmo_score": 9.0,
+  "detected_risks": [
+    "Closes all positions without confirmation"
+  ],
+  "code_quality_score": 7.0,
+  "compilation_status": "unknown",
+  "merge_readiness": "high",
+  "necessary_adjustments": [
+    "Add confirmation dialog",
+    "Add selective closing options"
+  ],
+  "tags": [
+    "#Script",
+    "#Utility",
+    "#MULTI",
+    "#OrderManagement",
+    "#CloseAll",
+    "#RiskTool"
+  ],
+  "license": "Marco",
+  "author": "Marco",
+  "created_date": "unknown",
+  "classification_date": "2025-08-14"
+}

@@ -1,0 +1,110 @@
+{
+  "file_info": {
+    "original_name": "Sell Stop Buy Stop.mq4",
+    "current_name": "SCR_Sell_Stop_Buy_Stop_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Sell_Stop_Buy_Stop_v1.0_INDICES.mq4",
+    "file_size": 10447,
+    "lines_count": 253
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco robusta",
+      "Proteção de drawdown",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 53,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "offlineGMT",
+      "commission",
+      "start",
+      "lotSize",
+      "NormalizeLots",
+      "prepareSpread",
+      "manageTicks",
+      "niceHour",
+      "display"
+    ],
+    "variables": [
+      "TradeComment",
+      "MagicNumber",
+      "Slippage",
+      "MaxSpread",
+      "FixedLot",
+      "RiskPercent",
+      "MaxDrawdown",
+      "StartHour",
+      "EndHour",
+      "GMTOffset",
+      "Trailing",
+      "Profit",
+      "VelocityTrigger",
+      "Offset"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "strict",
+      "version"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:24.640226",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:38.613793",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

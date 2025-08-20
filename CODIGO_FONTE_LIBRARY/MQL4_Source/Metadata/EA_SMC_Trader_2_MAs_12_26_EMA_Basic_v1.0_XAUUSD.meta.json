@@ -1,0 +1,47 @@
+{
+  "file_info": {
+    "original_name": "SMC Trader 2 MAs 12 26 EMA Basic.mq4",
+    "new_name": "EA_SMC_Trader_2_MAs_12_26_EMA_Basic_v1.0_XAUUSD.mq4",
+    "file_size": 9193,
+    "created_date": "2025-08-13T07:11:46.587750",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "SMC_ICT",
+      "Volume_Analysis"
+    ],
+    "market": "XAUUSD",
+    "timeframe": "M1",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 8.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Trend_Following",
+    "#SMC_ICT",
+    "#Volume_Analysis",
+    "#XAUUSD",
+    "#M1",
+    "#FTMO_Ready",
+    "#LowRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

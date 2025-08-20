@@ -1,0 +1,134 @@
+{
+  "file_info": {
+    "original_name": "camarilladt7v11.mq4",
+    "current_name": "SCR_camarilladt7v11_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_camarilladt7v11_v1.0_FOREX.mq4",
+    "file_size": 48210,
+    "lines_count": 1620
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 158,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "DoAlerts",
+      "start"
+    ],
+    "variables": [
+      "Alerts",
+      "GMTshiftSun",
+      "GMTshift",
+      "Pivot",
+      "CamTargets",
+      "ListCamTargets",
+      "PivotFontSize",
+      "PivotWidth",
+      "PipDistance",
+      "CamFontSize",
+      "Fibs",
+      "FibFontSize",
+      "DisplayFibLevels_1_3",
+      "FibLevel1",
+      "FibLevel2",
+      "FibLevel3",
+      "DisplayFibLevels_4_6",
+      "FibLevel4",
+      "FibLevel5",
+      "FibLevel6",
+      "DisplayFibLevels_7_16",
+      "FibLevel7",
+      "FibLevel8",
+      "FibLevel9",
+      "FibLevel10",
+      "FibLevel11",
+      "FibLevel12",
+      "FibLevel13",
+      "FibLevel14",
+      "FibLevel15",
+      "FibLevel16",
+      "StandardPivots",
+      "ListStandardPivots",
+      "StandardFontSize",
+      "MidPivots",
+      "MidFontSize"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Trend_Following",
+    "#FOREX",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:21.551507",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:24.321866",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

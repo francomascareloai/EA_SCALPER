@@ -14,12 +14,23 @@
     "strategy": "Trend",
     "subcategory": "VQ_Based",
     "complexity": "Medium",
-    "target_folder": "EAs/Trend/"
+    "target_folder": "EAs/Trend/",
+    "ftmo_ready": false
   },
   "technical_analysis": {
-    "indicators_used": ["VQ", "Moving_Average"],
-    "entry_signals": ["VQ_Crossover", "Trend_Confirmation"],
-    "exit_signals": ["Take_Profit", "Stop_Loss", "Trailing_Stop"],
+    "indicators_used": [
+      "VQ",
+      "Moving_Average"
+    ],
+    "entry_signals": [
+      "VQ_Crossover",
+      "Trend_Confirmation"
+    ],
+    "exit_signals": [
+      "Take_Profit",
+      "Stop_Loss",
+      "Trailing_Stop"
+    ],
     "risk_management": {
       "stop_loss": true,
       "take_profit": true,
@@ -46,9 +57,40 @@
     "magic_number": "0",
     "slippage": "3"
   },
-  "tags": ["#EA", "#Trend", "#VQ", "#MQL4", "#MULTI", "#Needs_Review"],
+  "tags": [
+    "#EA",
+    "#Trend",
+    "#VQ",
+    "#MQL4",
+    "#MULTI",
+    "#Needs_Review"
+  ],
   "description": "Expert Advisor baseado no indicador VQ (Volatility Quality) com gestão de risco básica e trailing stop opcional.",
   "notes": "Requer análise FTMO mais detalhada. Implementar filtros de sessão e limite de perda diária para conformidade total.",
   "status": "Renamed",
-  "review_required": true
+  "review_required": true,
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:17.981563",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
 }

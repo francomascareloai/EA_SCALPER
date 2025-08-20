@@ -1,0 +1,117 @@
+{
+  "file_info": {
+    "original_name": "Digital MA2Color.mq4",
+    "current_name": "IND_Digital_MA2Color_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Digital_MA2Color_v1.0_GOLD.mq4",
+    "file_size": 8192,
+    "lines_count": 252
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 3.0,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 3.0,
+    "level": "Baixo",
+    "compliance_score": 30.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 43,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "GetTimeFrameStr",
+      "DisplayAlert",
+      "init",
+      "deinit",
+      "start",
+      "aGetTPs",
+      "aGetTPl",
+      "aGetSLs",
+      "aGetSLl",
+      "aRperiodf",
+      "DelObj",
+      "drawLineSegment"
+    ],
+    "variables": [
+      "SignalPeriod",
+      "NR_SLIPE",
+      "FilterNumber",
+      "lineWidth",
+      "barsToDrawLine",
+      "skipSingleBarSignal",
+      "aTake_Profit",
+      "aStop_Loss",
+      "aAlerts",
+      "EmailOn"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:33.567916",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:05.190927",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

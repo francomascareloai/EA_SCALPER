@@ -1,0 +1,191 @@
+{
+  "file_info": {
+    "original_name": "jangkrik.mq4",
+    "current_name": "SCR_jangkrik_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_jangkrik_v1.0_FOREX.mq4",
+    "file_size": 25892,
+    "lines_count": 499
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 133,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "marginCalculate",
+      "lotSize",
+      "setPipPoint",
+      "closeAll",
+      "prepareHistory",
+      "prepareTrend",
+      "preparePositions",
+      "prepareIndicators",
+      "prepareCalendar",
+      "prepare",
+      "sendOpen",
+      "openPosition",
+      "sendBack",
+      "backSystem",
+      "managePositions",
+      "longStop",
+      "update",
+      "start"
+    ],
+    "variables": [
+      "TOOLS",
+      "CloseAll",
+      "ContinueTrading",
+      "CALENDAR",
+      "EnableCalendar",
+      "IncludeHigh",
+      "IncludeMedium",
+      "IncludeLow",
+      "IncludeSpeaks",
+      "SAFE",
+      "SafeSpread",
+      "SafeGrowth",
+      "SafeExits",
+      "AllowHedge",
+      "EnableStop",
+      "TradeFriday",
+      "Aggressive",
+      "SIGNAL_RANGE",
+      "SignalA",
+      "SignalB",
+      "SignalC",
+      "SignalD",
+      "SIGNAL_HOURS",
+      "SignalAStartHour",
+      "SignalAEndHour",
+      "SignalBStartHour",
+      "SignalBEndHour",
+      "SignalCStartHour",
+      "SignalCEndHour",
+      "SignalDStartHour",
+      "SignalDEndHour",
+      "TRADES",
+      "MaxTrades",
+      "TIME",
+      "RefreshHours",
+      "LeadCalendarMinutes",
+      "TrailCalendarMinutes",
+      "SleepSeconds",
+      "PROFIT",
+      "BasketProfit",
+      "OpenProfit",
+      "MinProfit",
+      "SafeProfit",
+      "GROWTH",
+      "StopGrowth",
+      "DailyGrowth",
+      "STOP",
+      "RelativeStop",
+      "HISTORY",
+      "QueryHistory",
+      "TREND",
+      "TrendSpace",
+      "MinTrend",
+      "MaxTrend",
+      "BACK_SYSTEM",
+      "TriggerBackSystem",
+      "MARGIN",
+      "MinMarginLevel",
+      "MarginUsage",
+      "BackupMargin",
+      "TRADE",
+      "MinLots",
+      "TradeSpace",
+      "MaxSpread",
+      "CandleSpike",
+      "INDICATOR_ATR",
+      "ATRPeriod",
+      "INDICATOR_ADX",
+      "ADXMain",
+      "ADXPeriod",
+      "ADXShiftCheck",
+      "INDICATOR_MA",
+      "MA1Period",
+      "MA2Period",
+      "MAShiftCheck"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:35.415027",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:33.128137",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

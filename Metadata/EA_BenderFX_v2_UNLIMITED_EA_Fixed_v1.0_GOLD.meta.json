@@ -1,0 +1,124 @@
+{
+  "file_info": {
+    "original_name": "BenderFX_v2_UNLIMITED_EA_Fixed.mq4",
+    "current_name": "EA_BenderFX_v2_UNLIMITED_EA_Fixed_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_BenderFX_v2_UNLIMITED_EA_Fixed_v1.0_GOLD.mq4",
+    "file_size": 87990,
+    "lines_count": 3023
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Proteção de drawdown",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 319,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "OnDeinit",
+      "CalcFibo",
+      "dailyProfitorStopLossReached",
+      "graf"
+    ],
+    "variables": [
+      "FixedLots",
+      "LotsExponent",
+      "UseTakeProfit",
+      "TakeProfit",
+      "UseStopLoss",
+      "StopLoss",
+      "Pipstep",
+      "limitTime",
+      "limit_time",
+      "from",
+      "to",
+      "xx",
+      "openCond",
+      "note3",
+      "note32",
+      "limitTime2",
+      "dailyProfit",
+      "dailyLoss",
+      "fibo_buy",
+      "fibo_sell",
+      "MagicNumber",
+      "abc"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:15.916725",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:48.149779",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

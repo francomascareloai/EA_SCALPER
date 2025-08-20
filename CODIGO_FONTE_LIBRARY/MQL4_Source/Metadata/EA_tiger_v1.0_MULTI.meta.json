@@ -1,0 +1,45 @@
+{
+  "file_info": {
+    "original_name": "tiger.mq4",
+    "new_name": "EA_tiger_v1.0_MULTI.mq4",
+    "file_size": 6951,
+    "created_date": "2025-08-13T07:11:47.403975",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market": "MULTI",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 10.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": true,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#MULTI",
+    "#MULTI",
+    "#FTMO_Ready",
+    "#LowRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

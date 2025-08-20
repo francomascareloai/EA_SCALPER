@@ -1,0 +1,137 @@
+{
+  "file_info": {
+    "original_name": "FFCal.mq4",
+    "current_name": "IND_FFCal_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_FFCal_v1.0_FOREX.mq4",
+    "file_size": 50791,
+    "lines_count": 1407
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos",
+      "News trading sem filtros"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 145,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "DeleteVLines",
+      "GetXmlFileName",
+      "start",
+      "DisplayVerticalNews",
+      "DisplayOldNews",
+      "OutputToChart",
+      "ImpactToNumber",
+      "MakeDateTime",
+      "hSession",
+      "GrabWeb",
+      "OpenLog",
+      "Log"
+    ],
+    "variables": [
+      "MinsBeforeNews",
+      "MinsafterNews",
+      "IncludeHigh",
+      "IncludeMedium",
+      "IncludeLow",
+      "IncludeSpeaks",
+      "IsEA_Call",
+      "OffsetHours",
+      "AllowWebUpdates",
+      "Alert1MinsBefore",
+      "Alert2MinsBefore",
+      "ReportAllForUSD",
+      "EnableLogging",
+      "ShowNextTwoEvents",
+      "ShowVertNews",
+      "TxtSize",
+      "VertTxtShift",
+      "VertLeftLineShift",
+      "VertRightLineShift",
+      "VertTxtSize",
+      "NewsCorner",
+      "SaveXmlFiles",
+      "PrevMinute",
+      "RefreshMin",
+      "RefreshHour"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:57.065085",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:06.343630",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

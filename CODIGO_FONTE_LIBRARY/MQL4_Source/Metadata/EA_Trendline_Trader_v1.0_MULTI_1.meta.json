@@ -1,0 +1,43 @@
+{
+  "file_info": {
+    "original_name": "Trendline.Trader.mq4",
+    "new_name": "EA_Trendline_Trader_v1.0_MULTI_1.mq4",
+    "file_size": 13601,
+    "created_date": "2025-08-13T07:11:47.843830",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market": "MULTI",
+    "timeframe": "D1",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 9.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": true,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#MULTI",
+    "#D1",
+    "#FTMO_Ready",
+    "#LowRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "arquivo": {
+    "nome": "+++Agimat Reversal_ (2).mq4",
+    "tamanho_bytes": 2985,
+    "linhas_codigo": 103,
+    "data_modificacao": "2025-08-10T19:43:30.191648"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0007882118225097656,
+  "timestamp": "2025-08-13T01:11:50.830849"
+}

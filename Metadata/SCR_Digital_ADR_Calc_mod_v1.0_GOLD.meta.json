@@ -1,0 +1,113 @@
+{
+  "file_info": {
+    "original_name": "Digital ADR Calc_mod.mq4",
+    "current_name": "SCR_Digital_ADR_Calc_mod_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Digital_ADR_Calc_mod_v1.0_GOLD.mq4",
+    "file_size": 27357,
+    "lines_count": 847
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M5",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 107,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "NormalDisplay",
+      "DoADRHighLowLines",
+      "MiniDisplay",
+      "ShowWeekLines",
+      "CreateHTLine",
+      "updateText",
+      "createLabelObjects",
+      "myObjCreate",
+      "Decrypt",
+      "SetTextData",
+      "DeleteObjs",
+      "ToCaps",
+      "IsYes"
+    ],
+    "variables": [
+      "Custom_Indicator",
+      "Label0",
+      "Input_Days",
+      "Day_x",
+      "Label1",
+      "Upper_Corner_Help",
+      "Lower_Corner_Help",
+      "Corner",
+      "Label2",
+      "Color_Help",
+      "Label3",
+      "Display_Help",
+      "Show_Daily_High_Low_Lines",
+      "Show_Weekly_Lines",
+      "Show_Mini_ADR",
+      "Label4",
+      "Font_Size_Help",
+      "Font_Size",
+      "Vertical_Spacing_Adjustment"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M5",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:33.254581",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.354059",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

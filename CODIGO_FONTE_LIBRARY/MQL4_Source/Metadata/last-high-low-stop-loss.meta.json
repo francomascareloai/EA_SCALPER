@@ -1,0 +1,29 @@
+{
+  "arquivo": {
+    "nome": "last-high-low-stop-loss.mq4",
+    "tamanho_bytes": 7983,
+    "linhas_codigo": 257,
+    "data_modificacao": "2025-08-10T18:54:15.022805"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.002210378646850586,
+  "timestamp": "2025-08-13T01:12:22.601946"
+}

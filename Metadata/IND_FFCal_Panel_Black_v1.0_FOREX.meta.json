@@ -1,0 +1,130 @@
+{
+  "file_info": {
+    "original_name": "FFCal Panel (Black).mq4",
+    "current_name": "IND_FFCal_Panel_Black_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_FFCal_Panel_Black_v1.0_FOREX.mq4",
+    "file_size": 48943,
+    "lines_count": 1162
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 130,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "deinit",
+      "init",
+      "start",
+      "InitNews",
+      "DoFileDownLoad",
+      "GetXmlFileName",
+      "DownLoadWebPageToFile",
+      "PadString",
+      "IsNewsCurrency",
+      "ImpactToColor"
+    ],
+    "variables": [
+      "Part_1",
+      "Indicator_On",
+      "Show_H_HM_HML_123",
+      "Allow_Panel_In_Subwindow_1",
+      "Allow_Panel_At_Chart_Right",
+      "Display_Min_TF",
+      "Display_Max_TF",
+      "TF_Choices",
+      "__",
+      "Part_2",
+      "Show_Panel_Background",
+      "___",
+      "Part_3",
+      "Show_USD_News",
+      "Show_EUR_News",
+      "Show_GBP_News",
+      "Show_NZD_News",
+      "Show_JPY_News",
+      "Show_AUD_News",
+      "Show_CAD_News",
+      "Show_CHF_News",
+      "Show_CNY_News",
+      "Ignore_Current_Symbol",
+      "____",
+      "Part_4",
+      "Alert_Minutes_Before_Event_1",
+      "PrevMinute",
+      "UpdateRateSec"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:57.015762",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:06.307051",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

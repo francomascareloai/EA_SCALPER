@@ -1,0 +1,132 @@
+{
+  "file_info": {
+    "original_name": "Doske_Scalping_EA_ver1.mq4",
+    "current_name": "SCR_Doske_Scalping_EA_ver1_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Doske_Scalping_EA_ver1_v1.0_FOREX.mq4",
+    "file_size": 16876,
+    "lines_count": 528
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 92,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "WriteComment",
+      "GetGreenMA3Value",
+      "GetGreenMA5Value",
+      "GetGreenMA7Value",
+      "GetGreenMA9Value",
+      "GetGreenMA11Value",
+      "GetGreenMA13Value",
+      "GetPinkMA55Value",
+      "GetYellowMA275Value",
+      "GetQQE5BlueLineValue",
+      "GetQQE60BlueLineValue",
+      "GetQQE60RedLineValue",
+      "MAsSayBuy",
+      "MAsSaySell",
+      "QQE5SaysBuy",
+      "QQE5SaysSell",
+      "QQE60SaysBuy",
+      "QQE60SaysSell",
+      "ShouldBuy",
+      "ShouldSell",
+      "WriteToLogFile",
+      "DecideToOpenTrade",
+      "SendOrders",
+      "UpdateStatus",
+      "start"
+    ],
+    "variables": [
+      "EA_MAGIC_NUM",
+      "iOpenHour",
+      "HoursToTrade",
+      "Use275SMA",
+      "QQE5Buffer",
+      "QQE60Buffer",
+      "Slippage",
+      "TakeProfit",
+      "StopLoss",
+      "TrailingStop",
+      "MoneyManagement",
+      "RiskPercent",
+      "Lots",
+      "MaxLots",
+      "MinLots"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stderror.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:35.501089",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.433203",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

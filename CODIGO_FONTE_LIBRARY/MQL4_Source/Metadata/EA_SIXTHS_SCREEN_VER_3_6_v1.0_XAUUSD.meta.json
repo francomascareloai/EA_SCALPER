@@ -1,0 +1,42 @@
+{
+  "file_info": {
+    "original_name": "SIXTHS SCREEN VER 3.6.mq4",
+    "new_name": "EA_SIXTHS_SCREEN_VER_3_6_v1.0_XAUUSD.mq4",
+    "file_size": 3857,
+    "created_date": "2025-08-13T07:11:46.336472",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market": "XAUUSD",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 3.0,
+    "level": "Não_Adequado",
+    "ready": false,
+    "has_stop_loss": false,
+    "has_take_profit": false,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#News_Trading",
+    "#XAUUSD",
+    "#MULTI",
+    "#Nao_FTMO"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

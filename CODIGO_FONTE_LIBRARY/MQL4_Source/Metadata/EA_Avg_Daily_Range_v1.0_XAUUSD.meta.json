@@ -1,0 +1,41 @@
+{
+  "file_info": {
+    "original_name": "Avg Daily Range.mq4",
+    "new_name": "EA_Avg_Daily_Range_v1.0_XAUUSD.mq4",
+    "file_size": 4050,
+    "created_date": "2025-08-13T07:11:38.953397",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market": "XAUUSD",
+    "timeframe": "D1",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 7.5,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": false,
+    "has_risk_management": true,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#XAUUSD",
+    "#D1",
+    "#FTMO_Ready",
+    "#LowRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

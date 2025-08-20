@@ -1,0 +1,150 @@
+{
+  "file_info": {
+    "original_name": "BNfx Signals - Indicator-3.mq4",
+    "current_name": "IND_BNfx_Signals_Indicator_3_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_BNfx_Signals_Indicator_3_v1.0_INDICES.mq4",
+    "file_size": 19750,
+    "lines_count": 585
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 85.0,
+    "complexity": 62,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "manageAlerts",
+      "doAlert",
+      "iT3",
+      "O",
+      "H",
+      "L",
+      "C",
+      "R",
+      "M",
+      "T",
+      "ND",
+      "DTS",
+      "iMa",
+      "Range",
+      "AR",
+      "Body",
+      "UpperWick",
+      "LowerWick",
+      "BodyTop",
+      "BodyBottom"
+    ],
+    "variables": [
+      "MaPeriod",
+      "Step",
+      "BetterFormula",
+      "T3Hot",
+      "T3Original",
+      "SortedValues",
+      "Setting_1",
+      "Setting_2",
+      "WickRatioToBody",
+      "WickRatioToOpiiteWick",
+      "LongestBarinLast",
+      "PinBarMonetum",
+      "previousAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "version",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_width3",
+      "indicator_width4",
+      "indicator_width5",
+      "indicator_width6",
+      "indicator_type7",
+      "indicator_label8",
+      "indicator_type8",
+      "indicator_color8",
+      "indicator_style8",
+      "indicator_width8",
+      "indicator_label9",
+      "indicator_type9",
+      "indicator_color9",
+      "indicator_style9",
+      "indicator_width9",
+      "indicator_type10",
+      "indicator_type11",
+      "indicator_label12",
+      "indicator_type12",
+      "indicator_color12",
+      "indicator_style12",
+      "indicator_width12",
+      "indicator_label13",
+      "indicator_type13",
+      "indicator_color13",
+      "indicator_style13",
+      "indicator_width13"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#CRYPTO",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:18.733576",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:02.923342",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

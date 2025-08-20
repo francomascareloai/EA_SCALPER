@@ -1,0 +1,114 @@
+{
+  "file_info": {
+    "original_name": "BreakOut_BOX_5_Asian_Session_HLbox_SCREEN_TEXT_indicator.mq4",
+    "current_name": "IND_BreakOut_BOX_5_Asian_Session_HLbox_SCREEN_TEXT_indicator_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_BreakOut_BOX_5_Asian_Session_HLbox_SCREEN_TEXT_indicator_v1.0_FOREX.mq4",
+    "file_size": 23922,
+    "lines_count": 451
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 55,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "DeleteObjects",
+      "start",
+      "DrawObjects",
+      "init",
+      "deinit",
+      "CreateObjects",
+      "DeleteObjects",
+      "start",
+      "DrawObjects"
+    ],
+    "variables": [
+      "UniqueID",
+      "NumberOfDays",
+      "periodA_begin",
+      "periodA_end",
+      "nextDayA",
+      "periodB_end",
+      "nextDayB",
+      "rectAB_background",
+      "rectA_background",
+      "rectB1_background",
+      "rectB1_band",
+      "rectsB2_background",
+      "rectsB2_band",
+      "OpenClose",
+      "rectA_close_begin",
+      "periodB_ALERTS",
+      "NumberOfDays",
+      "AsiaBegin",
+      "AsiaEnd",
+      "EurBegin",
+      "EurEnd",
+      "USABegin",
+      "USAEnd"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "copyright",
+      "link",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#FOREX",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:20.597056",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:02.982639",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

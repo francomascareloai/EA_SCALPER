@@ -1,0 +1,270 @@
+# MCP Integration Requirements - Absolute Minimal
+# Apenas dependências essenciais sem compilação
+
+# Core MCP Framework
+fastmcp>=0.2.0
+
+# Web e API essenciais
+requests>=2.31.0
+aiohttp>=3.8.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+websockets>=11.0.0
+
+# Análise de código básica
+bandit>=1.7.5
+flake8>=6.0.0
+pylint>=3.0.0
+
+# Testes essenciais
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Performance
+psutil>=5.9.0
+
+# Formatação
+black>=23.9.0
+isort>=5.12.0
+
+# Utilitários de arquivo
+watchdog>=3.0.0
+
+# Data e tempo
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Logging
+loguru>=0.7.2
+rich>=13.6.0
+colorama>=0.4.6
+
+# Configuração
+pydantic>=2.4.0
+pydantic-settings>=2.0.0
+toml>=0.10.2
+pyyaml>=6.0.1
+click>=8.1.7
+
+# Criptografia básica
+
+# YouTube Transcript Server
+youtube-transcript-api>=1.2.0
+defusedxml>=0.7.1
+mcp>=1.0.0
+cryptography>=41.0.0
+
+# Base de dados básica
+sqlalchemy>=2.0.0
+
+# Processamento de dados básico
+pandas>=2.1.0
+numpy>=1.24.0
+
+# APIs financeiras
+yfinance>=0.2.18
+
+# Template engines
+jinja2>=3.1.2
+
+# HTTP clients
+httpx>=0.25.0
+
+# Validação de dados
+marshmallow>=3.20.0
+
+# Serialização
+orjson>=3.9.0
+
+# Desenvolvimento
+ipython>=8.16.0
+
+# JSON processing
+jsonschema>=4.19.0
+
+# CLI tools
+typer>=0.9.0
+
+# Progress bars
+tqdm>=4.66.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Type checking
+mypy>=1.6.0
+types-requests>=2.31.0
+types-PyYAML>=6.0.0
+
+# String processing
+fuzzywuzzy>=0.18.0
+
+# Excel processing
+openpyxl>=3.1.0
+
+# PDF processing
+PyPDF2>=3.0.0
+
+# Text processing
+textblob>=0.17.1
+
+# JWT tokens
+PyJWT>=2.8.0
+
+# Protocol buffers
+protobuf>=4.24.0
+
+# WebSocket client
+websocket-client>=1.6.0
+
+# XML/HTML processing
+lxml>=4.9.3
+beautifulsoup4>=4.12.0
+
+# Image processing básico
+Pillow>=10.0.0
+
+# File processing
+chardet>=5.2.0
+
+# Retry logic
+tenacity>=8.2.0
+
+# Configuration validation
+voluptuous>=0.13.1
+
+# Code metrics
+radon>=6.0.0
+
+# Security scanning
+safety>=2.3.0
+
+# Documentation
+sphinx>=7.1.0
+
+# Scheduling
+schedule>=1.2.0
+
+# Email validation
+email-validator>=2.1.0
+
+# URL processing
+furl>=2.1.3
+
+# Rate limiting
+ratelimit>=2.2.1
+
+# Metrics
+prometheus-client>=0.18.0
+
+# Natural language processing
+nltk>=3.8.1
+
+# QR codes
+qrcode>=7.4.2
+
+# Barcode
+python-barcode>=0.14.0
+
+# OAuth
+authlib>=1.2.1
+
+# Database drivers
+psycopg2-binary>=2.9.7
+
+# NoSQL
+pymongo>=4.5.0
+
+# Parallel processing
+joblib>=1.3.0
+
+# Virtual environment
+virtualenv>=20.24.0
+
+# Package building
+build>=1.0.0
+
+# Browser automation
+selenium>=4.15.0
+
+# SSH
+paramiko>=3.3.0
+
+# Cloud storage
+boto3>=1.29.0
+
+# Error tracking
+sentry-sdk>=1.35.0
+
+# Payment processing
+stripe>=6.7.0
+
+# Calendar
+icalendar>=5.0.7
+
+# Math utilities
+sympy>=1.12
+
+# Blockchain
+web3>=6.11.0
+
+# Economic data
+fredapi>=0.4.3
+
+# Social sentiment
+vaderSentiment>=3.3.2
+
+# PDF advanced
+pdfplumber>=0.10.0
+
+# Word processing
+python-docx>=0.8.11
+
+# PowerPoint
+python-pptx>=0.6.21
+
+# Contact management
+vobject>=0.9.6.1
+
+# Image metadata
+exifread>=3.0.0
+
+# Audio metadata
+mutagen>=1.47.0
+
+# Video metadata
+ffmpeg-python>=0.2.0
+
+# Subtitle processing
+pysrt>=1.1.2
+
+# Language detection
+langdetect>=1.0.9
+
+# Translation
+googletrans>=4.0.0
+
+# Spell checking
+pyspellchecker>=0.7.2
+
+# Text summarization
+sumy>=0.11.0
+
+# Keyword extraction
+yake>=0.4.8
+
+# Emotion detection
+text2emotion>=0.0.5
+
+# Readability analysis
+textstat>=0.7.3
+
+# Code generation
+cookiecutter>=2.4.0
+
+# Template processing
+jinja2-cli>=0.8.2
+
+# Configuration management
+hydra-core>=1.3.0

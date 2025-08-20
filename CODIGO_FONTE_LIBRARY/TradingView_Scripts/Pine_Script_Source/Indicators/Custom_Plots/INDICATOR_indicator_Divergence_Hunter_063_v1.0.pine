@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #063
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: H1
+
+//@version=5
+indicator("Divergence_Hunter_63", shorttitle="Divergen", overlay=true)
+
+// Parâmetros
+length = input.int(20, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+ma = ta.sma(source, length)
+
+// Plot
+plot(ma, "Divergence_Hunter_63", color=color.purple)

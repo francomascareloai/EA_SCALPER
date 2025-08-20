@@ -1,0 +1,151 @@
+{
+  "file_info": {
+    "original_name": "sf87770_EA Trap Manyar Jay + Lock_Profit 11x (1).mq4",
+    "current_name": "SCR_sf87770_EA_Trap_Manyar_Jay_Lock_Profit_11x_1_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_sf87770_EA_Trap_Manyar_Jay_Lock_Profit_11x_1_v1.0_GOLD.mq4",
+    "file_size": 33756,
+    "lines_count": 754
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [
+        "M5",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 220,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_0",
+      "f0_8",
+      "f0_11",
+      "f0_6",
+      "f0_7",
+      "f0_9",
+      "f0_3",
+      "f0_14",
+      "f0_13",
+      "f0_16",
+      "f0_5",
+      "f0_1",
+      "f0_4",
+      "f0_10",
+      "f0_12",
+      "f0_2",
+      "f0_15"
+    ],
+    "variables": [
+      "Lots",
+      "Compound",
+      "Pembagi",
+      "Pengali",
+      "RESISTANCE",
+      "LOT_R4",
+      "LOT_MR4",
+      "LOT_R3",
+      "LOT_MR3",
+      "LOT_R2",
+      "LOT_MR2",
+      "SUPPORT",
+      "LOT_MS2",
+      "LOT_S2",
+      "LOT_MS3",
+      "LOT_S3",
+      "LOT_MS4",
+      "LOT_S4",
+      "MAGIC",
+      "Pake_Lock_Profit",
+      "Target1",
+      "LockProfiT1",
+      "Target2",
+      "LockProfiT2",
+      "Target3",
+      "LockProfiT3",
+      "Target4",
+      "LockProfiT4",
+      "Target5",
+      "LockProfiT5",
+      "Target6",
+      "LockProfiT6",
+      "Target7",
+      "LockProfiT7",
+      "Target8",
+      "LockProfiT8",
+      "Target9",
+      "LockProfiT9",
+      "Target10",
+      "LockProfiT10",
+      "Target11",
+      "LockProfiT11",
+      "Good_Luck"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:25.365129",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:39.307041",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

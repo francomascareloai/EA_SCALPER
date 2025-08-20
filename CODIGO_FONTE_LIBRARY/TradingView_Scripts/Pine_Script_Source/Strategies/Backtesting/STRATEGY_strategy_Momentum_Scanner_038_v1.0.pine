@@ -1,0 +1,28 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #038
+// Tipo: STRATEGY
+// Categoria: Technical
+// Mercado: Indices
+// Timeframe: H1
+
+//@version=5
+strategy("Momentum_Scanner_38", shorttitle="Momentum", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+// Parâmetros
+length = input.int(21, "Length", minval=1)
+stop_loss = input.float(1.9, "Stop Loss %", minval=0.1, step=0.1)
+take_profit = input.float(9.3, "Take Profit %", minval=0.1, step=0.1)
+
+// Estratégia
+rsi_val = ta.rsi(close, length)
+long_condition = rsi_val < 30
+short_condition = rsi_val > 70
+
+// Execução
+if (long_condition)
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Exit Long", "Long", stop=close * (1 - stop_loss/100), limit=close * (1 + take_profit/100))
+
+if (short_condition)
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Exit Short", "Short", stop=close * (1 + stop_loss/100), limit=close * (1 - take_profit/100))

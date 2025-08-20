@@ -1,0 +1,139 @@
+{
+  "file_info": {
+    "original_name": "VSA MA3X MURREYMATH with CHANNEL.mq4",
+    "current_name": "IND_VSA_MA3X_MURREYMATH_with_CHANNEL_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_VSA_MA3X_MURREYMATH_with_CHANNEL_v1.0_GOLD.mq4",
+    "file_size": 48793,
+    "lines_count": 1355
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 193,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "DelObj",
+      "TickVolume",
+      "start",
+      "VSA_BarSD",
+      "TextOutput",
+      "MURREYMATH",
+      "SHI",
+      "RANGE",
+      "CreateAverage",
+      "DeleteLabels"
+    ],
+    "variables": [
+      "Note",
+      "WaitNextBarConfirmation",
+      "NumberOfBars",
+      "P",
+      "StepBack",
+      "Comments",
+      "AngleText",
+      "Note2",
+      "AllBars",
+      "BarsForFract",
+      "Note3",
+      "Av_1",
+      "Av_2",
+      "Av_3",
+      "Av_4",
+      "Av_5",
+      "Av_6",
+      "Shift_UP_DN",
+      "Adjust_Side_to_side",
+      "pii"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_color7",
+      "indicator_color8",
+      "indicator_width1",
+      "indicator_width2",
+      "indicator_width3",
+      "indicator_width4",
+      "indicator_width5",
+      "indicator_width6"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:00.404724",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:20.578066",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

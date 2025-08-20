@@ -1,0 +1,113 @@
+{
+  "file_info": {
+    "original_name": "10pipsOnceADayOppositeLastNHourTrend.mq4",
+    "current_name": "EA_10pipsOnceADayOppositeLastNHourTrend_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_10pipsOnceADayOppositeLastNHourTrend_v1.0_FOREX.mq4",
+    "file_size": 9782,
+    "lines_count": 300
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX"
+      ],
+      "timeframes": [
+        "M1",
+        "H1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 57,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "TradeAllowed",
+      "IsTradingHour",
+      "GetLots",
+      "CheckForOpenPosition",
+      "OpenPosition",
+      "ClosePositions",
+      "CloseAllPositions",
+      "CheckForClosePositions",
+      "CheckForModifyPositions"
+    ],
+    "variables": [
+      "FIXLOT",
+      "MINLOTS",
+      "MAXLOTS",
+      "MAXIMUMRISK",
+      "SLIPPAGE",
+      "TRADINGHOUR",
+      "HOURSTOCHECKTREND",
+      "ORDERMAXAGE",
+      "FIRSTMULTIPLICATOR",
+      "SECONDMULTIPLICATOR",
+      "THIRDMULTIPLICATOR",
+      "FOURTHMULTIPLICATOR",
+      "FIFTHMULTIPLICATOR",
+      "STOPLOSS",
+      "TRAILINGSTOP",
+      "TAKEPROFIT"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#M1",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:49.387252",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:46.235360",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "id": "IND_Adjustable_MA_Alternating_Extremities_LuxAlgot",
+  "arquivo": "Adjustable MA & Alternating Extremities [LuxAlgo].pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine Script",
+  "estrategia": "Trend Following",
+  "subestrategias": [
+    "Bollinger Bands",
+    "Moving Averages",
+    "Price Action",
+    "RSI"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [
+    "array.sum",
+    "array.push",
+    "array.get",
+    "plot(",
+    "array.new_float",
+    "array.new_color"
+  ],
+  "dependencias_includes": [],
+  "parametros_expostos": [
+    "minval=2",
+    "minval=1",
+    "As Smoothed Candles",
+    "Show Alternating Extremities",
+    "Lag",
+    "Overshoot"
+  ],
+  "ftmo_score": 8,
+  "riscos_detectados": [
+    "Nenhum risco critico identificado",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)"
+  ],
+  "qualidade_codigo_score": 6,
+  "compilacao": {
+    "status": "sucesso",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco"
+  ],
+  "licenca_autor": "desconhecido"
+}

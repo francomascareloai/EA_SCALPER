@@ -1,0 +1,101 @@
+{
+  "file_info": {
+    "original_name": "mt High Frequency Moving Average.mq4",
+    "current_name": "EA_mt_High_Frequency_Moving_Average_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_mt_High_Frequency_Moving_Average_v1.0_GOLD.mq4",
+    "file_size": 14278,
+    "lines_count": 522
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 99,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "CalculateDynamicLotsize",
+      "CalculateTotalCommissionAndSpread",
+      "CalculateTotalProfit",
+      "MatchAndCloseOppositeOrders",
+      "ManageTrailingProfit",
+      "CalculateProfitByType",
+      "CloseAllOrders",
+      "CloseOrdersByType",
+      "OpenOrder",
+      "CountOrders",
+      "CountOrdersByType",
+      "AreAllOrdersInLoss",
+      "SortOrdersByProfit",
+      "CloseOrderPair"
+    ],
+    "variables": [
+      "Magic",
+      "Comment",
+      "Lotsize",
+      "MaximumBuySell"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:51.979538",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.800001",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

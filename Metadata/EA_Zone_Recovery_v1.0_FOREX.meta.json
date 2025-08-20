@@ -1,0 +1,112 @@
+{
+  "file_info": {
+    "original_name": "Zone Recovery.mq4",
+    "current_name": "EA_Zone_Recovery_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_Zone_Recovery_v1.0_FOREX.mq4",
+    "file_size": 18387,
+    "lines_count": 517
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 119,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnTick",
+      "LogMessage",
+      "CheckExistingOrders",
+      "FindOldestOrder",
+      "CheckExistingOrdersForLoss",
+      "CountEAOrders",
+      "CalculateZoneFromPips",
+      "IsSpreadAcceptable",
+      "GetCurrentSpreadPips",
+      "IsPriceAtZone",
+      "PlaceInitialOrder",
+      "ManageOrderSequence",
+      "GetFirstOrderLossInPips",
+      "CalculateTotalProfitInPips",
+      "UpdateOrderCounts",
+      "PlaceHedgeOrder",
+      "PlaceNextRecoveryOrder",
+      "CalculateNextLotSize",
+      "GetLargestExistingLotSize",
+      "RationalizeLots",
+      "CheckProfitClosure",
+      "CloseAllOrders"
+    ],
+    "variables": [
+      "ZoneRange",
+      "MagicNumber",
+      "MaxAllowedSpread",
+      "TradeComment",
+      "InitialLot"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:13.033813",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:00.116191",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

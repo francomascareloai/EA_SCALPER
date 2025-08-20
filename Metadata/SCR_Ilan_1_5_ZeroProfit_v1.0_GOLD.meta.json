@@ -1,0 +1,143 @@
+{
+  "file_info": {
+    "original_name": "Ilan_1.5_ZeroProfit.mq4",
+    "current_name": "SCR_Ilan_1_5_ZeroProfit_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Ilan_1_5_ZeroProfit_v1.0_GOLD.mq4",
+    "file_size": 19745,
+    "lines_count": 494
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 132,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "TradeTime",
+      "start",
+      "CountTrades",
+      "CloseThisSymbolAll",
+      "OpenPendingOrder",
+      "StopLong",
+      "StopShort",
+      "TakeLong",
+      "TakeShort",
+      "CalculateProfit",
+      "TrailingAlls",
+      "AccountEquityHigh",
+      "FindLastBuyPrice",
+      "FindLastSellPrice",
+      "GetLots"
+    ],
+    "variables": [
+      "PauseMin",
+      "LotExponent",
+      "s",
+      "slip",
+      "r",
+      "Risk",
+      "l",
+      "Lots",
+      "t",
+      "lotdecimal",
+      "tp",
+      "TakeProfit1",
+      "tp2",
+      "TakeProfit2",
+      "ktp",
+      "KolTakeProfit",
+      "Stoploss",
+      "TrailStart",
+      "TrailStop",
+      "ps",
+      "PipStep",
+      "MaxTrades",
+      "UseTrailingStop",
+      "mn",
+      "g_magic_176",
+      "md",
+      "MTF",
+      "BystrVhod",
+      "MedlVhod",
+      "SignVhod",
+      "st",
+      "MTS",
+      "Stohmax",
+      "Stohmin",
+      "Kperiod",
+      "Dperiod",
+      "Slowing",
+      "k",
+      "Kor",
+      "w",
+      "CloseFriday",
+      "CloseFridayHour",
+      "OrdHisCount"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:31.945883",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:31.612674",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

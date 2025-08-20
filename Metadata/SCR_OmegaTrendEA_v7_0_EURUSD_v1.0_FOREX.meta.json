@@ -1,0 +1,155 @@
+{
+  "file_info": {
+    "original_name": "OmegaTrendEA_v7.0_EURUSD.mq4",
+    "current_name": "SCR_OmegaTrendEA_v7_0_EURUSD_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_OmegaTrendEA_v7_0_EURUSD_v1.0_FOREX.mq4",
+    "file_size": 32963,
+    "lines_count": 702
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 182,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "GMTOffset",
+      "FormatDateTime",
+      "init",
+      "deinit",
+      "start",
+      "f0_2",
+      "f0_1",
+      "f0_3",
+      "f0_0"
+    ],
+    "variables": [
+      "NFA_Rules",
+      "Max_Spread",
+      "Max_Slippage",
+      "AutoGMT_Offset",
+      "ManualGMT_Offset",
+      "DST_Usage",
+      "X",
+      "Indicator_TimeFrame",
+      "Action_TimeFrame",
+      "Volatility_Period",
+      "Smooth_Factor",
+      "Max_Width_Pips",
+      "Min_Follow_Pips",
+      "TrendLine_Level",
+      "PivotLine_Level",
+      "Bar_Acceleration",
+      "Profit_Acceleration",
+      "Y",
+      "Signal_1",
+      "RecoveryMode_1",
+      "Fixed_Lots_1",
+      "AutoMM_1",
+      "AutoMM_Max_1",
+      "Magic_1",
+      "Signal_1_TakeProfit",
+      "Signal_1_StopLoss",
+      "Signal_1_StrongPips",
+      "Hour_Filtering",
+      "TradeHour1",
+      "TradeHour2",
+      "TradeHour3",
+      "TradeHour4",
+      "TradeHour5",
+      "TradeHour6",
+      "TradeHour7",
+      "TradeHour8",
+      "TradeHour9",
+      "Swing_Filtering",
+      "Swing_MA_Period",
+      "Swing_Impulse",
+      "NoTradeDay",
+      "Z",
+      "Signal_2",
+      "RecoveryMode_2",
+      "Fixed_Lots_2",
+      "AutoMM_2",
+      "AutoMM_Max_2",
+      "Magic_2",
+      "TargetFactor",
+      "Signal_2_TakeProfit",
+      "Signal_2_StopLoss",
+      "Signal_2_Exit_Profit",
+      "MinStop",
+      "IgnoreSmallStopTrades"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:01.849773",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.693841",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

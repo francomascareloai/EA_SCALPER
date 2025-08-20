@@ -1,32 +1,32 @@
 //@version=5
-indicator('!<*Профиль объема/фиксированный диапазон(P&S)*>!', overlay=true, max_boxes_count=200, max_bars_back=501)
-bbars = input.int(title='Количество баров', defval=20, minval=1, maxval=500)
-cnum = input.int(title='Размер строки', defval=24, minval=5, maxval=100)
-percent = input.float(70., title='Объем области значений %', minval=0, maxval=100)
-poc_color = input.color(defval=#ff0000, title='POC Цвет', inline='poc')
-poc_width = input.int(defval=1, title='Ширина', minval=1, maxval=5, inline='poc')
-vup_color = input(defval=#0466fe, title='Область значений вверх')
-vdown_color = input(defval=#ff9800b3, title='Область значений вниз')
-up_color = input(defval=#2196f340, title='Повышение объёма')
-down_color = input(defval=#ff980040, title='Понижение объема')
-show_poc = input.bool(defval = false, title = "Показать Лейбл POC")
+indicator('!<*пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ(P&S)*>!', overlay=true, max_boxes_count=200, max_bars_back=501)
+bbars = input.int(title='пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ', defval=20, minval=1, maxval=500)
+cnum = input.int(title='пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ', defval=24, minval=5, maxval=100)
+percent = input.float(70., title='пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ %', minval=0, maxval=100)
+poc_color = input.color(defval=#ff0000, title='POC пїЅпїЅпїЅпїЅ', inline='poc')
+poc_width = input.int(defval=1, title='пїЅпїЅпїЅпїЅпїЅпїЅ', minval=1, maxval=5, inline='poc')
+vup_color = input(defval=#0466fe, title='пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ')
+vdown_color = input(defval=#ff9800b3, title='пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ')
+up_color = input(defval=#2196f340, title='пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ')
+down_color = input(defval=#ff980040, title='пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ')
+show_poc = input.bool(defval = false, title = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ POC")
 
 top = ta.highest(bbars)
 bot = ta.lowest(bbars)
 dist = (top - bot) / 500
 step = (top - bot) / cnum
 
-// рассчитываем/сохраняем уровни канала
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 levels = array.new_float(cnum + 1)
 for x = 0 to cnum by 1
     array.set(levels, x, bot + step * x)
 
-// получаем объем, если есть пересечение
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 get_vol(y11, y12, y21, y22, height, vol) =>
     nz(math.max(math.min(math.max(y11, y12), math.max(y21, y22)) - math.max(math.min(y11, y12), math.min(y21, y22)), 0) * vol / height)
 
 if barstate.islast
-    // рассчитываем/получаем объем для каждого канала и свечи
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
     volumes = array.new_float(cnum * 2, 0.)
     for bars = 0 to bbars - 1 by 1
         body_top = math.max(close[bars], open[bars])
@@ -50,7 +50,7 @@ if barstate.islast
 
     int poc = array.indexof(totalvols, array.max(totalvols))
 
-   // вычисляем область значений
+   // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     totalmax = array.sum(totalvols) * percent / 100.
     va_total = array.get(totalvols, poc)
     int up = poc
@@ -75,7 +75,7 @@ if barstate.islast
     for x = 0 to cnum * 2 - 1 by 1
         array.set(volumes, x, array.get(volumes, x) * bbars / (3 * maxvol))
 
-    // Рисуем строки VP
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ VP
     var vol_bars = array.new_box(cnum * 2, na)
     for x = 0 to cnum - 1 by 1
         box.delete(array.get(vol_bars, x))
@@ -93,7 +93,7 @@ if barstate.islast
                                               border_width=0, 
                                               bgcolor=x >= down and x <= up ? vdown_color : down_color))
 
-    // Рисуем линию POC и метку
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ POC пїЅ пїЅпїЅпїЅпїЅпїЅ
     poc_level = (array.get(levels, poc) + array.get(levels, poc + 1)) / 2
     var line poc_line = na
     line.delete(poc_line)
@@ -106,33 +106,33 @@ if barstate.islast
                                text = "POC: " + str.tostring(math.round_to_mintick(poc_level)),
                                style = close >= poc_level ? label.style_label_up : label.style_label_down)
 
-// пользовательский ввод
-lookback = input.int(title="Период возврата", defval=20, maxval=500, group="Основные настройки", tooltip="Количество баров для поиска самого высокого и самого низкого для создания диапазона цен")
-segs = input.int(title="Количество уровней", defval=20, maxval=100, group="Основные настройки", tooltip="Количество сеток/узлов для профиля объема")
-n_skew = input.int(title="Длина профиля", defval=9, minval=1, maxval=1000, group="Основные настройки", tooltip="Длина профиля объема. Больше = Шире, Меньше = Узкий")
-n_shift = input.int(title="Смещение профиля", defval=10, group="Основные настройки", tooltip="Сместить весь профиль объема влево или вправо. Больше = Вправо, Меньше = Влево")
-high_volume_color = input.color(#fcad02, "Высокий объем", inline = "Цвета", group = "Косметические настройки")
-low_volume_color = input.color(#0466fe, "Низкий объем", inline = "Цвета", group = "Косметические настройки")
-activity_bull_color = input.color(#ff9800e6, "Выше точки интереса", inline = "Точка интереса", group = "Косметические настройки")
-activity_bear_color = input.color(#ff9800e6, "Ниже точки интереса", inline = "Точка интереса", group = "Косметические настройки")
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+lookback = input.int(title="пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", defval=20, maxval=500, group="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", tooltip="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ")
+segs = input.int(title="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", defval=20, maxval=100, group="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", tooltip="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")
+n_skew = input.int(title="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", defval=9, minval=1, maxval=1000, group="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", tooltip="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅ = пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ = пїЅпїЅпїЅпїЅпїЅ")
+n_shift = input.int(title="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", defval=10, group="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", tooltip="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅ = пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ = пїЅпїЅпїЅпїЅпїЅ")
+high_volume_color = input.color(#fcad02, "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ", inline = "пїЅпїЅпїЅпїЅпїЅ", group = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
+low_volume_color = input.color(#0466fe, "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ", inline = "пїЅпїЅпїЅпїЅпїЅ", group = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
+activity_bull_color = input.color(#ff9800e6, "пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", inline = "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", group = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
+activity_bear_color = input.color(#ff9800e6, "пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", inline = "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", group = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
 
-// данные
+// пїЅпїЅпїЅпїЅпїЅпїЅ
 highest_high = ta.highest(high, lookback)
 lowest_low = ta.lowest(low, lookback)
 
-// извлечение данных на младшем таймфрейме
-tf = timeframe.isintraday ? 1 : 5  // Для M1 и M5 соответственно
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+tf = timeframe.isintraday ? 1 : 5  // пїЅпїЅпїЅ M1 пїЅ M5 пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 req_tf = str.tostring(timeframe.multiplier)
 [h, l, v] = request.security_lower_tf(syminfo.tickerid, req_tf, [high, low, volume])
 
-// массивы
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 var borders = array.new_float()
 var boxes = array.new_box()
 var box_vols = array.new_float()
 
 var line activity_line = na
 
-// инициализируем массивы блоков на первом баре
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 if barstate.isfirst
     for i = 0 to segs - 1
         array.push(boxes, box.new(na, na, na, na, xloc = xloc.bar_time, border_color = na))
@@ -141,14 +141,14 @@ if barstate.isfirst
         activity_line := line.new(na, na, na, na, style = line.style_dashed, width = 2)
 
 if barstate.islast
-    //определяем диапазон и создаем сетку
+    //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     inc = (highest_high - lowest_low) / segs
     for i = 0 to segs
         if i == 0
             array.clear(borders)
         array.push(borders, highest_high - (inc * i))
 
-    //анализируем все бары младших таймфреймов и приписываем объем каждой сетке
+    //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     for b = 0 to array.size(boxes) > 0 ? array.size(boxes) - 1 : na
         box_ = array.get(boxes, b)
         box_vol = 0.0
@@ -172,7 +172,7 @@ if barstate.islast
                     box_vol += nz(register_vol * ltf_vol)
         array.set(box_vols, b, box_vol)
 
-    //обновляем объекты-коробки, придавая им правильный объем, цвет и положение
+    //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     max_vol = array.max(box_vols)
     min_vol = array.min(box_vols)
     shift = (time - time[n_shift])
@@ -197,17 +197,17 @@ if barstate.islast
             line.set_color(activity_line, close > mid ? activity_bull_color : activity_bear_color) 
 
 //
-isMode = input.string('Вверх/Вниз/Нейтрально', 'Режим', options=['Вверх/Вниз/Нейтрально', 'Вверх/Вниз'])
-isDisplayMarketDelta = input(false, 'Показать Чистая дельта объема')
-colorDeltaVolUpVal = input.color(#03fc0c, 'Чистая дельта +', inline='Дельта Число Цвет')
-colorDeltaVolDnVal = input.color(#fa0505, 'Чистая дельта -', inline='Дельта Число Цвет')
-colorDeltaVolNtVal = input.color(#787b86, 'Чистая дельта 0', inline='Дельта Число Цвет')
-scaleDownFactor = input.int(1, 'Коэффициент Масштабирования', options=[1, 10, 100, 1000, 10000], tooltip='Отображение значения Чистая дельта масштабированного для лучшей читаемости')
+isMode = input.string('пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ', 'пїЅпїЅпїЅпїЅпїЅ', options=['пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ', 'пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅ'])
+isDisplayMarketDelta = input(false, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ')
+colorDeltaVolUpVal = input.color(#03fc0c, 'пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ +', inline='пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ')
+colorDeltaVolDnVal = input.color(#fa0505, 'пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ -', inline='пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ')
+colorDeltaVolNtVal = input.color(#787b86, 'пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ 0', inline='пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ')
+scaleDownFactor = input.int(1, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ', options=[1, 10, 100, 1000, 10000], tooltip='пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ')
 
 UPDOWNNEUTRAL_MODE = 1
 UPDOWN_MODE = 2
 
-iMode = isMode == 'Вверх/Вниз/Нейтрально' ? UPDOWNNEUTRAL_MODE : UPDOWN_MODE
+iMode = isMode == 'пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ' ? UPDOWNNEUTRAL_MODE : UPDOWN_MODE
 
 f_upDnNtVolume(_mode) =>
     varip float _prevClose = open
@@ -259,9 +259,9 @@ if isbarConsidered
         text_color = volUp - volDn > 0 ? colorDeltaVolUpVal : volUp - volDn < 0 ? colorDeltaVolDnVal : colorDeltaVolNtVal
         label.new(x=bar_index, y=volUp - volDn, yloc=yloc.abovebar, textcolor=color.new(text_color, 0), style=label.style_none, text=str.tostring(int((volUp - volDn) / scaleDownFactor)))
 
-///Ключевые уровни P&S//
-green = input(#00ffbb, title="Цвет восходящих уровней")
-red = input(#ff1100, title="Цвет нисходящих уровней")
+///пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ P&S//
+green = input(#00ffbb, title="пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
+red = input(#ff1100, title="пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
 
 candledir = close > open ? 1 : -1
 candlelen = math.abs(close-open)
@@ -275,11 +275,11 @@ bullishrej(level) =>
 bearishrej(level) =>
     high > level and close < level
 
-max_levels = input(500, title="Максимальное количество уровней")
-max_bars = input(500, title="Максимальное количество баров")
-show_up_levels = input(true, title="Показывать восходящие уровни")
-show_down_levels = input(true, title="Показывать нисходящие уровни")
-show_dashed_lines = input(true, title="Показывать пунктирные линии")
+max_levels = input(500, title="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
+max_bars = input(500, title="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ")
+show_up_levels = input(true, title="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")
+show_down_levels = input(true, title="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")
+show_dashed_lines = input(true, title="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ")
 
 type bar
     float h = high

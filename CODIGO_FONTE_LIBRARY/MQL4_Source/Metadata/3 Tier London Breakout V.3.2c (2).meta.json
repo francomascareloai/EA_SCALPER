@@ -1,0 +1,33 @@
+{
+  "arquivo": {
+    "nome": "3 Tier London Breakout V.3.2c (2).mq4",
+    "tamanho_bytes": 20649,
+    "linhas_codigo": 503,
+    "data_modificacao": "2025-08-10T17:56:05.908204"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de horário/sessão",
+      "Lógica de breakout"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.004950284957885742,
+  "timestamp": "2025-08-13T01:11:51.458838"
+}

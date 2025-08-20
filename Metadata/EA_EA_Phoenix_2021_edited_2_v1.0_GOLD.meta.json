@@ -1,0 +1,145 @@
+{
+  "file_info": {
+    "original_name": "EA Phoenix 2021_edited (2).mq4",
+    "current_name": "EA_EA_Phoenix_2021_edited_2_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_EA_Phoenix_2021_edited_2_v1.0_GOLD.mq4",
+    "file_size": 29929,
+    "lines_count": 822
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.0,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.0,
+    "level": "Baixo",
+    "compliance_score": 20.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 162,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Chaves desbalanceadas - erro de sintaxe",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "ReadFileHst",
+      "fnGetLotDigit",
+      "CheckBuyOrders",
+      "CheckSellOrders",
+      "CheckTotalBuyOrders",
+      "CheckTotalSellOrders",
+      "CheckMarketSellOrders",
+      "CheckMarketBuyOrders",
+      "MainOrders",
+      "CloseBuy",
+      "CloseSell",
+      "GetLots",
+      "signal",
+      "CandleStick_Analyzer",
+      "BullishEngulfingExists",
+      "BullishHaramiExists",
+      "DojiAtBottomExists",
+      "DojiAtTopExists",
+      "BearishHaramiExists",
+      "LongUpCandleExists",
+      "LongDownCandleExists",
+      "BearishEngulfingExists",
+      "SpinningTopExists",
+      "MakeLine",
+      "IsBuyPinbar",
+      "IsSellPinbar",
+      "AveRange4"
+    ],
+    "variables": [
+      "Trailing",
+      "TrailingExtra",
+      "MagicID",
+      "LOTS",
+      "risk",
+      "SL",
+      "TP"
+    ],
+    "includes": [
+      "stderror.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:39.728232",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:50.579232",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

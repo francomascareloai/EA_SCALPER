@@ -1,0 +1,33 @@
+{
+  "arquivo": {
+    "nome": "Flexy The Dragon v2.7 (2).mq4",
+    "tamanho_bytes": 227579,
+    "linhas_codigo": 5509,
+    "data_modificacao": "2025-08-10T19:43:25.915363"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de horário/sessão",
+      "Filtro de volatilidade"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.05832076072692871,
+  "timestamp": "2025-08-13T01:12:07.575108"
+}

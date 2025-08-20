@@ -1,0 +1,160 @@
+{
+  "file_info": {
+    "original_name": "phoenixea.mq4",
+    "current_name": "UNK_phoenixea_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Misc\\UNK_phoenixea_v1.0_FOREX.mq4",
+    "file_size": 34698,
+    "lines_count": 1036
+  },
+  "classification": {
+    "type": "Unknown",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 78.33333333333333,
+    "complexity": 166,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "CalculateCurrentOrders",
+      "CheckOpenTrade",
+      "CheckOpenTradeMode123",
+      "CheckSecondTrade",
+      "CheckCloseTrade23",
+      "Mode3_MoveSL_Trade_2_3",
+      "Mode3_MoveSL_Trade_3",
+      "divergence",
+      "F_ValidTradeTime",
+      "CheckCloseAfterHours",
+      "CheckSignal",
+      "LotsOptimized",
+      "CheckTrailingStop",
+      "CheckBreakEven",
+      "CloseFirstTrade",
+      "Mode3CalculateCurrentOrders"
+    ],
+    "variables": [
+      "GeneralSettings",
+      "PhoenixMode",
+      "Lots",
+      "MaximumRisk",
+      "DecreaseFactor",
+      "MM",
+      "AccountIsMicro",
+      "PrefSettings",
+      "CloseAfterHours",
+      "BreakEvenAfterPips",
+      "Mode1",
+      "TakeProfit",
+      "StopLoss",
+      "TrailingStop",
+      "Mode2",
+      "Mode2_OpenTrade_2",
+      "Mode2_TakeProfit",
+      "Mode2_StopLoss",
+      "Mode2_CloseFirstTrade",
+      "Mode3",
+      "Mode3_CloseTrade2_3",
+      "Mode3_TakeProfit",
+      "Mode3_StopLoss",
+      "Signal1",
+      "UseSignal1",
+      "Percent",
+      "EnvelopePeriod",
+      "Signal2",
+      "UseSignal2",
+      "SMAPeriod",
+      "SMA2Bars",
+      "Signal3",
+      "UseSignal3",
+      "OSMAFast",
+      "OSMASlow",
+      "OSMASignal",
+      "Signal4",
+      "UseSignal4",
+      "Fast_Period",
+      "Fast_Price",
+      "Slow_Period",
+      "Slow_Price",
+      "DVBuySell",
+      "DVStayOut",
+      "Signal5",
+      "UseSignal5",
+      "TradeFrom1",
+      "TradeUntil1",
+      "TradeFrom2",
+      "TradeUntil2",
+      "TradeFrom3",
+      "TradeUntil3",
+      "TradeFrom4",
+      "TradeUntil4"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Unknown",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#MediumQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:08.694652",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:36:49.031407",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "file_info": {
+    "original_name": "Forex Goats SA Bar Meter.mq4",
+    "current_name": "SCR_Forex_Goats_SA_Bar_Meter_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Forex_Goats_SA_Bar_Meter_v1.0_GOLD.mq4",
+    "file_size": 62665,
+    "lines_count": 1696
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 368,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "main",
+      "initGraph",
+      "objectCreate",
+      "object2Create",
+      "object3Create",
+      "objectBlank",
+      "paintM1",
+      "paintM5",
+      "paintM15",
+      "paintM30",
+      "paintH1",
+      "paintH4",
+      "paintD1",
+      "paintLine",
+      "paintMA_M1",
+      "paintMA_M5",
+      "paintMA_M15",
+      "paintMA_M30",
+      "paintMA_H1",
+      "paintMA_H4",
+      "paintMA_D1",
+      "paint2Line",
+      "paintWPRUp",
+      "paintWPRDown",
+      "paintWPRValue",
+      "paintSpread",
+      "paintSpreadLines",
+      "paintPSAR",
+      "paintMACD",
+      "paintMAXover",
+      "paintBar1",
+      "paintBar2",
+      "paintBar3",
+      "paintBar4",
+      "paintBar5",
+      "paintBars",
+      "paintBarValue1",
+      "paintBarValue2",
+      "paintBarValue3",
+      "paintBarValue4",
+      "paintBarValue5",
+      "paintBarReading",
+      "paintSignal"
+    ],
+    "variables": [
+      "StochsValues",
+      "Stoch_K",
+      "Stoch_D",
+      "Stoch_Slowing",
+      "MAvalues",
+      "MA_Period",
+      "MA_Shift",
+      "MACDvalues",
+      "MACD_Period1",
+      "MACD_Period2",
+      "MACD_Period3",
+      "MAXvalues",
+      "FastLWMA",
+      "SlowSMA",
+      "PSARvalues",
+      "PSAR_Step",
+      "PSAR_Max"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:02.370318",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:29.366312",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

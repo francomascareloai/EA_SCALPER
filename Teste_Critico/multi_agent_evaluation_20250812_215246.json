@@ -1,0 +1,164 @@
+{
+  "timestamp": "2025-08-12T21:52:46.064128",
+  "evaluation_time": 0.0011603832244873047,
+  "unified_score": 6.2325,
+  "classification": "🥉 ACEITÁVEL",
+  "agent_results": [
+    {
+      "agent_name": "Architect",
+      "overall_score": 7.5,
+      "scores": [
+        {
+          "category": "Escalabilidade",
+          "score": 7.0,
+          "max_score": 10.0,
+          "details": "Capacidade do sistema de crescer e se adaptar",
+          "recommendations": [
+            "Implementar cache para metadados",
+            "Otimizar estrutura de pastas"
+          ]
+        },
+        {
+          "category": "Manutenibilidade",
+          "score": 6.0,
+          "max_score": 10.0,
+          "details": "Facilidade de manutenção e evolução do código",
+          "recommendations": [
+            "Adicionar mais documentação",
+            "Implementar testes unitários"
+          ]
+        },
+        {
+          "category": "Eficiência",
+          "score": 10.0,
+          "max_score": 10.0,
+          "details": "Performance e uso otimizado de recursos",
+          "recommendations": [
+            "Otimizar algoritmos de classificação",
+            "Implementar processamento paralelo"
+          ]
+        },
+        {
+          "category": "Padrões",
+          "score": 7.0,
+          "max_score": 10.0,
+          "details": "Conformidade com best practices",
+          "recommendations": [
+            "Padronizar nomenclatura",
+            "Implementar design patterns"
+          ]
+        }
+      ],
+      "critical_issues": [],
+      "recommendations": [],
+      "timestamp": "2025-08-12T21:52:46.063167"
+    },
+    {
+      "agent_name": "FTMO_Trader",
+      "overall_score": 3.8125,
+      "scores": [
+        {
+          "category": "Conformidade FTMO",
+          "score": 2.0,
+          "max_score": 10.0,
+          "details": "Aderência às regras FTMO Challenge",
+          "recommendations": [
+            "Implementar proteção de drawdown",
+            "Validar gestão de risco"
+          ]
+        },
+        {
+          "category": "Gestão de Risco",
+          "score": 4.25,
+          "max_score": 10.0,
+          "details": "Qualidade da gestão de risco implementada",
+          "recommendations": [
+            "Adicionar stop loss obrigatório",
+            "Implementar trailing stop"
+          ]
+        },
+        {
+          "category": "Prob. Aprovação",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": "Probabilidade de aprovação no FTMO Challenge",
+          "recommendations": [
+            "Otimizar risk/reward",
+            "Adicionar filtros de mercado"
+          ]
+        },
+        {
+          "category": "Sustentabilidade",
+          "score": 6.0,
+          "max_score": 10.0,
+          "details": "Capacidade de manter performance consistente",
+          "recommendations": [
+            "Implementar filtros de volatilidade",
+            "Adicionar proteções adicionais"
+          ]
+        }
+      ],
+      "critical_issues": [
+        "❌ CRÍTICO: Conformidade FTMO insuficiente",
+        "❌ CRÍTICO: Gestão de risco inadequada"
+      ],
+      "recommendations": [],
+      "timestamp": "2025-08-12T21:52:46.063519"
+    },
+    {
+      "agent_name": "Code_Analyst",
+      "overall_score": 8.191666666666666,
+      "scores": [
+        {
+          "category": "Qualidade Código",
+          "score": 6.666666666666667,
+          "max_score": 10.0,
+          "details": "Qualidade geral do código fonte",
+          "recommendations": [
+            "Refatorar funções complexas",
+            "Adicionar comentários"
+          ]
+        },
+        {
+          "category": "Performance",
+          "score": 9.0,
+          "max_score": 10.0,
+          "details": "Eficiência algorítmica e otimização",
+          "recommendations": [
+            "Otimizar loops",
+            "Implementar cache"
+          ]
+        },
+        {
+          "category": "Segurança",
+          "score": 8.0,
+          "max_score": 10.0,
+          "details": "Segurança e robustez do código",
+          "recommendations": [
+            "Validar inputs",
+            "Implementar error handling"
+          ]
+        },
+        {
+          "category": "Reutilização",
+          "score": 9.1,
+          "max_score": 10.0,
+          "details": "Capacidade de reutilização de componentes",
+          "recommendations": [
+            "Extrair mais snippets",
+            "Modularizar código"
+          ]
+        }
+      ],
+      "critical_issues": [],
+      "recommendations": [],
+      "timestamp": "2025-08-12T21:52:46.063933"
+    }
+  ],
+  "critical_issues": [
+    "❌ CRÍTICO: Gestão de risco inadequada",
+    "❌ CRÍTICO: Conformidade FTMO insuficiente"
+  ],
+  "top_recommendations": [],
+  "summary": "Sistema avaliado por 3 agentes especializados. Score unificado: 6.2/10.0 (🥉 ACEITÁVEL). Issues críticos detectados: 2."
+}

@@ -1,0 +1,31 @@
+{
+  "arquivo": {
+    "nome": "Range.mq4",
+    "tamanho_bytes": 3261,
+    "linhas_codigo": 95,
+    "data_modificacao": "2022-09-26T04:22:40"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0011692047119140625,
+  "timestamp": "2025-08-13T01:12:32.923692"
+}

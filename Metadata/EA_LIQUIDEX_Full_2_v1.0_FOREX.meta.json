@@ -1,0 +1,182 @@
+{
+  "file_info": {
+    "original_name": "LIQUIDEX Full (2).mq4",
+    "current_name": "EA_LIQUIDEX_Full_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_LIQUIDEX_Full_2_v1.0_FOREX.mq4",
+    "file_size": 74599,
+    "lines_count": 1810
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Proteção de drawdown",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 298,
+    "issues": [
+      "Loop infinito detectado - risco de travamento",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "InRange",
+      "IsSafetyForTrade",
+      "iVAR",
+      "isNewBar",
+      "OnDeinit",
+      "OnTick",
+      "PrintLineLine",
+      "DrawLine",
+      "GetHLineValue",
+      "strtf",
+      "GetLots",
+      "ErrorDescription",
+      "OrderTypeToStr",
+      "OrderSendEx",
+      "OrderModifyEx",
+      "OrderDeleteEx",
+      "OrderCloseEx",
+      "ShiftArray",
+      "TickLowest",
+      "TickHighest",
+      "TickSMA",
+      "TickEMA",
+      "TickLWMA"
+    ],
+    "variables": [
+      "DispEquityProtection",
+      "EquityProtection",
+      "AverageEquityProtection",
+      "AccountEquityPercentProtection",
+      "UseMM",
+      "Lots",
+      "MinLots",
+      "MaxLots",
+      "Risk",
+      "BarAndMA_Mode",
+      "RangeFilter",
+      "StopLoss",
+      "TakeProfit",
+      "MoveToBE",
+      "MoveToBE_Offset",
+      "TrailingLimit",
+      "TrailingDistance",
+      "MAPeriod",
+      "MAShift",
+      "MAMethod",
+      "MaxSpreadWithCommission",
+      "DefaultCommisionPoints",
+      "RangeFilterNote",
+      "MAMethodNote",
+      "Slippage",
+      "MagicNumber",
+      "TradeComment",
+      "ShowComment",
+      "WriteDebugLog",
+      "___Keltner_Channel____",
+      "UseFilterKeltnerChannel",
+      "KC_Period",
+      "partInRange",
+      "EntryHourFrom",
+      "EntryHourTo",
+      "FridayEndHour",
+      "part_iVAR",
+      "TimeFrameiVAR",
+      "periods",
+      "a1",
+      "a2",
+      "a3",
+      "a4",
+      "TicksPeriod",
+      "Length",
+      "MA_Mode",
+      "NumTicks",
+      "NumSecs",
+      "DispMaxBars",
+      "MaxBars",
+      "UseRSI",
+      "account_number",
+      "is_ok"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:39.539047",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.607528",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

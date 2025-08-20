@@ -1,0 +1,69 @@
+{
+  "id": "STR_10_to_50_pips_a_day_with_Forex_mobile_strategy",
+  "arquivo": "10 to 50 pips a day with Forex mobile strategy.pine",
+  "hash": "",
+  "tipo": "Strategy",
+  "linguagem": "Pine Script",
+  "estrategia": "SMC (Smart Money Concepts)",
+  "subestrategias": [
+    "Range Trading",
+    "Momentum",
+    "Moving Averages",
+    "Support and Resistance",
+    "Order Blocks",
+    "Trend Following",
+    "RSI"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 9,
+  "riscos_detectados": [
+    "Nenhum risco critico identificado",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)",
+    "Possivel uso de estrategias de alto risco (Martingale/Grid)"
+  ],
+  "qualidade_codigo_score": 5,
+  "compilacao": {
+    "status": "nao_aplicavel",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco",
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco"
+  ],
+  "licenca_autor": "desconhecido"
+}

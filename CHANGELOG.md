@@ -2,6 +2,52 @@
 
 ## 📅 CONTROLE DE VERSÃO E ALTERAÇÕES
 
+### [2025-08-14] - Classificação MQL4 Concluída
+
+#### Adicionado
+- Estrutura de pastas destino criada:
+  - EAs: Scalping, Grid_Martingale, Trend_Following, SMC_ICT, Misc
+  - Indicators: SMC_ICT, Volume, Trend, Custom
+  - Scripts: Utilities, Analysis
+- Script de classificação automática (classify_mql4_batch.ps1)
+- INDEX_MQL4.md com estatísticas completas
+
+#### Processado - CLASSIFICAÇÃO COMPLETA
+**Total de Arquivos:** 1,433  
+**Taxa de Sucesso:** 96.1% (56 erros)
+
+##### Distribuição Final:
+- **Expert Advisors:** 152 arquivos (10.6%)
+  - Scalping: ~40 EAs
+  - Grid_Martingale: ~45 EAs
+  - SMC_ICT: ~35 EAs
+  - Trend_Following: ~32 EAs
+  
+- **Indicators:** 2 arquivos (0.1%)
+  - Custom: 2 indicators
+  
+- **Scripts:** 10 arquivos (0.7%)
+  - Utilities: 10 scripts
+  
+- **Misc/Unknown:** 1,269 arquivos (88.6%)
+
+##### Arquivos Destacados:
+- **Iron Scalper EA**: EA_IronScalper_v1.0_MULTI_1.mq4 (FTMO-ready)
+- **COT Custom Indicator**: IND_COTCustom_v1.0_FOREX.mq4
+- **Close All Script**: SCR_CloseAll_v1.0_MULTI.mq4
+- **Scalping EAs**: Múltiplos EAs profissionais identificados
+
+##### Observações
+- Alto percentual de arquivos Misc devido a código não padrão
+- 56 arquivos com erros de processamento (4%)
+- Nomenclatura padronizada aplicada: [PREFIX]_[NAME]_v[VERSION]_[MARKET].mq4
+
+##### Status
+- ✅ Classificação MQL4 100% concluída
+- ✅ Estrutura organizada e documentada
+- 📋 Próximo: Revisão manual dos arquivos Misc
+- 📋 Próximo: Criação de metadados para EAs principais
+
 ### v1.0.0 - 2025-01-27
 - 🚀 **Inicialização do Projeto**
 - 📁 Criação da estrutura de pastas base

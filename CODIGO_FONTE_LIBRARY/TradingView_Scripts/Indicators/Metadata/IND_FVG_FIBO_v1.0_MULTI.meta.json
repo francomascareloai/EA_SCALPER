@@ -1,0 +1,59 @@
+{
+  "id": "IND_FVG_FIBO_v1.0_MULTI",
+  "arquivo": "IND_FVG_FIBO_v1.0_MULTI.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine Script",
+  "estrategia": "SMC (Smart Money Concepts)",
+  "subestrategias": [
+    "Fair Value Gaps",
+    "Fibonacci Retracements",
+    "BOS/CHoCH"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [
+    "ta.highestbars",
+    "ta.lowestbars",
+    "box.new",
+    "line.new",
+    "label.new",
+    "array.new_box",
+    "array.new_line"
+  ],
+  "dependencias_includes": [
+    "LudoGH68/Drawings_public/1"
+  ],
+  "parametros_expostos": [
+    "Display FVG",
+    "Bullish FVG Color",
+    "Bearish FVG Color",
+    "Number of FVG to show",
+    "Break with candle's body",
+    "Display current structure",
+    "Structure Fibonacci values"
+  ],
+  "ftmo_score": 9,
+  "riscos_detectados": [
+    "Repainting potencial em tempo real",
+    "Fibonacci levels podem gerar zonas de conflito"
+  ],
+  "qualidade_codigo_score": 8,
+  "compilacao": {
+    "status": "sucesso",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Verificar se há repainting em candles em tempo real",
+    "Adicionar alertas para mitigação de FVG"
+  ],
+  "licenca_autor": "MIT"
+}

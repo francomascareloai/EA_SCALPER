@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #067
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: M15
+
+//@version=5
+indicator("Pivot_Points_67", shorttitle="Pivot_Po", overlay=false)
+
+// Parâmetros
+length = input.int(20, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+lowest = ta.lowest(low, length)
+
+// Plot
+plot(lowest, "Pivot_Points_67", color=color.green)

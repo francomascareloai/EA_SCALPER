@@ -1,0 +1,276 @@
+{
+  "timestamp": "2025-08-12T22:25:58.146878",
+  "processing_time": 0.039504051208496094,
+  "files_processed": 6,
+  "individual_results": [
+    {
+      "arquivo": "FFCal.mq4",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "estrategia": "Grid_Martingale",
+      "componentes_uteis": 3,
+      "snippets_detectados": 0,
+      "processing_time": 0.010149002075195312,
+      "metadata_file": "Output\\Metadata\\FFCal.meta.json"
+    },
+    {
+      "arquivo": "GMACD2.mq4",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "estrategia": "Grid_Martingale",
+      "componentes_uteis": 1,
+      "snippets_detectados": 0,
+      "processing_time": 0.0034339427947998047,
+      "metadata_file": "Output\\Metadata\\GMACD2.meta.json"
+    },
+    {
+      "arquivo": "Iron_Scalper_EA.mq4",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "estrategia": "Grid_Martingale",
+      "componentes_uteis": 1,
+      "snippets_detectados": 0,
+      "processing_time": 0.003873109817504883,
+      "metadata_file": "Output\\Metadata\\Iron_Scalper_EA.meta.json"
+    },
+    {
+      "arquivo": "MACD_Cross_Zero_EA.mq4",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "estrategia": "Grid_Martingale",
+      "componentes_uteis": 2,
+      "snippets_detectados": 0,
+      "processing_time": 0.0063343048095703125,
+      "metadata_file": "Output\\Metadata\\MACD_Cross_Zero_EA.meta.json"
+    },
+    {
+      "arquivo": "PZ_ParabolicSar_EA.mq4",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "estrategia": "Grid_Martingale",
+      "componentes_uteis": 2,
+      "snippets_detectados": 1,
+      "processing_time": 0.0029168128967285156,
+      "metadata_file": "Output\\Metadata\\PZ_ParabolicSar_EA.meta.json"
+    },
+    {
+      "arquivo": "test_ea_sample.mq4",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "estrategia": "Grid_Martingale",
+      "componentes_uteis": 2,
+      "snippets_detectados": 1,
+      "processing_time": 0.0011057853698730469,
+      "metadata_file": "Output\\Metadata\\test_ea_sample.meta.json"
+    }
+  ],
+  "multi_agent_evaluation": {
+    "timestamp": "2025-08-12T22:25:58.146836",
+    "evaluation_time": 0.0012803077697753906,
+    "unified_score": 7.182499999999999,
+    "classification": "🥈 BOM",
+    "agent_results": [
+      {
+        "agent_name": "Architect",
+        "overall_score": 9.125,
+        "scores": [
+          {
+            "category": "Escalabilidade",
+            "score": 9.0,
+            "max_score": 10.0,
+            "details": "Capacidade do sistema de crescer e se adaptar",
+            "recommendations": [
+              "Implementar cache para metadados",
+              "Otimizar estrutura de pastas"
+            ]
+          },
+          {
+            "category": "Manutenibilidade",
+            "score": 9.0,
+            "max_score": 10.0,
+            "details": "Facilidade de manutenção e evolução do código",
+            "recommendations": [
+              "Adicionar mais documentação",
+              "Implementar testes unitários"
+            ]
+          },
+          {
+            "category": "Eficiência",
+            "score": 10.0,
+            "max_score": 10.0,
+            "details": "Performance e uso otimizado de recursos",
+            "recommendations": [
+              "Otimizar algoritmos de classificação",
+              "Implementar processamento paralelo"
+            ]
+          },
+          {
+            "category": "Padrões",
+            "score": 8.5,
+            "max_score": 10.0,
+            "details": "Conformidade com best practices",
+            "recommendations": [
+              "Padronizar nomenclatura",
+              "Implementar design patterns"
+            ]
+          }
+        ],
+        "critical_issues": [],
+        "recommendations": [],
+        "timestamp": "2025-08-12T22:25:58.145792"
+      },
+      {
+        "agent_name": "FTMO_Trader",
+        "overall_score": 4.1,
+        "scores": [
+          {
+            "category": "Conformidade FTMO",
+            "score": 0.0,
+            "max_score": 10.0,
+            "details": "Aderência às regras FTMO Challenge",
+            "recommendations": [
+              "Implementar proteção de drawdown",
+              "Validar gestão de risco"
+            ]
+          },
+          {
+            "category": "Gestão de Risco",
+            "score": 2.0,
+            "max_score": 10.0,
+            "details": "Qualidade da gestão de risco implementada",
+            "recommendations": [
+              "Adicionar stop loss obrigatório",
+              "Implementar trailing stop"
+            ]
+          },
+          {
+            "category": "Prob. Aprovação",
+            "score": 4.4,
+            "max_score": 10.0,
+            "details": "Probabilidade de aprovação no FTMO Challenge",
+            "recommendations": [
+              "Otimizar risk/reward",
+              "Adicionar filtros de mercado"
+            ]
+          },
+          {
+            "category": "Sustentabilidade",
+            "score": 10.0,
+            "max_score": 10.0,
+            "details": "Capacidade de manter performance consistente",
+            "recommendations": [
+              "Implementar filtros de volatilidade",
+              "Adicionar proteções adicionais"
+            ]
+          }
+        ],
+        "critical_issues": [
+          "❌ CRÍTICO: Conformidade FTMO insuficiente",
+          "❌ CRÍTICO: Gestão de risco inadequada"
+        ],
+        "recommendations": [],
+        "timestamp": "2025-08-12T22:25:58.146203"
+      },
+      {
+        "agent_name": "Code_Analyst",
+        "overall_score": 9.35,
+        "scores": [
+          {
+            "category": "Qualidade Código",
+            "score": 8.6,
+            "max_score": 10.0,
+            "details": "Qualidade geral do código fonte",
+            "recommendations": [
+              "Refatorar funções complexas",
+              "Adicionar comentários"
+            ]
+          },
+          {
+            "category": "Performance",
+            "score": 10.0,
+            "max_score": 10.0,
+            "details": "Eficiência algorítmica e otimização",
+            "recommendations": [
+              "Otimizar loops",
+              "Implementar cache"
+            ]
+          },
+          {
+            "category": "Segurança",
+            "score": 10.0,
+            "max_score": 10.0,
+            "details": "Segurança e robustez do código",
+            "recommendations": [
+              "Validar inputs",
+              "Implementar error handling"
+            ]
+          },
+          {
+            "category": "Reutilização",
+            "score": 8.8,
+            "max_score": 10.0,
+            "details": "Capacidade de reutilização de componentes",
+            "recommendations": [
+              "Extrair mais snippets",
+              "Modularizar código"
+            ]
+          }
+        ],
+        "critical_issues": [],
+        "recommendations": [],
+        "timestamp": "2025-08-12T22:25:58.146615"
+      }
+    ],
+    "critical_issues": [
+      "❌ CRÍTICO: Gestão de risco inadequada",
+      "❌ CRÍTICO: Conformidade FTMO insuficiente"
+    ],
+    "top_recommendations": [],
+    "summary": "Sistema avaliado por 3 agentes especializados. Score unificado: 7.2/10.0 (🥈 BOM). Issues críticos detectados: 2."
+  },
+  "system_statistics": {
+    "total_files": 6,
+    "files_processed": 6,
+    "success_rate": 100.0,
+    "ftmo_ready_percentage": 0.0,
+    "prohibited_strategies_percentage": 100.0,
+    "avg_processing_time": 0.0046354929606119795,
+    "total_snippets_extracted": 2,
+    "total_useful_components": 11,
+    "encoding_corrections": 0
+  },
+  "quality_metrics": {
+    "avg_ftmo_score": 0.0,
+    "max_ftmo_score": 0.0,
+    "min_ftmo_score": 0.0,
+    "ftmo_scores_distribution": {
+      "elite_9_10": 0,
+      "ready_7_9": 0,
+      "conditional_5_7": 0,
+      "inadequate_0_5": 6
+    }
+  },
+  "ftmo_analysis": {
+    "total_eas_analisados": 6,
+    "eas_ftmo_ready": 0,
+    "eas_proibidos": 6,
+    "conformidade_percentage": 0.0,
+    "principais_problemas": [
+      "Estratégias Grid/Martingale detectadas",
+      "Ausência de Stop Loss em alguns EAs",
+      "Gestão de risco insuficiente"
+    ],
+    "recomendacoes_ftmo": [
+      "Eliminar completamente estratégias Grid/Martingale",
+      "Implementar Stop Loss obrigatório em todos os EAs",
+      "Adicionar proteção de drawdown diário",
+      "Otimizar Risk/Reward para mínimo 1:3",
+      "Implementar filtros de sessão e notícias"
+    ]
+  },
+  "recommendations": [
+    "⚡ Otimizar performance de processamento",
+    "🧪 Implementar testes automatizados",
+    "📚 Melhorar documentação do sistema"
+  ]
+}

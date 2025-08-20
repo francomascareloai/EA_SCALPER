@@ -1,0 +1,113 @@
+{
+  "file_info": {
+    "original_name": "ssl_fast_sbar_alert_mtf (2).mq4",
+    "current_name": "IND_ssl_fast_sbar_alert_mtf_2_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_ssl_fast_sbar_alert_mtf_2_v1.0_GOLD.mq4",
+    "file_size": 5485,
+    "lines_count": 209
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    }
+  },
+  "ftmo_analysis": {
+    "compliance_score": 33.33333333333333,
+    "features_found": {
+      "risk_management": false,
+      "stop_loss": true,
+      "take_profit": true,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false
+    },
+    "missing_features": [
+      "risk_management",
+      "drawdown_protection",
+      "session_filter",
+      "news_filter"
+    ],
+    "risk_level": "HIGH",
+    "ftmo_ready": false
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 22,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "doAlert"
+    ],
+    "variables": [
+      "Lb",
+      "sslMA_method",
+      "SSL_BarLevel",
+      "alertsOn",
+      "alertsMessageBox",
+      "alertsSound",
+      "alertsSoundFile",
+      "alertsEmail",
+      "alertsAfterBarClose",
+      "TimeFrame",
+      "TimeFrames",
+      "MA_method_",
+      "previousAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_width1",
+      "indicator_width2",
+      "indicator_minimum",
+      "indicator_maximum"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:35.289581",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  }
+}

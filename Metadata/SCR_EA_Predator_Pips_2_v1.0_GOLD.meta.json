@@ -1,0 +1,145 @@
+{
+  "file_info": {
+    "original_name": "EA Predator Pips (2).mq4",
+    "current_name": "SCR_EA_Predator_Pips_2_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_EA_Predator_Pips_2_v1.0_GOLD.mq4",
+    "file_size": 25848,
+    "lines_count": 713
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 146,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "kadaluarsa",
+      "LoginNumber",
+      "ProfitInMoney",
+      "rata_price",
+      "sudah_open_candle_ini",
+      "buy",
+      "sell",
+      "buy_uni",
+      "sell_uni",
+      "komentar",
+      "Monitor",
+      "OPEN",
+      "TimeFilter",
+      "openord",
+      "CloseAll"
+    ],
+    "variables": [
+      "_EA",
+      "Magic",
+      "Use_Compund",
+      "Kelipatan_Kompon",
+      "Lots",
+      "Penentu_Lot",
+      "TakeProfit",
+      "StopLoss",
+      "Minimal_Step",
+      "Max_Lot",
+      "Max_Level",
+      "TP_In_Money",
+      "SL_In_Money",
+      "_MOVING_AVERAGES",
+      "Level_Atas",
+      "Level_Bawah",
+      "MA_Period",
+      "MA_Method",
+      "MA_MethoD",
+      "aplied_price",
+      "aplied_pricE",
+      "MA_shift",
+      "_UNI_CROSS",
+      "UseSound",
+      "TypeCHart",
+      "UseAlert",
+      "NameFileSound",
+      "T3Period",
+      "T3Price",
+      "b",
+      "Snake_HalfCycle",
+      "Inverse",
+      "DeltaForSell",
+      "DeltaForBuy",
+      "_TIMEFILTER",
+      "Use_TimeFilter",
+      "StartHour",
+      "EndHour"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#H1",
+    "#H4",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:39.809305",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:26.772826",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "arquivo": {
+    "nome": "PZ_ParabolicSar_EA.mq4",
+    "tipo": "Unknown",
+    "estrategia": "Unknown",
+    "mercado": "XAUUSD",
+    "timeframe": "D1",
+    "tamanho_bytes": 14230,
+    "linhas_codigo": 467,
+    "hash_md5": "e4ffde528a00bfa5ca8d7fa2641c9f88",
+    "data_modificacao": "2025-08-12T21:30:22.529637"
+  },
+  "ftmo": {
+    "score": 10.0,
+    "status": "FTMO_ELITE",
+    "detalhes": {
+      "stop_loss": true,
+      "take_profit": true,
+      "risk_management": true,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "eliminatorio": false,
+      "penalidades_aplicadas": {},
+      "riscos_detectados": [],
+      "observacoes": [
+        "EA de excelência - Pronto para FTMO Challenge"
+      ],
+      "componentes_uteis": [
+        "Indicadores técnicos para entrada",
+        "Filtro de volatilidade"
+      ],
+      "snippets_detectados": [
+        {
+          "tipo": "Risk_Management",
+          "nome": "CalculateLotSize",
+          "descricao": "Função de cálculo de lot size",
+          "categoria": "FTMO_Tools"
+        }
+      ]
+    },
+    "ftmo_ready": true
+  },
+  "qualidade": {
+    "encoding_corrigido": false,
+    "validacoes": [],
+    "sugestoes_melhorias": [
+      "Definir estratégia mais claramente no código"
+    ]
+  },
+  "componentes_uteis": [
+    "Indicadores técnicos para entrada",
+    "Filtro de volatilidade"
+  ],
+  "snippets_detectados": [
+    {
+      "tipo": "Risk_Management",
+      "nome": "CalculateLotSize",
+      "descricao": "Função de cálculo de lot size",
+      "categoria": "FTMO_Tools"
+    }
+  ],
+  "tags": [
+    "#Unknown",
+    "#XAUUSD",
+    "#D1",
+    "#FTMO_ELITE"
+  ],
+  "analise": {
+    "timestamp": "2025-08-12T21:45:01.916092",
+    "versao_algoritmo": "3.0",
+    "inteligencia_aplicada": true,
+    "extração_snippets": true
+  }
+}

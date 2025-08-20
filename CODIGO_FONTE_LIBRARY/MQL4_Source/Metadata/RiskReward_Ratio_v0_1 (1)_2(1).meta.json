@@ -1,0 +1,45 @@
+{
+  "arquivo": {
+    "nome": "RiskReward_Ratio_v0_1 (1)_2(1).mq4",
+    "tamanho_bytes": 13800,
+    "linhas_codigo": 377,
+    "data_modificacao": "2025-08-10T19:38:22.678927"
+  },
+  "analise_ftmo": {
+    "score_bruto": 4.5,
+    "score_final": 0.0,
+    "criterios_atendidos": {
+      "stop_loss_obrigatorio": false,
+      "sem_grid_martingale": true,
+      "daily_loss_protection": false,
+      "risk_management": true,
+      "take_profit": false,
+      "max_drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "trailing_stop": false
+    },
+    "penalidades_aplicadas": {
+      "no_stop_loss": -5.0
+    },
+    "riscos_detectados": [
+      "Ausência de Stop Loss"
+    ],
+    "ajustes_necessarios": [
+      "CRÍTICO: Stop Loss obrigatório em todas as operações",
+      "CRÍTICO: Proteção de perda diária máxima (5%)",
+      "OBRIGATÓRIO: Implementar Stop Loss em todas as operações",
+      "OBRIGATÓRIO: Implementar proteção de perda diária (5%)",
+      "RECOMENDADO: Implementar proteção de drawdown máximo"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA inadequado/proibido para FTMO"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.00795602798461914,
+  "timestamp": "2025-08-13T01:12:33.214844"
+}

@@ -1,0 +1,112 @@
+{
+  "file_info": {
+    "original_name": "2EMA-EA 1.04.mq4",
+    "current_name": "EA_2EMA_EA_1_04_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_2EMA_EA_1_04_v1.0_INDICES.mq4",
+    "file_size": 10054,
+    "lines_count": 237
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 65,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "GetATR",
+      "OnInit",
+      "OnTick",
+      "ManageHiddenTrailingStop",
+      "CheckBreakeven",
+      "CloseAllOrders",
+      "GetLowestOrderOpenPrice",
+      "GetHighestOrderOpenPrice",
+      "OpenOrder",
+      "LastOpenOrderTicket",
+      "OrderPrice",
+      "CountOrdersByType",
+      "CheckVolume"
+    ],
+    "variables": [
+      "Magic",
+      "Comment",
+      "Lotsize",
+      "MaxBuySell",
+      "TrailDistance",
+      "CompressionFactor",
+      "MinimumProfit",
+      "BreakevenProfitPips",
+      "BreakevenLevelPips"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:49.765273",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:46.296895",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

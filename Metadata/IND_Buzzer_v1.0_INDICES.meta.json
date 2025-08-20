@@ -1,0 +1,89 @@
+{
+  "file_info": {
+    "original_name": "Buzzer.mq4",
+    "current_name": "IND_Buzzer_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_Buzzer_v1.0_INDICES.mq4",
+    "file_size": 5760,
+    "lines_count": 195
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 50
+    }
+  },
+  "ftmo_analysis": {
+    "compliance_score": 16.666666666666664,
+    "features_found": {
+      "risk_management": false,
+      "stop_loss": false,
+      "take_profit": true,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false
+    },
+    "missing_features": [
+      "risk_management",
+      "stop_loss",
+      "drawdown_protection",
+      "session_filter",
+      "news_filter"
+    ],
+    "risk_level": "HIGH",
+    "ftmo_ready": false
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 32,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start"
+    ],
+    "variables": [
+      "Price",
+      "Length",
+      "AlertON",
+      "EmailON"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_width1",
+      "indicator_color2",
+      "indicator_width2",
+      "indicator_color3",
+      "indicator_width3"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:21.245527",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  }
+}

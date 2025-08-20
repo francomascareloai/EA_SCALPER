@@ -1,0 +1,196 @@
+{
+  "file_info": {
+    "original_name": "CiTy Basket Scalper@Amazing_owner.mq4",
+    "current_name": "EA_CiTy_Basket_Scalper_Amazing_owner_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_CiTy_Basket_Scalper_Amazing_owner_v1.0_FOREX.mq4",
+    "file_size": 75644,
+    "lines_count": 1719
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 295,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTimer",
+      "SetText",
+      "SetObjText",
+      "SetPanel",
+      "ColorPanel",
+      "Create_Button",
+      "OnChartEvent",
+      "buy_basket",
+      "sell_basket",
+      "close_cur_basket",
+      "closeOpenOrders",
+      "close_basket",
+      "close_profit",
+      "close_loss",
+      "Reset_EA",
+      "Trades",
+      "OpenChart",
+      "GetAdrValues",
+      "GetSignals",
+      "TradeManager",
+      "PlotTrades",
+      "PlotAdrValues",
+      "PlotSpreadPips",
+      "inSession",
+      "newSession",
+      "ChngBoxCol",
+      "InArray",
+      "displayMeter",
+      "currency_strength",
+      "Relative_strength",
+      "displayMeterStrength"
+    ],
+    "variables": [
+      "CITY_TRADER",
+      "UseDefaultPairs",
+      "OwnPairs",
+      "Magic_Number",
+      "autotrade",
+      "CITY_TRIGGER",
+      "trigger_use_Pips",
+      "trade_MIN_pips",
+      "trigger_UseHeatMap1",
+      "trade_MIN_HeatMap1",
+      "CITY_BASKET",
+      "lot",
+      "MaxTrades",
+      "MaxTotalTrades",
+      "MaxSpread",
+      "Basket_Target",
+      "Basket_StopLoss",
+      "BasketP1",
+      "BasketL1",
+      "BasketP2",
+      "BasketL2",
+      "BasketP3",
+      "BasketL3",
+      "BasketP4",
+      "BasketL4",
+      "BasketP5",
+      "BasketL5",
+      "BasketP6",
+      "BasketL6",
+      "TrailLastLock",
+      "TrailDistance",
+      "StopProfit",
+      "Adr1tp",
+      "Adr1sl",
+      "StopLoss",
+      "OnlyAddProfit",
+      "CloseAllSession",
+      "CITY_TIME",
+      "UseSession1",
+      "sess1start",
+      "sess1end",
+      "sess1comment",
+      "UseSession2",
+      "sess2start",
+      "sess2end",
+      "sess2comment",
+      "UseSession3",
+      "sess3start",
+      "sess3end",
+      "sess3comment",
+      "CITY_CHART",
+      "usertemplate",
+      "x_axis",
+      "y_axis"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "WinUser32.mqh",
+      "ChartObjects\\ChartObjectsTxtControls.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "description",
+      "description",
+      "description",
+      "icon",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#H1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:22.620643",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:48.821225",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

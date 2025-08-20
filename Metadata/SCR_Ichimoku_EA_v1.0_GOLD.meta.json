@@ -1,0 +1,141 @@
+{
+  "file_info": {
+    "original_name": "Ichimoku EA.mq4",
+    "current_name": "SCR_Ichimoku_EA_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Ichimoku_EA_v1.0_GOLD.mq4",
+    "file_size": 18873,
+    "lines_count": 465
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 101,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "count",
+      "martingalefactor",
+      "errordescription"
+    ],
+    "variables": [
+      "comment",
+      "magic",
+      "moneymanagement",
+      "lots1",
+      "lots2",
+      "lots3",
+      "lotsoptimized",
+      "risk1",
+      "risk2",
+      "risk3",
+      "martingale",
+      "multiplier",
+      "minlot",
+      "maxlot",
+      "lotdigits",
+      "basketpercent",
+      "profit",
+      "loss",
+      "ordersmanagement",
+      "oppositeclose",
+      "reversesignals",
+      "maxtrades",
+      "tradesperbar",
+      "hidestop",
+      "hidetarget",
+      "buystop",
+      "buytarget",
+      "sellstop",
+      "selltarget",
+      "trailingstart",
+      "trailingstop",
+      "trailingstep",
+      "breakevengain",
+      "breakeven",
+      "slippage",
+      "maxspread",
+      "entrylogics",
+      "tenkansen",
+      "kijunsen",
+      "senkospan",
+      "shift",
+      "timefilter",
+      "gmtshift",
+      "filter",
+      "start",
+      "end",
+      "tradesunday",
+      "fridayfilter",
+      "fridayend"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:28.258708",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:30.783721",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

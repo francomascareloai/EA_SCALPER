@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "AutoFibu button.mq4",
+    "current_name": "IND_AutoFibu_button_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_AutoFibu_button_v1.0_GOLD.mq4",
+    "file_size": 17249,
+    "lines_count": 471
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 62,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "DeInit",
+      "createButton",
+      "init",
+      "deinit",
+      "OnChartEvent",
+      "init2",
+      "start2",
+      "start",
+      "getPeriodHigh",
+      "getPeriodLow"
+    ],
+    "variables": [
+      "Fib_Period",
+      "Show_StartLine",
+      "Show_EndLine",
+      "Show_Channel",
+      "Fib_Style",
+      "button_note1",
+      "btn_text",
+      "btn_Font",
+      "btn_FontSize",
+      "button_x",
+      "button_y",
+      "btn_Width",
+      "btn_Height",
+      "button_note2"
+    ],
+    "includes": [],
+    "properties": [
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:13.395652",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:02.124404",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

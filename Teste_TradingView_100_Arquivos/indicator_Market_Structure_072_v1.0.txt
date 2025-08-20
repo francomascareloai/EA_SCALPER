@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #072
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: M15
+
+//@version=5
+indicator("Market_Structure_72", shorttitle="Market_S", overlay=true)
+
+// Parâmetros
+length = input.int(100, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+lowest = ta.lowest(low, length)
+
+// Plot
+plot(lowest, "Market_Structure_72", color=color.green)

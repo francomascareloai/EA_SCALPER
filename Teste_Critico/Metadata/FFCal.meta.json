@@ -1,0 +1,72 @@
+{
+  "arquivo": {
+    "nome": "FFCal.mq4",
+    "tipo": "Indicator",
+    "estrategia": "Trend_Following",
+    "mercado": "Forex",
+    "timeframe": "M1",
+    "tamanho_bytes": 50794,
+    "linhas_codigo": 1407,
+    "hash_md5": "90a38978f32252172afc3ac74cfbf9a9",
+    "data_modificacao": "2025-08-12T21:30:22.162782"
+  },
+  "ftmo": {
+    "score": 0.0,
+    "status": "PROIBIDO_FTMO",
+    "detalhes": {
+      "stop_loss": false,
+      "take_profit": false,
+      "risk_management": false,
+      "drawdown_protection": false,
+      "session_filter": true,
+      "news_filter": true,
+      "eliminatorio": true,
+      "penalidades_aplicadas": {
+        "no_stop_loss": -5.0,
+        "no_risk_management": -4.0
+      },
+      "riscos_detectados": [
+        "Ausência de Stop Loss",
+        "Ausência de gestão de risco"
+      ],
+      "observacoes": [
+        "EA inadequado/proibido para FTMO"
+      ],
+      "componentes_uteis": [
+        "Indicadores técnicos para entrada",
+        "Filtro de horário/sessão",
+        "Filtro de volatilidade"
+      ],
+      "snippets_detectados": []
+    },
+    "ftmo_ready": false
+  },
+  "qualidade": {
+    "encoding_corrigido": false,
+    "validacoes": [],
+    "sugestoes_melhorias": [
+      "Implementar Stop Loss obrigatório",
+      "Adicionar gestão de risco adequada",
+      "Implementar proteção de drawdown"
+    ]
+  },
+  "componentes_uteis": [
+    "Indicadores técnicos para entrada",
+    "Filtro de horário/sessão",
+    "Filtro de volatilidade"
+  ],
+  "snippets_detectados": [],
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#Forex",
+    "#M1",
+    "#PROIBIDO_FTMO"
+  ],
+  "analise": {
+    "timestamp": "2025-08-12T21:45:01.297903",
+    "versao_algoritmo": "3.0",
+    "inteligencia_aplicada": true,
+    "extração_snippets": false
+  }
+}

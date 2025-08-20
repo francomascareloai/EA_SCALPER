@@ -1,0 +1,39 @@
+{
+  "arquivo": {
+    "nome": "eur gbp ranger ex Little Martingale V1.131.mq4",
+    "tamanho_bytes": 32737,
+    "linhas_codigo": 1034,
+    "data_modificacao": "2025-08-10T18:54:16.231860"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de horário/sessão"
+    ],
+    "snippets_detectados": [
+      {
+        "tipo": "Risk_Management",
+        "nome": "CalculateLotSize",
+        "descricao": "Função de cálculo de lot size",
+        "categoria": "FTMO_Tools"
+      }
+    ]
+  },
+  "processing_time": 0.0058858394622802734,
+  "timestamp": "2025-08-13T01:12:05.974126"
+}

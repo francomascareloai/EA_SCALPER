@@ -1,0 +1,142 @@
+{
+  "file_info": {
+    "original_name": "supdem(1).mq4",
+    "current_name": "IND_supdem_1_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_supdem_1_v1.0_FOREX.mq4",
+    "file_size": 30403,
+    "lines_count": 864
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 98,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "createButton",
+      "deinit",
+      "handleButtonClicks",
+      "OnChartEvent",
+      "start",
+      "Draw",
+      "NewBar",
+      "ObDeleteAll",
+      "ObDeleteObjectsByPrefix",
+      "CountZZ",
+      "GetValid",
+      "Notifications",
+      "GetTimeFrame",
+      "AlertZones",
+      "PriceIntoZone"
+    ],
+    "variables": [
+      "forced_tf",
+      "use_narrow_bands",
+      "kill_retouch",
+      "Price_Width",
+      "button_note1",
+      "btn_text",
+      "btn_Font",
+      "btn_FontSize",
+      "button_x",
+      "button_y",
+      "btn_Width",
+      "btn_Height",
+      "button_note2",
+      "T_",
+      "alertPriceIntoZone",
+      "alertNewZone",
+      "alertDeleteZone",
+      "T1",
+      "notifications",
+      "desktop_notifications",
+      "email_notifications",
+      "push_notifications"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "description",
+      "indicator_chart_window",
+      "indicator_buffers"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:36.932000",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:17.588848",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

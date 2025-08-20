@@ -1,0 +1,45 @@
+{
+  "debug": false,
+  "auto_backup": true,
+  "max_workers": 4,
+  "timeout_seconds": 300,
+  "monitoring": {
+    "enabled": true,
+    "interval_seconds": 5,
+    "alert_thresholds": {
+      "success_rate_min": 0.8,
+      "error_rate_max": 0.1,
+      "processing_rate_min": 10,
+      "memory_usage_max": 0.8
+    }
+  },
+  "components": {
+    "classificador": {
+      "enabled": true,
+      "priority": 1
+    },
+    "monitor": {
+      "enabled": true,
+      "priority": 2
+    },
+    "backup": {
+      "enabled": true,
+      "priority": 3
+    },
+    "relatorios": {
+      "enabled": true,
+      "priority": 4
+    }
+  },
+  "paths": {
+    "logs": "Development/logs",
+    "reports": "Development/Reports",
+    "temp": "Development/temp",
+    "backup": "Development/backup"
+  },
+  "logging": {
+    "level": "INFO",
+    "max_file_size_mb": 10,
+    "backup_count": 5
+  }
+}

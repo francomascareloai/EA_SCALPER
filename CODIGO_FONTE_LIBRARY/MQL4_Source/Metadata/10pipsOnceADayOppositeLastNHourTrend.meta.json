@@ -1,0 +1,31 @@
+{
+  "arquivo": {
+    "nome": "10pipsOnceADayOppositeLastNHourTrend.mq4",
+    "tamanho_bytes": 9782,
+    "linhas_codigo": 300,
+    "data_modificacao": "2019-02-26T10:15:12"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0019800662994384766,
+  "timestamp": "2025-08-13T01:11:51.078284"
+}

@@ -1,0 +1,22 @@
+{
+  "classificador": {
+    "status": "sucesso",
+    "arquivos_processados": 5,
+    "taxa_sucesso": 100.0,
+    "tempo_execucao": 0.005106449127197266
+  },
+  "monitor": {
+    "status": "erro",
+    "erro": "'MonitorTempoReal' object has no attribute 'capturar_snapshot'"
+  },
+  "relatorios": {
+    "status": "sucesso",
+    "arquivos_gerados": 2,
+    "json_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Development\\Reports\\JSON\\demo_agentes_20250812_195953.json",
+    "html_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\Development\\Reports\\HTML\\demo_agentes_20250812_195953.html"
+  },
+  "coordenador": {
+    "status": "erro",
+    "erro": "cannot join current thread"
+  }
+}

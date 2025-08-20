@@ -1,0 +1,109 @@
+{
+  "file_info": {
+    "original_name": "Noah10pips2006.mq4",
+    "current_name": "SCR_Noah10pips2006_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Noah10pips2006_v1.0.mq4",
+    "file_size": 18514,
+    "lines_count": 477
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 101,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "start",
+      "LotsRisk"
+    ],
+    "variables": [
+      "MAGICNUM",
+      "Lots",
+      "StopLoss",
+      "TakeProfit",
+      "TrailingStop",
+      "slippage",
+      "MaximumRisk",
+      "MaxLot",
+      "MinLot",
+      "FixedLot",
+      "TimeZoneOfData",
+      "StartHour",
+      "StartMinute",
+      "EndHour",
+      "EndMinute",
+      "FridayEndHour",
+      "SecureProfit",
+      "TrailSecureProfit",
+      "TradeFriday",
+      "DontReverse",
+      "StartYear",
+      "StartMonth",
+      "TradesSet",
+      "TypeSet",
+      "ReverseSet"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:59.616708",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.549954",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

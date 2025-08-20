@@ -1,0 +1,174 @@
+{
+  "file_info": {
+    "original_name": "MR.dollar_Pending Orders EA V5.5.mq4",
+    "current_name": "SCR_MR_dollar_Pending_Orders_EA_V5_5_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_MR_dollar_Pending_Orders_EA_V5_5_v1.0.mq4",
+    "file_size": 18467,
+    "lines_count": 478
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "M1",
+        "H1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 125,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "orderscnt",
+      "ordersPen",
+      "orders",
+      "start",
+      "TimePassed",
+      "CloseAllOrders",
+      "MoveTrailingStop",
+      "DeletePendingOrders",
+      "CheckOpenedOrders",
+      "OpenClosedOrders",
+      "profit"
+    ],
+    "variables": [
+      "UseHourTrade",
+      "FromHourTrade",
+      "ToHourTrade",
+      "OpenHedgeFirstTime",
+      "HedgeLots",
+      "HedgeTP",
+      "HedgeSL",
+      "AddOrdersAfterClose",
+      "ReverseClosedOrders",
+      "CloseIfLastOrderProfit",
+      "S1",
+      "OpenBuyStopOrders",
+      "NumberOfBuyStopOrders",
+      "BuyStopFirstLot",
+      "DistanceFromCurrentPriceBS",
+      "DistanceBetweenBuyS",
+      "Distance_AddBuyS",
+      "BuyStopTakeProfit",
+      "BuyStopSL",
+      "S2",
+      "OpenBuyLimitOrders",
+      "NumberOfBuyLimitOrders",
+      "BuyLimitFirstLot",
+      "DistanceFromCurrentPriceBL",
+      "DistanceBetweenBuyL",
+      "Distance_AddBuyL",
+      "BuyLimitTakeProfit",
+      "BuyLimitSL",
+      "S3",
+      "OpenSellStopOrders",
+      "NumberOfSellStopOrders",
+      "SellStopFirstLot",
+      "DistanceFromCurrentPriceSS",
+      "DistanceBetweenSellS",
+      "Distance_AddSellS",
+      "SellStopTakeProfit",
+      "SellStopSL",
+      "S4",
+      "OpenSellLimitOrders",
+      "NumberOfSellLimitOrders",
+      "SellLimitFirstLot",
+      "DistanceFromCurrentPriceSL",
+      "DistanceBetweenSellL",
+      "Distance_AddSellL",
+      "SellLimitTakeProfit",
+      "SellLimitSL",
+      "S5",
+      "UseMultiplier",
+      "X_Multiplier",
+      "Multiplier",
+      "S6",
+      "HighLowCandle",
+      "OpenAtChoosenHour",
+      "Hour_",
+      "StartPrice",
+      "Gap",
+      "OnlyOnce",
+      "S7",
+      "FridayOpenOrdersFilter",
+      "FridayDeleteOrders",
+      "FridayCloseOrders",
+      "_Hour",
+      "CloseAfterPassMinutes",
+      "MinutesPass",
+      "CloseOrdersAfterProfit",
+      "DeleteOrdersAfterProfit",
+      "Profit",
+      "CloseOrdersAfterLoss",
+      "Loss",
+      "S8",
+      "TrailingStop",
+      "TrailingProfit",
+      "TrailingStep",
+      "S9",
+      "FridayCloseEA",
+      "Friday_CloseHour",
+      "MagicNumber"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#M1",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:51.400298",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:34.248975",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

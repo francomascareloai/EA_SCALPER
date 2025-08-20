@@ -1,0 +1,157 @@
+{
+  "file_info": {
+    "original_name": "PivotsD_v5 (Black) (2).mq4",
+    "current_name": "IND_PivotsD_v5_Black_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_PivotsD_v5_Black_2_v1.0_FOREX.mq4",
+    "file_size": 21449,
+    "lines_count": 560
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    }
+  },
+  "ftmo_analysis": {
+    "compliance_score": 16.666666666666664,
+    "features_found": {
+      "risk_management": false,
+      "stop_loss": false,
+      "take_profit": false,
+      "drawdown_protection": false,
+      "session_filter": true,
+      "news_filter": false
+    },
+    "missing_features": [
+      "risk_management",
+      "stop_loss",
+      "take_profit",
+      "drawdown_protection",
+      "news_filter"
+    ],
+    "risk_level": "HIGH",
+    "ftmo_ready": false
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 81,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "drawLabel",
+      "drawLine",
+      "colorTFbox",
+      "Separator"
+    ],
+    "variables": [
+      "Indicator_On",
+      "Use_For_Forex",
+      "Use_Day_Formula",
+      "Exit_Period_Choices",
+      "Exit_If_Period_Greater_Than",
+      "_",
+      "Part_1",
+      "Show_DayCandle",
+      "Shift_DayCandle_right",
+      "Show_Today_Box",
+      "Show_Yesterday_Box",
+      "__",
+      "Part_2",
+      "note1",
+      "note2",
+      "note3",
+      "StartLines",
+      "StopLines_At_Current_Candle",
+      "___",
+      "Part_3",
+      "CP_LineStyle_01234",
+      "CP_SolidLine_Thickness",
+      "R_LineStyle_01234",
+      "R_SolidLineThickness",
+      "S_LineStyle_01234",
+      "S_SolidLineThickness",
+      "Show_MidPivots",
+      "mP_LineStyle_01234",
+      "mP_SolidLineThickness",
+      "____",
+      "Part_4",
+      "PivotLabels_FontStyle",
+      "PivotLabels_Fontsize",
+      "Show_Price_in_PivotLabels",
+      "note4",
+      "note5",
+      "note6",
+      "Show_RightMargin_Prices",
+      "Preeminate_MarginLabels_Lines",
+      "Shift_PivotLabels_PerCent_Left",
+      "Subordinate_Labels",
+      "_____",
+      "Part_5",
+      "Show_Separator",
+      "Separator_LineStyle_01234",
+      "Separator_SolidLineThickness",
+      "Show_SeparatorLabel",
+      "SeparatorLabel_FontStyle",
+      "SeparatorLabel_FontSize",
+      "LabelOnChart_TopBot_12",
+      "______",
+      "Part_6",
+      "Show_Data_Comment",
+      "Days_Used_For_Range_Data"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#FOREX",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:09.894003",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  }
+}

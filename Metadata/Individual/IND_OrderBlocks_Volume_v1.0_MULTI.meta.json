@@ -1,0 +1,21 @@
+{
+  "id": "IND_OrderBlocks_Volume_v1.0_MULTI",
+  "arquivo": "IND_OrderBlocks_Volume_v1.0_MULTI.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine",
+  "estrategia": "SMC_Concepts",
+  "subestrategias": ["Order Blocks and Volume"],
+  "mercados": ["MULTI"],
+  "timeframes": ["MULTI"],
+  "funcoes_chave": ["Detect Order Blocks"],
+  "dependencias_includes": [],
+  "parametros_expostos": ["Volume Parameters"],
+  "ftmo_score": 0,
+  "riscos_detectados": [],
+  "qualidade_codigo_score": 0,
+  "compilacao": { "status": "desconhecido", "warnings": 0 },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

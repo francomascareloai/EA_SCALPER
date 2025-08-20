@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #003
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: H1
+
+//@version=5
+indicator("Support_Resistance_3", shorttitle="Support_", overlay=true)
+
+// Parâmetros
+length = input.int(100, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+macd = ta.macd(source, length, length*2, length//2)
+
+// Plot
+plot(macd, "Support_Resistance_3", color=color.green)

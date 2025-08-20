@@ -1,0 +1,45 @@
+{
+  "id": "6c4235758c40",
+  "arquivo": {
+    "nome_original": "Iron Scalper EA.mq4",
+    "nome_renomeado": "Iron Scalper EA.mq4",
+    "hash": "6c4235758c404c42ab30da7029801854",
+    "tamanho_bytes": 32170,
+    "data_modificacao": "2025-08-10T19:38:27.584969"
+  },
+  "classificacao": {
+    "tipo": "Unknown",
+    "linguagem": "MQL4",
+    "estrategia": "Custom",
+    "mercados": [
+      "MULTI"
+    ],
+    "timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "ftmo_analysis": {
+    "ftmo_ready": false,
+    "score": 20,
+    "checks": {
+      "stop_loss": false,
+      "take_profit": false,
+      "risk_management": false,
+      "drawdown_check": false,
+      "no_martingale": true
+    }
+  },
+  "qualidade": {
+    "score": 85,
+    "nivel": "Alto",
+    "status_compilacao": "Não testado"
+  },
+  "tags": [
+    "#Unknown",
+    "#Custom",
+    "#MQL4",
+    "#Demo"
+  ],
+  "data_analise": "2025-08-12T21:00:09.320935"
+}

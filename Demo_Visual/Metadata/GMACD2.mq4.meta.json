@@ -1,0 +1,17 @@
+{
+  "id": "9ed086b5f0c4",
+  "arquivo": {
+    "nome_original": "GMACD2.mq4",
+    "hash": "9ed086b5f0c4070bf733cd49c40ab3c6",
+    "tamanho_bytes": 16491
+  },
+  "classificacao": {
+    "tipo": "Indicator",
+    "estrategia": "Scalping"
+  },
+  "ftmo_analysis": {
+    "ftmo_ready": true,
+    "score": 60
+  },
+  "data_analise": "2025-08-12T21:13:03.801178"
+}

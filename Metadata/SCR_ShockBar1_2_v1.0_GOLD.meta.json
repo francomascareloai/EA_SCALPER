@@ -1,0 +1,165 @@
+{
+  "file_info": {
+    "original_name": "ShockBar1.2.mq4",
+    "current_name": "SCR_ShockBar1_2_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_ShockBar1_2_v1.0_GOLD.mq4",
+    "file_size": 121551,
+    "lines_count": 2389
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco robusta",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 528,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_1",
+      "f0_11",
+      "f0_10",
+      "f0_5",
+      "f0_3",
+      "f0_14",
+      "f0_0",
+      "f0_2",
+      "f0_4",
+      "f0_7",
+      "f0_12",
+      "f0_9",
+      "f0_8",
+      "f0_16",
+      "f0_13",
+      "f0_15",
+      "f0_6"
+    ],
+    "variables": [
+      "___WORC_MODE_",
+      "Exit_mode",
+      "___LOT_SETUP_BLOK_",
+      "LotConst_or_not",
+      "RiskPercent",
+      "Lot",
+      "MaxL",
+      "LotMultiplicator",
+      "N_LotMult",
+      "___STEP_SETUP_BLOK_",
+      "Mode_Step",
+      "Step",
+      "StepUv_Step",
+      "___SETUP_SIGNAL_BLOK_",
+      "Off_MA_H4",
+      "Mode_MA",
+      "TF_for_MA",
+      "Period_MA",
+      "___CLOSE_SETUP_BLOK_",
+      "Mode_Close_Orders",
+      "TakeProfit",
+      "ProtectionTP",
+      "TrallingStop",
+      "_RESTRICTION_",
+      "BUY_SELL_SUMM",
+      "MaxTrades",
+      "Min_Proc_Sv_Sr",
+      "___DEF_STOPLOSS_",
+      "Mode_SL_inst",
+      "Percent_SL",
+      "___n6________________",
+      "Mode_enable_OTBOY",
+      "N_Day_Prof",
+      "PercentProf_from_OTBOY",
+      "N_ord_enable_OTBOY",
+      "r_cen_enable_OTBOY",
+      "_ORDER_id_",
+      "Magic",
+      "_OUT_DATA_",
+      "LineOnGraph",
+      "DataOnGraph",
+      "LogotipOn",
+      "_Step_N_",
+      "St_2",
+      "St_3",
+      "St_4",
+      "St_5",
+      "St_6",
+      "St_7",
+      "St_8",
+      "St_9",
+      "St_10",
+      "St_11",
+      "St_12",
+      "St_13",
+      "St_14",
+      "St_15",
+      "St_16"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#M1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:26.928561",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:39.458870",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}
