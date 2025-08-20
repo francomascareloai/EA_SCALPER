@@ -1,0 +1,47 @@
+{
+  "mcpServers": {
+    "mcp.config.usrlocalmcp.context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    },
+    "mcp.config.usrlocalmcp.sequential_thinking": {
+      "command": "npx",
+      "args": ["-y", "@ahxxm/server-sequential-thinking"],
+      "env": {}
+    },
+    "mcp.config.usrlocalmcp.puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "env": {}
+    },
+    "mcp.config.usrlocalmcp.github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
+    }
+    },
+    "mcp.config.usrlocalmcp.task_manager": {
+      "command": "python",
+      "args": ["C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_task_manager.py"],
+      "cwd": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "mcp.config.usrlocalmcp.simple_test": {
+      "command": "python",
+      "args": ["C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\test_simple_mcp.py"],
+      "cwd": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    }
+  }
+}

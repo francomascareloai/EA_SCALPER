@@ -1,1 +1,0 @@
-join my telegram group @traderschatroom88 for more intresting stuff
