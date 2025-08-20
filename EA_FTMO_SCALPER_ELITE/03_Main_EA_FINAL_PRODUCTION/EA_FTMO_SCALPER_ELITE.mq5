@@ -18,10 +18,16 @@
 #include <Trade\SymbolInfo.mqh>
 
 //--- Includes dos módulos do projeto
+#include "..\MQL5_Source\Source\Core\DataStructures.mqh"
 #include "..\02_Source_Code\Risk_Management\RiskManager.mqh"
 #include "..\02_Source_Code\Filters\AdvancedFilters.mqh"
 #include "..\02_Source_Code\Entry_Systems\ConfluenceEntrySystem.mqh"
 #include "..\02_Source_Code\Exit_Systems\IntelligentExitSystem.mqh"
+
+//--- Includes dos novos sistemas avançados (Fase 1)
+#include "..\MQL5_Source\Include\CAdvancedSignalEngine.mqh"
+#include "..\MQL5_Source\Include\CDynamicLevels.mqh"
+#include "..\MQL5_Source\Include\CSignalConfluence.mqh"
 
 //+------------------------------------------------------------------+
 //| PARÂMETROS DE ENTRADA                                            |
@@ -93,7 +99,17 @@ input string TelegramChatID = "";                       // Chat ID Telegram
 //| ENUMERAÇÕES                                                      |
 //+------------------------------------------------------------------+
 
+// Níveis de Alerta
+enum ENUM_ALERT_LEVEL
+{
+   ALERT_LOW = 1,       // Alerta baixo
+   ALERT_MEDIUM = 2,    // Alerta médio
+   ALERT_HIGH = 3       // Alerta alto
+};
+
 // Tipos de Trailing Stop
+#ifndef ENUM_TRAILING_TYPE_DEFINED
+#define ENUM_TRAILING_TYPE_DEFINED
 enum ENUM_TRAILING_TYPE
 {
    TRAILING_FIXED,      // Trailing Fixo
@@ -103,6 +119,7 @@ enum ENUM_TRAILING_TYPE
    TRAILING_SAR,        // Trailing Parabolic SAR
    TRAILING_HIGHLOW     // Trailing High/Low
 };
+#endif
 
 //+------------------------------------------------------------------+
 //| VARIÁVEIS GLOBAIS                                                |
@@ -120,6 +137,11 @@ CRiskManager riskManager;
 CAdvancedFilters advancedFilters;
 CConfluenceEntrySystem confluenceEntry;
 CIntelligentExitSystem intelligentExit;
+
+// Objetos dos Novos Sistemas Avançados (Fase 1)
+CAdvancedSignalEngine* advancedSignalEngine;
+CDynamicLevels* dynamicLevels;
+CSignalConfluence* signalConfluence;
 
 // Handles dos Indicadores
 int handle_RSI;
@@ -198,6 +220,13 @@ int OnInit()
       return INIT_FAILED;
    }
    
+   // Inicializar novos sistemas avançados (Fase 1)
+   if(!InitializeAdvancedSystems())
+   {
+      Print("Erro ao inicializar sistemas avançados");
+      return INIT_FAILED;
+   }
+   
    // Configurar arrays
    ArraySetAsSeries(rsi_buffer, true);
    ArraySetAsSeries(macd_main, true);
@@ -235,6 +264,11 @@ void OnDeinit(const int reason)
    if(handle_EMA != INVALID_HANDLE) IndicatorRelease(handle_EMA);
    if(handle_ATR != INVALID_HANDLE) IndicatorRelease(handle_ATR);
    if(handle_SAR != INVALID_HANDLE) IndicatorRelease(handle_SAR);
+   
+   // Liberar objetos dos sistemas avançados
+   if(advancedSignalEngine != NULL) delete advancedSignalEngine;
+   if(dynamicLevels != NULL) delete dynamicLevels;
+   if(signalConfluence != NULL) delete signalConfluence;
    
    Print("EA finalizado. Motivo: ", EnumToString((ENUM_DEINIT_REASON)reason));
 }
@@ -377,6 +411,49 @@ bool InitializeProjectModules()
 }
 
 //+------------------------------------------------------------------+
+//| Inicializar Sistemas Avançados (Fase 1)                        |
+//+------------------------------------------------------------------+
+bool InitializeAdvancedSystems()
+{
+   Print("=== Inicializando Sistemas Avançados (Fase 1) ===");
+   
+   // Criar instâncias dos objetos
+   advancedSignalEngine = new CAdvancedSignalEngine();
+   dynamicLevels = new CDynamicLevels();
+   signalConfluence = new CSignalConfluence();
+   
+   if(advancedSignalEngine == NULL || dynamicLevels == NULL || signalConfluence == NULL)
+   {
+      Print("Erro ao criar instâncias dos sistemas avançados");
+      return false;
+   }
+   
+   // Inicializar CAdvancedSignalEngine
+   if(!advancedSignalEngine.Initialize(Symbol()))
+   {
+      Print("Erro ao inicializar CAdvancedSignalEngine");
+      return false;
+   }
+   
+   // Inicializar CDynamicLevels
+   if(!dynamicLevels.Initialize(Symbol()))
+   {
+      Print("Erro ao inicializar CDynamicLevels");
+      return false;
+   }
+   
+   // Inicializar CSignalConfluence
+   if(!signalConfluence.Initialize(Symbol(), advancedSignalEngine, dynamicLevels))
+   {
+      Print("Erro ao inicializar CSignalConfluence");
+      return false;
+   }
+   
+   Print("Sistemas Avançados inicializados com sucesso!");
+   return true;
+}
+
+//+------------------------------------------------------------------+
 //| Verificar se é nova barra                                       |
 //+------------------------------------------------------------------+
 bool IsNewBar()
@@ -439,7 +516,7 @@ bool CheckAdvancedFilters()
 }
 
 //+------------------------------------------------------------------+
-//| Analisar Sinal de Entrada (Sistema de Confluência)             |
+//| Analisar Sinal de Entrada (Sistema de Confluência Avançado)    |
 //+------------------------------------------------------------------+
 STradeSignal AnalyzeEntrySignal()
 {
@@ -447,19 +524,28 @@ STradeSignal AnalyzeEntrySignal()
    signal.isValid = false;
    signal.direction = 0;
    
-   // Usar o módulo ConfluenceEntrySystem para análise
-   SEntrySignal entrySignal = confluenceEntry.AnalyzeEntry();
+   // === SISTEMA AVANÇADO DE CONFLUÊNCIA (FASE 1) ===
+   // Usar o novo sistema CSignalConfluence para análise completa
+   SConfluenceResult confluenceResult = signalConfluence.AnalyzeConfluence();
    
-   if(!entrySignal.isValid)
+   if(!confluenceResult.isValid || confluenceResult.finalScore < 60.0)
+   {
+      // Fallback para sistema original se necessário
+      if(confluenceResult.finalScore > 0.0)
+      {
+         Print("Sinal de confluência fraco - Score: ", DoubleToString(confluenceResult.finalScore, 1), 
+               " (mínimo: 60.0)");
+      }
       return signal;
+   }
    
-   // Converter para estrutura STradeSignal
+   // Converter resultado da confluência para estrutura STradeSignal
    signal.isValid = true;
-   signal.direction = entrySignal.direction;
-   signal.entryPrice = entrySignal.entryPrice;
-   signal.stopLoss = entrySignal.stopLoss;
-   signal.takeProfit = entrySignal.takeProfit;
-   signal.comment = entrySignal.comment;
+   signal.direction = confluenceResult.direction;
+   signal.entryPrice = confluenceResult.entryPrice;
+   signal.stopLoss = confluenceResult.stopLoss;
+   signal.takeProfit = confluenceResult.takeProfit;
+   signal.comment = StringFormat("ADV_CONFLUENCE_v2.0_Score%.1f", confluenceResult.finalScore);
    
    // Calcular tamanho da posição usando RiskManager
    double slDistance = MathAbs(signal.entryPrice - signal.stopLoss);
@@ -472,7 +558,19 @@ STradeSignal AnalyzeEntrySignal()
    {
       signal.isValid = false;
       Print("Tamanho de posição inválido calculado: ", signal.lotSize);
+      return signal;
    }
+   
+   // Log detalhado do sinal avançado
+   Print("=== SINAL AVANÇADO DETECTADO ===");
+   Print("Score Final: ", DoubleToString(confluenceResult.finalScore, 1));
+   Print("Direção: ", signal.direction > 0 ? "BUY" : "SELL");
+   Print("Preço Entrada: ", DoubleToString(signal.entryPrice, 5));
+   Print("Stop Loss: ", DoubleToString(signal.stopLoss, 5));
+   Print("Take Profit: ", DoubleToString(signal.takeProfit, 5));
+   Print("Lote Calculado: ", DoubleToString(signal.lotSize, 2));
+   Print("Distância SL: ", DoubleToString(slDistance / symbol.Point(), 1), " pontos");
+   Print("Confiança: ", DoubleToString(confluenceResult.confidence, 1), "%");
    
    return signal;
 }

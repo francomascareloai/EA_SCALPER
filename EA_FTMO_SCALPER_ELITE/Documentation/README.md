@@ -1,56 +1,69 @@
-# 📚 DOCUMENTAÇÃO - EA FTMO SCALPER ELITE
+# 📋 PLANO DE IMPLEMENTAÇÃO - EA FTMO SCALPER ELITE v2.0
 
-## 🎯 PROPÓSITO
-Esta pasta contém toda a documentação de contexto, análises e relatórios do projeto EA FTMO Scalper Elite.
+## 🎯 VISÃO GERAL
 
-## 📋 ÍNDICE DE ARQUIVOS
+Este documento detalha o plano completo de implementação das melhorias avançadas para o EA_FTMO_SCALPER_ELITE, transformando-o em um sistema de trading de elite para XAUUSD com tecnologias de ponta.
 
-### 📊 **CONTEXTO_FASE1_IMPLEMENTACAO.md**
-- **Tipo**: Relatório de Progresso
-- **Conteúdo**: Resumo completo da Fase 1 (Base & Utilities)
-- **Uso**: Verificar status de implementação dos módulos base
-- **Tags**: #Fase1 #Base #Utilities #Progresso
-- **Para Agentes**: Consulte para entender o que já foi implementado
+## 📁 ESTRUTURA DA DOCUMENTAÇÃO
 
-### 📈 **Relatórios de Performance** (Futuros)
-- Métricas de backtesting
-- Análises de drawdown
-- Relatórios FTMO compliance
+```
+Documentation/
+├── Implementation_Plan/
+│   ├── README.md (este arquivo)
+│   ├── Phase_1_Advanced_Signals.md
+│   ├── Phase_2_XAUUSD_Optimization.md
+│   ├── Phase_3_Intelligent_Risk.md
+│   └── Before_After_Analysis.md
+├── Research/
+│   ├── Context7_Findings/
+│   ├── ML_Technologies/
+│   ├── MQL5_Components/
+│   └── XAUUSD_Specifics/
+├── Technical_Specs/
+│   ├── Architecture_Design.md
+│   ├── Component_Specifications.md
+│   ├── Performance_Metrics.md
+│   └── FTMO_Compliance.md
+└── Testing_Validation/
+    ├── Backtesting_Strategy.md
+    ├── Forward_Testing_Plan.md
+    └── Performance_Benchmarks.md
+```
 
-### 🔍 **Análises Técnicas** (Futuros)
-- Estudos de market structure
-- Análises de volume
-- Validações ICT/SMC
+## 🚀 FASES DE IMPLEMENTAÇÃO
 
-## 🚀 COMO USAR
+### FASE 1: Sistema de Sinais Avançado
+- **Duração**: 1-2 semanas
+- **Componente**: CAdvancedSignalEngine.mqh
+- **Foco**: Confluência multi-timeframe com pesos adaptativos
 
-### Para Desenvolvedores:
-1. Leia `CONTEXTO_FASE1_IMPLEMENTACAO.md` primeiro
-2. Verifique status atual da implementação
-3. Consulte relatórios específicos conforme necessário
+### FASE 2: Otimização XAUUSD
+- **Duração**: 1 semana
+- **Componente**: CXAUUSDOptimizer.mqh
+- **Foco**: Parâmetros específicos para ouro
 
-### Para Traders:
-1. Foque nos relatórios de performance
-2. Verifique compliance FTMO
-3. Analise métricas de risco
+### FASE 3: Risk Management Inteligente
+- **Duração**: 1-2 semanas
+- **Componente**: CIntelligentRisk.mqh
+- **Foco**: Gestão de risco adaptativa
 
-### Para Outros Agentes:
-1. **Contexto Rápido**: CONTEXTO_FASE1_IMPLEMENTACAO.md
-2. **Status Atual**: Verifique data de modificação dos arquivos
-3. **Próximos Passos**: Consulte seção "Next Steps" nos relatórios
+## 📊 CRITÉRIOS DE SUCESSO
 
-## 🏷️ SISTEMA DE TAGS
+- **Sharpe Ratio**: > 1.5
+- **Profit Factor**: > 1.3
+- **Win Rate**: > 60%
+- **Max Drawdown**: < 5%
+- **FTMO Compliance**: 100%
 
-- **#Fase1, #Fase2, etc.**: Fases de implementação
-- **#Base, #Core, #Strategy**: Tipos de módulos
-- **#Progresso, #Completo, #Pendente**: Status
-- **#Performance, #Risk, #Compliance**: Categorias de análise
+## 📝 PRÓXIMOS PASSOS
 
-## 📅 CONTROLE DE VERSÃO
-
-- **Criação**: 18/08/2025
-- **Última Atualização**: 18/08/2025
-- **Próxima Revisão**: Após conclusão Fase 2
+1. Revisar documentação detalhada de cada fase
+2. Validar especificações técnicas
+3. Iniciar implementação da Fase 1
+4. Executar testes rigorosos
+5. Documentar resultados e otimizações
 
 ---
-*Gerado por TradeDev_Master - Sistema de Documentação Inteligente*
+**Última atualização**: Janeiro 2025
+**Versão**: 1.0
+**Status**: Em desenvolvimento

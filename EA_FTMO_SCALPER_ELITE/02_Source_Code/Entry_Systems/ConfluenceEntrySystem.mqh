@@ -8,18 +8,15 @@
 #property version   "1.00"
 #property strict
 
-#include "RiskManager.mqh"
-#include "AdvancedFilters.mqh"
+// Includes necessários
+#include "../../MQL5_Source/Source/Core/DataStructures.mqh"
+// #include "../Risk_Management/RiskManager.mqh" // Removido para simplificar
+// #include "../Filters/AdvancedFilters.mqh" // Removido para simplificar
 
 //+------------------------------------------------------------------+
 //| Enumerações para sinais de entrada                               |
 //+------------------------------------------------------------------+
-enum ENUM_SIGNAL_TYPE
-{
-   SIGNAL_NONE = 0,     // Nenhum sinal
-   SIGNAL_BUY = 1,      // Sinal de compra
-   SIGNAL_SELL = -1     // Sinal de venda
-};
+// ENUM_SIGNAL_TYPE agora incluído via DataStructures.mqh
 
 enum ENUM_CONFLUENCE_LEVEL
 {

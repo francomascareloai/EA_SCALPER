@@ -8,7 +8,9 @@
 #property version   "1.00"
 #property strict
 
-#include "RiskManager.mqh"
+// Includes necessários
+#include "../../MQL5_Source/Include/CAdvancedSignalEngine.mqh"
+// #include "../Risk_Management/RiskManager.mqh" // Removido para simplificar
 
 //+------------------------------------------------------------------+
 //| Enumerações para configuração de filtros                         |
@@ -20,13 +22,7 @@ enum ENUM_NEWS_IMPACT
    NEWS_HIGH = 3      // Alto impacto
 };
 
-enum ENUM_TRADING_SESSION
-{
-   SESSION_LONDON = 1,    // Sessão de Londres
-   SESSION_NEW_YORK = 2,  // Sessão de Nova York
-   SESSION_ASIAN = 3,     // Sessão Asiática
-   SESSION_OVERLAP = 4    // Sobreposição Londres-NY
-};
+// ENUM_SESSION_TYPE agora incluído via CAdvancedSignalEngine.mqh
 
 //+------------------------------------------------------------------+
 //| Estrutura para eventos de notícias                               |
@@ -39,6 +35,28 @@ struct NewsEvent
    string description;      // Descrição do evento
    int minutesBefore;       // Minutos antes para pausar
    int minutesAfter;        // Minutos depois para pausar
+   
+   // Construtor de cópia
+   NewsEvent(const NewsEvent& other)
+   {
+      time = other.time;
+      currency = other.currency;
+      impact = other.impact;
+      description = other.description;
+      minutesBefore = other.minutesBefore;
+      minutesAfter = other.minutesAfter;
+   }
+   
+   // Construtor padrão
+   NewsEvent()
+   {
+      time = 0;
+      currency = "";
+      impact = NEWS_LOW;
+      description = "";
+      minutesBefore = 0;
+      minutesAfter = 0;
+   }
 };
 
 //+------------------------------------------------------------------+
@@ -56,7 +74,7 @@ private:
    
    // Configurações de filtro de sessão
    bool m_sessionFilterEnabled;
-   ENUM_TRADING_SESSION m_allowedSessions[];
+   ENUM_SESSION_TYPE m_allowedSessions[];
    
    // Configurações de filtro de volatilidade ATR
    bool m_atrFilterEnabled;
@@ -93,7 +111,7 @@ public:
    
    // Configuração de filtros
    void SetNewsFilter(bool enabled, int minutesBefore = 15, int minutesAfter = 15, ENUM_NEWS_IMPACT minImpact = NEWS_HIGH);
-   void SetSessionFilter(bool enabled, ENUM_TRADING_SESSION sessions[]);
+   void SetSessionFilter(bool enabled, ENUM_SESSION_TYPE &sessions[]);
    void SetATRFilter(bool enabled, int period = 14, double minMultiplier = 0.5, double maxMultiplier = 3.0);
    void SetSpreadFilter(bool enabled, double maxSpreadPoints = 30.0);
    void SetTimeFilter(bool enabled, string startTime = "08:00", string endTime = "17:00");
@@ -171,11 +189,9 @@ bool CAdvancedFilters::Initialize()
       }
    }
    
-   // Carregar eventos de notícias padrão para XAUUSD
-   if(m_newsFilterEnabled && ArraySize(m_newsEvents) == 0)
-   {
-      LoadDefaultNewsEvents();
-   }
+   // Filtro de notícias simplificado - controle manual
+   // Para ativar: defina m_newsFilterEnabled = true nos parâmetros
+   // Eventos de notícias devem ser adicionados manualmente via AddNewsEvent()
    
    Print("[AdvancedFilters] Sistema de filtros inicializado com sucesso");
    return true;
@@ -210,7 +226,7 @@ void CAdvancedFilters::SetNewsFilter(bool enabled, int minutesBefore = 15, int m
 //+------------------------------------------------------------------+
 //| Configurar filtro de sessão                                      |
 //+------------------------------------------------------------------+
-void CAdvancedFilters::SetSessionFilter(bool enabled, ENUM_TRADING_SESSION sessions[])
+void CAdvancedFilters::SetSessionFilter(bool enabled, ENUM_SESSION_TYPE &sessions[])
 {
    m_sessionFilterEnabled = enabled;
    
@@ -340,7 +356,7 @@ bool CAdvancedFilters::IsValidSession()
    
    for(int i = 0; i < ArraySize(m_allowedSessions); i++)
    {
-      ENUM_TRADING_SESSION session = m_allowedSessions[i];
+      ENUM_SESSION_TYPE session = m_allowedSessions[i];
       
       switch(session)
       {
@@ -470,31 +486,13 @@ void CAdvancedFilters::AddNewsEvent(datetime time, string currency, ENUM_NEWS_IM
 }
 
 //+------------------------------------------------------------------+
-//| Carregar eventos de notícias padrão para XAUUSD                  |
+//| Filtro de notícias simplificado                                 |
 //+------------------------------------------------------------------+
-void CAdvancedFilters::LoadDefaultNewsEvents()
-{
-   // Eventos importantes que afetam XAUUSD (Ouro)
-   // Estes são exemplos - em produção, usar feed de notícias real
-   
-   datetime today = TimeCurrent();
-   MqlDateTime dt;
-   TimeToStruct(today, dt);
-   
-   // NFP (primeira sexta-feira do mês)
-   datetime nfpTime = StringToTime(StringFormat("%04d.%02d.01 13:30:00", dt.year, dt.mon));
-   AddNewsEvent(nfpTime, "USD", NEWS_HIGH, "Non-Farm Payrolls");
-   
-   // FOMC (reuniões programadas)
-   datetime fomcTime = StringToTime(StringFormat("%04d.%02d.15 19:00:00", dt.year, dt.mon));
-   AddNewsEvent(fomcTime, "USD", NEWS_HIGH, "FOMC Meeting");
-   
-   // CPI (segunda semana do mês)
-   datetime cpiTime = StringToTime(StringFormat("%04d.%02d.10 13:30:00", dt.year, dt.mon));
-   AddNewsEvent(cpiTime, "USD", NEWS_HIGH, "Consumer Price Index");
-   
-   Print(StringFormat("[AdvancedFilters] Carregados %d eventos de notícias padrão", ArraySize(m_newsEvents)));
-}
+// NOTA: Filtro simplificado para controle manual
+// Para adicionar eventos de notícias:
+// 1. Defina m_newsFilterEnabled = true
+// 2. Configure manualmente os horários de evitar trading
+// 3. Use os parâmetros de input para definir janelas de tempo
 
 //+------------------------------------------------------------------+
 //| Obter status dos filtros                                         |

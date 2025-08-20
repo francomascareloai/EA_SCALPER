@@ -7,12 +7,14 @@
 #property version   "1.00"
 #property strict
 
-#include "RiskManager.mqh"
-#include "AdvancedFilters.mqh"
+// #include "../Risk_Management/RiskManager.mqh" // Removido para simplificar
+// #include "../Filters/AdvancedFilters.mqh" // Removido para simplificar
 
 //+------------------------------------------------------------------+
 //| Enumerações para tipos de trailing stop                          |
 //+------------------------------------------------------------------+
+#ifndef ENUM_TRAILING_TYPE_DEFINED
+#define ENUM_TRAILING_TYPE_DEFINED
 enum ENUM_TRAILING_TYPE
 {
    TRAILING_FIXED,        // Trailing stop fixo
@@ -22,6 +24,7 @@ enum ENUM_TRAILING_TYPE
    TRAILING_PARABOLIC,    // Trailing stop baseado em Parabolic SAR
    TRAILING_CANDLE_HL     // Trailing stop baseado em High/Low das velas
 };
+#endif
 
 //+------------------------------------------------------------------+
 //| Enumerações para tipos de take profit parcial                    |
@@ -119,9 +122,9 @@ private:
    SBreakevenConfig   m_breakeven_config;
    SPartialTPConfig   m_partial_tp_config;
    
-   // Dependências
-   CRiskManager*      m_risk_manager;
-   CAdvancedFilters*  m_filters;
+   // Dependências - Removidas para simplificar
+   // CRiskManager*      m_risk_manager;
+   // CAdvancedFilters*  m_filters;
    
    // Dados internos
    SPositionData      m_positions[];
@@ -159,7 +162,7 @@ public:
                      ~CIntelligentExitSystem();
    
    // Métodos de inicialização
-   bool               Initialize(CRiskManager* risk_manager, CAdvancedFilters* filters);
+   bool               Initialize(); // Simplificado - removidos parâmetros
    void               Deinitialize();
    
    // Configuração do sistema
@@ -197,8 +200,9 @@ public:
 //+------------------------------------------------------------------+
 CIntelligentExitSystem::CIntelligentExitSystem()
 {
-   m_risk_manager = NULL;
-   m_filters = NULL;
+   // Dependências removidas para simplificar
+   // m_risk_manager = NULL;
+   // m_filters = NULL;
    m_positions_count = 0;
    
    m_atr_handle = INVALID_HANDLE;
@@ -236,16 +240,19 @@ CIntelligentExitSystem::~CIntelligentExitSystem()
 //+------------------------------------------------------------------+
 //| Inicialização do sistema                                          |
 //+------------------------------------------------------------------+
-bool CIntelligentExitSystem::Initialize(CRiskManager* risk_manager, CAdvancedFilters* filters)
+bool CIntelligentExitSystem::Initialize()
 {
+   // Inicialização simplificada
+   /*
    if(risk_manager == NULL)
    {
       Print("[EXIT_SYSTEM] Erro: Risk Manager não fornecido");
       return false;
    }
    
-   m_risk_manager = risk_manager;
-   m_filters = filters;
+   // Dependências removidas para simplificar
+   // m_risk_manager = risk_manager;
+   // m_filters = filters;
    
    // Criar handles de indicadores
    m_atr_handle = iATR(_Symbol, PERIOD_CURRENT, 14);

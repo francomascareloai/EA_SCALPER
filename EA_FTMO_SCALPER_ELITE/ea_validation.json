@@ -1,0 +1,29 @@
+{
+  "file_path": "MQL5_Source/EA_FTMO_Scalper_Elite.mq5",
+  "validation_date": "2025-08-18T23:33:21.778955",
+  "compliance_score": 120,
+  "checks": {
+    "stop_loss": true,
+    "take_profit": true,
+    "risk_management": true,
+    "daily_loss_control": true,
+    "drawdown_control": true,
+    "lot_size_control": true,
+    "config_max_daily_loss": true,
+    "config_max_drawdown": true,
+    "config_risk_per_trade": true,
+    "config_news_filter": true,
+    "config_time_filter": true
+  },
+  "violations": [
+    "Forbidden strategy detected: news_trading"
+  ],
+  "recommendations": [
+    "Fix all violations before FTMO submission",
+    "Add missing risk management features",
+    "Implement comprehensive logging",
+    "Add news filter functionality"
+  ],
+  "status": "NEEDS_MINOR_FIXES",
+  "max_score": 140
+}
