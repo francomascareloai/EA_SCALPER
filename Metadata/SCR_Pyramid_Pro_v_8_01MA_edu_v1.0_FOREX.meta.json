@@ -1,0 +1,157 @@
+{
+  "file_info": {
+    "original_name": "Pyramid_Pro_v.8.01MA_edu.mq4",
+    "current_name": "SCR_Pyramid_Pro_v_8_01MA_edu_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Pyramid_Pro_v_8_01MA_edu_v1.0_FOREX.mq4",
+    "file_size": 59297,
+    "lines_count": 1156
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 218,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "f0_9",
+      "f0_8",
+      "f0_1",
+      "f0_2",
+      "f0_11",
+      "f0_3",
+      "f0_14",
+      "f0_10",
+      "f0_12",
+      "f0_16",
+      "f0_6",
+      "f0_0",
+      "f0_5",
+      "f0_15",
+      "f0_13",
+      "init",
+      "deinit",
+      "start",
+      "f0_7",
+      "f0_4",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "ErrorDescription"
+    ],
+    "variables": [
+      "koef_grid",
+      "____0___",
+      "tf_grid",
+      "tf_lock",
+      "tf_aw",
+      "shift",
+      "Period_MA_1",
+      "Period_MA_2",
+      "Period_MA_3",
+      "ma_method",
+      "applied_price",
+      "____1___",
+      "start_recede",
+      "steps",
+      "quantity",
+      "MagicNumber",
+      "StopLoss",
+      "Lot",
+      "Choice_method",
+      "Risk",
+      "_____Lock_____",
+      "Lock",
+      "lock_pips",
+      "koef_lot_lock",
+      "StopLoss_Lock",
+      "_____AV_____",
+      "AV",
+      "exponents",
+      "level_AV",
+      "level_OP",
+      "f_lot_av",
+      "TakeProfit_AV",
+      "Slippage",
+      "_____TT_____",
+      "NumberOfTry",
+      "UseSound",
+      "NameFileSound",
+      "NameCloseSound",
+      "MarketWatch",
+      "ShowComment"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:15.529890",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:37.351883",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "file_info": {
+    "original_name": "forex cash cow - mm.mq4",
+    "current_name": "SCR_forex_cash_cow_mm_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_forex_cash_cow_mm_v1.0_FOREX.mq4",
+    "file_size": 8367,
+    "lines_count": 222
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 40,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "LotsOptimized",
+      "start",
+      "CheckAllTrade",
+      "SetSLtoBEP",
+      "TutupOpenPosisi"
+    ],
+    "variables": [
+      "Delta",
+      "Rule2Dist",
+      "Rule3Dist",
+      "SL",
+      "TP",
+      "MoneyManagement",
+      "Lots",
+      "MaximumRisk",
+      "DecreaseFactor",
+      "AcountIsMini"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:01.160902",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:29.213673",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

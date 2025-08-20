@@ -1,0 +1,116 @@
+{
+  "session_summary": {
+    "start_time": "2025-08-12T23:12:16.489094",
+    "end_time": "2025-08-12T23:14:02.666833",
+    "total_cycles": 3,
+    "successful_cycles": 3,
+    "target_reached": false,
+    "final_score": 5.37,
+    "final_quality": 7.49,
+    "final_ftmo_ready": 14,
+    "final_critical_issues": 427
+  },
+  "optimization_metrics": {
+    "total_improvement_percentage": 0.0,
+    "total_issues_resolved": 0,
+    "total_optimizations_applied": 15,
+    "average_cycle_duration": 5.367133333333334
+  },
+  "performance_history": {
+    "scores": [
+      5.37,
+      5.37,
+      5.37,
+      5.37
+    ],
+    "quality_metrics": [
+      7.49,
+      7.49,
+      7.49,
+      7.49
+    ],
+    "ftmo_ready_count": [
+      2,
+      6,
+      10,
+      14
+    ],
+    "issues_count": [
+      61,
+      183,
+      305,
+      427
+    ],
+    "processing_times": []
+  },
+  "cycles_details": [
+    {
+      "cycle_number": 1,
+      "start_time": "2025-08-12T23:12:16.489094",
+      "end_time": "2025-08-12T23:12:21.829898",
+      "duration_seconds": 5.340804,
+      "files_processed": 72,
+      "avg_score_before": 5.37,
+      "avg_score_after": 5.37,
+      "improvement_percentage": 0.0,
+      "issues_resolved": 0,
+      "new_issues_found": 122,
+      "recommendations_implemented": 5,
+      "quality_metrics": {
+        "completeness": 7.12,
+        "accuracy": 8.77,
+        "consistency": 8.83,
+        "ftmo_compliance": 5.25
+      },
+      "status": "completed"
+    },
+    {
+      "cycle_number": 2,
+      "start_time": "2025-08-12T23:12:51.850034",
+      "end_time": "2025-08-12T23:12:57.229345",
+      "duration_seconds": 5.379311,
+      "files_processed": 120,
+      "avg_score_before": 5.37,
+      "avg_score_after": 5.37,
+      "improvement_percentage": 0.0,
+      "issues_resolved": 0,
+      "new_issues_found": 122,
+      "recommendations_implemented": 5,
+      "quality_metrics": {
+        "completeness": 7.12,
+        "accuracy": 8.77,
+        "consistency": 8.83,
+        "ftmo_compliance": 5.25
+      },
+      "status": "completed"
+    },
+    {
+      "cycle_number": 3,
+      "start_time": "2025-08-12T23:13:27.252398",
+      "end_time": "2025-08-12T23:13:32.633683",
+      "duration_seconds": 5.381285,
+      "files_processed": 168,
+      "avg_score_before": 5.37,
+      "avg_score_after": 5.37,
+      "improvement_percentage": 0.0,
+      "issues_resolved": 0,
+      "new_issues_found": 122,
+      "recommendations_implemented": 5,
+      "quality_metrics": {
+        "completeness": 7.12,
+        "accuracy": 8.77,
+        "consistency": 8.83,
+        "ftmo_compliance": 5.25
+      },
+      "status": "completed"
+    }
+  ],
+  "current_state": {
+    "total_files": 168,
+    "avg_score": 5.37,
+    "avg_quality": 7.49,
+    "ftmo_ready": 14,
+    "critical_issues": 427,
+    "last_optimization": "2025-08-12T23:13:32.633652"
+  }
+}

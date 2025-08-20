@@ -1,0 +1,160 @@
+{
+  "file_info": {
+    "original_name": "SpaceX_Prop_EA (3).mq4",
+    "current_name": "EA_SpaceX_Prop_EA_3_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_SpaceX_Prop_EA_3_v1.0_FOREX.mq4",
+    "file_size": 138943,
+    "lines_count": 5666
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M15",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 969,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "OnTick",
+      "OnDeinit",
+      "OnChartEvent",
+      "func_1030",
+      "func_1031",
+      "func_1032",
+      "func_1033",
+      "func_1034",
+      "func_1035",
+      "func_1036",
+      "func_1037",
+      "func_1038",
+      "func_1039",
+      "func_1040"
+    ],
+    "variables": [
+      "EAComment",
+      "CloseAtPipsProfits",
+      "UseCloseAtPipsProfits",
+      "Martingale1",
+      "FixedLots",
+      "MaxSpread",
+      "Delta2",
+      "UseGrid",
+      "Martingale2",
+      "ClosePercentLoss",
+      "CloseAtPercentLoss",
+      "PercentLoss",
+      "MA2Period",
+      "Slippage",
+      "Trade_Parameters",
+      "StopLoss",
+      "TakeProfit",
+      "GridPips",
+      "ECN_Acc",
+      "SpreadAlert",
+      "MagicNumber",
+      "MaxOpenOrders",
+      "ShowInfo",
+      "MA1Period",
+      "TrailingStop",
+      "UseTrailingStop",
+      "TrailingStopStart",
+      "TrailingStopStep",
+      "PipsProfit",
+      "MM_Parameters",
+      "MultiplierLot",
+      "LotIncrease",
+      "Increase",
+      "BalansStep",
+      "Delta1",
+      "Time_Filter",
+      "EnableTimer",
+      "TimerStart",
+      "TimerEnd",
+      "_News",
+      "AvoidNews",
+      "UTimeDo",
+      "UTimePosle",
+      "Uoffset",
+      "Vhigh",
+      "Vmedium",
+      "Vlow"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "description"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#INDICES",
+    "#M1",
+    "#M15",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:34.051988",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:57.717077",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

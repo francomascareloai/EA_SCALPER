@@ -1,0 +1,32 @@
+{
+  "arquivo": {
+    "nome": "T3 high-low activator mtf 1.01 (2).mq4",
+    "tamanho_bytes": 15503,
+    "linhas_codigo": 391,
+    "data_modificacao": "2025-08-10T19:36:48.957220"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de volatilidade"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0028638839721679688,
+  "timestamp": "2025-08-13T01:12:40.330860"
+}

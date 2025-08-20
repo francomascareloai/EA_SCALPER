@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-08-13T01:28:04.060260",
+  "system_health": {
+    "memory": {
+      "total_gb": 19.35,
+      "available_gb": 3.02,
+      "percent_used": 84.4,
+      "status": "WARNING"
+    },
+    "disk": {
+      "total_gb": 476.0,
+      "free_gb": 49.38,
+      "percent_used": 89.63,
+      "status": "OK"
+    },
+    "cpu": {
+      "percent_used": 19.5,
+      "status": "OK"
+    }
+  },
+  "file_analysis": {
+    "total_mq4_files": 3373,
+    "organized_files": 1090,
+    "unorganized_files": 2283,
+    "metadata_files": 3473,
+    "report_files": 3,
+    "structure_issues": [
+      "2283 arquivos ainda não organizados"
+    ]
+  },
+  "performance_analysis": {
+    "memory_leaks_detected": false,
+    "cpu_bottlenecks": false,
+    "io_bottlenecks": true,
+    "threading_issues": false,
+    "recommendations": [
+      "Implementar cache de arquivos"
+    ]
+  },
+  "issues_detected": [
+    {
+      "type": "unprocessed_files",
+      "severity": "HIGH",
+      "description": "3373 arquivos MQ4 não foram processados",
+      "solution": "Executar processamento completo com validação"
+    }
+  ],
+  "recommendations": [
+    "Implementar processamento real de arquivos MQL4 (não simulação)",
+    "Adicionar validação rigorosa de sintaxe MQL4",
+    "Implementar detecção automática de estratégias de trading",
+    "Criar sistema de classificação FTMO mais preciso",
+    "Adicionar geração de snippets de código reutilizáveis",
+    "Implementar sistema de backup automático",
+    "Criar dashboard de monitoramento em tempo real",
+    "Adicionar testes automatizados de qualidade",
+    "Implementar sistema de versionamento de arquivos",
+    "Criar API para integração com outras ferramentas"
+  ],
+  "auto_fixes_applied": [
+    "Criado arquivo de configuração"
+  ],
+  "log_analysis": {
+    "log_files_found": [
+      "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\diagnostico_avancado.log",
+      "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\processamento_otimizado.log"
+    ],
+    "errors_detected": [],
+    "warnings_detected": [
+      "WARNING",
+      "WARNING"
+    ],
+    "performance_issues": [],
+    "success_patterns": []
+  }
+}

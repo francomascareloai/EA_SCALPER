@@ -1,0 +1,100 @@
+{
+  "file_info": {
+    "original_name": "MultiHedge V1.1 (2).mq4",
+    "current_name": "EA_MultiHedge_V1_1_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_MultiHedge_V1_1_2_v1.0_FOREX.mq4",
+    "file_size": 6072,
+    "lines_count": 200
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 31,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "SendOrder",
+      "CloseAllTrades"
+    ],
+    "variables": [
+      "Lots",
+      "TargetPips",
+      "Slippage",
+      "Magic",
+      "CoolingTime",
+      "Suffix",
+      "Pair1",
+      "Pair2",
+      "Pair3"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:53.721011",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.829659",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

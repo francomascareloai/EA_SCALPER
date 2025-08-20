@@ -1,0 +1,81 @@
+{
+  "file_info": {
+    "original_name": "SMC HiLo v1.1.mq4",
+    "current_name": "SCR_SMC_HiLo_v1_1_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_SMC_HiLo_v1_1_v1.0_GOLD.mq4",
+    "file_size": 10310,
+    "lines_count": 278
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 55,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start"
+    ],
+    "variables": [],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#M1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:31.377006",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:40.651286",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "file_info": {
+    "original_name": "CalendarFX-DeactivateEAs_v1.02_danEdit.mq4",
+    "current_name": "IND_CalendarFX_DeactivateEAs_v1_02_danEdit_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_CalendarFX_DeactivateEAs_v1_02_danEdit_v1.0_FOREX.mq4",
+    "file_size": 111806,
+    "lines_count": 2153
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 321,
+    "issues": [
+      "Loop infinito detectado - risco de travamento",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "CloseAll",
+      "init",
+      "deinit",
+      "Desactivate",
+      "Reactivate",
+      "start",
+      "InitNews",
+      "DoFileDownLoad",
+      "GetXmlFileName",
+      "PadString",
+      "IsNewsCurrency",
+      "OutputToChart",
+      "ImpactToColor",
+      "DateStringA",
+      "FindDeleteObjectsA",
+      "PriceToPips",
+      "checkNewBar",
+      "strCaution",
+      "VLine",
+      "DeleteAllEventObjects",
+      "DeleteAllEventsExceptHistory",
+      "ButtonOn",
+      "ResetEAButton",
+      "MinutesToString"
+    ],
+    "variables": [
+      "FFCalURL",
+      "deactivate_Minutes_Before",
+      "duration_Deactivation",
+      "CloseAllBeforeNews",
+      "BarPeriod",
+      "ShowTable",
+      "ShowNewsLines",
+      "ShowEventFlags",
+      "NewsLineDescription",
+      "ShowCaution",
+      "CautionHoursBeforeHrs",
+      "CautionCorner",
+      "CautionXCoordinate",
+      "CautionYCoordinate",
+      "CautionFontSize",
+      "CautionFont",
+      "ShowNextUp",
+      "NextUpCorner",
+      "NextUpXCoordinate",
+      "NextUpYCoordinate",
+      "NextUpFontSize",
+      "NextUpFont",
+      "ShowLineText",
+      "NewsLineTextSize",
+      "NewsLineStyle",
+      "NewsLineWidth",
+      "HistoryOn",
+      "SleepInSeconds",
+      "Part_1",
+      "Indicator_On",
+      "Allow_Panel_In_Subwindow_1",
+      "Allow_Panel_In_Subwindow_2",
+      "Allow_Panel_At_Chart_Right",
+      "Display_Min_TF",
+      "Display_Max_TF",
+      "TF_Choices",
+      "__",
+      "Part_2",
+      "Low_Impact_News_On",
+      "Medium_Impact_News_On",
+      "Bank_Holiday_On",
+      "Show_Panel_Background",
+      "Alert_Minutes_Before",
+      "NotificationOn",
+      "AlertOn",
+      "MailOn",
+      "Offset_Hours",
+      "___",
+      "Part_3",
+      "Show_USD_News",
+      "Show_EUR_News",
+      "Show_GBP_News",
+      "Show_NZD_News",
+      "Show_JPY_News",
+      "Show_AUD_News",
+      "Show_CAD_News",
+      "Show_CHF_News",
+      "Show_CNY_News",
+      "Show_XAU_News",
+      "Ignore_Current_Symbol",
+      "PrevMinute",
+      "UpdateRateSec",
+      "timeOldBarM1",
+      "timeOldBarM5",
+      "timeOldBarM15",
+      "timeOldBarM30",
+      "timeOldBarH1",
+      "timeOldBarH4",
+      "timeOldBarD1",
+      "timeOldBarW1",
+      "timeOldBarMN1"
+    ],
+    "includes": [
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:21.443034",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:03.229485",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "file_info": {
+    "original_name": "Robot Forex 2051MAC (RUS).mq4",
+    "current_name": "SCR_Robot_Forex_2051MAC_RUS_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Robot_Forex_2051MAC_RUS_v1.0_FOREX.mq4",
+    "file_size": 33689,
+    "lines_count": 663
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 156,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "ND",
+      "fOrderCloseMarket",
+      "fGetLots",
+      "CountTrades",
+      "CloseThisSymbolAll",
+      "OpenPendingOrder",
+      "StopLong",
+      "StopShort",
+      "TakeLong",
+      "TakeShort",
+      "CalculateProfit",
+      "TrailingAlls",
+      "AccountEquityHigh",
+      "FindLastBuyPrice",
+      "FindLastSellPrice",
+      "Display_Info"
+    ],
+    "variables": [
+      "_",
+      "__0_1_2",
+      "_",
+      "_",
+      "__",
+      "__0_1_2",
+      "_",
+      "_",
+      "__",
+      "_",
+      "_",
+      "_",
+      "_",
+      "C_",
+      "_",
+      "_",
+      "_",
+      "__",
+      "_",
+      "_",
+      "_",
+      "__",
+      "__",
+      "___",
+      "__",
+      "___",
+      "MACDOpenLevel",
+      "MACDCloseLevel",
+      "MATrendPeriod",
+      "DecreaseFactor",
+      "MovingPeriod",
+      "MovingShift"
+    ],
+    "includes": [
+      "stderror.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#CRYPTO",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:18.181918",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:37.548762",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

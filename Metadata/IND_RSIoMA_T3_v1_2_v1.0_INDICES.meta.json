@@ -1,0 +1,94 @@
+{
+  "file_info": {
+    "original_name": "RSIoMA_T3_v1.2.mq4",
+    "current_name": "IND_RSIoMA_T3_v1_2_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_RSIoMA_T3_v1_2_v1.0_INDICES.mq4",
+    "file_size": 7714,
+    "lines_count": 296
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M5",
+        "H1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 30,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "RSI_Period",
+      "MA_Period",
+      "smooth",
+      "T3_Period",
+      "T3_Curvature"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_level1",
+      "indicator_level2",
+      "indicator_level3"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#INDICES",
+    "#M5",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:20.999251",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:14.168299",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

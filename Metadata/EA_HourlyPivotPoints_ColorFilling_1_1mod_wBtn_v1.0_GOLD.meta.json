@@ -1,0 +1,117 @@
+{
+  "file_info": {
+    "original_name": "HourlyPivotPoints_ColorFilling_1.1mod_wBtn.mq4",
+    "current_name": "EA_HourlyPivotPoints_ColorFilling_1_1mod_wBtn_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Misc\\EA_HourlyPivotPoints_ColorFilling_1_1mod_wBtn_v1.0_GOLD.mq4",
+    "file_size": 25799,
+    "lines_count": 529
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 70,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnCalculate",
+      "CalculateHourlyPivotPoints",
+      "FindExistingObj",
+      "ChangeTrendEmptyPoints",
+      "ChangeTextEmptyPoint",
+      "ChangeRectangleEmptyPoints",
+      "CreateButton",
+      "OnChartEvent",
+      "show_hide"
+    ],
+    "variables": [
+      "short_name",
+      "CurrentHourOnly",
+      "CountBars",
+      "Pivot_Lines",
+      "ShowPivotLines",
+      "LineWidth",
+      "Pivot_Areas",
+      "AreasFilling",
+      "Pivot_Labels",
+      "ShowLabels",
+      "note_10",
+      "btn_show",
+      "btn_text",
+      "btn_offset_x",
+      "btn_offset_y",
+      "btn_width",
+      "btn_height",
+      "btn_font_size"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:28.022382",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:53.411945",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

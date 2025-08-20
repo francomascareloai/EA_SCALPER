@@ -1,0 +1,45 @@
+{
+  "id": "1fd2121b6f10",
+  "arquivo": {
+    "nome_original": "PZ_ParabolicSar_EA.mq4",
+    "nome_renomeado": "PZ_ParabolicSar_EA.mq4",
+    "hash": "1fd2121b6f10978de83892119b1f0768",
+    "tamanho_bytes": 14227,
+    "data_modificacao": "2025-08-10T18:53:53.846760"
+  },
+  "classificacao": {
+    "tipo": "Unknown",
+    "linguagem": "MQL4",
+    "estrategia": "Trend",
+    "mercados": [
+      "MULTI"
+    ],
+    "timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "ftmo_analysis": {
+    "ftmo_ready": true,
+    "score": 80,
+    "checks": {
+      "stop_loss": true,
+      "take_profit": true,
+      "risk_management": true,
+      "drawdown_check": false,
+      "no_martingale": true
+    }
+  },
+  "qualidade": {
+    "score": 85,
+    "nivel": "Alto",
+    "status_compilacao": "Não testado"
+  },
+  "tags": [
+    "#Unknown",
+    "#Trend",
+    "#MQL4",
+    "#Demo"
+  ],
+  "data_analise": "2025-08-12T21:00:09.930608"
+}

@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "MadroGoldenFilter.mq4",
+    "current_name": "IND_MadroGoldenFilter_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_MadroGoldenFilter_v1.0_FOREX.mq4",
+    "file_size": 6108,
+    "lines_count": 168
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 16,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "FasterMA",
+      "SlowerMA",
+      "MA1_Type",
+      "MA2_Type",
+      "MACD_Fast",
+      "MACD_Slow",
+      "MACD_Signal",
+      "RSI",
+      "Momentum",
+      "DeMarker",
+      "ADX",
+      "ForceIndex",
+      "SoundAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_minimum",
+      "indicator_maximum",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_color7",
+      "indicator_color8"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:43.072524",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:10.506495",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "file_info": {
+    "original_name": "GoodGbbi.mq4",
+    "current_name": "SCR_GoodGbbi_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_GoodGbbi_v1.0_GOLD.mq4",
+    "file_size": 8354,
+    "lines_count": 267
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 84,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "TakeProfit_S",
+      "TradeTime"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:19.081859",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:30.420555",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

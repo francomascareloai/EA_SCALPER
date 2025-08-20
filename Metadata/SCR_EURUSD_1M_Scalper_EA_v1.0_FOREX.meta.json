@@ -1,0 +1,134 @@
+{
+  "file_info": {
+    "original_name": "EURUSD 1M Scalper EA.mq4",
+    "current_name": "SCR_EURUSD_1M_Scalper_EA_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_EURUSD_1M_Scalper_EA_v1.0_FOREX.mq4",
+    "file_size": 76449,
+    "lines_count": 1510
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 386,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "ND",
+      "fOrderCloseMarket",
+      "fGetLots",
+      "CountTrades",
+      "CountTradesB",
+      "CountTradesS",
+      "OpenPendingOrder",
+      "StopLong",
+      "StopShort",
+      "TakeLong",
+      "TakeShort",
+      "CalculateProfit",
+      "LastBuyPrice",
+      "LastSellPrice",
+      "CheckMoneyForTrade",
+      "CheckVolumeValue",
+      "OrderModifyCheck",
+      "IsNewOrderAllowed",
+      "CheckStopLoss_Takeprofit",
+      "CheckRange"
+    ],
+    "variables": [
+      "Display",
+      "Hedging",
+      "MaxTrades",
+      "AutoLots",
+      "Lots",
+      "CheckFreeMargin",
+      "TakeProfit",
+      "Stoploss",
+      "PositionsGap",
+      "TrailSL",
+      "TrailPips",
+      "MagicNumber",
+      "Slippage",
+      "SpreadOp"
+    ],
+    "includes": [],
+    "properties": [
+      "description",
+      "description",
+      "description",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:55.592306",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:27.909125",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

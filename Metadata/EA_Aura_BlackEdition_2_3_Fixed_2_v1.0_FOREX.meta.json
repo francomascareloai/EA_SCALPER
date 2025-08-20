@@ -1,0 +1,126 @@
+{
+  "file_info": {
+    "original_name": "Aura_BlackEdition_2.3_Fixed (2).mq4",
+    "current_name": "EA_Aura_BlackEdition_2_3_Fixed_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_Aura_BlackEdition_2_3_Fixed_2_v1.0_FOREX.mq4",
+    "file_size": 291980,
+    "lines_count": 1594
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 190,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "OnTick",
+      "func_1010",
+      "func_1011",
+      "func_1012",
+      "func_1015",
+      "func_1017",
+      "func_1020",
+      "func_1021"
+    ],
+    "variables": [
+      "percent",
+      "balance",
+      "Lot",
+      "MaxCountOrders",
+      "BeginHour",
+      "EndHour",
+      "Commen",
+      "Magic",
+      "Opposite",
+      "MaxSpred",
+      "Friday",
+      "FrHour",
+      "trail",
+      "TrailStart",
+      "TrailFrom",
+      "TrailStep",
+      "UseBreckeven",
+      "BEactivity",
+      "BePips",
+      "TKProfit",
+      "STLoss"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#M1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:33:09.927515",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:47.582080",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

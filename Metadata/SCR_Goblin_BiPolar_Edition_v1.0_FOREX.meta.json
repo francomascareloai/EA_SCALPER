@@ -1,0 +1,126 @@
+{
+  "file_info": {
+    "original_name": "Goblin BiPolar Edition.mq4",
+    "current_name": "SCR_Goblin_BiPolar_Edition_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Goblin_BiPolar_Edition_v1.0_FOREX.mq4",
+    "file_size": 23952,
+    "lines_count": 593
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M15"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 110,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "LongGoblin",
+      "ShortGoblin",
+      "deinit",
+      "OpenOrdersBasedOnTrendRSX"
+    ],
+    "variables": [
+      "SystemWideParms",
+      "LotSize",
+      "UseMoneyMgmt",
+      "EquityProtectionLevel",
+      "MaxLossPerOrder",
+      "TargetEquityToCloseAndReset",
+      "RiskPercent",
+      "UseFiboLotSizeProgression",
+      "UseConservativeRSX_Signals",
+      "RSX_Period",
+      "RSX_Timeframe",
+      "UseSMATrendFilter",
+      "TrendFilterSMATimeFrame",
+      "TrendFilterFastSMAPeriod",
+      "TrendFilterMediumSMAPeriod",
+      "TrendFilterSlowSMAPeriod",
+      "LongTradeParms",
+      "LongTakeProfit",
+      "LongInitialStop",
+      "LongTrailingStop",
+      "LongMaxTrades",
+      "LongPips",
+      "LongSecureProfit",
+      "LongAccountProtection",
+      "LongOrderstoProtect",
+      "ShortTradeParms",
+      "ShortTakeProfit",
+      "ShortInitialStop",
+      "ShortTrailingStop",
+      "ShortMaxTrades",
+      "ShortPips",
+      "ShortSecureProfit",
+      "ShortAccountProtection",
+      "ShortOrderstoProtect"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M15",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:12.811676",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:29.842861",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

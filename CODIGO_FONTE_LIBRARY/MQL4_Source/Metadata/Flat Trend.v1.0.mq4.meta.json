@@ -1,0 +1,51 @@
+{
+  "arquivo": {
+    "nome": "Flat Trend.v1.0.mq4.rar",
+    "tamanho_bytes": 224643,
+    "linhas_codigo": 5880,
+    "data_modificacao": "2025-08-10T19:42:09.263872"
+  },
+  "analise_ftmo": {
+    "score_bruto": 3.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {
+      "stop_loss_obrigatorio": false,
+      "sem_grid_martingale": true,
+      "daily_loss_protection": false,
+      "risk_management": false,
+      "take_profit": false,
+      "max_drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "trailing_stop": false
+    },
+    "penalidades_aplicadas": {
+      "no_stop_loss": -5.0,
+      "no_risk_management": -4.0
+    },
+    "riscos_detectados": [
+      "Ausência de Stop Loss",
+      "Ausência de gestão de risco"
+    ],
+    "ajustes_necessarios": [
+      "CRÍTICO: Stop Loss obrigatório em todas as operações",
+      "CRÍTICO: Proteção de perda diária máxima (5%)",
+      "OBRIGATÓRIO: Implementar Stop Loss em todas as operações",
+      "OBRIGATÓRIO: Implementar proteção de perda diária (5%)",
+      "OBRIGATÓRIO: Implementar gestão de risco por percentual",
+      "RECOMENDADO: Implementar proteção de drawdown máximo"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA inadequado/proibido para FTMO"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de volatilidade"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.05472850799560547,
+  "timestamp": "2025-08-13T01:12:07.217342"
+}

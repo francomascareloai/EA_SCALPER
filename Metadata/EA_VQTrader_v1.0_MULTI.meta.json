@@ -1,0 +1,138 @@
+{
+  "file_info": {
+    "original_name": "VQ_EA.mq4",
+    "current_name": "EA_VQTrader_v1.0_MULTI.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Trend_Following\\EA_VQTrader_v1.0_MULTI.mq4",
+    "file_size": 34031,
+    "lines_count": 961
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "MULTI",
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M15",
+        "H1"
+      ],
+      "confidence": 95
+    },
+    "ftmo_ready": true
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 7.5,
+    "ftmo_level": "Adequado",
+    "compliance_issues": [],
+    "compliance_strengths": [
+      "Stop Loss implementado (60 pips)",
+      "Gestão de risco adequada com Risk parameter",
+      "Take Profit configurável",
+      "Trailing Stop disponível",
+      "Break Even implementado",
+      "Sem lógica de grid ou martingale",
+      "Usa indicador VQ para sinais precisos"
+    ],
+    "is_ftmo_ready": true,
+    "risk_category": "Low",
+    "score": 7.5,
+    "level": "Adequado",
+    "compliance_score": 75.0
+  },
+  "quality": {
+    "score": 85,
+    "issues": [
+      "Código bem estruturado",
+      "Funções de erro handling implementadas",
+      "Logging adequado"
+    ],
+    "strengths": [
+      "Código limpo e organizado",
+      "Gestão de ordens robusta",
+      "Tratamento de erros completo",
+      "Funções auxiliares bem implementadas"
+    ]
+  },
+  "features": {
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_trailing_stop": true,
+    "has_break_even": true,
+    "has_money_management": true,
+    "has_alerts": true,
+    "has_email_notifications": true,
+    "multi_timeframe": false,
+    "multi_symbol": true
+  },
+  "parameters": {
+    "lots": 0.1,
+    "stop_loss": 60,
+    "take_profit": 0,
+    "trailing_stop": 0,
+    "break_even": 0,
+    "magic_number": 0,
+    "risk_percentage": 10,
+    "slippage": 3
+  },
+  "indicator_settings": {
+    "vq_length": 5,
+    "vq_method": 3,
+    "vq_smoothing": 1,
+    "vq_filter": 5,
+    "real_time": true,
+    "steady": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#VQ_Indicator",
+    "#MULTI",
+    "#M15",
+    "#H1",
+    "#FTMO_Ready",
+    "#LowRisk",
+    "#StopLoss",
+    "#TakeProfit",
+    "#TrailingStop",
+    "#BreakEven",
+    "#MoneyManagement"
+  ],
+  "metadata": {
+    "created_date": "2025-08-13T07:05:04Z",
+    "last_modified": "2025-08-13T07:05:04Z",
+    "classification_version": "2.0",
+    "classifier": "Classificador_Trading",
+    "correction_applied": true,
+    "correction_reason": "Reclassificado de Grid/Martingale para Trend Following após análise detalhada do código"
+  },
+  "performance": {
+    "backtest_ready": true,
+    "optimization_ready": true,
+    "live_trading_ready": true,
+    "recommended_pairs": [
+      "EURUSD",
+      "GBPUSD",
+      "USDJPY",
+      "XAUUSD",
+      "US30",
+      "NAS100"
+    ],
+    "recommended_timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "notes": [
+    "EA corrigido de classificação incorreta Grid/Martingale para Trend Following",
+    "Análise do código confirma estratégia de trend following usando indicador VQ",
+    "Adequado para FTMO com score 7.5/10",
+    "Gestão de risco implementada adequadamente",
+    "Sem lógica de grid, martingale ou recovery"
+  ]
+}

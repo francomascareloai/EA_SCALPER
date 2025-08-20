@@ -1,0 +1,21 @@
+{
+  "id": "IND_EliteAlgoModded_v1.0_MULTI",
+  "arquivo": "IND_EliteAlgoModded_v1.0_MULTI.pine",
+  "hash": "",
+  "tipo": "Indicator",
+  "linguagem": "Pine",
+  "estrategia": "Custom",
+  "subestrategias": ["Volatility Calculation"],
+  "mercados": ["MULTI"],
+  "timeframes": ["MULTI"],
+  "funcoes_chave": ["Calculate Volatility"],
+  "dependencias_includes": [],
+  "parametros_expostos": ["Volatility Types"],
+  "ftmo_score": 0,
+  "riscos_detectados": [],
+  "qualidade_codigo_score": 0,
+  "compilacao": { "status": "desconhecido", "warnings": 0 },
+  "fusao_pronto": false,
+  "ajustes_necessarios": [],
+  "licenca_autor": "desconhecido"
+}

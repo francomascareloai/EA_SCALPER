@@ -1,0 +1,121 @@
+{
+  "file_info": {
+    "original_name": "EA Superstar v99.9@fxsignalspot..mq4",
+    "current_name": "EA_EA_Superstar_v99_9_fxsignalspot_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_EA_Superstar_v99_9_fxsignalspot_v1.0.mq4",
+    "file_size": 15784,
+    "lines_count": 446
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 93,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "OnTimer",
+      "OnTester",
+      "OnChartEvent",
+      "stoplvl",
+      "dec",
+      "ask",
+      "bid",
+      "minlot",
+      "maxlot",
+      "openorder",
+      "counter",
+      "array_resize",
+      "initialize_lotbuy",
+      "initialize_lotsell",
+      "latest_openprice",
+      "nextlayer_pricebuy",
+      "nextlayer_pricesell",
+      "dist",
+      "nl",
+      "get_latest_ticket",
+      "tp_buy",
+      "tp_sell",
+      "put_tp",
+      "floating",
+      "totlot",
+      "setup",
+      "display",
+      "rec_label",
+      "text"
+    ],
+    "variables": [
+      "magic",
+      "lot_initial",
+      "multiplier",
+      "takeprofit",
+      "distance_pips",
+      "maxlayer",
+      "display_info",
+      "fontsize"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "description"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:44.440736",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:50.830814",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-08-12T20:21:24.983110",
+  "execution_time": 0.006439924240112305,
+  "backup_path": null,
+  "statistics": {
+    "total_files": 5,
+    "processed": 5,
+    "successful": 5,
+    "errors": 0,
+    "skipped": 0,
+    "start_time": 1755040884.9766643,
+    "end_time": 1755040884.9831042,
+    "categories": {
+      "Unknown": 5
+    },
+    "quality_distribution": {
+      "Unknown": 5
+    },
+    "ftmo_distribution": {
+      "Unknown": 5
+    },
+    "errors_list": []
+  },
+  "performance": {
+    "files_per_second": 776.4066491429418,
+    "success_rate": 100.0,
+    "error_rate": 0.0
+  },
+  "recommendations": [
+    "🔍 5 arquivos não classificados (100.0%) - melhorar padrões de detecção"
+  ],
+  "top_categories": [
+    [
+      "Unknown",
+      5
+    ]
+  ],
+  "quality_summary": {
+    "Unknown": 5
+  },
+  "ftmo_summary": {
+    "Unknown": 5
+  }
+}

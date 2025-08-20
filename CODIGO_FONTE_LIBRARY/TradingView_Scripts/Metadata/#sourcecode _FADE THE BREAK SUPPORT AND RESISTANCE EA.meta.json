@@ -1,0 +1,41 @@
+{
+  "id": "STR_sourcecode__FADE_THE_BREAK_SUPPORT_AND_RESISTA",
+  "arquivo": "#sourcecode _FADE THE BREAK SUPPORT AND RESISTANCE EA.pine",
+  "hash": "",
+  "tipo": "Strategy",
+  "linguagem": "Pine Script",
+  "estrategia": "SMC (Smart Money Concepts)",
+  "subestrategias": [
+    "Order Blocks",
+    "Moving Averages",
+    "Support and Resistance",
+    "RSI"
+  ],
+  "mercados": [
+    "XAUUSD",
+    "FOREX",
+    "Indices",
+    "Crypto"
+  ],
+  "timeframes": [
+    "All"
+  ],
+  "funcoes_chave": [],
+  "dependencias_includes": [],
+  "parametros_expostos": [],
+  "ftmo_score": 9,
+  "riscos_detectados": [
+    "Nenhum risco critico identificado"
+  ],
+  "qualidade_codigo_score": 5,
+  "compilacao": {
+    "status": "nao_aplicavel",
+    "warnings": 0
+  },
+  "fusao_pronto": true,
+  "ajustes_necessarios": [
+    "Verificar conformidade com regras FTMO",
+    "Adicionar protecao de risco"
+  ],
+  "licenca_autor": "desconhecido"
+}

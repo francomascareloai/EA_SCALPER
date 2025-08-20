@@ -1,0 +1,17 @@
+{
+  "id": "aedc26f11f22",
+  "arquivo": {
+    "nome_original": "FFCal.mq4",
+    "hash": "aedc26f11f225c8e13766c5a3dd60847",
+    "tamanho_bytes": 50791
+  },
+  "classificacao": {
+    "tipo": "Indicator",
+    "estrategia": "Trend"
+  },
+  "ftmo_analysis": {
+    "ftmo_ready": true,
+    "score": 60
+  },
+  "data_analise": "2025-08-12T21:13:03.270063"
+}

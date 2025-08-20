@@ -1,0 +1,29 @@
+{
+  "arquivo": {
+    "nome": "Pivot2.mq4",
+    "tamanho_bytes": 5077,
+    "linhas_codigo": 169,
+    "data_modificacao": "2022-09-26T04:27:30"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0020732879638671875,
+  "timestamp": "2025-08-13T01:12:31.104584"
+}

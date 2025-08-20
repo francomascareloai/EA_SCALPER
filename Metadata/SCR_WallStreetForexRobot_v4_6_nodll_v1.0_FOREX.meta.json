@@ -1,0 +1,180 @@
+{
+  "file_info": {
+    "original_name": "WallStreetForexRobot_v4.6_nodll.mq4",
+    "current_name": "SCR_WallStreetForexRobot_v4_6_nodll_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_WallStreetForexRobot_v4_6_nodll_v1.0_FOREX.mq4",
+    "file_size": 44602,
+    "lines_count": 927
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 217,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "f0_0",
+      "init",
+      "deinit",
+      "start",
+      "f0_1",
+      "f0_3",
+      "f0_8",
+      "f0_2",
+      "f0_6",
+      "f0_5",
+      "f0_7",
+      "f0_10",
+      "f0_11",
+      "f0_9",
+      "f0_4"
+    ],
+    "variables": [
+      "Magic",
+      "EA_Comment",
+      "MaxSpread",
+      "Slippage",
+      "StealthMode",
+      "CloseOnlyOnProfit",
+      "NFA",
+      "No_Hedge",
+      "CS",
+      "StopLoss",
+      "TakeProfit",
+      "SecureProfit",
+      "SecureProfitTriger",
+      "UseCustomPair",
+      "UseSettingsFrom",
+      "MM",
+      "RecoveryMode",
+      "FixedLots",
+      "AutoMM",
+      "AutoMM_Max",
+      "MaxAccountTrades",
+      "FE",
+      "MondayStartHour",
+      "FridayExit",
+      "LastTradeHour",
+      "ExitHour",
+      "NF",
+      "Avoid_News",
+      "GMT_Offset",
+      "DST_Usage",
+      "Include_Medium_News",
+      "Wait_Before_News",
+      "Wait_After_News",
+      "O1",
+      "O2",
+      "O3",
+      "O4",
+      "iMA_Period",
+      "iMA_Filter_Open_b",
+      "iWPR_Filter_OpenSignal_b",
+      "iMA_Filter_Open_a",
+      "iWPR_Filter_OpenSignal_a",
+      "iWPR_Filter_Close",
+      "MaxLossPoints",
+      "iWPR_Period",
+      "Price_Filter_Close",
+      "SecureProfit_",
+      "SecureProfitTriger_",
+      "iWPR_Filter_Open_unknown",
+      "iWPR_Filter_Close_unknown",
+      "iWPR_Close_Period",
+      "FilterATR",
+      "iATR_Period",
+      "iCCI_OpenFilter",
+      "iCCI_Period",
+      "Unknown_1",
+      "Unknown_2",
+      "StopLoss_",
+      "TakeProfit_"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:05.820707",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:44.958906",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

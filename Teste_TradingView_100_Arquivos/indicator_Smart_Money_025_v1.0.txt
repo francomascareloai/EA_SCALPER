@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #025
+// Tipo: INDICATOR
+// Categoria: SMC
+// Mercado: Crypto
+// Timeframe: M1
+
+//@version=5
+indicator("Smart_Money_25", shorttitle="Smart_Mo", overlay=false)
+
+// Parâmetros
+length = input.int(20, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+atr = ta.atr(length)
+
+// Plot
+plot(atr, "Smart_Money_25", color=color.orange)

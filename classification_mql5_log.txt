@@ -1,0 +1,121 @@
+=== CLASSIFICACAO MQL5 INICIADA EM 08/14/2025 16:38:38 ===
+Processando: #sourcecode _CLASS OOP MA+STOCH.txt
+  OK: EA_OTHERS -> EA_sourcecode_CLASS_OOP_MA_STOCH_v1.0_MULTI.mq5
+Processando: #sourcecode _FADE THE BREAK SUPPORT AND RESISTANCE EA.txt
+  OK: EA_OTHERS -> EA_sourcecode_FADE_THE_BREAK_SUPPORT_AND_RESISTANCE_EA_v1.0_MULTI.mq5
+  OK: EA_OTHERS -> EA_sourcecode_ZONE_RECOVERY_MARTINGALE_EA_v1.0_MULTI.mq5
+Processando: #sourcecode_CASCADE ORDERING.txt
+  OK: EA_ADVANCED_SCALPING -> EA_sourcecode_CASCADE_ORDERING_v1.0_CAD.mq5
+Processando: #sourcecode_ENVELOPES EA.txt
+Processando: #sourcecode_MQL5 MARKET UPLOAD CHECKS EA.txt
+  OK: EA_OTHERS -> EA_sourcecode_MQL5_MARKET_UPLOAD_CHECKS_EA_v5_MULTI.mq5
+Processando: #sourcecode_PARABOLIC SAR.txt
+  OK: EA_OTHERS -> EA_sourcecode_PARABOLIC_SAR_v1.0_MULTI.mq5
+Processando: 9od10leporadi.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: A FODA.txt
+  OK: EA_FTMO_READY -> EA_A_FODA_v1.0_MULTI.mq5
+Processando: Amazing EA MQ5 .zip
+  OK: EA_OTHERS -> EA_Amazing_EA_MQ5_v5_MULTI.mq5
+Processando: AutoDayFibs.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: best 5 ema and 21 ema with neyyork and lon don s.txt
+  OK: EA_OTHERS -> EA_best_5_ema_and_21_ema_with_neyyork_and_lon_don_s_v5_MULTI.mq5
+Processando: breakout_robot_ea.txt
+  OK: EA_FTMO_READY -> EA_breakout_robot_ea_v1.0_MULTI.mq5
+Processando: ChartChanger For Mt5.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: Close_All.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: Complete MACD and MA System.zip
+  SKIP: Tipo nao identificado
+Processando: Crosshair_MTF_Zones.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: Delta1 Mt5 Source Code By @FundedMillionAiress.zip
+  SKIP: Tipo nao identificado
+Processando: DSUPERNATURAL1 UNIVERSAL TRAILING STOP EA.mq5.rar
+  OK: EA_OTHERS -> EA_DSUPERNATURAL1_UNIVERSAL_TRAILING_STOP_EA_mq5_v1_MULTI.mq5
+Processando: Elise EA (MQ4+MQ5) (2).rar
+  OK: EA_OTHERS -> EA_Elise_EA_MQ4_MQ5_2_v4_MULTI.mq5
+Processando: Elise EA (MQ4+MQ5).rar
+  OK: EA_OTHERS -> EA_Elise_EA_MQ4_MQ5_v4_MULTI.mq5
+Processando: Elise EA SourceCode V6.1 MQ5@YoForexPremium.rar
+  OK: EA_OTHERS -> EA_Elise_EA_SourceCode_V6_1_MQ5_YoForexPremium_v6_MULTI.mq5
+Processando: EMA Crossover EA By @FundedMillionAiress .zip
+  OK: EA_FTMO_READY -> EA_EMA_Crossover_EA_By_FundedMillionAiress_v1.0_MULTI.mq5
+Processando: FTMO Robots MT5 (2).zip
+  OK: EA_FTMO_READY -> EA_FTMO_Robots_MT5_2_v5_MULTI.mq5
+Processando: FTMO Robots MT5 (5).zip
+  OK: EA_FTMO_READY -> EA_FTMO_Robots_MT5_5_v5_MULTI.mq5
+Processando: FTMO Robots MT5.zip
+  OK: EA_FTMO_READY -> EA_FTMO_Robots_MT5_v5_MULTI.mq5
+Processando: gold hi.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: GoldScalpingEA-1.mq5.rar
+  OK: EA_ADVANCED_SCALPING -> EA_GoldScalpingEA_1_mq5_v1_GOLD.mq5
+Processando: GoldScalpingEA.mq5.rar
+  OK: EA_ADVANCED_SCALPING -> EA_GoldScalpingEA_mq5_v5_GOLD.mq5
+Processando: JasmineMartingaleEA.mq5.rar
+  OK: EA_OTHERS -> EA_JasmineMartingaleEA_mq5_v5_MULTI.mq5
+Processando: MA+BOLLINGER BAND EA.zip
+  OK: EA_OTHERS -> EA_MA_BOLLINGER_BAND_EA_v1.0_MULTI.mq5
+Processando: MANSAMUSSA 2.0s.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: MM3.0 FLIP CODEPRO.mq5 (2).rar
+  SKIP: Tipo nao identificado
+Processando: MM3.0 FLIP CODEPRO.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: Monkey Pips Versions.zip
+  SKIP: Tipo nao identificado
+Processando: MQLTA MT5 RVI With Alert (2).zip
+  SKIP: Tipo nao identificado
+Processando: MQLTA MT5 RVI With Alert.zip
+Processando: MT5 Get M1 Data.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: mt5Account Protector_2.zip
+  SKIP: Tipo nao identificado
+Processando: MT5M30XAUUSDLBCU.txt
+  OK: EA_ADVANCED_SCALPING -> EA_MT5M30XAUUSDLBCU_v5_XAUUSD.mq5
+Processando: MT5Strategy 0.121373LBCU.txt
+  OK: EA_ADVANCED_SCALPING -> EA_MT5Strategy_0_121373LBCU_v5_MULTI.mq5
+Processando: MT5Strategy 0.13758LBCU.txt
+  OK: EA_ADVANCED_SCALPING -> EA_MT5Strategy_0_13758LBCU_v5_MULTI.mq5
+Processando: MT5Strategy 0.5895LBCU.txt
+  OK: EA_ADVANCED_SCALPING -> EA_MT5Strategy_0_5895LBCU_v5_MULTI.mq5
+Processando: RAM GOLD BOT.mq5.rar
+  OK: EA_OTHERS -> EA_RAM_GOLD_BOT_mq5_v5_GOLD.mq5
+Processando: Ronz SLTP MT5.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: RSI RECOVERY MT5 (mq5).rar
+  SKIP: Tipo nao identificado
+Processando: Scalping EA + MT5 + MQ5.rar
+  OK: EA_ADVANCED_SCALPING -> EA_Scalping_EA_MT5_MQ5_v5_MULTI.mq5
+Processando: Shved Supply and Demand v1.5 BT.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: Shved_Supply_And_Demand.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: SMCstarV02.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: Support_and_Resistance.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: TopBottomEA MT4+MT5 v1.31 (MQ4+MQ5).rar
+  OK: EA_OTHERS -> EA_TopBottomEA_MT4_MT5_v1_31_MQ4_MQ5_v4_MULTI.mq5
+Processando: TopBottomEA MT4+MT5 v1.31 (MQ4+MQ5).zip
+  OK: EA_OTHERS -> EA_TopBottomEA_MT4_MT5_v1_31_MQ4_MQ5_v4_MULTI.mq5
+Processando: Trade-Arbitrage.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: trailing stop.mq5.rar
+  SKIP: Tipo nao identificado
+Processando: WINDOWS_V2.mq5.rar
+  OK: IND_CUSTOM -> IND_WINDOWS_V2_mq5_v2_MULTI.mq5
+Processando: XARD-UNIVERSE MT5 TRADING SYSTEM 2025.zip
+  SKIP: Tipo nao identificado
+Processando: XAUUSD-M30.txt
+  OK: EA_ADVANCED_SCALPING -> EA_XAUUSD_M30_v30_XAUUSD.mq5
+
+=== RELATORIO FINAL ===
+Processados: 62
+Classificados: 37
+Ignorados: 25
+Taxa de sucesso: 59.68%
+Classificacao concluida em: 08/14/2025 16:38:40

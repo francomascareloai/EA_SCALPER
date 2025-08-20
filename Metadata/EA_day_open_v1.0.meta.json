@@ -1,0 +1,86 @@
+{
+  "file_info": {
+    "original_name": "day open .mq4",
+    "current_name": "EA_day_open_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_day_open_v1.0.mq4",
+    "file_size": 2224,
+    "lines_count": 58
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 11,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick"
+    ],
+    "variables": [
+      "LOT",
+      "Profit"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:32.445063",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:49.402974",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

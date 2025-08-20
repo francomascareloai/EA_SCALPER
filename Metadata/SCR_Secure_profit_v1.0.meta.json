@@ -1,0 +1,117 @@
+{
+  "file_info": {
+    "original_name": "Secure profit.mq4",
+    "current_name": "SCR_Secure_profit_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Secure_profit_v1.0.mq4",
+    "file_size": 11769,
+    "lines_count": 454
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "M5"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 92,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "OnEveryTick19",
+      "TechnicalAnalysis2x38",
+      "CloseOrder37",
+      "TechnicalAnalysis2x35",
+      "CloseOrder36",
+      "TechnicalAnalysis3x22",
+      "LimitOpenOrders23",
+      "HoursFilter24",
+      "OnceAnHour25",
+      "SellOrder26",
+      "TechnicalAnalysis3x27",
+      "LimitOpenOrders28",
+      "HoursFilter29",
+      "OnceAnHour30",
+      "BuyOrder31",
+      "CheckOpenOrders39",
+      "OncePerBar40",
+      "SellOrderModify41",
+      "CheckOpenOrders34",
+      "OncePerBar33",
+      "BuyOrderModify32",
+      "deinit"
+    ],
+    "variables": [
+      "Lot",
+      "Envelope_period",
+      "Envelope_deviation",
+      "Hours_from",
+      "Hours_to",
+      "Enter_minute",
+      "Exit_level",
+      "Stoploss",
+      "Takeprofit",
+      "Secure_depth",
+      "Secure_stoploss",
+      "Secure_takeprofit"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:24.555356",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:38.562412",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,1 @@
+"C:\\Program Files\\MetaTrader 5\\metaeditor64.exe" /compile:"c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\EA_FTMO_SCALPER_ELITE\\MQL5_Source\\EA_FTMO_Scalper_Elite.mq5" /log:"c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\compilation.log"

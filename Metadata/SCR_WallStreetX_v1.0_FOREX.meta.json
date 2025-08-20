@@ -1,0 +1,122 @@
+{
+  "file_info": {
+    "original_name": "WallStreetX.mq4",
+    "current_name": "SCR_WallStreetX_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_WallStreetX_v1.0_FOREX.mq4",
+    "file_size": 7621,
+    "lines_count": 138
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 27,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "Tick",
+      "Magic",
+      "OrdersComment",
+      "MaxSpread",
+      "Slippage",
+      "CloseOnlyOnProfit",
+      "CS",
+      "StopLoss",
+      "TakeProfit",
+      "ProfitBU",
+      "PipBU",
+      "UseSettingsFrom",
+      "MM",
+      "RecoveryMode",
+      "FixedLots",
+      "AutoMM",
+      "AutoMM_Max",
+      "MaxAccountTrades",
+      "O1",
+      "O2",
+      "O3",
+      "O4",
+      "iMA_Period",
+      "iMA_Filter_Open_b",
+      "iWPR_Filter_OpenSignal_b",
+      "iMA_Filter_Open_a",
+      "iWPR_Filter_OpenSignal_a",
+      "iWPR_Filter_Close",
+      "MaxLossPoints",
+      "iWPR_Period",
+      "Price_Filter_Close",
+      "iWPR_Close_Period",
+      "iCCI_OpenFilter",
+      "iCCI_Period",
+      "iCCI_PriceOpenFilter",
+      "DM_Filter_Open"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#M1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:05.830399",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:44.965090",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

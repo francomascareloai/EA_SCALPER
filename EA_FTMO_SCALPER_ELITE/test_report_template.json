@@ -1,0 +1,49 @@
+{
+  "test_session": {
+    "ea_name": "EA_FTMO_Scalper_Elite",
+    "symbol": "XAUUSD",
+    "timeframe": "M15",
+    "test_date": "2025-08-18T23:25:38.607416",
+    "tester_version": "MetaTrader 5",
+    "test_duration": "TBD"
+  },
+  "test_results": {
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "sharpe_ratio": 0.0,
+    "maximum_drawdown": 0.0,
+    "maximum_drawdown_percent": 0.0,
+    "total_net_profit": 0.0,
+    "gross_profit": 0.0,
+    "gross_loss": 0.0,
+    "largest_profit_trade": 0.0,
+    "largest_loss_trade": 0.0,
+    "average_profit_trade": 0.0,
+    "average_loss_trade": 0.0,
+    "consecutive_wins": 0,
+    "consecutive_losses": 0,
+    "modelling_quality": 0.0
+  },
+  "ftmo_compliance": {
+    "max_daily_loss_violated": false,
+    "max_total_loss_violated": false,
+    "profit_target_reached": false,
+    "trading_days": 0,
+    "consistency_score": 0.0,
+    "risk_management_score": 0.0
+  },
+  "performance_metrics": {
+    "trades_per_day": 0.0,
+    "average_holding_time": "TBD",
+    "best_trading_day": 0.0,
+    "worst_trading_day": 0.0,
+    "monthly_returns": [],
+    "volatility": 0.0,
+    "calmar_ratio": 0.0
+  },
+  "recommendations": [],
+  "next_steps": []
+}

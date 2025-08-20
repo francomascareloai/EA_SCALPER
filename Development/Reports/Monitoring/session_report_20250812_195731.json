@@ -1,0 +1,45 @@
+{
+  "session_info": {
+    "start_time": "2025-08-12T19:57:28.894000",
+    "end_time": "2025-08-12T19:57:31.505493",
+    "duration": 2.6115
+  },
+  "final_metrics": {
+    "timestamp": "2025-08-12 19:57:30.898600",
+    "files_processed": 9,
+    "files_successful": 8,
+    "files_failed": 1,
+    "processing_rate": 4.489707345909502,
+    "success_rate": 88.88888888888889,
+    "memory_usage": 60.0,
+    "cpu_usage": 37.0,
+    "current_file": "integration_test_4.mq4",
+    "errors_last_minute": 0
+  },
+  "performance_summary": {
+    "avg_processing_rate": 159.90345923149283,
+    "avg_success_rate": 64.25396825396825,
+    "max_processing_rate": 779.423226812159,
+    "min_processing_rate": 4.489707345909502,
+    "total_processed": 9,
+    "total_successful": 8,
+    "total_failed": 1
+  },
+  "all_alerts": [
+    {
+      "type": "warning",
+      "message": "Taxa de sucesso baixa: 0.0%",
+      "severity": "medium",
+      "timestamp": "2025-08-12 19:57:28.895293"
+    },
+    {
+      "type": "warning",
+      "message": "Taxa de sucesso baixa: 66.7%",
+      "severity": "medium",
+      "timestamp": "2025-08-12 19:57:29.396572"
+    }
+  ],
+  "trend_analysis": {
+    "trend": "insufficient_data"
+  }
+}

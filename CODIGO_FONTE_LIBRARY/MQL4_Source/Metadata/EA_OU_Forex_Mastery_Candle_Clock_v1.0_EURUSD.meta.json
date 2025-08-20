@@ -1,0 +1,41 @@
+{
+  "file_info": {
+    "original_name": "OU Forex Mastery Candle Clock.mq4",
+    "new_name": "EA_OU_Forex_Mastery_Candle_Clock_v1.0_EURUSD.mq4",
+    "file_size": 6045,
+    "created_date": "2025-08-13T07:11:44.529701",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market": "EURUSD",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 7.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#EURUSD",
+    "#MULTI",
+    "#FTMO_Ready",
+    "#LowRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

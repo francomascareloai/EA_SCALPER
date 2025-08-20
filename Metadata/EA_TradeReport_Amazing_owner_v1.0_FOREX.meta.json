@@ -1,0 +1,143 @@
+{
+  "file_info": {
+    "original_name": "TradeReport@Amazing_owner.mq4",
+    "current_name": "EA_TradeReport_Amazing_owner_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_TradeReport_Amazing_owner_v1.0_FOREX.mq4",
+    "file_size": 54619,
+    "lines_count": 1353
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 192,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnCalculate",
+      "InitColumns",
+      "AutoSizeFirstColumn",
+      "GetOrderInfo",
+      "GetPipFactor",
+      "GetPipFactor",
+      "is5DigitBroker",
+      "OnTimer",
+      "addSymbolToOrderInfo",
+      "addMagicToOrderInfo",
+      "addCommentToOrderInfo",
+      "findSymbolInOrderInfo",
+      "findMagicInOrderInfo",
+      "findCommentInOrderInfo",
+      "findInColumns",
+      "OnChartEvent",
+      "SortColumn",
+      "SortBySymbol",
+      "SortByMagic",
+      "SortByComment",
+      "SortByNrOfTrades",
+      "SortByNrOfBuyTrades",
+      "SortByNrOfSellTrades",
+      "SortByTotalLots",
+      "SortByBuyLots",
+      "SortBySellLots",
+      "SortByProfit",
+      "SortByLoss",
+      "SortByNettPL",
+      "SortByNettPIPs",
+      "DisplayOrderInfo",
+      "deleteAllObjects",
+      "DrawText",
+      "RandomString",
+      "RandomNumber",
+      "convertCSV",
+      "findInStringArray",
+      "convertArray"
+    ],
+    "variables": [
+      "MagicNumber",
+      "CommentFilter",
+      "SymbolFilter",
+      "CurrencyFilter",
+      "RefreshMinutes",
+      "xOffset",
+      "yOffset",
+      "factor100",
+      "factor10",
+      "factor1",
+      "pointCorrection",
+      "lineHeight"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:51.485729",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:58.747154",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

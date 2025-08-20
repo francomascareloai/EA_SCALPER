@@ -1,0 +1,91 @@
+{
+  "file_info": {
+    "original_name": "trailSL (2).mq4",
+    "current_name": "EA_trailSL_2_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Misc\\EA_trailSL_2_v1.0.mq4",
+    "file_size": 5502,
+    "lines_count": 134
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 44,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "be",
+      "trailSL",
+      "price_diff",
+      "price_calc"
+    ],
+    "variables": [
+      "ENABLE_BE",
+      "BE_STEP",
+      "BE_POINT",
+      "ENABLE_TRAILSL",
+      "TRAIL_AFTER_BE",
+      "TRAIL_START",
+      "TRAIL_STEP",
+      "TRAIL_POINT"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:52.091466",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:58.897270",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

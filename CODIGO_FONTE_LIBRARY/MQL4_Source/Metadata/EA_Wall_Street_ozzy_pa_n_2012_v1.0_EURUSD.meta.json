@@ -1,0 +1,50 @@
+{
+  "file_info": {
+    "original_name": "Wall Street + ozzy èpa¿¡án ïá»¬á 2012.mq4",
+    "new_name": "EA_Wall_Street_ozzy_pa_n_2012_v1.0_EURUSD.mq4",
+    "file_size": 67187,
+    "created_date": "2025-08-13T07:11:48.391153",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "SMC_ICT",
+      "Volume_Analysis"
+    ],
+    "market": "EURUSD",
+    "timeframe": "M1",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 8.0,
+    "level": "Adequado",
+    "ready": true,
+    "has_stop_loss": true,
+    "has_take_profit": true,
+    "has_risk_management": true,
+    "has_grid_martingale": true
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#SMC_ICT",
+    "#Volume_Analysis",
+    "#EURUSD",
+    "#M1",
+    "#FTMO_Ready",
+    "#LowRisk",
+    "#HighRisk"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "file_info": {
+    "original_name": "Iron Scalper EA.mq4",
+    "suggested_name": "EA_Scalping_IronScalperEA_v1.0_Forex.mq4",
+    "file_size": 32170,
+    "file_hash": "47984c9a218fe08d334945cf335bc91b",
+    "language": "MQL4"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": "scalping",
+    "markets": [
+      "Forex"
+    ],
+    "timeframes": [
+      "Multi"
+    ]
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1,
+    "level": "Não_Adequado"
+  },
+  "code_quality": {
+    "total_lines": 382,
+    "code_lines": 282,
+    "comment_lines": 77,
+    "comment_ratio": 0.202,
+    "complexity_score": 64,
+    "function_count": 21,
+    "extern_params": 10,
+    "quality_score": 8.9,
+    "quality_level": "High",
+    "issues": [],
+    "strengths": [
+      "Código substancial",
+      "Código complexo",
+      "Bem documentado",
+      "Validação de parâmetros",
+      "Uso de constantes",
+      "Código modular",
+      "Parâmetros configuráveis"
+    ]
+  },
+  "risk_assessment": {
+    "level": "Medium",
+    "factors": []
+  },
+  "organization": {
+    "target_folder": "MQL4_Source/EAs/Scalping",
+    "tags": [
+      "#EA",
+      "#Scalping",
+      "#Forex",
+      "#Multi",
+      "#Não_Adequado",
+      "#MediumRisk",
+      "#HighQuality"
+    ]
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T00:53:06.965148",
+    "analyzer_version": "1.0",
+    "confidence_score": 100
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "file_info": {
+    "original_name": "Digital TargetLines.mq4",
+    "current_name": "SCR_Digital_TargetLines_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Digital_TargetLines_v1.0_INDICES.mq4",
+    "file_size": 6659,
+    "lines_count": 216
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 19,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CreateLine",
+      "DeleteLine",
+      "CreatePVT"
+    ],
+    "variables": [
+      "GMTshift",
+      "Show_Line_Labels",
+      "IIIIIIIIIIIIIIII",
+      "BUY_Area",
+      "SELL_Area",
+      "BUY2_Area",
+      "SELL2_Area",
+      "Open_width",
+      "Open_Line_Type",
+      "BUY1_width",
+      "BUY1_Line_Type",
+      "SELL1_width",
+      "SELL1_Line_Type",
+      "BUY2_width",
+      "BUY2_Line_Type",
+      "SELL2_width",
+      "SELL2_Line_Type"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:33.787474",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.361248",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

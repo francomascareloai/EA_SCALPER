@@ -1,0 +1,99 @@
+{
+  "file_info": {
+    "original_name": "RPM5_MT4V1_[ea] (2).mq4",
+    "current_name": "SCR_RPM5_MT4V1_ea_2_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_RPM5_MT4V1_ea_2_v1.0.mq4",
+    "file_size": 10444,
+    "lines_count": 268
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "M5",
+        "D1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 36,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "DefineDayExtremums",
+      "DrawDayChannel",
+      "deinit",
+      "start",
+      "calculateIndicators"
+    ],
+    "variables": [
+      "HourSetOrder",
+      "BullBearPeriod",
+      "lots",
+      "TrailingStop",
+      "takeProfit",
+      "stopLoss",
+      "slippage",
+      "pivots",
+      "nameEA"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#M5",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:19.130448",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:37.641853",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

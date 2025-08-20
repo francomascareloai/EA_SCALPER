@@ -1,4 +1,4 @@
-﻿//@version=5
+//@version=5
 indicator("$$$ MONEY ALGORITHM $$$", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=350)
 
 bullcolor = #16e045

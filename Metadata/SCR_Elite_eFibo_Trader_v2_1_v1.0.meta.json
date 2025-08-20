@@ -1,0 +1,96 @@
+{
+  "file_info": {
+    "original_name": "Elite_eFibo_Trader_v2_1.mq4",
+    "current_name": "SCR_Elite_eFibo_Trader_v2_1_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Elite_eFibo_Trader_v2_1_v1.0.mq4",
+    "file_size": 22152,
+    "lines_count": 679
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 139,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "subCloseAllPending",
+      "subTotalTrade",
+      "subTotalOpen",
+      "subTotalProfit",
+      "subOpenPendingOrder",
+      "subOpenOrder",
+      "subBestBuySL",
+      "subBestSellSL",
+      "subTrailingStop",
+      "subCloseAllOrder",
+      "subCloseOrder"
+    ],
+    "variables": [
+      "MagicNumber",
+      "Open_Buy",
+      "LevelDistance",
+      "MoneyTakeProfit",
+      "Lots_Level_1"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:53.333038",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:27.000700",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "arquivo": {
+    "nome": "Demarker Martingale.mq4",
+    "tamanho_bytes": 27089,
+    "linhas_codigo": 646,
+    "data_modificacao": "2019-01-23T18:15:28"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de volatilidade"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.005784034729003906,
+  "timestamp": "2025-08-13T01:12:00.690269"
+}

@@ -1,0 +1,89 @@
+{
+  "file_info": {
+    "original_name": "forex50pips.mq4",
+    "current_name": "SCR_forex50pips_v1.0_CRYPTO.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_forex50pips_v1.0_CRYPTO.mq4",
+    "file_size": 9819,
+    "lines_count": 243
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 58,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_1",
+      "f0_3",
+      "f0_4",
+      "f0_5",
+      "f0_6",
+      "f0_2",
+      "f0_0"
+    ],
+    "variables": [
+      "_Alert",
+      "_SendMail",
+      "_Sound",
+      "Arrow",
+      "indent"
+    ],
+    "includes": [
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:03.897416",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:28.906096",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

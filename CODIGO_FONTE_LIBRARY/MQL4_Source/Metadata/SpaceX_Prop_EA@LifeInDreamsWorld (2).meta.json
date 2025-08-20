@@ -1,0 +1,32 @@
+{
+  "arquivo": {
+    "nome": "SpaceX_Prop_EA@LifeInDreamsWorld (2).mq4",
+    "tamanho_bytes": 138875,
+    "linhas_codigo": 5665,
+    "data_modificacao": "2025-08-06T10:10:51.004452"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de notícias"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.040879011154174805,
+  "timestamp": "2025-08-13T01:12:37.526158"
+}

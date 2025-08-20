@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "Robot2050_ Short.mq4",
+    "current_name": "SCR_Robot2050_Short_v1.0_CRYPTO.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Robot2050_Short_v1.0_CRYPTO.mq4",
+    "file_size": 21623,
+    "lines_count": 553
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 155,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "ND",
+      "fOrderCloseMarket",
+      "fGetLots",
+      "CountTrades",
+      "CloseThisSymbolAll",
+      "OpenPendingOrder",
+      "StopLong",
+      "StopShort",
+      "TakeLong",
+      "TakeShort",
+      "CalculateProfit",
+      "TrailingAlls",
+      "AccountEquityHigh",
+      "FindLastBuyPrice",
+      "FindLastSellPrice",
+      "Display_Info"
+    ],
+    "variables": [
+      "Lots",
+      "MaxTrades",
+      "UseHourTrade",
+      "StartHour",
+      "EndHour"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#CRYPTO",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:18.205067",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:37.452239",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

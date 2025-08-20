@@ -1,0 +1,29 @@
+{
+  "arquivo": {
+    "nome": "Bip Ichimoko_Trend_mod.mq4",
+    "tamanho_bytes": 4484,
+    "linhas_codigo": 99,
+    "data_modificacao": "2025-08-10T18:54:03.034906"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0011582374572753906,
+  "timestamp": "2025-08-13T01:11:56.400330"
+}

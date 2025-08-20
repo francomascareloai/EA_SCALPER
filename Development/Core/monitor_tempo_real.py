@@ -389,6 +389,30 @@ class MonitorTempoReal:
         
         self._log("STATUS", status_msg)
         
+    def capturar_snapshot(self) -> Dict:
+        """Captura snapshot atual das métricas do sistema"""
+        if not self.current_metrics:
+            return {
+                'timestamp': datetime.now().isoformat(),
+                'status': 'no_data',
+                'message': 'Nenhuma métrica disponível'
+            }
+            
+        return {
+            'timestamp': self.current_metrics.timestamp.isoformat(),
+            'files_processed': self.current_metrics.files_processed,
+            'files_successful': self.current_metrics.files_successful,
+            'files_failed': self.current_metrics.files_failed,
+            'processing_rate': self.current_metrics.processing_rate,
+            'success_rate': self.current_metrics.success_rate,
+            'memory_usage': self.current_metrics.memory_usage,
+            'cpu_usage': self.current_metrics.cpu_usage,
+            'current_file': self.current_metrics.current_file,
+            'errors_last_minute': self.current_metrics.errors_last_minute,
+            'is_monitoring': self.is_monitoring,
+            'uptime': (datetime.now() - self.start_time).total_seconds() if self.start_time else 0
+        }
+    
     def get_dashboard_data(self) -> Dict:
         """Retorna dados para dashboard"""
         if not self.current_metrics:

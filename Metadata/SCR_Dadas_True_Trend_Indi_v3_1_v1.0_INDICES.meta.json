@@ -1,0 +1,91 @@
+{
+  "file_info": {
+    "original_name": "Dadas_True_Trend_Indi_v3.1.mq4",
+    "current_name": "SCR_Dadas_True_Trend_Indi_v3_1_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Dadas_True_Trend_Indi_v3_1_v1.0_INDICES.mq4",
+    "file_size": 8637,
+    "lines_count": 226
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 18,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "IsNewBar"
+    ],
+    "variables": [
+      "Show_Indi",
+      "Tf",
+      "Begin_Bar",
+      "Back",
+      "Width",
+      "Show_Extensions",
+      "ExtWidth",
+      "ExtStyle",
+      "Offset"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Trend_Following",
+    "#INDICES",
+    "#M1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:30.968124",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.219524",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

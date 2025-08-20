@@ -1,0 +1,134 @@
+{
+  "file_info": {
+    "original_name": "AI SCALPER v1.1 (3).mq4",
+    "current_name": "SCR_AI_SCALPER_v1_1_3_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_AI_SCALPER_v1_1_3_v1.0_GOLD.mq4",
+    "file_size": 29174,
+    "lines_count": 766
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 85,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_4",
+      "f0_8",
+      "f0_9",
+      "f0_2",
+      "f0_6",
+      "f0_5",
+      "f0_7",
+      "f0_3",
+      "f0_0",
+      "f0_1"
+    ],
+    "variables": [
+      "_",
+      "LotsSize",
+      "__",
+      "LotsPer1000",
+      "MinLots",
+      "MaxLots",
+      "___",
+      "def_MaxSpread",
+      "_____",
+      "Filter",
+      "BB_PARAM",
+      "RSI_PARAM",
+      "RSIBuyLevel",
+      "RSISellLevel",
+      "def_SL",
+      "Distance_trailing",
+      "Start_trailing",
+      "Slippage",
+      "______",
+      "MyMagicNumber",
+      "Author_"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "description"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:54.934723",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:23.045069",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

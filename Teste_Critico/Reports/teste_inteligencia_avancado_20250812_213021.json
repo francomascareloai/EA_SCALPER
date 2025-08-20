@@ -1,0 +1,185 @@
+{
+  "timestamp": "20250812_213021",
+  "arquivos_processados": 6,
+  "erros_detectados": 0,
+  "autocorrecoes_aplicadas": 5,
+  "inconsistencias_resolvidas": 0,
+  "validacoes_executadas": 2,
+  "score_inteligencia": 6.5,
+  "detalhes_arquivos": [
+    {
+      "nome_arquivo": "FFCal.mq4",
+      "tamanho_bytes": 50794,
+      "linhas_codigo": 1407,
+      "hash_md5": "90a38978f32252172afc3ac74cfbf9a9",
+      "encoding_corrigido": true,
+      "data_modificacao": "2025-08-12T21:30:22.162782",
+      "tipo": "Indicator",
+      "estrategia": "Trend_Following",
+      "ftmo_score": 0.0,
+      "ftmo_detalhes": {
+        "stop_loss": false,
+        "take_profit": false,
+        "risk_management": false,
+        "drawdown_protection": false,
+        "session_filter": true,
+        "news_filter": true,
+        "penalidade_no_stop_loss": true
+      },
+      "ftmo_status": "Não_Adequado",
+      "mercado": "Forex",
+      "timeframe": "M1",
+      "validacoes": [],
+      "sugestoes_melhorias": [
+        "Implementar Stop Loss obrigatório",
+        "Adicionar gestão de risco adequada",
+        "Implementar proteção de drawdown"
+      ]
+    },
+    {
+      "nome_arquivo": "GMACD2.mq4",
+      "tamanho_bytes": 16493,
+      "linhas_codigo": 327,
+      "hash_md5": "8938158be3e809bbd220287fdc05803e",
+      "encoding_corrigido": true,
+      "data_modificacao": "2025-08-12T21:30:22.246911",
+      "tipo": "Indicator",
+      "estrategia": "Trend_Following",
+      "ftmo_score": 0.0,
+      "ftmo_detalhes": {
+        "stop_loss": false,
+        "take_profit": false,
+        "risk_management": false,
+        "drawdown_protection": false,
+        "session_filter": false,
+        "news_filter": false,
+        "penalidade_no_stop_loss": true
+      },
+      "ftmo_status": "Não_Adequado",
+      "mercado": "Indices",
+      "timeframe": "M1",
+      "validacoes": [],
+      "sugestoes_melhorias": [
+        "Implementar Stop Loss obrigatório",
+        "Adicionar gestão de risco adequada",
+        "Implementar proteção de drawdown"
+      ]
+    },
+    {
+      "nome_arquivo": "Iron_Scalper_EA.mq4",
+      "tamanho_bytes": 17811,
+      "linhas_codigo": 381,
+      "hash_md5": "47984c9a218fe08d334945cf335bc91b",
+      "encoding_corrigido": true,
+      "data_modificacao": "2025-08-12T21:30:22.258928",
+      "tipo": "EA",
+      "estrategia": "Scalping",
+      "ftmo_score": 7.0,
+      "ftmo_detalhes": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": true,
+        "drawdown_protection": true,
+        "session_filter": false,
+        "news_filter": false
+      },
+      "ftmo_status": "FTMO_Ready",
+      "mercado": "Forex",
+      "timeframe": "Multi",
+      "validacoes": [],
+      "sugestoes_melhorias": []
+    },
+    {
+      "nome_arquivo": "MACD_Cross_Zero_EA.mq4",
+      "tamanho_bytes": 34175,
+      "linhas_codigo": 796,
+      "hash_md5": "fd46a058482f1bd76d01ed6c5e6bbbbf",
+      "encoding_corrigido": true,
+      "data_modificacao": "2025-08-12T21:30:22.439841",
+      "tipo": "EA",
+      "estrategia": "Grid_Martingale",
+      "ftmo_score": 6.0,
+      "ftmo_detalhes": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": true,
+        "drawdown_protection": true,
+        "session_filter": true,
+        "news_filter": false,
+        "penalidade_martingale": true
+      },
+      "ftmo_status": "FTMO_Ready",
+      "mercado": "Forex",
+      "timeframe": "Multi",
+      "validacoes": [
+        {
+          "tipo": "inconsistencia_tipo",
+          "status": "warning",
+          "mensagem": "EA sem função OnTick detectada"
+        },
+        {
+          "tipo": "inconsistencia_ftmo",
+          "status": "error",
+          "mensagem": "Grid/Martingale com FTMO score alto - revisar"
+        }
+      ],
+      "sugestoes_melhorias": [
+        "Considerar estratégia menos arriscada para FTMO"
+      ]
+    },
+    {
+      "nome_arquivo": "PZ_ParabolicSar_EA.mq4",
+      "tamanho_bytes": 14230,
+      "linhas_codigo": 467,
+      "hash_md5": "e4ffde528a00bfa5ca8d7fa2641c9f88",
+      "encoding_corrigido": true,
+      "data_modificacao": "2025-08-12T21:30:22.529637",
+      "tipo": "Unknown",
+      "estrategia": "Unknown",
+      "ftmo_score": 5.5,
+      "ftmo_detalhes": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": true,
+        "drawdown_protection": false,
+        "session_filter": false,
+        "news_filter": false
+      },
+      "ftmo_status": "Moderado",
+      "mercado": "XAUUSD",
+      "timeframe": "D1",
+      "validacoes": [],
+      "sugestoes_melhorias": [
+        "Definir estratégia mais claramente no código"
+      ]
+    },
+    {
+      "nome_arquivo": "test_ea_sample.mq4",
+      "tamanho_bytes": 2764,
+      "linhas_codigo": 73,
+      "hash_md5": "33be3a78a7e161caa1fb3acac105a5de",
+      "encoding_corrigido": false,
+      "data_modificacao": "2025-08-12T21:13:28.948595",
+      "tipo": "EA",
+      "estrategia": "Unknown",
+      "ftmo_score": 6.5,
+      "ftmo_detalhes": {
+        "stop_loss": true,
+        "take_profit": true,
+        "risk_management": true,
+        "drawdown_protection": false,
+        "session_filter": true,
+        "news_filter": false
+      },
+      "ftmo_status": "FTMO_Ready",
+      "mercado": "Multi",
+      "timeframe": "Multi",
+      "validacoes": [],
+      "sugestoes_melhorias": [
+        "Definir estratégia mais claramente no código"
+      ]
+    }
+  ],
+  "metricas_qualidade": {},
+  "sugestoes_melhorias": []
+}

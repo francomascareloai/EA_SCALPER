@@ -1,0 +1,45 @@
+{
+  "id": "9ed086b5f0c4",
+  "arquivo": {
+    "nome_original": "GMACD2.mq4",
+    "nome_renomeado": "GMACD2.mq4",
+    "hash": "9ed086b5f0c4070bf733cd49c40ab3c6",
+    "tamanho_bytes": 16491,
+    "data_modificacao": "2022-09-02T11:34:58"
+  },
+  "classificacao": {
+    "tipo": "Indicator",
+    "linguagem": "MQL4",
+    "estrategia": "Scalping",
+    "mercados": [
+      "MULTI"
+    ],
+    "timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "ftmo_analysis": {
+    "ftmo_ready": true,
+    "score": 60,
+    "checks": {
+      "stop_loss": true,
+      "take_profit": true,
+      "risk_management": false,
+      "drawdown_check": false,
+      "no_martingale": true
+    }
+  },
+  "qualidade": {
+    "score": 85,
+    "nivel": "Alto",
+    "status_compilacao": "Não testado"
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#MQL4",
+    "#Demo"
+  ],
+  "data_analise": "2025-08-12T21:00:09.018778"
+}

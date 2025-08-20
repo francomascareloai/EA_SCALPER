@@ -1,0 +1,124 @@
+{
+  "file_info": {
+    "original_name": "Candlestick Pattern@Amazing_owner.mq4",
+    "current_name": "SCR_Candlestick_Pattern_Amazing_owner_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Candlestick_Pattern_Amazing_owner_v1.0_INDICES.mq4",
+    "file_size": 17221,
+    "lines_count": 479
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 79,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "GetName"
+    ],
+    "variables": [
+      "StopLoss",
+      "TakeProfit",
+      "Lots",
+      "Slippage",
+      "MagicNumber",
+      "Show_Alert",
+      "Display_ShootStar_2",
+      "Show_ShootStar_Alert_2",
+      "Display_ShootStar_3",
+      "Show_ShootStar_Alert_3",
+      "Display_ShootStar_4",
+      "Show_ShootStar_Alert_4",
+      "Display_Hammer_2",
+      "Show_Hammer_Alert_2",
+      "Display_Hammer_3",
+      "Show_Hammer_Alert_3",
+      "Display_Hammer_4",
+      "Show_Hammer_Alert_4",
+      "Display_Doji",
+      "Show_Doji_Alert",
+      "Display_Stars",
+      "Show_Stars_Alert",
+      "Star_Body_Length",
+      "Display_Dark_Cloud_Cover",
+      "Show_DarkCC_Alert",
+      "Display_Piercing_Line",
+      "Show_Piercing_Line_Alert",
+      "Display_Bearish_Engulfing",
+      "Show_Bearish_Engulfing_Alert",
+      "Display_Bullish_Engulfing",
+      "Show_Bullish_Engulfing_Alert",
+      "bars"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#INDICES",
+    "#M1",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:21.742210",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:24.403716",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

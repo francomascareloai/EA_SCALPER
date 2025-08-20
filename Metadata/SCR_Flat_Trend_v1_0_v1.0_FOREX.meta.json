@@ -1,0 +1,127 @@
+{
+  "file_info": {
+    "original_name": "Flat Trend.v1.0.mq4",
+    "current_name": "SCR_Flat_Trend_v1_0_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Flat_Trend_v1_0_v1.0_FOREX.mq4",
+    "file_size": 18612,
+    "lines_count": 426
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 74,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "PosCounter",
+      "LotCalc",
+      "comments",
+      "Mail",
+      "MoveToBreakEven",
+      "Juice",
+      "CheckForOrderClosing"
+    ],
+    "variables": [
+      "Trigger",
+      "Filter",
+      "Filter",
+      "Ignore",
+      "Ignore",
+      "tsl",
+      "stoploss",
+      "Use",
+      "Use",
+      "Minimum",
+      "MaximumRisk",
+      "Lot",
+      "Magic",
+      "comment",
+      "sep1",
+      "Use",
+      "Use",
+      "Start",
+      "Start",
+      "Use",
+      "sep2",
+      "Use",
+      "Juice",
+      "Juice",
+      "Juice",
+      "sep3",
+      "Use",
+      "Adx",
+      "Adx",
+      "Adx",
+      "Use",
+      "sep4",
+      "Move",
+      "Move"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#FOREX",
+    "#INDICES",
+    "#M1",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:59.395546",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:28.896529",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

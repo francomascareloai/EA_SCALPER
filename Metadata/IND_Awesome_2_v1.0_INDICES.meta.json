@@ -1,0 +1,86 @@
+{
+  "file_info": {
+    "original_name": "Awesome (2).mq4",
+    "current_name": "IND_Awesome_2_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Awesome_2_v1.0_INDICES.mq4",
+    "file_size": 3395,
+    "lines_count": 101
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 9,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnCalculate"
+    ],
+    "variables": [],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "strict",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:14.796974",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:02.228689",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "file_info": {
+    "original_name": "arbitrage (2).mq4",
+    "current_name": "EA_arbitrage_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_arbitrage_2_v1.0_FOREX.mq4",
+    "file_size": 18630,
+    "lines_count": 518
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 42,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnCalculate",
+      "OnDeinit",
+      "ObjectCreate",
+      "ObjectCreate",
+      "NewBar"
+    ],
+    "variables": [
+      "MACD",
+      "FastEMA",
+      "SlowEMA",
+      "SignalSMA",
+      "Stochastic",
+      "Kperiod",
+      "Dperiod",
+      "Slowing",
+      "RSI",
+      "RSIPeriod",
+      "CCI",
+      "CCIPeriod",
+      "RVI",
+      "RVIPeriod",
+      "DeMarker",
+      "DeMarkerPeriod",
+      "_",
+      "ColorBars",
+      "FillBuffers",
+      "__",
+      "AlertsOn"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "version",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_plots",
+      "indicator_type1",
+      "indicator_color1",
+      "indicator_style1",
+      "indicator_width1",
+      "indicator_type2",
+      "indicator_color2",
+      "indicator_style2",
+      "indicator_width2",
+      "indicator_levelcolor"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:57.452904",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:47.343012",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

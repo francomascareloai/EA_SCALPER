@@ -1,0 +1,63 @@
+{
+  "timestamp": "2025-08-12T21:13:29.543459",
+  "versao_analisador": "1.0_unificado",
+  "metricas_execucao": {
+    "arquivos_processados": 1,
+    "erros_encontrados": 0,
+    "inconsistencias_corrigidas": 0,
+    "ftmo_scores_validados": 1
+  },
+  "estatisticas": {
+    "tipos": {
+      "EA": 1
+    },
+    "estrategias": {
+      "Trend": 1
+    },
+    "ftmo_score_medio": 4.5,
+    "ftmo_score_min": 4.5,
+    "ftmo_score_max": 4.5
+  },
+  "resultados_detalhados": [
+    {
+      "nome_original": "test_ea_sample.mq4",
+      "tipo": "EA",
+      "estrategia": "Trend",
+      "ftmo_analysis": {
+        "score": 4.5,
+        "level": "Moderado",
+        "details": {
+          "stop_loss": true,
+          "risk_management": true,
+          "drawdown_protection": false,
+          "take_profit": true,
+          "session_filter": true,
+          "no_dangerous_strategy": true
+        },
+        "issues": [
+          "Sem proteção de drawdown"
+        ],
+        "strengths": [
+          "Stop Loss implementado",
+          "Gestão de risco básica",
+          "Take Profit definido",
+          "Filtros de sessão"
+        ],
+        "is_ftmo_ready": false
+      },
+      "hash": "99f717881a348ea2817246d465191791",
+      "tamanho": 2764,
+      "data_modificacao": "2025-08-12T21:13:28.948595",
+      "encoding_corrigido": false
+    }
+  ],
+  "melhorias_implementadas": [
+    "FTMO Score padronizado 0-7",
+    "Análise FTMO rigorosa com critérios reais",
+    "Validações de integridade completas",
+    "Correção automática de encoding",
+    "Interface unificada otimizada",
+    "Métricas em tempo real",
+    "Tratamento robusto de erros"
+  ]
+}

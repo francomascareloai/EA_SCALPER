@@ -1,0 +1,130 @@
+{
+  "file_info": {
+    "original_name": "FXCore100.mq4",
+    "current_name": "SCR_FXCore100_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_FXCore100_v1.0_FOREX.mq4",
+    "file_size": 23895,
+    "lines_count": 496
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 145,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CountOrdersFxCore",
+      "OpenOrdersFxCore",
+      "CloseOrdersFxCore",
+      "GetLastLotFxCore",
+      "GetTotalProfitFxCore",
+      "GetSinalFxCore",
+      "AnalizandoMercadoFxCore",
+      "ProcessaFechamentoOrdemFxCore",
+      "VerificandoAberturaOrdemFxCore",
+      "Painel2"
+    ],
+    "variables": [
+      "InpMagicNumberFxCore",
+      "InpStopLevelFxCore",
+      "InpMaxOrderFxCore",
+      "InpHabilitaFatorFxCore",
+      "InpFatorFxCore",
+      "InpHabilitaSomaFxCore",
+      "InpLoteSomaFxCore",
+      "SINALIMA",
+      "InpPeriodoIMAFxCore",
+      "InpPeriodoLongIMAFxCore",
+      "SINALBB",
+      "InpSinalBBFxCore",
+      "InpBBPeriodFxCore",
+      "vBandsBordFxCore",
+      "SINALST",
+      "InpSinalStochasticFxCore",
+      "InpPeriodStochastcFxCore",
+      "InpPeriodStochastcCFxCore",
+      "InpSlowingStochastcFxCore",
+      "SINALRSI",
+      "InpSinalRSIFxCore",
+      "InpPeriodRSIFxCore",
+      "InpRSIMaxFxCore",
+      "InpRSIMinFxCore"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "description",
+      "description",
+      "description",
+      "description",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#FOREX",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:06.940382",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:29.497517",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

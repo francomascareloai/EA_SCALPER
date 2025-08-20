@@ -1,0 +1,111 @@
+{
+  "file_info": {
+    "original_name": "simple PARSI ea.mq4",
+    "current_name": "SCR_simple_PARSI_ea_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_simple_PARSI_ea_v1.0_INDICES.mq4",
+    "file_size": 7803,
+    "lines_count": 163
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "H4"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 35,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "checkTimeLimits",
+      "checkTimeLimits",
+      "checkTimeLimits",
+      "_ctMinMax"
+    ],
+    "variables": [
+      "MagicNumber",
+      "EcnBroker",
+      "LotSize",
+      "Slippage",
+      "StopLoss",
+      "TakeProfit",
+      "dummy1",
+      "dummy2",
+      "BarToUse",
+      "dummy3",
+      "dummy4",
+      "DisplayInfo",
+      "inp_hot_money_sensitivity",
+      "inp_hot_money_period",
+      "inp_hot_money_base",
+      "inp_banker_sensitivity",
+      "inp_banker_period",
+      "inp_banker_base"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#INDICES",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:27.892318",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:40.362687",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

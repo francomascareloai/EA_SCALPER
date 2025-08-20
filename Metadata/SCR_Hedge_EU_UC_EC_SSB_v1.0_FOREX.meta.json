@@ -1,0 +1,130 @@
+{
+  "file_info": {
+    "original_name": "Hedge EU UC EC SSB.mq4",
+    "current_name": "SCR_Hedge_EU_UC_EC_SSB_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Hedge_EU_UC_EC_SSB_v1.0_FOREX.mq4",
+    "file_size": 25460,
+    "lines_count": 770
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 168,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "DisplayUserFeedback",
+      "ExtractPairs",
+      "CleanUpInputString",
+      "CalculatePairsPassed",
+      "O_R_CheckForHistory",
+      "O_R_Sleep",
+      "CalculateBasketUpl",
+      "DoesTradeExist",
+      "SendSingleTrade",
+      "SendTrades",
+      "CloseAllTrades",
+      "HowManyTradesOpenAlready",
+      "LookForSecondTradeOpportunity",
+      "CheckTradingTimes",
+      "OnTimer",
+      "start"
+    ],
+    "variables": [
+      "Lot",
+      "MagicNumber",
+      "TradeComment",
+      "CashProfitTarget",
+      "ContinueTrading",
+      "PipsToSecondTrade",
+      "AllowHedging",
+      "HedgeAtLossPips",
+      "lts",
+      "BuyPairs",
+      "sts",
+      "SellPairs",
+      "UseDrycleanPairs",
+      "tt",
+      "Trade_Hours",
+      "Trade_Hoursi",
+      "Trade_Hours_M",
+      "start_hourm",
+      "end_hourm",
+      "Trade_Hours_E",
+      "start_houre",
+      "end_houre"
+    ],
+    "includes": [
+      "WinUser32.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:23.833609",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:30.633412",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

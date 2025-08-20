@@ -1,0 +1,153 @@
+{
+  "file_info": {
+    "original_name": "SS_SupportResistance_v07.1.mq4",
+    "current_name": "IND_SS_SupportResistance_v07_1_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_SS_SupportResistance_v07_1_v1.0_FOREX.mq4",
+    "file_size": 44720,
+    "lines_count": 1314
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 208,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "OnChartEvent",
+      "CheckAlerts",
+      "CheckEntryAlerts",
+      "DeleteGlobalVars",
+      "DeleteOldGlobalVars",
+      "FindZones",
+      "DrawZones",
+      "Fractal",
+      "FastFractals",
+      "SlowFractals",
+      "NewBar",
+      "DeleteZones",
+      "StringRepeat",
+      "StringRightPad",
+      "GetPipInfo",
+      "GetNextBar",
+      "ChartFirstVisibleBar",
+      "ChartWidthInBars",
+      "ChartShiftSizeGet",
+      "ChartShiftGet"
+    ],
+    "variables": [
+      "BackLimit",
+      "TimeFrame",
+      "TimeString",
+      "zone_show_possible",
+      "zone_fuzzfactor",
+      "zone_solid",
+      "zone_linewidth",
+      "zone_style",
+      "zone_show_info",
+      "zone_label_shift",
+      "font_label",
+      "size_label",
+      "zone_show_alerts",
+      "zone_alert_popups",
+      "zone_alert_sounds",
+      "use_push",
+      "zone_alert_waitseconds",
+      "zone_merge",
+      "zone_extend",
+      "zone_showbroken",
+      "zone_limit",
+      "fractals_show",
+      "fractal_fast_factor",
+      "fractal_slow_factor",
+      "SetGlobals",
+      "ShiftEndRight",
+      "Testing",
+      "ShowTestingBtn",
+      "TestingBtnX",
+      "TestingBtnY",
+      "lastalert"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:35.394116",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:16.887679",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

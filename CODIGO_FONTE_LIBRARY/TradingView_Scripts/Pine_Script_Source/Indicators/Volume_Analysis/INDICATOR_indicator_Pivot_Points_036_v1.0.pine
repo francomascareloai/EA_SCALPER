@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #036
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: M5
+
+//@version=5
+indicator("Pivot_Points_36", shorttitle="Pivot_Po", overlay=false)
+
+// Parâmetros
+length = input.int(200, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+volume_ma = ta.sma(volume, length)
+
+// Plot
+plot(volume_ma, "Pivot_Points_36", color=color.lime)

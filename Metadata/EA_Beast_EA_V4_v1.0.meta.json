@@ -1,0 +1,108 @@
+{
+  "file_info": {
+    "original_name": "Beast_EA_V4.mq4",
+    "current_name": "EA_Beast_EA_V4_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_Beast_EA_V4_v1.0.mq4",
+    "file_size": 11996,
+    "lines_count": 338
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "H4"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 90,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "AllowTradesByTime",
+      "LastLot",
+      "LastLiveLot",
+      "LastLivePrice",
+      "ProfitPips",
+      "LastProfit",
+      "orderscnt",
+      "ModifyStopLoss",
+      "DoTrail",
+      "CloseOrders"
+    ],
+    "variables": [
+      "IndicatorName",
+      "LotSize",
+      "Risk",
+      "TakeProfit",
+      "StopLoss",
+      "TrailingStop",
+      "CloseOppositeSignal",
+      "Multiply",
+      "PipStep",
+      "MaxTrades",
+      "TradingHours",
+      "Start_Hour",
+      "Finish_Hour",
+      "MagicNumber"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#H4",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:15.757821",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:48.076385",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

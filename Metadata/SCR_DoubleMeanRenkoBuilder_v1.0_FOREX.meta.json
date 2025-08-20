@@ -1,0 +1,110 @@
+{
+  "file_info": {
+    "original_name": "DoubleMeanRenkoBuilder.mq4",
+    "current_name": "SCR_DoubleMeanRenkoBuilder_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_DoubleMeanRenkoBuilder_v1.0_FOREX.mq4",
+    "file_size": 26719,
+    "lines_count": 715
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 84,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "UpdateChartWindow",
+      "start",
+      "deinit"
+    ],
+    "variables": [
+      "RenkoBoxSize1",
+      "BoxShiftPercent1",
+      "RenkoTimeFrame1",
+      "RenkoBoxOffset1",
+      "ShowWicks1",
+      "MaxBars1",
+      "Use2ndRenkoChart",
+      "RenkoBoxSize2",
+      "BoxShiftPercent2",
+      "RenkoTimeFrame2",
+      "RenkoBoxOffset2",
+      "ShowWicks2",
+      "MaxBars2",
+      "EmulateOnLineChart",
+      "hwnd1",
+      "hwnd2",
+      "BoxPoints1",
+      "PrevLow1",
+      "BoxPoints2",
+      "PrevLow2"
+    ],
+    "includes": [
+      "WinUser32.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#INDICES",
+    "#M1",
+    "#H1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:35.767066",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.480392",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

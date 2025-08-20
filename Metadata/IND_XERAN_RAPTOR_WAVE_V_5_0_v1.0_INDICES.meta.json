@@ -1,0 +1,152 @@
+{
+  "file_info": {
+    "original_name": "XERAN_RAPTOR_WAVE_V.5.0.mq4",
+    "current_name": "IND_XERAN_RAPTOR_WAVE_V_5_0_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_XERAN_RAPTOR_WAVE_V_5_0_v1.0_INDICES.mq4",
+    "file_size": 13483,
+    "lines_count": 318
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 88.33333333333333,
+    "complexity": 52,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "doAlert",
+      "icTma",
+      "drawArrow",
+      "deleteArrows",
+      "CheckLinesCrossing"
+    ],
+    "variables": [
+      "a01",
+      "Period1",
+      "Period2",
+      "Period3",
+      "Period4",
+      "Period5",
+      "Period6",
+      "Signal_Period",
+      "a02",
+      "CCIperiod",
+      "ATRperiod",
+      "a03",
+      "BB_Period",
+      "BB_Deviation",
+      "History",
+      "a04",
+      "levelOb",
+      "levelOs",
+      "extremelevelOb",
+      "extremelevelOs",
+      "a05",
+      "alertsOn",
+      "alertsOnObOs",
+      "alertsOnExtremeObOs",
+      "alertsOnCurrent",
+      "alertsMessage",
+      "alertsSound",
+      "alertsEmail",
+      "alertsNotify",
+      "soundfile",
+      "a06",
+      "arrowsVisible",
+      "arrowsIdentifier",
+      "arrowsUpperGap",
+      "arrowsLowerGap",
+      "arrowsOnObOs",
+      "arrowsObOsUpCode",
+      "arrowsObOsDnCode",
+      "arrowsObOsUpSize",
+      "arrowsObOsDnSize",
+      "arrowsOnExtremeObOs",
+      "arrowsExtremeObOsUpCode",
+      "arrowsExtremeObOsDnCode",
+      "arrowsExtremeObOsUpSize",
+      "arrowsExtremeObOsDnSize",
+      "mess1",
+      "mess2"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "description",
+      "strict",
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_width1",
+      "indicator_width2",
+      "indicator_levelcolor"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#H1",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:08.724939",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:21.208771",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

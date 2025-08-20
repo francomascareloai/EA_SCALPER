@@ -1,0 +1,95 @@
+{
+  "file_info": {
+    "original_name": "Dserg-LinRegressionBreakout_v1 (1).1.mq4",
+    "current_name": "IND_Dserg_LinRegressionBreakout_v1_1_1_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_Dserg_LinRegressionBreakout_v1_1_1_v1.0_INDICES.mq4",
+    "file_size": 6624,
+    "lines_count": 234
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 22,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start"
+    ],
+    "variables": [
+      "S1",
+      "Nlin",
+      "S2",
+      "r0",
+      "S3",
+      "t0",
+      "S4",
+      "useClose",
+      "S5",
+      "Nbars"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_chart_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_color5",
+      "indicator_color6",
+      "indicator_color7",
+      "indicator_color8"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:37.991107",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:05.365700",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

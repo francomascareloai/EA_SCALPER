@@ -1,0 +1,45 @@
+{
+  "id": "b4a9645e89f4",
+  "arquivo": {
+    "nome_original": "MACD Cross Zero EA v1.02.mq4",
+    "nome_renomeado": "MACD Cross Zero EA v1.02.mq4",
+    "hash": "b4a9645e89f4acb9acf4c7192e8a410f",
+    "tamanho_bytes": 34173,
+    "data_modificacao": "2022-09-02T11:52:52"
+  },
+  "classificacao": {
+    "tipo": "Unknown",
+    "linguagem": "MQL4",
+    "estrategia": "Grid_Martingale",
+    "mercados": [
+      "MULTI"
+    ],
+    "timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "ftmo_analysis": {
+    "ftmo_ready": true,
+    "score": 80,
+    "checks": {
+      "stop_loss": true,
+      "take_profit": true,
+      "risk_management": true,
+      "drawdown_check": true,
+      "no_martingale": false
+    }
+  },
+  "qualidade": {
+    "score": 85,
+    "nivel": "Alto",
+    "status_compilacao": "Não testado"
+  },
+  "tags": [
+    "#Unknown",
+    "#Grid_Martingale",
+    "#MQL4",
+    "#Demo"
+  ],
+  "data_analise": "2025-08-12T21:00:09.624064"
+}

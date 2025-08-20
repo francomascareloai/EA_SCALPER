@@ -1,0 +1,151 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    },
+    "sequential_thinking": {
+      "command": "npx",
+      "args": ["-y", "@ahxxm/server-sequential-thinking"],
+      "env": {}
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "env": {}
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
+    },
+    "everything": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "env": {}
+    },
+    "mcp_code_checker": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\mcp-code-checker\\src\\main.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "file_analyzer": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_file_analyzer.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "ftmo_validator": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_ftmo_validator.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "metadata_generator": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_metadata_generator.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "code_classifier": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_code_classifier.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "batch_processor": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_batch_processor.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "task_manager": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_task_manager.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "trading_classifier": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\trading_classifier_mcp.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "api_integration": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\api_integration_mcp.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "code_analysis": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\code_analysis_mcp.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "project_scaffolding": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\project_scaffolding_mcp.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    },
+    "youtube_transcript": {
+      "command": "python",
+      "args": ["c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MCP_Integration\\servers\\mcp_youtube_transcript.py"],
+      "cwd": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+      "env": {
+        "PYTHONPATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD",
+        "VIRTUAL_ENV": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv",
+        "PATH": "c:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\.venv\\Scripts;C:\\Python313;C:\\Python313\\Scripts"
+      }
+    }
+  }
+}

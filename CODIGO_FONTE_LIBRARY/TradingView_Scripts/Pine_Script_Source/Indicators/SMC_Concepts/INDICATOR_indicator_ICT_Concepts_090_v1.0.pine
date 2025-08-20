@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #090
+// Tipo: INDICATOR
+// Categoria: SMC
+// Mercado: Forex
+// Timeframe: M1
+
+//@version=5
+indicator("ICT_Concepts_90", shorttitle="ICT_Conc", overlay=false)
+
+// Parâmetros
+length = input.int(100, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+macd = ta.macd(source, length, length*2, length//2)
+
+// Plot
+plot(macd, "ICT_Concepts_90", color=color.aqua)

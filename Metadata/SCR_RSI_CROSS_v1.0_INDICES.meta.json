@@ -1,0 +1,69 @@
+{
+  "file_info": {
+    "original_name": "RSI CROSS.mq4",
+    "current_name": "SCR_RSI_CROSS_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_RSI_CROSS_v1.0_INDICES.mq4",
+    "file_size": 875,
+    "lines_count": 32
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Unknown"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 75.0,
+    "complexity": 3,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "start"
+    ],
+    "variables": [],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Unknown",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#MediumQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:20.365723",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:37.704659",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

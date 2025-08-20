@@ -1,0 +1,183 @@
+{
+  "file_info": {
+    "original_name": "XMT Scalper v3 (2).mq4",
+    "current_name": "EA_XMT_Scalper_v3_2_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_XMT_Scalper_v3_2_v1.0_FOREX.mq4",
+    "file_size": 69076,
+    "lines_count": 2042
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 277,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "sub_trade",
+      "sub_dbl2strbrokerdigits",
+      "sub_normalizebrokerdigits",
+      "sub_adjust00instring",
+      "sub_printformattedstring",
+      "sub_magicnumber",
+      "sub_takesnapshot",
+      "sub_maketimestring",
+      "sub_makescreenshot",
+      "sub_calculatelotsize",
+      "sub_recalculatewrongrisk",
+      "sub_printdetails",
+      "sub_printandcomment",
+      "sub_errormessages",
+      "sub_printsumofbrokererrors",
+      "GetSAInd",
+      "OrdersTotalEx",
+      "OrderSelectEx",
+      "OrderDeleteEx",
+      "OrderTicketEx",
+      "OrderTypeEx",
+      "OrderSymbolEx",
+      "OrderOpenPriceEx",
+      "OrderStopLossEx",
+      "OrderTakeProfitEx",
+      "OrderMagicNumberEx",
+      "LoadStops",
+      "OrderSendEx",
+      "OrderModifyEx",
+      "VO_CheckPendingOrders",
+      "VO_UpdatePOType",
+      "VO_CheckStops",
+      "VO_ClearStops",
+      "VOrderRemove",
+      "VO_DrawStops",
+      "OrdType2Str",
+      "Str2OrdType",
+      "fpc"
+    ],
+    "variables": [
+      "Configuration",
+      "Magic",
+      "OrderCmt",
+      "ECN_Mode",
+      "Debug",
+      "Verbose",
+      "VirtualPendingOrders",
+      "VirtualStops",
+      "TradingSettings",
+      "MaxSpread",
+      "MaxExecution",
+      "MaxExecutionMinutes",
+      "TakeProfit",
+      "StopLoss",
+      "TrailingStart",
+      "Commission",
+      "Slippage",
+      "UseDynamicVolatilityLimit",
+      "VolatilityMultiplier",
+      "VolatilityLimit",
+      "UseVolatilityPercentage",
+      "VolatilityPercentageLimit",
+      "UseMovingAverage",
+      "UseBollingerBands",
+      "Deviation",
+      "OrderExpireSeconds",
+      "Money_Management",
+      "MoneyManagement",
+      "MinLots",
+      "MaxLots",
+      "Risk",
+      "ManualLotsize",
+      "Screen_Shooter",
+      "TakeShots",
+      "DelayTicks",
+      "ShotsPerBar",
+      "_tmp50_",
+      "VOrdText_x",
+      "VOrdText_dx",
+      "VOrdText_y",
+      "VOrdText_dy",
+      "VOrdText_font",
+      "VOrdText_font_size",
+      "local_doshot",
+      "local_oldphase",
+      "local_no"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:08.813877",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:59.917347",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

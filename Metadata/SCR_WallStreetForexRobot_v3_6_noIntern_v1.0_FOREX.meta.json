@@ -1,0 +1,125 @@
+{
+  "file_info": {
+    "original_name": "WallStreetForexRobot_v3.6_noIntern.mq4",
+    "current_name": "SCR_WallStreetForexRobot_v3_6_noIntern_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_WallStreetForexRobot_v3_6_noIntern_v1.0_FOREX.mq4",
+    "file_size": 21584,
+    "lines_count": 516
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 112,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CalcLots",
+      "CheckLossPause",
+      "MyFirstInit",
+      "MyDeinit",
+      "CloseLong",
+      "CloseShort",
+      "OpenLong",
+      "OpenShort"
+    ],
+    "variables": [
+      "Magic",
+      "MaxSpread",
+      "Slippage",
+      "StealthMode",
+      "CloseOnlyOnProfit",
+      "SS",
+      "StopLoss",
+      "TakeProfit",
+      "SecureProfit",
+      "SecureProfitTriger",
+      "UseCustomPair",
+      "UseSettingsFrom",
+      "MM",
+      "RecoveryMode",
+      "FixedLots",
+      "AutoMM",
+      "AutoMM_Max",
+      "PeriodInd",
+      "g_period_ma",
+      "g_period_wpr",
+      "g_period_atr",
+      "g_period_cci"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:05.728668",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:44.400517",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "file_info": {
+    "original_name": "MY MILLIONS EA.mq4",
+    "current_name": "SCR_MY_MILLIONS_EA_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_MY_MILLIONS_EA_v1.0_FOREX.mq4",
+    "file_size": 38973,
+    "lines_count": 942
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 217,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "CalculateLotPrecision",
+      "AutoLot",
+      "PlaceBuyOrder",
+      "PlaceSellOrder",
+      "CloseAllBuyProfit",
+      "CloseAllSellProfit",
+      "start",
+      "Direction",
+      "Latest_MA_of_RSI",
+      "MARSI_Cross_Decision",
+      "ARSIDecision",
+      "isTimetoTrade",
+      "isDaytoTrade",
+      "ExitAllTrades"
+    ],
+    "variables": [
+      "_Account_Settings_",
+      "InitialAccount",
+      "GMTOffset",
+      "TradeComment",
+      "MoneyManagementset",
+      "Portion",
+      "UseEquityProtection",
+      "FloatPercent",
+      "UsePowerOutSL",
+      "MoneyMangement",
+      "MaximumRisk",
+      "LotSize",
+      "LotIncrement",
+      "Slippage",
+      "_Piplite_EA_Set_",
+      "ProfitTarget",
+      "ProfitSkew",
+      "ProfitMode",
+      "ProfitTrailing",
+      "MaxRetrace",
+      "ReverseDirection",
+      "UseARSI",
+      "RSI_period",
+      "ima_bars",
+      "ARSI_trigger",
+      "Use_MARSI_Cross",
+      "RSIMA_MA_Period",
+      "RSIMA_RSI_Period",
+      "TrendProtect",
+      "Window",
+      "Use_Entry_Delay",
+      "Minimum_Entry_Delay",
+      "AutoSpacing",
+      "StDevTF",
+      "StDevPer",
+      "StDevMode",
+      "Spacing",
+      "TrendSpacing",
+      "_Day_Time_Set_",
+      "UseTradeTime",
+      "TradeHourStart",
+      "TradeHourEnd",
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "NFP_Friday",
+      "DayPeriod",
+      "hedgecarpan",
+      "StopLoss",
+      "Baccount",
+      "LowMarginPercent"
+    ],
+    "includes": [
+      "stdlib.mqh",
+      "stderror.mqh"
+    ],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:54.940099",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:35.285949",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

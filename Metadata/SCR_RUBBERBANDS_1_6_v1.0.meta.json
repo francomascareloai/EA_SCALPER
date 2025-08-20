@@ -1,0 +1,112 @@
+{
+  "file_info": {
+    "original_name": "RUBBERBANDS_1_6.mq4",
+    "current_name": "SCR_RUBBERBANDS_1_6_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_RUBBERBANDS_1_6_v1.0.mq4",
+    "file_size": 15024,
+    "lines_count": 565
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 70,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Loop infinito detectado - risco de travamento"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "Is_Trade_Allowed",
+      "Calculate_Profit",
+      "Count_All",
+      "Close_Single_Order",
+      "Open_Buy",
+      "Open_Sell",
+      "Comment_Stopped",
+      "Comment_Quiesced",
+      "Comment_Idle",
+      "Comment_PL",
+      "init",
+      "start",
+      "deinit"
+    ],
+    "variables": [
+      "Lots",
+      "dollar_profit",
+      "quiesce_now",
+      "do_now",
+      "stop_now",
+      "close_now",
+      "use_sessionTP",
+      "sessionTP",
+      "use_sessionSL",
+      "sessionSL",
+      "use_in_values",
+      "in_profit_sofar",
+      "in_safety_mode",
+      "in_safety_to_buy",
+      "in_used_safety_count",
+      "use_safety_mode",
+      "safety_start",
+      "safety_lots",
+      "safety_step",
+      "safety_step",
+      "safety_profit",
+      "safety_modeTP"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:21.828982",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:38.379380",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "summary": {
+    "total_files_analyzed": 72,
+    "processing_time_seconds": 2.64,
+    "average_unified_score": 5.37,
+    "average_metadata_quality": 7.49,
+    "ftmo_ready_count": 6,
+    "errors_count": 0
+  },
+  "distributions": {
+    "file_types": {
+      "EA": 36,
+      "Unknown": 12,
+      "Indicator": 24
+    },
+    "strategies": {
+      "Trend": 27,
+      "Unknown": 6,
+      "Scalping": 33,
+      "Grid_Martingale": 6
+    },
+    "risk_levels": {
+      "Low": 6,
+      "Medium": 27,
+      "High": 39
+    }
+  },
+  "top_performers": [
+    {
+      "filename": "test_ea_sample_1.mq4",
+      "unified_score": 8.02,
+      "ftmo_score": 9.5,
+      "metadata_quality": 8.67,
+      "file_type": "EA",
+      "strategy": "Trend",
+      "risk_level": "Low"
+    },
+    {
+      "filename": "test_ea_sample_2.mq4",
+      "unified_score": 8.02,
+      "ftmo_score": 9.5,
+      "metadata_quality": 8.67,
+      "file_type": "EA",
+      "strategy": "Trend",
+      "risk_level": "Low"
+    },
+    {
+      "filename": "test_ea_sample_3.mq4",
+      "unified_score": 8.02,
+      "ftmo_score": 9.5,
+      "metadata_quality": 8.67,
+      "file_type": "EA",
+      "strategy": "Trend",
+      "risk_level": "Low"
+    },
+    {
+      "filename": "$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1_1.mq4",
+      "unified_score": 7.3,
+      "ftmo_score": 9.5,
+      "metadata_quality": 8.92,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "risk_level": "Low"
+    },
+    {
+      "filename": "$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1_2.mq4",
+      "unified_score": 7.3,
+      "ftmo_score": 9.5,
+      "metadata_quality": 8.92,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "risk_level": "Low"
+    },
+    {
+      "filename": "$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1_3.mq4",
+      "unified_score": 7.3,
+      "ftmo_score": 9.5,
+      "metadata_quality": 8.92,
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "risk_level": "Low"
+    },
+    {
+      "filename": "PZ_ParabolicSar_EA_1.mq4",
+      "unified_score": 6.56,
+      "ftmo_score": 7.5,
+      "metadata_quality": 7.81,
+      "file_type": "Unknown",
+      "strategy": "Unknown",
+      "risk_level": "Medium"
+    },
+    {
+      "filename": "PZ_ParabolicSar_EA_2.mq4",
+      "unified_score": 6.56,
+      "ftmo_score": 7.5,
+      "metadata_quality": 7.81,
+      "file_type": "Unknown",
+      "strategy": "Unknown",
+      "risk_level": "Medium"
+    },
+    {
+      "filename": "PZ_ParabolicSar_EA_3.mq4",
+      "unified_score": 6.56,
+      "ftmo_score": 7.5,
+      "metadata_quality": 7.81,
+      "file_type": "Unknown",
+      "strategy": "Unknown",
+      "risk_level": "Medium"
+    },
+    {
+      "filename": "2PSAR_1.mq4",
+      "unified_score": 6.55,
+      "ftmo_score": 7,
+      "metadata_quality": 8.43,
+      "file_type": "EA",
+      "strategy": "Trend",
+      "risk_level": "Medium"
+    }
+  ],
+  "quality_analysis": {
+    "common_issues": [
+      "Complexidade ciclomática muito alta: 72",
+      "Gestão de risco inadequada: 72",
+      "Filtro de notícias ausente: 60",
+      "Baixa modularidade do código: 33",
+      "Stop Loss obrigatório ausente: 33",
+      "Tratamento de erros inadequado: 24",
+      "Estratégias proibidas detectadas (Martingale/Grid): 6",
+      "Código difícil de manter: 3"
+    ],
+    "common_recommendations": [
+      "Refatorar código para reduzir complexidade: 72",
+      "Melhorar sistema de gestão de risco: 72",
+      "Implementar filtro de notícias: 60",
+      "Implementar programação orientada a objetos: 33",
+      "Implementar Stop Loss obrigatório para conformidade FTMO: 33",
+      "Implementar tratamento de erros robusto: 24",
+      "Remover estratégias Martingale/Grid para conformidade FTMO: 6",
+      "Adicionar comentários e documentação: 3"
+    ]
+  },
+  "agent_performance": {
+    "Critical_Architect": {
+      "issues_count": 108,
+      "recommendations_count": 108,
+      "avg_score": 6.5,
+      "avg_confidence": 0.85
+    },
+    "Elite_FTMO": {
+      "issues_count": 171,
+      "recommendations_count": 171,
+      "avg_score": 5.25,
+      "avg_confidence": 0.86
+    },
+    "Precision_Code_Analyst": {
+      "issues_count": 24,
+      "recommendations_count": 24,
+      "avg_score": 7.41,
+      "avg_confidence": 0.92
+    }
+  },
+  "metadata_quality_breakdown": {
+    "avg_completeness": 7.12,
+    "avg_accuracy": 8.77,
+    "avg_consistency": 8.83,
+    "avg_ftmo_compliance": 5.25
+  }
+}

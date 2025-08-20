@@ -1,0 +1,4787 @@
+{
+  "timestamp": "20250812_224620",
+  "total_files": 45,
+  "analysis_results": [
+    {
+      "filename": "!Overdraft_Profit_System2_v0.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Forex",
+      "timeframe": "M1",
+      "ftmo_score": 5.0,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Forex",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 61,
+            "uses_constants": true,
+            "include_count": 1,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.150423"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.173269"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 141,
+            "magic_numbers": 137,
+            "performance_issues": [
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 3,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.183410"
+        }
+      ],
+      "unified_score": 5.15,
+      "processing_time": 0.03659462928771973,
+      "metadata_quality": 5.6,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "!Overdraft_Profit_System3_v0.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Forex",
+      "timeframe": "M1",
+      "ftmo_score": 5.0,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Forex",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 67,
+            "uses_constants": true,
+            "include_count": 1,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.186987"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.213683"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 181,
+            "magic_numbers": 154,
+            "performance_issues": [
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.225894"
+        }
+      ],
+      "unified_score": 5.3,
+      "processing_time": 0.07860827445983887,
+      "metadata_quality": 5.683333333333334,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "2EMA-EA (Johan).mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Multi",
+      "timeframe": "M1",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Multi",
+        "#M1",
+        "#News_Trading",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Trailing Stop",
+        "News Filter",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 8,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.227245"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.232383"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Medium",
+            "global_variables": 33,
+            "magic_numbers": 18,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 3,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.234125"
+        }
+      ],
+      "unified_score": 4.25,
+      "processing_time": 0.05066084861755371,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "2EMA-EA-V103.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "H1",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#XAUUSD",
+        "#H1",
+        "#News_Trading"
+      ],
+      "components": [
+        "News Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 10,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.280108"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.287446"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 39,
+            "magic_numbers": 13,
+            "performance_issues": [],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.289973"
+        }
+      ],
+      "unified_score": 4.15,
+      "processing_time": 0.06400632858276367,
+      "metadata_quality": 5.566666666666666,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "2EMA-EA 1.04.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 5.0,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 13,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.326679"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.332021"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 47,
+            "magic_numbers": 26,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMA",
+              "iATR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.333717"
+        }
+      ],
+      "unified_score": 4.05,
+      "processing_time": 0.10761785507202148,
+      "metadata_quality": 6.0,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "2EMA-EA-V104.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "H1",
+      "ftmo_score": 8.5,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#Indices",
+        "#H1",
+        "#News_Trading",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "News Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 13,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.357084"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Basic",
+            "take_profit": true,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.366513"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 59,
+            "magic_numbers": 39,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.370834"
+        }
+      ],
+      "unified_score": 5.449999999999999,
+      "processing_time": 0.1366722583770752,
+      "metadata_quality": 6.966666666666666,
+      "issues_found": [
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "XAUUSD",
+      "timeframe": "Multi",
+      "ftmo_score": 8.5,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#XAUUSD",
+        "#Multi",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 28,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.245101"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Basic",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.342745"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 253,
+            "magic_numbers": 460,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.399098"
+        }
+      ],
+      "unified_score": 5.55,
+      "processing_time": 0.23346686363220215,
+      "metadata_quality": 6.666666666666666,
+      "issues_found": [
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "2EMA-EA.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "H1",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#XAUUSD",
+        "#H1",
+        "#News_Trading",
+        "#AI"
+      ],
+      "components": [
+        "News Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 10,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.401404"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.407934"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 39,
+            "magic_numbers": 9,
+            "performance_issues": [],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.410134"
+        }
+      ],
+      "unified_score": 4.45,
+      "processing_time": 0.12017655372619629,
+      "metadata_quality": 5.7333333333333325,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias"
+      ]
+    },
+    {
+      "filename": "2PSAR.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Trailing Stop",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 16,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.412765"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 7.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.422131"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 6.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 50,
+            "magic_numbers": 49,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA",
+              "iATR",
+              "iSAR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.424964"
+        }
+      ],
+      "unified_score": 5.8,
+      "processing_time": 0.09122729301452637,
+      "metadata_quality": 6.2333333333333325,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "4H SWING.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Volume Analysis",
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 14,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.426734"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.439724"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 64,
+            "magic_numbers": 52,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA",
+              "iMACD",
+              "iStochastic",
+              "iBands",
+              "iATR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.443558"
+        }
+      ],
+      "unified_score": 4.9,
+      "processing_time": 0.0726919174194336,
+      "metadata_quality": 6.716666666666667,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "Iron_Scalper_EA.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Multi",
+      "timeframe": "Multi",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Multi",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 21,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.497638"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.506425"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 32,
+            "magic_numbers": 80,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 3,
+            "technical_indicators": [],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.510106"
+        }
+      ],
+      "unified_score": 3.85,
+      "processing_time": 0.06650328636169434,
+      "metadata_quality": 5.233333333333334,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "FFCal.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 1.5,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#News_Trading",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "News Filter",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 23,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.453172"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.528228"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 105,
+            "magic_numbers": 111,
+            "performance_issues": [],
+            "good_practices_count": 1,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.539438"
+        }
+      ],
+      "unified_score": 4.4,
+      "processing_time": 0.13983559608459473,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "Iron Scalper EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Unknown",
+      "market": "Multi",
+      "timeframe": "Multi",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Unknown",
+        "#Unknown",
+        "#Multi",
+        "#Multi"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 0.0,
+          "max_score": 10.0,
+          "details": {
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Poucas funções definidas - código pode estar monolítico",
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.481904"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.540607"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 0,
+            "magic_numbers": 0,
+            "performance_issues": [],
+            "good_practices_count": 0,
+            "technical_indicators": [],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Considerar uso de indicadores técnicos",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração"
+          ],
+          "timestamp": "2025-08-12T22:43:48.550042"
+        }
+      ],
+      "unified_score": 2.2,
+      "processing_time": 0.1250772476196289,
+      "metadata_quality": 3.0833333333333335,
+      "issues_found": [
+        "Poucas funções definidas - código pode estar monolítico",
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Considerar uso de indicadores técnicos",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "GMACD2.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.553170"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.564173"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 30,
+            "magic_numbers": 26,
+            "performance_issues": [],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMACD"
+            ],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.567697"
+        }
+      ],
+      "unified_score": 2.65,
+      "processing_time": 0.15740513801574707,
+      "metadata_quality": 4.433333333333333,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "MACD Cross Zero EA v1.02.mq4",
+      "file_type": "Unknown",
+      "strategy": "Grid_Martingale",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "tags": [
+        "#Unknown",
+        "#Grid_Martingale",
+        "#Indices",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 22,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.570993"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": true,
+            "stop_loss": true,
+            "risk_management": "Good",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": false
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Estratégia proibida detectada: \\bmartingale\\b"
+          ],
+          "timestamp": "2025-08-12T22:43:48.577318"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 36,
+            "magic_numbers": 290,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 1,
+            "technical_indicators": [
+              "iMA",
+              "iMACD"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.583862"
+        }
+      ],
+      "unified_score": 3.05,
+      "processing_time": 0.07378435134887695,
+      "metadata_quality": 6.183333333333334,
+      "issues_found": [
+        "Estratégia proibida detectada: \\bmartingale\\b",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "PZ_ParabolicSar_EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "D1",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#Unknown",
+        "#Trend",
+        "#XAUUSD",
+        "#D1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 16,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.587121"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Good",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.594096"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 51,
+            "magic_numbers": 29,
+            "performance_issues": [
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 1,
+            "technical_indicators": [
+              "iATR",
+              "iSAR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.597097"
+        }
+      ],
+      "unified_score": 5.85,
+      "processing_time": 0.046975135803222656,
+      "metadata_quality": 6.2333333333333325,
+      "issues_found": [
+        "Muitas variáveis globais",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "test_ea_sample.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Multi",
+      "timeframe": "Multi",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#Multi",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.598100"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.599529"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Medium",
+            "global_variables": 12,
+            "magic_numbers": 8,
+            "performance_issues": [],
+            "good_practices_count": 3,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.600173"
+        }
+      ],
+      "unified_score": 4.75,
+      "processing_time": 0.032373666763305664,
+      "metadata_quality": 5.433333333333334,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias"
+      ]
+    },
+    {
+      "filename": "MACD_Cross_Zero_EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Grid_Martingale",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "tags": [
+        "#Unknown",
+        "#Grid_Martingale",
+        "#Indices",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 22,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.606673"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": true,
+            "stop_loss": true,
+            "risk_management": "Good",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": false
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Estratégia proibida detectada: \\bmartingale\\b"
+          ],
+          "timestamp": "2025-08-12T22:43:48.613241"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 36,
+            "magic_numbers": 290,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 1,
+            "technical_indicators": [
+              "iMA",
+              "iMACD"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:48.620527"
+        }
+      ],
+      "unified_score": 3.05,
+      "processing_time": 0.08110737800598145,
+      "metadata_quality": 6.183333333333334,
+      "issues_found": [
+        "Estratégia proibida detectada: \\bmartingale\\b",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_GMACD2_v1.0_Multi.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.637093"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.702479"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 30,
+            "magic_numbers": 26,
+            "performance_issues": [],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMACD"
+            ],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.708213"
+        }
+      ],
+      "unified_score": 2.65,
+      "processing_time": 0.08759117126464844,
+      "metadata_quality": 4.433333333333333,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi_2.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 1.5,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#News_Trading",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "News Filter",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 23,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.625577"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.722049"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 105,
+            "magic_numbers": 111,
+            "performance_issues": [],
+            "good_practices_count": 1,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.754370"
+        }
+      ],
+      "unified_score": 4.4,
+      "processing_time": 0.15426182746887207,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi_1.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 1.5,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#News_Trading",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "News Filter",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 23,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.655285"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.793455"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 105,
+            "magic_numbers": 111,
+            "performance_issues": [],
+            "good_practices_count": 1,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.823560"
+        }
+      ],
+      "unified_score": 4.4,
+      "processing_time": 0.2266077995300293,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 1.5,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#News_Trading",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "News Filter",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 23,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:48.760450"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.817692"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 105,
+            "magic_numbers": 111,
+            "performance_issues": [],
+            "good_practices_count": 1,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.833238"
+        }
+      ],
+      "unified_score": 4.4,
+      "processing_time": 0.24936771392822266,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_GMACD2_v1.0_Multi_2.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.835029"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.850064"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 30,
+            "magic_numbers": 26,
+            "performance_issues": [],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMACD"
+            ],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.856193"
+        }
+      ],
+      "unified_score": 2.65,
+      "processing_time": 0.10176301002502441,
+      "metadata_quality": 4.433333333333333,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_GMACD2_v1.0_Multi_1.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:48.858919"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:48.873938"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 30,
+            "magic_numbers": 26,
+            "performance_issues": [],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMACD"
+            ],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:48.877851"
+        }
+      ],
+      "unified_score": 2.65,
+      "processing_time": 0.16951704025268555,
+      "metadata_quality": 4.433333333333333,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "!Overdraft_Profit_System2_v0.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Forex",
+      "timeframe": "M1",
+      "ftmo_score": 5.0,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Forex",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 61,
+            "uses_constants": true,
+            "include_count": 1,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.407101"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.428172"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 141,
+            "magic_numbers": 137,
+            "performance_issues": [
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 3,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.437736"
+        }
+      ],
+      "unified_score": 5.15,
+      "processing_time": 0.03374958038330078,
+      "metadata_quality": 5.6,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "2EMA-EA (Johan).mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Multi",
+      "timeframe": "M1",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Multi",
+        "#M1",
+        "#News_Trading",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Trailing Stop",
+        "News Filter",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 8,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.545062"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.550291"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Medium",
+            "global_variables": 33,
+            "magic_numbers": 18,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 3,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.551942"
+        }
+      ],
+      "unified_score": 4.25,
+      "processing_time": 0.11349654197692871,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "$$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "XAUUSD",
+      "timeframe": "Multi",
+      "ftmo_score": 8.5,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#XAUUSD",
+        "#Multi",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 28,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.450558"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Basic",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.564934"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 253,
+            "magic_numbers": 460,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.605760"
+        }
+      ],
+      "unified_score": 5.55,
+      "processing_time": 0.1720438003540039,
+      "metadata_quality": 6.666666666666666,
+      "issues_found": [
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "2EMA-EA-V103.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "H1",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#XAUUSD",
+        "#H1",
+        "#News_Trading"
+      ],
+      "components": [
+        "News Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 10,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.607286"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.614531"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 39,
+            "magic_numbers": 13,
+            "performance_issues": [],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.616964"
+        }
+      ],
+      "unified_score": 4.15,
+      "processing_time": 0.0650169849395752,
+      "metadata_quality": 5.566666666666666,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "!Overdraft_Profit_System3_v0.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Forex",
+      "timeframe": "M1",
+      "ftmo_score": 5.0,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Forex",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 67,
+            "uses_constants": true,
+            "include_count": 1,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.501581"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.619530"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 181,
+            "magic_numbers": 154,
+            "performance_issues": [
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.631384"
+        }
+      ],
+      "unified_score": 5.3,
+      "processing_time": 0.22673845291137695,
+      "metadata_quality": 5.683333333333334,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "2EMA-EA 1.04.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 5.0,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 13,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:49.632910"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.638365"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 47,
+            "magic_numbers": 26,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMA",
+              "iATR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.640302"
+        }
+      ],
+      "unified_score": 4.05,
+      "processing_time": 0.2017230987548828,
+      "metadata_quality": 6.0,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "2EMA-EA-V104.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "H1",
+      "ftmo_score": 8.5,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#Indices",
+        "#H1",
+        "#News_Trading",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "News Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 13,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.642186"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 6.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Basic",
+            "take_profit": true,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.651953"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 59,
+            "magic_numbers": 39,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.657113"
+        }
+      ],
+      "unified_score": 5.449999999999999,
+      "processing_time": 0.051218509674072266,
+      "metadata_quality": 6.966666666666666,
+      "issues_found": [
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "2EMA-EA.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "H1",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#XAUUSD",
+        "#H1",
+        "#News_Trading",
+        "#AI"
+      ],
+      "components": [
+        "News Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 10,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.658817"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.665238"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 39,
+            "magic_numbers": 9,
+            "performance_issues": [],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.667326"
+        }
+      ],
+      "unified_score": 4.45,
+      "processing_time": 0.05027627944946289,
+      "metadata_quality": 5.7333333333333325,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias"
+      ]
+    },
+    {
+      "filename": "2PSAR.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 4.5,
+      "ftmo_status": "PARCIAL_FTMO",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Trailing Stop",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 16,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.668817"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 7.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.676771"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 6.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 50,
+            "magic_numbers": 49,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA",
+              "iATR",
+              "iSAR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.679720"
+        }
+      ],
+      "unified_score": 5.8,
+      "processing_time": 0.048245906829833984,
+      "metadata_quality": 6.2333333333333325,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "4H SWING.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Volume Analysis",
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 14,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.683302"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.696809"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 64,
+            "magic_numbers": 52,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 4,
+            "technical_indicators": [
+              "iMA",
+              "iMACD",
+              "iStochastic",
+              "iBands",
+              "iATR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.700615"
+        }
+      ],
+      "unified_score": 4.9,
+      "processing_time": 0.06024169921875,
+      "metadata_quality": 6.716666666666667,
+      "issues_found": [
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "FFCal.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 1.5,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#News_Trading",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "News Filter",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 23,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.728266"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.772005"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 105,
+            "magic_numbers": 111,
+            "performance_issues": [],
+            "good_practices_count": 1,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.783253"
+        }
+      ],
+      "unified_score": 4.4,
+      "processing_time": 0.12617158889770508,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "Iron Scalper EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Unknown",
+      "market": "Multi",
+      "timeframe": "Multi",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Unknown",
+        "#Unknown",
+        "#Multi",
+        "#Multi"
+      ],
+      "components": [],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 0.0,
+          "max_score": 10.0,
+          "details": {
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Poucas funções definidas - código pode estar monolítico",
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:49.703687"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.763022"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 0,
+            "magic_numbers": 0,
+            "performance_issues": [],
+            "good_practices_count": 0,
+            "technical_indicators": [],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Considerar uso de indicadores técnicos",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração"
+          ],
+          "timestamp": "2025-08-12T22:43:49.788698"
+        }
+      ],
+      "unified_score": 2.2,
+      "processing_time": 0.10894632339477539,
+      "metadata_quality": 3.0833333333333335,
+      "issues_found": [
+        "Poucas funções definidas - código pode estar monolítico",
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Considerar uso de indicadores técnicos",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "GMACD2.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:49.792833"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.803751"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 30,
+            "magic_numbers": 26,
+            "performance_issues": [],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMACD"
+            ],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.807146"
+        }
+      ],
+      "unified_score": 2.65,
+      "processing_time": 0.13977766036987305,
+      "metadata_quality": 4.433333333333333,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "MACD_Cross_Zero_EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Grid_Martingale",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "tags": [
+        "#Unknown",
+        "#Grid_Martingale",
+        "#Indices",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 22,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.812557"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": true,
+            "stop_loss": true,
+            "risk_management": "Good",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": false
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Estratégia proibida detectada: \\bmartingale\\b"
+          ],
+          "timestamp": "2025-08-12T22:43:49.818753"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 36,
+            "magic_numbers": 290,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 1,
+            "technical_indicators": [
+              "iMA",
+              "iMACD"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.825046"
+        }
+      ],
+      "unified_score": 3.05,
+      "processing_time": 0.036254167556762695,
+      "metadata_quality": 6.183333333333334,
+      "issues_found": [
+        "Estratégia proibida detectada: \\bmartingale\\b",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "MACD Cross Zero EA v1.02.mq4",
+      "file_type": "Unknown",
+      "strategy": "Grid_Martingale",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 0.0,
+      "ftmo_status": "PROIBIDO_FTMO",
+      "tags": [
+        "#Unknown",
+        "#Grid_Martingale",
+        "#Indices",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 4.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 22,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.827227"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": true,
+            "stop_loss": true,
+            "risk_management": "Good",
+            "take_profit": true,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": false
+          },
+          "recommendations": [
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Estratégia proibida detectada: \\bmartingale\\b"
+          ],
+          "timestamp": "2025-08-12T22:43:49.833417"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 36,
+            "magic_numbers": 290,
+            "performance_issues": [
+              "Muitos loops - verificar performance",
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 1,
+            "technical_indicators": [
+              "iMA",
+              "iMACD"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.839684"
+        }
+      ],
+      "unified_score": 3.05,
+      "processing_time": 0.05632376670837402,
+      "metadata_quality": 6.183333333333334,
+      "issues_found": [
+        "Estratégia proibida detectada: \\bmartingale\\b",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "Iron_Scalper_EA.mq4",
+      "file_type": "EA",
+      "strategy": "Scalping",
+      "market": "Multi",
+      "timeframe": "Multi",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Scalping",
+        "#Multi",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 21,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:49.843729"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.852546"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 32,
+            "magic_numbers": 80,
+            "performance_issues": [
+              "Muitos loops - verificar performance"
+            ],
+            "good_practices_count": 3,
+            "technical_indicators": [],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Muitos loops - verificar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.856119"
+        }
+      ],
+      "unified_score": 3.85,
+      "processing_time": 0.15543818473815918,
+      "metadata_quality": 5.233333333333334,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais",
+        "Muitos loops - verificar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos",
+        "Adicionar logging para debug"
+      ]
+    },
+    {
+      "filename": "PZ_ParabolicSar_EA.mq4",
+      "file_type": "Unknown",
+      "strategy": "Trend",
+      "market": "XAUUSD",
+      "timeframe": "D1",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#Unknown",
+        "#Trend",
+        "#XAUUSD",
+        "#D1",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management",
+        "Trailing Stop"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 16,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.859209"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Good",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.865717"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 51,
+            "magic_numbers": 29,
+            "performance_issues": [
+              "Uso de Sleep pode afetar performance"
+            ],
+            "good_practices_count": 1,
+            "technical_indicators": [
+              "iATR",
+              "iSAR"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes"
+          ],
+          "issues": [
+            "Muitas variáveis globais",
+            "Uso de Sleep pode afetar performance"
+          ],
+          "timestamp": "2025-08-12T22:43:49.868674"
+        }
+      ],
+      "unified_score": 5.85,
+      "processing_time": 0.06151461601257324,
+      "metadata_quality": 6.2333333333333325,
+      "issues_found": [
+        "Muitas variáveis globais",
+        "Uso de Sleep pode afetar performance"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes"
+      ]
+    },
+    {
+      "filename": "test_ea_sample.mq4",
+      "file_type": "EA",
+      "strategy": "Trend",
+      "market": "Multi",
+      "timeframe": "Multi",
+      "ftmo_score": 7.0,
+      "ftmo_status": "FTMO_READY",
+      "tags": [
+        "#EA",
+        "#Trend",
+        "#Multi",
+        "#Multi",
+        "#AI"
+      ],
+      "components": [
+        "Stop Loss Management",
+        "Take Profit Management"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:49.869831"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": true,
+            "risk_management": "Poor",
+            "take_profit": true,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.871503"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 7.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Medium",
+            "global_variables": 12,
+            "magic_numbers": 8,
+            "performance_issues": [],
+            "good_practices_count": 3,
+            "technical_indicators": [
+              "iMA"
+            ],
+            "has_logging": true
+          },
+          "recommendations": [],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.872128"
+        }
+      ],
+      "unified_score": 4.75,
+      "processing_time": 0.047040700912475586,
+      "metadata_quality": 5.433333333333334,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 1.5,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#News_Trading",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "News Filter",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 23,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.876028"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.902163"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 105,
+            "magic_numbers": 111,
+            "performance_issues": [],
+            "good_practices_count": 1,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.928303"
+        }
+      ],
+      "unified_score": 4.4,
+      "processing_time": 0.08862781524658203,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_FFCal_v1.0_Multi_1.mq4",
+      "file_type": "Indicator",
+      "strategy": "Trend",
+      "market": "Indices",
+      "timeframe": "Multi",
+      "ftmo_score": 1.5,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Trend",
+        "#Indices",
+        "#Multi",
+        "#News_Trading",
+        "#AI",
+        "#Alert"
+      ],
+      "components": [
+        "News Filter",
+        "Time Filter",
+        "Volume Analysis",
+        "RSI Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 23,
+            "uses_constants": true,
+            "error_handling": true,
+            "modularity": "Medium"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos"
+          ],
+          "issues": [],
+          "timestamp": "2025-08-12T22:43:49.912089"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 5.0,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": true,
+            "news_filters": true,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.954379"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 3.0,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "Very High",
+            "global_variables": 105,
+            "magic_numbers": 111,
+            "performance_issues": [],
+            "good_practices_count": 1,
+            "technical_indicators": [],
+            "has_logging": true
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Considerar uso de indicadores técnicos"
+          ],
+          "issues": [
+            "Código muito complexo - considerar refatoração",
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.966232"
+        }
+      ],
+      "unified_score": 4.4,
+      "processing_time": 0.11018013954162598,
+      "metadata_quality": 5.866666666666667,
+      "issues_found": [
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Código muito complexo - considerar refatoração",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Adicionar Take Profit para melhor R/R",
+        "Substituir números mágicos por constantes",
+        "Considerar uso de indicadores técnicos"
+      ]
+    },
+    {
+      "filename": "UNK_Custom_GMACD2_v1.0_Multi.mq4",
+      "file_type": "Indicator",
+      "strategy": "Scalping",
+      "market": "Indices",
+      "timeframe": "M1",
+      "ftmo_score": 0.0,
+      "ftmo_status": "NAO_FTMO",
+      "tags": [
+        "#Indicator",
+        "#Scalping",
+        "#Indices",
+        "#M1",
+        "#AI"
+      ],
+      "components": [
+        "RSI Indicator",
+        "MACD Indicator"
+      ],
+      "agent_scores": [
+        {
+          "agent_name": "Architect",
+          "score": 1.0,
+          "max_score": 10.0,
+          "details": {
+            "function_count": 3,
+            "modularity": "Low"
+          },
+          "recommendations": [
+            "Considerar uso de programação orientada a objetos",
+            "Adicionar mais comentários explicativos",
+            "Usar constantes e enums para valores fixos",
+            "Melhorar modularidade do código"
+          ],
+          "issues": [
+            "Falta tratamento de erros"
+          ],
+          "timestamp": "2025-08-12T22:43:49.930005"
+        },
+        {
+          "agent_name": "FTMO_Trader",
+          "score": 2.5,
+          "max_score": 10.0,
+          "details": {
+            "prohibited_strategies": false,
+            "stop_loss": false,
+            "risk_management": "Poor",
+            "take_profit": false,
+            "time_filters": false,
+            "news_filters": false,
+            "ftmo_compliant": true
+          },
+          "recommendations": [
+            "Adicionar Take Profit para melhor R/R",
+            "Adicionar filtros de horário de negociação",
+            "Adicionar filtro de notícias"
+          ],
+          "issues": [
+            "Stop Loss obrigatório não encontrado",
+            "Gestão de risco inadequada"
+          ],
+          "timestamp": "2025-08-12T22:43:49.970427"
+        },
+        {
+          "agent_name": "Code_Analyst",
+          "score": 4.5,
+          "max_score": 10.0,
+          "details": {
+            "complexity": "High",
+            "global_variables": 30,
+            "magic_numbers": 26,
+            "performance_issues": [],
+            "good_practices_count": 2,
+            "technical_indicators": [
+              "iMACD"
+            ],
+            "has_logging": false
+          },
+          "recommendations": [
+            "Substituir números mágicos por constantes",
+            "Adicionar logging para debug"
+          ],
+          "issues": [
+            "Muitas variáveis globais"
+          ],
+          "timestamp": "2025-08-12T22:43:49.973981"
+        }
+      ],
+      "unified_score": 2.65,
+      "processing_time": 0.1018228530883789,
+      "metadata_quality": 4.433333333333333,
+      "issues_found": [
+        "Falta tratamento de erros",
+        "Stop Loss obrigatório não encontrado",
+        "Gestão de risco inadequada",
+        "Muitas variáveis globais"
+      ],
+      "recommendations": [
+        "Considerar uso de programação orientada a objetos",
+        "Adicionar mais comentários explicativos",
+        "Usar constantes e enums para valores fixos",
+        "Melhorar modularidade do código",
+        "Adicionar Take Profit para melhor R/R",
+        "Adicionar filtros de horário de negociação",
+        "Adicionar filtro de notícias",
+        "Substituir números mágicos por constantes",
+        "Adicionar logging para debug"
+      ]
+    }
+  ],
+  "statistics": "\n🤖 ESTATÍSTICAS DO SISTEMA MULTI-AGENTE\n==================================================\n\n📊 RESUMO GERAL:\nTotal de Arquivos Analisados: 45\nScore Unificado Médio: 4.23\nTempo Total de Processamento: 4.76s\nTempo Médio por Arquivo: 0.106s\n\n🏗️ SCORES POR AGENTE:\nArchitect - Média: 3.53 | Min: 0.0 | Max: 5.5\nFTMO_Trader - Média: 4.56 | Min: 2.0 | Max: 7.5\nCode_Analyst - Média: 4.49 | Min: 3.0 | Max: 7.5\n\n📁 DISTRIBUIÇÃO POR TIPO:\nEA: 24 (53.3%)\nIndicator: 13 (28.9%)\nUnknown: 8 (17.8%)\n\n🎯 DISTRIBUIÇÃO POR ESTRATÉGIA:\nGrid_Martingale: 4 (8.9%)\nScalping: 20 (44.4%)\nTrend: 19 (42.2%)\nUnknown: 2 (4.4%)\n\n💰 STATUS FTMO:\nFTMO_READY: 12 (26.7%)\nNAO_FTMO: 15 (33.3%)\nPARCIAL_FTMO: 14 (31.1%)\nPROIBIDO_FTMO: 4 (8.9%)\n\n🏆 TOP 5 MELHORES ARQUIVOS:\n1. PZ_ParabolicSar_EA.mq4 - Score: 5.8\n2. PZ_ParabolicSar_EA.mq4 - Score: 5.8\n3. 2PSAR.mq4 - Score: 5.8\n4. 2PSAR.mq4 - Score: 5.8\n5. $$$_Westernpips_Newest_PRO_3_7_Exclusive_Classic1.mq4 - Score: 5.5\n\n⚠️ ISSUES MAIS COMUNS:\nMuitas variáveis globais: 43 ocorrências\nGestão de risco inadequada: 35 ocorrências\nCódigo muito complexo - considerar refatoração: 21 ocorrências\nStop Loss obrigatório não encontrado: 21 ocorrências\nMuitos loops - verificar performance: 18 ocorrências\n"
+}

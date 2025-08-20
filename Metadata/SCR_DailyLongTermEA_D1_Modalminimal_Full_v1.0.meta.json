@@ -1,0 +1,106 @@
+{
+  "file_info": {
+    "original_name": "DailyLongTermEA - D1 Modalminimal Full.mq4",
+    "current_name": "SCR_DailyLongTermEA_D1_Modalminimal_Full_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_DailyLongTermEA_D1_Modalminimal_Full_v1.0.mq4",
+    "file_size": 4683,
+    "lines_count": 132
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 27,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "sendBuyOrder",
+      "sendSellOrder"
+    ],
+    "variables": [
+      "ExpertName",
+      "Lots",
+      "TakeProfit",
+      "TP_to_Lock",
+      "LockProfit",
+      "Stoploss",
+      "Magic",
+      "CandlePeriod",
+      "MACD_Period",
+      "MA_Period",
+      "Fast_MA",
+      "Slow_MA",
+      "TimeToTrade",
+      "MinuteToTrade",
+      "Use_close_hour",
+      "Close_hour",
+      "Close_minute",
+      "Slippage"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "description"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:31.079579",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.275604",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -14,7 +14,8 @@
     "trading_style": "Chandelier Stops",
     "complexity_level": "Intermediate",
     "market_focus": "Multi-Symbol",
-    "timeframe": "All"
+    "timeframe": "All",
+    "ftmo_ready": false
   },
   "technical_analysis": {
     "indicators_used": [
@@ -74,5 +75,26 @@
     "source_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/All_MQ4/Arrow Scalper.mq4",
     "target_path": "CODIGO_FONTE_LIBRARY/MQL4_Source/Indicators/Trend/IND_ArrowScalper_v1.0_MULTI.mq4",
     "metadata_path": "CODIGO_FONTE_LIBRARY/Metadata/IND_ArrowScalper_v1.0_MULTI.meta.json"
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:38:14.637148",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
   }
 }

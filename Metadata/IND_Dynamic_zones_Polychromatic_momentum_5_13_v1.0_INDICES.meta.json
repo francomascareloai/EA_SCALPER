@@ -1,0 +1,164 @@
+{
+  "file_info": {
+    "original_name": "Dynamic zones Polychromatic momentum 5.13.mq4",
+    "current_name": "IND_Dynamic_zones_Polychromatic_momentum_5_13_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_Dynamic_zones_Polychromatic_momentum_5_13_v1.0_INDICES.mq4",
+    "file_size": 38241,
+    "lines_count": 907
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "SMC_ICT",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 141,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "iSmooth",
+      "interpolate",
+      "CatchBullishDivergence",
+      "CatchBearishDivergence",
+      "IsIndicatorPeak",
+      "IsIndicatorLow",
+      "GetIndicatorLastPeak",
+      "GetIndicatorLastLow",
+      "DrawPriceTrendLine",
+      "DrawIndicatorTrendLine",
+      "plot",
+      "drawBar",
+      "drawArrow",
+      "deleteArrow",
+      "setTrends",
+      "timeFrameToString",
+      "manageAlerts",
+      "doAlert",
+      "DisplayAlert",
+      "getPrice"
+    ],
+    "variables": [
+      "UniqueID",
+      "MomentumLength",
+      "SmoothLength",
+      "SmoothPhase",
+      "DzLookBackBars",
+      "DzStartBuyProbability",
+      "DzStartSellProbability",
+      "ColorWidth",
+      "ColorBars",
+      "divergenceVisible",
+      "divergenceOnValuesVisible",
+      "divergenceOnChartVisible",
+      "divergenceAlert",
+      "divergenceAlertsMessage",
+      "divergenceAlertsSound",
+      "divergenceAlertsEmail",
+      "divergenceAlertsNotify",
+      "divergenceAlertsSoundName",
+      "ShowArrows",
+      "arrowsCrossesVisible",
+      "arrowsRevertsVisible",
+      "arrowsMiddleVisible",
+      "arrowsUpperGap",
+      "arrowsLowerGap",
+      "arrowsUpCode",
+      "arrowsDnCode",
+      "alertsOn",
+      "alertsOnobLineCross",
+      "alertsOnosLineCross",
+      "alertsOnmiLineCross",
+      "alertsOnCurrent",
+      "alertsMessage",
+      "alertsSound",
+      "alertsEmail",
+      "alertsNotify",
+      "barsVisible",
+      "widthWick",
+      "widthBody",
+      "drawInBackgound",
+      "Interpolate",
+      "mess1",
+      "mess2",
+      "mess3"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_separate_window",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_color4",
+      "indicator_style1",
+      "indicator_style2",
+      "indicator_style3",
+      "indicator_width4",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:38.346165",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:05.523068",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

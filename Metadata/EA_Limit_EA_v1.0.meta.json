@@ -1,0 +1,86 @@
+{
+  "file_info": {
+    "original_name": "Limit EA.mq4",
+    "current_name": "EA_Limit_EA_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Trend_Following\\EA_Limit_EA_v1.0.mq4",
+    "file_size": 4264,
+    "lines_count": 118
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 18,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnTick"
+    ],
+    "variables": [
+      "BOLLINGER_PERIOD",
+      "BOLLINGER_DEVIATIONS",
+      "MIN_PRICE_MOVEMENT",
+      "LIMIT_ORDER_OFFSET",
+      "STOP_LOSS",
+      "BREAKEVEN_MOVEMENT",
+      "TAKE_PROFIT",
+      "MAGIC_NUMBER"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "description"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:38.309401",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:54.572507",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

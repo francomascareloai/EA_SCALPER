@@ -1,0 +1,86 @@
+{
+  "file_info": {
+    "original_name": "ALLIES.mq4",
+    "current_name": "EA_ALLIES_v1.0_CRYPTO.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Grid_Martingale\\EA_ALLIES_v1.0_CRYPTO.mq4",
+    "file_size": 8853,
+    "lines_count": 192
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Proteção de drawdown"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 39,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "CalculateLots",
+      "OrderDirection",
+      "ExecuteTrades",
+      "CloseAllTrades",
+      "PlaceStopOrder",
+      "ApplyTrailingStops"
+    ],
+    "variables": [
+      "EquityThreshold",
+      "EquityCloseThreshold",
+      "TotalMultiplier",
+      "TrailingStopPoints"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:56.991936",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:47.322007",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

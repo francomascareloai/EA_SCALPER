@@ -1,0 +1,9 @@
+{
+  "version": "6.0",
+  "batch_size": 100,
+  "max_threads": 4,
+  "timeout_per_file": 60,
+  "enable_real_processing": true,
+  "enable_ftmo_validation": true,
+  "enable_auto_backup": true
+}

@@ -1,0 +1,116 @@
+{
+  "file_info": {
+    "original_name": "2EMA-EA-V103.mq4",
+    "current_name": "EA_2EMA_EA_V103_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_2EMA_EA_V103_v1.0_FOREX.mq4",
+    "file_size": 12065,
+    "lines_count": 257
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 45,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "OrderPrice",
+      "CountOrders",
+      "CountOrdersByType",
+      "CheckVolume",
+      "OpenOrder",
+      "CloseOrdersByType",
+      "LastOpenOrderTicket"
+    ],
+    "variables": [
+      "EAHeader",
+      "MaxTrades",
+      "LotSize",
+      "distanceMultiplier",
+      "TradeOnlyBetterPrices",
+      "KeepFreeMargin",
+      "Magic",
+      "TradeCommentBuy",
+      "TradeCommentSell",
+      "EMAHeader",
+      "EMA_FAST_PERIOD",
+      "EMA_SLOW_PERIOD"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:49.778574",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:46.375704",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

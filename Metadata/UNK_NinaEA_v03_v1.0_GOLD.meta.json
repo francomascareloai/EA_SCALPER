@@ -1,0 +1,100 @@
+{
+  "file_info": {
+    "original_name": "NinaEA v03.mq4",
+    "current_name": "UNK_NinaEA_v03_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Misc\\UNK_NinaEA_v03_v1.0_GOLD.mq4",
+    "file_size": 5720,
+    "lines_count": 151
+  },
+  "classification": {
+    "type": "Unknown",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 86.66666666666667,
+    "complexity": 36,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "CalculateCurrentOrders",
+      "LotsOptimized",
+      "CheckForOpen",
+      "CheckForClose",
+      "start"
+    ],
+    "variables": [
+      "Lots",
+      "MaximumRisk",
+      "DecreaseFactor",
+      "MovingPeriod",
+      "MovingShift",
+      "PeriodWATR",
+      "Kwatr",
+      "highlow",
+      "cbars",
+      "from",
+      "maP",
+      "lots",
+      "SMAspread",
+      "StopLoss",
+      "Slippage"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Unknown",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#GOLD",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:59.060081",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:36:45.112821",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

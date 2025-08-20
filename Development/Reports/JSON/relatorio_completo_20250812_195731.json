@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "generated_at": "2025-08-12T19:57:31.399628",
+    "generator": "Classificador Trading v2.0",
+    "format_version": "2.0",
+    "report_type": "comprehensive_analysis"
+  },
+  "summary": {
+    "total_files": 10,
+    "success_rate": 90.0,
+    "processing_speed": 4.0,
+    "execution_time": 2.5
+  },
+  "detailed_data": {
+    "execution_time": 2.5,
+    "statistics": {
+      "processed": 10,
+      "successful": 9,
+      "errors": 1
+    },
+    "performance": {
+      "files_per_second": 4.0,
+      "success_rate": 90.0
+    },
+    "top_categories": [
+      [
+        "EA",
+        6
+      ],
+      [
+        "Indicator",
+        4
+      ]
+    ],
+    "quality_summary": {
+      "High": 5,
+      "Medium": 4,
+      "Low": 1
+    },
+    "ftmo_summary": {
+      "FTMO_Ready": 3,
+      "Não_Adequado": 7
+    }
+  }
+}

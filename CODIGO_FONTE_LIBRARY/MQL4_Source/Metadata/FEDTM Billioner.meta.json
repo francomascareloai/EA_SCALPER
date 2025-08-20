@@ -1,0 +1,38 @@
+{
+  "arquivo": {
+    "nome": "FEDTM Billioner.mq4",
+    "tamanho_bytes": 43828,
+    "linhas_codigo": 1008,
+    "data_modificacao": "2022-09-02T11:59:44"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada"
+    ],
+    "snippets_detectados": [
+      {
+        "tipo": "Order_Management",
+        "nome": "TrailingStop",
+        "descricao": "Função de trailing stop",
+        "categoria": "Risk_Management"
+      }
+    ]
+  },
+  "processing_time": 0.008248090744018555,
+  "timestamp": "2025-08-13T01:12:06.668616"
+}

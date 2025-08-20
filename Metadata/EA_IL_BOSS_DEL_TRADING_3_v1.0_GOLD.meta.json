@@ -1,0 +1,120 @@
+{
+  "file_info": {
+    "original_name": "IL BOSS DEL TRADING (3).mq4",
+    "current_name": "EA_IL_BOSS_DEL_TRADING_3_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_IL_BOSS_DEL_TRADING_3_v1.0_GOLD.mq4",
+    "file_size": 44792,
+    "lines_count": 1326
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 168,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "OnTick",
+      "OnDeinit",
+      "OnTimer",
+      "func_1018",
+      "func_1037"
+    ],
+    "variables": [
+      "FixedLots",
+      "PercentageRiskSettings",
+      "PercentageRisk",
+      "PercentageRiskBasedOnPointsMovement",
+      "BalanceRatioSettings",
+      "ForEvery",
+      "UseLotsForEveryBalance",
+      "LotsSelection",
+      "TakeProfit",
+      "Tral",
+      "TralStart",
+      "TimeStart",
+      "TimeEnd",
+      "MaxSpread",
+      "PipsStep",
+      "OpenTime",
+      "Magic",
+      "Info",
+      "FontSizeInfo",
+      "SpeedEA",
+      "CloseTradesAtPercentageDrawdown",
+      "PercentageDrawdown",
+      "CloseTradesAtFixedDrawdown",
+      "FixedDrawdown",
+      "ResumeTradingAtNextDayAfterDrawdown"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#News_Trading",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:30.638411",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:53.466291",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

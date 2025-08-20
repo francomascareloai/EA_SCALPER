@@ -1,0 +1,99 @@
+{
+  "file_info": {
+    "original_name": "RSI-Peak-Valley-Levels.mq4",
+    "current_name": "IND_RSI_Peak_Valley_Levels_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_RSI_Peak_Valley_Levels_v1.0_INDICES.mq4",
+    "file_size": 6454,
+    "lines_count": 229
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 50
+    }
+  },
+  "ftmo_analysis": {
+    "compliance_score": 33.33333333333333,
+    "features_found": {
+      "risk_management": false,
+      "stop_loss": true,
+      "take_profit": true,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false
+    },
+    "missing_features": [
+      "risk_management",
+      "drawdown_protection",
+      "session_filter",
+      "news_filter"
+    ],
+    "risk_level": "HIGH",
+    "ftmo_ready": false
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 22,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "doAlert",
+      "iRsi"
+    ],
+    "variables": [
+      "PeriodRSI",
+      "Price",
+      "levelOb",
+      "levelOs",
+      "arrowSize",
+      "note",
+      "alertsOn",
+      "alertsOnCurrent",
+      "alertsMessage",
+      "alertsSound",
+      "alertsEmail",
+      "soundfile",
+      "previousAlert"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_minimum",
+      "indicator_maximum",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_width1",
+      "indicator_color2",
+      "indicator_color3",
+      "indicator_levelcolor"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#INDICES",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:20.935335",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  }
+}

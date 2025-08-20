@@ -15,18 +15,25 @@
     "timeframes": [
       "Multi"
     ],
-    "special_notes": "CASO ESPECIAL: professional_code, large_codebase, highly_configurable"
+    "special_notes": "CASO ESPECIAL: professional_code, large_codebase, highly_configurable",
+    "ftmo_ready": false
   },
   "ftmo_analysis": {
-    "risk_management": false,
-    "position_sizing": false,
-    "session_filters": false,
-    "news_filters": false,
-    "max_trades": false,
-    "stop_loss": false,
-    "drawdown_protection": false,
-    "score": 0,
-    "level": "Non_Compliant"
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos",
+      "News trading sem filtros"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
   },
   "code_quality": {
     "total_lines": 1,
@@ -59,9 +66,11 @@
     ]
   },
   "analysis_metadata": {
-    "timestamp": "2025-08-12T10:51:39.115567",
+    "timestamp": "2025-08-13T06:38:07.751490",
     "analyzer_version": "1.0",
-    "confidence_score": 0
+    "confidence_score": 0,
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
   },
   "special_analysis": {
     "special_flags": [

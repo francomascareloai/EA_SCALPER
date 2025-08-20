@@ -1,0 +1,90 @@
+{
+  "file_info": {
+    "original_name": "Firebird v0.57.mq4",
+    "current_name": "SCR_Firebird_v0_57_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Firebird_v0_57_v1.0_FOREX.mq4",
+    "file_size": 7796,
+    "lines_count": 188
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.5,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.5,
+    "level": "Baixo",
+    "compliance_score": 25.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 24,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "start"
+    ],
+    "variables": [
+      "MA_length",
+      "Percent",
+      "TradeOnFriday",
+      "MAtype",
+      "slip",
+      "Lots",
+      "TakeProfit",
+      "Stoploss",
+      "TrailingStop",
+      "PipStep",
+      "IncreasementType"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:57.810930",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:28.195742",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "demo_info": {
+    "data_preparacao": "2025-08-12T20:58:10.604252",
+    "arquivos_copiados": 5,
+    "pasta_origem": "CODIGO_FONTE_LIBRARY\\MQL4_Source\\All_MQ4",
+    "pasta_destino": "Demo_Tests\\Input"
+  },
+  "arquivos": [
+    "Iron Scalper EA.mq4",
+    "MACD Cross Zero EA v1.02.mq4",
+    "PZ_ParabolicSar_EA.mq4",
+    "FFCal.mq4",
+    "GMACD2.mq4"
+  ],
+  "estrutura_pastas": [
+    "Demo_Tests/Input",
+    "Demo_Tests/Output/EAs/Scalping",
+    "Demo_Tests/Output/EAs/Grid_Martingale",
+    "Demo_Tests/Output/EAs/Trend",
+    "Demo_Tests/Output/Indicators/SMC",
+    "Demo_Tests/Output/Indicators/Volume",
+    "Demo_Tests/Output/Indicators/Custom",
+    "Demo_Tests/Output/Scripts/Utilities",
+    "Demo_Tests/Metadata",
+    "Demo_Tests/Reports",
+    "Demo_Tests/Logs"
+  ],
+  "tipos_esperados": {
+    "EAs": 5,
+    "Indicadores": 4,
+    "Scripts": 2,
+    "Outros": 1
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "id": "EA_FastScalper_v1.0_MULTI",
+  "filename": "EA_FastScalper_v1.0_MULTI.mq4",
+  "hash": "sha256_placeholder",
+  "type": "EA",
+  "language": "MQL4",
+  "strategy": "Scalping",
+  "markets": ["MULTI"],
+  "timeframes": ["M1", "M5"],
+  "key_functions": [
+    "OnTick()",
+    "ModOrder()",
+    "Traling()",
+    "ModSetOrder()",
+    "CloserSet()"
+  ],
+  "dependencies": [],
+  "exposed_parameters": {
+    "Risk": "1 - Риск в процентах",
+    "StopLoss": "1 - Стоп в пунктах",
+    "MaxStopLoss": "15 - Максимальный стоп в пунктах",
+    "MinStopLoss": "5 - Минимальный стоп в пунктах",
+    "Tral": "5 - Трал в пунктах",
+    "TralStart": "1 - Шаг трала в пунктах",
+    "TimeStart": "1 - Время начала работы",
+    "TimeEnd": "23 - Время завершения работы",
+    "PipsStep": "1 - На сколько пунктов выше/ниже ставим отложку",
+    "Magic": "2021 - Маркер ордеров"
+  },
+  "ftmo_score": 8,
+  "detected_risks": [
+    "Stop loss configurável e limitado",
+    "Trailing stop implementado",
+    "Gestão de risco por percentual",
+    "Filtro de sessão implementado"
+  ],
+  "code_quality_score": 8,
+  "compilation_status": "unknown",
+  "merge_readiness": "high",
+  "necessary_adjustments": [
+    "Adicionar controle de drawdown diário",
+    "Implementar filtro de spread máximo",
+    "Adicionar controle de máximo de trades por dia"
+  ],
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#MULTI",
+    "#M1",
+    "#M5",
+    "#PendingOrders",
+    "#Trailing",
+    "#FTMO_Ready",
+    "#SessionFilter",
+    "#StopLoss"
+  ],
+  "author_license": "MFOREX.PRO",
+  "created_at": "2024-12-19",
+  "classification_notes": "EA de scalping com ordens pendentes (BUYSTOP/SELLSTOP) baseado em High/Low do bar anterior. Possui stop loss configurável, trailing stop e filtro de sessão. Boa conformidade FTMO."
+}

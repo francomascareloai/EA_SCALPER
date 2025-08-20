@@ -1,0 +1,139 @@
+{
+  "file_info": {
+    "original_name": "AlgoTradeSoft Innovative EA unlocked.mq4",
+    "current_name": "EA_AlgoTradeSoft_Innovative_EA_unlocked_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_AlgoTradeSoft_Innovative_EA_unlocked_v1.0.mq4",
+    "file_size": 9062,
+    "lines_count": 221
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 44,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "init",
+      "deinit",
+      "start",
+      "PosCounter",
+      "LotsOptimized",
+      "StopLoss",
+      "TakeProfit"
+    ],
+    "variables": [
+      "Expert_Properties",
+      "Expert_Id",
+      "Expert_Comment",
+      "Order_Properties",
+      "Spread_Properties",
+      "Spread_MaxAverage",
+      "Spread_FastBackTest",
+      "Lot_Properties",
+      "Lot_Type",
+      "Lot_FixedSize",
+      "Lot_Risk",
+      "Lot_Max",
+      "Lot_PersonalPercent",
+      "StopLoss_Properties",
+      "StopLoss_FixedSize",
+      "TakeProfit_Properties",
+      "TakeProfit_FixedSize",
+      "BreakEven_Properties",
+      "BreakEven_After",
+      "BreakEven_To",
+      "TrailingStop_Properties",
+      "TrailingStop_Size",
+      "TrailingStop_Step",
+      "TrailingStop_CorrectSL",
+      "TrailingStop_UseRealOPAndSL",
+      "TrailingStop_TrailingMode",
+      "TrailingStop_TimeScale",
+      "TrailingStop_VolatilityScale",
+      "TrailingStop_VolumeScale",
+      "TrailingStop_ChangeCorr",
+      "Time_Properties",
+      "EveryDay_StartHour",
+      "EveryDay_StartMinute",
+      "EveryDay_EndHour",
+      "EveryDay_EndMinute",
+      "FridayStopTime",
+      "Time_GMT_Properties",
+      "Time_GMT_Mode",
+      "Time_Manual_GMT_Offset",
+      "Signal_Properties",
+      "BrokerQuotesShift",
+      "CustomCommission"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:56.804571",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:47.314115",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

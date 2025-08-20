@@ -1,0 +1,137 @@
+{
+  "file_info": {
+    "original_name": "EA BatuPenjuru .mq4",
+    "current_name": "SCR_EA_BatuPenjuru_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_EA_BatuPenjuru_v1.0_GOLD.mq4",
+    "file_size": 23573,
+    "lines_count": 624
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "H4"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 137,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_11",
+      "f0_3",
+      "f0_1",
+      "f0_6",
+      "f0_5",
+      "f0_4",
+      "f0_8",
+      "f0_10",
+      "f0_7",
+      "f0_9",
+      "f0_2",
+      "f0_0"
+    ],
+    "variables": [
+      "_EA",
+      "Magic",
+      "Lots_OP_1",
+      "Lots_OP_2",
+      "Lots_OP_3",
+      "Lots_OP_4",
+      "Lots_OP_5",
+      "Lots_OP_6",
+      "Lots_OP_7",
+      "Lots_OP_8",
+      "Lots_OP_9",
+      "Lots_OP_10",
+      "TakeProfit_1",
+      "TakeProfit_2",
+      "TakeProfit_3",
+      "TakeProfit_4",
+      "TakeProfit_5",
+      "TakeProfit_6",
+      "TakeProfit_7",
+      "TakeProfit_8",
+      "TakeProfit_9",
+      "TakeProfit_10",
+      "Step_2",
+      "Step_3",
+      "Step_4",
+      "Step_5",
+      "Step_6",
+      "Step_7",
+      "Step_8",
+      "Step_9",
+      "Step_10",
+      "Max_Level",
+      "_TIMEFILTER",
+      "Use_TimeFilter",
+      "StartHour",
+      "EndHour"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#H4",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:39.008156",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:26.460966",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

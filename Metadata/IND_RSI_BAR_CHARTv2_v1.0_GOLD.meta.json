@@ -1,0 +1,82 @@
+{
+  "file_info": {
+    "original_name": "RSI_BAR_CHARTv2.mq4",
+    "current_name": "IND_RSI_BAR_CHARTv2_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Trend\\IND_RSI_BAR_CHARTv2_v1.0_GOLD.mq4",
+    "file_size": 5794,
+    "lines_count": 177
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 12,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "drawLine"
+    ],
+    "variables": [
+      "UseOneColor",
+      "RSI_Period"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_separate_window",
+      "indicator_buffers"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:21.163498",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:14.829281",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

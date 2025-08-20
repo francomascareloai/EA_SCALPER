@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #019
+// Tipo: INDICATOR
+// Categoria: SMC
+// Mercado: Crypto
+// Timeframe: H4
+
+//@version=5
+indicator("Liquidity_Zones_19", shorttitle="Liquidit", overlay=true)
+
+// Parâmetros
+length = input.int(20, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+volume_ma = ta.sma(volume, length)
+
+// Plot
+plot(volume_ma, "Liquidity_Zones_19", color=color.aqua)

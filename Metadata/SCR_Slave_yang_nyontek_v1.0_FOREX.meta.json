@@ -1,0 +1,119 @@
+{
+  "file_info": {
+    "original_name": "Slave-yang nyontek~.mq4",
+    "current_name": "SCR_Slave_yang_nyontek_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Slave_yang_nyontek_v1.0_FOREX.mq4",
+    "file_size": 27588,
+    "lines_count": 699
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD"
+      ],
+      "timeframes": [
+        "M1",
+        "M5"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 168,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start",
+      "FindTrades",
+      "AddTrade",
+      "GetSlaveTrades",
+      "ReadMap",
+      "MakeMap",
+      "AddMap",
+      "MakeOrder",
+      "GetSymbol",
+      "CloseAll",
+      "CloseOrders",
+      "ModifyOrderPrices",
+      "ModifyOrder",
+      "equal",
+      "CountNZ",
+      "CountNZi",
+      "AddNoTrade",
+      "IsNoTrade",
+      "SaveArrayIToFile",
+      "getPipValue",
+      "getOpenOrders",
+      "TrailingPositions"
+    ],
+    "variables": [
+      "Ngikut_Lot_Master",
+      "Pengali_Lot_Master",
+      "Lots_Sendiri",
+      "TP_SL_Manual",
+      "TakeProfit",
+      "StopLoss",
+      "Trailing_Stop"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#M1",
+    "#M5",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:30.793582",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:40.501897",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

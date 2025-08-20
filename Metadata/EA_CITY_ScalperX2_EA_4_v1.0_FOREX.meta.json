@@ -1,0 +1,171 @@
+{
+  "file_info": {
+    "original_name": "CITY-ScalperX2 EA (4).mq4",
+    "current_name": "EA_CITY_ScalperX2_EA_4_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_CITY_ScalperX2_EA_4_v1.0_FOREX.mq4",
+    "file_size": 61463,
+    "lines_count": 1792
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.5,
+    "level": "Não_Adequado",
+    "compliance_score": 5.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 320,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "jamOP",
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "CountTrades",
+      "CountTradesBuy",
+      "CountTradesSell",
+      "myAvg",
+      "myAvg1",
+      "hitung",
+      "ND",
+      "tpsl",
+      "ReadFileHst",
+      "fnGetLotDigit",
+      "CheckBuyOrders",
+      "CheckSellOrders",
+      "CheckTotalBuyOrders",
+      "CheckTotalSellOrders",
+      "CheckMarketSellOrders",
+      "CheckMarketBuyOrders",
+      "MainOrders",
+      "CloseBuy",
+      "CloseSell",
+      "GetLots",
+      "signal",
+      "CandleStick_Analyzer",
+      "BullishEngulfingExists",
+      "BullishHaramiExists",
+      "DojiAtBottomExists",
+      "DojiAtTopExists",
+      "BearishHaramiExists",
+      "LongUpCandleExists",
+      "LongDownCandleExists",
+      "BearishEngulfingExists",
+      "SpinningTopExists",
+      "MakeLine",
+      "IsBuyPinbar",
+      "IsSellPinbar",
+      "AveRange4",
+      "rata_price",
+      "closeOP",
+      "Display_Info",
+      "LABEL",
+      "OnChartEvent"
+    ],
+    "variables": [
+      "Pairs",
+      "RunEAonTimeframe",
+      "SettingOrderMode",
+      "Order_Distance",
+      "LotMultiply",
+      "Close_BySignal",
+      "MagicID",
+      "TPLinier",
+      "UseTralling_Stop",
+      "TrallingStart",
+      "LockProfit",
+      "UseTimeFilter",
+      "Start",
+      "End1",
+      "Ordercomment",
+      "LOTS",
+      "risk",
+      "Max_Order",
+      "SL_Pip",
+      "TP_Pip"
+    ],
+    "includes": [
+      "stderror.mqh",
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "description",
+      "description",
+      "description",
+      "icon"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H4",
+    "#D1",
+    "#FTMO_Ready",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:22.839996",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:49.002559",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

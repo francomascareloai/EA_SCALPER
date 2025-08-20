@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #061
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: M5
+
+//@version=5
+indicator("Volume_Flow_61", shorttitle="Volume_F", overlay=false)
+
+// Parâmetros
+length = input.int(14, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+volume_ma = ta.sma(volume, length)
+
+// Plot
+plot(volume_ma, "Volume_Flow_61", color=color.aqua)

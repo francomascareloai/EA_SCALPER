@@ -1,0 +1,113 @@
+{
+  "file_info": {
+    "original_name": "Arnold.mq4",
+    "current_name": "SCR_Arnold_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Arnold_v1.0_FOREX.mq4",
+    "file_size": 19881,
+    "lines_count": 454
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 2.0,
+    "ftmo_level": "Baixo",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco robusta",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "Medium",
+    "score": 2.0,
+    "level": "Baixo",
+    "compliance_score": 20.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 89,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "OpenOrdersBasedOnSupRes",
+      "OpenOrdersBasedOni_TrendRSI",
+      "OpenOrdersBasedOni_TrendRSISto",
+      "OpenOrdersBasedOni_TrRSIStoMFI"
+    ],
+    "variables": [
+      "TakeProfit",
+      "Lots",
+      "StopLoss",
+      "TrailingStop",
+      "MaxTrades",
+      "Pips",
+      "SecureProfit",
+      "AccountProtection",
+      "AllSymbolsProtect",
+      "OrderstoProtect",
+      "ReverseCondition",
+      "StartYear",
+      "StartMonth",
+      "EndYear",
+      "EndMonth",
+      "EndHour",
+      "EndMinute",
+      "mm",
+      "risk",
+      "AccountisNormal",
+      "MagicNumber",
+      "Manual",
+      "OpenOrdersBasedOn",
+      "TimeZone"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#CRYPTO",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:58.207762",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:23.145976",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

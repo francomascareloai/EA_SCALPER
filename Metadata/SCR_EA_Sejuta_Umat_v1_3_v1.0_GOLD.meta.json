@@ -1,0 +1,126 @@
+{
+  "file_info": {
+    "original_name": "EA Sejuta Umat v1 (3).mq4",
+    "current_name": "SCR_EA_Sejuta_Umat_v1_3_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_EA_Sejuta_Umat_v1_3_v1.0_GOLD.mq4",
+    "file_size": 19596,
+    "lines_count": 608
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 170,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "ND",
+      "fOrderCloseMarket",
+      "fGetLots",
+      "CountTrades",
+      "CloseThisSymbolAll",
+      "OpenPendingOrder",
+      "StopLong",
+      "StopShort",
+      "TakeLong",
+      "TakeShort",
+      "CalculateProfit",
+      "TrailingAlls",
+      "AccountEquityHigh",
+      "FindLastBuyPrice",
+      "FindLastSellPrice",
+      "watermark",
+      "tprofit"
+    ],
+    "variables": [
+      "Expert_Comment",
+      "TargetEquity",
+      "CloseAllNow",
+      "MaxTrades",
+      "Lots",
+      "LotDigit",
+      "SwitchLot",
+      "TakeProfit",
+      "Pips",
+      "Multiplier",
+      "MaxOrderBuy",
+      "MaxOrderSell",
+      "TS_Buy",
+      "TS_Sell",
+      "Slippage",
+      "UseHourTrade",
+      "ContinueTrade",
+      "StartHour",
+      "EndHour",
+      "Magic",
+      "AutoCalculate"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "show_inputs"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#CRYPTO",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:43.039117",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:26.922755",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

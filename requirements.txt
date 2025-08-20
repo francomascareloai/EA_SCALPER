@@ -1,0 +1,5 @@
+psutil
+jinja2
+matplotlib
+pandas
+numpy

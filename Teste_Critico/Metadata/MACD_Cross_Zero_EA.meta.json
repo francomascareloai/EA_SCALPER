@@ -1,0 +1,72 @@
+{
+  "arquivo": {
+    "nome": "MACD_Cross_Zero_EA.mq4",
+    "tipo": "EA",
+    "estrategia": "Grid_Martingale",
+    "mercado": "Forex",
+    "timeframe": "Multi",
+    "tamanho_bytes": 34175,
+    "linhas_codigo": 796,
+    "hash_md5": "fd46a058482f1bd76d01ed6c5e6bbbbf",
+    "data_modificacao": "2025-08-12T21:45:01.768596"
+  },
+  "ftmo": {
+    "score": 0.0,
+    "status": "PROIBIDO_FTMO",
+    "detalhes": {
+      "stop_loss": false,
+      "take_profit": false,
+      "risk_management": false,
+      "drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "eliminatorio": true,
+      "penalidades_aplicadas": {},
+      "riscos_detectados": [
+        "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+      ],
+      "observacoes": [
+        "EA automaticamente reprovado por usar Grid_Martingale"
+      ],
+      "componentes_uteis": [
+        "Indicadores técnicos para entrada",
+        "Filtro de horário/sessão"
+      ],
+      "snippets_detectados": []
+    },
+    "ftmo_ready": false
+  },
+  "qualidade": {
+    "encoding_corrigido": true,
+    "validacoes": [
+      {
+        "tipo": "inconsistencia_tipo",
+        "status": "warning",
+        "mensagem": "EA sem função OnTick detectada"
+      }
+    ],
+    "sugestoes_melhorias": [
+      "Implementar Stop Loss obrigatório",
+      "Adicionar gestão de risco adequada",
+      "Implementar proteção de drawdown",
+      "Considerar estratégia menos arriscada para FTMO"
+    ]
+  },
+  "componentes_uteis": [
+    "Indicadores técnicos para entrada",
+    "Filtro de horário/sessão"
+  ],
+  "snippets_detectados": [],
+  "tags": [
+    "#EA",
+    "#Grid_Martingale",
+    "#Forex",
+    "#PROIBIDO_FTMO"
+  ],
+  "analise": {
+    "timestamp": "2025-08-12T21:45:01.783859",
+    "versao_algoritmo": "3.0",
+    "inteligencia_aplicada": true,
+    "extração_snippets": false
+  }
+}

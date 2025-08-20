@@ -1,0 +1,114 @@
+{
+  "file_info": {
+    "original_name": "XU Trend Following EA (4).mq4",
+    "current_name": "EA_XU_Trend_Following_EA_4_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_XU_Trend_Following_EA_4_v1.0.mq4",
+    "file_size": 7649,
+    "lines_count": 229
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "SMC_ICT",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "M5",
+        "H1",
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 52,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "CalculateLotSize",
+      "ManageTrailingStop",
+      "ManageHedging",
+      "HasHedgePosition",
+      "CloseHedgePosition",
+      "OnTrade"
+    ],
+    "variables": [
+      "LotSize",
+      "FastMAPeriod",
+      "SlowMAPeriod",
+      "ATRPeriod",
+      "ATRMultiplierTrailing",
+      "Slippage",
+      "TradeComment",
+      "MagicNumber",
+      "MartingaleMultiplier",
+      "MaxMartingaleSteps",
+      "HedgeTriggerPips",
+      "HedgeLotMultiplier",
+      "HedgeCloseProfitPips"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link",
+      "description",
+      "version",
+      "strict"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#SMC_ICT",
+    "#Trend_Following",
+    "#News_Trading",
+    "#M5",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:10.485794",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:00.001130",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

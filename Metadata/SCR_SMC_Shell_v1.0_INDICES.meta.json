@@ -1,0 +1,89 @@
+{
+  "file_info": {
+    "original_name": "SMC_Shell.mq4",
+    "current_name": "SCR_SMC_Shell_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_SMC_Shell_v1.0_INDICES.mq4",
+    "file_size": 10220,
+    "lines_count": 299
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 50
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 42,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "start"
+    ],
+    "variables": [
+      "Lots",
+      "LotsMultiplier",
+      "SMALength",
+      "MMALength",
+      "LMALength",
+      "ProtectProfit",
+      "TrailingStop",
+      "TakeProfit",
+      "RiskPercent"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#INDICES",
+    "#M1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:31.835046",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:40.752865",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

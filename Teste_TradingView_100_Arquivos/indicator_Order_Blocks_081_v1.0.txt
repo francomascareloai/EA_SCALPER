@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #081
+// Tipo: INDICATOR
+// Categoria: SMC
+// Mercado: Forex
+// Timeframe: M5
+
+//@version=5
+indicator("Order_Blocks_81", shorttitle="Order_Bl", overlay=true)
+
+// Parâmetros
+length = input.int(21, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+stoch = ta.stoch(high, low, close, length)
+
+// Plot
+plot(stoch, "Order_Blocks_81", color=color.lime)

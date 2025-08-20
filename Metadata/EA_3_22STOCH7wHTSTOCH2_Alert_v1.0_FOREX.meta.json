@@ -1,0 +1,154 @@
+{
+  "file_info": {
+    "original_name": "3.22STOCH7wHTSTOCH2 Alert.mq4",
+    "current_name": "EA_3_22STOCH7wHTSTOCH2_Alert_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Scalping\\EA_3_22STOCH7wHTSTOCH2_Alert_v1.0_FOREX.mq4",
+    "file_size": 24900,
+    "lines_count": 585
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "Volume_Analysis"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 95.0,
+    "complexity": 82,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnCalculate",
+      "fireAlerts",
+      "CountSells",
+      "CountBuys",
+      "CloseEnough",
+      "NewBar",
+      "GetSlope",
+      "calcTma"
+    ],
+    "variables": [
+      "UseSwapFilter",
+      "ShowOnlyBuyEntryAlerts",
+      "ShowOnlySellEntryAlerts",
+      "ShowCounterTrend",
+      "ShowDaily2_1",
+      "UseD1StochforAlert",
+      "UseW1StochforAlert",
+      "UseOnly7_2forEntryAlert",
+      "PopupAlert",
+      "EmailAlert",
+      "PushAlert",
+      "GiveStoch2_1_ExitAlerts",
+      "GiveStoch7ExitAlerts",
+      "GiveTMASlopeExitAlert",
+      "Set_Stoch_Alert_Levels",
+      "LevelOne",
+      "LevelTwo",
+      "LevelThree",
+      "LevelFour",
+      "Stoch_Settings",
+      "KPeriod",
+      "DPeriod",
+      "Slowing",
+      "Method",
+      "Price",
+      "K_period_HT",
+      "D_period_HT",
+      "S_period_HT",
+      "STOCH_MAIN_Line_Style_HT",
+      "STOCH_SIGNAL_Line_Style_HT",
+      "STOCH_MAIN_Price_HT",
+      "STOCH_SIGNAL_Price_HT",
+      "STOCH_MAIN_Ma_HT",
+      "STOCH_SIGNAL_Ma_HT",
+      "Level_Styles",
+      "LevelOneStyle",
+      "LevelTwoStyle",
+      "LevelThreeStyle",
+      "LevelFourStyle",
+      "slp",
+      "TMASlopeTF",
+      "TMASlopeCloseBuyAlertLevel",
+      "TMASlopeCloseSellAlertLevel"
+    ],
+    "includes": [],
+    "properties": [
+      "indicator_separate_window",
+      "indicator_maximum",
+      "indicator_minimum",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_width1",
+      "indicator_width2",
+      "indicator_color2",
+      "indicator_width3",
+      "indicator_color3"
+    ]
+  },
+  "tags": [
+    "#EA",
+    "#Scalping",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:30:51.176465",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:46.441630",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "arquivo": {
+    "nome": "KingPulse_FX_2.6_Fixed.mq4.rar",
+    "tamanho_bytes": 22269949,
+    "linhas_codigo": 608913,
+    "data_modificacao": "2025-08-10T19:42:12.716794"
+  },
+  "analise_ftmo": {
+    "score_bruto": 7.0,
+    "score_final": 3.0,
+    "criterios_atendidos": {
+      "stop_loss_obrigatorio": true,
+      "sem_grid_martingale": true,
+      "daily_loss_protection": false,
+      "risk_management": false,
+      "take_profit": true,
+      "max_drawdown_protection": false,
+      "session_filter": false,
+      "news_filter": false,
+      "trailing_stop": false
+    },
+    "penalidades_aplicadas": {
+      "no_risk_management": -4.0
+    },
+    "riscos_detectados": [
+      "Ausência de gestão de risco"
+    ],
+    "ajustes_necessarios": [
+      "CRÍTICO: Proteção de perda diária máxima (5%)",
+      "OBRIGATÓRIO: Implementar proteção de perda diária (5%)",
+      "OBRIGATÓRIO: Implementar gestão de risco por percentual",
+      "RECOMENDADO: Implementar proteção de drawdown máximo"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA inadequado/proibido para FTMO"
+    ],
+    "componentes_uteis": [
+      "Indicadores técnicos para entrada",
+      "Filtro de volatilidade",
+      "Detecção de suporte/resistência"
+    ],
+    "snippets_detectados": []
+  },
+  "processing_time": 4.768332481384277,
+  "timestamp": "2025-08-13T01:12:22.511651"
+}

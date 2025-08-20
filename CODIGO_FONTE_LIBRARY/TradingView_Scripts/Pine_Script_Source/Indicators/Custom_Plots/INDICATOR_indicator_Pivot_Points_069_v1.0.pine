@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #069
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Forex
+// Timeframe: H4
+
+//@version=5
+indicator("Pivot_Points_69", shorttitle="Pivot_Po", overlay=false)
+
+// Parâmetros
+length = input.int(200, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+stoch = ta.stoch(high, low, close, length)
+
+// Plot
+plot(stoch, "Pivot_Points_69", color=color.red)

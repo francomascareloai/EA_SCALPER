@@ -1,0 +1,119 @@
+{
+  "file_info": {
+    "original_name": "EA-HOKKYDJONG.mq4",
+    "current_name": "SCR_EA_HOKKYDJONG_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_EA_HOKKYDJONG_v1.0.mq4",
+    "file_size": 19313,
+    "lines_count": 482
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [
+        "H1"
+      ],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 137,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_4",
+      "f0_12",
+      "f0_5",
+      "f0_14",
+      "f0_7",
+      "f0_1",
+      "f0_2",
+      "f0_11",
+      "f0_3",
+      "f0_0",
+      "f0_13",
+      "f0_8",
+      "f0_9",
+      "f0_6",
+      "f0_10"
+    ],
+    "variables": [
+      "EA_Name",
+      "Use_TradeAgain",
+      "TradeAgain",
+      "Use_Loop",
+      "Loop",
+      "StartTrade",
+      "EndTrade",
+      "Use_DbLots",
+      "DbLots",
+      "Lots",
+      "SL",
+      "TP",
+      "Distance",
+      "Multiplier",
+      "MaxLevel",
+      "LotsDecimal",
+      "MagicNumber",
+      "EA_Comment",
+      "MoneyPerLot"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#H1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:44.516937",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:26.741584",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

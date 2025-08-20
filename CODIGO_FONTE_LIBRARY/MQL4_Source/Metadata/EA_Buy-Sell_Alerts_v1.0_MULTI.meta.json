@@ -1,0 +1,40 @@
+{
+  "file_info": {
+    "original_name": "Buy-Sell_Alerts.mq4",
+    "new_name": "EA_Buy-Sell_Alerts_v1.0_MULTI.mq4",
+    "file_size": 4794,
+    "created_date": "2025-08-13T07:11:39.472616",
+    "file_type": "MQL4",
+    "classification_version": "2.0"
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market": "MULTI",
+    "timeframe": "MULTI",
+    "complexity": "Medium"
+  },
+  "ftmo_analysis": {
+    "score": 3.0,
+    "level": "Não_Adequado",
+    "ready": false,
+    "has_stop_loss": false,
+    "has_take_profit": false,
+    "has_risk_management": false,
+    "has_grid_martingale": false
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#MULTI",
+    "#MULTI",
+    "#Nao_FTMO"
+  ],
+  "quality_metrics": {
+    "code_quality": "Medium",
+    "documentation": "Basic",
+    "testing_status": "Pending"
+  }
+}

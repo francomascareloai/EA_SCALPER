@@ -1,0 +1,19 @@
+// Criado em: 2025-08-13 11:09:10
+// Arquivo de teste #070
+// Tipo: INDICATOR
+// Categoria: Technical
+// Mercado: Crypto
+// Timeframe: M1
+
+//@version=5
+indicator("Support_Resistance_70", shorttitle="Support_", overlay=true)
+
+// Parâmetros
+length = input.int(50, "Length", minval=1)
+source = input.source(close, "Source")
+
+// Cálculo
+volume_ma = ta.sma(volume, length)
+
+// Plot
+plot(volume_ma, "Support_Resistance_70", color=color.green)

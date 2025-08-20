@@ -1,0 +1,17 @@
+CAMINHO CORRETO DO METAEDITOR:
+==============================
+
+RoboForex MT5 Terminal:
+C:\Program Files\RoboForex MT5 Terminal\metaeditor64.exe
+
+Outras instalações disponíveis:
+- C:\Program Files\FTMO MetaTrader 5\metaeditor64.exe
+- C:\Program Files\MetaTrader 5 EXNESS\metaeditor64.exe
+- C:\Program Files\MetaTrader 5 IC Markets Global\metaeditor64.exe
+- C:\Program Files\MetaTrader 5 Strategy Tester\metaeditor64.exe
+
+Comando de compilação recomendado:
+& "C:\Program Files\RoboForex MT5 Terminal\metaeditor64.exe" /compile:EA_FTMO_Scalper_Elite.mq5 /log:EA_FTMO_Scalper_Elite.log
+
+Data de anotação: $(Get-Date)
+Status: Caminho verificado e funcional

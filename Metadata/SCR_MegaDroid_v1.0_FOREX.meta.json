@@ -1,0 +1,196 @@
+{
+  "file_info": {
+    "original_name": "MegaDroid~.mq4",
+    "current_name": "SCR_MegaDroid_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_MegaDroid_v1.0_FOREX.mq4",
+    "file_size": 80597,
+    "lines_count": 2331
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following",
+      "Volume_Analysis",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Hedging detectado",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 541,
+    "issues": [
+      "Chaves desbalanceadas - erro de sintaxe",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "f0_50",
+      "f0_21",
+      "f0_16",
+      "init",
+      "f0_22",
+      "deinit",
+      "f0_11",
+      "f0_12",
+      "f0_2",
+      "f0_30",
+      "f0_25",
+      "f0_38",
+      "f0_14",
+      "f0_41",
+      "f0_54",
+      "f0_5",
+      "f0_37",
+      "f0_35",
+      "f0_44",
+      "f0_48",
+      "f0_18",
+      "f0_53",
+      "f0_45",
+      "f0_28",
+      "f0_29",
+      "f0_43",
+      "f0_51",
+      "f0_9",
+      "f0_31",
+      "f0_4",
+      "f0_32",
+      "f0_17",
+      "f0_8",
+      "f0_13",
+      "f0_34",
+      "f0_3",
+      "f0_55",
+      "f0_6",
+      "f0_52",
+      "f0_10",
+      "f0_27",
+      "f0_42",
+      "f0_49",
+      "f0_0",
+      "f0_47",
+      "f0_1",
+      "f0_36",
+      "f0_7",
+      "f0_23",
+      "f0_24",
+      "f0_15",
+      "f0_20",
+      "f0_40",
+      "f0_33",
+      "f0_46",
+      "f0_39",
+      "f0_19",
+      "f0_26",
+      "start"
+    ],
+    "variables": [
+      "Ver",
+      "_1",
+      "Stealth",
+      "Aggressive",
+      "GmtOffset",
+      "NFA",
+      "AutoLocalGmtOffset",
+      "AutoServerGmtOffset",
+      "S1_Reference",
+      "S2_Reference",
+      "S1_DAReference",
+      "S2_DAReference",
+      "ReceiptCode",
+      "_2",
+      "TopPadding",
+      "LeftPadding",
+      "_3",
+      "RemoteSafetyMode",
+      "Slippage",
+      "SendEmails",
+      "OrderComments",
+      "_4",
+      "LotSize",
+      "_5",
+      "RiskLevel",
+      "RecoveryMode",
+      "ConsiderCommission",
+      "_6",
+      "VolatilityAware",
+      "DollarAveraging",
+      "SecureProfit"
+    ],
+    "includes": [
+      "WinUser32.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#Volume_Analysis",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:46.773289",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:33.589657",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

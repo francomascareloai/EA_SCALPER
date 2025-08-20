@@ -1,0 +1,161 @@
+{
+  "file_info": {
+    "original_name": "Waygrow_EDU v1.8.mq4",
+    "current_name": "SCR_Waygrow_EDU_v1_8_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Waygrow_EDU_v1_8_v1.0_FOREX.mq4",
+    "file_size": 38306,
+    "lines_count": 867
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES",
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "H1",
+        "H4",
+        "D1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Filtros de sessão"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 129,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "f0_4",
+      "f0_8",
+      "f0_9",
+      "f0_2",
+      "f0_6",
+      "f0_5",
+      "f0_7",
+      "f0_3",
+      "f0_0",
+      "f0_1",
+      "RapidManager",
+      "getProfit",
+      "OrderCount",
+      "MoveTrailingStop",
+      "MoveBreakEven",
+      "CloseTrades"
+    ],
+    "variables": [
+      "NoTrade_Profit_Yet_Filter",
+      "NoTrade_Profit_Yet_StopLoss",
+      "NoTrade_Profit_Yet_Distance",
+      "InTrade_Profit_Filter",
+      "InTrade_Profit_StopLoss",
+      "InTrade_Profit_Distance",
+      "Filter",
+      "MagicNumber",
+      "TradeComment",
+      "StopLoss",
+      "NoTrade_Profit_Yet_Filter",
+      "NoTrade_Profit_Yet_StopLoss",
+      "NoTrade_Profit_Yet_Distance",
+      "InTrade_Profit_Filter",
+      "InTrade_Profit_StopLoss",
+      "InTrade_Profit_Distance",
+      "TrailingStop",
+      "TrailingStep",
+      "BreakEven",
+      "movestopto",
+      "UseHiddenTP",
+      "TakeProfit_Hidden",
+      "MinLots",
+      "MaxLots",
+      "Risk",
+      "FixedLots",
+      "UseMM",
+      "MaxSpreadPlusCommission",
+      "Limit",
+      "Distance",
+      "MAPeriod",
+      "MAMethod",
+      "TimeFilter",
+      "StartHour",
+      "StartMinute",
+      "EndHour",
+      "EndMinute",
+      "IndicatorSetting",
+      "IndicatorToUse",
+      "Env_period",
+      "Env_deviation",
+      "Env_shift"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#CRYPTO",
+    "#M1",
+    "#M5",
+    "#M15",
+    "#H1",
+    "#H4",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:37:06.038004",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:45.105782",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "file_info": {
+    "original_name": "i_UrovenZero_v.2.0._.mq4",
+    "current_name": "SCR_i_UrovenZero_v_2_0_v1.0_INDICES.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_i_UrovenZero_v_2_0_v1.0_INDICES.mq4",
+    "file_size": 45167,
+    "lines_count": 945
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "INDICES"
+      ],
+      "timeframes": [],
+      "confidence": 25
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 83,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "start",
+      "Comment_"
+    ],
+    "variables": [
+      "CALC_Bar_0",
+      "CALC_0",
+      "Lots_R",
+      "Rastojanie_R",
+      "Pribyl_R",
+      "Ugol_0",
+      "MP_X_0",
+      "MP_Y_0",
+      "Shrift_Bar",
+      "RazmerShrifta",
+      "ZeroProfit_Block",
+      "ZeroProfit",
+      "Style_ZP",
+      "Width_ZP",
+      "ZeroBUY_Block",
+      "ZeroBUY",
+      "Style_ZB",
+      "Width_ZB",
+      "ZeroSELL_Block",
+      "ZeroSELL",
+      "Style_ZS",
+      "Width_ZS",
+      "ZeroMargin_Block",
+      "ZeroMargin",
+      "Style_ZM",
+      "Width_ZM",
+      "ZeroMarginPr_Block",
+      "ZeroMarginPr",
+      "Procent_ZM",
+      "Style_ZM_Procent",
+      "Width_ZM_Procent",
+      "Zona_LOCK_Param",
+      "Cvet_zony_LOCK_p",
+      "ZeroFull_Block",
+      "ZeroFull",
+      "Style_ZF",
+      "Width_ZF",
+      "ZeroFull_Pr_Block",
+      "ZeroFull_Pr",
+      "Style_ZF_Procent",
+      "Width_ZF_Procent",
+      "Zona_dDZ_Param",
+      "Cvet_zony_dDZ_f",
+      "INFO_Bar_1",
+      "INFO_1",
+      "Ugol",
+      "MP_X",
+      "MP_Y",
+      "INFO_Bar_2",
+      "INFO_2",
+      "Ugol_2",
+      "MP_X_2",
+      "MP_Y_2",
+      "INFO_Bar_3",
+      "Ugol_3",
+      "Sound_Bar",
+      "SoundPlay_Menshe",
+      "Sound_Alert",
+      "SoundPlay_Bolshe",
+      "Sound_OK"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "indicator_chart_window"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#INDICES",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:35:35.068859",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:32.443464",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

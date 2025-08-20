@@ -1,0 +1,127 @@
+{
+  "timestamp": "2025-08-12T21:15:33.575351",
+  "versao_analisador": "1.0_unificado_critico",
+  "metricas_execucao": {
+    "arquivos_processados": 2,
+    "erros_encontrados": 0,
+    "inconsistencias_corrigidas": 1,
+    "ftmo_scores_validados": 2
+  },
+  "estatisticas": {
+    "tipos": {
+      "Indicator": 1,
+      "EA": 1
+    },
+    "estrategias": {
+      "Trend": 2
+    },
+    "ftmo_score_medio": 2.25,
+    "ftmo_score_min": 0.0,
+    "ftmo_score_max": 4.5
+  },
+  "analise_critica": {
+    "perspectiva_trader": {
+      "ftmo_readiness": {
+        "arquivos_ftmo_ready": 0,
+        "score_medio": 2.25,
+        "recomendacao": "REQUER MELHORIAS"
+      },
+      "gestao_risco": {
+        "stop_loss_presente": 1,
+        "gestao_risco_presente": 1,
+        "estrategias_perigosas": 0
+      }
+    },
+    "perspectiva_engenheiro": {
+      "qualidade_codigo": {
+        "arquivos_com_erro_encoding": 1,
+        "arquivos_com_erro_processamento": 0,
+        "taxa_sucesso": 100.0
+      },
+      "padronizacao": {
+        "tipos_detectados": 2,
+        "estrategias_detectadas": 1,
+        "necessita_reorganizacao": false
+      }
+    }
+  },
+  "problemas_criticos": [
+    "CRÍTICO: Sem Stop Loss detectado",
+    "Sem proteção de drawdown",
+    "CRÍTICO: Sem gestão de risco"
+  ],
+  "melhorias_sugeridas": [
+    "IMPORTANTE: Implementar Stop Loss em todos os EAs"
+  ],
+  "resultados_detalhados": [
+    {
+      "nome_original": "FFCal.mq4",
+      "tipo": "Indicator",
+      "estrategia": "Trend",
+      "ftmo_analysis": {
+        "score": 0.0,
+        "level": "Não_Adequado",
+        "details": {
+          "stop_loss": false,
+          "risk_management": false,
+          "drawdown_protection": false,
+          "take_profit": false,
+          "session_filter": false,
+          "no_dangerous_strategy": true
+        },
+        "issues": [
+          "CRÍTICO: Sem Stop Loss detectado",
+          "CRÍTICO: Sem gestão de risco",
+          "Sem proteção de drawdown"
+        ],
+        "strengths": [],
+        "is_ftmo_ready": false
+      },
+      "hash": "aedc26f11f225c8e13766c5a3dd60847",
+      "tamanho": 50791,
+      "data_modificacao": "2022-09-02T11:01:34",
+      "encoding_corrigido": false
+    },
+    {
+      "nome_original": "test_ea_sample.mq4",
+      "tipo": "EA",
+      "estrategia": "Trend",
+      "ftmo_analysis": {
+        "score": 4.5,
+        "level": "Moderado",
+        "details": {
+          "stop_loss": true,
+          "risk_management": true,
+          "drawdown_protection": false,
+          "take_profit": true,
+          "session_filter": true,
+          "no_dangerous_strategy": true
+        },
+        "issues": [
+          "Sem proteção de drawdown"
+        ],
+        "strengths": [
+          "Stop Loss implementado",
+          "Gestão de risco básica",
+          "Take Profit definido",
+          "Filtros de sessão"
+        ],
+        "is_ftmo_ready": false
+      },
+      "hash": "99f717881a348ea2817246d465191791",
+      "tamanho": 2764,
+      "data_modificacao": "2025-08-12T21:13:28.948595",
+      "encoding_corrigido": false
+    }
+  ],
+  "validacoes_implementadas": [
+    "FTMO Score padronizado 0-7 (padrão real FTMO)",
+    "Análise FTMO rigorosa com critérios de prop firm",
+    "Validações de integridade de arquivo completas",
+    "Correção automática de encoding",
+    "Detecção de estratégias perigosas",
+    "Análise de gestão de risco obrigatória",
+    "Métricas de qualidade de código",
+    "Perspectiva dupla: Trader + Engenheiro"
+  ]
+}

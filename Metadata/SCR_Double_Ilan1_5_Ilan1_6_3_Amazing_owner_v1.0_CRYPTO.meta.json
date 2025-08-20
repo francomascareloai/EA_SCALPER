@@ -1,0 +1,146 @@
+{
+  "file_info": {
+    "original_name": "Double(Ilan1_5&Ilan1_6) (3)@Amazing_owner.mq4",
+    "current_name": "SCR_Double_Ilan1_5_Ilan1_6_3_Amazing_owner_v1.0_CRYPTO.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Double_Ilan1_5_Ilan1_6_3_Amazing_owner_v1.0_CRYPTO.mq4",
+    "file_size": 37215,
+    "lines_count": 874
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "CRYPTO"
+      ],
+      "timeframes": [
+        "H1",
+        "H4"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado",
+      "Gestão de risco básica",
+      "Take Profit definido"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.0,
+    "level": "Não_Adequado",
+    "compliance_score": 10.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 241,
+    "issues": [
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "init",
+      "deinit",
+      "start",
+      "CountTrades",
+      "CloseThisSymbolAll",
+      "OpenPendingOrder",
+      "StopLong",
+      "StopShort",
+      "TakeLong",
+      "TakeShort",
+      "CalculateProfit",
+      "TrailingAlls",
+      "AccountEquityHigh",
+      "FindLastBuyPrice",
+      "FindLastSellPrice",
+      "CountTrades_16",
+      "CloseThisSymbolAll_16",
+      "OpenPendingOrder_16",
+      "StopLong_16",
+      "StopShort_16",
+      "TakeLong_16",
+      "TakeShort_16",
+      "CalculateProfit_16",
+      "TrailingAlls_16",
+      "AccountEquityHigh_16",
+      "FindLastBuyPrice_16",
+      "FindLastSellPrice_16"
+    ],
+    "variables": [
+      "t1",
+      "OpenNewTF",
+      "LotExponent",
+      "slip",
+      "Lots",
+      "lotdecimal",
+      "TakeProfit",
+      "Stoploss",
+      "TrailStart",
+      "TrailStop",
+      "PipStep",
+      "MaxTrades",
+      "UseEquityStop",
+      "TotalEquityRisk",
+      "UseTrailingStop",
+      "UseTimeOut",
+      "MaxTradeOpenHours",
+      "g_magic_176",
+      "t2",
+      "OpenNewTF_16",
+      "LotExponent_16",
+      "slip_16",
+      "Lots_16",
+      "lotdecimal_16",
+      "TakeProfit_16",
+      "Stoploss_16",
+      "TrailStart_16",
+      "TrailStop_16",
+      "PipStep_16",
+      "MaxTrades_16",
+      "UseEquityStop_16",
+      "TotalEquityRisk_16",
+      "UseTrailingStop_16",
+      "UseTimeOut_16",
+      "MaxTradeOpenHours_16",
+      "g_magic_176_16"
+    ],
+    "includes": [],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#CRYPTO",
+    "#H1",
+    "#H4",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:35.645411",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:25.498525",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

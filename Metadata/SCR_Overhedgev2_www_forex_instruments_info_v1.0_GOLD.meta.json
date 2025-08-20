@@ -1,0 +1,113 @@
+{
+  "file_info": {
+    "original_name": "Overhedgev2_www_forex-instruments_info.mq4",
+    "current_name": "SCR_Overhedgev2_www_forex_instruments_info_v1.0_GOLD.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Scripts\\Utilities\\SCR_Overhedgev2_www_forex_instruments_info_v1.0_GOLD.mq4",
+    "file_size": 16088,
+    "lines_count": 433
+  },
+  "classification": {
+    "type": "Script",
+    "strategy": [
+      "Scalping",
+      "Grid_Martingale",
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "D1"
+      ],
+      "confidence": 75
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "Sem proteção de drawdown",
+      "CRÍTICO: Estratégia de alto risco (Grid/Martingale)",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Gestão de risco básica"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 98.33333333333333,
+    "complexity": 86,
+    "issues": [
+      "Possível falta de modificação de ordens (SL/TP)",
+      "Uso de Sleep() detectado - pode afetar performance"
+    ]
+  },
+  "code_analysis": {
+    "functions": [
+      "CheckDirection",
+      "init",
+      "deinit",
+      "Write",
+      "CloseOpenPositions",
+      "CheckOpenPositions",
+      "GetProfit",
+      "OpenBuyOrder",
+      "OpenSellOrder",
+      "DoTrades",
+      "CheckProfit",
+      "start"
+    ],
+    "variables": [
+      "Debug",
+      "TradeLog",
+      "MagicNumber",
+      "Lots",
+      "HedgeBase",
+      "Slippage",
+      "shutdownGrid",
+      "TunnelWidth",
+      "profitTarget",
+      "EMAShortPeriod",
+      "EMALongPeriod",
+      "PauseSeconds",
+      "MillisPerSec"
+    ],
+    "includes": [
+      "stdlib.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link"
+    ]
+  },
+  "tags": [
+    "#Script",
+    "#Scalping",
+    "#Grid_Martingale",
+    "#Trend_Following",
+    "#GOLD",
+    "#INDICES",
+    "#D1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:04.581764",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:36.343937",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

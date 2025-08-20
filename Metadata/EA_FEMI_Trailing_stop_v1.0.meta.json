@@ -1,0 +1,73 @@
+{
+  "file_info": {
+    "original_name": "FEMI Trailing stop.mq4",
+    "current_name": "EA_FEMI_Trailing_stop_v1.0.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\EAs\\Trend_Following\\EA_FEMI_Trailing_stop_v1.0.mq4",
+    "file_size": 2638,
+    "lines_count": 54
+  },
+  "classification": {
+    "type": "EA",
+    "strategy": [
+      "Trend_Following"
+    ],
+    "market_timeframe": {
+      "markets": [],
+      "timeframes": [],
+      "confidence": 0
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 1.5,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [
+      "Stop Loss implementado"
+    ],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 1.5,
+    "level": "Não_Adequado",
+    "compliance_score": 15.0
+  },
+  "quality": {
+    "score": 100,
+    "complexity": 11,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "OnInit",
+      "OnDeinit",
+      "OnTick",
+      "ApplyTrailingStop"
+    ],
+    "variables": [
+      "InpTrailingStopPoints",
+      "digits"
+    ],
+    "includes": [],
+    "properties": []
+  },
+  "tags": [
+    "#EA",
+    "#Trend_Following",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:34:56.969769",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:34:51.743302",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

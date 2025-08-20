@@ -1,0 +1,29 @@
+{
+  "arquivo": {
+    "nome": "CCIarrow.mq4",
+    "tamanho_bytes": 3375,
+    "linhas_codigo": 129,
+    "data_modificacao": "2025-08-10T19:38:33.337088"
+  },
+  "analise_ftmo": {
+    "score_bruto": 0.0,
+    "score_final": 0.0,
+    "criterios_atendidos": {},
+    "penalidades_aplicadas": {},
+    "riscos_detectados": [
+      "ESTRATÉGIA PROIBIDA: Grid_Martingale"
+    ],
+    "ajustes_necessarios": [
+      "INCOMPATÍVEL COM FTMO - Estratégia Grid_Martingale é proibida"
+    ],
+    "status_ftmo": "PROIBIDO_FTMO",
+    "eliminatorio": true,
+    "observacoes": [
+      "EA automaticamente reprovado por usar Grid_Martingale"
+    ],
+    "componentes_uteis": [],
+    "snippets_detectados": []
+  },
+  "processing_time": 0.0014557838439941406,
+  "timestamp": "2025-08-13T01:11:57.905514"
+}

@@ -1,0 +1,112 @@
+{
+  "file_info": {
+    "original_name": "OU Forex Mastery Trend Momentum.mq4",
+    "current_name": "IND_OU_Forex_Mastery_Trend_Momentum_v1.0_FOREX.mq4",
+    "current_path": "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\CODIGO_FONTE_LIBRARY\\MQL4_Source\\Indicators\\Custom\\IND_OU_Forex_Mastery_Trend_Momentum_v1.0_FOREX.mq4",
+    "file_size": 11993,
+    "lines_count": 352
+  },
+  "classification": {
+    "type": "Indicator",
+    "strategy": [
+      "Scalping",
+      "Trend_Following",
+      "News_Trading"
+    ],
+    "market_timeframe": {
+      "markets": [
+        "FOREX",
+        "GOLD",
+        "INDICES"
+      ],
+      "timeframes": [
+        "M1"
+      ],
+      "confidence": 100
+    },
+    "ftmo_ready": false
+  },
+  "ftmo_analysis": {
+    "ftmo_score": 0.0,
+    "ftmo_level": "Não_Adequado",
+    "compliance_issues": [
+      "CRÍTICO: Sem Stop Loss detectado",
+      "CRÍTICO: Sem gestão de risco",
+      "Sem proteção de drawdown",
+      "Sem limite de trades simultâneos"
+    ],
+    "compliance_strengths": [],
+    "is_ftmo_ready": false,
+    "risk_category": "High",
+    "score": 0.0,
+    "level": "Não_Adequado",
+    "compliance_score": 0.0
+  },
+  "quality": {
+    "score": 91.66666666666667,
+    "complexity": 66,
+    "issues": []
+  },
+  "code_analysis": {
+    "functions": [
+      "chartcolor",
+      "OU_loader_call",
+      "DrawAllowed",
+      "validpair",
+      "pairtype",
+      "BaseSymbol",
+      "SetSymbolSuffixLength",
+      "SymbolsList",
+      "init",
+      "deinit",
+      "start",
+      "deleteobjects",
+      "createobjects",
+      "Draw_Crossover",
+      "Draw_PriceMarker",
+      "ZoomFactor",
+      "setmidlinecolor"
+    ],
+    "variables": [
+      "Show_Bars",
+      "ZoomLevel1to5",
+      "ShowPriceMarker",
+      "ShowCrossover"
+    ],
+    "includes": [
+      "..\\include\\OU_Forex.mqh"
+    ],
+    "properties": [
+      "copyright",
+      "link",
+      "indicator_separate_window",
+      "indicator_minimum",
+      "indicator_maximum",
+      "indicator_buffers",
+      "indicator_color1",
+      "indicator_color2"
+    ]
+  },
+  "tags": [
+    "#Indicator",
+    "#Scalping",
+    "#Trend_Following",
+    "#News_Trading",
+    "#FOREX",
+    "#GOLD",
+    "#INDICES",
+    "#M1",
+    "#Nao_FTMO",
+    "#HighQuality"
+  ],
+  "processing_info": {
+    "processed_at": "2025-08-13T01:36:04.428136",
+    "processor_version": "7.0",
+    "analysis_complete": true
+  },
+  "analysis_metadata": {
+    "timestamp": "2025-08-13T06:35:12.772678",
+    "corrected_by": "FTMOScoreCorrector_v2.0",
+    "correction_reason": "Sistema FTMO Rigoroso Ultra Crítico"
+  }
+}

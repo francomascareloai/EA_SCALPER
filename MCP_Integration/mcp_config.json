@@ -1,0 +1,207 @@
+{
+  "mcp_servers": {
+    "trading_classifier": {
+      "name": "Trading Classifier MCP",
+      "description": "Servidor MCP para classificação automática de códigos de trading",
+      "script_path": "./servers/trading_classifier_mcp.py",
+      "port": 8001,
+      "enabled": true,
+      "auto_start": true,
+      "capabilities": [
+        "classify_trading_file",
+        "batch_classify_directory",
+        "generate_metadata",
+        "suggest_rename",
+        "analyze_code_quality"
+      ],
+      "config": {
+        "max_file_size_mb": 10,
+        "supported_extensions": [".mq4", ".mq5", ".pine"],
+        "classification_confidence_threshold": 0.7
+      }
+    },
+    "python_dev_accelerator": {
+      "name": "Python Development Accelerator MCP",
+      "description": "Servidor MCP para acelerar desenvolvimento Python",
+      "script_path": "./servers/python_dev_accelerator_mcp.py",
+      "port": 8002,
+      "enabled": true,
+      "auto_start": true,
+      "capabilities": [
+        "generate_python_class",
+        "generate_test_suite",
+        "optimize_code",
+        "generate_documentation",
+        "create_project_structure",
+        "analyze_code"
+      ],
+      "config": {
+        "default_test_framework": "pytest",
+        "documentation_format": "markdown",
+        "code_style": "pep8"
+      }
+    },
+    "test_automation": {
+      "name": "Test Automation MCP",
+      "description": "Servidor MCP para automação de testes e qualidade",
+      "script_path": "./servers/test_automation_mcp.py",
+      "port": 8003,
+      "enabled": true,
+      "auto_start": true,
+      "capabilities": [
+        "run_test_suite",
+        "analyze_coverage",
+        "generate_performance_tests",
+        "run_load_tests",
+        "setup_ci_pipeline",
+        "generate_test_data"
+      ],
+      "config": {
+        "coverage_threshold": 80,
+        "performance_timeout": 30,
+        "load_test_duration": 60
+      }
+    },
+    "code_analysis": {
+      "name": "Code Analysis MCP",
+      "description": "Servidor MCP para análise e refatoração de código",
+      "script_path": "./servers/code_analysis_mcp.py",
+      "port": 8004,
+      "enabled": true,
+      "auto_start": true,
+      "capabilities": [
+        "analyze_code_quality",
+        "detect_code_smells",
+        "suggest_refactoring",
+        "apply_refactoring",
+        "analyze_architecture",
+        "generate_code_docs"
+      ],
+      "config": {
+        "complexity_threshold": 10,
+        "duplication_threshold": 6,
+        "security_scan_enabled": true
+      }
+    },
+    "project_scaffolding": {
+      "name": "Project Scaffolding MCP",
+      "description": "Servidor MCP para criação de estruturas de projeto",
+      "script_path": "./servers/project_scaffolding_mcp.py",
+      "port": 8005,
+      "enabled": true,
+      "auto_start": true,
+      "capabilities": [
+        "create_project_from_template",
+        "list_available_templates",
+        "create_custom_template",
+        "generate_code_scaffold",
+        "create_project_structure",
+        "generate_requirements",
+        "setup_docker"
+      ],
+      "config": {
+        "default_python_version": "3.11",
+        "include_docker": true,
+        "include_ci_cd": true
+      }
+    },
+    "api_integration": {
+      "name": "API Integration MCP",
+      "description": "Servidor MCP para integração com APIs externas",
+      "script_path": "./servers/api_integration_mcp.py",
+      "port": 8006,
+      "enabled": true,
+      "auto_start": true,
+      "capabilities": [
+        "configure_api",
+        "make_api_request",
+        "get_market_data",
+        "create_webhook_endpoint",
+        "send_webhook",
+        "setup_trading_alerts",
+        "check_trading_alerts",
+        "sync_data_sources",
+        "create_api_workflow",
+        "execute_workflow"
+      ],
+      "config": {
+        "rate_limit_default": 100,
+        "timeout_default": 30,
+        "cache_enabled": true,
+        "cache_ttl_minutes": 15
+      }
+    }
+  },
+  "global_config": {
+    "base_port": 8000,
+    "host": "localhost",
+    "log_level": "INFO",
+    "log_file": "./logs/mcp_servers.log",
+    "max_concurrent_requests": 100,
+    "request_timeout": 60,
+    "health_check_interval": 30,
+    "auto_restart_on_failure": true,
+    "backup_configs": true
+  },
+  "security": {
+    "enable_authentication": false,
+    "api_key_required": false,
+    "allowed_origins": ["*"],
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 1000,
+      "burst_size": 100
+    },
+    "encryption": {
+      "enabled": false,
+      "algorithm": "AES-256",
+      "key_rotation_days": 30
+    }
+  },
+  "monitoring": {
+    "metrics_enabled": true,
+    "metrics_endpoint": "/metrics",
+    "health_endpoint": "/health",
+    "status_endpoint": "/status",
+    "performance_tracking": true,
+    "error_tracking": true,
+    "usage_analytics": true
+  },
+  "integration": {
+    "claude_desktop": {
+      "enabled": true,
+      "config_path": "~/.config/claude-desktop/claude_desktop_config.json",
+      "auto_register": true
+    },
+    "vscode": {
+      "enabled": true,
+      "extension_id": "anthropic.claude-dev",
+      "auto_configure": true
+    },
+    "external_apis": {
+      "enabled": true,
+      "supported_apis": [
+        "binance",
+        "alpha_vantage",
+        "polygon",
+        "tradingview",
+        "github",
+        "openai"
+      ]
+    }
+  },
+  "development": {
+    "debug_mode": false,
+    "hot_reload": true,
+    "test_mode": false,
+    "mock_external_apis": false,
+    "profiling_enabled": false
+  },
+  "backup": {
+    "enabled": true,
+    "backup_interval_hours": 24,
+    "backup_retention_days": 30,
+    "backup_location": "./backups",
+    "compress_backups": true
+  }
+}
