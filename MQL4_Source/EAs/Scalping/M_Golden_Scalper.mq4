@@ -98,11 +98,6 @@ void CheckEntryConditions()
             else
                Print("Erro ao enviar ordem BUY: ", GetLastError());
          }
-         else
-         {
-            Print("ERRO: Distância TP/SL insuficiente - StopLevel: ", stopLevel/Point, " pontos, MinDist: ", minDistance/Point, " pontos");
-            Print("Valores atuais - TP: ", TakeProfit, " SL: ", StopLoss, " (aumente os valores nos parâmetros)");
-         }
       }
    }
    
@@ -134,11 +129,6 @@ void CheckEntryConditions()
             else
                Print("Erro ao enviar ordem SELL: ", GetLastError());
          }
-         else
-         {
-            Print("ERRO: Distância TP/SL insuficiente - StopLevel: ", stopLevel/Point, " pontos, MinDist: ", minDistance/Point, " pontos");
-            Print("Valores atuais - TP: ", TakeProfit, " SL: ", StopLoss, " (aumente os valores nos parâmetros)");
-         }
       }
    }
 }
@@ -148,26 +138,44 @@ void CheckEntryConditions()
 //+------------------------------------------------------------------+
 void ManageOpenTrades()
 {
+   if(!UseTrailingStop)
+      return;
+      
    for(int i = OrdersTotal() - 1; i >= 0; i--)
    {
-      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+      if(OrderSelect(i, SELECT_BY_POS) && OrderMagicNumber() == MagicNumber)
       {
-         if(OrderMagicNumber() == MagicNumber)
+         if(OrderType() == OP_BUY)
          {
-            if(UseTrailingStop)
+            double currentPrice = MarketInfo(Symbol(), MODE_BID);
+            double profit = (currentPrice - OrderOpenPrice()) / Point;
+            
+            if(profit >= TrailingStart * 10) // Ajustado para XAUUSD
             {
-               double currentPrice = (OrderType() == OP_BUY) ? MarketInfo(Symbol(), MODE_BID) : MarketInfo(Symbol(), MODE_ASK);
-               double profitPoints = (OrderType() == OP_BUY) ? (currentPrice - OrderOpenPrice()) / Point : (OrderOpenPrice() - currentPrice) / Point;
+               double newSL = currentPrice - (TrailingDistance * 10 * Point);
                
-               if(profitPoints >= TrailingStart)
+               if(newSL > OrderStopLoss() + Point)
                {
-                  double newStopLoss = (OrderType() == OP_BUY) ? currentPrice - (TrailingDistance * Point) : currentPrice + (TrailingDistance * Point);
-                  
-                  if((OrderType() == OP_BUY && newStopLoss > OrderStopLoss()) || 
-                     (OrderType() == OP_SELL && newStopLoss < OrderStopLoss()))
-                  {
-                     OrderModify(OrderTicket(), OrderOpenPrice(), newStopLoss, OrderTakeProfit(), 0, clrBlue);
-                  }
+                  bool result = OrderModify(OrderTicket(), OrderOpenPrice(), newSL, OrderTakeProfit(), 0, clrBlue);
+                  if(result)
+                     Print("Trailing Stop atualizado para BUY - Ticket: ", OrderTicket(), " Novo SL: ", newSL);
+               }
+            }
+         }
+         else if(OrderType() == OP_SELL)
+         {
+            double currentPrice = MarketInfo(Symbol(), MODE_ASK);
+            double profit = (OrderOpenPrice() - currentPrice) / Point;
+            
+            if(profit >= TrailingStart * 10) // Ajustado para XAUUSD
+            {
+               double newSL = currentPrice + (TrailingDistance * 10 * Point);
+               
+               if(newSL < OrderStopLoss() - Point || OrderStopLoss() == 0)
+               {
+                  bool result = OrderModify(OrderTicket(), OrderOpenPrice(), newSL, OrderTakeProfit(), 0, clrBlue);
+                  if(result)
+                     Print("Trailing Stop atualizado para SELL - Ticket: ", OrderTicket(), " Novo SL: ", newSL);
                }
             }
          }
@@ -178,16 +186,13 @@ void ManageOpenTrades()
 //+------------------------------------------------------------------+
 //| Conta ordens abertas por tipo                                    |
 //+------------------------------------------------------------------+
-int CountOpenOrders(int type)
+int CountOpenOrders(int orderType)
 {
    int count = 0;
    for(int i = 0; i < OrdersTotal(); i++)
    {
-      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
-      {
-         if(OrderMagicNumber() == MagicNumber && OrderType() == type)
-            count++;
-      }
+      if(OrderSelect(i, SELECT_BY_POS) && OrderMagicNumber() == MagicNumber && OrderType() == orderType)
+         count++;
    }
    return count;
 }
