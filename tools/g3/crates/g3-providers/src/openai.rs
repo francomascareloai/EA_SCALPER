@@ -15,6 +15,17 @@ use crate::{
     MessageRole, Tool, ToolCall, Usage,
 };
 
+#[derive(Debug, Default)]
+struct SseParseOutcome {
+    usage: Option<Usage>,
+    tool_calls: Option<Vec<ToolCall>>,
+    saw_any_sse_data: bool,
+    saw_content_delta: bool,
+    saw_tool_delta: bool,
+    saw_done: bool,
+    buffered_tail: String,
+}
+
 #[derive(Clone)]
 pub struct OpenAIProvider {
     client: Client,
@@ -101,16 +112,18 @@ impl OpenAIProvider {
         body
     }
 
-    async fn parse_streaming_response(
+    async fn parse_sse_stream(
         &self,
         mut stream: impl futures_util::Stream<Item = reqwest::Result<Bytes>> + Unpin,
-        tx: mpsc::Sender<Result<CompletionChunk>>,
-    ) -> Option<Usage> {
+        tx: &mpsc::Sender<Result<CompletionChunk>>,
+    ) -> SseParseOutcome {
         let mut buffer = String::new();
-        let mut accumulated_content = String::new();
         let mut accumulated_usage: Option<Usage> = None;
         let mut current_tool_calls: Vec<OpenAIStreamingToolCall> = Vec::new();
         let mut saw_any_sse_data = false;
+        let mut saw_content_delta = false;
+        let mut saw_tool_delta = false;
+        let mut saw_done = false;
 
         while let Some(chunk_result) = stream.next().await {
             match chunk_result {
@@ -144,30 +157,8 @@ impl OpenAIProvider {
 
                             if data == "[DONE]" {
                                 debug!("Received stream completion marker");
-
-                                // IMPORTANT: don't resend accumulated_content here.
-                                // We already streamed deltas as they arrived; resending would duplicate output.
-                                // Only send tool calls (if any) and a finished marker.
-                                let tool_calls = if current_tool_calls.is_empty() {
-                                    None
-                                } else {
-                                    Some(
-                                        current_tool_calls
-                                            .iter()
-                                            .filter_map(|tc| tc.to_tool_call())
-                                            .collect(),
-                                    )
-                                };
-
-                                let final_chunk = CompletionChunk {
-                                    content: String::new(),
-                                    finished: true,
-                                    tool_calls,
-                                    usage: accumulated_usage.clone(),
-                                };
-                                let _ = tx.send(Ok(final_chunk)).await;
-
-                                return accumulated_usage;
+                                saw_done = true;
+                                break;
                             }
 
                             // Parse the JSON data
@@ -177,7 +168,7 @@ impl OpenAIProvider {
                                     for choice in &chunk_data.choices {
                                         if let Some(content) = &choice.delta.content {
                                             if !content.is_empty() {
-                                                accumulated_content.push_str(content);
+                                                saw_content_delta = true;
 
                                                 let chunk = CompletionChunk {
                                                     content: content.clone(),
@@ -187,14 +178,14 @@ impl OpenAIProvider {
                                                 };
                                                 if tx.send(Ok(chunk)).await.is_err() {
                                                     debug!("Receiver dropped, stopping stream");
-                                                    return accumulated_usage;
+                                                    return SseParseOutcome::default();
                                                 }
                                             }
                                         }
 
                                         if let Some(reasoning) = &choice.delta.reasoning_content {
                                             if !reasoning.is_empty() {
-                                                accumulated_content.push_str(reasoning);
+                                                saw_content_delta = true;
 
                                                 let chunk = CompletionChunk {
                                                     content: reasoning.clone(),
@@ -204,13 +195,16 @@ impl OpenAIProvider {
                                                 };
                                                 if tx.send(Ok(chunk)).await.is_err() {
                                                     debug!("Receiver dropped, stopping stream");
-                                                    return accumulated_usage;
+                                                    return SseParseOutcome::default();
                                                 }
                                             }
                                         }
 
                                         // Handle tool calls
                                         if let Some(delta_tool_calls) = &choice.delta.tool_calls {
+                                            if !delta_tool_calls.is_empty() {
+                                                saw_tool_delta = true;
+                                            }
                                             for delta_tool_call in delta_tool_calls {
                                                 if let Some(index) = delta_tool_call.index {
                                                     // Ensure we have enough tool calls in our vector
@@ -257,66 +251,21 @@ impl OpenAIProvider {
                             }
                         }
                     }
+
+                    if saw_done {
+                        break;
+                    }
                 }
                 Err(e) => {
                     error!("Stream error: {}", e);
-                    let _ = tx.send(Err(anyhow::anyhow!("Stream error: {}", e))).await;
-                    return accumulated_usage;
-                }
-            }
-        }
-
-        // Fallback: some "OpenAI-compatible" proxies ignore stream=true and return a single JSON body.
-        // In that case, we will have received bytes but never parsed any SSE `data:` lines.
-        // Try to parse the leftover buffer as a non-streaming response and emit it as a synthetic stream.
-        let buffered = buffer.trim();
-        if !saw_any_sse_data
-            && !buffered.is_empty()
-            && accumulated_content.is_empty()
-            && current_tool_calls.is_empty()
-        {
-            match serde_json::from_str::<OpenAIResponse>(buffered) {
-                Ok(resp) => {
-                    let (content, tool_calls) = extract_non_stream_content_and_tools(&resp);
-                    let usage = Usage {
-                        prompt_tokens: resp.usage.prompt_tokens,
-                        completion_tokens: resp.usage.completion_tokens,
-                        total_tokens: resp.usage.total_tokens,
-                    };
-                    accumulated_usage = Some(usage.clone());
-
-                    if !content.is_empty() {
-                        let _ = tx
-                            .send(Ok(CompletionChunk {
-                                content,
-                                finished: false,
-                                tool_calls: None,
-                                usage: None,
-                            }))
-                            .await;
-                    }
-
                     let _ = tx
-                        .send(Ok(CompletionChunk {
-                            content: String::new(),
-                            finished: true,
-                            tool_calls,
-                            usage: Some(usage),
-                        }))
+                        .send(Err(anyhow::anyhow!("Stream error: {}", e)))
                         .await;
-
-                    return accumulated_usage;
-                }
-                Err(e) => {
-                    debug!(
-                        "Stream ended without SSE data; failed to parse buffered JSON fallback: {}",
-                        e
-                    );
+                    return SseParseOutcome::default();
                 }
             }
         }
 
-        // Send final chunk if we haven't already
         let tool_calls = if current_tool_calls.is_empty() {
             None
         } else {
@@ -328,15 +277,15 @@ impl OpenAIProvider {
             )
         };
 
-        let final_chunk = CompletionChunk {
-            content: String::new(),
-            finished: true,
+        SseParseOutcome {
+            usage: accumulated_usage,
             tool_calls,
-            usage: accumulated_usage.clone(),
-        };
-        let _ = tx.send(Ok(final_chunk)).await;
-
-        accumulated_usage
+            saw_any_sse_data,
+            saw_content_delta,
+            saw_tool_delta,
+            saw_done,
+            buffered_tail: buffer,
+        }
     }
 }
 
@@ -411,10 +360,18 @@ impl LLMProvider for OpenAIProvider {
             request.messages.len()
         );
 
-        let body = self.create_request_body(
+        let body_stream = self.create_request_body(
             &request.messages,
             request.tools.as_deref(),
             true,
+            request.max_tokens,
+            request.temperature,
+        );
+
+        let body_non_stream = self.create_request_body(
+            &request.messages,
+            request.tools.as_deref(),
+            false,
             request.max_tokens,
             request.temperature,
         );
@@ -428,7 +385,7 @@ impl LLMProvider for OpenAIProvider {
             .client
             .post(format!("{}/chat/completions", self.base_url))
             .header("Authorization", format!("Bearer {}", self.api_key))
-            .json(&body)
+            .json(&body_stream)
             .send()
             .await?;
 
@@ -449,6 +406,7 @@ impl LLMProvider for OpenAIProvider {
 
         // If the server didn't return SSE, fall back to parsing a single JSON response and emit it
         // as a synthetic stream. This commonly happens behind "OpenAI-compatible" proxies.
+        let provider = self.clone();
         let content_type = response
             .headers()
             .get(CONTENT_TYPE)
@@ -456,56 +414,7 @@ impl LLMProvider for OpenAIProvider {
             .unwrap_or("");
 
         if !content_type.contains("text/event-stream") {
-            tokio::spawn(async move {
-                match response.text().await {
-                    Ok(text) => match serde_json::from_str::<OpenAIResponse>(&text) {
-                        Ok(resp) => {
-                            let (content, tool_calls) = extract_non_stream_content_and_tools(&resp);
-                            let usage = Usage {
-                                prompt_tokens: resp.usage.prompt_tokens,
-                                completion_tokens: resp.usage.completion_tokens,
-                                total_tokens: resp.usage.total_tokens,
-                            };
-
-                            if !content.is_empty() {
-                                let _ = tx
-                                    .send(Ok(CompletionChunk {
-                                        content,
-                                        finished: false,
-                                        tool_calls: None,
-                                        usage: None,
-                                    }))
-                                    .await;
-                            }
-
-                            let _ = tx
-                                .send(Ok(CompletionChunk {
-                                    content: String::new(),
-                                    finished: true,
-                                    tool_calls,
-                                    usage: Some(usage),
-                                }))
-                                .await;
-                        }
-                        Err(e) => {
-                            let _ = tx
-                                .send(Err(anyhow::anyhow!(
-                                    "Expected SSE stream but got non-SSE JSON which failed to parse: {}",
-                                    e
-                                )))
-                                .await;
-                        }
-                    },
-                    Err(e) => {
-                        let _ = tx
-                            .send(Err(anyhow::anyhow!(
-                                "Expected SSE stream but failed to read non-streaming response body: {}",
-                                e
-                            )))
-                            .await;
-                    }
-                }
-            });
+            tokio::spawn(async move { emit_non_stream_response(response, &tx).await });
 
             return Ok(ReceiverStream::new(rx));
         }
@@ -513,11 +422,82 @@ impl LLMProvider for OpenAIProvider {
         let stream = response.bytes_stream();
 
         // Spawn task to process the stream
-        let provider = self.clone();
         tokio::spawn(async move {
-            let usage = provider.parse_streaming_response(stream, tx).await;
-            // Log the final usage if available
-            if let Some(usage) = usage {
+            let outcome = provider.parse_sse_stream(stream, &tx).await;
+
+            // Some proxies return a "valid" SSE stream that immediately finishes (often only `[DONE]`)
+            // without any content/tool deltas. In that case, transparently retry non-streaming.
+            let saw_semantic_output = outcome.saw_content_delta || outcome.tool_calls.is_some();
+            if outcome.saw_any_sse_data && outcome.saw_done && !saw_semantic_output {
+                debug!("SSE stream finished without any content/tool output; retrying as non-stream");
+                match provider
+                    .client
+                    .post(format!("{}/chat/completions", provider.base_url))
+                    .header("Authorization", format!("Bearer {}", provider.api_key))
+                    .json(&body_non_stream)
+                    .send()
+                    .await
+                {
+                    Ok(resp) => {
+                        emit_non_stream_response(resp, &tx).await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(Err(anyhow::anyhow!(
+                                "Empty SSE stream and non-stream retry failed: {}",
+                                e
+                            )))
+                            .await;
+                    }
+                }
+                return;
+            }
+
+            // Fallback: some proxies ignore stream=true but still set text/event-stream;
+            // if we never saw any SSE data lines but have buffered JSON, try to parse it.
+            let buffered = outcome.buffered_tail.trim();
+            if !outcome.saw_any_sse_data && !buffered.is_empty() && !saw_semantic_output {
+                if let Ok(resp) = serde_json::from_str::<OpenAIResponse>(buffered) {
+                    let (content, tool_calls) = extract_non_stream_content_and_tools(&resp);
+                    let usage = Usage {
+                        prompt_tokens: resp.usage.prompt_tokens,
+                        completion_tokens: resp.usage.completion_tokens,
+                        total_tokens: resp.usage.total_tokens,
+                    };
+
+                    if !content.is_empty() {
+                        let _ = tx
+                            .send(Ok(CompletionChunk {
+                                content,
+                                finished: false,
+                                tool_calls: None,
+                                usage: None,
+                            }))
+                            .await;
+                    }
+
+                    let _ = tx
+                        .send(Ok(CompletionChunk {
+                            content: String::new(),
+                            finished: true,
+                            tool_calls,
+                            usage: Some(usage),
+                        }))
+                        .await;
+                    return;
+                }
+            }
+
+            // Normal finish: emit final marker with tool calls/usage.
+            let final_chunk = CompletionChunk {
+                content: String::new(),
+                finished: true,
+                tool_calls: outcome.tool_calls,
+                usage: outcome.usage.clone(),
+            };
+            let _ = tx.send(Ok(final_chunk)).await;
+
+            if let Some(usage) = outcome.usage {
                 debug!(
                     "Stream completed with usage - prompt: {}, completion: {}, total: {}",
                     usage.prompt_tokens, usage.completion_tokens, usage.total_tokens
@@ -580,6 +560,76 @@ fn convert_tools(tools: &[Tool]) -> Vec<serde_json::Value> {
             })
         })
         .collect()
+}
+
+async fn emit_non_stream_response(
+    response: reqwest::Response,
+    tx: &mpsc::Sender<Result<CompletionChunk>>,
+) {
+    let status = response.status();
+    if !status.is_success() {
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        let _ = tx
+            .send(Err(anyhow::anyhow!(
+                "OpenAI API error {}: {}",
+                status,
+                error_text
+            )))
+            .await;
+        return;
+    }
+
+    match response.text().await {
+        Ok(text) => match serde_json::from_str::<OpenAIResponse>(&text) {
+            Ok(resp) => {
+                let (content, tool_calls) = extract_non_stream_content_and_tools(&resp);
+                let usage = Usage {
+                    prompt_tokens: resp.usage.prompt_tokens,
+                    completion_tokens: resp.usage.completion_tokens,
+                    total_tokens: resp.usage.total_tokens,
+                };
+
+                if !content.is_empty() {
+                    let _ = tx
+                        .send(Ok(CompletionChunk {
+                            content,
+                            finished: false,
+                            tool_calls: None,
+                            usage: None,
+                        }))
+                        .await;
+                }
+
+                let _ = tx
+                    .send(Ok(CompletionChunk {
+                        content: String::new(),
+                        finished: true,
+                        tool_calls,
+                        usage: Some(usage),
+                    }))
+                    .await;
+            }
+            Err(e) => {
+                let _ = tx
+                    .send(Err(anyhow::anyhow!(
+                        "Non-streaming response failed to parse: {}",
+                        e
+                    )))
+                    .await;
+            }
+        },
+        Err(e) => {
+            let _ = tx
+                .send(Err(anyhow::anyhow!(
+                    "Failed to read non-streaming response body: {}",
+                    e
+                )))
+                .await;
+        }
+    }
 }
 
 fn extract_non_stream_content_and_tools(
@@ -649,7 +699,15 @@ mod streaming_tests {
         let input = stream::iter(vec![Ok(sse_line(chunk_1)), Ok(sse_line(chunk_2)), Ok(done)]);
 
         let (tx, mut rx) = mpsc::channel::<anyhow::Result<CompletionChunk>>(16);
-        let _usage = provider.parse_streaming_response(input, tx).await;
+        let outcome = provider.parse_sse_stream(input, &tx).await;
+
+        let final_chunk = CompletionChunk {
+            content: String::new(),
+            finished: true,
+            tool_calls: outcome.tool_calls,
+            usage: outcome.usage,
+        };
+        let _ = tx.send(Ok(final_chunk)).await;
 
         let mut seen = Vec::new();
         while let Some(item) = rx.recv().await {
@@ -690,7 +748,15 @@ mod streaming_tests {
         let input = stream::iter(vec![Ok(sse_line(chunk_1)), Ok(sse_line(chunk_2)), Ok(done)]);
 
         let (tx, mut rx) = mpsc::channel::<anyhow::Result<CompletionChunk>>(16);
-        let _usage = provider.parse_streaming_response(input, tx).await;
+        let outcome = provider.parse_sse_stream(input, &tx).await;
+
+        let final_chunk = CompletionChunk {
+            content: String::new(),
+            finished: true,
+            tool_calls: outcome.tool_calls,
+            usage: outcome.usage,
+        };
+        let _ = tx.send(Ok(final_chunk)).await;
 
         let mut out = String::new();
         while let Some(item) = rx.recv().await {
