@@ -1,0 +1,119 @@
+2025-12-08 14:31:00 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-08 17:24:05 - GIT HEAD (fb2cf6f898d81d6556840d60057fc3f41855788f)
+2025-12-08 17:25:31 - START IMPLEMENTING (current_requirements.md)
+                      <<
+                      Implement planning mode.
+                      >>
+2025-12-08 18:30:00 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-08_18-30-00.md)
+2025-12-08 18:30:01 - GIT COMMIT (Implement planning mode)
+2025-12-09 14:47:50 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 15:23:04 - GIT HEAD (9a3688fd05f099225652f705bc7b0715b6abbe44)
+2025-12-09 15:23:10 - START IMPLEMENTING (current_requirements.md)
+<<
+  Planner mode refinements for g3-planner: display first 25 lines of coach feedback (not just char count), ensure TODO
+  file writes to g3-plan dir and prevent deletion during planning (needed for history rename), write GIT COMMIT history
+  entry before actual commit for better audit trail, use single-line UI updates with carriage return during LLM processing
+  (show thinking/tool count/context size) while still printing agent text responses, and redirect all logs to workspace...
+>>
+2025-12-09 16:16:51 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-09_16-16-51.md,  completed_todo_2025-12-09_16-16-51.md)
+2025-12-09 16:17:54 - GIT COMMIT (Refine planner mode UI, logging, and history tracking)
+2025-12-09 17:11:52 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:16:30 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:21:24 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:25:27 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:29:49 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:38:44 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:39:01 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:43:51 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 17:44:39 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 18:26:19 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 18:31:40 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 18:32:43 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 18:42:17 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 21:35:00 - GIT HEAD (a9dbe5f7d3bda9ad3fdeca012c9840b1b83fc11d)
+2025-12-09 21:35:04 - START IMPLEMENTING (current_requirements.md)
+<<
+  Refines planner mode UI and error handling: propagates and displays classified LLM errors to users, changes
+  tool output to single-line format showing tool name and first 50 chars of args, ensures LLM text responses are
+  visible without being overwritten, and fixes log file placement to consistently use workspace/logs directory by
+  setting G3_WORKSPACE_PATH early in run_planning_mode() before any logging occurs.
+>>
+2025-12-09 22:41:30   ATTEMPTING RECOVERY
+2025-12-09 22:41:30 - GIT HEAD (a9dbe5f7d3bda9ad3fdeca012c9840b1b83fc11d)
+2025-12-09 22:41:36 - START IMPLEMENTING (current_requirements.md)
+<<
+  Refines planner mode UI and error handling: propagates and displays classified LLM errors to users; changes
+  tool output to single-line format showing tool name and first 50 chars of arguments; ensures LLM text responses are
+  visible without being overwritten by status lines; fixes log file placement to consistently use workspace/logs
+  directory by setting G3_WORKSPACE_PATH early in run_planning_mode() before any logging occurs.
+>>
+2025-12-09 22:43:14  USER SKIPPED RECOVERY
+2025-12-09 22:43:24 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-09_22-43-24.md,  completed_todo_2025-12-09_22-43-24.md)
+2025-12-09 22:44:00 - GIT COMMIT (Refine planner mode UI and error handling)
+2025-12-09 22:55:54 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-09 22:57:53 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 08:47:01 - GIT HEAD (75aa2d983eebae471c07cec4de9c246afeaec19d)
+2025-12-10 08:47:07 - START IMPLEMENTING (current_requirements.md)
+<<
+  Planner mode UI has excessive whitespace in tool call output despite previous fixes. Tool calls must display on single
+  lines with first 50 chars of args, using safe character boundary truncation. LLM text responses appear mangled and need
+  proper flushing without newline handling issues. Logs still write to wrong directory instead of workspace/logs despite
+  G3_WORKSPACE_PATH being set. All fixes must be verified by actually running the app and observing terminal output and
+  file locations on disk.
+>>
+2025-12-10 10:35:18  USER SKIPPED RECOVERY
+2025-12-10 10:35:18 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-10_10-35-18.md,  completed_todo_2025-12-10_10-35-18.md)
+2025-12-10 11:11:50 - GIT HEAD (75aa2d983eebae471c07cec4de9c246afeaec19d)
+2025-12-10 11:23:16 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 11:23:16 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 11:33:39 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 11:47:28 - GIT HEAD (a03a432963fd637aba23c1835a3e6d5b3ece40fc)
+2025-12-10 11:47:33 - START IMPLEMENTING (current_requirements.md)
+<<
+  Fourth attempt to fix planner UI issues: excessive whitespace between tool calls and logs written to wrong
+  directory. Must run app with --planning flag, verify tool calls display on single lines with no blank lines between
+  them, and confirm all logs (errors, sessions, tool_calls, context_window) write to <workspace>/logs not codepath.
+  Previous attempts failed due to lack of actual testing. Implementer must visually verify fixes work before submitting.
+>>
+2025-12-10 16:17:02 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-10_16-17-02.md,  completed_todo_2025-12-10_16-17-02.md)
+2025-12-10 16:18:49 - GIT COMMIT (Fix planner UI whitespace and workspace logs directory)
+2025-12-10 16:19:01 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 16:30:35 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 16:36:59 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 16:40:51 - GIT HEAD (5f3a2a42035d15ce873982f355f9a30dccbdaa60)
+2025-12-10 16:40:54 - START IMPLEMENTING (current_requirements.md)
+<<
+  Ensure g3-planner always writes `GIT COMMIT (<MESSAGE>)` to planner_history.txt before any git commit.  
+  The history entry must remain even if git commit fails, and the summary must match the commit message.  
+  Use git history to find when write_git_commit was moved after git::commit, and when it was fixed again.  
+  Record SHAs, messages, and a short explanation of why the regression happened in an external note.  
+  Add code comments, a unit test, and documentation to guard against reintroducing the wrong ordering.
+>>
+2025-12-10 16:54:45  USER SKIPPED RECOVERY
+2025-12-10 16:55:05 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-10_16-55-05.md,  completed_todo_2025-12-10_16-55-05.md)
+2025-12-10 16:55:24 - GIT COMMIT (Preserve planner history ordering and add regression guardrails)
+2025-12-10 17:02:30 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-10 17:05:46 - GIT HEAD (b3ac7746b94aa96c29e364a382a81716973b0217)
+2025-12-10 17:05:49 - START IMPLEMENTING (current_requirements.md)
+<<
+  Ensure `write_git_commit` is always called before any git commit and treated as a hard invariant.  
+  Confirm `append_entry` matches the described implementation, decide on flush semantics, and document that it’s not ...
+  Use git history to verify past regressions were due to call ordering, then update the external explanation accordingl...
+  Perform an end‑to‑end planner test in `/tmp/commit_test` and record commands plus the final `GIT COMMIT` history ...
+  Strengthen comments, tests, and helper APIs so planner‑mode commits cannot bypass the history‑before‑commit ord...
+>>
+2025-12-11 10:05:02  USER SKIPPED RECOVERY
+2025-12-11 10:05:08 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-11_10-05-08.md,  completed_todo_2025-12-11_10-05-08.md)
+2025-12-11 10:05:39 - GIT COMMIT (Add explicit flush to append_entry and strengthen commit ordering docs)
+2025-12-11 14:28:56 - REFINING REQUIREMENTS (new_requirements.md)
+2025-12-11 14:32:53 - GIT HEAD (1a13fc5345dec72b7b97dcb6a397ac0b06cba3a2)
+2025-12-11 14:32:58 - START IMPLEMENTING (current_requirements.md)
+<<
+  Verify planning mode retry logic and coach response parsing. Document retry config location in .g3.toml under
+  [agent] section (max_retry_attempts, autonomous_max_retry_attempts). Note RetryConfig in retry.rs uses hardcoded max 3.
+  Add retry config examples to config.example.toml. Manual verification: test network errors trigger retries with backoff.
+  Coach feedback extraction uses multiple sources (SessionLog, NativeToolCall, etc) - verify non-fallback extraction.
+  Optional: add integration test for retry + feedback flow if issues found during manual testing.
+>>
+2025-12-11 14:55:22 - COMPLETED REQUIREMENTS (completed_requirements_2025-12-11_14-55-22.md,  completed_todo_2025-12-11_14-55-22.md)
+2025-12-11 14:56:27 - GIT COMMIT (Document retry config location and verify planning mode logic)

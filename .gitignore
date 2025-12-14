@@ -119,6 +119,15 @@ claude*.json
 **/*credential*.json
 **/*secret*.json
 
+# Local helper binaries / symlinks
+tools/bin/
+
+# Vendored g3 build output
+tools/g3/target/
+
+# Local g3 config (contains API keys)
+tools/g3/config.local.toml
+
 # Factory storage (contains auth tokens)
 .storage/
 

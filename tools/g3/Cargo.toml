@@ -1,0 +1,53 @@
+[workspace]
+members = [
+    "crates/g3-cli",
+    "crates/g3-core", 
+    "crates/g3-planner",
+    "crates/g3-providers",
+    "crates/g3-config",
+    "crates/g3-execution",
+    "crates/g3-computer-control",
+    "crates/g3-console",
+    "crates/g3-ensembles"
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "stream"] }
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# CLI
+clap = { version = "4.0", features = ["derive"] }
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+# Configuration
+config = "0.14"
+# Utilities
+uuid = { version = "1.0", features = ["v4"] }
+
+[package]
+name = "g3"
+version = "0.1.0"
+edition = "2021"
+authors = ["G3 Team"]
+description = "A general purpose AI agent that helps you complete tasks by writing code"
+license = "MIT"
+
+[dependencies]
+g3-cli = { path = "crates/g3-cli" }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+g3-providers = { path = "crates/g3-providers" }
+serde_json = { workspace = true }
+
+[[example]]
+name = "verify_message_id"
+path = "examples/verify_message_id.rs"

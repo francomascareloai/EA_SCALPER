@@ -4,7 +4,7 @@ description: |
   NAUTILUS v2.1 - NautilusTrader Architect with AGENTS.md inheritance.
   MQL5->Nautilus migration, Strategy/Actor patterns, event-driven, BacktestNode.
   Triggers: "Nautilus", "migration", "Strategy", "Actor", "backtest Python"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "ApplyPatch", "WebSearch", "Task", "TodoWrite"]
 ---

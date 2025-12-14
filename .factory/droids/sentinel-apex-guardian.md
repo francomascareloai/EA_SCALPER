@@ -4,7 +4,7 @@ description: |
   SENTINEL v3.1 - Apex Trading Risk Guardian with AGENTS.md inheritance.
   Trailing DD 5% from HWM, 4:59 PM ET deadline, position sizing, circuit breakers.
   Triggers: "Sentinel", "risco", "lot", "trailing", "overnight", "Apex"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "ApplyPatch", "WebSearch", "Task", "TodoWrite"]
 ---

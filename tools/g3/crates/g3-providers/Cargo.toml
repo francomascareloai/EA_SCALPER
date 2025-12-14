@@ -1,0 +1,32 @@
+[package]
+name = "g3-providers"
+version = "0.1.0"
+edition = "2021"
+description = "LLM provider abstractions for G3 AI coding agent"
+
+[dependencies]
+tokio = { workspace = true }
+reqwest = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+async-trait = "0.1"
+tokio-stream = "0.1"
+futures-util = "0.3"
+bytes = "1.0"
+# OAuth dependencies
+axum = "0.7"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+url = "2.5"
+webbrowser = "1.0"
+nanoid = "0.4"
+serde_urlencoded = "0.7"
+tokio-util = "0.7"
+dirs = "5.0"
+llama_cpp = { version = "0.3.2", features = ["metal"] }
+shellexpand = "3.1"
+rand = "0.8"

@@ -4,7 +4,7 @@ description: |
   CRUCIBLE v4.1 - XAUUSD Strategist & Backtest Quality Guardian.
   Ensures REALISM in backtesting. Every backtest must simulate REAL execution.
   Triggers: "Crucible", "backtest", "realism", "slippage", "XAUUSD", "setup"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "ApplyPatch", "WebSearch", "Task", "TodoWrite"]
 ---

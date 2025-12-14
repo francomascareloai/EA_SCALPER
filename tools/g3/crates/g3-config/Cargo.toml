@@ -1,0 +1,18 @@
+[package]
+name = "g3-config"
+version = "0.1.0"
+edition = "2021"
+description = "Configuration management for G3 AI coding agent"
+
+[dependencies]
+config = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8"
+shellexpand = "3.0"
+dirs = "5.0"
+
+[dev-dependencies]
+tempfile = "3.8"
+serde_json = { workspace = true }

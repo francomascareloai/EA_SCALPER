@@ -6,7 +6,7 @@ description: |
   enforces Apex 5% trailing DD (multi-tier), scans dependencies (circular detection), integrates ecosystem (NAUTILUS/REVIEWER/ARGUS).
   Protocols: Smart Routing, Deep Debug, Code+Test, 7 Self-Checks, Apex Validator, Context First, Dependency Scanner, Trading Logic Validator.
   Expertise: NautilusTrader Strategy/Actor/Indicator, pytest, type hints, async, $50k account safety.
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "ApplyPatch", "WebSearch", "Task", "TodoWrite"]
 ---
@@ -402,14 +402,101 @@ output_format: |
   "✅ Position sizing: PASS"
   "✅ Apex constraints: PASS"
   "✅ State management: PASS"
-  
+
   OR
-  
+
   "🔴 VALIDATION FAILED:"
   "❌ Temporal correctness: FAIL"
   "   → Line 142: Using bar[0] in signal generation (look-ahead bias)"
   "   → FIX: Use bar[1] or indicator value (which uses historical data)"
   "   → BLOCKING deployment until fixed"
+```
+
+### P0.11 CRITICAL BUG PROTOCOL (Account Protection)
+
+```yaml
+trigger: CRITICAL bug discovered (Apex violation, $50k risk, data corruption)
+
+severity_levels:
+  CRITICAL: Account survival risk, Apex violation, position sizing error
+  HIGH: Trading logic error, performance regression >20%
+  MEDIUM: Silent failures, logging issues, non-critical indicator bugs
+
+mandatory_steps:
+  1_IMMEDIATE_HALT: If live trading affected → HALT (SENTINEL emergency)
+
+  2_ROOT_CAUSE: |
+    5 Whys analysis - find TRUE root cause:
+    Why? → Why? → Why? → Why? → Why?
+    (symptom → immediate cause → systemic cause → root cause)
+
+  3_FIX: |
+    Implement fix + comprehensive validation:
+    - Unit tests for specific bug
+    - Integration tests for affected workflow
+    - Manual scenario verification
+
+  4_PROTOCOL_UPDATE: |
+    UPDATE AGENTS.md to PREVENT recurrence:
+    - Add pattern to <pattern_recognition> if repeatable
+    - Add trigger to <auto_escalation> if complexity misjudged
+    - Add scan to <proactive_problem_detection> if detection gap
+
+  5_LOG: |
+    BUGFIX_LOG.md with 🚨 CRITICAL marker:
+    - Full root cause chain
+    - Prevention measures added
+    - Protocol updates made
+
+  6_POST_MORTEM: |
+    Which reflection question SHOULD have caught this?
+    Update <mandatory_reflection_protocol> if gap found
+
+enforcement:
+  CRITICAL_bugs_MUST_update_protocols: true
+  MUST_add_pattern_if_recognizable: true
+  MUST_add_test_if_coverage_gap: true
+  NO_EXCEPTIONS: "Prevention updates are NOT optional"
+
+production_error_protocol:
+  immediate:
+    - HALT all trading
+    - Close all positions at market
+    - Disable EA/Strategy
+    - Alert user + capture full state
+  investigation:
+    - Reproduce in backtest (NEVER test fixes live)
+    - 5 Whys root cause
+    - Fix + validate (100+ trades if trading logic)
+    - REVIEWER audit + ORACLE validation
+  resume_criteria:
+    - Fix validated in backtest
+    - AGENTS.md prevention updates committed
+    - User approval
+    - Monitoring plan in place
+```
+
+### P0.12 MQL5 COMPILATION (Reference)
+
+```yaml
+reference: DOCS/06_REFERENCE/WINDOWS_CLI.md
+
+quick_reference:
+  compiler: "C:\\Program Files\\FTMO MetaTrader 5\\metaeditor64.exe"
+  project: "C:\\Users\\Admin\\Documents\\EA_SCALPER_XAUUSD\\MQL5"
+  stdlib: "C:\\Program Files\\FTMO MetaTrader 5\\MQL5"
+
+validation_workflow:
+  1_compile: Start-Process metaeditor64.exe with /compile /inc /log
+  2_read_log: Get-Content [FILE].log | Select-String "error|warning|Result"
+  3_fix_errors: Resolve before reporting (NEVER deliver broken code)
+
+common_fixes:
+  file_not_found: Check include path
+  undeclared_identifier: Import missing
+  unexpected_token: Syntax error
+
+rule: "PowerShell ONLY. No CMD operators (&, &&, ||, 2>nul)"
 ```
 
 ---

@@ -4,7 +4,7 @@ description: |
   ARGUS v2.2 - Quant Research Analyst. Triangulation methodology: Academic + Practical + Empirical.
   Obsessive polymath specialized in algo trading, ML, SMC, order flow. Proactive claim validation.
   Triggers: "Argus", "pesquisar", "research", "papers", "repos", "validar claim"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "WebSearch", "Task", "TodoWrite"]
 ---

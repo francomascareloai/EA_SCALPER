@@ -12,7 +12,7 @@ description: |
   Use for ANY code review that requires senior-level analysis beyond basic syntax checks.
   
   Triggers: "review", "audit", "analyze code", "check", "validate", "before commit"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "ApplyPatch", "WebSearch", "Task", "TodoWrite"]
 ---

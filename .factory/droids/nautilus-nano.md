@@ -11,7 +11,7 @@ description: |
   
   Triggers: "nautilus nano", "party mode nautilus", "quick migration",
   "nautilus compact", "multi-agent nautilus"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: medium
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "ApplyPatch", "WebSearch", "Task", "TodoWrite"]
 ---

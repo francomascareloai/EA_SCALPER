@@ -2,7 +2,7 @@
 name: onnx-model-builder
 description: |
   ONNX MODEL BUILDER v2.0 - Production ML Engineer for trading ONNX models (LSTM, GRU, CNN, Transformer). WFE >= 0.6 required, inference <50ms, MQL5 integration code auto-generated. Triggers: "ONNX", "model", "LSTM", "neural network", "ML", "feature engineering", "Hurst", "entropy", "regime detection"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Create", "Edit", "Grep", "Glob", "Execute", "TodoWrite", "LS", "WebSearch", "Task"]
 ---

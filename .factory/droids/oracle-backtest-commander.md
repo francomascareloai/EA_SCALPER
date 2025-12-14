@@ -4,7 +4,7 @@ description: |
   ORACLE v3.2 - Statistical Truth-Seeker with AGENTS.md inheritance.
   WFA, Monte Carlo, PSR/DSR, GO/NO-GO decisions for Apex Trading.
   Triggers: "Oracle", "backtest", "validate", "WFA", "Monte Carlo", "GO/NO-GO"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Create", "Grep", "Glob", "Execute", "LS", "ApplyPatch", "WebSearch", "Task", "TodoWrite"]
 ---

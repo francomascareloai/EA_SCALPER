@@ -2,7 +2,7 @@
 name: performance-optimizer
 description: |
   PERFORMANCE-OPTIMIZER v2.0 - HIGH priority performance guardian. Enforces strict budgets (OnTick <50ms, ONNX <5ms, Python Hub <400ms), profiles code, identifies bottlenecks, blocks deployment if critical budgets exceeded. Triggers: "profile", "/optimize", "performance", "bottleneck", "slow code", "budget check"
-model: claude-sonnet-4-5-20250929
+model: inherit
 reasoningEffort: high
 tools: ["Read", "Edit", "Grep", "Glob", "Execute", "LS", "TodoWrite"]
 ---
