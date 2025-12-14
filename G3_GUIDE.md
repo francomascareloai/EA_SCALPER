@@ -86,6 +86,12 @@ Roda iterativamente:
 Ou passando requisitos direto:
 - `./g3 --autonomous --requirements "faça X; depois faça Y"`
 
+Workspace (importante):
+- Por padrão, o modo `--autonomous` usa o diretório atual (o repo).
+- Se você quiser rodar em uma “pasta scratch” separada, use:
+  - `G3_WORKSPACE="$HOME/tmp/workspace" ./g3 --autonomous ...`
+  - ou `./g3 --workspace /caminho/para/workspace --autonomous ...`
+
 ## Auditoria profunda (pronto para usar)
 
 Para pedir uma análise profunda do projeto (somente leitura) e gerar um relatório:
@@ -109,3 +115,16 @@ Rodar com debug:
 Erros comuns:
 - `Context window at capacity...`: confirme que está rodando `./g3` (wrapper) e que `tools/g3/config.local.toml` tem `max_context_length = 200000`.
 - `auth_unavailable` / `404`: confirme proxy na 8317, `base_url` terminando em `/v1`, `api_key` correta e `model` existente em `/v1/models`.
+- `STREAM ERROR: No content or tool calls received`:
+  - 1) Confirme que o proxy responde ao non-stream:
+    - `curl -sS -H "Authorization: Bearer <SUA_KEY>" -H "Content-Type: application/json" -d '{"model":"<MODEL>","messages":[{"role":"user","content":"ping"}],"stream":false,"max_completion_tokens":16}' http://127.0.0.1:8317/v1/chat/completions | head`
+  - 2) Se o seu proxy **não** suporta SSE de verdade, mantenha o streaming desativado:
+    - em `tools/g3/config.local.toml`: `[agent] enable_streaming = false`
+  - 3) Para inspecionar o stream (headers + primeiros eventos):
+    - `curl -i -N -H "Authorization: Bearer <SUA_KEY>" -H "Content-Type: application/json" -d '{"model":"<MODEL>","messages":[{"role":"user","content":"diga oi"}],"stream":true,"max_completion_tokens":64}' http://127.0.0.1:8317/v1/chat/completions | head -n 80`
+
+## Tokens (4096 vs “quero o máximo”)
+
+- `agent.max_context_length` controla o “tamanho de memória” que o g3 tenta manter (ex: 200k).
+- `providers.*.max_tokens` controla o máximo de saída por resposta (`max_completion_tokens`).
+- Mesmo com `max_tokens` alto, para gerar arquivos gigantes o melhor é pedir pro g3 criar/editar arquivos em etapas (várias tool calls/turns), não em 1 resposta só.

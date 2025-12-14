@@ -455,7 +455,8 @@ pub async fn run() -> Result<()> {
     let workspace_dir = if let Some(ws) = &cli.workspace {
         ws.clone()
     } else if cli.autonomous {
-        // For autonomous mode, use G3_WORKSPACE env var or default
+        // For autonomous mode, default to current directory (Claude Code-style).
+        // If you want a scratch workspace, set G3_WORKSPACE explicitly.
         setup_workspace_directory(cli.machine)?
     } else {
         // Default to current directory for interactive/single-shot mode
@@ -1824,17 +1825,15 @@ fn display_context_progress<W: UiWriter>(agent: &Agent<W>, _output: &SimpleOutpu
     );
 }
 
-/// Set up the workspace directory for autonomous mode
-/// Uses G3_WORKSPACE environment variable or defaults to ~/tmp/workspace
+/// Set up the workspace directory for autonomous mode.
+/// - If `G3_WORKSPACE` is set, use it (and create it if needed).
+/// - Otherwise, default to the current directory.
 fn setup_workspace_directory(machine_mode: bool) -> Result<PathBuf> {
-    let workspace_dir = if let Ok(env_workspace) = std::env::var("G3_WORKSPACE") {
-        PathBuf::from(env_workspace)
-    } else {
-        // Default to ~/tmp/workspace
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
-        home_dir.join("tmp").join("workspace")
+    let Ok(env_workspace) = std::env::var("G3_WORKSPACE") else {
+        return Ok(std::env::current_dir()?);
     };
+
+    let workspace_dir = PathBuf::from(env_workspace);
 
     // Create the directory if it doesn't exist
     if !workspace_dir.exists() {

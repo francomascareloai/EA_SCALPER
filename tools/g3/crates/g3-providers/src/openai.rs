@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use futures_util::stream::StreamExt;
 use reqwest::Client;
+use reqwest::header::CONTENT_TYPE;
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::mpsc;
@@ -109,6 +110,7 @@ impl OpenAIProvider {
         let mut accumulated_content = String::new();
         let mut accumulated_usage: Option<Usage> = None;
         let mut current_tool_calls: Vec<OpenAIStreamingToolCall> = Vec::new();
+        let mut saw_any_sse_data = false;
 
         while let Some(chunk_result) = stream.next().await {
             match chunk_result {
@@ -132,8 +134,14 @@ impl OpenAIProvider {
                             continue;
                         }
 
-                        // Parse Server-Sent Events format
-                        if let Some(data) = line.strip_prefix("data: ") {
+                        // Parse Server-Sent Events format (some proxies omit the space after `data:`)
+                        if let Some(data) = line.strip_prefix("data:") {
+                            saw_any_sse_data = true;
+                            let data = data.trim();
+                            if data.is_empty() {
+                                continue;
+                            }
+
                             if data == "[DONE]" {
                                 debug!("Received stream completion marker");
 
@@ -165,20 +173,39 @@ impl OpenAIProvider {
                             // Parse the JSON data
                             match serde_json::from_str::<OpenAIStreamChunk>(data) {
                                 Ok(chunk_data) => {
-                                    // Handle content
+                                    // Handle content (some proxies stream "thinking" in `reasoning_content`)
                                     for choice in &chunk_data.choices {
                                         if let Some(content) = &choice.delta.content {
-                                            accumulated_content.push_str(content);
+                                            if !content.is_empty() {
+                                                accumulated_content.push_str(content);
 
-                                            let chunk = CompletionChunk {
-                                                content: content.clone(),
-                                                finished: false,
-                                                tool_calls: None,
-                                                usage: None,
-                                            };
-                                            if tx.send(Ok(chunk)).await.is_err() {
-                                                debug!("Receiver dropped, stopping stream");
-                                                return accumulated_usage;
+                                                let chunk = CompletionChunk {
+                                                    content: content.clone(),
+                                                    finished: false,
+                                                    tool_calls: None,
+                                                    usage: None,
+                                                };
+                                                if tx.send(Ok(chunk)).await.is_err() {
+                                                    debug!("Receiver dropped, stopping stream");
+                                                    return accumulated_usage;
+                                                }
+                                            }
+                                        }
+
+                                        if let Some(reasoning) = &choice.delta.reasoning_content {
+                                            if !reasoning.is_empty() {
+                                                accumulated_content.push_str(reasoning);
+
+                                                let chunk = CompletionChunk {
+                                                    content: reasoning.clone(),
+                                                    finished: false,
+                                                    tool_calls: None,
+                                                    usage: None,
+                                                };
+                                                if tx.send(Ok(chunk)).await.is_err() {
+                                                    debug!("Receiver dropped, stopping stream");
+                                                    return accumulated_usage;
+                                                }
                                             }
                                         }
 
@@ -235,6 +262,56 @@ impl OpenAIProvider {
                     error!("Stream error: {}", e);
                     let _ = tx.send(Err(anyhow::anyhow!("Stream error: {}", e))).await;
                     return accumulated_usage;
+                }
+            }
+        }
+
+        // Fallback: some "OpenAI-compatible" proxies ignore stream=true and return a single JSON body.
+        // In that case, we will have received bytes but never parsed any SSE `data:` lines.
+        // Try to parse the leftover buffer as a non-streaming response and emit it as a synthetic stream.
+        let buffered = buffer.trim();
+        if !saw_any_sse_data
+            && !buffered.is_empty()
+            && accumulated_content.is_empty()
+            && current_tool_calls.is_empty()
+        {
+            match serde_json::from_str::<OpenAIResponse>(buffered) {
+                Ok(resp) => {
+                    let (content, tool_calls) = extract_non_stream_content_and_tools(&resp);
+                    let usage = Usage {
+                        prompt_tokens: resp.usage.prompt_tokens,
+                        completion_tokens: resp.usage.completion_tokens,
+                        total_tokens: resp.usage.total_tokens,
+                    };
+                    accumulated_usage = Some(usage.clone());
+
+                    if !content.is_empty() {
+                        let _ = tx
+                            .send(Ok(CompletionChunk {
+                                content,
+                                finished: false,
+                                tool_calls: None,
+                                usage: None,
+                            }))
+                            .await;
+                    }
+
+                    let _ = tx
+                        .send(Ok(CompletionChunk {
+                            content: String::new(),
+                            finished: true,
+                            tool_calls,
+                            usage: Some(usage),
+                        }))
+                        .await;
+
+                    return accumulated_usage;
+                }
+                Err(e) => {
+                    debug!(
+                        "Stream ended without SSE data; failed to parse buffered JSON fallback: {}",
+                        e
+                    );
                 }
             }
         }
@@ -368,8 +445,72 @@ impl LLMProvider for OpenAIProvider {
             ));
         }
 
-        let stream = response.bytes_stream();
         let (tx, rx) = mpsc::channel(100);
+
+        // If the server didn't return SSE, fall back to parsing a single JSON response and emit it
+        // as a synthetic stream. This commonly happens behind "OpenAI-compatible" proxies.
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
+        if !content_type.contains("text/event-stream") {
+            tokio::spawn(async move {
+                match response.text().await {
+                    Ok(text) => match serde_json::from_str::<OpenAIResponse>(&text) {
+                        Ok(resp) => {
+                            let (content, tool_calls) = extract_non_stream_content_and_tools(&resp);
+                            let usage = Usage {
+                                prompt_tokens: resp.usage.prompt_tokens,
+                                completion_tokens: resp.usage.completion_tokens,
+                                total_tokens: resp.usage.total_tokens,
+                            };
+
+                            if !content.is_empty() {
+                                let _ = tx
+                                    .send(Ok(CompletionChunk {
+                                        content,
+                                        finished: false,
+                                        tool_calls: None,
+                                        usage: None,
+                                    }))
+                                    .await;
+                            }
+
+                            let _ = tx
+                                .send(Ok(CompletionChunk {
+                                    content: String::new(),
+                                    finished: true,
+                                    tool_calls,
+                                    usage: Some(usage),
+                                }))
+                                .await;
+                        }
+                        Err(e) => {
+                            let _ = tx
+                                .send(Err(anyhow::anyhow!(
+                                    "Expected SSE stream but got non-SSE JSON which failed to parse: {}",
+                                    e
+                                )))
+                                .await;
+                        }
+                    },
+                    Err(e) => {
+                        let _ = tx
+                            .send(Err(anyhow::anyhow!(
+                                "Expected SSE stream but failed to read non-streaming response body: {}",
+                                e
+                            )))
+                            .await;
+                    }
+                }
+            });
+
+            return Ok(ReceiverStream::new(rx));
+        }
+
+        let stream = response.bytes_stream();
 
         // Spawn task to process the stream
         let provider = self.clone();
@@ -441,6 +582,42 @@ fn convert_tools(tools: &[Tool]) -> Vec<serde_json::Value> {
         .collect()
 }
 
+fn extract_non_stream_content_and_tools(
+    resp: &OpenAIResponse,
+) -> (String, Option<Vec<ToolCall>>) {
+    let choice = match resp.choices.first() {
+        Some(c) => c,
+        None => return (String::new(), None),
+    };
+
+    let content = choice.message.content.clone().unwrap_or_default();
+
+    let tool_calls = match &choice.message.tool_calls {
+        Some(calls) if !calls.is_empty() => {
+            let converted: Vec<ToolCall> = calls
+                .iter()
+                .filter_map(|tc| {
+                    let args =
+                        serde_json::from_str(&tc.function.arguments).unwrap_or(serde_json::Value::Null);
+                    Some(ToolCall {
+                        id: tc.id.clone(),
+                        tool: tc.function.name.clone(),
+                        args,
+                    })
+                })
+                .collect();
+            if converted.is_empty() {
+                None
+            } else {
+                Some(converted)
+            }
+        }
+        _ => None,
+    };
+
+    (content, tool_calls)
+}
+
 #[cfg(test)]
 mod streaming_tests {
     use super::OpenAIProvider;
@@ -492,6 +669,39 @@ mod streaming_tests {
                 (String::new(), true)
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn supports_reasoning_content_streaming() {
+        let provider = OpenAIProvider::new_with_name(
+            "openai.test".to_string(),
+            "sk-test".to_string(),
+            Some("gpt-4o".to_string()),
+            Some("http://example.invalid/v1".to_string()),
+            Some(128),
+            None,
+        )
+        .unwrap();
+
+        let chunk_1 = r#"{"choices":[{"delta":{"reasoning_content":"think"}}]}"#;
+        let chunk_2 = r#"{"choices":[{"delta":{"reasoning_content":"ing"}}]}"#;
+        let done = Bytes::from("data: [DONE]\n\n");
+
+        let input = stream::iter(vec![Ok(sse_line(chunk_1)), Ok(sse_line(chunk_2)), Ok(done)]);
+
+        let (tx, mut rx) = mpsc::channel::<anyhow::Result<CompletionChunk>>(16);
+        let _usage = provider.parse_streaming_response(input, tx).await;
+
+        let mut out = String::new();
+        while let Some(item) = rx.recv().await {
+            let chunk = item.unwrap();
+            out.push_str(&chunk.content);
+            if chunk.finished {
+                break;
+            }
+        }
+
+        assert!(out.contains("thinking"));
     }
 }
 
@@ -574,6 +784,8 @@ struct OpenAIStreamChoice {
 #[derive(Debug, Deserialize)]
 struct OpenAIDelta {
     content: Option<String>,
+    #[serde(default)]
+    reasoning_content: Option<String>,
     #[serde(default)]
     tool_calls: Option<Vec<OpenAIDeltaToolCall>>,
 }

@@ -30,3 +30,6 @@ dirs = "5.0"
 llama_cpp = { version = "0.3.2", features = ["metal"] }
 shellexpand = "3.1"
 rand = "0.8"
+
+[dev-dependencies]
+tempfile = "3"

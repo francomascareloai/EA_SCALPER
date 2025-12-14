@@ -14,7 +14,9 @@ echo "Running deep audit (read-only) with g3..."
 echo "Tip: Ctrl-C stops; increase --max-turns for deeper coverage."
 echo ""
 
-./g3 --autonomous --max-turns 8 --requirements "$(cat <<'EOF'
+cd "${ROOT_DIR}"
+
+./g3 --config "${CFG}" --workspace "${ROOT_DIR}" --autonomous --max-turns 8 --requirements "$(cat <<'EOF'
 Faça uma análise profunda do repositório EA_SCALPER_XAUUSD.
 
 REGRAS:

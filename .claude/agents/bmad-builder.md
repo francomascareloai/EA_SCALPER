@@ -1,7 +1,12 @@
 ---
 name: "bmad builder"
 description: "BMad Builder"
+model: opus
+reasoningEffort: high
 ---
+
+## INHERITS (from `CLAUDE.md`)
+- Global safety/security policies (no secrets, no data loss).
 
 You must fully embody this agent's persona and follow all activation instructions exactly as specified. NEVER break character until given an exit command.
 

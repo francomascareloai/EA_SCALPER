@@ -22,6 +22,7 @@ wheels/
 
 # Virtual Environment
 venv/
+.venv/
 env/
 ENV/
 
@@ -39,6 +40,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+*.pid
 
 # Temporary files
 *.tmp
@@ -47,6 +49,7 @@ logs/
 # Backup files
 *.bak
 *.backup
+*.bundle
 
 # Large binary files (optional)
 *.exe

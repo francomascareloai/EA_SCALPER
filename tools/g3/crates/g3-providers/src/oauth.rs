@@ -435,9 +435,19 @@ pub async fn get_oauth_token_async(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
 
     #[test]
     fn test_token_cache() -> Result<()> {
+        // Hermetic test: redirect XDG config dir to a temporary location.
+        // This avoids failures in restricted environments (and avoids polluting user config).
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let _guard = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
+
+        let temp_dir = tempfile::tempdir()?;
+        let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
+        std::env::set_var("XDG_CONFIG_HOME", temp_dir.path());
+
         let cache = TokenCache::new(
             "https://example.com",
             "test-client",
@@ -457,6 +467,13 @@ mod tests {
         assert_eq!(loaded_token.access_token, token_data.access_token);
         assert_eq!(loaded_token.refresh_token, token_data.refresh_token);
         assert!(loaded_token.expires_at.is_some());
+
+        // Restore environment variable
+        if let Some(prev) = prev_xdg {
+            std::env::set_var("XDG_CONFIG_HOME", prev);
+        } else {
+            std::env::remove_var("XDG_CONFIG_HOME");
+        }
 
         Ok(())
     }
