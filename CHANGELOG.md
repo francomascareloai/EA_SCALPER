@@ -1,5 +1,12 @@
 # CHANGELOG - BIBLIOTECA TRADING
 
+## [2025-12-15] - CLIProxy (Claude Code) Thinking/Tool-Use Fix + Repo Hygiene
+- CLIProxyAPI (submodule): corrigido compatibilidade de *extended thinking* quando há `tool_use` no histórico (evita `400 INVALID_ARGUMENT` por ausência de `thinking.signature`).
+- CLIProxyAPI: preserva `thoughtSignature` corretamente em streaming e non-streaming (ordem correta de `thinking` → `signature_delta`).
+- Adicionado troubleshooting específico para Antigravity/Claude (thinking + tool_use invariants, `max_tokens` vs `budget_tokens`).
+- Repo: restaurado `.gitmodules`, removido submodule quebrado `BMAD-METHOD`, e ajustado `.gitignore` para não versionar `data/raw/` (datasets grandes).
+- Repo: `mypy --strict .` agora foca nos entrypoints allowlisted (mantém gate estrito sem bloquear por scripts auxiliares).
+
 ## [2025-12-08] - Dataset Unificado Parquet
 - Gerado parquet final `data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet` (32.729.302 ticks, 2003-05-05 → 2025-11-28, stride 20).
 - `data/config.yaml` aponta para esse arquivo; usar somente este dataset em backtests.

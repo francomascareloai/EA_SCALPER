@@ -1,0 +1,8 @@
+[submodule "CLIPROXY/CLIProxyAPI"]
+	path = CLIPROXY/CLIProxyAPI
+	url = https://github.com/francomascareloai/CLIProxyAPI.git
+
+[submodule "tools/antigravity"]
+	path = tools/antigravity
+	url = https://github.com/francomascareloai/antigravity.git
+
