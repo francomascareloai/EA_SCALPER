@@ -175,6 +175,8 @@ data/features/
 data/segments/
 data/ticks/
 data/raw/
+data/catalog_native/
+data/catalog_native_sessions/
 !data/config.yaml
 !data/README.md
 !data/raw/*.metadata.json
