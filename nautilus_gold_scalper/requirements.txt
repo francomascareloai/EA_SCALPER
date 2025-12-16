@@ -9,6 +9,7 @@ numpy>=1.24.0,<2.0
 pandas>=2.0.0
 polars>=0.20.0
 pyarrow>=14.0.0
+duckdb>=1.0.0
 
 # Machine Learning
 scikit-learn>=1.3.0

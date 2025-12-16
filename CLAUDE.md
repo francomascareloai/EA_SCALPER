@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.8</version>
-  <last_updated>2025-12-15</last_updated>
-  <changelog>v3.10.8: CLIPROXY-ENGINEER subagent + CLIPROXY/CLAUDE.md context file.</changelog>
-  <previous_changes>v3.10.7: orchestration_output_protocol + daemon_special_handling | v3.10.6: CRITIC v1.1 | v3.10.5: DAEMON + /genius</previous_changes>
+  <version>3.10.9</version>
+  <last_updated>2025-12-16</last_updated>
+  <changelog>v3.10.9: External CRITIC for go-live, paper trading phase, structured handoff, verdict synthesizer, version reporting.</changelog>
+  <previous_changes>v3.10.8: CLIPROXY-ENGINEER subagent | v3.10.7: orchestration_output_protocol + daemon_special_handling | v3.10.6: CRITIC v1.1</previous_changes>
 </metadata>
 
 <identity>
@@ -95,6 +95,98 @@
     <trading_logic>FORGE → CRITIC → REVIEWER → ORACLE → SENTINEL (mandatory)</trading_logic>
     <critic_loop>Any artifact → CRITIC review → fix if needed → proceed</critic_loop>
   </handoff_chain>
+
+  <production_workflow>
+    <purpose>Define the complete path from backtest to live trading</purpose>
+
+    <phases>
+      <phase name="1_backtest">Strategy validation via ORACLE (WFE/SQN/PSR/DSR/MC)</phase>
+      <phase name="2_paper_trading" mandatory="true">
+        <duration>Minimum 1 week with live data feed, no real money</duration>
+        <requirements>
+          - Run strategy on LIVE data stream (not backtest replay)
+          - Track unrealized PnL and HWM exactly as Apex would
+          - Verify time gates work correctly (4:30 PM block, 4:55 PM force-close)
+          - Confirm emergency close executes within latency budget
+          - Log all trades, entries, exits, and slippage observed
+        </requirements>
+        <gate>Pass = no critical issues in 1 week of paper trading</gate>
+      </phase>
+      <phase name="3_go_live_decision">
+        <external_critic mandatory="true">
+          Orchestrator spawns EXTERNAL CRITIC (not self-review) to analyze:
+          - Paper trading results
+          - All validation artifacts
+          - Strategy code
+          Fresh context = fresh perspective = catch blind spots
+        </external_critic>
+        <sentinel_approval mandatory="true">SENTINEL final sign-off on Apex compliance</sentinel_approval>
+      </phase>
+      <phase name="4_live">Deploy to Apex with smallest account size first ($50k)</phase>
+    </phases>
+  </production_workflow>
+
+  <structured_handoff>
+    <purpose>Prevent information loss between agents</purpose>
+    <format>
+      ## HANDOFF: [Source Agent] → [Target Agent]
+
+      ### Context
+      - Task: [what was done]
+      - Files: [list of files modified/analyzed]
+
+      ### Decisions Made
+      - [decision 1 + rationale]
+      - [decision 2 + rationale]
+
+      ### Assumptions
+      - [assumption 1 - why it's safe]
+      - [assumption 2 - why it's safe]
+
+      ### Risks Identified
+      - [risk 1 + mitigation]
+      - [risk 2 + mitigation]
+
+      ### Open Questions
+      - [question for downstream agent]
+
+      ### Next Agent Should
+      - [specific action 1]
+      - [specific action 2]
+    </format>
+    <when_required>
+      <trigger>Any artifact passed between agents in handoff_chain</trigger>
+      <trigger>GO/NO-GO decision handoff</trigger>
+      <trigger>Cross-phase handoff in plans</trigger>
+    </when_required>
+  </structured_handoff>
+
+  <verdict_synthesizer>
+    <purpose>Resolve conflicting verdicts when multiple agents review same artifact</purpose>
+    <when>Multiple agents return conflicting recommendations (GO vs NO-GO, different risk assessments)</when>
+    <protocol>
+      1. Collect all verdicts: CRITIC, ORACLE, SENTINEL, REVIEWER
+      2. Apply decision_priority: SENTINEL > ORACLE > CRUCIBLE
+      3. If SENTINEL says NO-GO → NO-GO (final)
+      4. If ORACLE says NO-GO but others say GO → NO-GO with explanation
+      5. If conflict between non-critical agents → escalate to user with summary:
+         - Who said what
+         - Key disagreement point
+         - Recommended action
+      6. Never proceed with GO if any CRITICAL issue is unresolved
+    </protocol>
+    <output_format>
+      ## VERDICT SYNTHESIS
+      | Agent | Verdict | Key Concern | Weight |
+      |-------|---------|-------------|--------|
+      | SENTINEL | NO-GO | DD exceeds buffer | FINAL |
+      | ORACLE | GO | Metrics pass | - |
+
+      **Final Verdict**: NO-GO (SENTINEL authority)
+      **Rationale**: [explanation]
+      **Next Steps**: [what to fix]
+    </output_format>
+  </verdict_synthesizer>
 
   <output_destinations>Findings: DOCS/03_RESEARCH/FINDINGS/ | Decisions: DOCS/04_REPORTS/DECISIONS/ | Code logs: CHANGELOG.md + nautilus_gold_scalper/BUGFIX_LOG.md + MQL5/Experts/BUGFIX_LOG.md</output_destinations>
 
@@ -280,6 +372,20 @@
     </haiku_allowed>
 
     <default>When in doubt, use opus for anything touching money/risk/trading logic</default>
+
+    <version_reporting>
+      <purpose>Ensure agents use latest specs and track versions for reproducibility</purpose>
+      <rule>Every sub-agent MUST include in output: AGENT_VERSION: [version from spec header]</rule>
+      <rule>Orchestrator verifies version matches current spec before accepting output</rule>
+      <rule>If version mismatch → warn user, consider re-running with updated spec</rule>
+      <format>
+        ## Agent Output Header
+        AGENT: [name]
+        VERSION: [from spec, e.g., FORGE v2.1]
+        CLAUDE_MD_VERSION: [e.g., 3.10.9]
+        STATUS: COMPLETE/PARTIAL/FAILED
+      </format>
+    </version_reporting>
   </model_policy>
 
   <orchestration_output_protocol>

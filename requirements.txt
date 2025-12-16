@@ -5,6 +5,10 @@ matplotlib
 pandas
 numpy
 
+# === DATA VALIDATION (DuckDB/Polars - 10-50x faster than NautilusTrader) ===
+duckdb>=1.0.0
+polars>=0.20.0
+
 # === BACKTESTING (ORACLE) ===
 vectorbt>=0.26.0
 backtesting>=0.3.3
@@ -19,6 +23,7 @@ skl2onnx>=1.16.0
 
 # === STATISTICS ===
 statsmodels>=0.14.0
+arch>=6.0.0  # GJR-GARCH volatility modeling
 
 # === SERVICES / API ===
 fastapi>=0.110.0
