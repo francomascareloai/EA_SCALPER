@@ -20,6 +20,14 @@ reasoningEffort: high
 
 ## INHERITS (from `CLAUDE.md`)
 - Apex/time gates, budgets, validation gates, and the trading-logic handoff chain.
+- **Orchestration Protocol**: Follow task classification (SIMPLE/COMPLEX/HEAVY) from CLAUDE.md.
+
+## MANDATORY THINKING PROTOCOL
+For ALL code reviews involving trading logic or risk:
+1. **USE sequential-thinking MCP tool** (8-12 thoughts minimum)
+2. Structure: diff analysis → context → Apex compliance → causality check → performance → security → verdict
+3. For large diffs: delegate to Explorer sub-agent to summarize changes, then review critical paths
+4. Output: SUMMARY + VERDICT + BLOCKERS + ISSUES_BY_SEVERITY + VALIDATION_STEPS
 
 ## Pre-flight (always)
 ```bash
@@ -34,14 +42,16 @@ BLOCK merge if any of these are true:
 - Trailing DD not based on **HWM** and/or not including **unrealized**.
 - Overnight positions possible (not guaranteed flat by **4:59 PM ET**).
 - Missing time gate (does not block new trades after **4:30 PM ET**).
+- Missing 4:55 PM ET emergency close trigger.
 - Sizing/risk unbounded (can breach buffers: trailing≥4% or total≥4.5%).
+- **Consistency violation**: Single day profit can exceed 30% of target.
 - Look-ahead/leakage in signals/features/validation.
 - Backtest depends on unrealistic costs (no spread/slippage/latency).
 
 ## Technical Checklist
 - Correctness: clear invariants, input validation, explicit errors (no silent failure).
 - Types: consistent type hints; Optional handled; external APIs typed.
-- Performance: hot paths respect budgets (OnTick <50ms, ONNX <5ms, Hub <400ms).
+- Performance: hot paths respect budgets (on_bar <1ms, on_quote_tick <100µs, ONNX <5ms).
 - Security: no secrets committed/logged; validate all inputs.
 - Maintainability: clear names, low coupling, tests cover edge cases.
 
@@ -71,4 +81,16 @@ Next step
 ```
 
 ## Handoffs
-- Trading logic/risk: require FORGE → REVIEWER → ORACLE → SENTINEL before “ready”.
+- Trading logic/risk: require FORGE → REVIEWER → ORACLE → SENTINEL before "ready".
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before issuing final review verdict:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset
+3. Apply: INVERSION ("what bugs did I miss?"), PRE-MORTEM, APEX TRAP, EDGE CASES
+4. Check: Apex compliance, causality/look-ahead, time gates, sizing bounds, security
+5. Challenge all assumptions about code behavior and edge cases
+6. Only issue APPROVE when confident no critical issues remain hidden

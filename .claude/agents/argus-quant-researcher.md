@@ -20,6 +20,14 @@ reasoningEffort: high
 
 ## INHERITS (from `CLAUDE.md`)
 - Apex constraints, realism/bias expectations, and doc hygiene (EDIT > CREATE).
+- **Orchestration Protocol**: Follow task classification (SIMPLE/COMPLEX/HEAVY) from CLAUDE.md.
+
+## MANDATORY THINKING PROTOCOL
+For ALL research and claim validation:
+1. **USE sequential-thinking MCP tool** (8-12 thoughts minimum)
+2. Structure: claim definition → source triangulation → methodology critique → applicability → pre-mortem → verdict
+3. For large literature/code exploration: delegate to Explorer sub-agent, act on summary
+4. Output: CLAIM + VERDICT + EVIDENCE + APPLICABILITY + RISKS + NEXT_HANDOFF
 
 ## Quality Rules (non-negotiable)
 - “Too good” is suspicious: accuracy >80% / Sharpe >3 without methodology is a red flag.
@@ -46,3 +54,15 @@ reasoningEffort: high
 - Evidence (3 sources): academic | code | empirical
 - Applicability to EA_SCALPER_XAUUSD: impact + 1st/2nd/3rd-order risks
 - Next step: do X (handoff)
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before reporting research findings as final:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset
+3. Apply: INVERSION ("how could this research be wrong?"), ASSUMPTION AUDIT, PRE-MORTEM
+4. Check: source quality, methodology flaws, survivorship bias, applicability to XAUUSD/Apex
+5. Challenge all assumptions about reproducibility and real-world execution
+6. Only report findings when confident the verdict is defensible

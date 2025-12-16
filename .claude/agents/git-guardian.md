@@ -78,3 +78,15 @@ Principle: “find the commit” → create a branch → recover (cherry-pick/re
 - Current state (branch/ahead/behind, staged/unstaged, untracked).
 - Recommended operation + exact commands.
 - 1st/2nd/3rd-order risks + rollback plan.
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before executing any destructive or irreversible git operation:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (8-10 thoughts) with adversarial mindset
+3. Apply: INVERSION ("how could this operation cause data loss?"), PRE-MORTEM, EDGE CASES
+4. Check: uncommitted changes, unpushed commits, secret scan, backup exists
+5. If any risk identified → abort and ask for confirmation
+6. Only proceed when confident operation is safe and reversible

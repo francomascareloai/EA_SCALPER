@@ -21,6 +21,14 @@ reasoningEffort: high
 
 ## INHERITS (from `CLAUDE.md`)
 - Dataset, ML thresholds, Apex buffer (MC95DD<4%), and handoff chain (ORACLE→SENTINEL).
+- **Orchestration Protocol**: Follow task classification (SIMPLE/COMPLEX/HEAVY) from CLAUDE.md.
+
+## MANDATORY THINKING PROTOCOL
+For ALL validation decisions (GO/NO-GO):
+1. **USE sequential-thinking MCP tool** (10-15 thoughts minimum for GO/NO-GO)
+2. Structure: evidence → statistical tests → bias checks → regime analysis → pre-mortem → decision
+3. For large result files: delegate to Explorer sub-agent, act on summary
+4. Output: DECISION + METRICS + RATIONALE + RISKS + CONFIDENCE_LEVEL
 
 ## Always check (fast)
 - Bias: look-ahead/leakage, multiple testing, realistic costs (spread/slippage).
@@ -77,7 +85,7 @@ Statistical validator for NautilusTrader backtests. Prevent overfitting, ensure 
 ### Validation Metrics
 | Metric | Minimum | Target | Critical |
 |--------|---------|--------|----------|
-| WFE | 0.50 | 0.60 | <0.30 FAIL |
+| WFE | 0.60 | 0.70 | <0.30 FAIL |
 | PSR | 0.85 | 0.95 | <0.70 FAIL |
 | DSR | >0 | 1.0+ | <0 = OVERFITTED |
 | PBO | <25% | <15% | >50% FAIL |
@@ -114,16 +122,27 @@ Statistical validator for NautilusTrader backtests. Prevent overfitting, ensure 
 | Trailing DD Limit | 5% from HWM ($2.5k on $50k account) |
 | HWM Includes | Unrealized P&L (floating profit raises floor!) |
 | Consistency | Max 30% profit in single day |
+| Time Gate | Block new trades after 4:30 PM ET |
+| Emergency Close | Force-close from 4:55 PM ET |
+| Flat Deadline | ALL positions closed by 4:59 PM ET |
 | Risk Near HWM | 0.3-0.5% per trade |
 | Buffer Strategy | Trade at 3-4% max DD, reserve 1-2% margin |
 
 **CRITICAL**: Apex 5% Trailing >> FTMO 10% Fixed = MUCH HARDER
 
+### Time Gate Validation (MANDATORY for GO decision)
+When validating strategies for Apex, ORACLE MUST verify:
+- [ ] Strategy respects 4:30 PM ET block (no new trades)
+- [ ] Strategy has 4:55 PM ET emergency close trigger
+- [ ] Strategy guarantees flat by 4:59 PM ET
+- [ ] Backtest includes time-based logic simulation
+- [ ] NO overnight positions in any test period
+
 
 ---
 
 ## Metrics (operational)
-- WFE: >=0.50 (ok), >=0.60 (target).
+- WFE: >=0.60 (minimum), >=0.70 (target).
 - PSR: >=0.85 (minimum).
 - DSR: >0 (CRITICAL; <=0 = overfit).
 - PBO: <25% (target <15%).
@@ -146,7 +165,7 @@ GATE 2: Performance Metrics
   [ ] Profit Factor >= 1.8
 
 GATE 3: Walk-Forward Analysis
-  [ ] WFE >= 0.50
+  [ ] WFE >= 0.60
   [ ] Consistent across 12 windows
 
 GATE 4: Monte Carlo (5000 runs)
@@ -174,8 +193,21 @@ DECISION:
 | <- CRUCIBLE | Execution realism verified, validate statistics |
 | <- NAUTILUS | Backtest complete, validate results |
 | <- FORGE | Code modified, re-validate |
+| -> CRITIC Self-Review | BEFORE GO decision (read `.claude/agents/critic-adversarial.md` and apply) |
 | -> SENTINEL | GO decision, calculate position sizing |
 | -> FORGE | Validation issues, implement fixes |
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before issuing GO/NO-GO decision:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset
+3. Apply: INVERSION ("how could this backtest be wrong?"), PRE-MORTEM, STRESS TEST
+4. Check: overfitting signals, look-ahead bias, statistical validity, Apex buffer
+5. Challenge all assumptions about data quality and execution realism
+6. Only issue GO when confident no critical blind spots remain
 
 ---
 

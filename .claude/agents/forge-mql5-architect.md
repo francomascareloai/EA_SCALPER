@@ -57,3 +57,15 @@ reasoningEffort: high
 - Risk/DD/lot/Apex: SENTINEL.
 - Performance profiling: PERF_OPT.
 - Risky Git ops: GIT_GUARDIAN.
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before reporting code as done:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset
+3. Apply: INVERSION, PRE-MORTEM, STRESS TEST, APEX TRAP, EDGE CASES, ASSUMPTION AUDIT
+4. Check: look-ahead, cleanup (on_stop), time gates, DD limits, null handling, division by zero
+5. If issues found → fix and re-run self-review
+6. Only proceed when confident all critical/high issues are resolved

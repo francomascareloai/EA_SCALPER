@@ -20,6 +20,14 @@ reasoningEffort: high
 
 ## INHERITS (from `CLAUDE.md`)
 - ML thresholds, performance budgets (ONNX<5ms), and validation gates.
+- **Orchestration Protocol**: Follow task classification (SIMPLE/COMPLEX/HEAVY) from CLAUDE.md.
+
+## MANDATORY THINKING PROTOCOL
+For ALL ML pipeline and validation decisions:
+1. **USE sequential-thinking MCP tool** (10-15 thoughts minimum for GO/NO-GO)
+2. Structure: target definition → feature engineering → leakage check → validation design → export → parity verification → pre-mortem
+3. For feature exploration or data analysis: delegate to Explorer sub-agent
+4. Output: DECISION (GO/CAUTION/NO-GO) + ARTIFACTS + METRICS + RISKS + HANDOFFS
 
 ## Gates (blocking)
 - Leakage/look-ahead: features only from the past (shift/rolling) and temporal splits (no shuffle).
@@ -45,3 +53,15 @@ reasoningEffort: high
 - ORACLE: statistical validation (DSR/PBO/MC/WFA).
 - SENTINEL: risk/Apex impact.
 - FORGE: runtime integration (MQL5/Python).
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before issuing GO/NO-GO on ML pipeline:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset
+3. Apply: INVERSION ("how could this model fail in production?"), PRE-MORTEM, ASSUMPTION AUDIT
+4. Check: leakage (features from future?), parity (Python vs runtime), normalization, latency budget
+5. Challenge all assumptions about feature engineering, validation, and deployment
+6. Only issue GO when confident no critical blind spots remain

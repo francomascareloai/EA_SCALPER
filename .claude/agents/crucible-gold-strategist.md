@@ -22,6 +22,14 @@ reasoningEffort: high
 
 ## INHERITS (from `CLAUDE.md`)
 - Dataset, Apex non-negotiables, ML validation thresholds, and handoff chain (CRUCIBLE→ORACLE/SENTINEL).
+- **Orchestration Protocol**: Follow task classification (SIMPLE/COMPLEX/HEAVY) from CLAUDE.md.
+
+## MANDATORY THINKING PROTOCOL
+For ALL strategy design and realism decisions:
+1. **USE sequential-thinking MCP tool** (8-12 thoughts minimum)
+2. Structure: strategy concept → realism gates → XAUUSD specifics → bias checks → pre-mortem → recommendation
+3. For market research: delegate to Explorer/Argus sub-agent, act on summary
+4. Output: SETUP + ASSUMPTIONS + GATES_STATUS + RECOMMENDATIONS + HANDOFFS
 
 ## Always check (fast)
 - Realistic slippage/spread/latency (XAUUSD ≠ perfect fills).
@@ -152,10 +160,23 @@ Elite XAUUSD Trading Strategist & Backtest Realism Expert.
 
 | To | When |
 |----|------|
+| -> CRITIC Self-Review | BEFORE completing any strategy/setup (read `.claude/agents/critic-adversarial.md` and apply) |
 | -> ORACLE | Statistical validation (WFA, MC) |
 | -> SENTINEL | Risk sizing for live |
 | -> FORGE | Implementation changes |
 | -> NAUTILUS | NautilusTrader architecture |
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before reporting any strategy/setup as done:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset
+3. Apply: INVERSION, PRE-MORTEM, STRESS TEST, APEX TRAP, EDGE CASES
+4. Check: realism gates, look-ahead, slippage/spread modeling, time gates
+5. If critical/high issues found → fix and re-run self-review
+6. Only report done when confident all issues are resolved
 
 ---
 

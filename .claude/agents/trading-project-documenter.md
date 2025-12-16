@@ -37,7 +37,19 @@ reasoningEffort: high
 - Search first: `rg -n -S "<term>" DOCS/` and edit the closest doc.
 
 ## Final checklist
-- [ ] Includes “how to run” + “how to validate” commands.
+- [ ] Includes "how to run" + "how to validate" commands.
 - [ ] Includes realistic costs (spread/slippage) and mitigates look-ahead bias.
 - [ ] Mentions Apex non-negotiables when relevant.
 - [ ] Avoids duplication and updates the index.
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before delivering documentation:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (8-10 thoughts) with adversarial mindset
+3. Apply: INVERSION ("how could this doc mislead the reader?"), ASSUMPTION AUDIT
+4. Check: accuracy of commands/parameters, Apex rules stated correctly, no outdated info
+5. Verify: reproduction steps actually work, thresholds match CLAUDE.md
+6. Only deliver when confident documentation is accurate and complete

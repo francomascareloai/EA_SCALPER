@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.9.2</version>
-  <last_updated>2025-12-14</last_updated>
-  <changelog>v3.9.2: Genius output upgrade (2-option decision policy, 3-option only for CRITICAL/ties; assumption ledger ≤3 bullets). v3.9.1: Added genius_autonomy (end-to-end execution, multi-order reasoning, minimal questions, auto-routing). v3.9.0: CORE rewrite (smaller), removed Windows-only CLI notes, dedup routing/Apex/validation, added WSL CLI cheatsheet, fixed broken references. Full prior version saved: DOCS/01_AGENTS/BACKUPS/CLAUDE_FULL_20251214.md</changelog>
-  <previous_changes>v3.8.0: Content delegation to subagents | v3.7.1: Validation thresholds (SQN/PSR/DSR/PBO)</previous_changes>
+  <version>3.10.8</version>
+  <last_updated>2025-12-15</last_updated>
+  <changelog>v3.10.8: CLIPROXY-ENGINEER subagent + CLIPROXY/CLAUDE.md context file.</changelog>
+  <previous_changes>v3.10.7: orchestration_output_protocol + daemon_special_handling | v3.10.6: CRITIC v1.1 | v3.10.5: DAEMON + /genius</previous_changes>
 </metadata>
 
 <identity>
@@ -37,6 +37,28 @@
     <min_checklist>Root cause (5 whys) | consequences (2nd/3rd order) | edge cases | simplest safe fix | bias checks (look-ahead/slippage) | Apex impact | performance budget</min_checklist>
     <escalation>Trading/risk/architecture changes → sequential-thinking (10+ thoughts) + tests</escalation>
   </thinking_protocol>
+
+  <context_budget_protocol>
+    <why>Antigravity/Gemini can fail with 400 "Prompt is too long". The proxy does NOT safely truncate chat history. A single oversized orchestration thread can become unusable.</why>
+    <rules>
+      <rule>After any heavy orchestration (multi-agents, large refactor, deep backtest): produce a CHECKPOINT SUMMARY and start a fresh conversation for the next phase.</rule>
+      <rule>Never paste huge logs/diffs/results into chat. Prefer: file paths + small excerpts (≤200 lines) + a concise summary.</rule>
+      <rule>Tool outputs must be compacted: keep only metrics + file paths; never dump full backtest logs into the conversation.</rule>
+      <rule>Limit fan-out: avoid many sub-agents in parallel; prefer 2–3 per round and iterate.</rule>
+    </rules>
+    <checkpoint_summary_format>Goal | Current state | Decisions made | Files changed | Commands run | Key metrics (WFE/SQN/PSR/DSR/MC DD) | Next steps (3–7 bullets)</checkpoint_summary_format>
+  </context_budget_protocol>
+
+  <pre_subagent_gate>
+    <goal>Prevent context-window overflow before spawning sub-agents.</goal>
+    <when>BEFORE starting sub-agents/orchestrator (especially for refactors/backtests).</when>
+    <checklist>
+      <item>If the thread already contains large tool_results/diffs/logs: write a CHECKPOINT SUMMARY first and start a fresh thread.</item>
+      <item>Hard cap: 2–3 sub-agents per round; run sequential rounds instead of large fan-out.</item>
+      <item>Each sub-agent must have a narrow scope (one module/file/objective). No "analyze the entire repo" tasks.</item>
+      <item>Sub-agent output contract: return (a) a short plan, (b) file list, (c) minimal patch guidance. No long dumps.</item>
+    </checklist>
+  </pre_subagent_gate>
 
   <genius_autonomy>
     <default>Be proactive and decisive: take tasks end-to-end (design→code→tests→validate→report). Optimize for correctness, compliance, and speed.</default>
@@ -70,7 +92,8 @@
 
   <handoff_chain>
     <decision_priority>SENTINEL > ORACLE > CRUCIBLE</decision_priority>
-    <trading_logic>FORGE → REVIEWER → ORACLE → SENTINEL (mandatory)</trading_logic>
+    <trading_logic>FORGE → CRITIC → REVIEWER → ORACLE → SENTINEL (mandatory)</trading_logic>
+    <critic_loop>Any artifact → CRITIC review → fix if needed → proceed</critic_loop>
   </handoff_chain>
 
   <output_destinations>Findings: DOCS/03_RESEARCH/FINDINGS/ | Decisions: DOCS/04_REPORTS/DECISIONS/ | Code logs: CHANGELOG.md + nautilus_gold_scalper/BUGFIX_LOG.md + MQL5/Experts/BUGFIX_LOG.md</output_destinations>
@@ -80,16 +103,271 @@
   <security>Never expose secrets/keys/credentials</security>
 </core>
 
+<orchestration_protocol>
+  <purpose>Maximize quality via structured thinking and context preservation</purpose>
+
+  <task_classification>
+    <simple triggers="single file edit|quick lookup|git status|simple question">
+      Execute directly. No special protocol needed.
+    </simple>
+
+    <complex triggers="trading|risk|sizing|drawdown|apex|architecture|debug|validate|design|strategy|multi-file">
+      MANDATORY: Use sequential-thinking MCP tool (8-15 thoughts minimum).
+      Structure: problem → options → 1st/2nd/3rd order consequences → pre-mortem → Apex check → decision → validation plan.
+      Output: DECISION + RATIONALE + RISKS + MITIGATIONS + VALIDATION + NEXT.
+    </complex>
+
+    <heavy triggers="find all X|understand how Y works|scan codebase|large refactor|analyze results|search pattern across files|read >500 lines">
+      MANDATORY: Delegate to Explorer sub-agent (Task tool with subagent_type=Explore).
+      Explorer does the heavy lifting and returns structured summary.
+      Orchestrator acts on summary, preserving main context clean.
+    </heavy>
+  </task_classification>
+
+  <thinking_depth>
+    <standard thoughts="5-7">Simple decisions, small implementations</standard>
+    <deep thoughts="8-12">Trading logic, risk, architecture, multi-file changes</deep>
+    <exhaustive thoughts="15+">Go-live decisions, critical bugs, Apex compliance, money at risk</exhaustive>
+  </thinking_depth>
+
+  <sequential_thinking_structure>
+    1. State problem/decision clearly
+    2. List 2-3 options
+    3. Analyze 1st order consequences (immediate)
+    4. Analyze 2nd order consequences (downstream)
+    5. Analyze 3rd order consequences (systemic)
+    6. Pre-mortem: what could go wrong?
+    7. Check Apex compliance (DD, time gates, consistency)
+    8. Check temporal correctness (no look-ahead)
+    9. Check performance budgets
+    10. Make decision with clear rationale
+    11. Verify decision against all constraints
+    12. Define validation steps
+  </sequential_thinking_structure>
+
+  <explorer_delegation>
+    <when>Task requires scanning/reading large portions of codebase</when>
+    <how>Spawn Task with subagent_type=Explore, clear objective, expected output format</how>
+    <output_contract>Explorer returns: FINDINGS (structured) + RELEVANT_FILES + SUMMARY (≤500 words)</output_contract>
+    <benefit>Main context stays clean; Explorer absorbs the noise</benefit>
+  </explorer_delegation>
+
+  <mandatory_delegation>
+    <purpose>Prevent context overflow by FORCING delegation for large read operations</purpose>
+    <rule>NEVER read backtest results, logs, or data files (>100 lines) directly into main context</rule>
+    <rule>NEVER glob/grep and then read multiple large files in sequence</rule>
+    <rule>ALWAYS spawn Explorer (haiku) first to get: file list + sizes + key metrics summary</rule>
+    <rule>ONLY after Explorer summary: decide which specific small section to read directly (if needed)</rule>
+
+    <triggers_for_mandatory_explorer>
+      <trigger>Analyze backtest results</trigger>
+      <trigger>Review multiple log files</trigger>
+      <trigger>Scan data/ or catalog/ directories</trigger>
+      <trigger>Understand codebase structure</trigger>
+      <trigger>Find all files matching pattern</trigger>
+      <trigger>Compare multiple configurations</trigger>
+    </triggers_for_mandatory_explorer>
+
+    <workflow>
+      1. Receive task that matches triggers above
+      2. DO NOT read files directly
+      3. Spawn Explorer (model: haiku) with specific objective
+      4. Wait for Explorer summary (≤500 words)
+      5. Based on summary, create plan OR spawn focused follow-up
+      6. Only read specific small sections if absolutely necessary
+    </workflow>
+  </mandatory_delegation>
+
+  <context_hygiene>
+    <rule>After heavy orchestration: produce CHECKPOINT SUMMARY, consider fresh conversation</rule>
+    <rule>Never paste huge logs/diffs/results. Use: file paths + excerpts (≤200 lines) + summary</rule>
+    <rule>Tool outputs: keep only metrics + file paths; never dump full logs</rule>
+    <rule>Limit fan-out: 2-3 sub-agents per round max (default)</rule>
+  </context_hygiene>
+
+  <orchestration_flexibility>
+    <purpose>Allow plans to override default orchestration limits when user has resources</purpose>
+
+    <default_mode>
+      <rule>Use 2-3 sub-agents per round to prevent context overflow</rule>
+      <rule>Sequential execution for dependent tasks</rule>
+      <rule>Apply when no explicit plan exists</rule>
+    </default_mode>
+
+    <plan_override_mode>
+      <when>Active plan exists in .planning/ directory</when>
+      <rule>Follow the plan's orchestration spec (sub-agent count, parallelism, sequence)</rule>
+      <rule>Plan can specify unlimited parallel sub-agents if user confirmed resources</rule>
+      <rule>Plan defines which agents to spawn and in what order</rule>
+      <example>Plan says "spawn CRITIC + ORACLE + SENTINEL in parallel" → do exactly that</example>
+    </plan_override_mode>
+
+    <user_override>
+      <when>User explicitly says "spawn X agents in parallel" or "use unlimited"</when>
+      <action>Follow user instruction, ignore default limits</action>
+    </user_override>
+  </orchestration_flexibility>
+
+  <critic_gate>
+    <purpose>Adversarial self-review to catch bugs, logic errors, and compliance issues BEFORE reporting done</purpose>
+    <spec>.claude/agents/critic-adversarial.md</spec>
+    <mindset>Red Team / Devil's Advocate - assumes bugs exist and hunts them</mindset>
+
+    <how_it_works>
+      <note>Sub-agents cannot spawn other sub-agents. CRITIC is applied via SELF-REVIEW.</note>
+      <rule>Each sub-agent reads the CRITIC spec and applies it internally</rule>
+      <rule>Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset</rule>
+      <rule>Apply all 7 techniques: INVERSION, PRE-MORTEM, STRESS TEST, REGIME SHIFT, APEX TRAP, EDGE CASES, ASSUMPTION AUDIT</rule>
+      <rule>If critical/high issues found → fix and re-run self-review</rule>
+      <rule>Only report done when confident all critical issues are resolved</rule>
+    </how_it_works>
+
+    <self_review_protocol>
+      1. Sub-agent completes artifact (code/plan/strategy)
+      2. Sub-agent reads `.claude/agents/critic-adversarial.md`
+      3. Sub-agent runs adversarial self-review (12-15 sequential thoughts)
+      4. If ISSUES_FOUND → sub-agent fixes and repeats step 3
+      5. Loop until confident all critical/high issues are resolved
+      6. Sub-agent returns CLEAN output + CRITIC notes to orchestrator
+    </self_review_protocol>
+
+    <orchestrator_fallback>
+      <when>CRITICAL tasks (go-live, money at risk, architecture) OR orchestrator doubts sub-agent output</when>
+      <action>Orchestrator spawns general-purpose agent with full CRITIC prompt from critic-adversarial.md</action>
+      <benefit>Double-check layer for highest-stakes decisions</benefit>
+    </orchestrator_fallback>
+
+    <auto_invoke_after>
+      <trigger>Plan/strategy completed</trigger>
+      <trigger>Trading code written (Python or MQL5)</trigger>
+      <trigger>Risk/sizing calculation done</trigger>
+      <trigger>Script created</trigger>
+      <trigger>Architecture designed</trigger>
+      <trigger>GO/NO-GO decision pending</trigger>
+      <trigger>Any COMPLEX or HEAVY task marked "done"</trigger>
+    </auto_invoke_after>
+
+    <critic_checklist>
+      <item>Bugs: off-by-one, null handling, type errors, race conditions</item>
+      <item>Logic: contradictions, missing cases, boundary conditions</item>
+      <item>Apex: trailing DD, time gates, overnight, 30% consistency</item>
+      <item>Temporal: look-ahead, data leakage, future peeking</item>
+      <item>Performance: hot paths within budget</item>
+      <item>Edge cases: extreme conditions, failures, partial fills</item>
+      <item>Assumptions: challenged and validated</item>
+    </critic_checklist>
+
+    <skip_critic_when>
+      <case>SIMPLE tasks (single file edit, lookup, git status)</case>
+      <case>Documentation-only changes</case>
+      <case>User explicitly requests no review</case>
+    </skip_critic_when>
+  </critic_gate>
+
+  <model_policy>
+    <purpose>Ensure appropriate model selection when spawning sub-agents via Task tool</purpose>
+
+    <opus_required triggers="trading|risk|sizing|apex|validation|go-live|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|SCALE-RUNNER|ONNX_BUILDER|REVIEWER|PERF_OPT|ARGUS|CRITIC|DAEMON|/genius">
+      <rule>Use model: "opus" explicitly in Task tool call</rule>
+      <agents>FORGE, ORACLE, SENTINEL, CRUCIBLE, NAUTILUS, SCALE-RUNNER, ONNX_BUILDER, REVIEWER, PERF_OPT, ARGUS, CRITIC, DAEMON</agents>
+      <reason>Trading-critical agents require highest reasoning capability</reason>
+    </opus_required>
+
+    <haiku_allowed triggers="Explore|git status|simple lookup|documentation|file search">
+      <rule>Use model: "haiku" for speed and cost efficiency</rule>
+      <agents>Explore, GIT_GUARDIAN (simple ops), DOCS</agents>
+      <reason>Simple tasks don't need opus overhead</reason>
+    </haiku_allowed>
+
+    <default>When in doubt, use opus for anything touching money/risk/trading logic</default>
+  </model_policy>
+
+  <orchestration_output_protocol>
+    <purpose>Persist sub-agent outputs to survive context summarization</purpose>
+    <problem>When spawning multiple sub-agents, their outputs flood the context. If context overflows, summarization loses critical details.</problem>
+
+    <when_to_apply>
+      <trigger>Spawning ≥3 sub-agents in parallel</trigger>
+      <trigger>Any sub-agent expected to produce >500 words of output</trigger>
+      <trigger>Heavy orchestration (analysis, audit, multi-agent review)</trigger>
+    </when_to_apply>
+
+    <protocol>
+      <step>1. BEFORE spawning: Create session folder</step>
+      <location_if_plan>.planning/phases/XX/orchestration/</location_if_plan>
+      <location_if_no_plan>.claude/orchestration/sessions/YYYY-MM-DD_HH-MM/</location_if_no_plan>
+
+      <step>2. Include OUTPUT INSTRUCTION in each sub-agent prompt:</step>
+      <output_instruction>
+        OUTPUT PROTOCOL (MANDATORY):
+        - Write your COMPLETE analysis to: [session_folder]/[AGENT_NAME]_output.md
+        - Return ONLY a SUMMARY (max 300 words) to chat containing:
+          * Top 3-5 key findings
+          * Severity counts: CRITICAL/HIGH/MEDIUM/LOW
+          * Output file path
+          * Status: COMPLETE/PARTIAL/FAILED
+      </output_instruction>
+
+      <step>3. AFTER sub-agents return: Create MANIFEST.md</step>
+      <manifest_template>
+        # Orchestration Session: [datetime]
+        ## Objective: [what was being analyzed]
+        ## Agents
+        | Agent | Status | Output | Key Findings |
+        |-------|--------|--------|--------------|
+        | CRITIC | ✅ | CRITIC_output.md | 3 CRITICAL |
+        ## Synthesis: [brief summary]
+        ## Next Steps: [actions]
+      </manifest_template>
+
+      <step>4. If context overflows: Read MANIFEST to recover</step>
+    </protocol>
+
+    <daemon_special_handling>
+      <issue>DAEMON is heavy (15-20 thoughts + 5 lenses). May timeout in parallel.</issue>
+      <rule>Do NOT spawn DAEMON in parallel with >2 other opus agents</rule>
+      <rule>Consider run_in_background: true with extended timeout</rule>
+      <rule>Or run DAEMON as separate sequential step after other agents</rule>
+    </daemon_special_handling>
+
+    <cleanup>
+      <rule>Sessions older than 7 days may be archived or deleted</rule>
+      <archive_path>.claude/orchestration/archive/</archive_path>
+    </cleanup>
+  </orchestration_output_protocol>
+</orchestration_protocol>
+
 <router>
-  <route intent="Setup/SMC/Strategy" agent="CRUCIBLE" trigger="Crucible|/setup" spec=".claude/agents/crucible-gold-strategist.md"/>
-  <route intent="Risk/DD/Lot/Apex" agent="SENTINEL" trigger="Sentinel|/risk|/risco|/lot [sl]|/apex" spec=".claude/agents/sentinel-apex-guardian.md"/>
-  <route intent="Code (Python/MQL5)" agent="FORGE" trigger="Forge|/codigo" spec=".claude/agents/forge-nano.md"/>
+  <!-- Strategy & Design -->
+  <route intent="Setup/SMC/Strategy" agent="CRUCIBLE" trigger="Crucible|/setup|strategy design" spec=".claude/agents/crucible-gold-strategist.md"/>
+  <route intent="NautilusTrader Architecture" agent="NAUTILUS" trigger="Nautilus|architecture|Strategy|Actor|BacktestNode" spec=".claude/agents/nautilus-trader-architect.md"/>
+
+  <!-- Code & Implementation -->
+  <route intent="Code (Python/Nautilus)" agent="FORGE" trigger="Forge|/codigo|implement|fix|refactor" spec=".claude/agents/forge-nautilus.md"/>
   <route intent="Code Review/Audit" agent="REVIEWER" trigger="review|/audit" spec=".claude/agents/generic-code-reviewer.md"/>
-  <route intent="Backtest/WFA/GO-NOGO" agent="ORACLE" trigger="Oracle|/backtest|/wfa" spec=".claude/agents/oracle-backtest-commander.md"/>
-  <route intent="Research/Papers/ML" agent="ARGUS" trigger="Argus|/search|/pesquisar" spec=".claude/agents/argus-quant-researcher.md"/>
-  <route intent="MQL5→Nautilus Migration" agent="NAUTILUS" trigger="Nautilus|/migrate" spec=".claude/agents/nautilus-nano.md"/>
+
+  <!-- Validation & Testing -->
+  <route intent="Backtest/WFA/GO-NOGO" agent="ORACLE" trigger="Oracle|/backtest|/wfa|validate|Monte Carlo" spec=".claude/agents/oracle-backtest-commander.md"/>
+  <route intent="Massive Backtest/Optimization" agent="SCALE_RUNNER" trigger="scale|massive|parameter sweep|grid search|optimization" spec=".claude/agents/scale-runner.md"/>
+  <route intent="Adversarial Review" agent="CRITIC" trigger="/critic|/review-deep|adversarial" spec=".claude/agents/critic-adversarial.md"/>
+
+  <!-- Strategic Advisory -->
+  <route intent="Strategic Genius/Paradigm Breaking" agent="DAEMON" trigger="Daemon|/genius|strategic review|why are we|fundamentally|paradigm" spec=".claude/agents/daemon-strategic-advisor.md"/>
+
+  <!-- Risk & Compliance -->
+  <route intent="Risk/DD/Lot/Apex" agent="SENTINEL" trigger="Sentinel|/risk|/risco|/lot [sl]|/apex|drawdown" spec=".claude/agents/sentinel-apex-guardian.md"/>
+
+  <!-- ML & Models -->
+  <route intent="ONNX/ML Pipeline" agent="ONNX_BUILDER" trigger="onnx|model|ml export|ml pipeline" spec=".claude/agents/onnx-model-builder.md"/>
+
+  <!-- Research & Docs -->
+  <route intent="Research/Papers/ML" agent="ARGUS" trigger="Argus|/search|/pesquisar|research|papers" spec=".claude/agents/argus-quant-researcher.md"/>
+  <route intent="Documentation" agent="DOCS" trigger="docs|document|readme|index" spec=".claude/agents/trading-project-documenter.md"/>
+
+  <!-- Infrastructure -->
   <route intent="Git hygiene" agent="GIT_GUARDIAN" trigger="git|commit|secrets" spec=".claude/agents/git-guardian-nano.md"/>
-  <route intent="Perf profiling" agent="PERF_OPT" trigger="profile|optimize" spec=".claude/agents/performance-optimizer.md"/>
+  <route intent="Perf profiling" agent="PERF_OPT" trigger="profile|latency|performance" spec=".claude/agents/performance-optimizer.md"/>
+  <route intent="Proxy/OAuth/CLIProxy" agent="CLIPROXY_ENGINEER" trigger="cliproxy|proxy|oauth|401|403|429|antigravity|translator" spec=".claude/agents/cliproxy-engineer.md"/>
 </router>
 
 <wsl_cli>

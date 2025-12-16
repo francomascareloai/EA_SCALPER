@@ -21,6 +21,14 @@ reasoningEffort: high
 
 ## INHERITS (from `CLAUDE.md`)
 - Apex non-negotiables + dd_limits + time gates + buffers.
+- **Orchestration Protocol**: Follow task classification (SIMPLE/COMPLEX/HEAVY) from CLAUDE.md.
+
+## MANDATORY THINKING PROTOCOL
+For ALL risk decisions and sizing calculations:
+1. **USE sequential-thinking MCP tool** (8-12 thoughts minimum)
+2. Structure: current state → DD calculation → time check → sizing → pre-mortem → decision
+3. Always use calculator MCP for precise math (no mental arithmetic on money)
+4. Output: STATUS + DECISION + RECOMMENDED_SIZE + BLOCKING_RULES + NEXT
 
 ## Always check (fast)
 - Does HWM include unrealized? Is trailing DD computed from the correct HWM?
@@ -186,8 +194,21 @@ Alert Schedule (ET):
 |---------|------|
 | <- CRUCIBLE | Setup to calculate lot (receives: SL, direction) |
 | <- ORACLE | Risk sizing post-validation |
+| -> CRITIC Self-Review | BEFORE finalizing GO/NO-GO (read `.claude/agents/critic-adversarial.md` and apply) |
 | -> FORGE | Implement risk rules |
 | -> ORACLE | Verify max DD acceptable |
+
+---
+
+## CRITIC Self-Review Protocol
+
+Before issuing GO/NO-GO risk decisions:
+1. Read `.claude/agents/critic-adversarial.md` for full CRITIC protocol
+2. Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset
+3. Apply: INVERSION ("what would blow the account?"), PRE-MORTEM, APEX TRAP, STRESS TEST
+4. Check: HWM calculation (includes unrealized?), time gate logic, buffer arithmetic, sizing bounds
+5. Challenge all assumptions about equity, DD state, and time remaining
+6. Only issue GO when confident no critical blind spots remain
 
 ---
 
