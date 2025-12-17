@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.12</version>
+  <version>3.10.13</version>
   <last_updated>2025-12-17</last_updated>
-  <changelog>v3.10.12: Added live_infrastructure (data feed, execution, monitoring), incident_response (5 playbooks), network_resilience, sample requirements (100→200 trades, 2→5 years), paper trading (1→2 weeks).</changelog>
-  <previous_changes>v3.10.11: CRITIC two-layer system, HWM trap warning, 30% rule clarified | v3.10.10: Mandatory commit+push rule</previous_changes>
+  <changelog>v3.10.13: DD taxonomy unified (trailing/daily), HWM price basis (bid/ask), timekeeping contract (NTP/DST), emergency close fail-closed, MGC contract specs, STALE_DATA regime-aware, async reconnection guidance, alerts aligned with taxonomy.</changelog>
+  <previous_changes>v3.10.12: live_infrastructure, incident_response, network_resilience | v3.10.11: CRITIC two-layer system, HWM trap warning</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -39,8 +39,37 @@
     <rule>Max 30% profit/day (consistency) - LIVE ACCOUNTS ONLY, not required during evaluation but recommended as best practice</rule>
     <rule>Time gate: block new trades after 4:30 PM ET; emergency force-close from 4:55 PM ET</rule>
 
+    <timekeeping_contract priority="CRITICAL">
+      <purpose>Ensure accurate ET time for market close compliance</purpose>
+      <time_source>
+        <primary>NTP-synchronized system clock (pool.ntp.org or time.google.com)</primary>
+        <validation>Verify clock drift less than 500ms at startup; alert if greater</validation>
+        <fallback>If NTP unreachable for greater than 5 minutes: use conservative earlier close times</fallback>
+      </time_source>
+      <timezone_handling>
+        <canonical>America/New_York (handles EST/EDT automatically)</canonical>
+        <dst_rule>Use system timezone library (pytz/zoneinfo) - NEVER manually calculate DST</dst_rule>
+        <validation>Log timezone offset at session start; alert if unexpected</validation>
+      </timezone_handling>
+      <drift_protection>
+        <threshold>If clock drift greater than 1 second: trigger WARN alert</threshold>
+        <threshold>If clock drift greater than 5 seconds: shift all time gates 5 minutes earlier</threshold>
+        <threshold>If clock drift unknown: assume worst case, close at 4:45 PM ET</threshold>
+      </drift_protection>
+      <degraded_mode_times note="Use when time source is uncertain">
+        <block_new_trades>4:20 PM ET (10 min earlier)</block_new_trades>
+        <emergency_close>4:45 PM ET (10 min earlier)</emergency_close>
+      </degraded_mode_times>
+    </timekeeping_contract>
+
     <hwm_trap_warning priority="CRITICAL">
       <explanation>HWM is tracked tick-by-tick and NEVER decreases during a session. Unrealized profit raises your floor PERMANENTLY for that session.</explanation>
+      <price_basis note="MANDATORY - prevents artificial HWM inflation">
+        <rule>LONG positions: use BID price for unrealized exit value (conservative)</rule>
+        <rule>SHORT positions: use ASK price for unrealized exit value (conservative)</rule>
+        <rule>NEVER use MID price - it can artificially inflate unrealized profit</rule>
+        <rule>HWM = max(HWM, current_equity + sum(unrealized_pnl_at_conservative_prices))</rule>
+      </price_basis>
       <example>
         Account: $50,000 starting equity
         Trade goes to $52,000 unrealized profit → HWM = $52,000
@@ -53,9 +82,23 @@
   </apex_non_negotiables>
 
   <dd_limits>
-    <daily>1.5% warn → 2.0% caution → 2.5% reduce → 3.0% HALT</daily>
-    <total>3.0% warn → 3.5% caution → 4.0% CRITICAL → 4.5% HALT → 5.0% TERMINATED</total>
-    <hard_blocks>Trailing DD ≥4.0% OR Total DD ≥4.5% → HALT (safety buffer)</hard_blocks>
+    <taxonomy note="AUTHORITATIVE - all monitoring/playbooks MUST reference these exact thresholds">
+      <trailing_dd description="From HIGH-WATER MARK (includes unrealized) - APEX KILLER">
+        <threshold level="WARN">3.0%</threshold>
+        <threshold level="CAUTION">3.5%</threshold>
+        <threshold level="CRITICAL">4.0%</threshold>
+        <threshold level="HALT">4.5%</threshold>
+        <threshold level="TERMINATED">5.0% (APEX LIMIT - ACCOUNT BLOWN)</threshold>
+      </trailing_dd>
+      <daily_dd description="From session start equity">
+        <threshold level="WARN">1.5%</threshold>
+        <threshold level="CAUTION">2.0%</threshold>
+        <threshold level="REDUCE">2.5% (reduce position size by 50%)</threshold>
+        <threshold level="HALT">3.0%</threshold>
+      </daily_dd>
+    </taxonomy>
+    <hard_blocks>Trailing DD ≥4.0% OR Daily DD ≥3.0% → HALT immediately (safety buffer before Apex limits)</hard_blocks>
+    <implementation_note>Always check BOTH trailing and daily DD on every tick. Use the MORE RESTRICTIVE action.</implementation_note>
   </dd_limits>
 
   <thinking_protocol>
@@ -169,7 +212,17 @@
       <broker>Apex Trader Funding (evaluation → funded)</broker>
       <latency_budget>Order submission to acknowledgment less than 200ms</latency_budget>
       <order_types>Market orders for emergency close; limit orders for entries</order_types>
-      <slippage_assumption>1-2 pips for XAUUSD during normal conditions; 5+ pips during news</slippage_assumption>
+      <slippage_assumption note="MGC (Micro Gold Futures) tick size = $0.10, point value = $1.00/tick">
+        <instrument>MGC (Micro Gold) on CME via Apex/Rithmic</instrument>
+        <normal_conditions>$0.10-$0.30 (1-3 ticks) per trade</normal_conditions>
+        <news_events>$1.00+ (10+ ticks) per trade</news_events>
+        <emergency_close>$2.00+ (20+ ticks) - assume worst case for risk calculations</emergency_close>
+        <contract_specs>
+          <tick_size>$0.10</tick_size>
+          <point_value>$10.00 per point ($1.00 per tick)</point_value>
+          <contract_size>10 troy ounces</contract_size>
+        </contract_specs>
+      </slippage_assumption>
       <partial_fills>If partial fill, treat filled portion as open position; remainder as canceled</partial_fills>
     </execution>
 
@@ -181,11 +234,11 @@
         <metric>Time to market close (countdown)</metric>
         <metric>Daily profit % (for 30% cap tracking in live)</metric>
       </realtime_metrics>
-      <alerts>
-        <alert level="WARN">DD exceeds 1.5%</alert>
-        <alert level="CAUTION">DD exceeds 2.5%</alert>
-        <alert level="CRITICAL">DD exceeds 3.5%</alert>
-        <alert level="HALT">DD exceeds 4.0% OR network disconnect greater than 30s</alert>
+      <alerts note="References dd_limits.taxonomy - trailing_dd thresholds">
+        <alert level="WARN">Trailing DD exceeds 3.0%</alert>
+        <alert level="CAUTION">Trailing DD exceeds 3.5%</alert>
+        <alert level="CRITICAL">Trailing DD exceeds 4.0%</alert>
+        <alert level="HALT">Trailing DD exceeds 4.5% OR network disconnect greater than 30s</alert>
       </alerts>
       <health_checks>
         <check interval="5s">Data feed heartbeat</check>
@@ -221,37 +274,78 @@
     </playbook>
 
     <playbook id="EMERGENCY_CLOSE">
-      <trigger>Time gate (4:55 PM ET) OR network disconnect greater than 30s OR DD exceeds 4.0%</trigger>
+      <trigger>Time gate (4:55 PM ET) OR network disconnect greater than 30s OR trailing DD exceeds 4.0%</trigger>
       <severity>CRITICAL</severity>
       <immediate_actions>
         <action>1. Submit market close orders for ALL open positions</action>
-        <action>2. Confirm each close order acknowledged (retry up to 3x)</action>
-        <action>3. If broker unreachable: log FAILED_EMERGENCY_CLOSE + alert human</action>
+        <action>2. Confirm each close order acknowledged (retry up to 3x with 2s delay)</action>
+        <action>3. If any order not acknowledged after 3 retries: continue to next position</action>
         <action>4. Set trading halted flag (prevent any new orders)</action>
+        <action>5. Log all order statuses: CLOSED / PENDING / FAILED</action>
       </immediate_actions>
-      <human_escalation>If emergency close fails after 3 retries: IMMEDIATE human notification required</human_escalation>
+      <fail_closed_behavior note="CRITICAL - what to do when broker unreachable">
+        <scenario condition="Approaching close (after 4:50 PM ET) AND broker unreachable">
+          <action>Trigger emergency close at 4:50 PM instead of 4:55 PM</action>
+          <action>Retry continuously every 5 seconds until 4:59 PM</action>
+          <action>Log DEGRADED_EMERGENCY_CLOSE with all attempts</action>
+        </scenario>
+        <scenario condition="Broker unreachable AND positions still open at 4:58 PM">
+          <action>CRITICAL ALERT: SMS + Email + Push notification to Franco</action>
+          <action>Log FAILED_EMERGENCY_CLOSE with position details</action>
+          <action>Document for post-mortem: positions, sizes, last known prices</action>
+        </scenario>
+        <scenario condition="DD breach but broker unreachable">
+          <action>Log DD_BREACH_UNRECOVERABLE</action>
+          <action>Continue retry loop until connection restored</action>
+          <action>When restored: immediately execute close orders</action>
+        </scenario>
+      </fail_closed_behavior>
+      <human_escalation>
+        <channel>SMS + Telegram + Email (all simultaneously)</channel>
+        <when>After 3 failed retries OR positions still open at 4:58 PM OR trailing DD exceeds 4.5%</when>
+        <message_template>EMERGENCY: [N] positions open, broker [status], DD [X]%, time [HH:MM ET]</message_template>
+      </human_escalation>
     </playbook>
 
     <playbook id="DD_BREACH">
-      <trigger>Drawdown exceeds threshold (warn/caution/critical/halt levels)</trigger>
-      <severity_matrix>
-        <level dd="1.5%">WARN - log + continue with reduced sizing</level>
-        <level dd="2.5%">CAUTION - log + reduce position size by 50%</level>
-        <level dd="3.5%">CRITICAL - close half of open positions</level>
-        <level dd="4.0%">HALT - execute EMERGENCY_CLOSE immediately</level>
+      <trigger>Drawdown exceeds threshold - reference dd_limits taxonomy for authoritative values</trigger>
+      <note>Uses TRAILING DD thresholds (from HWM) as primary - these are Apex killers</note>
+      <severity_matrix type="trailing_dd" reference="dd_limits.taxonomy.trailing_dd">
+        <level dd="3.0%">WARN - log + continue with reduced sizing</level>
+        <level dd="3.5%">CAUTION - log + reduce position size by 50%</level>
+        <level dd="4.0%">CRITICAL - close half of open positions + alert</level>
+        <level dd="4.5%">HALT - execute EMERGENCY_CLOSE immediately</level>
       </severity_matrix>
+      <severity_matrix type="daily_dd" reference="dd_limits.taxonomy.daily_dd">
+        <level dd="1.5%">WARN - log</level>
+        <level dd="2.0%">CAUTION - reduce sizing</level>
+        <level dd="2.5%">REDUCE - reduce position size by 50%</level>
+        <level dd="3.0%">HALT - no new trades, monitor existing</level>
+      </severity_matrix>
+      <rule>Always use the MORE RESTRICTIVE action between trailing and daily DD</rule>
       <post_incident>Review all trades since last good state; identify root cause</post_incident>
     </playbook>
 
     <playbook id="STALE_DATA">
-      <trigger>No new ticks for greater than 5 seconds during market hours</trigger>
+      <trigger>No new ticks for threshold period during market hours</trigger>
       <severity>HIGH</severity>
+      <regime_aware_thresholds note="Prevents false positives in low-liquidity periods">
+        <threshold session="US_ACTIVE" hours="9:30-16:00 ET">5 seconds</threshold>
+        <threshold session="OVERNIGHT" hours="18:00-9:30 ET">15 seconds</threshold>
+        <threshold session="LOW_LIQUIDITY" hours="weekends/holidays">30 seconds</threshold>
+        <note>MGC/Gold futures may have natural gaps - adjust based on observed feed cadence</note>
+      </regime_aware_thresholds>
       <immediate_actions>
         <action>1. HALT new trade entries</action>
         <action>2. Mark current prices as STALE in UI/logs</action>
-        <action>3. Do NOT use stale prices for any calculations</action>
-        <action>4. If persists greater than 30s: consider emergency close</action>
+        <action>3. Do NOT use stale prices for DD/HWM calculations - freeze at last known good</action>
+        <action>4. If persists greater than 30s during US_ACTIVE: trigger NETWORK_DISCONNECT</action>
       </immediate_actions>
+      <hwm_behavior_when_stale>
+        <rule>Do NOT update HWM with stale prices</rule>
+        <rule>Keep DD calculation frozen at last known good state</rule>
+        <rule>When fresh data arrives: immediately recalculate with conservative pricing</rule>
+      </hwm_behavior_when_stale>
     </playbook>
 
     <playbook id="POSITION_MISMATCH">
@@ -299,6 +393,18 @@
       <requirement>Verify emergency close works with broker connection restored mid-close</requirement>
       <requirement>Test reconnection logic with various failure durations</requirement>
     </testing_requirements>
+
+    <async_implementation_guidance note="CRITICAL - prevents blocking event handlers">
+      <rule>ALL reconnection logic MUST run in separate async task/thread</rule>
+      <rule>Event handlers (on_tick, on_bar, on_order) MUST remain non-blocking</rule>
+      <rule>Use asyncio.create_task() or threading for reconnection backoff loops</rule>
+      <rule>Never sleep() or wait() inside Nautilus Actor event handlers</rule>
+      <nautilus_pattern>
+        <correct>Schedule reconnection via self.clock.set_timer() or asyncio task</correct>
+        <wrong>Calling time.sleep() or blocking wait inside on_data/on_event</wrong>
+      </nautilus_pattern>
+      <latency_impact>Blocking handlers will freeze HWM/DD updates, creating stale risk view</latency_impact>
+    </async_implementation_guidance>
   </network_resilience>
 
   <structured_handoff>
