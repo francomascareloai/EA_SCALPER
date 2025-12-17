@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.11</version>
+  <version>3.10.12</version>
   <last_updated>2025-12-17</last_updated>
-  <changelog>v3.10.11: CRITIC two-layer system (sub-agent self-review + orchestrator-spawned CRITIC), HWM trap warning with example, 30% rule clarified as live-only, 4.0% CRITICAL terminology, SCALE_RUNNER standardized, XML entities fixed.</changelog>
-  <previous_changes>v3.10.10: Mandatory commit+push rule | v3.10.9: External CRITIC for go-live, paper trading phase, structured handoff, verdict synthesizer, version reporting</previous_changes>
+  <changelog>v3.10.12: Added live_infrastructure (data feed, execution, monitoring), incident_response (5 playbooks), network_resilience, sample requirements (100→200 trades, 2→5 years), paper trading (1→2 weeks).</changelog>
+  <previous_changes>v3.10.11: CRITIC two-layer system, HWM trap warning, 30% rule clarified | v3.10.10: Mandatory commit+push rule</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -128,7 +128,7 @@
     <phases>
       <phase name="1_backtest">Strategy validation via ORACLE (WFE/SQN/PSR/DSR/MC)</phase>
       <phase name="2_paper_trading" mandatory="true">
-        <duration>Minimum 1 week with live data feed, no real money</duration>
+        <duration>Minimum 2 weeks with live data feed, no real money</duration>
         <requirements>
           - Run strategy on LIVE data stream (not backtest replay)
           - Track unrealized PnL and HWM exactly as Apex would
@@ -136,7 +136,7 @@
           - Confirm emergency close executes within latency budget
           - Log all trades, entries, exits, and slippage observed
         </requirements>
-        <gate>Pass = no critical issues in 1 week of paper trading</gate>
+        <gate>Pass = no critical issues in 2 weeks of paper trading</gate>
       </phase>
       <phase name="3_go_live_decision">
         <external_critic mandatory="true">
