@@ -112,7 +112,7 @@
   <ml_validation>
     <trade_gate>P(direction) greater than 0.65</trade_gate>
     <approval_gate>WFE greater than or equal 0.6 | SQN greater than or equal 2.0 | PSR greater than or equal 0.85 | DSR greater than 0 | PBO less than 25% | MC95DD less than 4%</approval_gate>
-    <sample_requirements>≥100 trades AND ≥2 years AND multiple regimes (trend/range/volatile)</sample_requirements>
+    <sample_requirements>≥200 trades AND ≥5 years AND multiple regimes (trend/range/volatile) across different market conditions</sample_requirements>
   </ml_validation>
 
   <handoff_chain>
@@ -151,6 +151,155 @@
       <phase name="4_live">Deploy to Apex with smallest account size first ($50k)</phase>
     </phases>
   </production_workflow>
+
+  <live_infrastructure>
+    <purpose>Define required infrastructure for paper trading and live deployment</purpose>
+
+    <data_feed>
+      <provider>Apex / NinjaTrader / Rithmic (any provider with XAUUSD tick data)</provider>
+      <requirements>
+        <item>Tick-by-tick or 1-second bars minimum for HWM tracking</item>
+        <item>Latency target: receive tick within 50ms of exchange timestamp</item>
+        <item>Fallback: if primary feed drops, halt trading (do NOT use stale data)</item>
+      </requirements>
+      <validation>Validate timestamps are monotonically increasing; reject out-of-order ticks</validation>
+    </data_feed>
+
+    <execution>
+      <broker>Apex Trader Funding (evaluation → funded)</broker>
+      <latency_budget>Order submission to acknowledgment less than 200ms</latency_budget>
+      <order_types>Market orders for emergency close; limit orders for entries</order_types>
+      <slippage_assumption>1-2 pips for XAUUSD during normal conditions; 5+ pips during news</slippage_assumption>
+      <partial_fills>If partial fill, treat filled portion as open position; remainder as canceled</partial_fills>
+    </execution>
+
+    <monitoring>
+      <realtime_metrics>
+        <metric>Current DD % (tick-by-tick)</metric>
+        <metric>HWM value and timestamp of last update</metric>
+        <metric>Open positions count and unrealized PnL</metric>
+        <metric>Time to market close (countdown)</metric>
+        <metric>Daily profit % (for 30% cap tracking in live)</metric>
+      </realtime_metrics>
+      <alerts>
+        <alert level="WARN">DD exceeds 1.5%</alert>
+        <alert level="CAUTION">DD exceeds 2.5%</alert>
+        <alert level="CRITICAL">DD exceeds 3.5%</alert>
+        <alert level="HALT">DD exceeds 4.0% OR network disconnect greater than 30s</alert>
+      </alerts>
+      <health_checks>
+        <check interval="5s">Data feed heartbeat</check>
+        <check interval="10s">Broker connection status</check>
+        <check interval="60s">Position reconciliation (local vs broker)</check>
+      </health_checks>
+    </monitoring>
+
+    <logging>
+      <trade_log>Every entry/exit with timestamp, price, slippage, HWM at time of trade</trade_log>
+      <system_log>Connection events, errors, latency spikes, health check failures</system_log>
+      <retention>Keep logs for minimum 90 days for compliance/debugging</retention>
+    </logging>
+  </live_infrastructure>
+
+  <incident_response>
+    <purpose>Playbooks for handling critical incidents during live trading</purpose>
+
+    <playbook id="NETWORK_DISCONNECT">
+      <trigger>Data feed or broker connection lost for greater than 10 seconds</trigger>
+      <severity>CRITICAL</severity>
+      <immediate_actions>
+        <action>1. HALT all new trade entries immediately</action>
+        <action>2. Attempt reconnection with exponential backoff (1s, 2s, 4s, 8s, 16s)</action>
+        <action>3. If reconnection fails after 30s: trigger EMERGENCY_CLOSE playbook</action>
+        <action>4. Log disconnect timestamp, duration, and any data gaps</action>
+      </immediate_actions>
+      <post_recovery>
+        <action>Reconcile local state with broker state</action>
+        <action>Verify no phantom positions exist</action>
+        <action>Check for missed fills during disconnect</action>
+      </post_recovery>
+    </playbook>
+
+    <playbook id="EMERGENCY_CLOSE">
+      <trigger>Time gate (4:55 PM ET) OR network disconnect greater than 30s OR DD exceeds 4.0%</trigger>
+      <severity>CRITICAL</severity>
+      <immediate_actions>
+        <action>1. Submit market close orders for ALL open positions</action>
+        <action>2. Confirm each close order acknowledged (retry up to 3x)</action>
+        <action>3. If broker unreachable: log FAILED_EMERGENCY_CLOSE + alert human</action>
+        <action>4. Set trading halted flag (prevent any new orders)</action>
+      </immediate_actions>
+      <human_escalation>If emergency close fails after 3 retries: IMMEDIATE human notification required</human_escalation>
+    </playbook>
+
+    <playbook id="DD_BREACH">
+      <trigger>Drawdown exceeds threshold (warn/caution/critical/halt levels)</trigger>
+      <severity_matrix>
+        <level dd="1.5%">WARN - log + continue with reduced sizing</level>
+        <level dd="2.5%">CAUTION - log + reduce position size by 50%</level>
+        <level dd="3.5%">CRITICAL - close half of open positions</level>
+        <level dd="4.0%">HALT - execute EMERGENCY_CLOSE immediately</level>
+      </severity_matrix>
+      <post_incident>Review all trades since last good state; identify root cause</post_incident>
+    </playbook>
+
+    <playbook id="STALE_DATA">
+      <trigger>No new ticks for greater than 5 seconds during market hours</trigger>
+      <severity>HIGH</severity>
+      <immediate_actions>
+        <action>1. HALT new trade entries</action>
+        <action>2. Mark current prices as STALE in UI/logs</action>
+        <action>3. Do NOT use stale prices for any calculations</action>
+        <action>4. If persists greater than 30s: consider emergency close</action>
+      </immediate_actions>
+    </playbook>
+
+    <playbook id="POSITION_MISMATCH">
+      <trigger>Local position state differs from broker reported state</trigger>
+      <severity>HIGH</severity>
+      <immediate_actions>
+        <action>1. HALT all trading immediately</action>
+        <action>2. Log both local and broker states</action>
+        <action>3. Trust broker state as source of truth</action>
+        <action>4. Reconcile and correct local state</action>
+        <action>5. Investigate cause before resuming</action>
+      </immediate_actions>
+    </playbook>
+
+    <escalation_contacts>
+      <note>Define actual contacts before go-live</note>
+      <contact role="Primary">Franco (owner) - phone/telegram</contact>
+      <contact role="Fallback">Automated SMS/email alert service</contact>
+    </escalation_contacts>
+  </incident_response>
+
+  <network_resilience>
+    <purpose>Ensure robust handling of network failures and degraded conditions</purpose>
+
+    <connection_management>
+      <primary_reconnect>Exponential backoff: 1s → 2s → 4s → 8s → 16s → cap at 30s</primary_reconnect>
+      <max_reconnect_attempts>10 attempts before declaring connection dead</max_reconnect_attempts>
+      <circuit_breaker>After 3 consecutive failures in 5 minutes: halt trading for 15 minutes</circuit_breaker>
+    </connection_management>
+
+    <data_integrity>
+      <sequence_validation>Reject out-of-order messages; request gap fill if sequence breaks</sequence_validation>
+      <stale_threshold>Data older than 5 seconds is STALE; do not use for decisions</stale_threshold>
+      <heartbeat_interval>Expect heartbeat every 5 seconds; trigger reconnect if missed 3x</heartbeat_interval>
+    </data_integrity>
+
+    <graceful_degradation>
+      <level1 condition="Latency spike greater than 500ms">Log warning; continue with caution</level1>
+      <level2 condition="Latency spike greater than 2s">Halt new entries; monitor existing positions</level2>
+      <level3 condition="Connection lost">Execute NETWORK_DISCONNECT playbook</level3>
+    </graceful_degradation>
+
+    <testing_requirements>
+      <requirement>Simulate network disconnect during paper trading</requirement>
+      <requirement>Verify emergency close works with broker connection restored mid-close</requirement>
+      <requirement>Test reconnection logic with various failure durations</requirement>
+    </testing_requirements>
+  </network_resilience>
 
   <structured_handoff>
     <purpose>Prevent information loss between agents</purpose>
