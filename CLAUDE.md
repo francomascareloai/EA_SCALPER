@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.10</version>
+  <version>3.10.11</version>
   <last_updated>2025-12-17</last_updated>
-  <changelog>v3.10.10: Added mandatory commit+push rule for CLAUDE.md changes.</changelog>
-  <previous_changes>v3.10.9: External CRITIC for go-live, paper trading phase, structured handoff, verdict synthesizer, version reporting | v3.10.8: CLIPROXY-ENGINEER subagent</previous_changes>
+  <changelog>v3.10.11: CRITIC two-layer system (sub-agent self-review + orchestrator-spawned CRITIC), HWM trap warning with example, 30% rule clarified as live-only, 4.0% CRITICAL terminology, SCALE_RUNNER standardized, XML entities fixed.</changelog>
+  <previous_changes>v3.10.10: Mandatory commit+push rule | v3.10.9: External CRITIC for go-live, paper trading phase, structured handoff, verdict synthesizer, version reporting</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -36,13 +36,25 @@
   <apex_non_negotiables>
     <rule>Trailing DD = 5% from HIGH-WATER MARK (includes unrealized)</rule>
     <rule>NO overnight positions: close ALL by 4:59 PM ET</rule>
-    <rule>Max 30% profit/day (consistency)</rule>
+    <rule>Max 30% profit/day (consistency) - LIVE ACCOUNTS ONLY, not required during evaluation but recommended as best practice</rule>
     <rule>Time gate: block new trades after 4:30 PM ET; emergency force-close from 4:55 PM ET</rule>
+
+    <hwm_trap_warning priority="CRITICAL">
+      <explanation>HWM is tracked tick-by-tick and NEVER decreases during a session. Unrealized profit raises your floor PERMANENTLY for that session.</explanation>
+      <example>
+        Account: $50,000 starting equity
+        Trade goes to $52,000 unrealized profit → HWM = $52,000
+        New trailing DD floor = $52,000 * 0.95 = $49,400
+        Trade reverses to $49,000 → ACCOUNT TERMINATED
+        Net result: Lost only $1,000 from starting equity but BLOWN because HWM was $52k
+      </example>
+      <defense>Always consider unrealized PnL as "locked in" for HWM purposes. Scale out winners early.</defense>
+    </hwm_trap_warning>
   </apex_non_negotiables>
 
   <dd_limits>
     <daily>1.5% warn → 2.0% caution → 2.5% reduce → 3.0% HALT</daily>
-    <total>3.0% warn → 3.5% caution → 4.0% caution → 4.5% HALT → 5.0% TERMINATED</total>
+    <total>3.0% warn → 3.5% caution → 4.0% CRITICAL → 4.5% HALT → 5.0% TERMINATED</total>
     <hard_blocks>Trailing DD ≥4.0% OR Total DD ≥4.5% → HALT (safety buffer)</hard_blocks>
   </dd_limits>
 
@@ -95,18 +107,19 @@
     <rule>NEVER deliver non-passing code OR unlogged completed work</rule>
   </validation_gate>
 
-  <performance_limits>OnTick &lt;50ms (block deploy if exceeded) | ONNX &lt;5ms | Python Hub &lt;400ms</performance_limits>
+  <performance_limits>OnTick less than 50ms (block deploy if exceeded) | ONNX less than 5ms | Python Hub less than 400ms</performance_limits>
 
   <ml_validation>
-    <trade_gate>P(direction) > 0.65</trade_gate>
-    <approval_gate>WFE≥0.6 | SQN≥2.0 | PSR≥0.85 | DSR>0 | PBO<25% | MC95DD<4%</approval_gate>
+    <trade_gate>P(direction) greater than 0.65</trade_gate>
+    <approval_gate>WFE greater than or equal 0.6 | SQN greater than or equal 2.0 | PSR greater than or equal 0.85 | DSR greater than 0 | PBO less than 25% | MC95DD less than 4%</approval_gate>
     <sample_requirements>≥100 trades AND ≥2 years AND multiple regimes (trend/range/volatile)</sample_requirements>
   </ml_validation>
 
   <handoff_chain>
     <decision_priority>SENTINEL > ORACLE > CRUCIBLE</decision_priority>
-    <trading_logic>FORGE → CRITIC → REVIEWER → ORACLE → SENTINEL (mandatory)</trading_logic>
-    <critic_loop>Any artifact → CRITIC review → fix if needed → proceed</critic_loop>
+    <trading_logic>FORGE → REVIEWER → ORACLE → SENTINEL (mandatory)</trading_logic>
+    <critic_integration>After each agent output, orchestrator spawns CRITIC to review before passing to next agent</critic_integration>
+    <flow_example>FORGE outputs → CRITIC reviews → if PASS → REVIEWER → CRITIC reviews → if PASS → ORACLE → etc.</flow_example>
   </handoff_chain>
 
   <production_workflow>
@@ -314,48 +327,54 @@
   </orchestration_flexibility>
 
   <critic_gate>
-    <purpose>Adversarial self-review to catch bugs, logic errors, and compliance issues BEFORE reporting done</purpose>
+    <purpose>Adversarial review to catch bugs, logic errors, and compliance issues BEFORE reporting done</purpose>
     <spec>.claude/agents/critic-adversarial.md</spec>
     <mindset>Red Team / Devil's Advocate - assumes bugs exist and hunts them</mindset>
 
-    <how_it_works>
-      <note>Sub-agents cannot spawn other sub-agents. CRITIC is applied via SELF-REVIEW.</note>
-      <rule>Each sub-agent reads the CRITIC spec and applies it internally</rule>
-      <rule>Use sequential-thinking MCP (12-15 thoughts) with adversarial mindset</rule>
-      <rule>Apply all 7 techniques: INVERSION, PRE-MORTEM, STRESS TEST, REGIME SHIFT, APEX TRAP, EDGE CASES, ASSUMPTION AUDIT</rule>
-      <rule>If critical/high issues found → fix and re-run self-review</rule>
-      <rule>Only report done when confident all critical issues are resolved</rule>
-    </how_it_works>
+    <two_layer_system>
+      <layer1 name="Sub-Agent Self-Review">
+        <description>Each sub-agent performs internal self-review before returning output</description>
+        <rule>Sub-agent completes artifact (code/plan/strategy)</rule>
+        <rule>Sub-agent applies adversarial mindset internally (5-7 thoughts)</rule>
+        <rule>If obvious issues found → sub-agent fixes before returning</rule>
+        <rule>Sub-agent returns output + confidence level to orchestrator</rule>
+        <benefit>First-pass quality gate, catches obvious issues early</benefit>
+      </layer1>
 
-    <self_review_protocol>
-      1. Sub-agent completes artifact (code/plan/strategy)
-      2. Sub-agent reads `.claude/agents/critic-adversarial.md`
-      3. Sub-agent runs adversarial self-review (12-15 sequential thoughts)
-      4. If ISSUES_FOUND → sub-agent fixes and repeats step 3
-      5. Loop until confident all critical/high issues are resolved
-      6. Sub-agent returns CLEAN output + CRITIC notes to orchestrator
-    </self_review_protocol>
+      <layer2 name="Orchestrator-Spawned CRITIC">
+        <description>Orchestrator spawns SEPARATE CRITIC agent to review sub-agent output</description>
+        <rule>Orchestrator receives sub-agent output</rule>
+        <rule>Orchestrator spawns CRITIC agent with sub-agent output as input</rule>
+        <rule>CRITIC applies full 7 techniques (12-15 sequential thoughts)</rule>
+        <rule>CRITIC returns: PASS/FAIL + issues + recommendations</rule>
+        <rule>If FAIL → orchestrator routes back to original agent for fixes</rule>
+        <benefit>Fresh perspective, separation of concerns, maximum quality</benefit>
+      </layer2>
+    </two_layer_system>
 
-    <orchestrator_fallback>
-      <when>CRITICAL tasks (go-live, money at risk, architecture) OR orchestrator doubts sub-agent output</when>
-      <action>Orchestrator spawns general-purpose agent with full CRITIC prompt from critic-adversarial.md</action>
-      <benefit>Double-check layer for highest-stakes decisions</benefit>
-    </orchestrator_fallback>
+    <critic_techniques note="Applied by CRITIC agent in Layer 2">
+      <technique>INVERSION: What would make this fail?</technique>
+      <technique>PRE-MORTEM: Imagine failure, trace back to causes</technique>
+      <technique>STRESS TEST: Extreme conditions behavior</technique>
+      <technique>REGIME SHIFT: Market/team/tech changes resilience</technique>
+      <technique>APEX TRAP: Could following this literally violate Apex?</technique>
+      <technique>EDGE CASES: Corner cases not handled</technique>
+      <technique>ASSUMPTION AUDIT: Challenge implicit assumptions</technique>
+    </critic_techniques>
 
-    <auto_invoke_after>
-      <trigger>Plan/strategy completed</trigger>
-      <trigger>Trading code written (Python or MQL5)</trigger>
-      <trigger>Risk/sizing calculation done</trigger>
-      <trigger>Script created</trigger>
-      <trigger>Architecture designed</trigger>
-      <trigger>GO/NO-GO decision pending</trigger>
-      <trigger>Any COMPLEX or HEAVY task marked "done"</trigger>
-    </auto_invoke_after>
+    <when_to_spawn_critic>
+      <always>Trading code written (Python or MQL5)</always>
+      <always>Risk/sizing calculation done</always>
+      <always>GO/NO-GO decision pending</always>
+      <always>Architecture designed</always>
+      <optional>Plan/strategy completed (if complex)</optional>
+      <optional>Script created (if touches trading/risk)</optional>
+    </when_to_spawn_critic>
 
-    <critic_checklist>
+    <critic_checklist note="Used by CRITIC agent">
       <item>Bugs: off-by-one, null handling, type errors, race conditions</item>
       <item>Logic: contradictions, missing cases, boundary conditions</item>
-      <item>Apex: trailing DD, time gates, overnight, 30% consistency</item>
+      <item>Apex: trailing DD, time gates, overnight, 30% consistency (live)</item>
       <item>Temporal: look-ahead, data leakage, future peeking</item>
       <item>Performance: hot paths within budget</item>
       <item>Edge cases: extreme conditions, failures, partial fills</item>
@@ -372,9 +391,9 @@
   <model_policy>
     <purpose>Ensure appropriate model selection when spawning sub-agents via Task tool</purpose>
 
-    <opus_required triggers="trading|risk|sizing|apex|validation|go-live|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|SCALE-RUNNER|ONNX_BUILDER|REVIEWER|PERF_OPT|ARGUS|CRITIC|DAEMON|/genius">
+    <opus_required triggers="trading|risk|sizing|apex|validation|go-live|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|SCALE_RUNNER|ONNX_BUILDER|REVIEWER|PERF_OPT|ARGUS|CRITIC|DAEMON|/genius">
       <rule>Use model: "opus" explicitly in Task tool call</rule>
-      <agents>FORGE, ORACLE, SENTINEL, CRUCIBLE, NAUTILUS, SCALE-RUNNER, ONNX_BUILDER, REVIEWER, PERF_OPT, ARGUS, CRITIC, DAEMON</agents>
+      <agents>FORGE, ORACLE, SENTINEL, CRUCIBLE, NAUTILUS, SCALE_RUNNER, ONNX_BUILDER, REVIEWER, PERF_OPT, ARGUS, CRITIC, DAEMON</agents>
       <reason>Trading-critical agents require highest reasoning capability</reason>
     </opus_required>
 
