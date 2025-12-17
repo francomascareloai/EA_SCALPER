@@ -6,7 +6,7 @@ CRITIC analysis of the core strategy files completed with **48 sequential though
 
 **Key Findings:**
 - **0 CRITICAL** issues found - no blocking conditions
-- **2 HIGH** severity issues requiring attention
+- **4 HIGH** severity issues requiring attention (updated 2025-12-17)
 - **7 MEDIUM** severity issues for improvement
 - **4 LOW** severity issues (code quality)
 
@@ -50,8 +50,10 @@ None found. Strategy does not have blocking architectural issues.
 
 | ID | File | Location | Description | Impact | Recommended Fix |
 |----|------|----------|-------------|--------|-----------------|
-| H-001 | base_strategy.py | - | **No OrderRejected handler** - If an entry order is rejected, `_pending_entry_order_id` remains set, blocking all future trades for the session | Trading blocked indefinitely after order rejection | Add `on_order_rejected()` handler to clear pending order state |
-| H-002 | gold_scalper_strategy.py | TimeConstraintManager | **Force-close logic not visible in strategy** - Time gates block new trades after 4:30 PM but explicit force-close of existing positions at 4:55 PM not verified in strategy code | Potential overnight position if TimeConstraintManager doesn't actively close | Verify TimeConstraintManager implementation includes `close_all_positions()` call at emergency time |
+| H-001 | base_strategy.py | - | **No OrderRejected handler** - If an entry order is rejected, `_pending_sl` and `_pending_tp` remain set, causing state inconsistency | Trading state corrupted after order rejection | Add `on_order_rejected()` handler to clear pending SL/TP state |
+| H-002 | gold_scalper_strategy.py | line 961 | **STRATEGY_SAFE_MODE incorrectly blocks trading** - Line 961 treats SAFE_MODE same as NONE, but StrategySelector returns `can_trade=True` with `size_multiplier=0.25` for SAFE_MODE | Safe mode never allows reduced-size trading as designed | Check `selection.can_trade` instead of strategy type, or remove SAFE_MODE from block list |
+| H-003 | base_strategy.py | lines 241-272 | **Timer on_new_day() uses wrong attribute names** - Checks `prop_firm_manager`, `consistency_tracker` (no underscore) but GoldScalperStrategy uses `_prop_firm`, `_consistency_tracker` (with underscore) | Timer-based daily reset is ineffective | Fix attribute names or remove redundant timer (bar-driven _check_daily_reset works correctly) |
+| H-004 | gold_scalper_strategy.py | TimeConstraintManager | **Force-close logic not visible in strategy** - Time gates block new trades after 4:30 PM but explicit force-close at 4:55 PM not verified in strategy code | Potential overnight position if TimeConstraintManager doesn't actively close | Verify TimeConstraintManager includes `close_all_positions()` call at emergency time |
 
 ### MEDIUM
 
@@ -172,7 +174,7 @@ Justification:
 
 ### Phase: 01
 ### Status: **COMPLETE**
-### Issues: 0 CRITICAL, 2 HIGH, 7 MEDIUM, 4 LOW
+### Issues: 0 CRITICAL, 4 HIGH, 7 MEDIUM, 4 LOW
 ### Blocking: **NONE** - No CRITICAL issues, HIGH issues don't block Phase 02
 ### Next Phase Ready: **YES**
 
