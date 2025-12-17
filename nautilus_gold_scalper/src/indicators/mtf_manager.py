@@ -15,9 +15,10 @@ v1.0 Features:
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
-from typing import Dict, List, Optional
+from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 from ..core.definitions import SignalType
 from ..core.exceptions import InsufficientDataError
@@ -42,29 +43,29 @@ class MTFAlignment(IntEnum):
 @dataclass
 class TimeframeAnalysis:
     """Analysis result for a single timeframe."""
-    
+
     timeframe: str  # "H1", "M15", "M5", "M1"
     trend: MTFTrend = MTFTrend.NEUTRAL
     trend_strength: float = 0.0  # 0-100
-    
+
     # Indicators
     ema_20: float = 0.0
     ema_50: float = 0.0
     rsi: float = 50.0
     atr: float = 0.0
     current_price: float = 0.0
-    
+
     # Trend characteristics
     is_trending: bool = False
     momentum: float = 0.0  # Price momentum
     momentum_aligned: bool = False
-    
+
     # Structure levels
     swing_high: float = 0.0
     swing_low: float = 0.0
-    
-    last_update: Optional[datetime] = None
-    
+
+    last_update: datetime | None = None
+
     def reset(self) -> None:
         """Reset analysis to neutral state."""
         self.trend = MTFTrend.NEUTRAL
@@ -85,32 +86,32 @@ class TimeframeAnalysis:
 @dataclass
 class MTFConfluence:
     """Multi-timeframe confluence result."""
-    
+
     alignment: MTFAlignment = MTFAlignment.NONE
     signal: SignalType = SignalType.NONE
     confidence: float = 0.0  # 0-100
     position_size_mult: float = 0.0  # 0-1.0
-    
+
     # Individual timeframe trends
     h1_trend: MTFTrend = MTFTrend.NEUTRAL
     m15_trend: MTFTrend = MTFTrend.NEUTRAL
     m5_trend: MTFTrend = MTFTrend.NEUTRAL
     m1_trend: MTFTrend = MTFTrend.NEUTRAL
-    
+
     # Alignment details
     bullish_timeframes: int = 0
     bearish_timeframes: int = 0
     neutral_timeframes: int = 0
     confluence_count: int = 0  # Number of aligned timeframes
-    
+
     # HTF alignment check
     htf_aligned: bool = False  # H1 supports direction
     mtf_aligned: bool = False  # M15 supports direction
     ltf_aligned: bool = False  # M5 supports direction
     ultf_aligned: bool = False  # M1 supports direction
-    
+
     reason: str = ""
-    
+
     def reset(self) -> None:
         """Reset confluence to neutral state."""
         self.alignment = MTFAlignment.NONE
@@ -135,20 +136,20 @@ class MTFConfluence:
 class MTFManager:
     """
     Multi-Timeframe Manager for institutional trading.
-    
+
     Analyzes H1 (HTF), M15 (MTF), M5 (LTF), and M1 (ULTF) to determine
     trend alignment and generate high-probability trade signals.
-    
+
     Philosophy:
     - HTF (H1): Provides market direction and bias
     - MTF (M15): Provides structure and setup zones
     - LTF (M5): Provides entry timing
     - ULTF (M1): Provides precise entry execution
     """
-    
+
     MIN_TREND_STRENGTH = 30.0  # Minimum strength to confirm trend
     MIN_CONFLUENCE = 60.0      # Minimum confidence for trading
-    
+
     def __init__(
         self,
         min_trend_strength: float = 30.0,
@@ -157,7 +158,7 @@ class MTFManager:
     ) -> None:
         """
         Initialize MTFManager.
-        
+
         Args:
             min_trend_strength: Minimum trend strength to confirm (0-100)
             min_confluence: Minimum confluence score to trade (0-100)
@@ -166,33 +167,33 @@ class MTFManager:
         self.min_trend_strength = min_trend_strength
         self.min_confluence = min_confluence
         self.lookback_bars = lookback_bars
-        
+
         # Analysis results for each timeframe
         self.h1_analysis = TimeframeAnalysis(timeframe="H1")
         self.m15_analysis = TimeframeAnalysis(timeframe="M15")
         self.m5_analysis = TimeframeAnalysis(timeframe="M5")
         self.m1_analysis = TimeframeAnalysis(timeframe="M1")
-        
+
         # Combined confluence
         self.confluence = MTFConfluence()
-        
+
     def analyze_timeframe(
         self,
         timeframe: str,
-        prices: np.ndarray,
-        volumes: Optional[np.ndarray] = None,
+        prices: NDArray[np.floating[Any]],
+        volumes: NDArray[np.floating[Any]] | None = None,
     ) -> TimeframeAnalysis:
         """
         Analyze a single timeframe for trend and characteristics.
-        
+
         Args:
             timeframe: Timeframe identifier ("H1", "M15", "M5", "M1")
             prices: Array of close prices
             volumes: Optional array of volumes
-            
+
         Returns:
             TimeframeAnalysis with trend and indicators
-            
+
         Raises:
             InsufficientDataError: If not enough data
         """
@@ -201,34 +202,34 @@ class MTFManager:
             raise InsufficientDataError(
                 f"Need at least {min_bars} bars for {timeframe} analysis"
             )
-        
+
         # Get the appropriate analysis object
         analysis = self._get_analysis_for_timeframe(timeframe)
-        
+
         # Calculate indicators
         ema_20 = self._calculate_ema(prices, 20)
         ema_50 = self._calculate_ema(prices, 50)
         rsi = self._calculate_rsi(prices, 14)
         atr = self._calculate_atr(prices, 14)
-        
+
         current_price = float(prices[-1])
-        
+
         # Determine trend
         trend = self._determine_trend(current_price, ema_20, ema_50, atr)
         trend_strength = self._calculate_trend_strength(
             current_price, ema_20, ema_50, rsi, atr
         )
-        
+
         # Calculate momentum
         momentum = self._calculate_momentum(prices)
         momentum_aligned = self._is_momentum_aligned(trend, momentum, rsi)
-        
+
         # Find swing points
         swing_high, swing_low = self._find_swing_points(prices)
-        
+
         # Determine if trending
         is_trending = trend_strength >= self.min_trend_strength and trend != MTFTrend.NEUTRAL
-        
+
         # Update analysis
         analysis.trend = trend
         analysis.trend_strength = trend_strength
@@ -243,71 +244,71 @@ class MTFManager:
         analysis.swing_high = swing_high
         analysis.swing_low = swing_low
         analysis.last_update = datetime.now(timezone.utc)
-        
+
         return analysis
-    
+
     def get_mtf_bias(
         self,
-        h1_prices: np.ndarray,
-        m15_prices: np.ndarray,
-        m5_prices: np.ndarray,
-        m1_prices: np.ndarray,
-    ) -> Dict[str, MTFTrend]:
+        h1_prices: NDArray[np.floating[Any]],
+        m15_prices: NDArray[np.floating[Any]],
+        m5_prices: NDArray[np.floating[Any]],
+        m1_prices: NDArray[np.floating[Any]],
+    ) -> dict[str, MTFTrend]:
         """
         Get bias (trend) for each timeframe.
-        
+
         Args:
             h1_prices: H1 close prices
             m15_prices: M15 close prices
             m5_prices: M5 close prices
             m1_prices: M1 close prices
-            
+
         Returns:
             Dictionary with timeframe -> MTFTrend mapping
         """
         biases = {}
-        
+
         try:
             self.h1_analysis = self.analyze_timeframe("H1", h1_prices)
             biases["H1"] = self.h1_analysis.trend
         except InsufficientDataError:
             biases["H1"] = MTFTrend.NEUTRAL
-        
+
         try:
             self.m15_analysis = self.analyze_timeframe("M15", m15_prices)
             biases["M15"] = self.m15_analysis.trend
         except InsufficientDataError:
             biases["M15"] = MTFTrend.NEUTRAL
-        
+
         try:
             self.m5_analysis = self.analyze_timeframe("M5", m5_prices)
             biases["M5"] = self.m5_analysis.trend
         except InsufficientDataError:
             biases["M5"] = MTFTrend.NEUTRAL
-        
+
         try:
             self.m1_analysis = self.analyze_timeframe("M1", m1_prices)
             biases["M1"] = self.m1_analysis.trend
         except InsufficientDataError:
             biases["M1"] = MTFTrend.NEUTRAL
-        
+
         return biases
-    
+
     def get_alignment_score(self) -> MTFConfluence:
         """
         Calculate alignment score and confluence across timeframes.
-        
+
         Returns:
             MTFConfluence with alignment quality and signal
         """
         self.confluence.reset()
-        
+
         # Store individual trends
         self.confluence.h1_trend = self.h1_analysis.trend
         self.confluence.m15_trend = self.m15_analysis.trend
         self.confluence.m5_trend = self.m5_analysis.trend
         self.confluence.m1_trend = self.m1_analysis.trend
-        
+
         # Count timeframes by direction
         trends = [
             self.h1_analysis.trend,
@@ -315,15 +316,15 @@ class MTFManager:
             self.m5_analysis.trend,
             self.m1_analysis.trend,
         ]
-        
+
         bullish_count = sum(1 for t in trends if t == MTFTrend.BULLISH)
         bearish_count = sum(1 for t in trends if t == MTFTrend.BEARISH)
         neutral_count = sum(1 for t in trends if t == MTFTrend.NEUTRAL)
-        
+
         self.confluence.bullish_timeframes = bullish_count
         self.confluence.bearish_timeframes = bearish_count
         self.confluence.neutral_timeframes = neutral_count
-        
+
         # Determine dominant direction and alignment
         if bullish_count >= bearish_count and bullish_count > 0:
             self.confluence.signal = SignalType.BUY
@@ -334,7 +335,7 @@ class MTFManager:
         else:
             self.confluence.signal = SignalType.NONE
             self.confluence.confluence_count = 0
-        
+
         # Determine alignment quality
         aligned_count = max(bullish_count, bearish_count)
         if aligned_count == 4:
@@ -345,33 +346,33 @@ class MTFManager:
             self.confluence.alignment = MTFAlignment.WEAK
         else:
             self.confluence.alignment = MTFAlignment.NONE
-        
+
         # Check individual timeframe alignment
         target_trend = (
             MTFTrend.BULLISH if self.confluence.signal == SignalType.BUY
             else MTFTrend.BEARISH if self.confluence.signal == SignalType.SELL
             else MTFTrend.NEUTRAL
         )
-        
+
         self.confluence.htf_aligned = self.h1_analysis.trend == target_trend
         self.confluence.mtf_aligned = self.m15_analysis.trend == target_trend
         self.confluence.ltf_aligned = self.m5_analysis.trend == target_trend
         self.confluence.ultf_aligned = self.m1_analysis.trend == target_trend
-        
+
         # Calculate confidence score
         confidence = self._calculate_confluence_confidence()
         self.confluence.confidence = confidence
-        
+
         # Calculate position size multiplier based on alignment
         self.confluence.position_size_mult = self._calculate_position_size_multiplier()
-        
+
         # Generate reason
         self.confluence.reason = self._generate_alignment_reason()
-        
+
         return self.confluence
-    
+
     # Private helper methods
-    
+
     def _get_analysis_for_timeframe(self, timeframe: str) -> TimeframeAnalysis:
         """Get the analysis object for a given timeframe."""
         mapping = {
@@ -381,51 +382,51 @@ class MTFManager:
             "M1": self.m1_analysis,
         }
         return mapping.get(timeframe, TimeframeAnalysis(timeframe=timeframe))
-    
-    def _calculate_ema(self, prices: np.ndarray, period: int) -> float:
+
+    def _calculate_ema(self, prices: NDArray[np.floating[Any]], period: int) -> float:
         """Calculate Exponential Moving Average."""
         if len(prices) < period:
             return float(prices[-1])
-        
+
         alpha = 2.0 / (period + 1)
         ema = float(prices[0])
-        
+
         for price in prices[1:]:
             ema = alpha * price + (1 - alpha) * ema
-        
+
         return float(ema)
-    
-    def _calculate_rsi(self, prices: np.ndarray, period: int = 14) -> float:
+
+    def _calculate_rsi(self, prices: NDArray[np.floating[Any]], period: int = 14) -> float:
         """Calculate Relative Strength Index."""
         if len(prices) < period + 1:
             return 50.0
-        
+
         deltas = np.diff(prices[-period - 1:])
         gains = np.where(deltas > 0, deltas, 0)
         losses = np.where(deltas < 0, -deltas, 0)
-        
+
         avg_gain = float(np.mean(gains))
         avg_loss = float(np.mean(losses))
-        
+
         if avg_loss == 0:
             return 100.0
-        
+
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
-        
+
         return float(rsi)
-    
-    def _calculate_atr(self, prices: np.ndarray, period: int = 14) -> float:
+
+    def _calculate_atr(self, prices: NDArray[np.floating[Any]], period: int = 14) -> float:
         """Calculate Average True Range (simplified with close prices only)."""
         if len(prices) < period + 1:
             return 0.0
-        
+
         # Simplified ATR using close-to-close range
         ranges = np.abs(np.diff(prices[-period - 1:]))
         atr = float(np.mean(ranges))
-        
+
         return atr
-    
+
     def _determine_trend(
         self,
         price: float,
@@ -436,24 +437,24 @@ class MTFManager:
         """Determine trend direction based on EMAs and price."""
         if ema_20 == 0 or ema_50 == 0:
             return MTFTrend.NEUTRAL
-        
+
         # Strong bullish: price > EMA20 > EMA50
         if price > ema_20 and ema_20 > ema_50:
             # Check if separation is significant
             if (ema_20 - ema_50) > (atr * 0.5):
                 return MTFTrend.BULLISH
-        
+
         # Strong bearish: price < EMA20 < EMA50
         if price < ema_20 and ema_20 < ema_50:
             if (ema_50 - ema_20) > (atr * 0.5):
                 return MTFTrend.BEARISH
-        
+
         # Check for ranging market (EMAs compressed)
         if abs(ema_20 - ema_50) < (atr * 0.3):
             return MTFTrend.RANGING
-        
+
         return MTFTrend.NEUTRAL
-    
+
     def _calculate_trend_strength(
         self,
         price: float,
@@ -465,11 +466,11 @@ class MTFManager:
         """Calculate trend strength (0-100)."""
         if ema_20 == 0 or ema_50 == 0 or atr == 0:
             return 0.0
-        
+
         # Factor 1: EMA separation (0-40 points)
         ema_diff = abs(ema_20 - ema_50)
         ema_score = min(40.0, (ema_diff / atr) * 10)
-        
+
         # Factor 2: Price position relative to EMAs (0-30 points)
         if ema_20 > ema_50:  # Bullish alignment
             if price > ema_20:
@@ -485,7 +486,7 @@ class MTFManager:
                 price_score = 15.0
             else:
                 price_score = 0.0
-        
+
         # Factor 3: RSI confirmation (0-30 points)
         if rsi > 50 and ema_20 > ema_50:  # Bullish + RSI confirms
             rsi_score = min(30.0, (rsi - 50) * 0.6)
@@ -493,18 +494,18 @@ class MTFManager:
             rsi_score = min(30.0, (50 - rsi) * 0.6)
         else:
             rsi_score = 0.0
-        
+
         total_strength = ema_score + price_score + rsi_score
         return float(min(100.0, total_strength))
-    
-    def _calculate_momentum(self, prices: np.ndarray, period: int = 10) -> float:
+
+    def _calculate_momentum(self, prices: NDArray[np.floating[Any]], period: int = 10) -> float:
         """Calculate price momentum (rate of change)."""
         if len(prices) < period + 1:
             return 0.0
-        
+
         momentum = float(prices[-1] - prices[-period - 1])
         return momentum
-    
+
     def _is_momentum_aligned(
         self,
         trend: MTFTrend,
@@ -517,19 +518,19 @@ class MTFManager:
         elif trend == MTFTrend.BEARISH:
             return momentum < 0 and rsi < 50
         return False
-    
-    def _find_swing_points(self, prices: np.ndarray) -> tuple[float, float]:
+
+    def _find_swing_points(self, prices: NDArray[np.floating[Any]]) -> tuple[float, float]:
         """Find recent swing high and swing low."""
         lookback = min(self.lookback_bars, len(prices))
         if lookback < 3:
             return float(prices[-1]), float(prices[-1])
-        
+
         recent_prices = prices[-lookback:]
         swing_high = float(np.max(recent_prices))
         swing_low = float(np.min(recent_prices))
-        
+
         return swing_high, swing_low
-    
+
     def _calculate_confluence_confidence(self) -> float:
         """Calculate confidence score based on alignment and strength."""
         # Base score from alignment quality
@@ -540,7 +541,7 @@ class MTFManager:
             MTFAlignment.NONE: 0.0,
         }
         base_score = alignment_scores[self.confluence.alignment]
-        
+
         # Add trend strength scores (weighted by timeframe importance)
         # H1 (40% weight), M15 (30%), M5 (20%), M1 (10%)
         strength_score = (
@@ -549,10 +550,10 @@ class MTFManager:
             self.m5_analysis.trend_strength * 0.20 +
             self.m1_analysis.trend_strength * 0.10
         ) * 0.5  # Scale to 0-50
-        
+
         total_confidence = base_score + strength_score
         return float(min(100.0, total_confidence))
-    
+
     def _calculate_position_size_multiplier(self) -> float:
         """Calculate position size multiplier based on alignment (0-1.0)."""
         alignment_multipliers = {
@@ -561,33 +562,33 @@ class MTFManager:
             MTFAlignment.WEAK: 0.5,      # 50% size
             MTFAlignment.NONE: 0.0,      # No trade
         }
-        
+
         base_mult = alignment_multipliers[self.confluence.alignment]
-        
+
         # Adjust for confidence
         if self.confluence.confidence < self.min_confluence:
             base_mult *= 0.5
-        
+
         return float(base_mult)
-    
+
     def _generate_alignment_reason(self) -> str:
         """Generate human-readable reason for alignment."""
         if self.confluence.alignment == MTFAlignment.PERFECT:
             direction = "BULLISH" if self.confluence.signal == SignalType.BUY else "BEARISH"
             return f"PERFECT alignment: All 4 timeframes {direction}"
-        
+
         elif self.confluence.alignment == MTFAlignment.GOOD:
             direction = "BULLISH" if self.confluence.signal == SignalType.BUY else "BEARISH"
             count = self.confluence.confluence_count
             return f"GOOD alignment: {count}/4 timeframes {direction}"
-        
+
         elif self.confluence.alignment == MTFAlignment.WEAK:
             return "WEAK alignment: Only 2 timeframes aligned"
-        
+
         return "NO alignment: Conflicting timeframes"
-    
+
     # Public utility methods
-    
+
     def can_trade_long(self) -> bool:
         """Check if long trades are allowed based on MTF analysis."""
         return (
@@ -596,7 +597,7 @@ class MTFManager:
             self.confluence.confidence >= self.min_confluence and
             self.confluence.htf_aligned  # H1 must support longs
         )
-    
+
     def can_trade_short(self) -> bool:
         """Check if short trades are allowed based on MTF analysis."""
         return (
@@ -605,7 +606,7 @@ class MTFManager:
             self.confluence.confidence >= self.min_confluence and
             self.confluence.htf_aligned  # H1 must support shorts
         )
-    
+
     def get_analysis_summary(self) -> str:
         """Get human-readable summary of MTF analysis."""
         lines = [
@@ -626,7 +627,7 @@ class MTFManager:
             f"Reason: {self.confluence.reason}",
         ]
         return "\n".join(lines)
-    
+
     @staticmethod
     def _trend_to_string(trend: MTFTrend) -> str:
         """Convert MTFTrend to string."""
@@ -637,7 +638,7 @@ class MTFManager:
             MTFTrend.RANGING: "RANGING",
         }
         return mapping.get(trend, "UNKNOWN")
-    
+
     @staticmethod
     def _alignment_to_string(alignment: MTFAlignment) -> str:
         """Convert MTFAlignment to string."""
@@ -648,7 +649,7 @@ class MTFManager:
             MTFAlignment.NONE: "NONE",
         }
         return mapping.get(alignment, "UNKNOWN")
-    
+
     @staticmethod
     def _signal_to_string(signal: SignalType) -> str:
         """Convert SignalType to string."""

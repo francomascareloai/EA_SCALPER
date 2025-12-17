@@ -10,11 +10,11 @@ XAUUSD Session Dynamics:
 - LATE (17:00-21:00 GMT): LOW liquidity, erratic, AVOID
 """
 from datetime import datetime, time, timedelta
-from typing import Tuple
+from typing import Any
 from zoneinfo import ZoneInfo
 
-from ..core.definitions import SessionQuality, TradingSession
 from ..core.data_types import SessionInfo
+from ..core.definitions import SessionQuality, TradingSession
 
 
 class SessionFilter:
@@ -129,15 +129,17 @@ class SessionFilter:
             reason=reason,
         )
 
-    def _identify_session(self, current_time: time) -> Tuple[TradingSession, dict]:
+    def _identify_session(self, current_time: time) -> tuple[TradingSession, dict[str, Any]]:
         """Identifica qual sessao esta ativa com base no horario GMT."""
         for session, config in self.SESSIONS.items():
-            if config["start"] <= current_time < config["end"]:
+            start = config.get("start")
+            end = config.get("end")
+            if isinstance(start, time) and isinstance(end, time) and start <= current_time < end:
                 return session, config
 
         return TradingSession.SESSION_ASIAN, self.SESSIONS[TradingSession.SESSION_ASIAN]
 
-    def _is_trading_allowed(self, session: TradingSession) -> Tuple[bool, str]:
+    def _is_trading_allowed(self, session: TradingSession) -> tuple[bool, str]:
         """Verifica se trading e permitido na sessao."""
         if session == TradingSession.SESSION_ASIAN:
             if self.allow_asian:
@@ -179,13 +181,13 @@ class SessionFilter:
     def is_valid_session(self, timestamp: datetime) -> bool:
         """
         Check if trading is allowed in the current session.
-        
+
         Args:
             timestamp: Current timestamp to check
-            
+
         Returns:
             True if trading is allowed, False otherwise
-            
+
         Example:
             filter = SessionFilter()
             from datetime import datetime
@@ -193,18 +195,18 @@ class SessionFilter:
             filter.is_valid_session(ts)  # Returns: True
         """
         info = self.get_session_info(timestamp)
-        return info.is_trading_allowed
-    
+        return bool(info.is_trading_allowed)
+
     def get_current_session(self, timestamp: datetime) -> TradingSession:
         """
         Get the current trading session.
-        
+
         Args:
             timestamp: Current timestamp
-            
+
         Returns:
             TradingSession enum value (ASIAN, LONDON, OVERLAP, NY, LATE_NY, WEEKEND)
-            
+
         Example:
             filter = SessionFilter()
             from datetime import datetime
@@ -218,16 +220,17 @@ class SessionFilter:
     def is_prime_time(self, timestamp: datetime) -> bool:
         """Retorna True se estiver no overlap Londres/NY (prime window)."""
         info = self.get_session_info(timestamp)
-        return info.session == TradingSession.SESSION_LONDON_NY_OVERLAP
+        return bool(info.session == TradingSession.SESSION_LONDON_NY_OVERLAP)
 
     def get_session_quality_factor(self, timestamp: datetime) -> float:
         """Fator (0-1) para ajustar scores com base na qualidade da sessao."""
         info = self.get_session_info(timestamp)
-        return {
+        factors: dict[SessionQuality, float] = {
             SessionQuality.SESSION_QUALITY_BLOCKED: 0.0,
             SessionQuality.SESSION_QUALITY_LOW: 0.3,
             SessionQuality.SESSION_QUALITY_MEDIUM: 0.6,
             SessionQuality.SESSION_QUALITY_HIGH: 0.85,
             SessionQuality.SESSION_QUALITY_PRIME: 1.0,
-        }.get(info.quality, 0.0)
+        }
+        return factors.get(info.quality, 0.0)
 # ✓ FORGE v4.0: 7/7 checks - Session filter with FTMO-compliant session management

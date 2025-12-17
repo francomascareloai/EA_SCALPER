@@ -1,6 +1,68 @@
 # PLAN: Phase 05 - Execution Layer Audit
 
-> **Changelog:** v1.1 (2025-12-16) - Applied CRITIC review fixes: realistic execution defaults, Apex time gates, SL rejection handling, expanded edge cases, state machine requirement, workload rebalancing, quantitative success criteria, blocking criteria.
+> **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
+> - 2025-12-16 (v1.1): Applied CRITIC review fixes: realistic execution defaults, Apex time gates, SL rejection handling, expanded edge cases, state machine requirement, workload rebalancing, quantitative success criteria, blocking criteria.
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files directly.**
+>
+> This phase analyzes ~889 lines of execution-critical code. Reading these files directly will cause context overflow.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads execution files directly
+   Orchestrator traces order lifecycle in main context
+   → CONTEXT OVERFLOW → Summarization → LOST EXECUTION DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns FORGE sub-agents with delegation prompt
+   Each FORGE reads assigned files, traces lifecycle, writes findings
+   Each FORGE returns 300-word summary to orchestrator
+   Orchestrator consolidates and updates MANIFEST.md
+```
+
+### Required Sub-Agent Prompts
+
+**Agent A (Trade Manager):**
+```
+Execute Phase 05 Agent A (Trade Manager) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source file - orchestrator has NOT read it
+2. File to analyze: nautilus_gold_scalper/src/execution/trade_manager.py (633 lines)
+3. Focus: Lifecycle, state machine, Apex time gates, SL rejection handling
+4. Produce state machine diagram with ALL order/position transitions
+5. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_05_A_TRADEMGR_FINDINGS.md
+6. Return ONLY summary (max 300 words) with issue counts and state machine status
+
+Plan file: .planning/phases/08-nautilus-deep-audit/06-PHASE-05-PLAN.md
+```
+
+**Agent B (Execution Model + Adapters):**
+```
+Execute Phase 05 Agent B (Execution Model + Adapters) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - nautilus_gold_scalper/src/execution/execution_model.py (42 lines)
+   - nautilus_gold_scalper/src/execution/base_adapter.py (128 lines)
+   - nautilus_gold_scalper/src/execution/mt5_adapter.py (44 lines)
+   - nautilus_gold_scalper/src/execution/ninjatrader_adapter.py (42 lines)
+3. Focus: Execution realism, slippage model, Nautilus integration
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_05_B_ADAPTERS_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/06-PHASE-05-PLAN.md
+```
+
+---
 
 ## Objective
 Critical analysis of execution layer to verify trade lifecycle management, slippage modeling, and broker adapter correctness for Apex prop firm live trading.
@@ -219,6 +281,7 @@ Before diving into file-by-file analysis, confirm:
 - Zero rejection probability in production config
 - No emergency close mechanism for 4:55/4:59 PM
 - State machine has undefined transitions
+- **Missing connection monitoring (190K loss incident documented by ARGUS)**
 
 **CRITICAL finding = must fix before Phase 06**
 
@@ -288,17 +351,21 @@ Include:
 | Position open on reconnect | Verify SL/TP still active | [ ] |
 | No data feed for 30s | HALT trading, alert | [ ] |
 
-### NinjaTrader OTP Bridge Verification
+### NinjaTrader OIF Bridge Verification
 
-**User Context**: Will use NinjaTrader as execution bridge (file-based OTP)
+**OIF = Order Instruction Files** (NinjaTrader's file-based order interface via ATI)
+
+**User Context**: Will use NinjaTrader as execution bridge (file-based OIF)
+
+**Note**: OIF uses ATI (Automated Trading Interface) which may leave audit trail. See ARGUS NT8 Add-On research for stealth alternatives (OrderEntry.Manual via Add-On).
 
 | Check | Requirement | Status |
 |-------|-------------|--------|
-| OTP file write atomicity | Ensure complete write before signal | [ ] |
-| OTP file read confirmation | Verify execution acknowledged | [ ] |
-| OTP timeout handling | What if NinjaTrader doesn't respond? | [ ] |
-| OTP state sync | Position state matches between systems | [ ] |
-| OTP emergency close | Can force close via OTP in emergency? | [ ] |
+| OIF file write atomicity | Ensure complete write before signal | [ ] |
+| OIF file read confirmation | Verify execution acknowledged | [ ] |
+| OIF timeout handling | What if NinjaTrader doesn't respond? | [ ] |
+| OIF state sync | Position state matches between systems | [ ] |
+| OIF emergency close | Can force close via OIF in emergency? | [ ] |
 
 ### News Window Execution Blocking
 

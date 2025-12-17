@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
+import pytest
 
+from src.core.exceptions import InsufficientDataError
 from src.indicators.regime_detector import RegimeDetector
 
 
@@ -33,5 +34,5 @@ class TestRegimeDetector:
     def test_insufficient_data_raises(self):
         rd = RegimeDetector()
         prices = np.array([1900, 1901, 1902])
-        with pytest.raises(Exception):
+        with pytest.raises(InsufficientDataError):
             rd.analyze(prices)

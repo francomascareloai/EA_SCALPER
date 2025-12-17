@@ -11,26 +11,32 @@ Provides training infrastructure for trading ML models:
 """
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any, Callable
+import json
+import logging
+import pickle
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-import pickle
-import json
-import warnings
-import logging
+from typing import Any
+
+import numpy as np
+import pandas as pd
 
 warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
 
 try:
-    from sklearn.model_selection import TimeSeriesSplit
-    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-    from sklearn.metrics import roc_auc_score, log_loss
-    from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+    from sklearn.ensemble import RandomForestClassifier
     from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import (
+        accuracy_score,
+        f1_score,
+        log_loss,
+        precision_score,
+        recall_score,
+        roc_auc_score,
+    )
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
@@ -49,8 +55,8 @@ except ImportError:
 
 try:
     import onnx
-    import onnxruntime as ort
     import onnxmltools
+    import onnxruntime as ort
     from onnxmltools.convert.common.data_types import FloatTensorType
     from skl2onnx import convert_sklearn
     HAS_ONNX = True
@@ -65,23 +71,23 @@ class TrainingConfig:
     # Cross-validation
     n_splits: int = 5
     gap: int = 10  # Gap between train/test to prevent leakage
-    
+
     # Walk-forward
     wf_train_size: int = 5000  # Bars for training
     wf_test_size: int = 500    # Bars for testing
     wf_step_size: int = 250    # Step between folds
-    
+
     # Training
     early_stopping_rounds: int = 50
     validation_fraction: float = 0.2
     random_state: int = 42
-    
+
     # Output
     model_dir: str = "data/models"
     save_onnx: bool = True
 
 
-@dataclass 
+@dataclass
 class TrainingResult:
     """Results from model training."""
     model_name: str
@@ -91,71 +97,71 @@ class TrainingResult:
     f1: float
     auc: float = 0.0
     log_loss_val: float = 0.0
-    
+
     # Walk-forward metrics
     wf_efficiency: float = 0.0  # OOS vs IS performance ratio
     oos_sharpe: float = 0.0
-    
+
     # Training details
     train_samples: int = 0
     test_samples: int = 0
     n_features: int = 0
     training_time_seconds: float = 0.0
-    
-    fold_results: List[Dict] = field(default_factory=list)
-    feature_importance: Dict[str, float] = field(default_factory=dict)
-    
-    timestamp: Optional[datetime] = None
-    model_path: Optional[str] = None
+
+    fold_results: list[dict[str, Any]] = field(default_factory=list)
+    feature_importance: dict[str, float] = field(default_factory=dict)
+
+    timestamp: datetime | None = None
+    model_path: str | None = None
 
 
 class PurgedTimeSeriesSplit:
     """
     Time series cross-validation with purging.
-    
+
     Prevents look-ahead bias by ensuring a gap between
     training and test sets.
     """
-    
+
     def __init__(self, n_splits: int = 5, gap: int = 10):
         self.n_splits = n_splits
         self.gap = gap
-    
-    def split(self, X: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray]]:
+
+    def split(self, X: np.ndarray[Any, Any]) -> list[tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]]:
         """Generate train/test indices with purging."""
         n = len(X)
         test_size = n // (self.n_splits + 1)
-        
+
         splits = []
         for i in range(self.n_splits):
             test_start = (i + 1) * test_size
             test_end = test_start + test_size
-            
+
             if test_end > n:
                 test_end = n
-            
+
             # Train up to gap before test
             train_end = test_start - self.gap
-            
+
             if train_end <= 0:
                 continue
-            
+
             train_idx = np.arange(0, train_end)
             test_idx = np.arange(test_start, test_end)
-            
+
             splits.append((train_idx, test_idx))
-        
+
         return splits
 
 
 class WalkForwardValidator:
     """
     Walk-Forward Analysis validator.
-    
+
     Simulates realistic trading conditions by training on
     historical data and testing on subsequent out-of-sample period.
     """
-    
+
     def __init__(
         self,
         train_size: int = 5000,
@@ -167,35 +173,35 @@ class WalkForwardValidator:
         self.test_size = test_size
         self.step_size = step_size
         self.gap = gap
-    
-    def split(self, X: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray]]:
+
+    def split(self, X: np.ndarray[Any, Any]) -> list[tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]]:
         """Generate walk-forward train/test indices."""
         n = len(X)
         splits = []
-        
+
         start = 0
         while True:
             train_end = start + self.train_size
             test_start = train_end + self.gap
             test_end = test_start + self.test_size
-            
+
             if test_end > n:
                 break
-            
+
             train_idx = np.arange(start, train_end)
             test_idx = np.arange(test_start, test_end)
-            
+
             splits.append((train_idx, test_idx))
-            
+
             start += self.step_size
-        
+
         return splits
 
 
 class ModelTrainer:
     """
     Comprehensive ML model trainer for trading strategies.
-    
+
     Features:
     - Multiple model types (RF, XGB, LGB, etc.)
     - Walk-Forward Analysis
@@ -203,45 +209,45 @@ class ModelTrainer:
     - Feature importance tracking
     - Model serialization
     """
-    
-    def __init__(self, config: Optional[TrainingConfig] = None):
+
+    def __init__(self, config: TrainingConfig | None = None):
         self.config = config or TrainingConfig()
-        self._models: Dict[str, Any] = {}
-        self._results: Dict[str, TrainingResult] = {}
-        
+        self._models: dict[str, Any] = {}
+        self._results: dict[str, TrainingResult] = {}
+
         # Create model directory
         Path(self.config.model_dir).mkdir(parents=True, exist_ok=True)
-    
+
     def train_classifier(
         self,
-        X: np.ndarray,
-        y: np.ndarray,
+        X: np.ndarray[Any, Any],
+        y: np.ndarray[Any, Any],
         model_type: str = "lightgbm",
-        feature_names: Optional[List[str]] = None,
-        **kwargs,
+        feature_names: list[str] | None = None,
+        **kwargs: Any,
     ) -> TrainingResult:
         """
         Train a classification model.
-        
+
         Args:
             X: Feature matrix (n_samples, n_features)
             y: Target labels (0/1 for direction)
             model_type: One of 'lightgbm', 'xgboost', 'random_forest', 'logistic'
             feature_names: Optional feature names for importance tracking
             **kwargs: Additional model parameters
-        
+
         Returns:
             TrainingResult with metrics and model path
         """
         import time
         start_time = time.time()
-        
+
         # Get model
         model = self._create_model(model_type, **kwargs)
-        
+
         if model is None:
             raise ValueError(f"Unknown model type: {model_type}")
-        
+
         # Walk-forward validation
         wf_validator = WalkForwardValidator(
             train_size=self.config.wf_train_size,
@@ -249,9 +255,9 @@ class ModelTrainer:
             step_size=self.config.wf_step_size,
             gap=self.config.gap,
         )
-        
+
         splits = wf_validator.split(X)
-        
+
         if len(splits) == 0:
             # Fall back to purged time series split
             purged_cv = PurgedTimeSeriesSplit(
@@ -259,16 +265,16 @@ class ModelTrainer:
                 gap=self.config.gap,
             )
             splits = purged_cv.split(X)
-        
+
         # Collect results across folds
         fold_results = []
         is_accuracies = []
         oos_accuracies = []
-        
+
         for fold_idx, (train_idx, test_idx) in enumerate(splits):
             X_train, X_test = X[train_idx], X[test_idx]
             y_train, y_test = y[train_idx], y[test_idx]
-            
+
             # Train
             if model_type == "lightgbm" and HAS_LIGHTGBM:
                 model = self._train_lightgbm(X_train, y_train, X_test, y_test, **kwargs)
@@ -276,17 +282,17 @@ class ModelTrainer:
                 model = self._train_xgboost(X_train, y_train, X_test, y_test, **kwargs)
             else:
                 model.fit(X_train, y_train)
-            
+
             # Evaluate
             train_pred = model.predict(X_train)
             test_pred = model.predict(X_test)
-            
+
             train_acc = accuracy_score(y_train, train_pred)
             test_acc = accuracy_score(y_test, test_pred)
-            
+
             is_accuracies.append(train_acc)
             oos_accuracies.append(test_acc)
-            
+
             # Detailed metrics for test set
             fold_result = {
                 "fold": fold_idx,
@@ -298,7 +304,7 @@ class ModelTrainer:
                 "test_recall": recall_score(y_test, test_pred, zero_division=0),
                 "test_f1": f1_score(y_test, test_pred, zero_division=0),
             }
-            
+
             # AUC if probabilities available
             if hasattr(model, "predict_proba"):
                 try:
@@ -306,19 +312,19 @@ class ModelTrainer:
                     fold_result["test_auc"] = roc_auc_score(y_test, test_proba)
                     fold_result["test_logloss"] = log_loss(y_test, test_proba)
                 except Exception as e:
-                    logger.warning(f"Metrics calculation failed for fold {fold+1}: {e}")
+                    logger.warning(f"Metrics calculation failed for fold {fold_idx + 1}: {e}")
                     pass
-            
+
             fold_results.append(fold_result)
-        
+
         # Aggregate metrics
         avg_metrics = self._aggregate_fold_metrics(fold_results)
-        
+
         # Calculate WF efficiency
-        mean_is = np.mean(is_accuracies)
-        mean_oos = np.mean(oos_accuracies)
-        wf_efficiency = mean_oos / mean_is if mean_is > 0 else 0.0
-        
+        mean_is = float(np.mean(is_accuracies))
+        mean_oos = float(np.mean(oos_accuracies))
+        wf_efficiency = mean_oos / mean_is if mean_is > 0.0 else 0.0
+
         # Retrain on full data for final model
         final_model = self._create_model(model_type, **kwargs)
         if model_type == "lightgbm" and HAS_LIGHTGBM:
@@ -337,17 +343,17 @@ class ModelTrainer:
             )
         else:
             final_model.fit(X, y)
-        
+
         # Feature importance
         feature_importance = self._get_feature_importance(
             final_model, feature_names or [f"f{i}" for i in range(X.shape[1])]
         )
-        
+
         # Save model
         model_path = self._save_model(final_model, model_type)
-        
+
         training_time = time.time() - start_time
-        
+
         result = TrainingResult(
             model_name=model_type,
             accuracy=avg_metrics["accuracy"],
@@ -366,16 +372,16 @@ class ModelTrainer:
             timestamp=datetime.now(),
             model_path=model_path,
         )
-        
+
         self._models[model_type] = final_model
         self._results[model_type] = result
-        
+
         return result
-    
-    def _create_model(self, model_type: str, **kwargs) -> Any:
+
+    def _create_model(self, model_type: str, **kwargs: Any) -> Any:
         """Create a model instance."""
         if model_type == "lightgbm" and HAS_LIGHTGBM:
-            params = {
+            model_params: dict[str, Any] = {
                 "objective": "binary",
                 "metric": "binary_logloss",
                 "boosting_type": "gbdt",
@@ -387,11 +393,11 @@ class ModelTrainer:
                 "verbose": -1,
                 "random_state": self.config.random_state,
             }
-            params.update(kwargs)
-            return lgb.LGBMClassifier(**params)
-        
+            model_params.update(kwargs)
+            return lgb.LGBMClassifier(**model_params)
+
         elif model_type == "xgboost" and HAS_XGBOOST:
-            params = {
+            xgb_params: dict[str, Any] = {
                 "objective": "binary:logistic",
                 "eval_metric": "logloss",
                 "max_depth": 6,
@@ -401,11 +407,11 @@ class ModelTrainer:
                 "random_state": self.config.random_state,
                 "verbosity": 0,
             }
-            params.update(kwargs)
-            return xgb.XGBClassifier(**params)
-        
+            xgb_params.update(kwargs)
+            return xgb.XGBClassifier(**xgb_params)
+
         elif model_type == "random_forest" and HAS_SKLEARN:
-            params = {
+            rf_params: dict[str, Any] = {
                 "n_estimators": 100,
                 "max_depth": 10,
                 "min_samples_split": 5,
@@ -413,35 +419,35 @@ class ModelTrainer:
                 "random_state": self.config.random_state,
                 "n_jobs": -1,
             }
-            params.update(kwargs)
-            return RandomForestClassifier(**params)
-        
+            rf_params.update(kwargs)
+            return RandomForestClassifier(**rf_params)
+
         elif model_type == "logistic" and HAS_SKLEARN:
-            params = {
+            lr_params: dict[str, Any] = {
                 "penalty": "l2",
                 "C": 1.0,
                 "max_iter": 1000,
                 "random_state": self.config.random_state,
             }
-            params.update(kwargs)
-            return LogisticRegression(**params)
-        
+            lr_params.update(kwargs)
+            return LogisticRegression(**lr_params)
+
         return None
-    
+
     def _train_lightgbm(
         self,
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
-        **kwargs,
+        X_train: np.ndarray[Any, Any],
+        y_train: np.ndarray[Any, Any],
+        X_val: np.ndarray[Any, Any],
+        y_val: np.ndarray[Any, Any],
+        **kwargs: Any,
     ) -> Any:
         """Train LightGBM with early stopping."""
         if not HAS_LIGHTGBM:
             raise ImportError("LightGBM not installed")
-        
+
         model = self._create_model("lightgbm", **kwargs)
-        
+
         model.fit(
             X_train, y_train,
             eval_set=[(X_val, y_val)],
@@ -450,111 +456,111 @@ class ModelTrainer:
                 lgb.log_evaluation(period=0),  # Disable logging
             ],
         )
-        
+
         return model
-    
+
     def _train_xgboost(
         self,
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
-        **kwargs,
+        X_train: np.ndarray[Any, Any],
+        y_train: np.ndarray[Any, Any],
+        X_val: np.ndarray[Any, Any],
+        y_val: np.ndarray[Any, Any],
+        **kwargs: Any,
     ) -> Any:
         """Train XGBoost with early stopping."""
         if not HAS_XGBOOST:
             raise ImportError("XGBoost not installed")
-        
+
         model = self._create_model("xgboost", **kwargs)
-        
+
         model.fit(
             X_train, y_train,
             eval_set=[(X_val, y_val)],
             early_stopping_rounds=self.config.early_stopping_rounds,
             verbose=False,
         )
-        
+
         return model
-    
-    def _aggregate_fold_metrics(self, fold_results: List[Dict]) -> Dict[str, float]:
+
+    def _aggregate_fold_metrics(self, fold_results: list[dict[str, Any]]) -> dict[str, float]:
         """Aggregate metrics across folds."""
-        metrics = {
-            "accuracy": np.mean([f["test_acc"] for f in fold_results]),
-            "precision": np.mean([f["test_precision"] for f in fold_results]),
-            "recall": np.mean([f["test_recall"] for f in fold_results]),
-            "f1": np.mean([f["test_f1"] for f in fold_results]),
+        metrics: dict[str, float] = {
+            "accuracy": float(np.mean([f["test_acc"] for f in fold_results])),
+            "precision": float(np.mean([f["test_precision"] for f in fold_results])),
+            "recall": float(np.mean([f["test_recall"] for f in fold_results])),
+            "f1": float(np.mean([f["test_f1"] for f in fold_results])),
         }
-        
+
         if "test_auc" in fold_results[0]:
-            metrics["auc"] = np.mean([f.get("test_auc", 0) for f in fold_results])
-        
+            metrics["auc"] = float(np.mean([f.get("test_auc", 0.0) for f in fold_results]))
+
         if "test_logloss" in fold_results[0]:
-            metrics["logloss"] = np.mean([f.get("test_logloss", 0) for f in fold_results])
-        
+            metrics["logloss"] = float(np.mean([f.get("test_logloss", 0.0) for f in fold_results]))
+
         return metrics
-    
+
     def _get_feature_importance(
         self,
         model: Any,
-        feature_names: List[str],
-    ) -> Dict[str, float]:
+        feature_names: list[str],
+    ) -> dict[str, float]:
         """Extract feature importance from model."""
-        importance = {}
-        
+        importance: dict[str, float] = {}
+
         if hasattr(model, "feature_importances_"):
             imp = model.feature_importances_
-            for name, val in zip(feature_names, imp):
+            for name, val in zip(feature_names, imp, strict=True):
                 importance[name] = float(val)
-        
+
         elif hasattr(model, "coef_"):
             imp = np.abs(model.coef_).flatten()
-            for name, val in zip(feature_names, imp):
+            for name, val in zip(feature_names, imp, strict=True):
                 importance[name] = float(val)
-        
+
         # Sort by importance
         importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
-        
+
         return importance
-    
+
     def _save_model(self, model: Any, model_type: str) -> str:
         """
         Save model to disk in ONNX format.
-        
+
         Falls back to pickle only if ONNX export fails.
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
+
         if HAS_ONNX and self.config.save_onnx:
             # Try ONNX export first
             filename = f"{model_type}_{timestamp}.onnx"
             filepath = Path(self.config.model_dir) / filename
-            
+
             try:
                 self._save_model_onnx(model, str(filepath), model_type)
                 logger.info(f"Model saved to ONNX: {filepath}")
                 return str(filepath)
             except Exception as e:
                 logger.warning(f"ONNX export failed: {e}. Falling back to pickle.")
-        
+
         # Fallback to pickle (with security warning)
         logger.warning("Using pickle serialization - security vulnerability! Consider using ONNX.")
         filename = f"{model_type}_{timestamp}.pkl"
         filepath = Path(self.config.model_dir) / filename
-        
+
         with open(filepath, "wb") as f:
             pickle.dump(model, f)
-        
+
         return str(filepath)
-    
+
     def _save_model_onnx(self, model: Any, filepath: str, model_type: str) -> None:
         """
         Export model to ONNX format.
-        
+
         Supports LightGBM, XGBoost, and sklearn models.
         """
         if not HAS_ONNX:
             raise ImportError("ONNX libraries not installed")
-        
+
         # Get number of features from model
         if hasattr(model, 'n_features_in_'):
             n_features = model.n_features_in_
@@ -562,10 +568,10 @@ class ModelTrainer:
             n_features = model._n_features
         else:
             raise ValueError("Cannot determine number of features from model")
-        
+
         # Define initial type for ONNX conversion
         initial_type = [('float_input', FloatTensorType([None, n_features]))]
-        
+
         if model_type == "lightgbm" and HAS_LIGHTGBM:
             # Convert LightGBM to ONNX
             onnx_model = onnxmltools.convert_lightgbm(
@@ -589,10 +595,10 @@ class ModelTrainer:
             )
         else:
             raise ValueError(f"Unsupported model type for ONNX: {model_type}")
-        
+
         # Save ONNX model
         onnxmltools.utils.save_model(onnx_model, filepath)
-        
+
         # Save metadata as JSON
         metadata = {
             "model_type": model_type,
@@ -600,26 +606,26 @@ class ModelTrainer:
             "timestamp": datetime.now().isoformat(),
             "onnx_version": onnx.__version__,
         }
-        
+
         metadata_path = filepath.replace('.onnx', '_metadata.json')
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)
-    
+
     def load_model(self, model_path: str) -> Any:
         """
         Load model from disk.
-        
+
         Tries ONNX first, falls back to pickle with warning.
         """
         path = Path(model_path)
-        
+
         # Try ONNX first
         if HAS_ONNX and path.suffix == '.onnx':
             try:
                 return self._load_model_onnx(str(path))
             except Exception as e:
                 logger.warning(f"ONNX load failed: {e}. Trying pickle fallback.")
-        
+
         # Try to find ONNX version if pickle path given
         if path.suffix == '.pkl':
             onnx_path = path.with_suffix('.onnx')
@@ -629,57 +635,57 @@ class ModelTrainer:
                     return self._load_model_onnx(str(onnx_path))
                 except Exception as e:
                     logger.warning(f"ONNX load failed: {e}. Loading pickle.")
-        
+
         # Fallback to pickle (with security warning)
         logger.warning("Loading pickle file - security vulnerability! Migrate to ONNX.")
         with open(model_path, "rb") as f:
             model = pickle.load(f)
         return model
-    
+
     def _load_model_onnx(self, filepath: str) -> ort.InferenceSession:
         """
         Load ONNX model for inference.
-        
+
         Returns an ONNX Runtime InferenceSession.
         """
         if not HAS_ONNX:
             raise ImportError("ONNX libraries not installed")
-        
+
         # Load metadata
         metadata_path = filepath.replace('.onnx', '_metadata.json')
         metadata = {}
         if Path(metadata_path).exists():
-            with open(metadata_path, 'r') as f:
+            with open(metadata_path) as f:
                 metadata = json.load(f)
-        
+
         # Create ONNX Runtime session
         sess_options = ort.SessionOptions()
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        
+
         session = ort.InferenceSession(
             filepath,
             sess_options=sess_options,
             providers=['CPUExecutionProvider']
         )
-        
+
         # Store metadata in session for reference
         session.metadata = metadata
-        
+
         return session
-    
-    def get_model(self, model_type: str) -> Optional[Any]:
+
+    def get_model(self, model_type: str) -> Any | None:
         """Get a trained model by type."""
         return self._models.get(model_type)
-    
-    def get_result(self, model_type: str) -> Optional[TrainingResult]:
+
+    def get_result(self, model_type: str) -> TrainingResult | None:
         """Get training result by model type."""
         return self._results.get(model_type)
-    
+
     def compare_models(self) -> pd.DataFrame:
         """Compare all trained models."""
         if not self._results:
             return pd.DataFrame()
-        
+
         data = []
         for name, result in self._results.items():
             data.append({
@@ -692,5 +698,5 @@ class ModelTrainer:
                 "wf_efficiency": result.wf_efficiency,
                 "training_time": result.training_time_seconds,
             })
-        
+
         return pd.DataFrame(data).sort_values("f1", ascending=False)

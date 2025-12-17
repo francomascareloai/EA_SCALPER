@@ -1,28 +1,28 @@
 """Technical indicators for Gold Scalper."""
 
-from .structure_analyzer import (
-    StructureAnalyzer,
-    StructureState,
-    StructurePointType,
-    MarketBias,
-    BreakType,
-    SwingPoint,
-    StructureBreak,
-)
-from .session_filter import SessionFilter
 from .regime_detector import RegimeDetector
+from .session_filter import SessionFilter
+from .structure_analyzer import (
+    BreakType,
+    MarketBias,
+    StructureAnalyzer,
+    StructureBreak,
+    StructurePointType,
+    StructureState,
+    SwingPoint,
+)
 
 # Footprint module ainda nao migrado; import protegido para evitar falhas.
 try:
     from .footprint_analyzer import (
-        FootprintAnalyzer,
-        FootprintState,
-        FootprintLevel,
-        StackedImbalance,
         AbsorptionZone,
-        ValueArea,
         AuctionType,
+        FootprintAnalyzer,
+        FootprintLevel,
         FootprintSimulator,
+        FootprintState,
+        StackedImbalance,
+        ValueArea,
     )
 except ImportError:  # pragma: no cover - modulo ausente em alguns estagios da migracao
     FootprintAnalyzer = None  # type: ignore
@@ -35,10 +35,10 @@ except ImportError:  # pragma: no cover - modulo ausente em alguns estagios da m
     FootprintSimulator = None  # type: ignore
 
 # STREAM C: SMC Components (migrated from MQL5)
-from .order_block_detector import OrderBlockDetector
+from .amd_cycle_tracker import AMDCycleTracker
 from .fvg_detector import FVGDetector
 from .liquidity_sweep import LiquiditySweepDetector
-from .amd_cycle_tracker import AMDCycleTracker
+from .order_block_detector import OrderBlockDetector
 
 __all__ = [
     # Structure analysis

@@ -1,8 +1,85 @@
 # PLAN: Phase 06 - Backtest Scripts Audit
 
 > **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
 > - 2025-12-16 (v2): Fixed R-001 through R-006 from CRITIC re-review (agent type, synthesis step, time gates, look-ahead protocol, orchestration protocol, blocking criteria)
 > - 2025-12-16 (v1): Applied CRITIC v1.1 review fixes (C-001 through C-010)
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files directly.**
+>
+> This phase analyzes ~9,393 lines of backtest code across 11+ files. Reading these files directly will cause severe context overflow.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads 11 backtest scripts directly
+   Orchestrator performs look-ahead detection in main context
+   → CONTEXT OVERFLOW → Summarization → MISSED DATA LEAKAGE
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns REVIEWER sub-agents with delegation prompt
+   Each REVIEWER reads assigned files, checks for leakage, writes findings
+   Each REVIEWER returns 300-word summary to orchestrator
+   Orchestrator synthesizes and updates MANIFEST.md
+```
+
+### Required Sub-Agent Prompts
+
+**Round 1 - Agent A (Core EA Logic):**
+```
+Execute Phase 06 Round 1 Agent A (Core EA Logic) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source file - orchestrator has NOT read it
+2. File to analyze: scripts/backtest/strategies/ea_logic_full.py (2696 lines)
+3. Focus: MQL5 parity, look-ahead detection, Apex time gates
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_06_R1_A_EALOGIC_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts and leakage status
+
+Plan file: .planning/phases/08-nautilus-deep-audit/07-PHASE-06-PLAN.md
+```
+
+**Round 1 - Agent B (Alternative Strategies):**
+```
+Execute Phase 06 Round 1 Agent B (Alternative Strategies) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - scripts/backtest/strategies/ea_logic_python.py (704 lines)
+   - scripts/backtest/strategies/adaptive_kelly.py (541 lines)
+   - scripts/backtest/strategies/ea_logic_compat.py (313 lines)
+3. Focus: Consistency with main strategy, Kelly implementation
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_06_R1_B_ALTSTRAT_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/07-PHASE-06-PLAN.md
+```
+
+**Round 1 - Agent C (Analysis Strategies):**
+```
+Execute Phase 06 Round 1 Agent C (Analysis Strategies) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - scripts/backtest/strategies/fibonacci_analyzer.py (539 lines)
+   - scripts/backtest/strategies/spread_analyzer.py (451 lines)
+3. Focus: Fibonacci/spread analysis correctness, temporal integrity
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_06_R1_C_ANALYSIS_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/07-PHASE-06-PLAN.md
+```
+
+**Round 2 - Validation Scripts (separate prompts for each agent as defined in plan)**
+
+---
 
 ## Objective
 Critical analysis of all backtest scripts and strategies to identify data leakage, unrealistic assumptions, and consistency issues with the main strategy.

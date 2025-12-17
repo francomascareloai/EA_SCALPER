@@ -76,7 +76,8 @@ python3 scripts/verify_csv_redundancy.py
 rm -rf data/session_csvs/
 
 # Update scripts to use Parquet exclusively
-sed -i 's/\.csv/.parquet/g' scripts/generate_session_datasets.py
+NOTE: `scripts/generate_session_datasets.py` was retired; session slicing is now centralized in:
+- `scripts/data/slice_catalog_by_session.py`
 ```
 
 **Impact**:

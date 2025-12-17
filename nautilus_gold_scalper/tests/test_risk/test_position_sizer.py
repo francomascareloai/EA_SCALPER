@@ -3,7 +3,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-from nautilus_gold_scalper.src.risk.position_sizer import PositionSizer, LotSizeMethod
+from nautilus_gold_scalper.src.risk.position_sizer import LotSizeMethod, PositionSizer
 
 
 def test_drawdown_throttles_risk_percent():

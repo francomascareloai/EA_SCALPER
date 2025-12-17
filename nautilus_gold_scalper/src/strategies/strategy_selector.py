@@ -12,8 +12,7 @@ Decision Hierarchy (6 Gates):
 6. REGIME SELECTION - Trend/Revert/Random based on Hurst/Entropy
 """
 import logging
-from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
 
@@ -49,69 +48,69 @@ class MarketContext:
     is_trending: bool = False
     is_reverting: bool = False
     is_random: bool = True
-    
+
     # News
     in_news_window: bool = False
     news_imminent: bool = False  # < 5 min
     minutes_to_news: int = 999
     news_impact: NewsImpact = NewsImpact.IMPACT_LOW
-    
+
     # Session
     is_london: bool = False
     is_newyork: bool = False
     is_overlap: bool = False  # Best time
     is_asian: bool = False
     is_weekend: bool = False
-    
+
     # Holiday
     is_holiday: bool = False
     reduced_liquidity: bool = False
-    
+
     # Safety
     circuit_ok: bool = True
     spread_ok: bool = True
     spread_ratio: float = 1.0
-    
+
     # FTMO/Prop Firm
     daily_dd_percent: float = 0.0
     total_dd_percent: float = 0.0
     near_dd_limit: bool = False  # > 3%
-    
+
     # Technical
     atr: float = 0.0
     volatility_percentile: float = 50.0
     high_volatility: bool = False
-    
-    def reset(self):
+
+    def reset(self) -> None:
         """Reset all fields to defaults."""
         self.hurst = 0.5
         self.entropy = 2.0
         self.is_trending = False
         self.is_reverting = False
         self.is_random = True
-        
+
         self.in_news_window = False
         self.news_imminent = False
         self.minutes_to_news = 999
         self.news_impact = NewsImpact.IMPACT_LOW
-        
+
         self.is_london = False
         self.is_newyork = False
         self.is_overlap = False
         self.is_asian = False
         self.is_weekend = False
-        
+
         self.is_holiday = False
         self.reduced_liquidity = False
-        
+
         self.circuit_ok = True
         self.spread_ok = True
         self.spread_ratio = 1.0
-        
+
         self.daily_dd_percent = 0.0
         self.total_dd_percent = 0.0
         self.near_dd_limit = False
-        
+
         self.atr = 0.0
         self.volatility_percentile = 50.0
         self.high_volatility = False
@@ -125,13 +124,13 @@ class StrategySelection:
     score_adjustment: int = 0     # Bonus/penalty for confluence
     reason: str = "Not analyzed"
     can_trade: bool = False
-    
+
     # Confidence levels
     regime_confidence: float = 0.0
     timing_confidence: float = 0.0
     overall_confidence: float = 0.0
-    
-    def reset(self):
+
+    def reset(self) -> None:
         """Reset to defaults."""
         self.strategy = StrategyType.STRATEGY_NONE
         self.size_multiplier = 0.0
@@ -146,7 +145,7 @@ class StrategySelection:
 class StrategySelector:
     """
     Dynamic strategy selector based on market context.
-    
+
     Uses 6-gate decision hierarchy to select optimal strategy:
     1. Safety blocks (circuit breaker, spread, weekend)
     2. FTMO safe mode (near DD limits)
@@ -155,15 +154,15 @@ class StrategySelector:
     5. Holiday (reduced position size)
     6. Regime (trending/reverting/random)
     """
-    
+
     # Hurst thresholds
     DEFAULT_HURST_TREND = 0.55
     DEFAULT_HURST_REVERT = 0.40  # Changed from 0.45 - tighter filter for prime reverting
-    
+
     # Entropy thresholds
     DEFAULT_ENTROPY_LOW = 1.5
     DEFAULT_ENTROPY_HIGH = 2.5
-    
+
     def __init__(
         self,
         ftmo_safe_mode: bool = False,
@@ -176,7 +175,7 @@ class StrategySelector:
     ):
         """
         Initialize the strategy selector.
-        
+
         Args:
             ftmo_safe_mode: Enable extra conservative mode
             allow_news_trading: Allow news trading strategy
@@ -189,28 +188,28 @@ class StrategySelector:
         self.ftmo_safe_mode = ftmo_safe_mode
         self.allow_news_trading = allow_news_trading
         self.allow_asian_session = allow_asian_session
-        
+
         self.hurst_trend = hurst_trend_threshold
         self.hurst_revert = hurst_revert_threshold
         self.entropy_low = entropy_low_threshold
         self.entropy_high = entropy_high_threshold
-        
+
         self._context = MarketContext()
         self._selection = StrategySelection()
-        self._last_update: Optional[datetime] = None
-        
+        self._last_update: datetime | None = None
+
         # External regime (from Python hub or local calc)
         self._current_hurst = 0.5
         self._current_entropy = 2.0
-        
+
         logger.info(f"StrategySelector initialized: ftmo_safe={ftmo_safe_mode}, "
                    f"news={allow_news_trading}, asian={allow_asian_session}")
-    
-    def set_regime(self, hurst: float, entropy: float):
+
+    def set_regime(self, hurst: float, entropy: float) -> None:
         """Update regime from external source."""
         self._current_hurst = hurst
         self._current_entropy = entropy
-    
+
     def update_context(
         self,
         # Safety
@@ -226,10 +225,10 @@ class StrategySelector:
         news_impact: NewsImpact = NewsImpact.IMPACT_LOW,
         # Technical
         atr: float = 0.0,
-    ):
+    ) -> None:
         """
         Update market context from external sources.
-        
+
         Args:
             circuit_ok: Circuit breaker status
             spread_ok: Spread monitor status
@@ -244,104 +243,104 @@ class StrategySelector:
         self._context.circuit_ok = circuit_ok
         self._context.spread_ok = spread_ok
         self._context.spread_ratio = spread_ratio
-        
+
         self._context.daily_dd_percent = daily_dd_percent
         self._context.total_dd_percent = total_dd_percent
         self._context.near_dd_limit = daily_dd_percent >= 3.0
-        
+
         self._context.in_news_window = in_news_window
         self._context.minutes_to_news = minutes_to_news
         self._context.news_imminent = 0 < minutes_to_news <= 5
         self._context.news_impact = news_impact
-        
+
         self._context.atr = atr
-        
+
         # Update session info
         self._update_session_info()
-        
+
         # Update regime info
         self._update_regime_info()
-        
+
         self._last_update = datetime.now(timezone.utc)
-    
-    def _update_session_info(self):
+
+    def _update_session_info(self) -> None:
         """Update session detection based on current time."""
         now = datetime.now(timezone.utc)
         hour = now.hour
         day = now.weekday()  # 0=Monday, 6=Sunday
-        
+
         # Weekend check
         self._context.is_weekend = day >= 5  # Saturday or Sunday
-        
+
         # Session detection (UTC)
         self._context.is_asian = 0 <= hour < 7
         self._context.is_london = 7 <= hour < 16
         self._context.is_newyork = 13 <= hour < 22
         self._context.is_overlap = 13 <= hour < 16  # Best hours
-    
-    def _update_regime_info(self):
+
+    def _update_regime_info(self) -> None:
         """Update regime classification."""
         self._context.hurst = self._current_hurst
         self._context.entropy = self._current_entropy
-        
+
         # Classify regime
         self._context.is_trending = self._context.hurst > self.hurst_trend
         self._context.is_reverting = self._context.hurst < self.hurst_revert
         self._context.is_random = not self._context.is_trending and not self._context.is_reverting
-        
+
         # High entropy = high noise
         self._context.high_volatility = self._context.entropy > self.entropy_high
-    
-    def select_strategy(self, context: Optional[MarketContext] = None) -> StrategySelection:
+
+    def select_strategy(self, context: MarketContext | None = None) -> StrategySelection:
         """
         Select optimal strategy based on market context.
-        
+
         Args:
             context: Optional external context (uses internal if None)
-        
+
         Returns:
             StrategySelection with recommended strategy
         """
         if context is not None:
             self._context = context
-        
+
         self._selection = self._evaluate_strategies()
         return self._selection
-    
+
     def _evaluate_strategies(self) -> StrategySelection:
         """Evaluate all strategies and select best."""
         result = StrategySelection()
         result.reset()
-        
+
         # ================================================================
         # GATE 1: ABSOLUTE BLOCKS
         # ================================================================
-        
+
         # Circuit breaker
         if not self._context.circuit_ok:
             result.strategy = StrategyType.STRATEGY_NONE
             result.can_trade = False
             result.reason = "Circuit breaker active"
             return result
-        
+
         # Spread too high
         if not self._context.spread_ok:
             result.strategy = StrategyType.STRATEGY_NONE
             result.can_trade = False
             result.reason = "Spread too high"
             return result
-        
+
         # Weekend
         if self._context.is_weekend:
             result.strategy = StrategyType.STRATEGY_NONE
             result.can_trade = False
             result.reason = "Weekend - market closed"
             return result
-        
+
         # ================================================================
         # GATE 2: FTMO SAFE MODE
         # ================================================================
-        
+
         if self.ftmo_safe_mode or self._context.near_dd_limit:
             # Near DD limit - ultra conservative
             if self._context.daily_dd_percent >= 3.5:
@@ -349,27 +348,27 @@ class StrategySelector:
                 result.can_trade = False
                 result.reason = "FTMO Safe: DD too high (>3.5%)"
                 return result
-            
+
             # Safe mode active
             result.strategy = StrategyType.STRATEGY_SAFE_MODE
             result.size_multiplier = 0.25
             result.score_adjustment = -20
             result.can_trade = True
             result.reason = "FTMO Safe Mode active"
-            
+
             # Block news trading in safe mode
             if self._context.in_news_window:
                 result.strategy = StrategyType.STRATEGY_NONE
                 result.can_trade = False
                 result.reason = "FTMO Safe: No news trading"
                 return result
-            
+
             return result
-        
+
         # ================================================================
         # GATE 3: NEWS CHECK
         # ================================================================
-        
+
         if self.allow_news_trading and self._context.in_news_window:
             # High impact news - use news trader
             if self._context.news_impact == NewsImpact.IMPACT_HIGH:
@@ -379,24 +378,24 @@ class StrategySelector:
                 result.can_trade = True
                 result.reason = "High impact news window"
                 return result
-            
+
             # Medium impact - reduce normal trading
             if self._context.news_impact == NewsImpact.IMPACT_MEDIUM:
                 result.size_multiplier = 0.5
                 result.score_adjustment = -15
                 # Continue to regime selection
-        
+
         # News imminent - block all trading
         if self._context.news_imminent and self._context.news_impact == NewsImpact.IMPACT_HIGH:
             result.strategy = StrategyType.STRATEGY_NONE
             result.can_trade = False
             result.reason = "High impact news in < 5 min"
             return result
-        
+
         # ================================================================
         # GATE 4: SESSION CHECK
         # ================================================================
-        
+
         # Asian session - check if mean-reverting regime (allow Asian for ranging)
         if self._context.is_asian and not self.allow_asian_session:
             # Exception: Allow Asian for MEAN_REVERT if prime reverting
@@ -410,7 +409,7 @@ class StrategySelector:
                 result.can_trade = False
                 result.reason = "Asian session blocked (not reverting)"
                 return result
-        
+
         # Best time: London/NY overlap
         if self._context.is_overlap:
             result.timing_confidence = 1.0
@@ -420,37 +419,37 @@ class StrategySelector:
         else:
             result.timing_confidence = 0.5
             result.size_multiplier = min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
-        
+
         # ================================================================
         # GATE 5: HOLIDAY CHECK
         # ================================================================
-        
+
         if self._context.is_holiday:
             result.size_multiplier = min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
             result.score_adjustment -= 10
             result.reason = "Holiday - reduced liquidity"
-        
+
         # ================================================================
         # GATE 6: REGIME SELECTION
         # ================================================================
-        
+
         # Random walk - no trade
         if self._context.is_random:
             result.strategy = StrategyType.STRATEGY_NONE
             result.can_trade = False
             result.reason = f"Random walk regime (Hurst ~{self._context.hurst:.2f})"
             return result
-        
+
         # High noise - reduce confidence
         if self._context.high_volatility:
             result.size_multiplier = min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
             result.score_adjustment -= 15
-        
+
         # Trending market
         if self._context.is_trending:
             result.strategy = StrategyType.STRATEGY_TREND_FOLLOW
             result.regime_confidence = (self._context.hurst - 0.5) / 0.5  # Normalize
-            
+
             if self._context.entropy < self.entropy_low:
                 # Prime trending: high Hurst, low entropy
                 result.size_multiplier = 1.0
@@ -460,12 +459,12 @@ class StrategySelector:
                 # Noisy trending
                 result.size_multiplier = 0.5
                 result.reason = "Noisy trending regime"
-        
+
         # Mean reverting market
         elif self._context.is_reverting:
             result.strategy = StrategyType.STRATEGY_MEAN_REVERT
             result.regime_confidence = (0.5 - self._context.hurst) / 0.5  # Normalize
-            
+
             if self._context.entropy < self.entropy_low:
                 # Prime reverting
                 result.size_multiplier = 1.0
@@ -475,52 +474,52 @@ class StrategySelector:
                 # Noisy reverting
                 result.size_multiplier = 0.5
                 result.reason = "Noisy reverting regime"
-        
+
         # Default: SMC Scalper
         else:
             result.strategy = StrategyType.STRATEGY_SMC_SCALPER
             result.size_multiplier = 0.75
             result.reason = "Default SMC scalping"
-        
+
         result.can_trade = True
         result.overall_confidence = self._calculate_confidence(result)
-        
+
         return result
-    
+
     def _calculate_confidence(self, result: StrategySelection) -> float:
         """Calculate overall confidence score."""
         regime_weight = 0.5
         timing_weight = 0.3
         safety_weight = 0.2
-        
+
         regime_score = result.regime_confidence
         timing_score = result.timing_confidence
         safety_score = 1.0 if (self._context.circuit_ok and self._context.spread_ok) else 0.0
-        
-        return (regime_score * regime_weight + 
-                timing_score * timing_weight + 
+
+        return (regime_score * regime_weight +
+                timing_score * timing_weight +
                 safety_score * safety_weight)
-    
+
     @property
     def context(self) -> MarketContext:
         """Get current market context."""
         return self._context
-    
+
     @property
     def current_strategy(self) -> StrategyType:
         """Get currently selected strategy."""
         return self._selection.strategy
-    
+
     @property
     def can_trade(self) -> bool:
         """Check if trading is allowed."""
         return self._selection.can_trade
-    
+
     @property
     def size_multiplier(self) -> float:
         """Get position size multiplier."""
         return self._selection.size_multiplier
-    
+
     def get_strategy_name(self, strategy: StrategyType) -> str:
         """Get human-readable strategy name."""
         names = {
@@ -532,8 +531,8 @@ class StrategySelector:
             StrategyType.STRATEGY_SAFE_MODE: "SAFE_MODE",
         }
         return names.get(strategy, "UNKNOWN")
-    
-    def print_selection(self):
+
+    def print_selection(self) -> None:
         """Print selection details to log."""
         logger.info("=== Strategy Selection ===")
         logger.info(f"Strategy: {self.get_strategy_name(self._selection.strategy)}")

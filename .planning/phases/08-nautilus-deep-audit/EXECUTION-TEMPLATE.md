@@ -22,6 +22,10 @@ You are executing Phase [XX] of the Nautilus Deep Audit.
 - Write ALL findings directly to the file as you go
 - Do NOT accumulate in memory - write incrementally
 
+**ANTI-DUPLICATION (NON-NEGOTIABLE):**
+- Do NOT create new executable scripts under `.planning/**/scripts/`
+- If code/scripts are needed, place them in `nautilus_gold_scalper/scripts/` or `scripts/` and update `.planning/phases/08-data-validation-backtest/SCRIPT_REGISTRY.md`
+
 **AFTER analysis:**
 - Verify file was written successfully
 - Return ONLY a summary (max 300 words) to chat with:

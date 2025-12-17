@@ -1,0 +1,65 @@
+{
+  "task": "1-A.1",
+  "description": "CSV-Parquet Tick Count Comparison",
+  "timestamp": "2025-12-16T23:54:08.962686+00:00",
+  "main_parquet_catalog": {
+    "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native/xauusd_2003_2025_stride1_COMPLETE",
+    "tick_count": 654586034
+  },
+  "session_parquet_catalogs": {
+    "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native_sessions",
+    "tick_count_total": 430668936,
+    "per_session": {
+      "ASIAN": 73127401,
+      "EVENING": 39909077,
+      "LATE_NY": 107836044,
+      "LONDON": 87046059,
+      "NY": 66572349,
+      "OVERLAP": 56178006
+    },
+    "coverage_pct": 65.79
+  },
+  "csv_session_files": {
+    "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/session_csvs",
+    "tick_count_total": 314988355,
+    "per_file": {
+      "xauusd_ASIAN.csv": 55111443,
+      "xauusd_EVENING.csv": 28624393,
+      "xauusd_LATE_NY.csv": 76824990,
+      "xauusd_LONDON.csv": 64814127,
+      "xauusd_NY.csv": 47412601,
+      "xauusd_OVERLAP.csv": 42200801
+    }
+  },
+  "validation": {
+    "session_sum_vs_main": {
+      "expected": 654586034,
+      "actual": 430668936,
+      "difference": 223917098,
+      "difference_pct": 34.207436,
+      "threshold_pct": 0.1,
+      "status": "FAIL"
+    }
+  },
+  "findings": [
+    {
+      "severity": "HIGH",
+      "issue": "Session parquets do not sum to main catalog",
+      "expected": 654586034,
+      "actual": 430668936,
+      "diff_pct": 34.21,
+      "hypothesis": "Sessions may not cover all 24h or were built from filtered data"
+    },
+    {
+      "severity": "INFO",
+      "issue": "CSV session files != Parquet session catalogs",
+      "csv_total": 314988355,
+      "parquet_total": 430668936,
+      "note": "CSVs may have been created independently from parquets"
+    }
+  ],
+  "status": "FAIL",
+  "memory_peak_mb": 0.03,
+  "methodology": "DuckDB with spill-to-disk for memory safety",
+  "conclusion": "Session catalogs cover 65.79% of main catalog. 34.21% of ticks missing from sessions."
+}

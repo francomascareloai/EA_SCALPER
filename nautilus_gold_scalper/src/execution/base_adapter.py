@@ -10,9 +10,9 @@ and transports are available.
 from __future__ import annotations
 
 import itertools
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator, Optional, List, Dict
 
 import pandas as pd
 
@@ -37,13 +37,13 @@ class BaseExecutionAdapter:
     - Tick source: CSV/Parquet with bid/ask/last/volume columns.
     """
 
-    def __init__(self, name: str, symbol: str, data_path: Optional[Path] = None):
+    def __init__(self, name: str, symbol: str, data_path: Path | None = None):
         self.name = name
         self.symbol = symbol
         self.data_path = data_path
         self._connected = False
         self._order_counter = itertools.count(1)
-        self._orders: Dict[int, Dict] = {}
+        self._orders: dict[int, dict[str, object]] = {}
 
     # --- Connectivity -----------------------------------------------------
     def connect(self) -> None:
@@ -97,7 +97,7 @@ class BaseExecutionAdapter:
         side: str,
         qty: float,
         order_type: str = "market",
-        price: Optional[float] = None,
+        price: float | None = None,
         time_in_force: str = "GTC",
     ) -> int:
         """
@@ -123,6 +123,6 @@ class BaseExecutionAdapter:
             return True
         return False
 
-    def list_orders(self) -> List[Dict]:
+    def list_orders(self) -> list[dict[str, object]]:
         return [{**{"id": oid}, **info} for oid, info in self._orders.items()]
 

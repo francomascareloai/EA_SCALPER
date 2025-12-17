@@ -1,0 +1,430 @@
+{
+  "task": "1-A.4",
+  "description": "Schema and Format Consistency",
+  "timestamp": "2025-12-16T23:59:58.902384+00:00",
+  "catalogs_checked": 7,
+  "schemas_match": true,
+  "nautilus_compliant": true,
+  "schema_details": {
+    "main": {
+      "fields": [
+        [
+          "bid_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "bid_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ts_event",
+          "uint64"
+        ],
+        [
+          "ts_init",
+          "uint64"
+        ]
+      ],
+      "num_row_groups": 400,
+      "created_by": "parquet-cpp-arrow version 22.0.0"
+    },
+    "ASIAN": {
+      "fields": [
+        [
+          "bid_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "bid_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ts_event",
+          "uint64"
+        ],
+        [
+          "ts_init",
+          "uint64"
+        ]
+      ],
+      "num_row_groups": 1,
+      "created_by": "parquet-cpp-arrow version 22.0.0"
+    },
+    "LONDON": {
+      "fields": [
+        [
+          "bid_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "bid_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ts_event",
+          "uint64"
+        ],
+        [
+          "ts_init",
+          "uint64"
+        ]
+      ],
+      "num_row_groups": 1,
+      "created_by": "parquet-cpp-arrow version 22.0.0"
+    },
+    "OVERLAP": {
+      "fields": [
+        [
+          "bid_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "bid_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ts_event",
+          "uint64"
+        ],
+        [
+          "ts_init",
+          "uint64"
+        ]
+      ],
+      "num_row_groups": 1,
+      "created_by": "parquet-cpp-arrow version 22.0.0"
+    },
+    "NY": {
+      "fields": [
+        [
+          "bid_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "bid_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ts_event",
+          "uint64"
+        ],
+        [
+          "ts_init",
+          "uint64"
+        ]
+      ],
+      "num_row_groups": 1,
+      "created_by": "parquet-cpp-arrow version 22.0.0"
+    },
+    "LATE_NY": {
+      "fields": [
+        [
+          "bid_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "bid_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ts_event",
+          "uint64"
+        ],
+        [
+          "ts_init",
+          "uint64"
+        ]
+      ],
+      "num_row_groups": 1,
+      "created_by": "parquet-cpp-arrow version 22.0.0"
+    },
+    "EVENING": {
+      "fields": [
+        [
+          "bid_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_price",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "bid_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ask_size",
+          "fixed_size_binary[16]"
+        ],
+        [
+          "ts_event",
+          "uint64"
+        ],
+        [
+          "ts_init",
+          "uint64"
+        ]
+      ],
+      "num_row_groups": 1,
+      "created_by": "parquet-cpp-arrow version 22.0.0"
+    }
+  },
+  "schema_mismatches": [],
+  "nautilus_compliance": [
+    {
+      "catalog": "main",
+      "compliant": true,
+      "fields_found": [
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init"
+      ]
+    },
+    {
+      "catalog": "ASIAN",
+      "compliant": true,
+      "fields_found": [
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init"
+      ]
+    },
+    {
+      "catalog": "LONDON",
+      "compliant": true,
+      "fields_found": [
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init"
+      ]
+    },
+    {
+      "catalog": "OVERLAP",
+      "compliant": true,
+      "fields_found": [
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init"
+      ]
+    },
+    {
+      "catalog": "NY",
+      "compliant": true,
+      "fields_found": [
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init"
+      ]
+    },
+    {
+      "catalog": "LATE_NY",
+      "compliant": true,
+      "fields_found": [
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init"
+      ]
+    },
+    {
+      "catalog": "EVENING",
+      "compliant": true,
+      "fields_found": [
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init"
+      ]
+    }
+  ],
+  "checkpoint_status": {
+    "main": {
+      "status": "VALID",
+      "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native/xauusd_2003_2025_stride1_COMPLETE/.checkpoint.json",
+      "content_keys": [
+        "byte_offset",
+        "chunks_read",
+        "input_mtime_ns",
+        "input_path",
+        "input_size",
+        "last_ts_ns",
+        "rows_invalid",
+        "rows_kept",
+        "rows_read",
+        "started_utc",
+        "ticks_written",
+        "updated_utc",
+        "version"
+      ]
+    },
+    "ASIAN": {
+      "status": "VALID",
+      "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native_sessions/xauusd_2003_2025_stride1_ASIAN/.checkpoint.json",
+      "content_keys": [
+        "instrument_id",
+        "session",
+        "ticks_written",
+        "source_catalog",
+        "updated_utc",
+        "version"
+      ]
+    },
+    "LONDON": {
+      "status": "VALID",
+      "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native_sessions/xauusd_2003_2025_stride1_LONDON/.checkpoint.json",
+      "content_keys": [
+        "instrument_id",
+        "session",
+        "ticks_written",
+        "source_catalog",
+        "updated_utc",
+        "version"
+      ]
+    },
+    "OVERLAP": {
+      "status": "VALID",
+      "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native_sessions/xauusd_2003_2025_stride1_OVERLAP/.checkpoint.json",
+      "content_keys": [
+        "instrument_id",
+        "session",
+        "ticks_written",
+        "source_catalog",
+        "updated_utc",
+        "version"
+      ]
+    },
+    "NY": {
+      "status": "VALID",
+      "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native_sessions/xauusd_2003_2025_stride1_NY/.checkpoint.json",
+      "content_keys": [
+        "instrument_id",
+        "session",
+        "ticks_written",
+        "source_catalog",
+        "updated_utc",
+        "version"
+      ]
+    },
+    "LATE_NY": {
+      "status": "VALID",
+      "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native_sessions/xauusd_2003_2025_stride1_LATE_NY/.checkpoint.json",
+      "content_keys": [
+        "instrument_id",
+        "session",
+        "ticks_written",
+        "source_catalog",
+        "updated_utc",
+        "version"
+      ]
+    },
+    "EVENING": {
+      "status": "VALID",
+      "path": "/home/franco/projetos/EA_SCALPER_XAUUSD/data/catalog_native_sessions/xauusd_2003_2025_stride1_EVENING/.checkpoint.json",
+      "content_keys": [
+        "instrument_id",
+        "session",
+        "ticks_written",
+        "source_catalog",
+        "updated_utc",
+        "version"
+      ]
+    }
+  },
+  "expected_nautilus_schema": [
+    [
+      "bid_price",
+      "large_binary"
+    ],
+    [
+      "ask_price",
+      "large_binary"
+    ],
+    [
+      "bid_size",
+      "large_binary"
+    ],
+    [
+      "ask_size",
+      "large_binary"
+    ],
+    [
+      "ts_event",
+      "uint64"
+    ],
+    [
+      "ts_init",
+      "uint64"
+    ]
+  ],
+  "timestamp_unit": "nanoseconds",
+  "price_encoding": "large_binary (Nautilus proprietary encoding)",
+  "status": "PASS",
+  "memory_peak_mb": 2.8
+}

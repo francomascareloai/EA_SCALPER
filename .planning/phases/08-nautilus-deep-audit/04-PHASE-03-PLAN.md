@@ -1,7 +1,86 @@
 # PLAN: Phase 03 - Risk Modules Audit
 
 > **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
 > - 2025-12-16: Applied CRITIC review fixes (C-001 to C-010): Added integration verification step, consolidation process, rebalanced agent workload, failure mode analysis, pass/fail criteria, stress scenarios, numerical precision checks, output format specification, and test coverage requirements.
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files directly.**
+>
+> This phase analyzes ~2,913 lines of risk-critical code. Reading these files directly will cause context overflow.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads 9 risk module files directly
+   Orchestrator performs Apex compliance checks in main context
+   → CONTEXT OVERFLOW → Summarization → LOST CRITICAL RISK DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns SENTINEL sub-agents with delegation prompt
+   Each SENTINEL reads assigned files, verifies Apex compliance, writes findings
+   Each SENTINEL returns 300-word summary to orchestrator
+   Orchestrator consolidates and updates MANIFEST.md
+```
+
+### Required Sub-Agent Prompts
+
+**Agent A (DD Stack):**
+```
+Execute Phase 03 Agent A (DD Stack) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - nautilus_gold_scalper/src/risk/drawdown_tracker.py (358 lines) - CRITICAL
+   - nautilus_gold_scalper/src/risk/dd_protection.py (298 lines)
+   - nautilus_gold_scalper/src/risk/circuit_breaker.py (540 lines)
+3. Focus: DD calculation from HWM, unrealized P/L inclusion, protection actions
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_03_A_DD_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts and Apex compliance status
+
+Plan file: .planning/phases/08-nautilus-deep-audit/04-PHASE-03-PLAN.md
+```
+
+**Agent B (Apex Rules Stack):**
+```
+Execute Phase 03 Agent B (Apex Rules Stack) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - nautilus_gold_scalper/src/risk/time_constraint_manager.py (108 lines) - CRITICAL
+   - nautilus_gold_scalper/src/risk/consistency_tracker.py (61 lines)
+   - nautilus_gold_scalper/src/risk/prop_firm_manager.py (279 lines)
+3. Focus: Time gates (4:30, 4:55, 4:59 PM ET), 30% rule, DST handling
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_03_B_APEX_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts and time gate verification
+
+Plan file: .planning/phases/08-nautilus-deep-audit/04-PHASE-03-PLAN.md
+```
+
+**Agent C (Sizing Stack):**
+```
+Execute Phase 03 Agent C (Sizing Stack) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - nautilus_gold_scalper/src/risk/position_sizer.py (397 lines)
+   - nautilus_gold_scalper/src/risk/spread_monitor.py (525 lines)
+   - nautilus_gold_scalper/src/risk/var_calculator.py (347 lines)
+3. Focus: Lot sizing, spread impact, VaR integration, 30% per-trade loss rule
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_03_C_SIZING_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/04-PHASE-03-PLAN.md
+```
+
+---
 
 ## Objective
 Deep critical analysis of all risk management modules to ensure Apex compliance, correct DD tracking, and proper circuit breaker behavior.

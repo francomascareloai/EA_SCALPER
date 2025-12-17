@@ -1,7 +1,68 @@
 # PLAN: Phase 04 - Signal Generators Audit
 
 > **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
 > - 2025-12-16: Applied CRITIC v1.1 review fixes (C-001 through C-012): Changed agents to REVIEWER, added Apex time gate checks, defined look-ahead test protocol, rebalanced workload, added synthesis step, specified output format, expanded checklists.
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files directly.**
+>
+> This phase analyzes ~3,412 lines of signal generation code. Reading these files directly will cause context overflow.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads 5 signal generator files directly
+   Orchestrator performs scoring logic verification in main context
+   → CONTEXT OVERFLOW → Summarization → LOST DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns REVIEWER sub-agents with delegation prompt
+   Each REVIEWER reads assigned files, verifies logic, writes findings
+   Each REVIEWER returns 300-word summary to orchestrator
+   Orchestrator synthesizes and updates MANIFEST.md
+```
+
+### Required Sub-Agent Prompts
+
+**Agent A (Scoring/Entry Chain):**
+```
+Execute Phase 04 Agent A (Scoring/Entry Chain) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - nautilus_gold_scalper/src/signals/confluence_scorer.py (1002 lines)
+   - nautilus_gold_scalper/src/signals/entry_optimizer.py (699 lines)
+   - nautilus_gold_scalper/src/signals/mtf_manager.py (395 lines)
+3. Focus: Score thresholds, entry logic, MTF alignment, look-ahead detection
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_04_A_SCORING_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts and threshold verification
+
+Plan file: .planning/phases/08-nautilus-deep-audit/05-PHASE-04-PLAN.md
+```
+
+**Agent B (News Modules):**
+```
+Execute Phase 04 Agent B (News Modules) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - nautilus_gold_scalper/src/signals/news_calendar.py (628 lines)
+   - nautilus_gold_scalper/src/signals/news_trader.py (688 lines)
+3. Focus: News timing, blackout windows, look-ahead in event detection
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_04_B_NEWS_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/05-PHASE-04-PLAN.md
+```
+
+---
 
 ## Objective
 Critical analysis of signal generation modules to verify scoring logic correctness, MTF confluence implementation, news filter accuracy, and **Apex compliance** (time gates, DD integration).

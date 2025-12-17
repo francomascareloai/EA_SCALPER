@@ -8,7 +8,6 @@ Design goals identical to MT5Adapter:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from .base_adapter import BaseExecutionAdapter
 
@@ -26,10 +25,10 @@ class NinjaTraderAdapter(BaseExecutionAdapter):
     def __init__(
         self,
         symbol: str = "XAUUSD",
-        data_path: Optional[Path] = None,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        api_key: Optional[str] = None,
+        data_path: Path | None = None,
+        host: str | None = None,
+        port: int | None = None,
+        api_key: str | None = None,
     ):
         super().__init__(name="NINJATRADER", symbol=symbol, data_path=data_path)
         self._host = host

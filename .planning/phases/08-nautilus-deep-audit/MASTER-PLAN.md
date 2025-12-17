@@ -1,6 +1,11 @@
-# MASTER PLAN: Nautilus Deep Audit (v2.0)
+# MASTER PLAN: Nautilus Deep Audit (v2.1)
 
 ## Changelog
+- **v2.1**: **CRITICAL** - Added Protocol 0 (Mandatory Delegation Rule)
+  - Orchestrator MUST NOT read source files directly
+  - All phase plans updated with delegation enforcement
+  - Sub-agents read files, write findings, return summaries only
+  - Prevents context overflow and detail loss
 - **v2.0**: Applied CRITIC recommendations
   - Added Phase 00 (Foundation Verification) as BLOCKER
   - Added Phase 04.5 (ML Pipeline Audit)
@@ -60,6 +65,7 @@ Comprehensive critical analysis of ALL NautilusTrader components:
 
 All protocols defined in `PROTOCOLS.md`:
 
+0. **MANDATORY DELEGATION (Protocol 0)** - Orchestrator MUST NOT read source files directly. Sub-agents read, analyze, write to disk, return only 300-word summaries. This prevents context overflow.
 1. **Output Protocol** - Sub-agent outputs to files, summaries to chat
 2. **CRITIC Verification** - Mandatory notes section with thought count
 3. **Temporal Verification** - Data access trace for 3 random bars
@@ -163,6 +169,7 @@ This will orchestrate all phases sequentially.
 
 | Item | Status |
 |------|--------|
+| **Protocol 0 (Mandatory Delegation)** | ✅ |
 | Phase 00 added | ✅ |
 | Scope expanded | ✅ |
 | Parallel agents reduced | ✅ |
@@ -172,4 +179,4 @@ This will orchestrate all phases sequentially.
 | Phase 07 upgraded | ✅ |
 | Conflict resolution | ✅ |
 
-**All CRITIC recommendations addressed.**
+**All CRITIC recommendations addressed. Protocol 0 ensures context preservation.**

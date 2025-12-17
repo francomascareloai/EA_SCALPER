@@ -4,7 +4,7 @@
 - **Start Date:** 2025-12-16
 - **Baseline Tag:** `audit-baseline-20251216`
 - **Total Scope:** ~40,588 lines (20,256 src + 20,332 scripts)
-- **All Plans Status:** 12/12 APPROVED by CRITIC
+- **All Plans Status:** 12/12 APPROVED by CRITIC (initial) + 5/5 APPROVED WITH NOTES (ARGUS integration review)
 
 ## Phase Status
 
@@ -74,6 +74,28 @@
 | Session | Date | Phases | Notes |
 |---------|------|--------|-------|
 | 1 | 2025-12-16 | 00 + Plan Review | Foundation verification + All 12 plans CRITIC reviewed and approved |
+| 2 | 2025-12-16 | ARGUS Research | Prop Firm Failures (47 modes), Look-Ahead Detection (17 patterns), NT8 Add-On Stealth, Human Behavior Simulator Spec |
+| 3 | 2025-12-16 | CRITIC Re-Review | 5 plans updated with ARGUS findings, all APPROVED WITH NOTES, fixes applied |
+
+## ARGUS Research Outputs
+
+| File | Topic | Key Findings |
+|------|-------|--------------|
+| ARGUS_PROP_FIRM_FAILURES.md | Apex Failure Modes | 47 failure modes, automation BANNED on PA/Live, TRADOVATE trailing never locks |
+| ARGUS_LOOKAHEAD_DETECTION.md | Look-Ahead Bias | 17 grep patterns, PBO/DSR thresholds, NautilusTrader config |
+| ARGUS_NINJATRADER_OIF.md | NinjaTrader Integration | OIF (not OTP), ATI audit trail, latency ~50-100ms |
+| ARGUS_NT8_ADDON_STEALTH.md | Stealth Execution | OrderEntry.Manual, CME tag 1028, human simulation |
+| HUMAN_BEHAVIOR_SIMULATOR_SPEC.md | Humanization | 16 techniques, Python + C# implementation, edge cost ~15-20% |
+
+## CRITIC Re-Review Summary (ARGUS Integration)
+
+| Plan | Verdict | Critical | High | Medium | Low | Fixes Applied |
+|------|---------|----------|------|--------|-----|---------------|
+| Phase 02 | APPROVED WITH NOTES | 0 | 0 | 2 | 7 | None required |
+| Phase 03 | APPROVED WITH NOTES | 0 | 3 | 4 | 2 | Integration noted |
+| Phase 04.5 | APPROVED WITH NOTES | 0 | 1 | 5 | 6 | PBO 20% justified |
+| Phase 05 | APPROVED WITH NOTES | 0 | 2 | 5 | 2 | OIF defined, connection monitoring added |
+| PROTOCOLS | APPROVED WITH NOTES | 1 | 6 | 6 | 4 | SQN>7.0, MC95 DD, HWM clarification |
 
 ---
 

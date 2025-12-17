@@ -1,0 +1,32 @@
+{
+  "model_weights": {
+    "model1": 0.6,
+    "model2": 0.4
+  },
+  "min_probability": 0.55,
+  "min_confidence": 0.6,
+  "regime_weights": {
+    "REGIME_PRIME_TRENDING": {
+      "lightgbm": 0.5,
+      "xgboost": 0.35,
+      "random_forest": 0.15
+    },
+    "REGIME_NOISY_TRENDING": {
+      "lightgbm": 0.4,
+      "xgboost": 0.4,
+      "random_forest": 0.2
+    },
+    "REGIME_PRIME_REVERTING": {
+      "lightgbm": 0.35,
+      "xgboost": 0.35,
+      "random_forest": 0.3
+    },
+    "REGIME_NOISY_REVERTING": {
+      "lightgbm": 0.4,
+      "xgboost": 0.35,
+      "random_forest": 0.25
+    }
+  },
+  "use_calibration": true,
+  "calibration_method": "isotonic"
+}

@@ -37,7 +37,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import polars as pl
-
 from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
 from nautilus_gold_scalper.src.validation.core.engine import (
     DuckDBConnection,
@@ -179,7 +178,7 @@ class Phase1AValidator(PhaseValidator):
             return None
 
         try:
-            with open(checkpoint_path, "r", encoding="utf-8") as f:
+            with open(checkpoint_path, encoding="utf-8") as f:
                 data: dict[str, Any] = json.load(f)
             logger.debug(
                 "Loaded checkpoint: rows_kept=%s",

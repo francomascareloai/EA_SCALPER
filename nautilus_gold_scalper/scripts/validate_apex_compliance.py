@@ -16,17 +16,15 @@ Outputs a JSON summary (optional) and prints violations.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, time
+from datetime import time, timezone, tzinfo
 from pathlib import Path
-from typing import Optional, Tuple
 
 import pandas as pd
 
 try:
     from zoneinfo import ZoneInfo
-    ET_TZ = ZoneInfo("America/New_York")
+    ET_TZ: tzinfo = ZoneInfo("America/New_York")
 except Exception:  # pragma: no cover
-    from datetime import timezone
     ET_TZ = timezone.utc
 
 
@@ -57,7 +55,7 @@ def _parse_timestamp_column(df: pd.DataFrame) -> pd.Series:
     return series
 
 
-def _parse_pnl_column(df: pd.DataFrame) -> Optional[pd.Series]:
+def _parse_pnl_column(df: pd.DataFrame) -> pd.Series | None:
     """Best-effort extraction of realized PnL per fill/trade."""
     candidates = ["realized_pnl", "pnl", "pnl_quote", "fill_pnl", "pnl_usd"]
     col = None
@@ -78,7 +76,7 @@ def _parse_pnl_column(df: pd.DataFrame) -> Optional[pd.Series]:
     return series
 
 
-def check_cutoff_and_overnight(ts_utc: pd.Series, cutoff: time) -> Tuple[int, int]:
+def check_cutoff_and_overnight(ts_utc: pd.Series, cutoff: time) -> tuple[int, int]:
     """Return (cutoff_violations, overnight_violations)."""
     ts_et = ts_utc.dt.tz_convert(ET_TZ)
     cutoff_viol = (ts_et.dt.time >= cutoff).sum()

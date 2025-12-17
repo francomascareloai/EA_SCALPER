@@ -1,7 +1,7 @@
-from decimal import Decimal
 import random
+from decimal import Decimal
 
-from nautilus_gold_scalper.src.execution.execution_model import ExecutionModel, ExecutionCosts
+from nautilus_gold_scalper.src.execution.execution_model import ExecutionCosts, ExecutionModel
 
 
 def test_execution_model_slippage_and_commission():

@@ -1,0 +1,27 @@
+# Data Configuration for NautilusTrader Backtests
+# SINGLE SOURCE OF TRUTH for data paths
+
+active_dataset:
+  name: "XAUUSD Tick Data 2003-2025 (Stride 1 COMPLETE)"
+  path: "../data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
+  native_catalog_path: "../data/catalog_native/xauusd_2003_2025_stride1_COMPLETE"
+  format: "parquet"
+  instrument: "XAU/USD.SIM"
+  data_type: "quote_tick"
+  period:
+    start: "2003-05-05"
+    end: "2025-11-28"
+  stride: 1
+  size_gb: 13.9
+  total_ticks: 654586033
+
+datasets:
+  stride20:
+    name: "XAUUSD Stride 20 (Analysis)"
+    path: "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
+    use_case: "Feature engineering, quick analysis"
+
+  stride1_catalog:
+    name: "XAUUSD Stride 1 Native Catalog"
+    path: "data/catalog_native/xauusd_2003_2025_stride1_full"
+    use_case: "Full backtesting with NautilusTrader BacktestEngine"

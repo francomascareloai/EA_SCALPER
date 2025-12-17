@@ -4,18 +4,18 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-from nautilus_gold_scalper.src.indicators.structure_analyzer import (
-    StructureAnalyzer,
-    SwingPoint,
-    MarketBias,
-)
-from nautilus_gold_scalper.src.signals.confluence_scorer import ConfluenceScorer
-from nautilus_gold_scalper.src.core.data_types import OrderBlock, ConfluenceResult
+from nautilus_gold_scalper.src.core.data_types import ConfluenceResult, OrderBlock
 from nautilus_gold_scalper.src.core.definitions import (
+    WEIGHT_FIB,
     SignalType,
     TradingSession,
-    WEIGHT_FIB,
 )
+from nautilus_gold_scalper.src.indicators.structure_analyzer import (
+    MarketBias,
+    StructureAnalyzer,
+    SwingPoint,
+)
+from nautilus_gold_scalper.src.signals.confluence_scorer import ConfluenceScorer
 
 
 def test_calculates_golden_pocket_and_extensions():

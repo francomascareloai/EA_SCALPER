@@ -3,7 +3,10 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-from nautilus_gold_scalper.src.indicators.footprint_analyzer import FootprintAnalyzer, FootprintSignal
+from nautilus_gold_scalper.src.indicators.footprint_analyzer import (
+    FootprintAnalyzer,
+    FootprintSignal,
+)
 
 
 def test_footprint_strong_buy_from_stacked_and_absorption():

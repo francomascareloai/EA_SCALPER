@@ -1,8 +1,22 @@
 # Nautilus Deep Audit - Guia de Execução
 
-**Versão:** 1.0
-**Data:** 2025-12-16
+**Versão:** 1.1
+**Data:** 2025-12-17
 **Status:** TODOS OS PLANOS APROVADOS (12/12)
+
+---
+
+## ⚠️ LEMBRETE CRÍTICO: Protocol 0 - Delegação Obrigatória
+
+**ANTES de executar qualquer fase, lembre-se:**
+
+O orquestrador **NÃO DEVE** ler arquivos de código diretamente. Cada plano de fase já inclui prompts de delegação que instruem o sub-agente a:
+1. **LER** os arquivos de código (o orquestrador NÃO leu)
+2. **ANALISAR** seguindo o plano
+3. **ESCREVER** findings completos em arquivo
+4. **RETORNAR** apenas resumo de 300 palavras
+
+**Se você vir o orquestrador lendo arquivos `src/` diretamente → PARE e use a delegação.**
 
 ---
 
@@ -252,9 +266,9 @@ Parar o audit. Foi encontrado um issue CRITICAL em Phase [XX]. Analisar o impact
 
 | Arquivo | Propósito |
 |---------|-----------|
-| `MASTER-PLAN.md` | Visão geral do audit |
+| `MASTER-PLAN.md` | Visão geral do audit (v2.1 com Protocol 0) |
 | `01-ROADMAP.md` | Progresso e fases |
-| `PROTOCOLS.md` | Todos os protocolos |
+| `PROTOCOLS.md` | **Protocol 0 (delegação obrigatória)** + todos os protocolos |
 | `EXECUTION-TEMPLATE.md` | Templates para sub-agents |
 | `orchestration/MANIFEST.md` | Índice de outputs |
 

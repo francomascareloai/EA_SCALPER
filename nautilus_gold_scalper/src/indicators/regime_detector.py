@@ -12,9 +12,10 @@ v4.0 Features:
 """
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List
+from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy import stats
 
 from ..core.data_types import RegimeAnalysis
@@ -54,7 +55,7 @@ class RegimeDetector:
         vr_period: int = 20,
         kalman_q: float = 0.01,
         kalman_r: float = 0.1,
-        multiscale_periods: List[int] | None = None,
+        multiscale_periods: list[int] | None = None,
     ) -> None:
         self.hurst_period = hurst_period
         self.entropy_period = entropy_period
@@ -64,12 +65,16 @@ class RegimeDetector:
         self.multiscale_periods = multiscale_periods or [50, 100, 200]
 
         self._kalman = KalmanState()
-        self._regime_history: List[MarketRegime] = []
-        self._hurst_history: List[float] = []
+        self._regime_history: list[MarketRegime] = []
+        self._hurst_history: list[float] = []
         self._bars_in_current_regime = 0
         self._previous_regime: MarketRegime = MarketRegime.REGIME_UNKNOWN
 
-    def analyze(self, prices: np.ndarray, volumes: np.ndarray | None = None) -> RegimeAnalysis:
+    def analyze(
+        self,
+        prices: NDArray[np.floating[Any]],
+        volumes: NDArray[np.floating[Any]] | None = None,
+    ) -> RegimeAnalysis:
         """Analisa o regime de mercado atual e retorna RegimeAnalysis."""
         min_bars = max(self.hurst_period, self.entropy_period, max(self.multiscale_periods))
         if len(prices) < min_bars:
@@ -127,7 +132,7 @@ class RegimeDetector:
         )
 
     # --- metricas principais -------------------------------------------------
-    def _calculate_hurst(self, prices: np.ndarray) -> float:
+    def _calculate_hurst(self, prices: NDArray[np.floating[Any]]) -> float:
         """Calcula Hurst Exponent usando o metodo R/S (robusto para serie curta)."""
         n = len(prices)
         if n < 20:
@@ -167,7 +172,7 @@ class RegimeDetector:
         slope, _, _, _, _ = stats.linregress(log_sizes, log_rs)
         return float(np.clip(slope, 0.0, 1.0))
 
-    def _calculate_entropy(self, prices: np.ndarray) -> float:
+    def _calculate_entropy(self, prices: NDArray[np.floating[Any]]) -> float:
         """Calcula Shannon Entropy normalizada dos retornos log."""
         returns = np.diff(np.log(prices))
         n_bins = min(20, max(3, len(returns) // 5))
@@ -179,7 +184,7 @@ class RegimeDetector:
         entropy = -np.sum(hist * np.log2(hist + 1e-10)) / np.log2(n_bins)
         return float(entropy)
 
-    def _calculate_variance_ratio(self, prices: np.ndarray) -> float:
+    def _calculate_variance_ratio(self, prices: NDArray[np.floating[Any]]) -> float:
         """Calcula Variance Ratio (Lo-MacKinlay). VR>1 trending, VR<1 mean-revert."""
         returns = np.diff(np.log(prices))
         if len(returns) < self.vr_period * 2:
@@ -335,43 +340,42 @@ class RegimeDetector:
             MarketRegime.REGIME_UNKNOWN: EntryMode.ENTRY_MODE_DISABLED,
         }.get(regime, EntryMode.ENTRY_MODE_DISABLED)
 
-    def detect_regime(self, prices: np.ndarray) -> str:
+    def detect_regime(self, prices: NDArray[np.floating[Any]]) -> str:
         """
         Simplified regime detection returning TRENDING, RANGING, or RANDOM_WALK.
-        
+
         This is a simplified interface for quick regime classification.
         For detailed analysis, use analyze() method.
-        
+
         Args:
             prices: Array of price data (minimum length = max(hurst_period, entropy_period))
-        
+
         Returns:
             str: "TRENDING", "RANGING", or "RANDOM_WALK"
-        
+
         Raises:
             InsufficientDataError: If not enough data provided
         """
         min_bars = max(self.hurst_period, self.entropy_period)
         if len(prices) < min_bars:
             raise InsufficientDataError(f"Precisa de pelo menos {min_bars} barras, fornecido {len(prices)}")
-        
+
         # Calculate core metrics
         hurst = self._calculate_hurst(prices[-self.hurst_period :])
-        entropy = self._calculate_entropy(prices[-self.entropy_period :])
-        
+
         # Simplified classification
         if self.HURST_REVERTING_MAX <= hurst <= self.HURST_TRENDING_MIN:
             # Random walk zone: 0.45 <= H <= 0.55
             return "RANDOM_WALK"
-        
+
         if hurst > self.HURST_TRENDING_MIN:
             # Trending: H > 0.55
             return "TRENDING"
-        
+
         if hurst < self.HURST_REVERTING_MAX:
             # Mean reverting: H < 0.45
             return "RANGING"
-        
+
         # Fallback (should not reach here with proper thresholds)
         return "RANDOM_WALK"
 # ✓ FORGE v4.0: 7/7 checks

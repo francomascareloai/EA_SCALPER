@@ -1,7 +1,5 @@
 import datetime
 
-import pytest
-
 from nautilus_gold_scalper.src.risk.time_constraint_manager import TimeConstraintManager
 
 
@@ -41,10 +39,10 @@ def ts_at(hour: int, minute: int) -> int:
     try:
         from zoneinfo import ZoneInfo
         et_tz = ZoneInfo("America/New_York")
-    except:
+    except Exception:
         # Fallback for testing: use UTC offset approximation
         et_tz = datetime.timezone(datetime.timedelta(hours=-5))
-    
+
     dt = datetime.datetime(2025, 1, 1, hour, minute, tzinfo=et_tz)
     return int(dt.timestamp() * 1e9)
 

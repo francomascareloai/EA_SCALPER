@@ -446,7 +446,7 @@ def main():
 
     print("\nNext steps:")
     print("  1. Validate: python check_data_quality.py")
-    print("  2. Sessions: python scripts/generate_session_datasets.py")
+    print("  2. Sessions: .venv/bin/python scripts/data/slice_catalog_by_session.py --source data/catalog_native/xauusd_2003_2025_stride1_COMPLETE --output-root data/catalog_native_sessions --overwrite")
     print("  3. Backtest: python scripts/run_backtest.py --start 2024-11-01 --end 2024-11-30")
 
     return 0

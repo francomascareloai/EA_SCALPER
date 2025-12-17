@@ -1,7 +1,63 @@
 # PLAN: Phase 09 - Final Synthesis
 
 > **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly. Phase 09 reads only findings files (which are summaries).
 > - 2025-12-16: Applied CRITIC review fixes (C-001 through C-010). Added conflict resolution, quantitative GO/NO-GO, Apex checklist, enhanced issue tracker, timeline, and clarified DAEMON role.
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **NOTE: Phase 09 is special - it reads FINDINGS files, not source code.**
+>
+> Findings files are already summaries and are safe to read directly. However, the synthesis itself should be delegated to DAEMON.
+
+### Orchestrator Behavior
+
+```
+✅ Phase 09 can read findings files directly:
+   - orchestration/PHASE_01_FINDINGS.md
+   - orchestration/PHASE_02_*.md
+   - orchestration/PHASE_03_*.md
+   - etc.
+   These are summaries, not source code.
+
+✅ CORRECT synthesis approach:
+   Orchestrator spawns DAEMON sub-agent with delegation prompt
+   DAEMON reads all findings files, synthesizes, writes final reports
+   DAEMON returns GO/NO-GO decision with summary
+   Orchestrator records decision in MANIFEST.md
+```
+
+### Required Sub-Agent Prompt
+
+```
+Execute Phase 09 (Final Synthesis) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read all findings files from orchestration/ directory
+2. Input files:
+   - PHASE_01_FINDINGS.md through PHASE_08_*.md
+   - MANIFEST.md for issue summary
+3. Tasks:
+   a. Aggregate all issues (dedup, merge related)
+   b. Evaluate GO/NO-GO criteria quantitatively
+   c. Resolve any conflicts between phases
+   d. Create prioritized recommendations
+4. Write to:
+   - AUDIT_REPORT.md (executive summary + full report)
+   - ISSUES_TRACKER.md (all issues with status)
+   - RECOMMENDATIONS.md (prioritized action plan)
+5. Return ONLY summary (max 400 words) with:
+   - GO/NO-GO decision
+   - Issue counts by severity
+   - Top 3 blocking issues (if NO-GO)
+   - Confidence level
+
+Plan file: .planning/phases/08-nautilus-deep-audit/10-PHASE-09-PLAN.md
+```
+
+---
 
 ## Objective
 Consolidate all phase findings into actionable reports, prioritize issues, and produce GO/NO-GO recommendation for current codebase.

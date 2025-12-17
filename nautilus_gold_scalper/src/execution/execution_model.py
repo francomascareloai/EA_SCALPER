@@ -4,9 +4,9 @@ Applies slippage and commission for realistic fills.
 """
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from decimal import Decimal
-import random
 
 
 @dataclass

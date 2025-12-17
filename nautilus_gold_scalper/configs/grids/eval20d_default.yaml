@@ -1,0 +1,17 @@
+version: 1
+name: eval20d_default
+description: "Small grid for fast M5 screening (fits under default --max-runs without sampling)."
+
+grid:
+  # BacktestRunner.run(...) toggles
+  run.execution_threshold: [60, 70, 75]
+  run.risk_per_trade: [0.005, 0.0075, 0.01]
+  run.use_session_filter: [false, true]
+  run.use_regime_filter: [false, true]
+  run.use_mtf: [false, true]
+  run.use_news_filter: [false, true]
+
+  # Execution RR (keep small)
+  execution.target_rr_ratio: [2.0, 2.5]
+  execution.min_rr_ratio: [1.2, 1.5]
+  execution.require_htf_align: [false, true]

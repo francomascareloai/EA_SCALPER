@@ -32,9 +32,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 
 import numpy as np
-import polars as pl
-from scipy.stats import kurtosis, skew
-
 from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
 from nautilus_gold_scalper.src.validation.core.engine import (
     DuckDBConnection,
@@ -44,6 +41,7 @@ from nautilus_gold_scalper.src.validation.core.results import (
     PhaseResult,
     ValidationStatus,
 )
+from scipy.stats import kurtosis, skew
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -247,7 +245,7 @@ def scan_file_for_lookahead(
 
     try:
         content = file_path.read_text(encoding="utf-8", errors="ignore")
-    except (OSError, IOError) as e:
+    except OSError as e:
         logger.warning("Could not read file %s: %s", file_path, e)
         return issues
 
@@ -820,7 +818,7 @@ class Phase5Validator(PhaseValidator):
                 valid=valid,
             )
 
-        except Exception as e:
+        except Exception:
             logger.exception("Intraday pattern validation failed")
             return IntradayPatternResult(
                 peak_hour=0,
@@ -882,7 +880,7 @@ class Phase5Validator(PhaseValidator):
                 passed=passed,
             )
 
-        except Exception as e:
+        except Exception:
             logger.exception("Look-ahead scan failed")
             return LookAheadScanResult(
                 scripts_checked=0,
@@ -954,7 +952,7 @@ class Phase5Validator(PhaseValidator):
                 passed=passed,
             )
 
-        except Exception as e:
+        except Exception:
             logger.exception("Tick frequency validation failed")
             return TickFrequencyResult(
                 coef_variation=0.0,

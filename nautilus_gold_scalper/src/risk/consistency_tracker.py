@@ -3,8 +3,8 @@ ConsistencyTracker - Enforces Apex 30% daily profit consistency rule.
 """
 from __future__ import annotations
 
+from datetime import date, datetime
 from decimal import Decimal
-from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
@@ -21,16 +21,16 @@ class ConsistencyTracker:
         self.consistency_limit = Decimal("0.25")  # 25% safety buffer (5% margin vs Apex 30%)
         self._limit_hit = False
         self.et_tz = ZoneInfo(tz)
-        self._last_day = None
+        self._last_day: date | None = None
 
-    def _maybe_reset(self, now: datetime):
+    def _maybe_reset(self, now: datetime) -> None:
         if self._last_day is None:
             self._last_day = now.date()
         elif now.date() != self._last_day:
             self.reset_daily()
             self._last_day = now.date()
 
-    def update_profit(self, trade_pnl: float, now: datetime):
+    def update_profit(self, trade_pnl: float, now: datetime) -> None:
         self._maybe_reset(now)
         pnl = Decimal(str(trade_pnl))
         self.total_profit += pnl
@@ -51,7 +51,7 @@ class ConsistencyTracker:
         self._maybe_reset(now)
         return not self._limit_hit
 
-    def reset_daily(self):
+    def reset_daily(self) -> None:
         self.daily_profit = Decimal("0")
         self._limit_hit = False
 

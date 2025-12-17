@@ -1,6 +1,95 @@
 # PLAN: Phase 08 - Integration Points Audit
 
-> **Changelog**: 2025-12-16 - Applied CRITIC review fixes: Added agents C/D for all 4 integration areas (C-001), added 30% consistency rule (C-002), specified unrealized P/L in HWM (C-003), added all 3 time gates (C-004), added response enforcement verification (C-005), added edge cases section (C-006), added synthesis step (C-007), expanded failure modes (C-008), added initialization/crash recovery checks (C-009/C-010), clarified success criteria (C-011).
+> **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
+> - 2025-12-16: Applied CRITIC review fixes: Added agents C/D for all 4 integration areas (C-001), added 30% consistency rule (C-002), specified unrealized P/L in HWM (C-003), added all 3 time gates (C-004), added response enforcement verification (C-005), added edge cases section (C-006), added synthesis step (C-007), expanded failure modes (C-008), added initialization/crash recovery checks (C-009/C-010), clarified success criteria (C-011).
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files directly.**
+>
+> This phase traces integration across multiple modules. Reading these files directly will cause context overflow.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads strategy + risk + indicators + signals + execution files
+   Orchestrator traces data flow in main context
+   → CONTEXT OVERFLOW → Summarization → LOST INTEGRATION DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns NAUTILUS sub-agents with delegation prompt
+   Each NAUTILUS traces specific integration area, writes findings
+   Each NAUTILUS returns 300-word summary to orchestrator
+   Orchestrator synthesizes cross-cutting concerns
+```
+
+### Required Sub-Agent Prompts
+
+**Agent A (Strategy ↔ Risk Integration):**
+```
+Execute Phase 08 Agent A (Strategy ↔ Risk Integration) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the relevant source files - orchestrator has NOT
+2. Integration to trace:
+   - GoldScalperStrategy → PropFirmManager → DD/CB/Time/Consistency/Sizer
+3. Focus: Risk check order, response enforcement, state sync
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_08_A_STRATEGYRISK_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/09-PHASE-08-PLAN.md
+```
+
+**Agent B (Indicator ↔ Strategy Integration):**
+```
+Execute Phase 08 Agent B (Indicator ↔ Strategy Integration) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the relevant source files - orchestrator has NOT
+2. Integration to trace:
+   - Strategy.on_bar → Indicator.update() calls → Signal generation
+3. Focus: Update order, warmup periods, bar data flow
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_08_B_INDICATORSTRAT_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/09-PHASE-08-PLAN.md
+```
+
+**Agent C (Signal ↔ Execution Integration):**
+```
+Execute Phase 08 Agent C (Signal ↔ Execution Integration) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the relevant source files - orchestrator has NOT
+2. Integration to trace:
+   - ConfluenceScorer → Strategy → ExecutionModel → TradeManager
+3. Focus: Score threshold, execution costs, rejection handling
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_08_C_SIGNALEXEC_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/09-PHASE-08-PLAN.md
+```
+
+**Agent D (Time Synchronization):**
+```
+Execute Phase 08 Agent D (Time Synchronization) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the relevant source files - orchestrator has NOT
+2. Integration to trace:
+   - All modules' timestamp/timezone usage
+3. Focus: ET timezone, DST handling, session boundaries, daily resets
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_08_D_TIMESYNC_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/09-PHASE-08-PLAN.md
+```
+
+---
 
 ## Objective
 Verify that all modules integrate correctly, data flows properly between components, and there are no state synchronization issues.

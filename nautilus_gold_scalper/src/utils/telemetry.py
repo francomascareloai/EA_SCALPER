@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class TelemetrySink:
@@ -20,14 +20,18 @@ class TelemetrySink:
         if self.enabled:
             self.path.parent.mkdir(parents=True, exist_ok=True)
 
-    def emit(self, event: str, payload: Optional[Dict[str, Any]] = None) -> None:
+    def emit(self, event: str, payload: object | None = None) -> None:
         """Write a single telemetry event."""
         if not self.enabled:
             return
         try:
-            record: Dict[str, Any] = {"event": event}
-            if payload:
+            record: dict[str, Any] = {"event": event}
+            if payload is None:
+                pass
+            elif isinstance(payload, dict):
                 record.update(payload)
+            else:
+                record["payload"] = payload
             record.setdefault("ts", datetime.now(timezone.utc).isoformat())
             with self.path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=True) + "\n")

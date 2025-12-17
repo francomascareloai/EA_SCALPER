@@ -51,7 +51,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 import duckdb
 import polars as pl
 import pyarrow as pa
-
 from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
 from nautilus_gold_scalper.src.validation.core.results import (
     CheckResult,
@@ -242,7 +241,7 @@ class DuckDBConnection:
             self._closed = True
             logger.debug("DuckDB connection closed")
 
-    def __enter__(self) -> "DuckDBConnection":
+    def __enter__(self) -> DuckDBConnection:
         """Enter context manager."""
         return self
 
@@ -823,7 +822,7 @@ class ValidationEngine:
         self.db.close()
         logger.debug("ValidationEngine closed")
 
-    def __enter__(self) -> "ValidationEngine":
+    def __enter__(self) -> ValidationEngine:
         """Enter context manager."""
         return self
 

@@ -2,24 +2,23 @@
 
 from __future__ import annotations
 
-import pytest
 from datetime import datetime
-from pathlib import Path
 
+import pytest
 from nautilus_gold_scalper.src.validation.core.config import (
-    ValidationConfig,
-    MemoryConfig,
     DataQualityConfig,
+    MemoryConfig,
     PriceValidationConfig,
-)
-from nautilus_gold_scalper.src.validation.core.results import (
-    ValidationStatus,
-    CheckResult,
-    PhaseResult,
-    PipelineResult,
+    ValidationConfig,
 )
 from nautilus_gold_scalper.src.validation.core.engine import (
     DuckDBConnection,
+)
+from nautilus_gold_scalper.src.validation.core.results import (
+    CheckResult,
+    PhaseResult,
+    PipelineResult,
+    ValidationStatus,
 )
 
 

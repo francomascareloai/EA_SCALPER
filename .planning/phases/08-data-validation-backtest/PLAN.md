@@ -2,8 +2,49 @@
 
 **Plan ID**: 08-data-validation-backtest
 **Created**: 2025-12-15
-**Last Updated**: 2025-12-16
+**Last Updated**: 2025-12-17
 **Status**: READY FOR EXECUTION
+**Protocol 0**: Mandatory Delegation ENFORCED
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files, data files, or backtest results directly.**
+>
+> This plan processes large datasets (654M+ ticks) and produces extensive validation outputs.
+> Reading these directly into the orchestrator context will cause overflow and loss of details.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads data files directly
+   Orchestrator runs validation scripts in main context
+   Orchestrator reads large JSON outputs inline
+   → CONTEXT OVERFLOW → Summarization → LOST VALIDATION DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns sub-agents with delegation prompts
+   Each sub-agent reads files, runs scripts, writes findings to disk
+   Each sub-agent returns ONLY 300-word summary to orchestrator
+   Orchestrator synthesizes summaries, creates MANIFEST
+```
+
+### Required Sub-Agent Prompt Pattern
+
+All task prompts MUST include this instruction:
+
+```
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the data files and run scripts - orchestrator has NOT
+2. Write COMPLETE analysis to: [output_path]
+3. Return ONLY summary (max 300 words) to chat with:
+   - Status: PASS/FAIL/PARTIAL
+   - Key metrics (3-5 numbers)
+   - Issue counts by severity
+   - Output file path
+```
 
 ---
 
@@ -255,18 +296,20 @@ Per CLAUDE.md orchestration_output_protocol:
 ```
 .planning/phases/08-data-validation-backtest/
 ├── PLAN.md                 # This file (execution entry point)
+├── EXECUTION_GUIDE.md      # Step-by-step execution guide
+├── SCRIPT_REGISTRY.md      # Existing scripts registry
 ├── 00-BRIEF.md             # Project overview
 ├── 00-ROADMAP.md           # High-level phases
-├── 01-PHASE-PLAN.md        # Discovery & Config
-├── 01-A-PHASE-PLAN.md      # Deep Data Validation (NEW)
-├── 02-PHASE-PLAN.md        # Main Catalog Validation
-├── 03-PHASE-PLAN.md        # Session Validation
-├── 04-PHASE-PLAN.md        # Integrity & Cleanup
-├── 05-PHASE-PLAN.md        # Advanced Validation
-├── 06-PHASE-PLAN.md        # Backtest Framework
-├── 07-PHASE-PLAN.md        # Backtest Execution
-├── 08-PHASE-PLAN.md        # GO/NO-GO Decision
-└── orchestration/          # Sub-agent outputs (created during execution)
+├── 01-A-PLAN.xml.md        # Phase 1-A: Deep Data Validation
+├── 02-PLAN.xml.md          # Phase 2: Main Catalog Validation
+├── 03-PLAN.xml.md          # Phase 3: Session Validation
+├── 04-PLAN.xml.md          # Phase 4: Integrity & Cleanup
+├── 05-PLAN.xml.md          # Phase 5: Advanced Validation
+├── 06-PLAN.xml.md          # Phase 6: Backtest Framework
+├── 07-PLAN.xml.md          # Phase 7: Backtest Execution
+├── 08-PLAN.xml.md          # Phase 8: GO/NO-GO Decision
+├── outputs/                # Validation outputs (JSON files)
+└── orchestration/          # Sub-agent session outputs
 ```
 
 ---

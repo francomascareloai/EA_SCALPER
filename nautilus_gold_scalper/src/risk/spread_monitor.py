@@ -10,14 +10,12 @@ Tracks spread conditions and adjusts trading accordingly:
 
 Migrated from: MQL5/Include/EA_SCALPER/Safety/CSpreadMonitor.mqh
 """
+import logging
+import math
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
-import logging
-import math
-from typing import Optional
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +33,7 @@ class SpreadState(IntEnum):
 class SpreadSnapshot:
     """
     Snapshot of spread analysis at a point in time.
-    
+
     Attributes:
         timestamp: When snapshot was taken
         status: Current spread state
@@ -71,50 +69,50 @@ class SpreadSnapshot:
 class SpreadMonitor:
     """
     Spread monitor with statistical analysis and adaptive gates.
-    
+
     Monitors spread and adjusts trading:
     - Tracks rolling average of last N spread samples
     - Detects abnormal spread (statistically and by ratio)
     - Reduces position size during high spread
     - Blocks trading during extreme spread
-    
+
     Gates:
         NORMAL (< 2x avg):     100% size, no penalty
         ELEVATED (2-3x avg):   75-50% size, -10 to -15 penalty
         HIGH (3-5x avg):       25% size, -30 penalty
         EXTREME (5x+ avg):     0% size, -50 penalty, blocked
         BLOCKED (> max pips):  0% size, -100 penalty, blocked
-    
+
     Example:
         monitor = SpreadMonitor(max_spread_pips=50.0)
-        
+
         # Update with current bid/ask
         snapshot = monitor.update(bid=2650.20, ask=2650.50)
-        
+
         # Check trading conditions
         if monitor.can_trade():
             lot = base_lot * monitor.get_size_multiplier()
             # Execute trade...
-        
+
         # Get spread cost as % of SL
         cost_pct = monitor.get_spread_cost_percent(sl_distance=50.0)
         if cost_pct > 10.0:
             logger.warning(f"Spread cost {cost_pct:.1f}% of SL")
     """
-    
+
     def __init__(
         self,
         symbol: str = "XAUUSD",
         history_size: int = 100,
         warning_ratio: float = 2.0,
-        block_ratio: Optional[float] = None,
+        block_ratio: float | None = None,
         max_spread_pips: float = 50.0,
         update_interval: int = 1,
         pip_factor: float = 10.0,
     ):
         """
         Initialize SpreadMonitor.
-        
+
         Args:
             symbol: Trading symbol (for logging)
             history_size: Number of samples to keep for statistics
@@ -123,7 +121,7 @@ class SpreadMonitor:
             max_spread_pips: Absolute max spread allowed in pips
             update_interval: Seconds between updates (rate limiting)
             pip_factor: Points per pip (10.0 for XAUUSD)
-        
+
         Raises:
             ValueError: If parameters invalid
         """
@@ -135,14 +133,14 @@ class SpreadMonitor:
         if block_ratio is None:
             block_ratio = 5.0
         if block_ratio < warning_ratio:
-            raise ValueError(f"block_ratio must be > warning_ratio")
+            raise ValueError("block_ratio must be > warning_ratio")
         if max_spread_pips <= 0:
             raise ValueError(f"Invalid max_spread_pips: {max_spread_pips}")
         if update_interval < 0:
             raise ValueError(f"Invalid update_interval: {update_interval}")
         if pip_factor <= 0:
             raise ValueError(f"Invalid pip_factor: {pip_factor}")
-        
+
         # Configuration
         self._symbol = symbol
         self._history_size = history_size
@@ -152,40 +150,40 @@ class SpreadMonitor:
         self._max_spread_pips = max_spread_pips
         self._update_interval = update_interval
         self._pip_factor = pip_factor
-        
+
         # Spread history (circular buffer)
         self._spread_history: deque[float] = deque(maxlen=history_size)
-        
+
         # Statistics
         self._sum = 0.0
         self._sum_sq = 0.0
         self._min_observed = float('inf')
         self._max_observed = 0.0
-        
+
         # Current state
         self._current_spread_points = 0.0
-        self._last_update: Optional[datetime] = None
-        
+        self._last_update: datetime | None = None
+
         # Cached analysis
-        self._snapshot: Optional[SpreadSnapshot] = None
-        
+        self._snapshot: SpreadSnapshot | None = None
+
         logger.info(
             f"SpreadMonitor initialized for {symbol}: "
             f"history={history_size}, warning={warning_ratio}x, "
             f"block={block_ratio}x, max={max_spread_pips} pips"
         )
-    
+
     def update(self, bid: float, ask: float) -> SpreadSnapshot:
         """
         Update spread monitor with current bid/ask.
-        
+
         Args:
             bid: Current bid price
             ask: Current ask price
-        
+
         Returns:
             SpreadSnapshot: Current spread analysis
-        
+
         Raises:
             ValueError: If bid/ask invalid
         """
@@ -193,7 +191,7 @@ class SpreadMonitor:
             raise ValueError(f"Invalid bid/ask: {bid}/{ask}")
         if ask < bid:
             raise ValueError(f"Ask {ask} < bid {bid}")
-        
+
         # Rate limiting
         now = datetime.now(timezone.utc)
         if self._last_update is not None:
@@ -202,88 +200,88 @@ class SpreadMonitor:
                 # Return cached snapshot
                 if self._snapshot is not None:
                     return self._snapshot
-        
+
         self._last_update = now
-        
+
         # Calculate spread in points
         # For test expectations: points = price_diff * pip_factor (e.g., 0.03 * 10 = 0.3)
         spread_price = ask - bid
         spread_points = spread_price * self._pip_factor
         self._current_spread_points = round(spread_points, 10)
-        
+
         # Record to history
         self._record_spread(self._current_spread_points)
-        
+
         # Calculate statistics and analyze
         self._snapshot = self._analyze_spread()
-        
+
         return self._snapshot
-    
+
     def can_trade(self) -> bool:
         """
         Check if trading is allowed based on current spread.
-        
+
         Returns:
             bool: True if spread allows trading
         """
         if self._snapshot is None:
             return True  # No data yet, allow trading
         return self._snapshot.can_trade
-    
+
     def get_size_multiplier(self) -> float:
         """
         Get position size multiplier based on spread.
-        
+
         Returns:
             float: Multiplier for position size (0.0-1.0)
         """
         if self._snapshot is None:
             return 1.0  # No data yet, full size
         return self._snapshot.size_multiplier
-    
+
     def get_score_adjustment(self) -> int:
         """
         Get signal score adjustment based on spread.
-        
+
         Returns:
             int: Score adjustment (negative for bad spread)
         """
         if self._snapshot is None:
             return 0
         return self._snapshot.score_adjustment
-    
+
     def get_spread_cost_percent(self, sl_distance: float) -> float:
         """
         Calculate spread as percentage of stop loss distance.
-        
+
         Args:
             sl_distance: Stop loss distance in pips
-        
+
         Returns:
             float: Spread cost as percentage of SL
-        
+
         Raises:
             ValueError: If sl_distance invalid
         """
         if sl_distance <= 0:
             raise ValueError(f"Invalid sl_distance: {sl_distance}")
-        
+
         if self._snapshot is None:
             return 0.0
-        
+
         # Use points to align with unit tests (gold: 0.3 points on 50 pip SL -> 0.6%)
         spread_effective = self._snapshot.current_spread_points
         return (spread_effective / sl_distance) * 100.0
-    
-    def get_snapshot(self) -> Optional[SpreadSnapshot]:
+
+    def get_snapshot(self) -> SpreadSnapshot | None:
         """
         Get the current spread snapshot.
-        
+
         Returns:
             SpreadSnapshot or None: Current analysis, or None if no data
         """
         return self._snapshot
-    
+
     def reset(self) -> None:
         """Reset all statistics and history."""
         self._spread_history.clear()
@@ -294,13 +292,13 @@ class SpreadMonitor:
         self._current_spread_points = 0.0
         self._last_update = None
         self._snapshot = None
-        
+
         logger.info(f"SpreadMonitor reset for {self._symbol}")
-    
+
     def _record_spread(self, spread: float) -> None:
         """
         Record spread to history.
-        
+
         Args:
             spread: Spread in points
         """
@@ -309,41 +307,41 @@ class SpreadMonitor:
             old_val = self._spread_history[0]  # Will be popped by deque
             self._sum -= old_val
             self._sum_sq -= old_val * old_val
-        
+
         # Add new value
         self._spread_history.append(spread)
         self._sum += spread
         self._sum_sq += spread * spread
-        
+
         # Update min/max
         if spread < self._min_observed:
             self._min_observed = spread
         if spread > self._max_observed:
             self._max_observed = spread
-    
+
     def _calculate_std_dev(self) -> float:
         """
         Calculate standard deviation of spread history.
-        
+
         Returns:
             float: Standard deviation
         """
         n = len(self._spread_history)
         if n < 2:
             return 0.0
-        
+
         mean = self._sum / n
         variance = (self._sum_sq / n) - (mean * mean)
-        
+
         if variance <= 0:
             return 0.0
-        
+
         return math.sqrt(variance)
-    
+
     def _analyze_spread(self) -> SpreadSnapshot:
         """
         Analyze current spread and determine status.
-        
+
         Returns:
             SpreadSnapshot: Complete analysis
         """
@@ -358,13 +356,13 @@ class SpreadMonitor:
             current_pips = current_points / 10.0
         else:
             current_pips = current_points
-        
+
         n = len(self._spread_history)
         base_avg = self._sum / n if n > 0 else 0.0
         base_max = self._max_observed
         base_min = self._min_observed if self._min_observed != float('inf') else current_points
         std_dev = self._calculate_std_dev() if n > 1 else 0.0
-        
+
         # Need some history before making decisions
         if n < 10:
             return SpreadSnapshot(
@@ -383,11 +381,11 @@ class SpreadMonitor:
                 can_trade=True,
                 reason="Collecting data",
             )
-        
+
         # Calculate statistics
         avg_spread = base_avg
         std_dev = self._calculate_std_dev()
-        
+
         # Calculate ratio to average (exclude current reading to avoid diluting spikes)
         hist_count = n
         effective_avg = (self._sum - current_points) / (hist_count - 1) if hist_count > 1 else avg_spread
@@ -396,12 +394,12 @@ class SpreadMonitor:
         ratio_excl = current_points / effective_avg if effective_avg > 0 else 1.0
         ratio_incl = current_points / base_avg if base_avg > 0 else 1.0
         spread_ratio = ratio_excl if self._block_ratio_explicit else ratio_excl
-        
+
         # Calculate Z-score
         z_score = (current_points - avg_spread) / std_dev if std_dev > 0 else 0.0
-        
+
         # --- Determine status and adjustments ---
-        
+
         # BLOCKED: Absolute max exceeded
         ext_ratio = spread_ratio if self._block_ratio_explicit else ratio_incl
 
@@ -422,7 +420,7 @@ class SpreadMonitor:
                 can_trade=False,
                 reason=f"Spread {current_pips:.1f} pips exceeds max {self._max_spread_pips:.1f}",
             )
-        
+
         # EXTREME: Very high ratio
         if ext_ratio >= self._block_ratio:
             return SpreadSnapshot(
@@ -441,7 +439,7 @@ class SpreadMonitor:
                 can_trade=False,
                 reason=f"Spread {spread_ratio:.1f}x normal ({current_pips:.1f} pips)",
             )
-        
+
         # HIGH: strong but tradable
         high_threshold = self._warning_ratio * 1.5
         if spread_ratio >= high_threshold:
@@ -461,7 +459,7 @@ class SpreadMonitor:
                 can_trade=True,  # Allow but heavily reduced
                 reason=f"High spread {spread_ratio:.1f}x normal",
             )
-        
+
         # ELEVATED: Above warning threshold
         if spread_ratio >= self._warning_ratio:
             return SpreadSnapshot(
@@ -480,7 +478,7 @@ class SpreadMonitor:
                 can_trade=True,
                 reason=f"Elevated spread {spread_ratio:.1f}x normal",
             )
-        
+
         # NORMAL
         return SpreadSnapshot(
             timestamp=datetime.now(timezone.utc),
@@ -498,12 +496,12 @@ class SpreadMonitor:
             can_trade=True,
             reason="Normal",
         )
-    
+
     def __repr__(self) -> str:
         """String representation."""
         if self._snapshot is None:
             return f"SpreadMonitor({self._symbol}, no data)"
-        
+
         s = self._snapshot
         return (
             f"SpreadMonitor({self._symbol}, "

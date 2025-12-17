@@ -1,4 +1,4 @@
-from nautilus_gold_scalper.src.risk.circuit_breaker import CircuitBreaker, CircuitBreakerLevel
+from nautilus_gold_scalper.src.risk.circuit_breaker import CircuitBreaker
 
 
 def test_circuit_breaker_consecutive_losses_reduces_size():

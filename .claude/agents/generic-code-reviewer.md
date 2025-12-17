@@ -4,8 +4,8 @@ description: |
   REVIEWER v2.2 - Senior code audit subagent (trading-systems first).
   Focus: bugs, risks, Apex compliance, performance budgets, security.
   Triggers: "review", "/audit", "before commit", "code review"
-model: opus
-reasoningEffort: high
+model: sonnet
+reasoningEffort: medium
 # tools: inherited (all MCP servers available)
 ---
 

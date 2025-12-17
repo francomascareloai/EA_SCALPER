@@ -60,7 +60,7 @@ Session windows are UTC/GMT hours derived from `ts_event` nanoseconds:
 - EVENING: 21:00–00:00 (wrap)
 
 Implemented in:
-- `scripts/slice_catalog_by_session.py`
+- `scripts/data/slice_catalog_by_session.py`
 
 ## Key scripts (current state)
 
@@ -87,31 +87,20 @@ Important safety fence:
 ### 2) FULL catalog → session catalogs (low-memory)
 
 File:
-- `scripts/slice_catalog_by_session.py`
+- `scripts/data/slice_catalog_by_session.py`
 
 Design:
-- Reads `QuoteTick` from FULL `ParquetDataCatalog`.
-- Writes directly to session catalog (no pandas), buffering only `--chunk-ticks` ticks per flush.
-- Optional windowing (`--start/--end`) to keep working set small under WSL.
-- Checkpoint per session in staging directory (refuses resume if window/source mismatch).
+- Single-pass scan of the FULL catalog Parquet files.
+- Uses PyArrow compute to classify rows by UTC/GMT session and writes session catalogs without pandas.
+- Checkpoint per session catalog (`.checkpoint.json`) supports `--resume`.
 - `--overwrite` moves existing final output aside using `_OLD`, `_OLD_2`, ...
 
 ### 3) Orchestrate all sessions + windows sequentially
 
-File:
-- `scripts/run_session_slicing_full.py`
-
-Purpose:
-- Runs `slice_catalog_by_session.py` as subprocess.
-- Sequential execution (one session at a time, one window at a time) to minimize RAM.
-- Default windows (coarse):
-  - 2003→2009
-  - 2009→2014
-  - 2014→2019
-  - 2019→2025-12-01
-- Default chunking tuned for low RAM:
-  - `--chunk-ticks` default currently set conservatively (often run with 10k–20k)
-  - `--checkpoint-every-ticks` commonly 20k–50k
+Status:
+- The repository now centralizes session slicing into a single script:
+  - `scripts/data/slice_catalog_by_session.py`
+- Older wrapper/orchestrator references can be ignored; run the canonical script directly.
 
 Logging:
 - Typical run uses `nohup ... > logs/session_slicing.log 2>&1 &`
@@ -123,12 +112,10 @@ Logging:
 Conservative mode (min RAM):
 
 ```bash
-nohup .venv/bin/python scripts/run_session_slicing_full.py \
-  --source data/catalog_native/xauusd_2003_2025_stride1_full \
+nohup .venv/bin/python scripts/data/slice_catalog_by_session.py \
+  --source data/catalog_native/xauusd_2003_2025_stride1_COMPLETE \
   --output-root data/catalog_native_sessions \
   --resume --overwrite \
-  --chunk-ticks 10000 \
-  --checkpoint-every-ticks 20000 \
   > logs/session_slicing.log 2>&1 &
 ```
 

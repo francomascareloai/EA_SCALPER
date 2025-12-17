@@ -1,7 +1,60 @@
 # PLAN: Phase 07 - Test Coverage Analysis
 
 > **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
 > - 2025-12-16: Applied CRITIC review fixes (C-001 to C-013). Added mock realism audit, temporal correctness checks, HWM + unrealized P/L edge case, quantitative coverage thresholds, pytest --cov baseline, expanded time gates, disabled test detection, fixture audit, and gap remediation framework.
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read test files directly.**
+>
+> This phase analyzes the entire test suite. Reading test files directly will cause context overflow.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads all test files directly
+   Orchestrator runs coverage analysis in main context
+   → CONTEXT OVERFLOW → Summarization → LOST COVERAGE DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns REVIEWER sub-agent (opus) with delegation prompt
+   REVIEWER runs pytest --cov, reads test files, analyzes coverage gaps
+   REVIEWER writes exhaustive findings to disk
+   REVIEWER returns 300-word summary with coverage metrics
+```
+
+### Required Sub-Agent Prompt
+
+```
+Execute Phase 07 (Test Coverage Analysis) of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU run pytest --cov and read test files - orchestrator has NOT
+2. First: Run baseline coverage measurement
+   pytest --cov=nautilus_gold_scalper --cov-report=term-missing tests/
+3. Then: Analyze test suite for:
+   - Coverage gaps in critical paths
+   - Mock realism audit
+   - Temporal correctness in test data
+   - HWM + unrealized P/L edge cases
+   - Disabled/skipped tests
+   - Fixture quality
+4. Test directory: nautilus_gold_scalper/tests/
+5. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_07_COVERAGE_FINDINGS.md
+6. Return ONLY summary (max 300 words) with:
+   - Line coverage %
+   - Branch coverage %
+   - Critical gaps identified
+   - Issue counts
+
+Plan file: .planning/phases/08-nautilus-deep-audit/08-PHASE-07-PLAN.md
+```
+
+---
 
 ## Objective
 Analyze test suite coverage to identify gaps, critical paths untested, and missing edge case coverage. Ensure tests are realistic, temporally correct, and comprehensively cover Apex compliance requirements.

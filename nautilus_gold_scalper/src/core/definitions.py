@@ -3,7 +3,7 @@ Core definitions for the Gold Scalper - NautilusTrader Edition.
 
 Migrated from: MQL5/Include/EA_SCALPER/Core/Definitions.mqh
 """
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 
 class Direction(IntEnum):
@@ -18,7 +18,7 @@ class SignalType(IntEnum):
     SIGNAL_NONE = 0
     SIGNAL_BUY = 1
     SIGNAL_SELL = -1
-    
+
     # Aliases for backward compatibility
     NONE = 0
     BUY = 1
@@ -32,6 +32,13 @@ class SignalQuality(IntEnum):
     QUALITY_MEDIUM = 2
     QUALITY_HIGH = 3
     QUALITY_ELITE = 4
+
+    # Backward-compatible tier aliases used by strategy/scorer code.
+    TIER_INVALID = QUALITY_INVALID
+    TIER_C = QUALITY_LOW
+    TIER_B = QUALITY_MEDIUM
+    TIER_A = QUALITY_HIGH
+    TIER_S = QUALITY_ELITE
 
 
 class TradeState(IntEnum):

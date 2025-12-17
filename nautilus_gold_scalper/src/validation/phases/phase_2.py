@@ -30,13 +30,10 @@ Example:
 from __future__ import annotations
 
 import logging
-import math
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
+from typing import TYPE_CHECKING, ClassVar, TypedDict
 
 import numpy as np
-import polars as pl
-
 from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
 from nautilus_gold_scalper.src.validation.core.engine import (
     DuckDBConnection,

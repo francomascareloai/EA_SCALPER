@@ -34,7 +34,7 @@ def test_basic_functionality():
     ]
 
     print("=== Testing US Holidays 2025 ===")
-    for test_date, expected_name in test_dates:
+    for test_date, _expected_name in test_dates:
         info = detector.check_holiday(test_date)
         if info.is_holiday:
             print(f"[OK] {test_date.date()}: {info.name}")
@@ -49,7 +49,7 @@ def test_basic_functionality():
         (datetime(2025, 8, 25), "Summer Bank Holiday"),
     ]
 
-    for date, expected_name in uk_dates:
+    for date, _expected_name in uk_dates:
         info = detector.check_holiday(date)
         if info.is_holiday:
             print(f"[OK] {date.date()}: {info.name}")

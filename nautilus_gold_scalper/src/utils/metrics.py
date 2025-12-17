@@ -5,20 +5,19 @@ Calculates Sharpe, Sortino, Calmar, SQN for backtest validation and GO/NO-GO dec
 from __future__ import annotations
 
 import math
-from typing import List, Tuple, Optional
 from dataclasses import dataclass
 
 
 @dataclass
 class PerformanceMetrics:
     """Container for strategy performance metrics."""
-    
+
     # Core metrics
     sharpe_ratio: float
     sortino_ratio: float
     calmar_ratio: float
     sqn: float  # System Quality Number
-    
+
     # Supporting metrics
     total_pnl: float
     win_rate: float
@@ -30,14 +29,14 @@ class PerformanceMetrics:
     num_trades: int
     num_wins: int
     num_losses: int
-    
+
     # Risk metrics
     avg_return: float
     std_dev: float
     downside_std_dev: float
     cagr: float
-    
-    def to_dict(self) -> dict:
+
+    def to_dict(self) -> dict[str, float | int]:
         """Convert to dictionary for telemetry."""
         return {
             'sharpe_ratio': round(self.sharpe_ratio, 3),
@@ -59,38 +58,38 @@ class PerformanceMetrics:
 
 class MetricsCalculator:
     """Calculate performance metrics from trade history."""
-    
+
     def __init__(self, risk_free_rate: float = 0.05, trading_days_per_year: int = 252):
         """
         Initialize metrics calculator.
-        
+
         Args:
             risk_free_rate: Annual risk-free rate (default 5% = 0.05)
             trading_days_per_year: Number of trading days per year (default 252)
         """
         self.risk_free_rate = risk_free_rate
         self.trading_days_per_year = trading_days_per_year
-    
+
     def calculate(
         self,
-        pnl_series: List[float],
+        pnl_series: list[float],
         initial_balance: float = 100000.0,
-        period_days: Optional[int] = None,
+        period_days: int | None = None,
     ) -> PerformanceMetrics:
         """
         Calculate all performance metrics from PnL series.
-        
+
         Args:
             pnl_series: List of trade PnLs (in dollars)
             initial_balance: Starting account balance
             period_days: Number of days in test period (for CAGR calculation)
-            
+
         Returns:
             PerformanceMetrics object with all calculated metrics
         """
         if not pnl_series or len(pnl_series) == 0:
             return self._empty_metrics()
-        
+
         # Basic statistics
         num_trades = len(pnl_series)
         total_pnl = sum(pnl_series)
@@ -98,30 +97,30 @@ class MetricsCalculator:
         losses = [p for p in pnl_series if p < 0]
         num_wins = len(wins)
         num_losses = len(losses)
-        
+
         win_rate = (num_wins / num_trades * 100) if num_trades > 0 else 0.0
         avg_win = (sum(wins) / len(wins)) if wins else 0.0
         avg_loss = (sum(losses) / len(losses)) if losses else 0.0
-        
+
         # Profit factor
         gross_profit = sum(wins) if wins else 0.0
         gross_loss = abs(sum(losses)) if losses else 0.0
         profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else float('inf')
-        
+
         # Expectancy
         expectancy = (win_rate / 100.0 * avg_win) + ((1 - win_rate / 100.0) * avg_loss)
-        
+
         # Returns and standard deviation
         returns = [p / initial_balance for p in pnl_series]
         avg_return = sum(returns) / len(returns) if returns else 0.0
-        
+
         # Std dev
         if len(returns) > 1:
             variance = sum((r - avg_return) ** 2 for r in returns) / (len(returns) - 1)
             std_dev = math.sqrt(variance)
         else:
             std_dev = 0.0
-        
+
         # Downside deviation (for Sortino)
         negative_returns = [r for r in returns if r < 0]
         if len(negative_returns) > 1:
@@ -129,14 +128,14 @@ class MetricsCalculator:
             downside_std_dev = math.sqrt(downside_variance)
         else:
             downside_std_dev = std_dev if std_dev > 0 else 1e-10
-        
+
         # Calculate max drawdown
         equity_curve = [initial_balance]
         for pnl in pnl_series:
             equity_curve.append(equity_curve[-1] + pnl)
-        
+
         max_dd_pct = self._calculate_max_drawdown_pct(equity_curve)
-        
+
         # CAGR (Compound Annual Growth Rate)
         if period_days and period_days > 0:
             years = period_days / 365.25
@@ -150,7 +149,7 @@ class MetricsCalculator:
                 cagr = ((final_balance / initial_balance) ** (1 / years) - 1) * 100
             else:
                 cagr = 0.0
-        
+
         # Sharpe Ratio
         # Annualized: Sharpe = sqrt(252) * (avg_return - rf) / std_dev
         daily_rf = self.risk_free_rate / self.trading_days_per_year
@@ -159,21 +158,21 @@ class MetricsCalculator:
         else:
             # Perfect consistency (all trades identical)
             sharpe = float('inf') if avg_return > daily_rf else 0.0
-        
+
         # Sortino Ratio
         # Annualized: Sortino = sqrt(252) * (avg_return - rf) / downside_std_dev
         if downside_std_dev > 0:
             sortino = math.sqrt(self.trading_days_per_year) * (avg_return - daily_rf) / downside_std_dev
         else:
             sortino = 0.0
-        
+
         # Calmar Ratio
         # Calmar = CAGR / MaxDD (both in %)
         if max_dd_pct > 0:
             calmar = cagr / max_dd_pct
         else:
             calmar = 0.0
-        
+
         # System Quality Number (SQN)
         # SQN = sqrt(N) * Expectancy / StdDev(PnL)
         if len(pnl_series) > 1:
@@ -185,7 +184,7 @@ class MetricsCalculator:
                 sqn = float('inf') if expectancy > 0 else 0.0
         else:
             sqn = 0.0
-        
+
         return PerformanceMetrics(
             sharpe_ratio=sharpe,
             sortino_ratio=sortino,
@@ -206,24 +205,24 @@ class MetricsCalculator:
             downside_std_dev=downside_std_dev,
             cagr=cagr,
         )
-    
-    def _calculate_max_drawdown_pct(self, equity_curve: List[float]) -> float:
+
+    def _calculate_max_drawdown_pct(self, equity_curve: list[float]) -> float:
         """Calculate maximum drawdown percentage from equity curve."""
         if not equity_curve or len(equity_curve) < 2:
             return 0.0
-        
+
         max_dd = 0.0
         peak = equity_curve[0]
-        
+
         for equity in equity_curve:
             if equity > peak:
                 peak = equity
             dd_pct = ((peak - equity) / peak) * 100 if peak > 0 else 0.0
             if dd_pct > max_dd:
                 max_dd = dd_pct
-        
+
         return max_dd
-    
+
     def _empty_metrics(self) -> PerformanceMetrics:
         """Return empty metrics when no trades."""
         return PerformanceMetrics(
@@ -249,20 +248,20 @@ class MetricsCalculator:
 
 
 def calculate_metrics_from_trades(
-    trades: List[Tuple[float, float]],  # List of (entry_price, exit_price) tuples
+    trades: list[tuple[float, float]],  # List of (entry_price, exit_price) tuples
     position_size: float = 1.0,
     initial_balance: float = 100000.0,
     risk_free_rate: float = 0.05,
 ) -> PerformanceMetrics:
     """
     Convenience function to calculate metrics from list of trades.
-    
+
     Args:
         trades: List of (entry_price, exit_price) tuples
         position_size: Size per trade (in units/contracts)
         initial_balance: Starting balance
         risk_free_rate: Annual risk-free rate
-        
+
     Returns:
         PerformanceMetrics object
     """

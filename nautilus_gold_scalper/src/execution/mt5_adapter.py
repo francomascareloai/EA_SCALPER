@@ -9,7 +9,6 @@ Design goals:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from .base_adapter import BaseExecutionAdapter
 
@@ -27,10 +26,10 @@ class MT5Adapter(BaseExecutionAdapter):
     def __init__(
         self,
         symbol: str = "XAUUSD",
-        data_path: Optional[Path] = None,
-        mt5_login: Optional[int] = None,
-        mt5_password: Optional[str] = None,
-        mt5_server: Optional[str] = None,
+        data_path: Path | None = None,
+        mt5_login: int | None = None,
+        mt5_password: str | None = None,
+        mt5_server: str | None = None,
     ):
         super().__init__(name="MT5", symbol=symbol, data_path=data_path)
         self._mt5_login = mt5_login

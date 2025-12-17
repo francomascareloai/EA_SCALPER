@@ -1,11 +1,8 @@
-from decimal import Decimal
-from datetime import datetime, timezone
 import pytest
-
 from nautilus_gold_scalper.src.risk.prop_firm_manager import (
-    PropFirmManager,
-    PropFirmLimits,
     AccountTerminatedException,
+    PropFirmLimits,
+    PropFirmManager,
 )
 
 
@@ -40,10 +37,10 @@ def test_prop_firm_manager_hard_stop_on_breach():
 
     # Simulate equity drop beyond trailing DD
     mgr.update_equity(98_900.0)  # DD = 1,100 > 1,000
-    
+
     # Should raise exception on breach
     with pytest.raises(AccountTerminatedException):
         mgr.can_trade()
-    
+
     assert s.stopped is True
     assert s.flattened is True

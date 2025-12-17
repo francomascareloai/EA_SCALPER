@@ -12,10 +12,9 @@ AGENTS.md v3.7.0 Integration:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import IntEnum
-from typing import Optional, Tuple
 from datetime import datetime, timezone
-from decimal import Decimal
+from enum import IntEnum
+from typing import Any
 
 from .consistency_tracker import ConsistencyTracker
 from .dd_protection import DDProtectionCalculator, DDProtectionState
@@ -53,7 +52,7 @@ class PropFirmState:
     consecutive_wins: int
     consecutive_losses: int
     # AGENTS.md v3.7.0 Multi-Tier DD fields
-    dd_protection: Optional[DDProtectionState] = None
+    dd_protection: DDProtectionState | None = None
 
 
 class PropFirmManager:
@@ -65,8 +64,9 @@ class PropFirmManager:
     - Win/loss streak momentum factor
     """
 
-    def __init__(self, limits: Optional[PropFirmLimits] = None):
+    def __init__(self, limits: PropFirmLimits | None = None, *, raise_on_breach: bool = True):
         self.limits = limits or PropFirmLimits()
+        self._raise_on_breach = bool(raise_on_breach)
         self._initialized = False
         self._start_equity = self.limits.account_size
         self._equity = self.limits.account_size
@@ -77,6 +77,7 @@ class PropFirmManager:
         self._last_update = datetime.now(timezone.utc)
         self._strategy = None  # optional hook for stop/flatten on breach
         self._consistency = ConsistencyTracker(initial_balance=self.limits.account_size)
+        self._terminated = False
 
     # -------------------- lifecycle
     def initialize(self, starting_equity: float) -> None:
@@ -89,61 +90,79 @@ class PropFirmManager:
         self._initialized = True
         self._last_update = datetime.now(timezone.utc)
 
-    def set_strategy(self, strategy) -> None:
+    def set_strategy(self, strategy: Any) -> None:
         """Optional: attach strategy for hard stops/flatten on breach."""
         self._strategy = strategy
 
     # -------------------- updates
-    def update_equity(self, equity: float) -> None:
+    @staticmethod
+    def _resolve_now(now: datetime | None) -> datetime:
+        return now if now is not None else datetime.now(timezone.utc)
+
+    def update_equity(self, equity: float, now: datetime | None = None) -> None:
         if not self._initialized:
             self.initialize(equity)
         self._equity = equity
         if equity > self._high_water:
             self._high_water = equity
-        self._last_update = datetime.now(timezone.utc)
+        self._last_update = self._resolve_now(now)
 
-    def register_trade_close(self, contracts: float, profit: float) -> None:
+    def register_trade_close(self, contracts: float, profit: float, now: datetime | None = None) -> None:
+        now_dt = self._resolve_now(now)
+        now_et = now_dt.astimezone(self._consistency.et_tz)
         if profit > 0:
             self._consecutive_wins += 1
             self._consecutive_losses = 0
         elif profit < 0:
             self._consecutive_losses += 1
             self._consecutive_wins = 0
-        self.update_equity(self._equity + profit)
-        self._consistency.update_profit(profit, datetime.now(timezone.utc))
+        self.update_equity(self._equity + profit, now=now_dt)
+        self._consistency.update_profit(profit, now_et)
 
-    def on_new_day(self, current_equity: Optional[float] = None) -> None:
+    def on_new_day(self, current_equity: float | None = None, now: datetime | None = None) -> None:
         """
         Reset daily loss tracking at start of trading day.
         Args:
             current_equity: equity snapshot to set as new daily start (optional)
         """
+        now_dt = self._resolve_now(now)
         if current_equity is not None:
             self._equity = current_equity
         self._daily_start_equity = self._equity
         self._consecutive_wins = 0
         self._consecutive_losses = 0
-        self._last_update = datetime.now(timezone.utc)
+        self._last_update = now_dt
         self._consistency.reset_daily()
 
     # -------------------- checks
-    def can_trade(self) -> bool:
+    def can_trade(self, now: datetime | None = None) -> bool:
+        now_dt = self._resolve_now(now)
+        now_et = now_dt.astimezone(self._consistency.et_tz)
         state = self.get_state()
         if not state.is_trading_allowed:
-            self._hard_stop(state)
-        if state.is_trading_allowed and not self._consistency.can_trade(datetime.now(timezone.utc)):
+            if self._raise_on_breach:
+                self._hard_stop(state)
+            if self._terminated:
+                return False
+            self._terminated = True
+            try:
+                self._hard_stop(state)
+            except AccountTerminatedException:
+                return False
+            return False
+        if state.is_trading_allowed and not self._consistency.can_trade(now_et):
             return False
         return state.is_trading_allowed
 
-    def validate_trade(self, risk_amount: float, contracts: float) -> Tuple[bool, str]:
+    def validate_trade(self, risk_amount: float, contracts: float) -> tuple[bool, str]:
         """
         Validate trade against prop firm limits.
         Includes AGENTS.md v3.7.0 multi-tier DD protection.
-        
+
         Args:
             risk_amount: Risk in absolute dollars
             contracts: Number of contracts
-            
+
         Returns:
             (allowed, reason)
         """
@@ -154,15 +173,15 @@ class PropFirmManager:
         available = self.get_max_risk_available()
         if risk_amount > available:
             return False, "Daily limit would be exceeded"
-        
+
         # AGENTS.md v3.7.0 Multi-Tier DD Protection
         dd_state = self.get_dd_protection_state()
         risk_pct = (risk_amount / self._equity) * 100 if self._equity > 0 else 0
         allowed, reason = DDProtectionCalculator.validate_trade(dd_state, risk_pct)
-        
+
         if not allowed:
             return False, f"DD Protection: {reason}"
-        
+
         return True, ""
 
     # -------------------- DD Protection Integration (AGENTS.md v3.7.0)
@@ -176,7 +195,7 @@ class PropFirmManager:
             day_start_balance=self._daily_start_equity,
             current_equity=self._equity
         )
-    
+
     # -------------------- metrics
     def get_state(self) -> PropFirmState:
         daily_loss = max(0.0, self._daily_start_equity - self._equity)
@@ -205,7 +224,7 @@ class PropFirmManager:
 
         # Get DD protection state (AGENTS.md v3.7.0 multi-tier system)
         dd_protection = self.get_dd_protection_state()
-        
+
         return PropFirmState(
             is_trading_allowed=not is_hard_breached and dd_protection.can_trade,
             is_hard_breached=is_hard_breached,
@@ -240,12 +259,19 @@ class PropFirmManager:
                 f"Apex Trading limits breached: Daily loss={state.daily_loss_current:.2f}, "
                 f"Trailing DD={state.trailing_dd_current:.2f}"
             )
-        
+
         try:
-            self._strategy.log.critical(
-                f"APEX DD BREACH - stopping strategy. Daily={state.daily_loss_current:.2f}, "
-                f"Trailing={state.trailing_dd_current:.2f}"
+            logger = getattr(self._strategy, "log", None)
+            log_fn = (
+                getattr(logger, "critical", None)
+                or getattr(logger, "error", None)
+                or getattr(logger, "warning", None)
             )
+            if callable(log_fn):
+                log_fn(
+                    f"APEX DD BREACH - stopping strategy. Daily={state.daily_loss_current:.2f}, "
+                    f"Trailing={state.trailing_dd_current:.2f}"
+                )
             self._strategy.close_all_positions(self._strategy.config.instrument_id)
             self._strategy.stop()
         except Exception as e:
@@ -254,7 +280,7 @@ class PropFirmManager:
             raise AccountTerminatedException(
                 f"Apex Trading limits breached and cleanup failed: {e}"
             ) from e
-        
+
         # Raise exception to signal termination even if cleanup succeeded
         raise AccountTerminatedException(
             f"Apex Trading account terminated: Daily={state.daily_loss_current:.2f}, "

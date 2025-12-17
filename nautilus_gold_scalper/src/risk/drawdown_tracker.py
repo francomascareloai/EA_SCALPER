@@ -6,10 +6,9 @@ for prop-firm style risk controls and analytics.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import IntEnum
-from typing import List, Optional, Tuple, Dict
 
 from ..core.definitions import (
     DEFAULT_MAX_DAILY_LOSS,
@@ -72,7 +71,7 @@ class DrawdownTracker:
         initial_equity: float = 100_000.0,
         max_daily: float = DEFAULT_MAX_DAILY_LOSS,
         max_total: float = DEFAULT_MAX_TOTAL_LOSS,
-        alert_thresholds: Optional[List[float]] = None,
+        alert_thresholds: list[float] | None = None,
     ):
         if initial_equity <= 0:
             raise ValueError(f"Invalid initial_equity: {initial_equity}")
@@ -110,15 +109,15 @@ class DrawdownTracker:
         self._peak_at_max_dd = initial_equity
 
         # History
-        self._history: List[DrawdownSnapshot] = []
+        self._history: list[DrawdownSnapshot] = []
         self._max_history_size = 10000
-        self._alerts_triggered: List[Tuple[datetime, str]] = []
+        self._alerts_triggered: list[tuple[datetime, str]] = []
 
         self._last_update = datetime.now(timezone.utc)
         self._last_day_check = self._last_update
 
     # ------------------------------------------------------------------ API
-    def update(self, current_equity: float, pnl: Optional[float] = None, now: Optional[datetime] = None) -> DrawdownAnalysis:
+    def update(self, current_equity: float, pnl: float | None = None, now: datetime | None = None) -> DrawdownAnalysis:
         """Update tracker with current equity and optional trade PnL."""
         if current_equity <= 0:
             return self.get_analysis()
@@ -220,13 +219,13 @@ class DrawdownTracker:
             return 0.85
         return 1.0
 
-    def get_underwater_stats(self) -> Dict[str, float]:
+    def get_underwater_stats(self) -> dict[str, float]:
         """Return stats about drawdown periods."""
         events = []
         depths = []
         durations = []
         in_dd = False
-        start_time: Optional[datetime] = None
+        start_time: datetime | None = None
         local_peak = 0.0
 
         for snap in self._history:
@@ -253,11 +252,11 @@ class DrawdownTracker:
             "avg_depth_pct": avg_depth,
         }
 
-    def get_equity_curve(self) -> List[Tuple[datetime, float]]:
+    def get_equity_curve(self) -> list[float]:
         """Return equity history as simple list of equity values."""
         return [h.equity for h in self._history]
 
-    def get_history(self, last_n: Optional[int] = None) -> List[DrawdownSnapshot]:
+    def get_history(self, last_n: int | None = None) -> list[DrawdownSnapshot]:
         if last_n is None:
             return self._history.copy()
         return self._history[-last_n:].copy()
@@ -318,7 +317,7 @@ class DrawdownTracker:
             return 0.0
         return max(0.0, (self._current_equity - (self._peak_at_max_dd - self._max_drawdown_abs)) / self._max_drawdown_abs)
 
-    def _check_new_day(self, now: Optional[datetime] = None) -> None:
+    def _check_new_day(self, now: datetime | None = None) -> None:
         """Check if new trading day and reset if needed. Uses backtest timestamp if provided."""
         if now is None:
             now = datetime.now(timezone.utc)

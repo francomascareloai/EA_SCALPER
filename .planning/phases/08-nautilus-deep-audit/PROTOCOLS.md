@@ -1,7 +1,107 @@
 # Orchestration Protocols
 
 > **Changelog**
+> - 2025-12-17 (v3): **CRITICAL FIX** - Added Protocol 0 (Mandatory Delegation Rule) to prevent context overflow. Orchestrator MUST delegate code reading to sub-agents. This is the highest priority protocol.
+> - 2025-12-16 (v2): CRITIC review of ARGUS integrations - Fixed Protocol 13 (added SQN>7.0 red flag, MC95 DD<4%), Protocol 14 (clarified bar vs tick-level HWM), enforcement mechanism for Protocols 11-14.
 > - 2025-12-16: Applied CRITIC review fixes (C-001, C-002, C-003, H-001 through H-005, M-001 through M-004, L-001, L-002). Added Protocols 7 and 8. Expanded temporal verification to 10 samples. Standardized naming. Added error handling, timeout protocol, checkpoint triggers, conflict expansion, parallel coordination, and MANIFEST enforcement.
+
+---
+
+## 0. MANDATORY DELEGATION RULE (HIGHEST PRIORITY)
+
+### Purpose
+Prevent context overflow by FORCING the orchestrator to delegate ALL code reading and analysis to sub-agents. This protocol takes precedence over all others.
+
+### The Problem This Solves
+Without delegation, the orchestrator:
+1. Reads large files (1000+ lines) directly into context
+2. Performs CRITIC analysis (15+ sequential thoughts) in same context
+3. Accumulates code + analysis + findings
+4. **CONTEXT OVERFLOW → Summarization → LOSES critical details**
+
+### MANDATORY Rules
+
+#### The Orchestrator MUST NOT:
+1. **Read source files** (>100 lines) directly into main context
+2. **Perform CRITIC analysis** in main context
+3. **Accumulate** code + analysis + findings in same thread
+4. **Use Read tool** on any file in `src/`, `scripts/`, or `tests/` directories without delegation
+
+#### The Orchestrator MUST:
+1. **ALWAYS spawn sub-agent** (FORGE/REVIEWER/NAUTILUS) for code analysis
+2. **Sub-agent reads files**, analyzes, writes to disk, returns ONLY summary
+3. **Orchestrator receives**: 300 words max + file path + issue counts
+4. **Never touch source code directly** - only read summaries and findings files
+
+### Pre-Read Check (MANDATORY)
+
+Before ANY file read, orchestrator MUST:
+
+```
+1. Check if file is in: src/, scripts/, tests/, or is a .py file
+   - YES → MUST delegate to sub-agent
+   - NO → May read directly (configs, plans, findings)
+
+2. If delegation required:
+   - Spawn appropriate sub-agent (FORGE for code, REVIEWER for review)
+   - Include OUTPUT PROTOCOL in prompt
+   - Wait for summary (max 300 words)
+   - Read findings file if needed (findings are summaries, safe to read)
+```
+
+### Sub-Agent Prompt Template (REQUIRED)
+
+Every sub-agent prompt MUST include:
+
+```
+DELEGATION PROTOCOL (MANDATORY):
+
+1. YOU read the source files - orchestrator has NOT read them
+2. Write COMPLETE analysis to: [output_file_path]
+3. Return ONLY a summary (max 300 words) containing:
+   - Top 3-5 findings
+   - Issue counts: X CRITICAL, Y HIGH, Z MEDIUM, W LOW
+   - Output file path
+   - Status: COMPLETE/PARTIAL/FAILED
+4. DO NOT return full code snippets or detailed analysis in chat
+5. If you need to show code, include file:line references only
+```
+
+### File Size Thresholds
+
+| File Size | Action |
+|-----------|--------|
+| <100 lines | MAY read directly (configs, small utilities) |
+| 100-500 lines | SHOULD delegate |
+| >500 lines | MUST delegate |
+| Any src/ file | MUST delegate (regardless of size) |
+
+### Enforcement
+
+If orchestrator attempts to read source files directly:
+1. **STOP** - do not proceed
+2. **Spawn sub-agent** with proper delegation prompt
+3. **Wait for summary** before continuing
+
+### Why This Matters
+
+| Without Delegation | With Delegation |
+|-------------------|-----------------|
+| Orchestrator reads 1600 lines | Sub-agent reads 1600 lines |
+| + 15 thoughts in same context | Sub-agent returns 300 words |
+| + Full analysis in context | Orchestrator stays clean |
+| = Context overflow | = Sustainable execution |
+| = Lost details | = Full details in files |
+
+### Exception: Findings Files
+
+The orchestrator MAY read:
+- `orchestration/*.md` (findings are summaries)
+- `MANIFEST.md` (index)
+- Plan files (`.planning/**/*.md`)
+- Config files (`*.yaml`, `*.json`, `*.toml`)
+
+These are already summaries/structured data, not raw code.
 
 ---
 
@@ -816,13 +916,16 @@ Define statistical thresholds from ARGUS research to validate strategy results a
 
 #### Required Metrics
 
-| Metric | Full Name | Threshold | Source |
-|--------|-----------|-----------|--------|
-| PBO | Probability of Backtest Overfitting | < 20% | Bailey & Lopez de Prado |
-| DSR | Deflated Sharpe Ratio | > 0 | Bailey & Lopez de Prado 2014 |
-| WFE | Walk-Forward Efficiency | >= 0.6 | Existing project standard |
-| SQN | System Quality Number | >= 2.0 | Existing project standard |
-| PSR | Probabilistic Sharpe Ratio | >= 0.85 | Existing project standard |
+| Metric | Full Name | Threshold | Red Flag | Source |
+|--------|-----------|-----------|----------|--------|
+| PBO | Probability of Backtest Overfitting | < 20% | > 50% | Bailey & Lopez de Prado |
+| DSR | Deflated Sharpe Ratio | > 0 | < -0.5 | Bailey & Lopez de Prado 2014 |
+| WFE | Walk-Forward Efficiency | >= 0.6 | < 0.4 | Existing project standard |
+| SQN | System Quality Number | >= 2.0 | **> 7.0 = SUSPICIOUS (possible overfit)** | Existing project standard |
+| PSR | Probabilistic Sharpe Ratio | >= 0.85 | < 0.5 | Existing project standard |
+| MC95 DD | Monte Carlo 95th Percentile Drawdown | < 4% | > 4.5% | Project safety buffer |
+
+**WARNING:** SQN > 7.0 is a RED FLAG indicating potential overfitting. Investigate thoroughly if observed.
 
 #### PBO Calculation (Conceptual)
 
@@ -855,13 +958,14 @@ where:
 ### Strategy: [name]
 ### Validation Date: YYYY-MM-DD
 
-| Metric | Value | Threshold | Status |
-|--------|-------|-----------|--------|
-| PBO | X% | < 20% | PASS/FAIL |
-| DSR | X.XX | > 0 | PASS/FAIL |
-| WFE | X.XX | >= 0.6 | PASS/FAIL |
-| SQN | X.XX | >= 2.0 | PASS/FAIL |
-| PSR | X.XX | >= 0.85 | PASS/FAIL |
+| Metric | Value | Threshold | Red Flag | Status |
+|--------|-------|-----------|----------|--------|
+| PBO | X% | < 20% | > 50% | PASS/FAIL |
+| DSR | X.XX | > 0 | < -0.5 | PASS/FAIL |
+| WFE | X.XX | >= 0.6 | < 0.4 | PASS/FAIL |
+| SQN | X.XX | >= 2.0 | > 7.0 SUSPICIOUS | PASS/FAIL/INVESTIGATE |
+| PSR | X.XX | >= 0.85 | < 0.5 | PASS/FAIL |
+| MC95 DD | X% | < 4% | > 4.5% | PASS/FAIL |
 
 ### OOS Period Consistency
 | Period | Sharpe | Max DD | Profitable |
@@ -879,9 +983,13 @@ where:
 
 **Protocol 3 (Temporal Verification):** Add Pattern Detection (Protocol 11) as Step 0 before timestamp tracing.
 
-**Protocol 8 (Apex Verification):** No changes - Apex verification remains separate.
+**Protocol 7 (Checkpoint Trigger):** Now enforces Protocols 1-14 (updated from 1-10).
+
+**Protocol 8 (Apex Verification):** Superseded by Protocol 14 for Apex-specific checks.
 
 **Phase Plans:** Reference these protocols by number (e.g., "Apply Protocol 11 before review").
+
+**Enforcement:** Protocols 11-14 are MANDATORY for all trading/risk/ML work. Non-compliance blocks phase completion.
 
 ---
 
@@ -908,10 +1016,15 @@ MANDATORY for all phases. This protocol supersedes generic compliance checks.
 | Rule | Value | Verification |
 |------|-------|--------------|
 | Trailing DD limit | 5% from HWM | [ ] Code uses 0.05 threshold |
-| HWM includes unrealized | Every tick updates HWM | [ ] Tick-level HWM update confirmed |
+| HWM includes unrealized | Every bar updates HWM | [ ] Bar-level HWM update confirmed (Note: Backtest uses bars; live uses ticks) |
 | HWM never decreases | Once raised, permanent | [ ] No HWM reset logic except account reset |
 | Safety buffer | HALT at 4.0% trailing | [ ] 0.04 threshold triggers HALT |
 | Termination buffer | HALT at 4.5% total | [ ] 0.045 threshold triggers TERMINATE |
+
+**Clarification: Bar vs Tick-level HWM**
+- **Backtest**: Uses bar-level updates (NautilusTrader bar-driven)
+- **Live**: Should use tick-level updates (real-time equity)
+- **Implication**: Backtest may underestimate HWM spikes within bars
 
 **Trailing DD Trap Example (must understand):**
 ```

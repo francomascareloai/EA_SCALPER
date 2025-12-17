@@ -2,50 +2,51 @@
 Integration test for the complete strategy flow.
 Tests all modules working together with simulated XAUUSD data.
 """
-import pytest
-import numpy as np
 from datetime import datetime
 
-# Core imports
-from src.core.definitions import (
-    SignalType, MarketRegime, TradingSession, SignalQuality,
-)
-
-# Indicator imports
-from src.indicators.session_filter import SessionFilter
-from src.indicators.regime_detector import RegimeDetector
-from src.indicators.structure_analyzer import StructureAnalyzer, MarketBias
-
-# Risk imports
-from src.risk.spread_monitor import SpreadMonitor
-from src.risk.circuit_breaker import CircuitBreaker
-
-# Signal imports
-from src.signals.entry_optimizer import EntryOptimizer, SignalDirection
+import numpy as np
+import pytest
 
 # Context imports
 from src.context.holiday_detector import HolidayDetector
 
+# Core imports
+from src.core.definitions import (
+    TradingSession,
+)
+from src.indicators.regime_detector import RegimeDetector
+
+# Indicator imports
+from src.indicators.session_filter import SessionFilter
+from src.indicators.structure_analyzer import MarketBias, StructureAnalyzer
+from src.risk.circuit_breaker import CircuitBreaker
+
+# Risk imports
+from src.risk.spread_monitor import SpreadMonitor
+
+# Signal imports
+from src.signals.entry_optimizer import EntryOptimizer, SignalDirection
+
 # Strategy imports
-from src.strategies.strategy_selector import StrategySelector, StrategyType, MarketContext
+from src.strategies.strategy_selector import MarketContext, StrategySelector, StrategyType
 
 
 def generate_trending_data(n_bars: int = 200, direction: str = "bull") -> dict:
     """Generate simulated trending XAUUSD data."""
     np.random.seed(42)
-    
+
     base_price = 2650.0
     trend = 0.15 if direction == "bull" else -0.15
-    
+
     closes = [base_price]
-    for i in range(1, n_bars):
+    for _ in range(1, n_bars):
         change = trend + np.random.normal(0, 0.5)
         closes.append(closes[-1] + change)
-    
+
     closes = np.array(closes)
     highs = closes + np.random.uniform(0.5, 2.0, n_bars)
     lows = closes - np.random.uniform(0.5, 2.0, n_bars)
-    
+
     return {
         'high': highs,
         'low': lows,
@@ -55,50 +56,50 @@ def generate_trending_data(n_bars: int = 200, direction: str = "bull") -> dict:
 
 class TestSessionFilter:
     """Test SessionFilter."""
-    
+
     def test_london_session(self):
         sf = SessionFilter()
         dt = datetime(2025, 12, 3, 10, 0, 0)
         info = sf.get_session_info(dt)
-        
+
         assert info.session == TradingSession.SESSION_LONDON
         assert info.is_trading_allowed
-        print(f"OK: London session allowed")
-    
+        print("OK: London session allowed")
+
     def test_overlap_session(self):
         sf = SessionFilter()
         dt = datetime(2025, 12, 3, 13, 0, 0)
         info = sf.get_session_info(dt)
-        
+
         assert info.session == TradingSession.SESSION_LONDON_NY_OVERLAP
-        print(f"OK: Overlap session detected")
-    
+        print("OK: Overlap session detected")
+
     def test_asian_blocked(self):
         sf = SessionFilter(allow_asian=False)
         dt = datetime(2025, 12, 3, 3, 0, 0)
         info = sf.get_session_info(dt)
-        
+
         assert not info.is_trading_allowed
-        print(f"OK: Asian session blocked")
+        print("OK: Asian session blocked")
 
 
 class TestRegimeDetector:
     """Test RegimeDetector."""
-    
+
     def test_trending_detection(self):
         rd = RegimeDetector()
         data = generate_trending_data(200, "bull")
-        
+
         analysis = rd.analyze(data['close'])
-        
+
         assert analysis.is_valid
         assert analysis.hurst_exponent > 0.5
         print(f"OK: Hurst={analysis.hurst_exponent:.3f}")
-    
+
     def test_size_multiplier(self):
         rd = RegimeDetector()
         data = generate_trending_data(200, "bull")
-        
+
         analysis = rd.analyze(data['close'])
         assert analysis.size_multiplier > 0
         print(f"OK: Size mult={analysis.size_multiplier:.2f}")
@@ -106,36 +107,36 @@ class TestRegimeDetector:
 
 class TestStructureAnalyzer:
     """Test StructureAnalyzer."""
-    
+
     def test_bullish_structure(self):
         sa = StructureAnalyzer()
         data = generate_trending_data(100, "bull")
-        
+
         sa.analyze(data['high'], data['low'], data['close'])
         bias = sa.get_market_bias()
-        
+
         assert bias in [MarketBias.BULLISH, MarketBias.TRANSITION, MarketBias.RANGING]
         print(f"OK: Bias={bias.name}")
 
 
 class TestSpreadMonitor:
     """Test SpreadMonitor."""
-    
+
     def test_normal_spread(self):
         sm = SpreadMonitor(max_spread_pips=5.0)
-        
+
         for _ in range(50):
             sm.update(bid=2650.00, ask=2650.20)
-        
+
         assert sm.can_trade()
-        print(f"OK: Normal spread allows trading")
-    
+        print("OK: Normal spread allows trading")
+
     def test_size_multiplier(self):
         sm = SpreadMonitor(max_spread_pips=5.0)
-        
+
         for _ in range(50):
             sm.update(bid=2650.00, ask=2650.40)
-        
+
         mult = sm.get_size_multiplier()
         assert mult <= 1.0
         print(f"OK: Spread mult={mult:.2f}")
@@ -143,24 +144,24 @@ class TestSpreadMonitor:
 
 class TestCircuitBreaker:
     """Test CircuitBreaker."""
-    
+
     def test_initial_state(self):
         cb = CircuitBreaker()
         assert cb.can_trade()
-        print(f"OK: CB initially active")
-    
+        print("OK: CB initially active")
+
     def test_loss_recording(self):
         cb = CircuitBreaker()
         cb.register_trade_result(pnl=-500.0, is_win=False)
-        print(f"OK: Loss recorded")
+        print("OK: Loss recorded")
 
 
 class TestEntryOptimizer:
     """Test EntryOptimizer."""
-    
+
     def test_long_entry(self):
         eo = EntryOptimizer()
-        
+
         entry = eo.calculate_optimal_entry(
             direction=SignalDirection.SIGNAL_BUY,
             current_price=2650.0,
@@ -170,14 +171,14 @@ class TestEntryOptimizer:
             ob_low=2644.0,
             ob_high=2646.0
         )
-        
+
         assert entry is not None
         assert entry.stop_loss < entry.optimal_price
         print(f"OK: Long entry={entry.optimal_price:.2f}, SL={entry.stop_loss:.2f}")
-    
+
     def test_short_entry(self):
         eo = EntryOptimizer()
-        
+
         entry = eo.calculate_optimal_entry(
             direction=SignalDirection.SIGNAL_SELL,
             current_price=2650.0,
@@ -187,7 +188,7 @@ class TestEntryOptimizer:
             ob_low=2654.0,
             ob_high=2656.0
         )
-        
+
         assert entry is not None
         assert entry.stop_loss > entry.optimal_price
         print(f"OK: Short entry={entry.optimal_price:.2f}, SL={entry.stop_loss:.2f}")
@@ -195,10 +196,10 @@ class TestEntryOptimizer:
 
 class TestStrategySelector:
     """Test StrategySelector."""
-    
+
     def test_trending_context(self):
         ss = StrategySelector()
-        
+
         context = MarketContext(
             hurst=0.65,
             entropy=1.2,
@@ -208,14 +209,14 @@ class TestStrategySelector:
             circuit_ok=True,
             spread_ok=True
         )
-        
+
         selection = ss.select_strategy(context)
         assert selection.strategy != StrategyType.STRATEGY_NONE
         print(f"OK: Trending -> {selection.strategy.name}")
-    
+
     def test_random_walk_blocked(self):
         ss = StrategySelector()
-        
+
         context = MarketContext(
             hurst=0.50,
             entropy=2.5,
@@ -224,7 +225,7 @@ class TestStrategySelector:
             circuit_ok=True,
             spread_ok=True
         )
-        
+
         selection = ss.select_strategy(context)
         # Random walk should be blocked or safe mode
         print(f"OK: Random walk -> {selection.strategy.name}")
@@ -232,64 +233,64 @@ class TestStrategySelector:
 
 class TestHolidayDetector:
     """Test HolidayDetector."""
-    
+
     def test_christmas(self):
         hd = HolidayDetector()
         info = hd.check_holiday(datetime(2025, 12, 25, 12, 0))
-        
+
         assert info.is_holiday
         print(f"OK: Christmas detected, mult={info.size_multiplier}")
-    
+
     def test_normal_day(self):
         hd = HolidayDetector()
         info = hd.check_holiday(datetime(2025, 12, 3, 12, 0))
-        
+
         assert not info.is_holiday
         assert info.size_multiplier == 1.0
-        print(f"OK: Normal day")
+        print("OK: Normal day")
 
 
 class TestFullFlow:
     """Test complete strategy flow."""
-    
+
     def test_full_flow(self):
         print("\n" + "="*50)
         print("FULL STRATEGY FLOW")
         print("="*50)
-        
+
         # 1. Data
         data = generate_trending_data(200, "bull")
         price = data['close'][-1]
         print(f"1. Price: {price:.2f}")
-        
+
         # 2. Session
         sf = SessionFilter()
         session = sf.get_session_info(datetime(2025, 12, 3, 13, 0))
         print(f"2. Session: {session.session.name}")
         assert session.is_trading_allowed
-        
+
         # 3. Regime
         rd = RegimeDetector()
         regime = rd.analyze(data['close'])
         print(f"3. Regime: {regime.regime.name}, H={regime.hurst_exponent:.3f}")
-        
+
         # 4. Spread
         sm = SpreadMonitor()
         for _ in range(30):
             sm.update(bid=price, ask=price + 0.20)
         print(f"4. Spread OK: {sm.can_trade()}")
         assert sm.can_trade()
-        
+
         # 5. Circuit Breaker
         cb = CircuitBreaker()
         print(f"5. CB OK: {cb.can_trade()}")
         assert cb.can_trade()
-        
+
         # 6. Holiday
         hd = HolidayDetector()
         holiday = hd.check_holiday(datetime(2025, 12, 3, 13, 0))
         print(f"6. Holiday: {holiday.is_holiday}")
-        
+
         # 7. Strategy
         ss = StrategySelector()
         context = MarketContext(
@@ -303,13 +304,13 @@ class TestFullFlow:
         )
         selection = ss.select_strategy(context)
         print(f"7. Strategy: {selection.strategy.name}")
-        
+
         # 8. Structure
         sa = StructureAnalyzer()
         sa.analyze(data['high'], data['low'], data['close'])
         bias = sa.get_market_bias()
         print(f"8. Bias: {bias.name}")
-        
+
         # 9. Entry
         eo = EntryOptimizer()
         direction = SignalDirection.SIGNAL_BUY if bias == MarketBias.BULLISH else SignalDirection.SIGNAL_SELL
@@ -319,7 +320,7 @@ class TestFullFlow:
             atr=5.0
         )
         print(f"9. Entry: {entry.optimal_price:.2f}, SL: {entry.stop_loss:.2f}")
-        
+
         print("="*50)
         print("FLOW COMPLETE!")
         print("="*50)

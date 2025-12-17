@@ -12,6 +12,6 @@ from .holiday_detector import (
 
 __all__ = [
     "HolidayDetector",
-    "HolidayInfo", 
+    "HolidayInfo",
     "HolidayType",
 ]

@@ -1,7 +1,60 @@
 # PLAN: Phase 01 - Core Strategy Audit
 
 > **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
 > - 2025-12-16: Applied CRITIC review fixes (C-001, C-002, H-001, H-002, H-003, M-001 through M-005, L-001, L-002). Added Step 0, look-ahead patterns, HWM verification, blocking criteria, time estimates.
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files directly.**
+>
+> This phase analyzes ~1600 lines of code. Reading these files directly into the orchestrator's context will cause context overflow and loss of critical details.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads gold_scalper_strategy.py (800 lines)
+   Orchestrator reads base_strategy.py (600 lines)
+   Orchestrator performs CRITIC analysis (15+ thoughts)
+   → CONTEXT OVERFLOW → Summarization → LOST DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns FORGE sub-agent with delegation prompt
+   FORGE reads all files, analyzes, writes to PHASE_01_FINDINGS.md
+   FORGE returns 300-word summary to orchestrator
+   Orchestrator updates MANIFEST.md
+   → Context stays clean → Full details preserved in file
+```
+
+### Required Sub-Agent Prompt
+
+The orchestrator MUST spawn a sub-agent with this prompt structure:
+
+```
+Execute Phase 01 of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze:
+   - nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py
+   - nautilus_gold_scalper/src/strategies/base_strategy.py
+   - nautilus_gold_scalper/src/strategies/strategy_selector.py
+3. Follow the analysis steps in this plan file
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_01_FINDINGS.md
+5. Return ONLY a summary (max 300 words) containing:
+   - Top 3-5 findings
+   - Issue counts: X CRITICAL, Y HIGH, Z MEDIUM, W LOW
+   - Output file path
+   - Status: COMPLETE/PARTIAL/FAILED
+6. DO NOT return full code snippets in chat - use file:line references
+
+Plan file: .planning/phases/08-nautilus-deep-audit/02-PHASE-01-PLAN.md
+```
+
+---
 
 ## Objective
 Deep critical analysis of the main trading strategy (`GoldScalperStrategy`) and its base class to identify bugs, design flaws, and Apex compliance gaps.

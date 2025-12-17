@@ -1,8 +1,7 @@
-import pytest
 from datetime import datetime, timezone
 
+from src.core.definitions import SessionQuality, TradingSession
 from src.indicators.session_filter import SessionFilter
-from src.core.definitions import TradingSession, SessionQuality
 
 
 class TestSessionFilter:

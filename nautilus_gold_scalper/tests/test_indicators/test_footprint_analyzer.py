@@ -13,27 +13,18 @@ Tests:
 - POC divergence (v3.4)
 - Signal generation
 """
-import pytest
-import numpy as np
-from datetime import datetime
-from typing import List, Tuple
 
-from src.indicators.footprint_analyzer import (
-    FootprintAnalyzer,
-    FootprintState,
-    FootprintLevel,
-    StackedImbalance,
-    AbsorptionZone,
-    ValueArea,
-    AuctionType,
-)
+import pytest
+
 from src.core.definitions import (
-    SignalType,
-    ImbalanceType,
     AbsorptionType,
     FootprintSignal,
+    ImbalanceType,
+    SignalType,
 )
-
+from src.indicators.footprint_analyzer import (
+    FootprintAnalyzer,
+)
 
 # =============================================================================
 # FIXTURES
@@ -54,7 +45,7 @@ def analyzer() -> FootprintAnalyzer:
 
 
 @pytest.fixture
-def bullish_tick_data() -> List[Tuple[float, int, bool]]:
+def bullish_tick_data() -> list[tuple[float, int, bool]]:
     """Simulated bullish tick data."""
     return [
         (2000.00, 10, False),  # Sell
@@ -67,7 +58,7 @@ def bullish_tick_data() -> List[Tuple[float, int, bool]]:
 
 
 @pytest.fixture
-def bearish_tick_data() -> List[Tuple[float, int, bool]]:
+def bearish_tick_data() -> list[tuple[float, int, bool]]:
     """Simulated bearish tick data."""
     return [
         (2002.50, 10, True),   # Buy
@@ -80,7 +71,7 @@ def bearish_tick_data() -> List[Tuple[float, int, bool]]:
 
 
 @pytest.fixture
-def imbalance_tick_data() -> List[Tuple[float, int, bool]]:
+def imbalance_tick_data() -> list[tuple[float, int, bool]]:
     """Tick data with stacked buy imbalances."""
     return [
         (2000.00, 10, False),  # Bid: 10, Ask: 0
@@ -95,7 +86,7 @@ def imbalance_tick_data() -> List[Tuple[float, int, bool]]:
 
 
 @pytest.fixture
-def absorption_tick_data() -> List[Tuple[float, int, bool]]:
+def absorption_tick_data() -> list[tuple[float, int, bool]]:
     """Tick data with absorption at low."""
     return [
         (2000.00, 50, False),  # High volume at low
@@ -120,7 +111,7 @@ def test_initialize(analyzer: FootprintAnalyzer):
     assert analyzer.absorption_threshold == 15.0
     assert analyzer.volume_multiplier == 2.0
     assert analyzer.lookback_bars == 20
-    
+
     assert analyzer._cumulative_delta == 0
     assert len(analyzer._volume_history) == 0
     assert len(analyzer._delta_history) == 0
@@ -140,7 +131,7 @@ def test_initialize_custom_params():
         volume_multiplier=3.0,
         lookback_bars=50,
     )
-    
+
     assert analyzer.cluster_size == 1.0
     assert analyzer.imbalance_ratio == 4.0
     assert analyzer.stacked_min == 5
@@ -160,7 +151,7 @@ def test_edge_case_zero_volume(analyzer: FootprintAnalyzer):
         close=2000.0,
         volume=0,
     )
-    
+
     assert state.total_volume == 0
     assert state.delta == 0
     assert state.delta_percent == 0
@@ -177,7 +168,7 @@ def test_edge_case_no_ticks(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=None,  # No tick data
     )
-    
+
     assert state.total_volume == 100
     assert state.delta != 0  # Should estimate delta
     assert state.poc_price > 0
@@ -193,7 +184,7 @@ def test_edge_case_narrow_range(analyzer: FootprintAnalyzer):
         close=2000.08,
         volume=50,
     )
-    
+
     assert state.total_volume == 50
     assert abs(state.vah_price - state.val_price) < 1.0  # Narrow value area
 
@@ -205,7 +196,7 @@ def test_edge_case_single_cluster(analyzer: FootprintAnalyzer):
         (2000.15, 15, False),
         (2000.20, 12, True),
     ]
-    
+
     state = analyzer.analyze_bar(
         high=2000.20,
         low=2000.10,
@@ -214,7 +205,7 @@ def test_edge_case_single_cluster(analyzer: FootprintAnalyzer):
         volume=37,
         tick_data=tick_data,
     )
-    
+
     assert state.total_volume == 37
     # Should not crash even with single cluster
 
@@ -222,7 +213,7 @@ def test_edge_case_single_cluster(analyzer: FootprintAnalyzer):
 def test_edge_case_extreme_imbalance(analyzer: FootprintAnalyzer):
     """Test with extreme buy/sell imbalance."""
     tick_data = [(2000.0 + i*0.5, 100, True) for i in range(10)]  # All buys
-    
+
     state = analyzer.analyze_bar(
         high=2004.5,
         low=2000.0,
@@ -231,9 +222,9 @@ def test_edge_case_extreme_imbalance(analyzer: FootprintAnalyzer):
         volume=1000,
         tick_data=tick_data,
     )
-    
+
     assert state.delta > 0  # Strong positive delta
-    assert state.signal in [FootprintSignal.FP_SIGNAL_BUY, 
+    assert state.signal in [FootprintSignal.FP_SIGNAL_BUY,
                             FootprintSignal.FP_SIGNAL_STRONG_BUY]
 
 
@@ -243,7 +234,7 @@ def test_edge_case_extreme_imbalance(analyzer: FootprintAnalyzer):
 
 def test_happy_path_bullish_with_ticks(
     analyzer: FootprintAnalyzer,
-    bullish_tick_data: List[Tuple[float, int, bool]]
+    bullish_tick_data: list[tuple[float, int, bool]]
 ):
     """Test normal bullish analysis with tick data."""
     state = analyzer.analyze_bar(
@@ -254,23 +245,23 @@ def test_happy_path_bullish_with_ticks(
         volume=110,
         tick_data=bullish_tick_data,
     )
-    
+
     # Basic checks
     assert state.total_volume == 110
     assert state.delta > 0  # Positive delta (more buys)
     assert state.poc_price > 0
     assert state.vah_price > state.val_price
-    
+
     # Signal should be bullish
     assert state.direction in [SignalType.SIGNAL_BUY, SignalType.SIGNAL_NONE]
-    
+
     # Should be able to call helper methods
     assert analyzer.get_cumulative_delta() == state.delta
 
 
 def test_happy_path_bearish_with_ticks(
     analyzer: FootprintAnalyzer,
-    bearish_tick_data: List[Tuple[float, int, bool]]
+    bearish_tick_data: list[tuple[float, int, bool]]
 ):
     """Test normal bearish analysis with tick data."""
     state = analyzer.analyze_bar(
@@ -281,12 +272,12 @@ def test_happy_path_bearish_with_ticks(
         volume=110,
         tick_data=bearish_tick_data,
     )
-    
+
     # Basic checks
     assert state.total_volume == 110
     assert state.delta < 0  # Negative delta (more sells)
     assert state.poc_price > 0
-    
+
     # Signal should be bearish
     assert state.direction in [SignalType.SIGNAL_SELL, SignalType.SIGNAL_NONE]
 
@@ -305,7 +296,7 @@ def test_happy_path_estimated_bullish(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=None,  # Force estimated mode
     )
-    
+
     assert state.total_volume == 100
     assert state.delta >= 0  # Should estimate positive delta
     assert state.poc_price > 0
@@ -322,7 +313,7 @@ def test_happy_path_estimated_bearish(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=None,
     )
-    
+
     assert state.total_volume == 100
     assert state.delta <= 0  # Should estimate negative delta
     assert state.poc_price > 0
@@ -334,7 +325,7 @@ def test_happy_path_estimated_bearish(analyzer: FootprintAnalyzer):
 
 def test_imbalance_detection(
     analyzer: FootprintAnalyzer,
-    imbalance_tick_data: List[Tuple[float, int, bool]]
+    imbalance_tick_data: list[tuple[float, int, bool]]
 ):
     """Test diagonal and stacked imbalance detection."""
     state = analyzer.analyze_bar(
@@ -345,14 +336,14 @@ def test_imbalance_detection(
         volume=95,
         tick_data=imbalance_tick_data,
     )
-    
+
     # Should detect buy imbalances
     assert state.buy_imbalance_count > 0
-    
+
     # Should detect stacked imbalances (3+ consecutive levels)
     assert len(state.stacked_imbalances) > 0
     assert state.has_stacked_buy_imbalance is True
-    
+
     # Check stacked imbalance properties
     stacked = state.stacked_imbalances[0]
     assert stacked.imbalance_type == ImbalanceType.IMBALANCE_BUY
@@ -368,7 +359,7 @@ def test_no_imbalance_balanced_trading(analyzer: FootprintAnalyzer):
         (2000.50, 10, True),
         (2000.50, 10, False),
     ]
-    
+
     state = analyzer.analyze_bar(
         high=2000.50,
         low=2000.00,
@@ -377,7 +368,7 @@ def test_no_imbalance_balanced_trading(analyzer: FootprintAnalyzer):
         volume=40,
         tick_data=tick_data,
     )
-    
+
     # Balanced trading should have minimal imbalances
     assert state.buy_imbalance_count + state.sell_imbalance_count == 0
 
@@ -388,7 +379,7 @@ def test_no_imbalance_balanced_trading(analyzer: FootprintAnalyzer):
 
 def test_absorption_detection(
     analyzer: FootprintAnalyzer,
-    absorption_tick_data: List[Tuple[float, int, bool]]
+    absorption_tick_data: list[tuple[float, int, bool]]
 ):
     """Test absorption zone detection."""
     state = analyzer.analyze_bar(
@@ -399,11 +390,11 @@ def test_absorption_detection(
         volume=165,
         tick_data=absorption_tick_data,
     )
-    
+
     # Should detect absorption at the low
     assert len(state.absorption_zones) > 0
     assert state.has_buy_absorption is True  # Absorption at low = BUY absorption
-    
+
     # Check absorption properties
     absorption = state.absorption_zones[0]
     assert absorption.absorption_type == AbsorptionType.ABSORPTION_BUY
@@ -415,7 +406,7 @@ def test_absorption_detection(
 def test_no_absorption_trending(analyzer: FootprintAnalyzer):
     """Test that strong trending doesn't create absorption."""
     tick_data = [(2000.0 + i*0.5, 20, True) for i in range(5)]  # All strong buys
-    
+
     state = analyzer.analyze_bar(
         high=2002.00,
         low=2000.00,
@@ -424,7 +415,7 @@ def test_no_absorption_trending(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=tick_data,
     )
-    
+
     # Strong directional move should NOT show absorption
     assert state.has_buy_absorption is False
     assert state.has_sell_absorption is False
@@ -439,8 +430,8 @@ def test_delta_divergence_bullish(analyzer: FootprintAnalyzer):
     # Build history: Price making lower lows, Delta making higher lows
     prices = [2003.0, 2002.0, 2001.0]  # Lower lows
     deltas = [100, 110, 120]  # Higher lows (divergence!)
-    
-    for price, delta in zip(prices, deltas):
+
+    for price, delta in zip(prices, deltas, strict=True):
         tick_data = [(price, delta // 2, True), (price, delta // 2, False)]
         analyzer.analyze_bar(
             high=price + 0.5,
@@ -450,7 +441,7 @@ def test_delta_divergence_bullish(analyzer: FootprintAnalyzer):
             volume=delta,
             tick_data=tick_data,
         )
-    
+
     state = analyzer.analyze_bar(
         high=2001.0,
         low=2000.0,
@@ -458,7 +449,7 @@ def test_delta_divergence_bullish(analyzer: FootprintAnalyzer):
         close=2001.0,
         volume=130,
     )
-    
+
     # Should detect bullish divergence
     assert state.has_bullish_delta_divergence is True
 
@@ -468,8 +459,8 @@ def test_delta_divergence_bearish(analyzer: FootprintAnalyzer):
     # Build history: Price making higher highs, Delta making lower highs
     prices = [2001.0, 2002.0, 2003.0]  # Higher highs
     deltas = [120, 110, 100]  # Lower highs (divergence!)
-    
-    for price, delta in zip(prices, deltas):
+
+    for price, delta in zip(prices, deltas, strict=True):
         tick_data = [(price, delta // 2, True), (price, delta // 2, False)]
         analyzer.analyze_bar(
             high=price + 0.5,
@@ -479,7 +470,7 @@ def test_delta_divergence_bearish(analyzer: FootprintAnalyzer):
             volume=delta,
             tick_data=tick_data,
         )
-    
+
     state = analyzer.analyze_bar(
         high=2003.0,
         low=2002.0,
@@ -487,7 +478,7 @@ def test_delta_divergence_bearish(analyzer: FootprintAnalyzer):
         close=2003.0,
         volume=90,
     )
-    
+
     # Should detect bearish divergence
     assert state.has_bearish_delta_divergence is True
 
@@ -500,7 +491,7 @@ def test_delta_acceleration_bullish(analyzer: FootprintAnalyzer):
     """Test bullish delta acceleration detection."""
     # Build history with accelerating positive delta
     deltas = [50, 100, 180]  # Accelerating
-    
+
     for i, delta in enumerate(deltas):
         analyzer.analyze_bar(
             high=2000.0 + i,
@@ -510,7 +501,7 @@ def test_delta_acceleration_bullish(analyzer: FootprintAnalyzer):
             volume=200,
             tick_data=[(2000.0 + i, delta, True), (2000.0 + i, 200 - delta, False)],
         )
-    
+
     state = analyzer.analyze_bar(
         high=2003.0,
         low=2002.5,
@@ -519,7 +510,7 @@ def test_delta_acceleration_bullish(analyzer: FootprintAnalyzer):
         volume=200,
         tick_data=[(2003.0, 200, True)],  # Strong buy
     )
-    
+
     # Should detect bullish delta acceleration
     assert state.delta_acceleration > 0
     assert state.has_bullish_delta_acceleration is True
@@ -529,7 +520,7 @@ def test_delta_acceleration_bearish(analyzer: FootprintAnalyzer):
     """Test bearish delta acceleration detection."""
     # Build history with accelerating negative delta
     deltas = [-50, -100, -180]  # Accelerating negative
-    
+
     for i, delta in enumerate(deltas):
         analyzer.analyze_bar(
             high=2003.0 - i,
@@ -539,7 +530,7 @@ def test_delta_acceleration_bearish(analyzer: FootprintAnalyzer):
             volume=200,
             tick_data=[(2003.0 - i, 200 + delta, True), (2003.0 - i, -delta, False)],
         )
-    
+
     state = analyzer.analyze_bar(
         high=2000.5,
         low=2000.0,
@@ -548,7 +539,7 @@ def test_delta_acceleration_bearish(analyzer: FootprintAnalyzer):
         volume=200,
         tick_data=[(2000.0, 0, True), (2000.0, 200, False)],  # Strong sell
     )
-    
+
     # Should detect bearish delta acceleration
     assert state.delta_acceleration < 0
     assert state.has_bearish_delta_acceleration is True
@@ -566,7 +557,7 @@ def test_poc_divergence_bullish(analyzer: FootprintAnalyzer):
         price = 2003.0 - i * 0.5
         # POC rising (institutional accumulation)
         poc_price = 2001.0 + i * 0.3
-        
+
         tick_data = [(poc_price, 100, True), (price, 20, False)]
         analyzer.analyze_bar(
             high=max(price, poc_price) + 0.5,
@@ -576,7 +567,7 @@ def test_poc_divergence_bullish(analyzer: FootprintAnalyzer):
             volume=120,
             tick_data=tick_data,
         )
-    
+
     # Last bar should detect bullish POC divergence
     state = analyzer._last_state if hasattr(analyzer, '_last_state') else None
     if state:
@@ -592,7 +583,7 @@ def test_poc_divergence_bearish(analyzer: FootprintAnalyzer):
         price = 2001.0 + i * 0.5
         # POC falling (institutional distribution)
         poc_price = 2003.0 - i * 0.3
-        
+
         tick_data = [(poc_price, 100, False), (price, 20, True)]
         analyzer.analyze_bar(
             high=max(price, poc_price) + 0.5,
@@ -602,7 +593,7 @@ def test_poc_divergence_bearish(analyzer: FootprintAnalyzer):
             volume=120,
             tick_data=tick_data,
         )
-    
+
     # Last bar should detect bearish POC divergence
     state = analyzer._last_state if hasattr(analyzer, '_last_state') else None
     if state:
@@ -627,7 +618,7 @@ def test_signal_generation_strong_buy(analyzer: FootprintAnalyzer):
         (2001.50, 26, True),   # Strong imbalance (STACKED)
         (2002.00, 50, True),   # Strong buy
     ]
-    
+
     state = analyzer.analyze_bar(
         high=2002.00,
         low=2000.00,
@@ -636,9 +627,9 @@ def test_signal_generation_strong_buy(analyzer: FootprintAnalyzer):
         volume=159,
         tick_data=tick_data,
     )
-    
+
     # Should generate strong buy signal
-    assert state.signal in [FootprintSignal.FP_SIGNAL_BUY, 
+    assert state.signal in [FootprintSignal.FP_SIGNAL_BUY,
                             FootprintSignal.FP_SIGNAL_STRONG_BUY]
     assert state.direction == SignalType.SIGNAL_BUY
     assert state.score > 50
@@ -657,7 +648,7 @@ def test_signal_generation_strong_sell(analyzer: FootprintAnalyzer):
         (2000.50, 5, True),
         (2000.00, 10, True),
     ]
-    
+
     state = analyzer.analyze_bar(
         high=2002.00,
         low=2000.00,
@@ -666,9 +657,9 @@ def test_signal_generation_strong_sell(analyzer: FootprintAnalyzer):
         volume=159,
         tick_data=tick_data,
     )
-    
+
     # Should generate strong sell signal
-    assert state.signal in [FootprintSignal.FP_SIGNAL_SELL, 
+    assert state.signal in [FootprintSignal.FP_SIGNAL_SELL,
                             FootprintSignal.FP_SIGNAL_STRONG_SELL]
     assert state.direction == SignalType.SIGNAL_SELL
     assert state.score < 50 or state.direction == SignalType.SIGNAL_SELL
@@ -681,7 +672,7 @@ def test_signal_generation_neutral(analyzer: FootprintAnalyzer):
         (2001.00, 50, True),
         (2001.00, 50, False),
     ]
-    
+
     state = analyzer.analyze_bar(
         high=2001.50,
         low=2000.50,
@@ -690,7 +681,7 @@ def test_signal_generation_neutral(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=tick_data,
     )
-    
+
     # Should generate neutral signal
     assert state.signal == FootprintSignal.FP_SIGNAL_NEUTRAL
 
@@ -704,7 +695,7 @@ def test_is_bullish_bearish(analyzer: FootprintAnalyzer):
     # Initially should return False (no state)
     assert analyzer.is_bullish() is False
     assert analyzer.is_bearish() is False
-    
+
     # After bullish analysis
     tick_data = [(2000.0 + i*0.5, 20, True) for i in range(5)]
     analyzer.analyze_bar(
@@ -715,7 +706,7 @@ def test_is_bullish_bearish(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=tick_data,
     )
-    
+
     # Should reflect last state
     # (may be True or False depending on signal strength)
     result = analyzer.is_bullish() or analyzer.is_bearish() or (not analyzer.is_bullish() and not analyzer.is_bearish())
@@ -725,7 +716,7 @@ def test_is_bullish_bearish(analyzer: FootprintAnalyzer):
 def test_cumulative_delta(analyzer: FootprintAnalyzer):
     """Test cumulative delta tracking."""
     assert analyzer.get_cumulative_delta() == 0
-    
+
     # Analyze bullish bar
     analyzer.analyze_bar(
         high=2001.0,
@@ -735,10 +726,10 @@ def test_cumulative_delta(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=[(2001.0, 70, True), (2000.5, 30, False)],
     )
-    
+
     delta1 = analyzer.get_cumulative_delta()
     assert delta1 == 40  # 70 - 30
-    
+
     # Analyze bearish bar
     analyzer.analyze_bar(
         high=2001.0,
@@ -748,10 +739,10 @@ def test_cumulative_delta(analyzer: FootprintAnalyzer):
         volume=100,
         tick_data=[(2000.0, 30, True), (2000.5, 70, False)],
     )
-    
+
     delta2 = analyzer.get_cumulative_delta()
     assert delta2 == 0  # 40 + (30 - 70) = 0
-    
+
     # Test reset
     analyzer.reset_cumulative_delta()
     assert analyzer.get_cumulative_delta() == 0

@@ -4,8 +4,8 @@ description: |
   DOCS v1.2 - Trading project documentation subagent (MQL5 + NautilusTrader).
   Produces short, navigable, reproducible docs (setup→params→flow→validation).
   Triggers: "docs", "document", "README", "guide", "parameters", "architecture"
-model: opus
-reasoningEffort: high
+model: sonnet
+reasoningEffort: medium
 # tools: inherited (all MCP servers available)
 ---
 

@@ -1,7 +1,64 @@
 # PLAN: Phase 02 - SMC Indicators Audit
 
 > **Changelog:**
+> - 2025-12-17: **CRITICAL** - Added mandatory delegation enforcement (Protocol 0). Orchestrator MUST NOT read source files directly.
 > - 2025-12-16: Applied CRITIC review fixes (C-001 through C-010). Added Round 0 for mtf_manager, temporal verification protocol, orchestration output protocol, dependency graph, performance thresholds. Made look-ahead bias BLOCKING.
+
+---
+
+## ⚠️ MANDATORY DELEGATION (Protocol 0)
+
+> **CRITICAL: The orchestrator MUST NOT read source files directly.**
+>
+> This phase analyzes ~4,391 lines of code across 9 files. Reading these files directly into the orchestrator's context will cause context overflow.
+
+### Orchestrator Behavior
+
+```
+❌ WRONG (causes context overflow):
+   Orchestrator reads 9 indicator files directly
+   Orchestrator performs temporal verification in main context
+   → CONTEXT OVERFLOW → Summarization → LOST DETAILS
+
+✅ CORRECT (sustainable):
+   Orchestrator spawns FORGE sub-agents with delegation prompt
+   Each agent reads assigned files, analyzes, writes findings to disk
+   Each agent returns 300-word summary to orchestrator
+   Orchestrator updates MANIFEST.md
+```
+
+### Required Sub-Agent Prompts
+
+**Round 0 - MTF Manager (BLOCKING):**
+```
+Execute Phase 02 Round 0 of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source file - orchestrator has NOT read it
+2. File to analyze: nautilus_gold_scalper/src/indicators/mtf_manager.py (~670 lines)
+3. Focus: Bar completion detection, HTF timestamp alignment, temporal integrity
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_02_R0_MTF_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts and status
+6. If look-ahead bias found: report BLOCKED immediately
+
+Plan file: .planning/phases/08-nautilus-deep-audit/03-PHASE-02-PLAN.md
+```
+
+**Round 1 - Parallel Agents (A, B, C):**
+```
+Execute Phase 02 Round 1 Agent [A/B/C] of the Nautilus Deep Audit.
+
+DELEGATION PROTOCOL (MANDATORY):
+1. YOU read the source files - orchestrator has NOT read them
+2. Files to analyze: [list from plan]
+3. Follow temporal verification protocol in plan
+4. Write COMPLETE analysis to: .planning/phases/08-nautilus-deep-audit/orchestration/PHASE_02_R1_[A/B/C]_FINDINGS.md
+5. Return ONLY summary (max 300 words) with issue counts and status
+
+Plan file: .planning/phases/08-nautilus-deep-audit/03-PHASE-02-PLAN.md
+```
+
+---
 
 ## Objective
 Critical analysis of all Smart Money Concepts (SMC) indicators to verify correctness, temporal integrity, and performance.

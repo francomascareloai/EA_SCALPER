@@ -1,0 +1,128 @@
+{
+  "task": "1-A.3",
+  "description": "Session Catalog Integrity",
+  "timestamp": "2025-12-16T23:59:18.807579+00:00",
+  "main_catalog_ticks": 654586033,
+  "session_counts": {
+    "ASIAN": 73127400,
+    "LONDON": 87046058,
+    "OVERLAP": 56178005,
+    "NY": 66572348,
+    "LATE_NY": 107836043,
+    "EVENING": 39909076
+  },
+  "sum_total": 430668930,
+  "sum_validation": {
+    "difference": 223917103,
+    "difference_pct": 34.207437,
+    "threshold_pct": 0.1,
+    "status": "FAIL",
+    "finding": "Session catalogs cover only 65.79% of main catalog - 34.21% ticks missing"
+  },
+  "temporal_accuracy": {
+    "ASIAN": {
+      "samples_checked": 50000,
+      "in_window": 50000,
+      "out_of_window": 0,
+      "accuracy_pct": 100.0,
+      "out_of_window_examples": [],
+      "status": "PASS"
+    },
+    "LONDON": {
+      "samples_checked": 50000,
+      "in_window": 50000,
+      "out_of_window": 0,
+      "accuracy_pct": 100.0,
+      "out_of_window_examples": [],
+      "status": "PASS"
+    },
+    "OVERLAP": {
+      "samples_checked": 50000,
+      "in_window": 50000,
+      "out_of_window": 0,
+      "accuracy_pct": 100.0,
+      "out_of_window_examples": [],
+      "status": "PASS"
+    },
+    "NY": {
+      "samples_checked": 50000,
+      "in_window": 50000,
+      "out_of_window": 0,
+      "accuracy_pct": 100.0,
+      "out_of_window_examples": [],
+      "status": "PASS"
+    },
+    "LATE_NY": {
+      "samples_checked": 50000,
+      "in_window": 50000,
+      "out_of_window": 0,
+      "accuracy_pct": 100.0,
+      "out_of_window_examples": [],
+      "status": "PASS"
+    },
+    "EVENING": {
+      "samples_checked": 50000,
+      "in_window": 50000,
+      "out_of_window": 0,
+      "accuracy_pct": 100.0,
+      "out_of_window_examples": [],
+      "status": "PASS"
+    }
+  },
+  "out_of_window_ticks_total": 0,
+  "overlap_check": {
+    "pairs_tested": 5,
+    "overlaps_found": 5,
+    "overlap_details": [
+      {
+        "session1": "ASIAN",
+        "session2": "LONDON",
+        "s1_end": 1764313167059000000,
+        "s2_start": 1052118244366000000,
+        "s1_end_dt": "2025-11-28T06:59:27.059000+00:00",
+        "s2_start_dt": "2003-05-05T07:04:04.366000+00:00"
+      },
+      {
+        "session1": "LONDON",
+        "session2": "OVERLAP",
+        "s1_end": 1764331195984000000,
+        "s2_start": 1052136061803000000,
+        "s1_end_dt": "2025-11-28T11:59:55.984000+00:00",
+        "s2_start_dt": "2003-05-05T12:01:01.803000+00:00"
+      },
+      {
+        "session1": "OVERLAP",
+        "session2": "NY",
+        "s1_end": 1764341970770000000,
+        "s2_start": 1052146804711000000,
+        "s1_end_dt": "2025-11-28T14:59:30.770000+00:00",
+        "s2_start_dt": "2003-05-05T15:00:04.711000+00:00"
+      },
+      {
+        "session1": "NY",
+        "session2": "LATE_NY",
+        "s1_end": 1764349199507000000,
+        "s2_start": 1052154005325000000,
+        "s1_end_dt": "2025-11-28T16:59:59.507000+00:00",
+        "s2_start_dt": "2003-05-05T17:00:05.325000+00:00"
+      },
+      {
+        "session1": "LATE_NY",
+        "session2": "EVENING",
+        "s1_end": 1764363596328000000,
+        "s2_start": 1052168400398000000,
+        "s1_end_dt": "2025-11-28T20:59:56.328000+00:00",
+        "s2_start_dt": "2003-05-05T21:00:00.398000+00:00"
+      }
+    ],
+    "status": "WARN"
+  },
+  "status": "FAIL",
+  "memory_peak_mb": 4.44,
+  "critical_finding": {
+    "issue": "Session catalogs do not partition main catalog completely",
+    "coverage_pct": 65.79,
+    "missing_ticks": 223917103,
+    "recommendation": "Investigate session filtering or rebuild session catalogs"
+  }
+}

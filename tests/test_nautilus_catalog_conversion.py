@@ -7,7 +7,11 @@ import pandas as pd
 
 def test_session_filter_mask_basic() -> None:
     # Local import to avoid failing tests when nautilus_trader isn't installed.
-    from scripts.convert_csv_to_nautilus_catalog import SESSION_WINDOWS, _session_mask
+    import importlib
+
+    m = importlib.import_module("convert_csv_to_nautilus_catalog")
+    SESSION_WINDOWS = m.SESSION_WINDOWS
+    _session_mask = m._session_mask
 
     dt = pd.to_datetime(
         [

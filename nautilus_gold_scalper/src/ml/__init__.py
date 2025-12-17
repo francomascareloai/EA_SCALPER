@@ -1,8 +1,8 @@
 """Machine learning modules."""
 
-from .feature_engineering import FeatureEngineer, FeatureConfig
+from .ensemble_predictor import EnsembleConfig, EnsemblePrediction, EnsemblePredictor
+from .feature_engineering import FeatureConfig, FeatureEngineer
 from .model_trainer import ModelTrainer, TrainingConfig, TrainingResult
-from .ensemble_predictor import EnsemblePredictor, EnsemblePrediction, EnsembleConfig
 
 __all__ = [
     'FeatureEngineer',

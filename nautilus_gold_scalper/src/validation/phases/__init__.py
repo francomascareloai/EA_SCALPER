@@ -16,10 +16,10 @@ NautilusTrader ParquetDataCatalog is only used for Phases 6-7 (actual backtestin
 from nautilus_gold_scalper.src.validation.phases.phase_1a import Phase1AValidator
 from nautilus_gold_scalper.src.validation.phases.phase_2 import Phase2Validator
 from nautilus_gold_scalper.src.validation.phases.phase_3_4 import (
+    SESSION_NAMES,
+    SESSIONS,
     Phase3Validator,
     Phase4Validator,
-    SESSIONS,
-    SESSION_NAMES,
 )
 from nautilus_gold_scalper.src.validation.phases.phase_5 import Phase5Validator
 

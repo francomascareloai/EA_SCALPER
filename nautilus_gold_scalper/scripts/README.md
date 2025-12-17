@@ -1,0 +1,32 @@
+# Nautilus Gold Scalper - Scripts (Fonte Única)
+
+Esta pasta contém os **scripts oficiais** para rodar o robô (NautilusTrader) de forma organizada.
+
+## Backtest (oficial)
+
+- CLI principal (tick ou bars):
+  - `python -m nautilus_gold_scalper.scripts.run_backtest --start 2024-11-01 --end 2024-11-07`
+  - Dica performance: use `--feed bars` para iteração rápida; use `--feed ticks` para simulação mais detalhada.
+  - Para screening rápido com barras M5 prontas: `--bars-file Python_Agent_Hub/ml_pipeline/data/Bars_2020-2025XAUUSD_ftmo-M5-No Session.csv`
+
+## Compatibilidade
+
+Alguns imports antigos em testes/planos usam `scripts.*` (package local). Para evitar quebrar, existem wrappers em:
+- `nautilus_gold_scalper/scripts/run_backtest.py`
+
+## Regra de organização
+
+- **NÃO** criar scripts executáveis em `.planning/**/scripts/`.
+- Coloque scripts do robô aqui (`nautilus_gold_scalper/scripts/`).
+- Scripts genéricos de dados/ORACLE permanecem em `scripts/data/` e `scripts/oracle/`.
+
+## Workflows (screening/otimização)
+
+- Grid search rápido focado em meta +$3000 / 20 dias (conta 50k):
+  - `python -m nautilus_gold_scalper.scripts.workflows.grid_search_eval20d --start 2020-01-01 --end 2020-06-30`
+  - Métricas “radar-safe”: `--max-daily-share 0.30 --min-positive-days-ratio 0.60 --min-operated-days 5`
+
+### Preparar barras M5 (1x)
+
+Para o grid search ficar realmente rápido, gere um arquivo de barras M5 (Parquet) uma vez:
+- `python -m nautilus_gold_scalper.scripts.data.build_m5_bars --start 2020-01-01 --end 2025-12-31 --out data/derived/xauusd_m5_2020_2025.parquet`
