@@ -2,10 +2,23 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.9</version>
-  <last_updated>2025-12-16</last_updated>
-  <changelog>v3.10.9: External CRITIC for go-live, paper trading phase, structured handoff, verdict synthesizer, version reporting.</changelog>
-  <previous_changes>v3.10.8: CLIPROXY-ENGINEER subagent | v3.10.7: orchestration_output_protocol + daemon_special_handling | v3.10.6: CRITIC v1.1</previous_changes>
+  <version>3.10.10</version>
+  <last_updated>2025-12-17</last_updated>
+  <changelog>v3.10.10: Added mandatory commit+push rule for CLAUDE.md changes.</changelog>
+  <previous_changes>v3.10.9: External CRITIC for go-live, paper trading phase, structured handoff, verdict synthesizer, version reporting | v3.10.8: CLIPROXY-ENGINEER subagent</previous_changes>
+
+  <!-- CRITICAL: Version Control for CLAUDE.md -->
+  <version_control_rule priority="MANDATORY">
+    <rule>After ANY modification to CLAUDE.md: IMMEDIATELY commit and push to GitHub</rule>
+    <reason>Prevent loss of configuration changes; ensure team sync; enable rollback</reason>
+    <workflow>
+      1. Edit CLAUDE.md
+      2. git add CLAUDE.md
+      3. git commit -m "chore(claude): [brief description of change] - v[NEW_VERSION]"
+      4. git push
+    </workflow>
+    <enforcement>Do NOT report CLAUDE.md edit as "done" until push succeeds</enforcement>
+  </version_control_rule>
 </metadata>
 
 <identity>
