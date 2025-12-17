@@ -369,6 +369,13 @@ def main() -> int:
             else:
                 _set_deep(config_overrides, ks, v)
 
+        # Avoid serializing the full bars list (huge); keep reproducibility via bars_file + date range.
+        run_kwargs_serializable = dict(run_kwargs)
+        bars_override_len = None
+        if "bars_override" in run_kwargs_serializable:
+            bars_override_len = len(cast(list[object], run_kwargs_serializable["bars_override"]))
+            run_kwargs_serializable.pop("bars_override", None)
+
         with open(run_dir / "params.json", "w", encoding="utf-8") as f:
             json.dump(
                 {
@@ -376,7 +383,8 @@ def main() -> int:
                     "groups": groups,
                     "combo": combo,
                     "runner": runner_kwargs,
-                    "run": run_kwargs,
+                    "run": run_kwargs_serializable,
+                    "bars_override_len": bars_override_len,
                     "config_overrides": config_overrides,
                 },
                 f,

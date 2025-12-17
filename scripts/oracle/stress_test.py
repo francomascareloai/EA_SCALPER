@@ -206,7 +206,7 @@ class StressTester:
 def run_stress_test(data_path: str, max_ticks: int = 50_000_000) -> Dict:
     """Run complete stress test suite"""
     from scripts.backtest.tick_backtester import TickDataLoader, OHLCResampler
-    from scripts.oracle.rigorous_validator import NoLookAheadBacktester, ValidationConfig
+    from .rigorous_validator import NoLookAheadBacktester, ValidationConfig
     
     print("="*70)
     print("       STRESS TEST - Reality Check")

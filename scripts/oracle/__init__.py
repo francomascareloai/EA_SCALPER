@@ -31,24 +31,24 @@ __version__ = "2.2.1"
 __author__ = "ORACLE v2.2 - Institutional-Grade Validator"
 
 # Core modules
-from scripts.oracle.walk_forward import WalkForwardAnalyzer, WFAMode, WFAResult
-from scripts.oracle.monte_carlo import BlockBootstrapMC, MCResult
-from scripts.oracle.deflated_sharpe import SharpeAnalyzer, SharpeAnalysisResult
-from scripts.oracle.metrics import calculate_sharpe, calculate_sortino, calculate_sqn
+from .walk_forward import WalkForwardAnalyzer, WFAMode, WFAResult
+from .monte_carlo import BlockBootstrapMC, MCResult
+from .deflated_sharpe import SharpeAnalyzer, SharpeAnalysisResult
+from .metrics import calculate_sharpe, calculate_sortino, calculate_sqn
 
 # New v2.2 modules
-from scripts.oracle.execution_simulator import (
+from .execution_simulator import (
     ExecutionSimulator, 
     ExecutionConfig, 
     MarketCondition,
     SimulationMode
 )
-from scripts.oracle.prop_firm_validator import (
+from .prop_firm_validator import (
     PropFirmValidator, 
     PropFirm, 
     PropFirmResult
 )
-from scripts.oracle.go_nogo_validator import (
+from .go_nogo_validator import (
     GoNoGoValidator, 
     ValidationCriteria, 
     ValidationResult,
@@ -56,14 +56,14 @@ from scripts.oracle.go_nogo_validator import (
 )
 
 # Unified Confidence Scoring (v2.2.1)
-from scripts.oracle.confidence import (
+from .confidence import (
     UnifiedConfidenceCalculator,
     ConfidenceComponents,
     calculate_confidence_score
 )
 
 # Sample Data Generation (v2.2.1)
-from scripts.oracle.sample_data import (
+from .sample_data import (
     generate_sample_trades,
     generate_realistic_xauusd_trades,
     generate_edge_case_trades
@@ -71,7 +71,7 @@ from scripts.oracle.sample_data import (
 
 # Optional MT5 exporter
 try:
-    from scripts.oracle.mt5_trade_exporter import MT5TradeExporter
+    from .mt5_trade_exporter import MT5TradeExporter
 except ImportError:
     MT5TradeExporter = None
 

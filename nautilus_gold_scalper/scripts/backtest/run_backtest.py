@@ -5,6 +5,7 @@ Uses real XAUUSD tick data (25M+ records) with NautilusTrader native engine.
 Ticks are fed as QuoteTicks and aggregated to M5 bars for strategy consumption.
 """
 import json
+import logging
 import random
 import sys
 import time
@@ -737,6 +738,7 @@ class BacktestRunner:
         gateway: Gateway | None = None,
         config_overrides: dict[str, object] | None = None,
         quiet: bool = False,
+        catalog_path: str | None = None,
     ):
         """Run backtest with NautilusTrader.
 
@@ -747,6 +749,12 @@ class BacktestRunner:
         def _p(msg: str) -> None:
             if not quiet:
                 print(msg)
+
+        # Grid runs can generate enormous log volume (and slow down the engine).
+        # When `quiet=True`, temporarily disable Python logging across the process.
+        prev_disable = logging.root.manager.disable
+        if quiet:
+            logging.disable(logging.CRITICAL)
 
         _p("=" * 60)
         _p("NAUTILUS TRADER TICK-BASED BACKTEST")
@@ -806,10 +814,14 @@ class BacktestRunner:
         with open(config_path, encoding="utf-8") as f:
             data_config = yaml.safe_load(f) or {}
         project_root = Path(__file__).parent.parent.parent
-        tick_path = project_root / data_config["active_dataset"]["path"]
+        repo_root = project_root.parent
+        tick_path = (project_root / data_config["active_dataset"]["path"]).resolve()
         native_catalog_path = data_config["active_dataset"].get("native_catalog_path")
-        # Resolve native catalog path relative to project root
-        native_catalog = (project_root / native_catalog_path) if native_catalog_path else None
+        # Resolve native catalog path relative to project root (allow override for session-sliced catalogs)
+        if catalog_path:
+            native_catalog = (repo_root / catalog_path).resolve()
+        else:
+            native_catalog = (project_root / native_catalog_path).resolve() if native_catalog_path else None
 
         _p(f"[CONFIG] Using dataset: {data_config['active_dataset']['name']}")
         _p(f"[CONFIG] Path: {tick_path}")
@@ -852,10 +864,19 @@ class BacktestRunner:
             if not (native_catalog and native_catalog.exists()):
                 raise FileNotFoundError("Catalog source requested but native catalog path not found in data/config.yaml")
             catalog = ParquetDataCatalog(str(native_catalog))
+            # ParquetDataCatalog.quote_ticks expects nanosecond timestamps (int), not date strings.
+            # When we pass strings, it returns an empty result (silent failure) and the backtest crashes later.
+            start_ts = pd.Timestamp(start_date, tz="UTC")
+            end_ts = pd.Timestamp(end_date, tz="UTC")
+            # If the user passed a date-only string, include the full day (end is exclusive).
+            if len(end_date) <= 10:
+                end_ts = end_ts + pd.Timedelta(days=1)
+            start_ns = int(start_ts.value)
+            end_ns = int(end_ts.value)
             quote_ticks = catalog.quote_ticks(
                 instrument_ids=[self.instrument.id.value],
-                start=start_date,
-                end=end_date,
+                start=start_ns,
+                end=end_ns,
             )
             _p(f"[CATALOG] Loaded {len(quote_ticks):,} ticks from native catalog")
             if step > 1:
@@ -963,6 +984,9 @@ class BacktestRunner:
             # In prop-firm mode we terminate early on hard breaches; keep reporting stable.
             terminated = True
             _p(f"[TERMINATED] {exc}")
+        finally:
+            if quiet:
+                logging.disable(prev_disable)
 
         summary = self._print_results(
             reports=reports,
@@ -1238,6 +1262,11 @@ def main():
     parser.add_argument('--bars-file', default=None, help='Optional M5 bars CSV file for fast screening (feed=bars)')
     parser.add_argument('--sweep', action='store_true', help='Run parameter sweep')
     parser.add_argument('--no-news', action='store_true', help='Disable news filter')
+    parser.add_argument('--no-session-filter', action='store_true', help='Disable session filter (useful for session-sliced catalogs)')
+    parser.add_argument('--no-regime-filter', action='store_true', help='Disable regime filter')
+    parser.add_argument('--no-mtf', action='store_true', help='Disable MTF manager')
+    parser.add_argument('--no-footprint', action='store_true', help='Disable footprint/orderflow component')
+    parser.add_argument('--no-prop', action='store_true', help='Disable prop-firm rules (for diagnostics only)')
     parser.add_argument('--config', default='nautilus_gold_scalper/configs/strategy_config.yaml', help='Path to strategy YAML')
     parser.add_argument('--latency', type=int, default=None, help='Simulated latency in ms')
     parser.add_argument('--slippage', type=int, default=None, help='Slippage in ticks (overrides config)')
@@ -1246,7 +1275,13 @@ def main():
     parser.add_argument('--partial-ratio', type=float, default=None, help='Partial fill ratio (0-1)')
     parser.add_argument('--metrics-jsonl', default=None, help='Optional path to write metrics JSONL')
     parser.add_argument('--out-dir', default=None, help='Optional output dir for reports (fills/positions/account)')
-    parser.add_argument('--risk', type=float, default=None, help='Risk per trade (fraction, e.g. 0.005 = 0.5%)')
+    parser.add_argument('--quiet', action='store_true', help='Suppress console + logging noise (recommended for sweeps)')
+    parser.add_argument(
+        '--catalog-path',
+        default=None,
+        help='Override native catalog dir (relative to repo root), e.g. data/catalog_native_sessions/... (source=catalog)',
+    )
+    parser.add_argument('--risk', type=float, default=None, help='Risk per trade (fraction, e.g. 0.005 = 0.5 percent)')
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -1265,9 +1300,10 @@ def main():
     partial_ratio = args.partial_ratio if args.partial_ratio is not None else exec_cfg.get("partial_fill_ratio", 0.5)
     metrics_jsonl = args.metrics_jsonl
 
+    runner_log_level = "ERROR" if args.quiet else ("ERROR" if args.sweep else "INFO")
     runner = BacktestRunner(
         initial_balance=exec_cfg.get("initial_balance", 100_000.0),
-        log_level="INFO" if not args.sweep else "ERROR",  # INFO for single run, ERROR for sweeps
+        log_level=runner_log_level,
         slippage_ticks=slippage_ticks,
         commission_per_contract=commission,
         product=cast(Product, args.product),
@@ -1301,11 +1337,11 @@ def main():
                     start_date=args.start,
                     end_date=args.end,
                     sample_rate=args.sample,
-                    use_session_filter=True,
-                    use_regime_filter=True,
-                    use_mtf=True,
-                    use_footprint=True,
-                    prop_firm_enabled=True,
+                    use_session_filter=not args.no_session_filter,
+                    use_regime_filter=not args.no_regime_filter,
+                    use_mtf=not args.no_mtf,
+                    use_footprint=not args.no_footprint,
+                    prop_firm_enabled=not args.no_prop,
                     use_news_filter=not args.no_news,
                     execution_threshold=thresh,
                     debug_mode=False,
@@ -1318,6 +1354,8 @@ def main():
                     risk_per_trade=args.risk,
                     product=cast(Product, args.product),
                     gateway=cast(Gateway, args.gateway),
+                    quiet=bool(args.quiet),
+                    catalog_path=args.catalog_path,
                 )
 
                 # Get results
@@ -1352,11 +1390,11 @@ def main():
             start_date=args.start,
             end_date=args.end,
             sample_rate=args.sample,
-            use_session_filter=True,
-            use_regime_filter=True,
-            use_mtf=True,  # HTF/MTF derived from aggregated bars
-            use_footprint=True,
-            prop_firm_enabled=True,
+            use_session_filter=not args.no_session_filter,
+            use_regime_filter=not args.no_regime_filter,
+            use_mtf=not args.no_mtf,  # HTF/MTF derived from aggregated bars
+            use_footprint=not args.no_footprint,
+            prop_firm_enabled=not args.no_prop,
             use_news_filter=not args.no_news,
             execution_threshold=threshold,
             debug_mode=True,
@@ -1369,6 +1407,8 @@ def main():
             risk_per_trade=args.risk,
             product=cast(Product, args.product),
             gateway=cast(Gateway, args.gateway),
+            quiet=bool(args.quiet),
+            catalog_path=args.catalog_path,
         )
 
 

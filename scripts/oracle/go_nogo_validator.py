@@ -25,10 +25,10 @@ from datetime import datetime
 from pathlib import Path
 import argparse
 
-from scripts.oracle.walk_forward import WalkForwardAnalyzer
-from scripts.oracle.monte_carlo import BlockBootstrapMC
-from scripts.oracle.deflated_sharpe import SharpeAnalyzer
-from scripts.oracle.prop_firm_validator import PropFirmValidator, PropFirm
+from .walk_forward import WalkForwardAnalyzer
+from .monte_carlo import BlockBootstrapMC
+from .deflated_sharpe import SharpeAnalyzer
+from .prop_firm_validator import PropFirmValidator, PropFirm
 
 
 class Decision(Enum):
