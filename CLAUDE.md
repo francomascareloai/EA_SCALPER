@@ -2,9 +2,9 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.14</version>
-  <last_updated>2025-12-17</last_updated>
-  <changelog>v3.10.14: Externalized incident_response, live_infrastructure, network_resilience to .claude/. Condensed wsl_cli, critic_gate, handoff sections. Size optimization.</changelog>
+  <version>3.10.15</version>
+  <last_updated>2025-12-18</last_updated>
+  <changelog>v3.10.15: Local-first NautilusTrader docs via external symlink; reduce dependency on heavy MCP docs.</changelog>
   <previous_changes>v3.10.13: DD taxonomy unified, HWM price basis, timekeeping contract, MGC specs | v3.10.12: live_infrastructure, incident_response | v3.10.11: CRITIC two-layer</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
@@ -216,6 +216,23 @@
 
   <doc_hygiene>Search before creating docs; update existing; avoid _V1/_V2; keep DOCS/_INDEX.md current</doc_hygiene>
 
+  <nautilus_trader_local_docs priority="HIGH">
+    <purpose>Provide fast, offline, version-auditable NautilusTrader docs/examples without relying on large MCP doc pulls.</purpose>
+    <workspace_path note="Preferred">external/nautilus_trader/ (symlink to local clone; git-ignored)</workspace_path>
+    <search_order>1) external/nautilus_trader (docs/ + examples/ + source) → 2) installed package (site-packages) → 3) docs MCP (context7) → 4) web search (exa) as last resort</search_order>
+    <rules>
+      <rule>When answering Nautilus API questions, cite from local repo/code first; do not guess.</rule>
+      <rule>Never scan the whole Nautilus repo unnecessarily; always scope searches to a path (docs/, examples/, nautilus_trader/).</rule>
+      <rule>Prefer examples as canonical usage patterns: external/nautilus_trader/examples/.</rule>
+      <rule>Keep retrieval compact: return file paths + small excerpts only (avoid dumping whole docs pages).</rule>
+    </rules>
+    <quick_commands>
+      <cmd>rg -n -S "TERM" external/nautilus_trader/docs</cmd>
+      <cmd>rg -n -S "SYMBOL" external/nautilus_trader/examples</cmd>
+      <cmd>python3 -c "import nautilus_trader, importlib.metadata as m; print(m.version('nautilus-trader')); print(nautilus_trader.__file__)"</cmd>
+    </quick_commands>
+  </nautilus_trader_local_docs>
+
   <security>Never expose secrets/keys/credentials</security>
 </core>
 
@@ -384,8 +401,8 @@
 </router>
 
 <wsl_cli note="Project-specific exclusions; Claude knows standard commands">
-  <exclude>.venv/ | .rag-db/ | data/ | tools/antigravity/</exclude>
-  <rg_default>rg -n -S --glob '!.venv/**' --glob '!.rag-db/**' --glob '!data/**' --glob '!tools/antigravity/**' "pattern" .</rg_default>
+  <exclude>.venv/ | .rag-db/ | data/ | tools/antigravity/ | external/</exclude>
+  <rg_default>rg -n -S --glob '!.venv/**' --glob '!.rag-db/**' --glob '!data/**' --glob '!tools/antigravity/**' --glob '!external/**' "pattern" .</rg_default>
 </wsl_cli>
 
 <references>
