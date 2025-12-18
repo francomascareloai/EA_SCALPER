@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.13</version>
+  <version>3.10.14</version>
   <last_updated>2025-12-17</last_updated>
-  <changelog>v3.10.13: DD taxonomy unified (trailing/daily), HWM price basis (bid/ask), timekeeping contract (NTP/DST), emergency close fail-closed, MGC contract specs, STALE_DATA regime-aware, async reconnection guidance, alerts aligned with taxonomy.</changelog>
-  <previous_changes>v3.10.12: live_infrastructure, incident_response, network_resilience | v3.10.11: CRITIC two-layer system, HWM trap warning</previous_changes>
+  <changelog>v3.10.14: Externalized incident_response, live_infrastructure, network_resilience to .claude/. Condensed wsl_cli, critic_gate, handoff sections. Size optimization.</changelog>
+  <previous_changes>v3.10.13: DD taxonomy unified, HWM price basis, timekeeping contract, MGC specs | v3.10.12: live_infrastructure, incident_response | v3.10.11: CRITIC two-layer</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -195,278 +195,21 @@
     </phases>
   </production_workflow>
 
-  <live_infrastructure>
-    <purpose>Define required infrastructure for paper trading and live deployment</purpose>
-
-    <data_feed>
-      <provider>Apex / NinjaTrader / Rithmic (any provider with XAUUSD tick data)</provider>
-      <requirements>
-        <item>Tick-by-tick or 1-second bars minimum for HWM tracking</item>
-        <item>Latency target: receive tick within 50ms of exchange timestamp</item>
-        <item>Fallback: if primary feed drops, halt trading (do NOT use stale data)</item>
-      </requirements>
-      <validation>Validate timestamps are monotonically increasing; reject out-of-order ticks</validation>
-    </data_feed>
-
-    <execution>
-      <broker>Apex Trader Funding (evaluation → funded)</broker>
-      <latency_budget>Order submission to acknowledgment less than 200ms</latency_budget>
-      <order_types>Market orders for emergency close; limit orders for entries</order_types>
-      <slippage_assumption note="MGC (Micro Gold Futures) tick size = $0.10, point value = $1.00/tick">
-        <instrument>MGC (Micro Gold) on CME via Apex/Rithmic</instrument>
-        <normal_conditions>$0.10-$0.30 (1-3 ticks) per trade</normal_conditions>
-        <news_events>$1.00+ (10+ ticks) per trade</news_events>
-        <emergency_close>$2.00+ (20+ ticks) - assume worst case for risk calculations</emergency_close>
-        <contract_specs>
-          <tick_size>$0.10</tick_size>
-          <point_value>$10.00 per point ($1.00 per tick)</point_value>
-          <contract_size>10 troy ounces</contract_size>
-        </contract_specs>
-      </slippage_assumption>
-      <partial_fills>If partial fill, treat filled portion as open position; remainder as canceled</partial_fills>
-    </execution>
-
-    <monitoring>
-      <realtime_metrics>
-        <metric>Current DD % (tick-by-tick)</metric>
-        <metric>HWM value and timestamp of last update</metric>
-        <metric>Open positions count and unrealized PnL</metric>
-        <metric>Time to market close (countdown)</metric>
-        <metric>Daily profit % (for 30% cap tracking in live)</metric>
-      </realtime_metrics>
-      <alerts note="References dd_limits.taxonomy - trailing_dd thresholds">
-        <alert level="WARN">Trailing DD exceeds 3.0%</alert>
-        <alert level="CAUTION">Trailing DD exceeds 3.5%</alert>
-        <alert level="CRITICAL">Trailing DD exceeds 4.0%</alert>
-        <alert level="HALT">Trailing DD exceeds 4.5% OR network disconnect greater than 30s</alert>
-      </alerts>
-      <health_checks>
-        <check interval="5s">Data feed heartbeat</check>
-        <check interval="10s">Broker connection status</check>
-        <check interval="60s">Position reconciliation (local vs broker)</check>
-      </health_checks>
-    </monitoring>
-
-    <logging>
-      <trade_log>Every entry/exit with timestamp, price, slippage, HWM at time of trade</trade_log>
-      <system_log>Connection events, errors, latency spikes, health check failures</system_log>
-      <retention>Keep logs for minimum 90 days for compliance/debugging</retention>
-    </logging>
-  </live_infrastructure>
-
-  <incident_response>
-    <purpose>Playbooks for handling critical incidents during live trading</purpose>
-
-    <playbook id="NETWORK_DISCONNECT">
-      <trigger>Data feed or broker connection lost for greater than 10 seconds</trigger>
-      <severity>CRITICAL</severity>
-      <immediate_actions>
-        <action>1. HALT all new trade entries immediately</action>
-        <action>2. Attempt reconnection with exponential backoff (1s, 2s, 4s, 8s, 16s)</action>
-        <action>3. If reconnection fails after 30s: trigger EMERGENCY_CLOSE playbook</action>
-        <action>4. Log disconnect timestamp, duration, and any data gaps</action>
-      </immediate_actions>
-      <post_recovery>
-        <action>Reconcile local state with broker state</action>
-        <action>Verify no phantom positions exist</action>
-        <action>Check for missed fills during disconnect</action>
-      </post_recovery>
-    </playbook>
-
-    <playbook id="EMERGENCY_CLOSE">
-      <trigger>Time gate (4:55 PM ET) OR network disconnect greater than 30s OR trailing DD exceeds 4.0%</trigger>
-      <severity>CRITICAL</severity>
-      <immediate_actions>
-        <action>1. Submit market close orders for ALL open positions</action>
-        <action>2. Confirm each close order acknowledged (retry up to 3x with 2s delay)</action>
-        <action>3. If any order not acknowledged after 3 retries: continue to next position</action>
-        <action>4. Set trading halted flag (prevent any new orders)</action>
-        <action>5. Log all order statuses: CLOSED / PENDING / FAILED</action>
-      </immediate_actions>
-      <fail_closed_behavior note="CRITICAL - what to do when broker unreachable">
-        <scenario condition="Approaching close (after 4:50 PM ET) AND broker unreachable">
-          <action>Trigger emergency close at 4:50 PM instead of 4:55 PM</action>
-          <action>Retry continuously every 5 seconds until 4:59 PM</action>
-          <action>Log DEGRADED_EMERGENCY_CLOSE with all attempts</action>
-        </scenario>
-        <scenario condition="Broker unreachable AND positions still open at 4:58 PM">
-          <action>CRITICAL ALERT: SMS + Email + Push notification to Franco</action>
-          <action>Log FAILED_EMERGENCY_CLOSE with position details</action>
-          <action>Document for post-mortem: positions, sizes, last known prices</action>
-        </scenario>
-        <scenario condition="DD breach but broker unreachable">
-          <action>Log DD_BREACH_UNRECOVERABLE</action>
-          <action>Continue retry loop until connection restored</action>
-          <action>When restored: immediately execute close orders</action>
-        </scenario>
-      </fail_closed_behavior>
-      <human_escalation>
-        <channel>SMS + Telegram + Email (all simultaneously)</channel>
-        <when>After 3 failed retries OR positions still open at 4:58 PM OR trailing DD exceeds 4.5%</when>
-        <message_template>EMERGENCY: [N] positions open, broker [status], DD [X]%, time [HH:MM ET]</message_template>
-      </human_escalation>
-    </playbook>
-
-    <playbook id="DD_BREACH">
-      <trigger>Drawdown exceeds threshold - reference dd_limits taxonomy for authoritative values</trigger>
-      <note>Uses TRAILING DD thresholds (from HWM) as primary - these are Apex killers</note>
-      <severity_matrix type="trailing_dd" reference="dd_limits.taxonomy.trailing_dd">
-        <level dd="3.0%">WARN - log + continue with reduced sizing</level>
-        <level dd="3.5%">CAUTION - log + reduce position size by 50%</level>
-        <level dd="4.0%">CRITICAL - close half of open positions + alert</level>
-        <level dd="4.5%">HALT - execute EMERGENCY_CLOSE immediately</level>
-      </severity_matrix>
-      <severity_matrix type="daily_dd" reference="dd_limits.taxonomy.daily_dd">
-        <level dd="1.5%">WARN - log</level>
-        <level dd="2.0%">CAUTION - reduce sizing</level>
-        <level dd="2.5%">REDUCE - reduce position size by 50%</level>
-        <level dd="3.0%">HALT - no new trades, monitor existing</level>
-      </severity_matrix>
-      <rule>Always use the MORE RESTRICTIVE action between trailing and daily DD</rule>
-      <post_incident>Review all trades since last good state; identify root cause</post_incident>
-    </playbook>
-
-    <playbook id="STALE_DATA">
-      <trigger>No new ticks for threshold period during market hours</trigger>
-      <severity>HIGH</severity>
-      <regime_aware_thresholds note="Prevents false positives in low-liquidity periods">
-        <threshold session="US_ACTIVE" hours="9:30-16:00 ET">5 seconds</threshold>
-        <threshold session="OVERNIGHT" hours="18:00-9:30 ET">15 seconds</threshold>
-        <threshold session="LOW_LIQUIDITY" hours="weekends/holidays">30 seconds</threshold>
-        <note>MGC/Gold futures may have natural gaps - adjust based on observed feed cadence</note>
-      </regime_aware_thresholds>
-      <immediate_actions>
-        <action>1. HALT new trade entries</action>
-        <action>2. Mark current prices as STALE in UI/logs</action>
-        <action>3. Do NOT use stale prices for DD/HWM calculations - freeze at last known good</action>
-        <action>4. If persists greater than 30s during US_ACTIVE: trigger NETWORK_DISCONNECT</action>
-      </immediate_actions>
-      <hwm_behavior_when_stale>
-        <rule>Do NOT update HWM with stale prices</rule>
-        <rule>Keep DD calculation frozen at last known good state</rule>
-        <rule>When fresh data arrives: immediately recalculate with conservative pricing</rule>
-      </hwm_behavior_when_stale>
-    </playbook>
-
-    <playbook id="POSITION_MISMATCH">
-      <trigger>Local position state differs from broker reported state</trigger>
-      <severity>HIGH</severity>
-      <immediate_actions>
-        <action>1. HALT all trading immediately</action>
-        <action>2. Log both local and broker states</action>
-        <action>3. Trust broker state as source of truth</action>
-        <action>4. Reconcile and correct local state</action>
-        <action>5. Investigate cause before resuming</action>
-      </immediate_actions>
-    </playbook>
-
-    <escalation_contacts>
-      <note>Define actual contacts before go-live</note>
-      <contact role="Primary">Franco (owner) - phone/telegram</contact>
-      <contact role="Fallback">Automated SMS/email alert service</contact>
-    </escalation_contacts>
-  </incident_response>
-
-  <network_resilience>
-    <purpose>Ensure robust handling of network failures and degraded conditions</purpose>
-
-    <connection_management>
-      <primary_reconnect>Exponential backoff: 1s → 2s → 4s → 8s → 16s → cap at 30s</primary_reconnect>
-      <max_reconnect_attempts>10 attempts before declaring connection dead</max_reconnect_attempts>
-      <circuit_breaker>After 3 consecutive failures in 5 minutes: halt trading for 15 minutes</circuit_breaker>
-    </connection_management>
-
-    <data_integrity>
-      <sequence_validation>Reject out-of-order messages; request gap fill if sequence breaks</sequence_validation>
-      <stale_threshold>Data older than 5 seconds is STALE; do not use for decisions</stale_threshold>
-      <heartbeat_interval>Expect heartbeat every 5 seconds; trigger reconnect if missed 3x</heartbeat_interval>
-    </data_integrity>
-
-    <graceful_degradation>
-      <level1 condition="Latency spike greater than 500ms">Log warning; continue with caution</level1>
-      <level2 condition="Latency spike greater than 2s">Halt new entries; monitor existing positions</level2>
-      <level3 condition="Connection lost">Execute NETWORK_DISCONNECT playbook</level3>
-    </graceful_degradation>
-
-    <testing_requirements>
-      <requirement>Simulate network disconnect during paper trading</requirement>
-      <requirement>Verify emergency close works with broker connection restored mid-close</requirement>
-      <requirement>Test reconnection logic with various failure durations</requirement>
-    </testing_requirements>
-
-    <async_implementation_guidance note="CRITICAL - prevents blocking event handlers">
-      <rule>ALL reconnection logic MUST run in separate async task/thread</rule>
-      <rule>Event handlers (on_tick, on_bar, on_order) MUST remain non-blocking</rule>
-      <rule>Use asyncio.create_task() or threading for reconnection backoff loops</rule>
-      <rule>Never sleep() or wait() inside Nautilus Actor event handlers</rule>
-      <nautilus_pattern>
-        <correct>Schedule reconnection via self.clock.set_timer() or asyncio task</correct>
-        <wrong>Calling time.sleep() or blocking wait inside on_data/on_event</wrong>
-      </nautilus_pattern>
-      <latency_impact>Blocking handlers will freeze HWM/DD updates, creating stale risk view</latency_impact>
-    </async_implementation_guidance>
-  </network_resilience>
+  <!-- Infrastructure externalized to .claude/ for size optimization -->
+  <live_infrastructure ref=".claude/infra/live-infrastructure.md">MGC specs, data feed, execution, monitoring, logging</live_infrastructure>
+  <incident_response ref=".claude/playbooks/incident-response.md">NETWORK_DISCONNECT, EMERGENCY_CLOSE, DD_BREACH, STALE_DATA, POSITION_MISMATCH playbooks</incident_response>
+  <network_resilience ref=".claude/infra/network-resilience.md">Connection management, data integrity, graceful degradation, async patterns</network_resilience>
 
   <structured_handoff>
     <purpose>Prevent information loss between agents</purpose>
-    <format>
-      ## HANDOFF: [Source Agent] → [Target Agent]
-
-      ### Context
-      - Task: [what was done]
-      - Files: [list of files modified/analyzed]
-
-      ### Decisions Made
-      - [decision 1 + rationale]
-      - [decision 2 + rationale]
-
-      ### Assumptions
-      - [assumption 1 - why it's safe]
-      - [assumption 2 - why it's safe]
-
-      ### Risks Identified
-      - [risk 1 + mitigation]
-      - [risk 2 + mitigation]
-
-      ### Open Questions
-      - [question for downstream agent]
-
-      ### Next Agent Should
-      - [specific action 1]
-      - [specific action 2]
-    </format>
-    <when_required>
-      <trigger>Any artifact passed between agents in handoff_chain</trigger>
-      <trigger>GO/NO-GO decision handoff</trigger>
-      <trigger>Cross-phase handoff in plans</trigger>
-    </when_required>
+    <required_sections>Context (task, files) | Decisions (+ rationale) | Assumptions | Risks (+ mitigation) | Open Questions | Next Agent Actions</required_sections>
+    <when>Artifact handoff in chain | GO/NO-GO | Cross-phase handoff</when>
   </structured_handoff>
 
   <verdict_synthesizer>
-    <purpose>Resolve conflicting verdicts when multiple agents review same artifact</purpose>
-    <when>Multiple agents return conflicting recommendations (GO vs NO-GO, different risk assessments)</when>
-    <protocol>
-      1. Collect all verdicts: CRITIC, ORACLE, SENTINEL, REVIEWER
-      2. Apply decision_priority: SENTINEL > ORACLE > CRUCIBLE
-      3. If SENTINEL says NO-GO → NO-GO (final)
-      4. If ORACLE says NO-GO but others say GO → NO-GO with explanation
-      5. If conflict between non-critical agents → escalate to user with summary:
-         - Who said what
-         - Key disagreement point
-         - Recommended action
-      6. Never proceed with GO if any CRITICAL issue is unresolved
-    </protocol>
-    <output_format>
-      ## VERDICT SYNTHESIS
-      | Agent | Verdict | Key Concern | Weight |
-      |-------|---------|-------------|--------|
-      | SENTINEL | NO-GO | DD exceeds buffer | FINAL |
-      | ORACLE | GO | Metrics pass | - |
-
-      **Final Verdict**: NO-GO (SENTINEL authority)
-      **Rationale**: [explanation]
-      **Next Steps**: [what to fix]
-    </output_format>
+    <purpose>Resolve conflicting agent verdicts</purpose>
+    <priority>SENTINEL > ORACLE > CRUCIBLE (SENTINEL NO-GO = final)</priority>
+    <rule>Never GO if CRITICAL unresolved. Conflict between non-critical → escalate to user with summary.</rule>
   </verdict_synthesizer>
 
   <output_destinations>Findings: DOCS/03_RESEARCH/FINDINGS/ | Decisions: DOCS/04_REPORTS/DECISIONS/ | Code logs: CHANGELOG.md + nautilus_gold_scalper/BUGFIX_LOG.md + MQL5/Experts/BUGFIX_LOG.md</output_destinations>
@@ -581,152 +324,29 @@
     </user_override>
   </orchestration_flexibility>
 
-  <critic_gate>
-    <purpose>Adversarial review to catch bugs, logic errors, and compliance issues BEFORE reporting done</purpose>
-    <spec>.claude/agents/critic-adversarial.md</spec>
-    <mindset>Red Team / Devil's Advocate - assumes bugs exist and hunts them</mindset>
-
-    <two_layer_system>
-      <layer1 name="Sub-Agent Self-Review">
-        <description>Each sub-agent performs internal self-review before returning output</description>
-        <rule>Sub-agent completes artifact (code/plan/strategy)</rule>
-        <rule>Sub-agent applies adversarial mindset internally (5-7 thoughts)</rule>
-        <rule>If obvious issues found → sub-agent fixes before returning</rule>
-        <rule>Sub-agent returns output + confidence level to orchestrator</rule>
-        <benefit>First-pass quality gate, catches obvious issues early</benefit>
-      </layer1>
-
-      <layer2 name="Orchestrator-Spawned CRITIC">
-        <description>Orchestrator spawns SEPARATE CRITIC agent to review sub-agent output</description>
-        <rule>Orchestrator receives sub-agent output</rule>
-        <rule>Orchestrator spawns CRITIC agent with sub-agent output as input</rule>
-        <rule>CRITIC applies full 7 techniques (12-15 sequential thoughts)</rule>
-        <rule>CRITIC returns: PASS/FAIL + issues + recommendations</rule>
-        <rule>If FAIL → orchestrator routes back to original agent for fixes</rule>
-        <benefit>Fresh perspective, separation of concerns, maximum quality</benefit>
-      </layer2>
-    </two_layer_system>
-
-    <critic_techniques note="Applied by CRITIC agent in Layer 2">
-      <technique>INVERSION: What would make this fail?</technique>
-      <technique>PRE-MORTEM: Imagine failure, trace back to causes</technique>
-      <technique>STRESS TEST: Extreme conditions behavior</technique>
-      <technique>REGIME SHIFT: Market/team/tech changes resilience</technique>
-      <technique>APEX TRAP: Could following this literally violate Apex?</technique>
-      <technique>EDGE CASES: Corner cases not handled</technique>
-      <technique>ASSUMPTION AUDIT: Challenge implicit assumptions</technique>
-    </critic_techniques>
-
-    <when_to_spawn_critic>
-      <always>Trading code written (Python or MQL5)</always>
-      <always>Risk/sizing calculation done</always>
-      <always>GO/NO-GO decision pending</always>
-      <always>Architecture designed</always>
-      <optional>Plan/strategy completed (if complex)</optional>
-      <optional>Script created (if touches trading/risk)</optional>
-    </when_to_spawn_critic>
-
-    <critic_checklist note="Used by CRITIC agent">
-      <item>Bugs: off-by-one, null handling, type errors, race conditions</item>
-      <item>Logic: contradictions, missing cases, boundary conditions</item>
-      <item>Apex: trailing DD, time gates, overnight, 30% consistency (live)</item>
-      <item>Temporal: look-ahead, data leakage, future peeking</item>
-      <item>Performance: hot paths within budget</item>
-      <item>Edge cases: extreme conditions, failures, partial fills</item>
-      <item>Assumptions: challenged and validated</item>
-    </critic_checklist>
-
-    <skip_critic_when>
-      <case>SIMPLE tasks (single file edit, lookup, git status)</case>
-      <case>Documentation-only changes</case>
-      <case>User explicitly requests no review</case>
-    </skip_critic_when>
+  <critic_gate spec=".claude/agents/critic-adversarial.md">
+    <purpose>Adversarial review before reporting done</purpose>
+    <two_layer>
+      <layer1>Sub-agent self-review (5-7 thoughts, fix obvious issues)</layer1>
+      <layer2>Orchestrator spawns CRITIC (12-15 thoughts, 7 techniques: INVERSION, PRE-MORTEM, STRESS, REGIME, APEX_TRAP, EDGE, ASSUMPTION)</layer2>
+    </two_layer>
+    <spawn_when>Trading code | Risk/sizing | GO/NO-GO | Architecture</spawn_when>
+    <checklist>Bugs | Logic | Apex compliance | Temporal (look-ahead) | Performance | Edge cases | Assumptions</checklist>
+    <skip>SIMPLE tasks | Docs-only | User requests no review</skip>
   </critic_gate>
 
   <model_policy>
-    <purpose>Ensure appropriate model selection when spawning sub-agents via Task tool</purpose>
-
-    <opus_required triggers="trading|risk|sizing|apex|validation|go-live|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|SCALE_RUNNER|ONNX_BUILDER|REVIEWER|PERF_OPT|ARGUS|CRITIC|DAEMON|/genius">
-      <rule>Use model: "opus" explicitly in Task tool call</rule>
-      <agents>FORGE, ORACLE, SENTINEL, CRUCIBLE, NAUTILUS, SCALE_RUNNER, ONNX_BUILDER, REVIEWER, PERF_OPT, ARGUS, CRITIC, DAEMON</agents>
-      <reason>Trading-critical agents require highest reasoning capability</reason>
-    </opus_required>
-
-    <haiku_allowed triggers="Explore|git status|simple lookup|documentation|file search">
-      <rule>Use model: "haiku" for speed and cost efficiency</rule>
-      <agents>Explore, GIT_GUARDIAN (simple ops), DOCS</agents>
-      <reason>Simple tasks don't need opus overhead</reason>
-    </haiku_allowed>
-
-    <default>When in doubt, use opus for anything touching money/risk/trading logic</default>
-
-    <version_reporting>
-      <purpose>Ensure agents use latest specs and track versions for reproducibility</purpose>
-      <rule>Every sub-agent MUST include in output: AGENT_VERSION: [version from spec header]</rule>
-      <rule>Orchestrator verifies version matches current spec before accepting output</rule>
-      <rule>If version mismatch → warn user, consider re-running with updated spec</rule>
-      <format>
-        ## Agent Output Header
-        AGENT: [name]
-        VERSION: [from spec, e.g., FORGE v2.1]
-        CLAUDE_MD_VERSION: [e.g., 3.10.9]
-        STATUS: COMPLETE/PARTIAL/FAILED
-      </format>
-    </version_reporting>
+    <opus>trading|risk|apex|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|CRITIC|DAEMON</opus>
+    <haiku>Explore|git|docs|file search</haiku>
+    <default>When in doubt → opus for money/risk/trading</default>
+    <version_reporting>Sub-agents include: AGENT_VERSION + CLAUDE_MD_VERSION + STATUS in output header</version_reporting>
   </model_policy>
 
   <orchestration_output_protocol>
-    <purpose>Persist sub-agent outputs to survive context summarization</purpose>
-    <problem>When spawning multiple sub-agents, their outputs flood the context. If context overflows, summarization loses critical details.</problem>
-
-    <when_to_apply>
-      <trigger>Spawning ≥3 sub-agents in parallel</trigger>
-      <trigger>Any sub-agent expected to produce >500 words of output</trigger>
-      <trigger>Heavy orchestration (analysis, audit, multi-agent review)</trigger>
-    </when_to_apply>
-
-    <protocol>
-      <step>1. BEFORE spawning: Create session folder</step>
-      <location_if_plan>.planning/phases/XX/orchestration/</location_if_plan>
-      <location_if_no_plan>.claude/orchestration/sessions/YYYY-MM-DD_HH-MM/</location_if_no_plan>
-
-      <step>2. Include OUTPUT INSTRUCTION in each sub-agent prompt:</step>
-      <output_instruction>
-        OUTPUT PROTOCOL (MANDATORY):
-        - Write your COMPLETE analysis to: [session_folder]/[AGENT_NAME]_output.md
-        - Return ONLY a SUMMARY (max 300 words) to chat containing:
-          * Top 3-5 key findings
-          * Severity counts: CRITICAL/HIGH/MEDIUM/LOW
-          * Output file path
-          * Status: COMPLETE/PARTIAL/FAILED
-      </output_instruction>
-
-      <step>3. AFTER sub-agents return: Create MANIFEST.md</step>
-      <manifest_template>
-        # Orchestration Session: [datetime]
-        ## Objective: [what was being analyzed]
-        ## Agents
-        | Agent | Status | Output | Key Findings |
-        |-------|--------|--------|--------------|
-        | CRITIC | ✅ | CRITIC_output.md | 3 CRITICAL |
-        ## Synthesis: [brief summary]
-        ## Next Steps: [actions]
-      </manifest_template>
-
-      <step>4. If context overflows: Read MANIFEST to recover</step>
-    </protocol>
-
-    <daemon_special_handling>
-      <issue>DAEMON is heavy (15-20 thoughts + 5 lenses). May timeout in parallel.</issue>
-      <rule>Do NOT spawn DAEMON in parallel with >2 other opus agents</rule>
-      <rule>Consider run_in_background: true with extended timeout</rule>
-      <rule>Or run DAEMON as separate sequential step after other agents</rule>
-    </daemon_special_handling>
-
-    <cleanup>
-      <rule>Sessions older than 7 days may be archived or deleted</rule>
-      <archive_path>.claude/orchestration/archive/</archive_path>
-    </cleanup>
+    <purpose>Persist sub-agent outputs to files when ≥3 agents OR heavy orchestration</purpose>
+    <location>.planning/phases/XX/orchestration/ OR .claude/orchestration/sessions/YYYY-MM-DD_HH-MM/</location>
+    <protocol>1. Create session folder → 2. Agents write to [folder]/[AGENT]_output.md, return 300-word summary → 3. Create MANIFEST.md → 4. Read MANIFEST if context overflows</protocol>
+    <daemon_note>DAEMON is heavy; spawn sequentially OR run_in_background with extended timeout</daemon_note>
   </orchestration_output_protocol>
 </orchestration_protocol>
 
@@ -763,76 +383,9 @@
   <route intent="Proxy/OAuth/CLIProxy" agent="CLIPROXY_ENGINEER" trigger="cliproxy|proxy|oauth|401|403|429|antigravity|translator" spec=".claude/agents/cliproxy-engineer.md"/>
 </router>
 
-<wsl_cli>
-  <defaults>
-    <note>Fast-path defaults (avoid huge dirs): exclude .venv/, .rag-db/, data/, tools/antigravity/</note>
-    <cmd>rg -n -S --hidden --glob '!.venv/**' --glob '!.rag-db/**' --glob '!data/**' --glob '!tools/antigravity/**' "pattern" .</cmd>
-  </defaults>
-
-  <nav>
-    <cmd>pwd</cmd>
-    <cmd>ls -la</cmd>
-    <cmd>ls -la path/</cmd>
-  </nav>
-
-  <search>
-    <cmd>rg -n -S "pattern" path/</cmd>
-    <cmd>rg -n -S --type py "pattern" .</cmd>
-    <cmd>rg -n -S --type md "pattern" DOCS/</cmd>
-    <cmd>rg -n -S --glob '!**/.venv/**' --glob '!**/.rag-db/**' --glob '!**/data/**' --glob '!**/tools/antigravity/**' "pattern" .</cmd>
-    <cmd>rg --files | rg "pattern"</cmd>
-    <cmd>git grep -n "pattern"</cmd>
-  </search>
-
-  <view>
-    <cmd>sed -n '1,200p' file</cmd>
-    <cmd>nl -ba file | sed -n '1,200p'</cmd>
-    <cmd>head -n 80 file</cmd>
-    <cmd>tail -n 120 file</cmd>
-  </view>
-
-  <git>
-    <cmd>git status -sb</cmd>
-    <cmd>git diff --stat</cmd>
-    <cmd>git diff</cmd>
-    <cmd>git diff --name-only</cmd>
-    <cmd>git log --oneline --decorate -n 30</cmd>
-    <cmd>git show -1</cmd>
-    <cmd>git blame -L 40,120 file</cmd>
-  </git>
-
-  <python_env>
-    <cmd>python3 -V</cmd>
-    <cmd>python3 -m venv .venv</cmd>
-    <cmd>source .venv/bin/activate</cmd>
-    <cmd>python3 -m pip install -U pip</cmd>
-    <cmd>python3 -m pip install -r requirements.txt</cmd>
-  </python_env>
-
-  <python_dev>
-    <cmd>python3 -m pytest -q</cmd>
-    <cmd>python3 -m pytest -q -k "pattern"</cmd>
-    <cmd>python3 -m pytest -q path/to/test_file.py::TestClass::test_name</cmd>
-    <cmd>python3 -m mypy --strict .</cmd>
-    <cmd>python3 -m ruff check .  # if installed</cmd>
-    <cmd>python3 -m ruff format .  # if installed</cmd>
-  </python_dev>
-
-  <perf>
-    <cmd>python3 -m cProfile -o profile.stats script.py</cmd>
-    <cmd>python3 -X faulthandler -m pytest -q</cmd>
-  </perf>
-
-  <logs>
-    <cmd>rg -n -S "ERROR|Traceback|Exception" logs/</cmd>
-    <cmd>tail -n 200 logs/app.log</cmd>
-  </logs>
-
-  <utils>
-    <cmd>wc -l file</cmd>
-    <cmd>du -sh path/</cmd>
-    <cmd>du -ah . | sort -hr | head -n 20</cmd>
-  </utils>
+<wsl_cli note="Project-specific exclusions; Claude knows standard commands">
+  <exclude>.venv/ | .rag-db/ | data/ | tools/antigravity/</exclude>
+  <rg_default>rg -n -S --glob '!.venv/**' --glob '!.rag-db/**' --glob '!data/**' --glob '!tools/antigravity/**' "pattern" .</rg_default>
 </wsl_cli>
 
 <references>
