@@ -11,6 +11,7 @@ import sys
 import time
 from dataclasses import dataclass
 from decimal import Decimal
+from heapq import heappop, heappush
 from pathlib import Path
 from typing import Literal, cast
 
@@ -272,6 +273,39 @@ def sample_to_step(sample: Sample) -> int:
     if sample_f < 1:
         return max(1, int(round(1.0 / sample_f)))
     return max(1, int(round(sample_f)))
+
+
+def _merge_sorted_quote_ticks(ticks_lists: list[list[QuoteTick]]) -> list[QuoteTick]:
+    """K-way merge QuoteTicks lists by ts_event (nanoseconds).
+
+    Assumes each list is already sorted by QuoteTick.ts_event.
+    """
+    if not ticks_lists:
+        return []
+
+    total = sum(len(lst) for lst in ticks_lists)
+    if total == 0:
+        return []
+
+    heap: list[tuple[int, int, int, QuoteTick]] = []
+    for list_index, ticks in enumerate(ticks_lists):
+        if not ticks:
+            continue
+        qt0 = ticks[0]
+        heappush(heap, (int(qt0.ts_event), list_index, 0, qt0))
+
+    merged: list[QuoteTick] = []
+    append = merged.append
+    while heap:
+        _, list_index, tick_index, tick = heappop(heap)
+        append(tick)
+        next_index = tick_index + 1
+        ticks = ticks_lists[list_index]
+        if next_index < len(ticks):
+            nxt = ticks[next_index]
+            heappush(heap, (int(nxt.ts_event), list_index, next_index, nxt))
+
+    return merged
 
 
 def build_ticks_with_wrangler(
@@ -739,6 +773,7 @@ class BacktestRunner:
         config_overrides: dict[str, object] | None = None,
         quiet: bool = False,
         catalog_path: str | None = None,
+        catalog_paths: list[str] | None = None,
     ):
         """Run backtest with NautilusTrader.
 
@@ -817,16 +852,31 @@ class BacktestRunner:
         repo_root = project_root.parent
         tick_path = (project_root / data_config["active_dataset"]["path"]).resolve()
         native_catalog_path = data_config["active_dataset"].get("native_catalog_path")
-        # Resolve native catalog path relative to project root (allow override for session-sliced catalogs)
-        if catalog_path:
-            native_catalog = (repo_root / catalog_path).resolve()
-        else:
-            native_catalog = (project_root / native_catalog_path).resolve() if native_catalog_path else None
+        # Resolve native catalog path(s). Overrides are resolved relative to repo root, while the
+        # default config path is resolved relative to nautilus_gold_scalper/ (project_root).
+        native_catalogs: list[Path] | None = None
+        if catalog_paths:
+            native_catalogs = []
+            for p in catalog_paths:
+                pp = Path(p)
+                native_catalogs.append(pp.resolve() if pp.is_absolute() else (repo_root / pp).resolve())
+        elif catalog_path:
+            pp = Path(catalog_path)
+            native_catalogs = [pp.resolve() if pp.is_absolute() else (repo_root / pp).resolve()]
+        elif native_catalog_path:
+            native_catalogs = [(project_root / native_catalog_path).resolve()]
 
         _p(f"[CONFIG] Using dataset: {data_config['active_dataset']['name']}")
         _p(f"[CONFIG] Path: {tick_path}")
-        if native_catalog and native_catalog.exists():
-            _p(f"[CONFIG] Native catalog detected: {native_catalog}")
+        if native_catalogs:
+            existing = [p for p in native_catalogs if p.exists()]
+            if existing:
+                if len(existing) == 1:
+                    _p(f"[CONFIG] Native catalog detected: {existing[0]}")
+                else:
+                    _p(f"[CONFIG] Native catalogs detected: {len(existing)}")
+                    for p in existing:
+                        _p(f"  - {p}")
 
         step = sample_to_step(sample_rate)
 
@@ -861,9 +911,12 @@ class BacktestRunner:
         quote_ticks: list[QuoteTick] = []
         df: pd.DataFrame | None = None
         if use_catalog and feed == "ticks":
-            if not (native_catalog and native_catalog.exists()):
-                raise FileNotFoundError("Catalog source requested but native catalog path not found in data/config.yaml")
-            catalog = ParquetDataCatalog(str(native_catalog))
+            if not native_catalogs:
+                raise FileNotFoundError("Catalog source requested but native catalog path not configured")
+            missing = [p for p in native_catalogs if not p.exists()]
+            if missing:
+                raise FileNotFoundError(f"Catalog path(s) not found: {missing}")
+            catalogs = [ParquetDataCatalog(str(p)) for p in native_catalogs]
             # ParquetDataCatalog.quote_ticks expects nanosecond timestamps (int), not date strings.
             # When we pass strings, it returns an empty result (silent failure) and the backtest crashes later.
             start_ts = pd.Timestamp(start_date, tz="UTC")
@@ -873,12 +926,21 @@ class BacktestRunner:
                 end_ts = end_ts + pd.Timedelta(days=1)
             start_ns = int(start_ts.value)
             end_ns = int(end_ts.value)
-            quote_ticks = catalog.quote_ticks(
-                instrument_ids=[self.instrument.id.value],
-                start=start_ns,
-                end=end_ns,
-            )
-            _p(f"[CATALOG] Loaded {len(quote_ticks):,} ticks from native catalog")
+            ticks_lists: list[list[QuoteTick]] = []
+            for idx, catalog in enumerate(catalogs):
+                ticks = catalog.quote_ticks(
+                    instrument_ids=[self.instrument.id.value],
+                    start=start_ns,
+                    end=end_ns,
+                )
+                ticks_lists.append(ticks)
+                if len(catalogs) > 1:
+                    _p(f"[CATALOG] Loaded {len(ticks):,} ticks from catalog[{idx}]")
+            if len(ticks_lists) > 1:
+                quote_ticks = _merge_sorted_quote_ticks(ticks_lists)
+            else:
+                quote_ticks = ticks_lists[0] if ticks_lists else []
+            _p(f"[CATALOG] Loaded {len(quote_ticks):,} ticks from native catalog(s)")
             if step > 1:
                 quote_ticks = quote_ticks[::step]
         elif feed == "ticks" or (feed == "bars" and bars_override is None and bars_df is None):
@@ -1244,6 +1306,59 @@ class BacktestRunner:
         )
 
 
+def _split_csv(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [p.strip() for p in value.split(",") if p.strip()]
+
+
+def _pick_best_catalog(matches: list[Path]) -> Path:
+    """Prefer stride1 when multiple catalogs match a session name."""
+    if len(matches) == 1:
+        return matches[0]
+    stride1 = [p for p in matches if "stride1" in p.name.lower()]
+    if stride1:
+        return sorted(stride1, key=lambda p: p.name.lower())[0]
+    return sorted(matches, key=lambda p: p.name.lower())[0]
+
+
+def _resolve_session_catalogs(
+    *,
+    repo_root: Path,
+    sessions_root: str,
+    product: Product,
+    sessions: list[str] | None,
+    all_sessions: bool,
+) -> list[str]:
+    root = Path(sessions_root)
+    root_path = root.resolve() if root.is_absolute() else (repo_root / root).resolve()
+    if not root_path.exists():
+        raise FileNotFoundError(f"sessions_root not found: {root_path}")
+    if not root_path.is_dir():
+        raise NotADirectoryError(f"sessions_root is not a directory: {root_path}")
+
+    all_dirs = [p for p in root_path.iterdir() if p.is_dir() and not p.name.endswith("_OLD")]
+    prod_key = product.lower()
+    all_dirs = [p for p in all_dirs if prod_key in p.name.lower()]
+
+    if all_sessions:
+        selected = sorted(all_dirs, key=lambda p: p.name.lower())
+        return [str(p) for p in selected]
+
+    wanted = [s.strip().upper() for s in (sessions or []) if s.strip()]
+    if not wanted:
+        return []
+
+    selected_paths: list[str] = []
+    for sess in wanted:
+        matches = [p for p in all_dirs if p.name.upper().endswith(f"_{sess}")]
+        if not matches:
+            raise FileNotFoundError(f"No catalog found for session={sess!r} under {root_path}")
+        chosen = _pick_best_catalog(matches)
+        selected_paths.append(str(chosen))
+    return selected_paths
+
+
 def main():
     """Main entry point."""
     import argparse
@@ -1281,6 +1396,26 @@ def main():
         default=None,
         help='Override native catalog dir (relative to repo root), e.g. data/catalog_native_sessions/... (source=catalog)',
     )
+    parser.add_argument(
+        '--catalog-paths',
+        default=None,
+        help='Comma-separated catalog dirs (absolute or repo-relative). Overrides --catalog-path.',
+    )
+    parser.add_argument(
+        '--sessions-root',
+        default='data/catalog_native_sessions',
+        help='Root folder for session-sliced catalogs (repo-relative by default).',
+    )
+    parser.add_argument(
+        '--sessions',
+        default=None,
+        help='Comma-separated session names to include (e.g. EVENING,LATE_NY).',
+    )
+    parser.add_argument(
+        '--all-sessions',
+        action='store_true',
+        help='Include all session catalogs under --sessions-root (product-filtered).',
+    )
     parser.add_argument('--risk', type=float, default=None, help='Risk per trade (fraction, e.g. 0.005 = 0.5 percent)')
     args = parser.parse_args()
 
@@ -1313,6 +1448,24 @@ def main():
         partial_fill_ratio=partial_ratio,
     )
     runner.metrics_jsonl = metrics_jsonl
+
+    project_root = Path(__file__).parent.parent.parent
+    repo_root = project_root.parent
+
+    catalog_paths: list[str] | None = None
+    explicit_catalog_paths = _split_csv(args.catalog_paths)
+    if explicit_catalog_paths:
+        catalog_paths = explicit_catalog_paths
+    elif args.all_sessions or args.sessions:
+        sessions = _split_csv(args.sessions)
+        resolved = _resolve_session_catalogs(
+            repo_root=repo_root,
+            sessions_root=str(args.sessions_root),
+            product=cast(Product, args.product),
+            sessions=sessions,
+            all_sessions=bool(args.all_sessions),
+        )
+        catalog_paths = resolved if resolved else None
 
     if args.sweep:
         # Parameter sweep mode
@@ -1356,6 +1509,7 @@ def main():
                     gateway=cast(Gateway, args.gateway),
                     quiet=bool(args.quiet),
                     catalog_path=args.catalog_path,
+                    catalog_paths=catalog_paths,
                 )
 
                 # Get results
@@ -1409,6 +1563,7 @@ def main():
             gateway=cast(Gateway, args.gateway),
             quiet=bool(args.quiet),
             catalog_path=args.catalog_path,
+            catalog_paths=catalog_paths,
         )
 
 
