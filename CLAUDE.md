@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.15</version>
-  <last_updated>2025-12-18</last_updated>
-  <changelog>v3.10.15: Local-first NautilusTrader docs via external symlink; reduce dependency on heavy MCP docs.</changelog>
-  <previous_changes>v3.10.13: DD taxonomy unified, HWM price basis, timekeeping contract, MGC specs | v3.10.12: live_infrastructure, incident_response | v3.10.11: CRITIC two-layer</previous_changes>
+  <version>3.10.16</version>
+  <last_updated>2025-12-19</last_updated>
+  <changelog>v3.10.16: CLIPROXY protection rule - NEVER restart/kill proxy without explicit user confirmation.</changelog>
+  <previous_changes>v3.10.15: Local-first NautilusTrader docs | v3.10.13: DD taxonomy unified, HWM price basis | v3.10.12: live_infrastructure, incident_response</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -27,6 +27,23 @@
   <owner>Franco</owner>
   <core_directive>1 session = 1 task → build → test → next</core_directive>
 </identity>
+
+<cliproxy_protection priority="CRITICAL">
+  <rule>NEVER restart, kill, or stop CLIProxy without EXPLICIT user confirmation</rule>
+  <rule>NEVER run pkill/kill on cli-proxy-api without asking Franco first</rule>
+  <reason>
+    Restarting proxy mid-response corrupts Claude Code conversation state.
+    The tool_call streaming gets interrupted, leaving orphan call_ids that
+    cause "No tool call found" errors. Recovery requires /clear or new session.
+  </reason>
+  <workflow>
+    1. BEFORE any proxy restart: ASK "Posso reiniciar o CLIProxy? Isso pode corromper conversas ativas."
+    2. WAIT for explicit "sim" or "pode" from Franco
+    3. Only then execute the restart
+    4. If urgent (proxy crashed): inform Franco and recommend /clear on affected sessions
+  </workflow>
+  <exception>If proxy is already dead (not running), can restart without asking</exception>
+</cliproxy_protection>
 
 <core>
   <dataset>
