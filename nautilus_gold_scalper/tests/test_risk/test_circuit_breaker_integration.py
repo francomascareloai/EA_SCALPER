@@ -70,14 +70,18 @@ class TestCircuitBreakerIntegration:
         current_equity = 100000.0 - 3500.0  # 3.5% DD
         cb.update_equity(current_equity)
 
+        # Ensure peak (HWM) is set higher so total_dd reflects trailing DD.
+        cb.update_equity(100000.0)
+        cb.update_equity(current_equity)
+
         state = cb.get_state()
 
         # Should be at Level 3 ELEVATED (DD > 3%)
         assert state.level >= CircuitBreakerLevel.LEVEL_3_ELEVATED, \
             f"Circuit breaker should trigger Level 3 at 3.5% DD, got level={state.level.name}"
 
-        assert state.total_dd_percent >= 3.0, \
-            f"Total DD should be >= 3%, got {state.total_dd_percent:.2f}%"
+        assert state.daily_dd_percent >= 3.0, \
+            f"Daily DD should be >= 3%, got {state.daily_dd_percent:.2f}%"
 
         # Size should be further reduced
         assert state.size_multiplier < 0.75, \

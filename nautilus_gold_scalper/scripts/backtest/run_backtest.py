@@ -542,6 +542,14 @@ def build_strategy_config(cfg: dict, bar_type: BarType, instrument_id):
         fill_reject_spread_factor=float(exec_cfg.get("fill_reject_spread_factor", 0.0)),
         fill_model=str(exec_cfg.get("fill_model", "realistic")),
         use_selector=exec_cfg.get("use_selector", True),
+        enable_trend_follow=bool(exec_cfg.get("enable_trend_follow", False)),
+        enable_trend_pullback=bool(exec_cfg.get("enable_trend_pullback", True)),
+        enable_trend_breakout=bool(exec_cfg.get("enable_trend_breakout", True)),
+        router_adaptive_ev=bool(exec_cfg.get("router_adaptive_ev", False)),
+        router_min_trades_to_trust=int(exec_cfg.get("router_min_trades_to_trust", 30)),
+        router_score_weight=float(exec_cfg.get("router_score_weight", 0.10)),
+        router_dd_penalty_total=float(exec_cfg.get("router_dd_penalty_total", 0.20)),
+        router_dd_penalty_daily=float(exec_cfg.get("router_dd_penalty_daily", 0.10)),
         max_spread_pips=max_spread_pips,
         spread_warning_ratio=float(spreadmon_cfg.get("warning_ratio", spread_cfg.get("warning_ratio", 2.0))),
         spread_block_ratio=float(spreadmon_cfg.get("block_ratio", spread_cfg.get("block_ratio", 5.0))),
@@ -774,6 +782,7 @@ class BacktestRunner:
         quiet: bool = False,
         catalog_path: str | None = None,
         catalog_paths: list[str] | None = None,
+        strategy_config_path: Path | None = None,
     ):
         """Run backtest with NautilusTrader.
 
@@ -797,7 +806,7 @@ class BacktestRunner:
         _p(f"Period: {start_date} to {end_date}")
         _p(f"Sample: {sample_rate} (float fraction or N-step)")
         _p(f"Feed: {feed} | Source: {data_source}")
-        # Note: Filter settings loaded from strategy_config.yaml
+        # Note: Filters/defaults are loaded from the selected strategy YAML.
         _p(f"Initial Balance: ${self.initial_balance:,.2f}")
 
         t0 = time.perf_counter()
@@ -989,7 +998,9 @@ class BacktestRunner:
             _p(f"Added {len(bars):,} bars to engine (external bars feed)")
 
         # Configure strategy from YAML + overrides
-        strategy_cfg_dict = load_yaml_config(Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml")
+        default_cfg_path = Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml"
+        cfg_path = strategy_config_path if strategy_config_path is not None else default_cfg_path
+        strategy_cfg_dict = load_yaml_config(cfg_path)
         strategy_cfg_dict.setdefault("confluence", {})
         strategy_cfg_dict.setdefault("execution", {})
         strategy_cfg_dict.setdefault("risk", {})
@@ -1510,6 +1521,7 @@ def main():
                     quiet=bool(args.quiet),
                     catalog_path=args.catalog_path,
                     catalog_paths=catalog_paths,
+                    strategy_config_path=config_path,
                 )
 
                 # Get results
@@ -1564,6 +1576,7 @@ def main():
             quiet=bool(args.quiet),
             catalog_path=args.catalog_path,
             catalog_paths=catalog_paths,
+            strategy_config_path=config_path,
         )
 
 

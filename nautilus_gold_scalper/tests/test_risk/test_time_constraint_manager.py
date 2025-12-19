@@ -11,6 +11,9 @@ class DummyStrategy:
         self.config = type("Cfg", (), {"instrument_id": None})
         self._trading_blocked_today = False
 
+    def close_position(self, *_args, **_kwargs):  # pragma: no cover - unused in this test
+        return None
+
     # Logging proxies
     def critical(self, msg):  # pragma: no cover - trivial
         pass
@@ -47,12 +50,30 @@ def ts_at(hour: int, minute: int) -> int:
     return int(dt.timestamp() * 1e9)
 
 
-def test_time_manager_allows_before_cutoff():
+def test_time_manager_allows_before_urgent_block():
     s = DummyStrategy()
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
     assert mgr.check(ts_at(15, 0)) is True
     assert s._is_trading_allowed is True
     assert s._trading_blocked_today is False
+
+
+def test_time_manager_blocks_new_trades_after_urgent():
+    s = DummyStrategy()
+    mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
+    assert mgr.can_open_new(ts_at(16, 30)) is False
+    assert s.closed is False
+    assert s._is_trading_allowed is True
+    assert s._trading_blocked_today is False
+
+
+def test_time_manager_flattens_in_emergency_window():
+    s = DummyStrategy()
+    mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
+    assert mgr.check(ts_at(16, 55)) is False
+    assert s.closed is True
+    assert s._is_trading_allowed is False
+    assert s._trading_blocked_today is True
 
 
 def test_time_manager_blocks_and_flattens_at_cutoff():
@@ -70,3 +91,17 @@ def test_time_manager_resets_daily():
     mgr._issued.update({"warning", "urgent", "emergency"})
     mgr.reset_daily()
     assert mgr._issued == set()
+
+
+def test_time_manager_fail_safe_when_et_unavailable(monkeypatch):
+    s = DummyStrategy()
+    mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
+
+    import nautilus_gold_scalper.src.risk.time_constraint_manager as tcm
+
+    monkeypatch.setattr(tcm, "ET_TZ", None)
+    assert mgr.can_open_new(ts_at(10, 0)) is False
+    assert mgr.check(ts_at(10, 0)) is False
+    assert s.closed is True
+    assert s._is_trading_allowed is False
+    assert s._trading_blocked_today is True

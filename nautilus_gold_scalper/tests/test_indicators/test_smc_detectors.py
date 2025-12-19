@@ -9,7 +9,7 @@ from src.indicators.order_block_detector import OrderBlockDetector
 
 class TestOrderBlockDetector:
     def test_bullish_ob_detected_and_scored(self):
-        detector = OrderBlockDetector(lookback_bars=50)
+        detector = OrderBlockDetector(lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0)
         n = 80
         base = 1900.0
 
@@ -20,17 +20,18 @@ class TestOrderBlockDetector:
         volumes = np.ones(n) * 1_000
         timestamps = np.arange(n)
 
-        # Barra candidata a OB (grande corpo + volume) em i=60
-        opens[60] = base + 0.6
-        closes[60] = base + 2.1
-        highs[60] = closes[60] + 0.1
-        lows[60] = opens[60] - 0.2
+        # Candle 60 is the OB (bearish), candle 61 is the displacement confirmation
+        opens[60] = base + 4.0
+        closes[60] = base + 0.6
+        highs[60] = opens[60] + 0.1
+        lows[60] = closes[60] - 0.2
         volumes[60] = 2_000
 
-        # Movimento impulsivo subsequente
-        closes[61:66] = np.array([base + 3, base + 4, base + 5.5, base + 7.0, base + 8.5])
-        highs[61:66] = closes[61:66] + 0.2
-        lows[61:66] = closes[61:66] - 0.3
+        # Immediate displacement candle
+        opens[61] = base + 0.6
+        closes[61] = base + 8.0
+        highs[61] = closes[61] + 0.2
+        lows[61] = opens[61] - 0.3
 
         obs = detector.detect(opens, highs, lows, closes, volumes, timestamps, current_price=base + 8.0)
 
@@ -38,20 +39,66 @@ class TestOrderBlockDetector:
         assert any(o.direction == SignalType.SIGNAL_BUY for o in obs)
         assert detector.get_ob_score(base + 8.0, SignalType.SIGNAL_BUY) > 0
 
+    def test_ob_is_not_detected_without_displacement_confirmation(self):
+        detector = OrderBlockDetector(lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0)
+        n = 80
+        base = 1900.0
+
+        opens = np.linspace(base, base + 0.4, n)
+        closes = opens + 0.05
+        highs = closes + 0.05
+        lows = opens - 0.05
+        volumes = np.ones(n) * 1_000
+        timestamps = np.arange(n)
+
+        # Candle 60 looks like an OB, but we do NOT include the displacement candle in the data.
+        opens[60] = base + 2.1
+        closes[60] = base + 0.6
+        highs[60] = opens[60] + 0.1
+        lows[60] = closes[60] - 0.2
+        volumes[60] = 2_000
+
+        cutoff = 61
+        obs = detector.detect(
+            opens[:cutoff],
+            highs[:cutoff],
+            lows[:cutoff],
+            closes[:cutoff],
+            volumes[:cutoff],
+            timestamps[:cutoff],
+            current_price=float(closes[cutoff - 1]),
+        )
+
+        assert not obs
+
 
 class TestFVGDetector:
     def test_bullish_fvg_detected(self):
-        fvgd = FVGDetector()
+        fvgd = FVGDetector(max_gap_size=200.0, min_displacement=1.0)
+        opens = np.array([1899.0, 1902.0, 1912.0])
         highs = np.array([1900.0, 1905.0, 1920.0])
-        lows = np.array([1895.0, 1900.0, 1915.0])
+        lows = np.array([1895.0, 1900.0, 1910.0])
         closes = np.array([1898.0, 1903.0, 1918.0])
-        timestamps = np.array([0, 1, 2])
+        timestamps = np.array([0, 1, 2]).astype("datetime64[s]")
 
-        fvgs = fvgd.detect(highs, lows, closes, timestamps, current_price=1918.0)
+        fvgs = fvgd.detect(opens, highs, lows, closes, None, timestamps, current_price=1918.0)
 
         bullish_fvgs = [f for f in fvgs if f.direction == SignalType.SIGNAL_BUY]
         assert bullish_fvgs, "Gap bullish deve ser detectado"
         assert bullish_fvgs[0].size_atr_ratio > 0
+
+    def test_fvg_requires_three_bars(self):
+        fvgd = FVGDetector()
+        opens = np.array([1900.0, 1905.0])
+        highs = np.array([1900.0, 1905.0])
+        lows = np.array([1895.0, 1900.0])
+        closes = np.array([1898.0, 1903.0])
+        timestamps = np.array([0, 1]).astype("datetime64[s]")
+
+        import pytest
+
+        with pytest.raises(Exception):
+            fvgd.detect(opens, highs, lows, closes, None, timestamps, current_price=1903.0)
 
 
 class TestLiquiditySweepDetector:

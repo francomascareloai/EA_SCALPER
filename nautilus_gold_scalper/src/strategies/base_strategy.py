@@ -153,19 +153,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Subscribe to quote ticks for spread monitoring
         self.subscribe_quote_ticks(self.config.instrument_id)
 
-        # Schedule daily reset at midnight ET (Bug #4 fix)
-        # Note: In backtesting, this ensures multi-day resets work correctly
-        # In live trading, this handles daily counter resets for Apex rules
-        from datetime import timedelta
-        try:
-            self.clock.set_timer(
-                name="daily_reset",
-                interval=timedelta(days=1),
-                callback=self.on_new_day,
-            )
-            self.log.info("Daily reset timer scheduled for midnight ET")
-        except Exception as e:
-            self.log.warning(f"Could not schedule daily timer: {e}")
+        # Daily resets are handled using event timestamps (ET) to keep backtests deterministic.
+        # Do not rely on wall-clock timers here.
 
         # Strategy-specific initialization
         self._on_strategy_start()
@@ -291,7 +280,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         # Check for daily reset
         if hasattr(self, '_check_daily_reset'):
-            self._check_daily_reset(bar.ts_init)
+            self._check_daily_reset(bar.ts_event)
 
         # Route to appropriate storage
         if self.config.htf_bar_type and bar.bar_type == self.config.htf_bar_type:
@@ -687,15 +676,19 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if self._position is None or self.instrument is None:
             return None
 
-        mid = (tick.bid_price.as_double() + tick.ask_price.as_double()) / 2.0
         entry = self._position.avg_px_open.as_double()
         qty = self._position.quantity.as_double()
         point_value = self._instrument_point_value_per_unit()
 
+        # Conservative mark-to-market (Apex HWM trap defense):
+        # - LONG exits at BID
+        # - SHORT exits at ASK
         if self._position.side == PositionSide.LONG:
-            unrealized = (mid - entry) * qty * point_value
+            exit_px = tick.bid_price.as_double()
+            unrealized = (exit_px - entry) * qty * point_value
         else:
-            unrealized = (entry - mid) * qty * point_value
+            exit_px = tick.ask_price.as_double()
+            unrealized = (entry - exit_px) * qty * point_value
 
         # _equity_base already includes realized PnL; avoid double-counting _daily_pnl
         return float(self._equity_base + unrealized)

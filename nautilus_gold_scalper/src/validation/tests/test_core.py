@@ -204,6 +204,7 @@ class TestDuckDBConnection:
         """Test DuckDB connection as context manager."""
         with DuckDBConnection() as db:
             result = db.query("SELECT 42").fetchone()
+            assert result is not None
             assert result[0] == 42
 
 

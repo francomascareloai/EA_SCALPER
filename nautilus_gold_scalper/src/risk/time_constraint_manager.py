@@ -15,7 +15,7 @@ except Exception:  # pragma: no cover
 
 
 class TimeConstraintManager:
-    """Enforces Apex 4:59 PM ET cutoff with warnings and forced flatten."""
+    """Enforces Apex time gates (ET) for prop-firm compliance."""
 
     def __init__(
         self,
@@ -38,19 +38,35 @@ class TimeConstraintManager:
         self._issued: set[str] = set()
         self.telemetry = telemetry
 
+    def can_open_new(self, ts_ns: int) -> bool:
+        """Return True if opening *new* positions is allowed at `ts_ns` (ET)."""
+        if self.allow_overnight:
+            return True
+
+        if ET_TZ is None:
+            return False
+
+        dt_et = self._to_et(ts_ns)
+        now_time = dt_et.time()
+
+        # Block new trades after the urgent (4:30 PM ET) gate.
+        if now_time >= self.warnings["urgent"]:
+            return False
+
+        return True
+
     def check(self, ts_ns: int) -> bool:
-        """
-        Check time constraints for a given timestamp in nanoseconds.
-        Returns True if trading is allowed, False if trading must stop.
+        """Return True if trading may continue at `ts_ns` (ET).
+
+        This method is used for safety enforcement (flatten + halt) near close.
+        It does NOT block at the 4:30 PM entry gate; use `can_open_new` for that.
         """
         if self.allow_overnight:
             return True
 
-        dt_et = (
-            datetime.fromtimestamp(ts_ns / 1e9, tz=ET_TZ)
-            if ET_TZ is not None
-            else datetime.fromtimestamp(ts_ns / 1e9)
-        )
+        dt_et = self._to_et(ts_ns)
+        if ET_TZ is None:
+            return False
         now_time = dt_et.time()
 
         for level, when in self.warnings.items():
@@ -58,9 +74,13 @@ class TimeConstraintManager:
                 self._log_warning(level, dt_et)
                 self._issued.add(level)
 
+        # Emergency window: force-close on every call until flat.
+        if now_time >= self.warnings["emergency"]:
+            self._force_close_all(dt_et)
+            return False
+
+        # Cutoff window: flatten once and block trading for the rest of the day.
         if now_time >= self.cutoff:
-            # Only emit/log the cutoff once per day to avoid log spam on every bar/tick.
-            # The strategy remains blocked until the daily reset, so repeated calls add no value.
             if "cutoff" not in self._issued:
                 self._force_close_all(dt_et)
                 self._issued.add("cutoff")
@@ -68,12 +88,26 @@ class TimeConstraintManager:
 
         return True
 
+    def _to_et(self, ts_ns: int) -> datetime:
+        """Convert event timestamp (ns) to America/New_York.
+
+        Fail-safe: if timezone info is unavailable, assume worst-case and return a
+        timestamp in UTC but shifted to be conservative for close compliance.
+        """
+        if ET_TZ is not None:
+            return datetime.fromtimestamp(ts_ns / 1e9, tz=ET_TZ)
+
+        # Degraded mode: without reliable ET conversion, fail-safe.
+        # If we can't compute ET reliably, assume we're in the danger window and block.
+        self._force_close_all(datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("UTC")))
+        return datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("UTC"))
+
     def reset_daily(self) -> None:
         """Reset warning flags for a new trading day."""
         self._issued.clear()
 
     def _force_close_all(self, dt_et: datetime) -> None:
-        """Flatten all positions and stop further trading."""
+        """Flatten all positions and block further trading for the day."""
         try:
             self.strategy.close_all_positions(getattr(self.strategy.config, "instrument_id", None))
         except Exception:
@@ -85,16 +119,18 @@ class TimeConstraintManager:
 
         self.strategy._is_trading_allowed = False
         self.strategy._trading_blocked_today = True
+
         cutoff_str = self.cutoff.strftime("%H:%M")
-        # This is a safety/compliance event, not a runtime error; keep at WARNING to avoid log spam in sweeps.
-        self.strategy.log.warning(
-            f'{{"event":"apex_cutoff","ts":"{dt_et.isoformat()}","action":"flatten","reason":"{cutoff_str} cutoff"}}'
-        )
-        if self.telemetry:
-            self.telemetry.emit(
-                "apex_cutoff",
-                {"ts": dt_et.isoformat(), "action": "flatten", "reason": "cutoff_reached", "cutoff": cutoff_str},
+        if "flatten" not in self._issued:
+            self._issued.add("flatten")
+            self.strategy.log.warning(
+                f'{{"event":"apex_cutoff","ts":"{dt_et.isoformat()}","action":"flatten","reason":"{cutoff_str} cutoff"}}'
             )
+            if self.telemetry:
+                self.telemetry.emit(
+                    "apex_cutoff",
+                    {"ts": dt_et.isoformat(), "action": "flatten", "reason": "cutoff_reached", "cutoff": cutoff_str},
+                )
 
     def _log_warning(self, level: str, dt_et: datetime) -> None:
         cutoff_str = self.cutoff.strftime("%H:%M")

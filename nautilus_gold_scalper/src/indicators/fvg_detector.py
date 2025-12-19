@@ -106,8 +106,9 @@ class FVGDetector:
         # Calculate average volume if provided
         avg_volume = float(np.mean(volumes)) if volumes is not None else None
 
-        # Scan for FVGs (need 3 consecutive candles, so skip first 2 and last 3)
-        for i in range(1, max(2, n - 1)):
+        # Scan for FVGs causally: confirm the 3-candle pattern at the close of candle i.
+        # Here, i is the third candle; the pattern uses candles (i-2, i-1, i).
+        for i in range(2, n):
             # Check for bullish FVG
             if self._is_bullish_fvg_pattern(highs, lows, i):
                 fvg = self._create_bullish_fvg(
@@ -129,16 +130,17 @@ class FVGDetector:
                         break
 
         # Update states and fill percentages
-        self._update_fvg_states(current_price, timestamps[-1] if len(timestamps) > 0 else None)
+        current_time_dt = None
+        if timestamps is not None and len(timestamps) > 0:
+            current_time_dt = datetime.fromtimestamp(timestamps[-1].astype("datetime64[s]").astype(int))
+        self._update_fvg_states(current_price, current_time_dt)
 
         # Sort by quality score
         self._fvgs.sort(key=lambda x: x.confluence_score, reverse=True)
 
-        # Fallback simple gap detection if none found
-        if not self._fvgs and n >= 3:
-            fvg = self._create_bullish_fvg(highs, lows, closes, volumes, timestamps, 1, avg_volume)
-            if fvg:
-                self._fvgs.append(fvg)
+        # NOTE: no synthetic fallback here.
+        # Returning fabricated gaps is unsafe for backtests and can mask
+        # detector misconfiguration.
 
         # Ensure size_atr_ratio present
         for fvg in self._fvgs:
@@ -152,22 +154,19 @@ class FVGDetector:
         index: int,
     ) -> bool:
         """
-        Check if index forms a bullish FVG pattern.
-        Pattern: high[i-1] < low[i+1] (gap between candle 1 and candle 3).
+        Check if index (third candle) forms a bullish FVG pattern (causal).
+        Pattern: high[i-2] < low[i] (gap between candle 1 and candle 3).
         """
-        if index < 1 or index >= len(highs) - 1:
+        if index < 2 or index >= len(highs):
             return False
 
-        # Candle indices: i-1 (first), i (middle), i+1 (third)
-        high1 = highs[index - 1]
-        low3 = lows[index + 1]
+        high1 = highs[index - 2]
+        low3 = lows[index]
 
         gap = low3 - high1
-
         if gap <= 0:
             return False
 
-        # Check gap size constraints
         if gap < self.min_gap_size or gap > self.max_gap_size:
             return False
 
@@ -180,22 +179,19 @@ class FVGDetector:
         index: int,
     ) -> bool:
         """
-        Check if index forms a bearish FVG pattern.
-        Pattern: high[i+1] < low[i-1] (gap between candle 3 and candle 1).
+        Check if index (third candle) forms a bearish FVG pattern (causal).
+        Pattern: high[i] < low[i-2] (gap between candle 3 and candle 1).
         """
-        if index < 1 or index >= len(highs) - 1:
+        if index < 2 or index >= len(highs):
             return False
 
-        # Candle indices: i-1 (first), i (middle), i+1 (third)
-        low1 = lows[index - 1]
-        high3 = highs[index + 1]
+        low1 = lows[index - 2]
+        high3 = highs[index]
 
         gap = low1 - high3
-
         if gap <= 0:
             return False
 
-        # Check gap size constraints
         if gap < self.min_gap_size or gap > self.max_gap_size:
             return False
 
@@ -217,9 +213,9 @@ class FVGDetector:
         # Timestamp
         fvg.timestamp = datetime.fromtimestamp(timestamps[index].astype("datetime64[s]").astype(int))
 
-        # Gap boundaries
-        fvg.lower_level = float(highs[index - 1])
-        fvg.upper_level = float(lows[index + 1])
+        # Gap boundaries (candles: index-2 is first, index is third)
+        fvg.lower_level = float(highs[index - 2])
+        fvg.upper_level = float(lows[index])
         fvg.mid_level = float((fvg.upper_level + fvg.lower_level) / 2)
         fvg.optimal_entry = float(fvg.lower_level + (fvg.upper_level - fvg.lower_level) * 0.618)  # 61.8% Fib
 
@@ -274,9 +270,9 @@ class FVGDetector:
         # Timestamp
         fvg.timestamp = datetime.fromtimestamp(timestamps[index].astype("datetime64[s]").astype(int))
 
-        # Gap boundaries
-        fvg.upper_level = float(lows[index - 1])
-        fvg.lower_level = float(highs[index + 1])
+        # Gap boundaries (candles: index-2 is first, index is third)
+        fvg.upper_level = float(lows[index - 2])
+        fvg.lower_level = float(highs[index])
         fvg.mid_level = float((fvg.upper_level + fvg.lower_level) / 2)
         fvg.optimal_entry = float(fvg.upper_level - (fvg.upper_level - fvg.lower_level) * 0.618)  # 61.8% Fib
 
@@ -333,20 +329,18 @@ class FVGDetector:
         index: int,
         bullish: bool,
     ) -> float:
-        """Calculate displacement after FVG formation."""
-        max_displacement = 0.0
+        """Calculate displacement for a confirmed FVG (causal).
 
-        # Check next 5 candles
-        for i in range(index + 1, min(index + 6, len(closes))):
-            if bullish:
-                displacement = closes[i] - closes[index]
-            else:
-                displacement = closes[index] - closes[i]
+        We define displacement as the net move from candle 1 to candle 3.
+        """
+        first_index = index - 2
+        if first_index < 0:
+            return 0.0
 
-            if displacement > max_displacement:
-                max_displacement = displacement
+        if bullish:
+            return float(max(0.0, closes[index] - closes[first_index]))
 
-        return float(max_displacement)
+        return float(max(0.0, closes[first_index] - closes[index]))
 
     def _check_volume_spike(
         self,

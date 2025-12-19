@@ -62,6 +62,7 @@ DAILY_DD_TIERS = [
 ]
 
 # Total DD Tiers (from high-water mark)
+# NOTE: Project non-negotiable: hard block at trailing DD >= 4.0%.
 TOTAL_DD_TIERS = [
     DDTier(3.0, DDAction.WARNING, "[!]",
            "Revisar estratégia geral, reduzir daily DD limit para 2.5%",
@@ -69,12 +70,9 @@ TOTAL_DD_TIERS = [
     DDTier(3.5, DDAction.REDUCE, "[!]",
            "Daily DD limit reduzido para 2.0%, apenas A+ setups",
            "30% de buffer restante - trading altamente seletivo"),
-    DDTier(4.0, DDAction.STOP_NEW, "[!!]",
-           "Daily DD limit reduzido para 1.0%, apenas perfect setups",
-           "20% de buffer restante - risco extremo de terminação"),
-    DDTier(4.5, DDAction.HALT_ALL, "[!!!]",
-           "HALT all trading immediately, revisar o que deu errado",
-           "10% de buffer restante - um dia ruim = conta terminada"),
+    DDTier(4.0, DDAction.HALT_ALL, "[!!]",
+           "HALT all trading immediately (safety buffer before Apex limit)",
+           "Hard-block at 4.0% to avoid Apex termination risk"),
     DDTier(5.0, DDAction.TERMINATED, "[X]",
            "ACCOUNT TERMINATED by Apex Trading - sem apelação",
            "Limite Apex atingido - falha total de risk management"),
@@ -218,10 +216,17 @@ class DDProtectionCalculator:
         daily_action = daily_tier_obj.action if daily_tier_idx >= 0 else DDAction.NONE
         total_action = total_tier_obj.action if total_tier_idx >= 0 else DDAction.NONE
 
-        # Determine trading permissions
-        can_trade = daily_action != DDAction.TERMINATED and total_action != DDAction.TERMINATED
-        can_open_new = daily_action not in (DDAction.STOP_NEW, DDAction.EMERGENCY_HALT, DDAction.HALT_ALL, DDAction.TERMINATED)
-        can_open_new = can_open_new and total_action not in (DDAction.HALT_ALL, DDAction.TERMINATED)
+        # Determine trading permissions (fail-safe)
+        can_trade = daily_action not in (DDAction.EMERGENCY_HALT, DDAction.HALT_ALL, DDAction.TERMINATED) and total_action not in (
+            DDAction.HALT_ALL,
+            DDAction.TERMINATED,
+        )
+        can_open_new = daily_action not in (
+            DDAction.STOP_NEW,
+            DDAction.EMERGENCY_HALT,
+            DDAction.HALT_ALL,
+            DDAction.TERMINATED,
+        ) and total_action not in (DDAction.STOP_NEW, DDAction.HALT_ALL, DDAction.TERMINATED)
 
         # Position size factor
         if daily_action == DDAction.REDUCE or total_action == DDAction.REDUCE:
@@ -279,13 +284,14 @@ class DDProtectionCalculator:
         if not dd_state.can_open_new:
             return False, f"New positions blocked: Daily DD {dd_state.daily_dd_pct:.2f}%, Total DD {dd_state.total_dd_pct:.2f}%"
 
-        # PRIORITY 1: Check if proposed risk would breach total DD emergency threshold (4.5%)
-        # This check comes FIRST because it's the most severe (account termination risk)
+        # PRIORITY 1: Hard-block before Apex trailing DD limit (project buffer at 4.0%).
         potential_total_dd = dd_state.total_dd_pct + proposed_risk_pct
-        if potential_total_dd > 4.5:
-            return False, (f"Trade would risk Apex termination: "
-                          f"Current {dd_state.total_dd_pct:.2f}% + Risk {proposed_risk_pct:.2f}% = {potential_total_dd:.2f}% "
-                          f"> Emergency threshold 4.5%")
+        if potential_total_dd >= 4.0:
+            return False, (
+                f"Trade would breach trailing DD safety buffer: "
+                f"Current {dd_state.total_dd_pct:.2f}% + Risk {proposed_risk_pct:.2f}% = {potential_total_dd:.2f}% "
+                f">= 4.0%"
+            )
 
         # PRIORITY 2: Check if proposed risk would exceed dynamic daily limit
         potential_daily_dd = dd_state.daily_dd_pct + proposed_risk_pct

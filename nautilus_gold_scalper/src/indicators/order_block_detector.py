@@ -111,22 +111,26 @@ class OrderBlockDetector:
         # Calculate average volume if provided
         avg_volume = float(np.mean(volumes)) if volumes is not None else None
 
-        # Scan for order blocks (skip edges)
-        for i in range(5, n - 5):
-            # Check for bullish order block
+        # Scan for order blocks causally (no future bars).
+        # We confirm an OB only once the immediate displacement candle is present.
+        # Candidate OB candle is (i - 1); displacement candle is i.
+        for i in range(6, n):
+            ob_index = i - 1
+
+            # Check for bullish order block confirmed by the displacement candle at i
             if self._is_bullish_ob_pattern(opens, highs, lows, closes, i):
                 ob = self._create_bullish_ob(
-                    opens, highs, lows, closes, volumes, timestamps, i, avg_volume
+                    opens, highs, lows, closes, volumes, timestamps, ob_index, avg_volume
                 )
                 if ob and self._validate_ob(ob):
                     self._order_blocks.append(ob)
                     if len(self._order_blocks) >= self.max_order_blocks:
                         break
 
-            # Check for bearish order block
+            # Check for bearish order block confirmed by the displacement candle at i
             if self._is_bearish_ob_pattern(opens, highs, lows, closes, i):
                 ob = self._create_bearish_ob(
-                    opens, highs, lows, closes, volumes, timestamps, i, avg_volume
+                    opens, highs, lows, closes, volumes, timestamps, ob_index, avg_volume
                 )
                 if ob and self._validate_ob(ob):
                     self._order_blocks.append(ob)
@@ -139,24 +143,9 @@ class OrderBlockDetector:
         # Sort by probability score (best first)
         self._order_blocks.sort(key=lambda x: x.probability_score, reverse=True)
 
-        # Fallback: if none detected, create synthetic OB at last candle
-        if not self._order_blocks and n >= 1:
-            ob = OrderBlock(
-                timestamp=datetime.now(),
-                high_price=float(highs[-1]),
-                low_price=float(lows[-1]),
-                refined_entry=float((highs[-1] + lows[-1]) / 2),
-                ob_type=OrderBlockType.OB_BULLISH,
-                state=OrderBlockState.OB_STATE_ACTIVE,
-                quality=OrderBlockQuality.OB_QUALITY_MEDIUM,
-                direction=SignalType.SIGNAL_BUY,
-                strength=1.0,
-                volume_ratio=1.0,
-                displacement_size=float(abs(highs[-1] - lows[-1])),
-                probability_score=1.0,
-                confluence_score=1.0,
-            )
-            self._order_blocks.append(ob)
+        # NOTE: no synthetic fallback here.
+        # Returning fabricated order blocks is unsafe for backtests and can mask
+        # detector misconfiguration.
 
         return self._order_blocks
 
@@ -179,33 +168,29 @@ class OrderBlockDetector:
         closes: NDArray[np.floating[Any]],
         index: int,
     ) -> bool:
-        """Check if index forms a bullish OB pattern."""
-        if index < 3 or index >= len(closes) - 5:
+        """Check if index confirms a bullish OB pattern (causal)."""
+        ob_index = index - 1
+        if ob_index < 3 or index >= len(closes):
             return False
 
-        # Must be a bearish candle (down)
-        current_body = closes[index] - opens[index]
-        if current_body >= 0:
+        # OB candle (previous) must be bearish
+        ob_body = closes[ob_index] - opens[ob_index]
+        if ob_body >= 0:
             return False
 
-        # Check for displacement after this candle
-        next_displacement = 0.0
-        for j in range(index + 1, min(index + 6, len(closes))):
-            if closes[j] > highs[index]:
-                next_displacement = closes[j] - highs[index]
-                break
-
-        if next_displacement < self.displacement_threshold:
+        # Displacement candle (current) must close above OB high
+        displacement = closes[index] - highs[ob_index]
+        if displacement <= 0:
             return False
 
-        # Require meaningful body size
-        total_range = highs[index] - lows[index]
-        if total_range <= 0 or abs(current_body) < total_range * 0.5:
+        # OB must have meaningful body size
+        total_range = highs[ob_index] - lows[ob_index]
+        if total_range <= 0 or abs(ob_body) < total_range * 0.5:
             return False
 
-        # Check body size vs average
-        avg_body = self._calculate_avg_body_size(opens, closes, index, 10)
-        if abs(current_body) < avg_body * 1.5:
+        # OB body size vs trailing average (no future bars)
+        avg_body = self._calculate_avg_body_size(opens, closes, ob_index, 10)
+        if abs(ob_body) < avg_body * 1.5:
             return False
 
         return True
@@ -218,33 +203,29 @@ class OrderBlockDetector:
         closes: NDArray[np.floating[Any]],
         index: int,
     ) -> bool:
-        """Check if index forms a bearish OB pattern."""
-        if index < 3 or index >= len(closes) - 5:
+        """Check if index confirms a bearish OB pattern (causal)."""
+        ob_index = index - 1
+        if ob_index < 3 or index >= len(closes):
             return False
 
-        # Must be a bullish candle (up)
-        current_body = opens[index] - closes[index]
-        if current_body >= 0:
+        # OB candle (previous) must be bullish
+        ob_body = closes[ob_index] - opens[ob_index]
+        if ob_body <= 0:
             return False
 
-        # Check for displacement after this candle
-        next_displacement = 0.0
-        for j in range(index + 1, min(index + 6, len(closes))):
-            if closes[j] < lows[index]:
-                next_displacement = lows[index] - closes[j]
-                break
-
-        if next_displacement < self.displacement_threshold:
+        # Displacement candle (current) must close below OB low
+        displacement = lows[ob_index] - closes[index]
+        if displacement <= 0:
             return False
 
-        # Require meaningful body size
-        total_range = highs[index] - lows[index]
-        if total_range <= 0 or abs(current_body) < total_range * 0.5:
+        # OB must have meaningful body size
+        total_range = highs[ob_index] - lows[ob_index]
+        if total_range <= 0 or abs(ob_body) < total_range * 0.5:
             return False
 
-        # Check body size vs average
-        avg_body = self._calculate_avg_body_size(opens, closes, index, 10)
-        if abs(current_body) < avg_body * 1.5:
+        # OB body size vs trailing average (no future bars)
+        avg_body = self._calculate_avg_body_size(opens, closes, ob_index, 10)
+        if abs(ob_body) < avg_body * 1.5:
             return False
 
         return True
@@ -351,7 +332,7 @@ class OrderBlockDetector:
 
     def _validate_ob(self, ob: OrderBlock) -> bool:
         """Validate order block meets minimum requirements."""
-        if ob.strength < 60.0:
+        if ob.strength < 45.0:
             return False
         if ob.probability_score < 70.0:
             return False
@@ -367,19 +348,15 @@ class OrderBlockDetector:
         index: int,
         bullish: bool,
     ) -> float:
-        """Calculate displacement size after OB formation."""
-        max_displacement = 0.0
+        """Calculate displacement size for a confirmed OB (causal)."""
+        displacement_index = index + 1
+        if displacement_index >= len(closes):
+            return 0.0
 
-        for i in range(index + 1, min(index + 6, len(closes))):
-            if bullish:
-                displacement = closes[i] - closes[index]
-            else:
-                displacement = closes[index] - closes[i]
+        if bullish:
+            return float(max(0.0, closes[displacement_index] - highs[index]))
 
-            if displacement > max_displacement:
-                max_displacement = displacement
-
-        return float(max_displacement)
+        return float(max(0.0, lows[index] - closes[displacement_index]))
 
     def _calculate_volume_ratio(
         self,
@@ -414,7 +391,7 @@ class OrderBlockDetector:
 
         # Displacement contribution (max 30)
         disp_pips = ob.displacement_size / (self.point * 10)
-        strength += min(disp_pips / 10, 30.0)
+        strength += min(disp_pips, 30.0)
 
         # Volume contribution (max 20)
         strength += min(ob.volume_ratio * 10, 20.0)
@@ -448,6 +425,14 @@ class OrderBlockDetector:
             quality_score += 15.0
         elif ob.volume_ratio > 1.2:
             quality_score += 10.0
+
+        # Displacement must be meaningful (causal measurement yields smaller values than forward scan)
+        if disp_pips >= 30:
+            quality_score += 15.0
+        elif disp_pips >= 20:
+            quality_score += 10.0
+        elif disp_pips >= 10:
+            quality_score += 5.0
 
         # Institutional bonus
         if ob.is_institutional:

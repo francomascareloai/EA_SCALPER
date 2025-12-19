@@ -69,12 +69,13 @@ class TestApexCompliance:
             allow_overnight=False,
         )
 
-        # Test: Before cutoff (4:30 PM ET)
+        # Test: Before cutoff (4:30 PM ET) - trading may continue, but new entries are blocked.
         et_tz = ZoneInfo("America/New_York")
         dt_before = datetime(2025, 12, 7, 16, 30, 0, tzinfo=et_tz)
         ts_before_ns = int(dt_before.timestamp() * 1e9)
 
         assert time_mgr.check(ts_before_ns), "Trading should be allowed before 4:59 PM ET"
+        assert time_mgr.can_open_new(ts_before_ns) is False, "New trades must be blocked after 4:30 PM ET"
 
         # Test: At cutoff (4:59 PM ET)
         dt_cutoff = datetime(2025, 12, 7, 16, 59, 0, tzinfo=et_tz)
@@ -141,11 +142,12 @@ class TestApexCompliance:
         prop_mgr.update_equity(105_000.0)
         assert prop_mgr._high_water == 105_000.0, "HWM should update when equity increases"
 
-        # Test: Equity drops to $100.2k (4.8k loss from HWM = 4.57% DD - below 5%)
+        # Test: Equity drops to $100.2k (4.8k loss from HWM = 4.57% DD)
+        # Project hard-blocks at trailing DD >= 4.0% as safety buffer before Apex 5%.
         prop_mgr.update_equity(100_200.0)
         state = prop_mgr.get_state()
         assert state.trailing_dd_current == 4_800.0, "Trailing DD should be $4.8k"
-        assert state.is_trading_allowed, "Trading allowed at 4.57% DD (below 5%)"
+        assert not state.is_trading_allowed, "Trading must be blocked at 4.57% trailing DD (>= 4.0% safety buffer)"
 
         # Test: Equity drops to $99.75k (5.25k loss from HWM = 5% DD - BREACHED)
         prop_mgr.update_equity(99_750.0)

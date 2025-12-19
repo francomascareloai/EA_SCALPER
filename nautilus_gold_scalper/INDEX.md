@@ -2,16 +2,16 @@
 
 **Owner:** FORGE  
 **Scope:** Python/NautilusTrader migration of EA_SCALPER_XAUUSD  
-**Last update:** 2025-12-03
-**Last update:** 2025-12-11
+**Last update:** 2025-12-18
 ## Directory Map (high level)
 - `configs/` – central strategy config (`strategy_config.yaml`)
+- `configs/strategy_config_apex_mgc.yaml` – Apex/MGC profile (TrendFollow + router enabled; commented)
 - `scripts/` – runners (`run_backtest.py`, future batch/optuna hooks)
 - `src/core/` – enums, constants, datatypes, exceptions
 - `src/indicators/` – regime, structure, footprint, OB/FVG, sweeps, AMD, MTF
-- `src/signals/` – confluence (GENIUS v4.2), news, entry optimizer, MTF manager
+- `src/signals/` – confluence (GENIUS v4.2), news, entry optimizer, MTF manager, TrendFollow candidates
 - `src/risk/` – prop-firm manager, position sizer, spread monitor, circuit breaker, drawdown/VaR
-- `src/strategies/` – base & gold strategy, selector
+- `src/strategies/` – base & gold strategy, selector, adaptive router
 - `src/ml/` – feature engineering, trainer, ensemble predictor
 - `src/execution/` – trade manager (needs test fix), adapters archive
 - `tests/` – unit coverage per module family
@@ -25,10 +25,14 @@
 - `README.md` – Project overview + quick start
 - `*.md` (other) – Implementation notes, migration summaries
 
+## Local NautilusTrader reference (offline)
+- `external/nautilus_trader/` – symlink to a full NautilusTrader clone (docs + examples + source) for fast local lookup without MCP/web.
+
 ## Current State (backtesting realism)
 - Tick-first Nautilus runner (`scripts/run_backtest.py`): auto-detects tick files under `Python_Agent_Hub/ml_pipeline/data`, converts to `QuoteTick`, aggregates to M5 bars, defaults to all ticks (sample=1), execution threshold 70.
 - Prop/FTMO risk tightened: intrabar mark-to-market + `DrawdownTracker` enforcing daily/total DD; auto-halt + flatten on breach; daily reset wired.
 - News-aware: `GoldScalperStrategy` now gates signals with `NewsCalendar` (blocking CRITICAL/HIGH windows, score penalty, size multiplier).
+- TrendFollow added (optional): pullback + breakout candidates; optional EV router selects between SMC vs TrendFollow by EV (R-multiples) with DD penalties (Apex-first).
 - Footprint thresholds rebalanced (strong-signal threshold 60) to align with tests; still feeds confluence.
 - MT5/Ninja adapters stubbed (`src/execution/mt5_adapter.py`, `ninjatrader_adapter.py`) plus base offline adapter.
 - All Python tests green: `python -m pytest tests` (183 passed).

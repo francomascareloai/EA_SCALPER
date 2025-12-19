@@ -28,6 +28,45 @@
 
 ---
 
+## 2025-12-18 19:27 (FORGE)
+
+### ⚙️ CONFIG: Local NautilusTrader docs via symlink
+
+**What:** Added `external/nautilus_trader` symlink workflow (git-ignored) as the preferred, offline NautilusTrader reference (docs + examples + source).
+**Why:** Reduce dependence on heavy MCP doc pulls and avoid web/network coupling while keeping usage patterns accurate via official examples.
+**Impact:** Agents should search local Nautilus repo first (`external/nautilus_trader/docs`, `external/nautilus_trader/examples`) before falling back to MCP/web; repo stays clean because `external/` is ignored.
+**Files:**
+- `.gitignore`
+- `CLAUDE.md`
+- `AGENTS.md`
+- `nautilus_gold_scalper/INDEX.md`
+
+**Validation:** `external/nautilus_trader/docs` accessible; symlink present; git ignores `external/`.
+**Commit:** pending
+
+---
+
+## 2025-12-18 22:10 (FORGE)
+
+### ✨ FEATURE (Apex-first): TrendFollow + Adaptive EV Router
+
+**What:** Added optional TrendFollow candidate generation (pullback + breakout) and optional adaptive router (contextual bandit) selecting between SMC vs TrendFollow by EV (R-multiples) with DD penalties.  
+**Why:** Enable multi-candidate selection optimized for Apex-style consistency (maximize EV with explicit DD penalty) without changing default behavior unless enabled in config.  
+**Impact:** `GoldScalperStrategy` can (optionally) trade TrendFollow candidates and/or use the router to select the best mode per (session, regime, vol bucket); updates only on realized close (no look-ahead).  
+**Files:**
+- `src/signals/trend_follow.py`
+- `src/strategies/adaptive_router.py`
+- `src/strategies/gold_scalper_strategy.py`
+- `scripts/backtest/run_backtest.py`
+- `configs/strategy_config_apex_mgc.yaml`
+- `tests/test_signals/test_trend_follow.py`
+- `tests/test_strategies/test_adaptive_router.py`
+
+**Validation:** `pytest -q` passing (warnings only).  
+**Commit:** pending
+
+---
+
 ## 2025-12-08 19:00 (FORGE)
 
 ### 🚨 CRITICAL SECURITY UPDATE

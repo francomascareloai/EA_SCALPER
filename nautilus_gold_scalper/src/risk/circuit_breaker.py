@@ -107,8 +107,8 @@ class CircuitBreaker:
     LEVEL_1_LOSSES = 3      # Consecutive losses for Level 1
     LEVEL_2_LOSSES = 5      # Consecutive losses for Level 2
     LEVEL_3_DD = 3.0        # Daily DD % for Level 3
-    LEVEL_4_DD = 4.0        # Daily DD % for Level 4
-    LEVEL_5_DD = 4.5        # Daily DD % for Level 5
+    LEVEL_4_DD = 4.0        # Total (trailing) DD % for Level 4
+    LEVEL_5_DD = 4.5        # Total (trailing) DD % for Level 5
 
     # Cooldown durations (minutes)
     LEVEL_1_COOLDOWN = 5
@@ -383,21 +383,21 @@ class CircuitBreaker:
         if self._state.level == CircuitBreakerLevel.LEVEL_5_LOCKDOWN:
             return
 
-        # Check Level 5: DD > 4.5%
-        if self._state.daily_dd_percent >= self.LEVEL_5_DD:
+        # Check Level 5: trailing (total) DD >= 4.5%
+        if self._state.total_dd_percent >= self.LEVEL_5_DD:
             self._escalate_to_level(
                 CircuitBreakerLevel.LEVEL_5_LOCKDOWN,
-                f"Daily DD {self._state.daily_dd_percent:.2f}% exceeded {self.LEVEL_5_DD}% - LOCKDOWN",
+                f"Total DD {self._state.total_dd_percent:.2f}% exceeded {self.LEVEL_5_DD}% - LOCKDOWN",
                 now=now,
             )
             return
 
-        # Check Level 4: DD > 4%
-        if self._state.daily_dd_percent >= self.LEVEL_4_DD:
+        # Check Level 4: trailing (total) DD >= 4.0%
+        if self._state.total_dd_percent >= self.LEVEL_4_DD:
             if self._state.level < CircuitBreakerLevel.LEVEL_4_CRITICAL:
                 self._escalate_to_level(
                     CircuitBreakerLevel.LEVEL_4_CRITICAL,
-                    f"Daily DD {self._state.daily_dd_percent:.2f}% exceeded {self.LEVEL_4_DD}% - Trading suspended until next day",
+                    f"Total DD {self._state.total_dd_percent:.2f}% exceeded {self.LEVEL_4_DD}% - Trading suspended until next day",
                     now=now,
                 )
             return

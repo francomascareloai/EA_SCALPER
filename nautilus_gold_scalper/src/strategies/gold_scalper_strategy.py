@@ -16,6 +16,7 @@ from typing import Any, Literal, cast
 
 import numpy as np
 from nautilus_trader.model import Bar, QuoteTick
+from nautilus_trader.model.events import PositionClosed, PositionOpened
 from nautilus_trader.model.objects import Quantity
 from numpy.typing import NDArray
 
@@ -65,6 +66,12 @@ from ..risk.prop_firm_manager import PropFirmManager
 from ..risk.spread_monitor import SpreadMonitor
 from ..risk.time_constraint_manager import TimeConstraintManager
 from ..signals.confluence_scorer import ConfluenceScorer
+from ..signals.trend_follow import (
+    TrendDirection,
+    TrendFollowCandidate,
+    TrendFollowVariant,
+    generate_trend_follow_candidates,
+)
 
 # Import signal generators
 from ..signals.mtf_manager import MTFManager
@@ -72,6 +79,8 @@ from ..signals.news_calendar import NewsCalendar, NewsTradeAction
 from ..utils.metrics import MetricsCalculator, PerformanceMetrics
 from ..utils.telemetry import TelemetrySink
 from .base_strategy import BaseGoldStrategy, BaseStrategyConfig
+from .adaptive_router import AdaptiveEVRouter, RouterArm, RouterContext
+from .adaptive_router import Candidate as RouterCandidate
 from .strategy_selector import MarketContext, StrategySelector, StrategyType
 
 logger = logging.getLogger(__name__)
@@ -93,6 +102,18 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     aggressive_mode: bool = False
     use_footprint_boost: bool = True
     use_bandit_context: bool = False
+
+    # TrendFollow (optional; disabled by default)
+    enable_trend_follow: bool = False
+    enable_trend_pullback: bool = True
+    enable_trend_breakout: bool = True
+
+    # Adaptive EV router (optional; disabled by default)
+    router_adaptive_ev: bool = False
+    router_min_trades_to_trust: int = 30
+    router_score_weight: float = 0.10
+    router_dd_penalty_total: float = 0.20
+    router_dd_penalty_daily: float = 0.10
 
     # Session filter tuning (GMT-based)
     session_broker_gmt_offset: int = 0
@@ -310,6 +331,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._last_cb_level: int | None = None
         self._telemetry: TelemetrySink | None = None
 
+        # Adaptive router attribution (optional)
+        self._router: AdaptiveEVRouter | None = None
+        self._last_entry_meta: dict[str, object] | None = None
+        self._trade_meta_by_pos: dict[str, dict[str, object]] = {}
 
         # Performance metrics tracking
         self._trade_pnl_history: list[float] = []
@@ -590,6 +615,16 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 entropy_high_threshold=float(getattr(self.config, "selector_entropy_high_threshold", 2.5)),
             )
 
+        # Adaptive router (EV w/ DD penalty) - optional
+        if bool(getattr(self.config, "router_adaptive_ev", False)):
+            self._router = AdaptiveEVRouter(
+                seed=1337,
+                min_trades_to_trust=int(getattr(self.config, "router_min_trades_to_trust", 30)),
+                score_weight=float(getattr(self.config, "router_score_weight", 0.10)),
+                dd_penalty_total=float(getattr(self.config, "router_dd_penalty_total", 0.20)),
+                dd_penalty_daily=float(getattr(self.config, "router_dd_penalty_daily", 0.10)),
+            )
+
         # HBS (Human Behavior Simulator) initialization
         if getattr(self.config, 'hbs_enabled', True):
             try:
@@ -671,6 +706,69 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         self.log.info("All critical analyzers validated successfully")
         return True
+
+    def on_position_opened(self, event: PositionOpened) -> None:
+        super().on_position_opened(event)
+        if self._router is None:
+            self._last_entry_meta = None
+            return
+        if self._last_entry_meta is None:
+            return
+        try:
+            pos_id = str(getattr(event, "position_id", ""))
+            if pos_id:
+                self._trade_meta_by_pos[pos_id] = dict(self._last_entry_meta)
+        finally:
+            self._last_entry_meta = None
+
+    def on_position_closed(self, event: PositionClosed) -> None:
+        if self._router is None:
+            super().on_position_closed(event)
+            return
+        pos_id = str(getattr(event, "position_id", ""))
+        meta = self._trade_meta_by_pos.pop(pos_id, None)
+        equity_before = float(getattr(self, "_equity_base", 0.0))
+        super().on_position_closed(event)
+        if meta is None:
+            return
+        try:
+            equity_after = float(getattr(self, "_equity_base", equity_before))
+            net_pnl = equity_after - equity_before
+            risk_usd_raw = meta.get("risk_usd", 0.0)
+            risk_usd = float(risk_usd_raw) if isinstance(risk_usd_raw, (int, float)) else 0.0
+            if risk_usd <= 0.0:
+                return
+            reward_r = float(net_pnl / risk_usd)
+
+            arm_raw = meta.get("arm")
+            if not isinstance(arm_raw, str):
+                return
+            try:
+                arm = RouterArm(arm_raw)
+            except Exception:
+                return
+
+            ctx_raw = meta.get("ctx")
+            if not isinstance(ctx_raw, tuple) or len(ctx_raw) != 3:
+                return
+            ctx = RouterContext(session=str(ctx_raw[0]), regime=str(ctx_raw[1]), vol_bucket=int(ctx_raw[2]))
+
+            if self._router:
+                self._router.update(ctx=ctx, arm=arm, reward_r=reward_r)
+
+            if self._telemetry:
+                self._telemetry.emit(
+                    "router_update",
+                    {
+                        "arm": arm.value,
+                        "reward_r": reward_r,
+                        "net_pnl": net_pnl,
+                        "risk_usd": risk_usd,
+                        "ctx": {"session": ctx.session, "regime": ctx.regime, "vol_bucket": ctx.vol_bucket},
+                    },
+                )
+        except Exception:
+            self.log.debug("[ROUTER] post-close update failed", exc_info=True)
 
     def _check_daily_reset(self, timestamp_ns: int) -> None:
         """
@@ -879,13 +977,13 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     })
                 return
 
-        # Apex cutoff / overnight guard (block new trades after cutoff)
+        # Apex entry gate (block new trades after 4:30 PM ET)
         # Only apply if prop_firm_enabled - allows backtest without time constraints
-        if self.config.prop_firm_enabled and self._time_manager and not self._time_manager.check(bar.ts_event):
+        if self.config.prop_firm_enabled and self._time_manager and not self._time_manager.can_open_new(bar.ts_event):
             if should_log:
-                self.log.info("[SIGNAL_CHECK] Time manager BLOCKED (apex cutoff or outside hours)")
+                self.log.info("[SIGNAL_CHECK] Time manager entry gate BLOCKED (after 4:30 PM ET)")
             if self._telemetry:
-                self._telemetry.emit("signal_reject", {"reason": "time_cutoff", "bar": len(self._ltf_bars)})
+                self._telemetry.emit("signal_reject", {"reason": "time_gate_entry", "bar": len(self._ltf_bars)})
             return
         # Check blocked_today flag (only relevant when prop_firm_enabled)
         if self.config.prop_firm_enabled and getattr(self, "_trading_blocked_today", False):
@@ -1044,55 +1142,169 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     self._telemetry.emit("signal_reject", {"reason": "htf_ranging", "bar": len(self._ltf_bars)})
                 return
 
-        # Calculate confluence score
+        # Calculate confluence score (SMC candidate)
         if should_log:
             self.log.info(f"[SIGNAL_CHECK] Calculating confluence at bar {len(self._ltf_bars)}...")
         confluence_result = self._calculate_confluence(bar)
 
-        if confluence_result is None:
+        news_score_adj = news_window.score_adjustment if news_window else 0
+        effective_score = (confluence_result.total_score + news_score_adj + spread_score_adj) if confluence_result else 0.0
+
+        # Optional TrendFollow candidates (pullback + breakout)
+        trend_candidates: list[TrendFollowCandidate] = []
+        if bool(getattr(self.config, "enable_trend_follow", False)):
+            try:
+                inst = self.instrument
+                tick_size = float(inst.price_increment.as_double()) if inst else float(XAUUSD_POINT)
+                atr = float(self._get_current_atr())
+                atr_p = float(self._get_atr_percentile())
+                closes = np.array([b.close.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
+                highs = np.array([b.high.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
+                lows = np.array([b.low.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
+                trend_candidates = generate_trend_follow_candidates(
+                    closes=closes,
+                    highs=highs,
+                    lows=lows,
+                    tick_size=tick_size,
+                    atr=atr,
+                    atr_percentile=atr_p,
+                    min_score=float(self.config.execution_threshold),
+                )
+                if not bool(getattr(self.config, "enable_trend_pullback", True)):
+                    trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.PULLBACK]
+                if not bool(getattr(self.config, "enable_trend_breakout", True)):
+                    trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.BREAKOUT]
+            except Exception as exc:
+                self.log.debug(f"[TREND] candidate gen failed: {exc}")
+                trend_candidates = []
+
+        if confluence_result is None and not trend_candidates:
             if should_log:
                 self.log.info("[SIGNAL_CHECK] Confluence returned None (insufficient data or error)")
             if self._telemetry:
                 self._telemetry.emit("signal_reject", {"reason": "confluence_none", "bar": len(self._ltf_bars)})
             return
 
-        news_score_adj = news_window.score_adjustment if news_window else 0
-        effective_score = confluence_result.total_score + news_score_adj + spread_score_adj
-
-        # ALWAYS log score calculation (critical for debugging)
-        self.log.info(
-            f"[SCORE] Bar {len(self._ltf_bars)}: base={confluence_result.total_score:.1f}, "
-            f"news={news_score_adj:+.1f}, spread={spread_score_adj:+.1f}, "
-            f"effective={effective_score:.1f}, signal={confluence_result.direction.name}, "
-            f"threshold={self.config.execution_threshold}"
-        )
-        if self._telemetry:
-            self._telemetry.emit("score_calculated", {
-                "bar": len(self._ltf_bars),
-                "base_score": confluence_result.total_score,
-                "news_adj": news_score_adj,
-                "spread_adj": spread_score_adj,
-                "effective_score": effective_score,
-                "signal": confluence_result.direction.name,
-                "threshold": self.config.execution_threshold
-            })
+        # ALWAYS log score calculation (critical for debugging) when SMC exists
+        if confluence_result is not None:
+            self.log.info(
+                f"[SCORE] Bar {len(self._ltf_bars)}: base={confluence_result.total_score:.1f}, "
+                f"news={news_score_adj:+.1f}, spread={spread_score_adj:+.1f}, "
+                f"effective={effective_score:.1f}, signal={confluence_result.direction.name}, "
+                f"threshold={self.config.execution_threshold}"
+            )
+            if self._telemetry:
+                self._telemetry.emit(
+                    "score_calculated",
+                    {
+                        "bar": len(self._ltf_bars),
+                        "base_score": confluence_result.total_score,
+                        "news_adj": news_score_adj,
+                        "spread_adj": spread_score_adj,
+                        "effective_score": effective_score,
+                        "signal": confluence_result.direction.name,
+                        "threshold": self.config.execution_threshold,
+                    },
+                )
 
         self._last_confluence = confluence_result
 
-        # Check if score meets threshold
-        if effective_score < self.config.execution_threshold:
-            self.log.info(f"[SIGNAL_CHECK] Score {effective_score:.1f} BELOW threshold {self.config.execution_threshold}")
+        # Router/deterministic selection: choose between SMC and TrendFollow variants
+        selected_arm: RouterArm = RouterArm.SMC
+        selected_score: float = float(effective_score)
+        selected_trend: TrendFollowCandidate | None = None
+
+        # Deterministic fallback (if router disabled)
+        if trend_candidates:
+            best = max(
+                trend_candidates,
+                key=lambda c: (float(c.score), 1 if c.variant == TrendFollowVariant.PULLBACK else 0),
+            )
+            if confluence_result is None or float(best.score) > float(selected_score) + 1e-9:
+                selected_trend = best
+                selected_arm = RouterArm.TREND_PULLBACK if best.variant == TrendFollowVariant.PULLBACK else RouterArm.TREND_BREAKOUT
+                selected_score = float(best.score)
+
+        # Adaptive router selection (EV w/ DD penalty) - optional
+        if self._router:
+            try:
+                sess = self._current_session.session.name if self._current_session else "UNKNOWN"
+                reg = self._current_regime.regime.name if self._current_regime else "UNKNOWN"
+                vol_bucket = int(max(0.0, min(4.0, float(self._get_atr_percentile()) // 20.0)))
+                ctx = RouterContext(session=str(sess), regime=str(reg), vol_bucket=int(vol_bucket))
+
+                router_candidates: list[RouterCandidate] = []
+                if confluence_result is not None:
+                    router_candidates.append(RouterCandidate(arm=RouterArm.SMC, score=float(effective_score), meta={"kind": "smc"}))
+                for tc in trend_candidates:
+                    arm = RouterArm.TREND_PULLBACK if tc.variant == TrendFollowVariant.PULLBACK else RouterArm.TREND_BREAKOUT
+                    router_candidates.append(RouterCandidate(arm=arm, score=float(tc.score), meta={"kind": "trend"}))
+
+                sel = self._router.select(
+                    ctx=ctx,
+                    candidates=router_candidates,
+                    execution_threshold=float(self.config.execution_threshold),
+                    daily_dd_pct=float(self._drawdown_tracker.get_daily_drawdown_pct() if self._drawdown_tracker else 0.0),
+                    total_dd_pct=float(self._drawdown_tracker.get_total_drawdown_pct() if self._drawdown_tracker else 0.0),
+                    prefer=RouterArm.TREND_PULLBACK,
+                )
+                if sel is not None:
+                    selected_arm = sel.arm
+                    if selected_arm == RouterArm.SMC:
+                        selected_trend = None
+                        selected_score = float(effective_score)
+                    else:
+                        want = TrendFollowVariant.PULLBACK if selected_arm == RouterArm.TREND_PULLBACK else TrendFollowVariant.BREAKOUT
+                        selected_trend = max((c for c in trend_candidates if c.variant == want), key=lambda x: float(x.score), default=None)
+                        selected_score = float(selected_trend.score) if selected_trend else 0.0
+
+                    if self._telemetry:
+                        self._telemetry.emit(
+                            "router_select",
+                            {
+                                "arm": selected_arm.value,
+                                "utility": sel.utility,
+                                "reason": sel.reason,
+                                "sampled_ev": sel.sampled_ev,
+                                "dd_penalty": sel.dd_penalty,
+                                "ctx": {"session": ctx.session, "regime": ctx.regime, "vol_bucket": ctx.vol_bucket},
+                                "scores": {
+                                    "smc": float(effective_score) if confluence_result else None,
+                                    "trend_pullback": float(
+                                        max((c.score for c in trend_candidates if c.variant == TrendFollowVariant.PULLBACK), default=0.0)
+                                    ),
+                                    "trend_breakout": float(
+                                        max((c.score for c in trend_candidates if c.variant == TrendFollowVariant.BREAKOUT), default=0.0)
+                                    ),
+                                },
+                            },
+                        )
+            except Exception as exc:
+                self.log.debug(f"[ROUTER] selection failed: {exc}")
+
+        # Check if selected candidate meets threshold
+        if float(selected_score) < self.config.execution_threshold:
+            self.log.info(f"[SIGNAL_CHECK] Score {selected_score:.1f} BELOW threshold {self.config.execution_threshold}")
             if self._telemetry:
-                self._telemetry.emit("signal_reject", {
-                    "reason": "score_below_threshold",
-                    "score": effective_score,
-                    "threshold": self.config.execution_threshold,
-                    "bar": len(self._ltf_bars)
-                })
+                self._telemetry.emit(
+                    "signal_reject",
+                    {
+                        "reason": "score_below_threshold",
+                        "score": selected_score,
+                        "threshold": self.config.execution_threshold,
+                        "bar": len(self._ltf_bars),
+                    },
+                )
             return
 
-        # Determine signal direction
-        signal = confluence_result.direction
+        # Determine signal direction + (optional) precomputed SL distance
+        signal = SignalType.SIGNAL_NONE
+        sl_distance = 0.0
+        if selected_arm == RouterArm.SMC and confluence_result is not None:
+            signal = confluence_result.direction
+        elif selected_trend is not None:
+            signal = SignalType.SIGNAL_BUY if selected_trend.direction == TrendDirection.LONG else SignalType.SIGNAL_SELL
+            sl_distance = float(selected_trend.sl_distance)
 
         if signal == SignalType.SIGNAL_NONE:
             return
@@ -1115,7 +1327,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
                 # Make HBS decision
                 hbs_decision = self._hbs.decide(
-                    signal_score=effective_score,
+                    signal_score=float(selected_score),
                     current_time=bar_time,
                     current_atr=current_atr,
                     atr_percentile=atr_percentile,
@@ -1133,7 +1345,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     if self._telemetry:
                         self._telemetry.emit("hbs_skip", {
                             "reason": hbs_decision.skip_reason,
-                            "signal_score": effective_score,
+                            "signal_score": float(selected_score),
                             "bar": len(self._ltf_bars),
                             "total_skipped": self._hbs_signals_skipped
                         })
@@ -1154,7 +1366,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 hbs_decision = None
 
         # Calculate position size
-        sl_distance = self._calculate_sl_distance(bar, signal)
+        if sl_distance <= 0.0:
+            sl_distance = self._calculate_sl_distance(bar, signal)
 
         if sl_distance <= 0:
             return
@@ -1166,10 +1379,26 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         if quantity is None or float(quantity) <= 0:
             return
 
+        # Prop firm sizing/limits gate: validate_trade must pass before submitting any order.
+        if self.config.prop_firm_enabled and self._prop_firm:
+            qty_units = float(quantity.as_double()) if hasattr(quantity, "as_double") else float(quantity)
+            risk_usd = float(sl_distance) * qty_units * float(self._instrument_point_value_per_unit())
+            ok, reason = self._prop_firm.validate_trade(risk_amount=risk_usd, contracts=qty_units)
+            if not ok:
+                if should_log:
+                    self.log.info(f"[SIGNAL_CHECK] Prop firm validate_trade BLOCKED: {reason}")
+                if self._telemetry:
+                    self._telemetry.emit(
+                        "signal_reject",
+                        {"reason": "prop_firm_validate_trade", "detail": reason, "bar": len(self._ltf_bars)},
+                    )
+                return
+
         # Calculate SL and TP prices (tick/precision aware for spot vs futures)
         from decimal import Decimal
 
         current_price = bar.close.as_double()
+        mode_label = selected_arm.value
 
         if signal == SignalType.SIGNAL_BUY:
             # Use Decimal for precise price calculations
@@ -1182,11 +1411,29 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             tp_decimal = current_decimal + Decimal(str(tp_distance))
             tp_price = self._price_from_float(float(tp_decimal), rounding="floor")
 
-            self.log.info(
-                f"BUY Signal: Score={confluence_result.total_score:.1f}, "
-                f"Quality={confluence_result.quality.name}, "
-                f"SL={sl_price}, TP={tp_price}"
-            )
+            if confluence_result is not None and selected_arm == RouterArm.SMC:
+                self.log.info(
+                    f"BUY Signal: mode={mode_label} score={selected_score:.1f} "
+                    f"(smc_base={confluence_result.total_score:.1f}) "
+                    f"Quality={confluence_result.quality.name} "
+                    f"SL={sl_price}, TP={tp_price}"
+                )
+            else:
+                self.log.info(f"BUY Signal: mode={mode_label} score={selected_score:.1f} SL={sl_price}, TP={tp_price}")
+
+            if self._router:
+                qty_units = float(quantity.as_double()) if hasattr(quantity, "as_double") else float(quantity)
+                risk_usd = float(sl_distance) * qty_units * float(self._instrument_point_value_per_unit())
+                sess = self._current_session.session.name if self._current_session else "UNKNOWN"
+                reg = self._current_regime.regime.name if self._current_regime else "UNKNOWN"
+                vol_bucket = int(max(0.0, min(4.0, float(self._get_atr_percentile()) // 20.0)))
+                self._last_entry_meta = {
+                    "arm": selected_arm.value,
+                    "risk_usd": float(risk_usd),
+                    "ctx": (str(sess), str(reg), int(vol_bucket)),
+                    "score": float(selected_score),
+                    "variant": selected_trend.variant.value if selected_trend else None,
+                }
             self._enter_long(quantity, sl_price, tp_price)
 
         elif signal == SignalType.SIGNAL_SELL:
@@ -1200,11 +1447,29 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             tp_decimal = current_decimal - Decimal(str(tp_distance))
             tp_price = self._price_from_float(float(tp_decimal), rounding="ceil")
 
-            self.log.info(
-                f"SELL Signal: Score={confluence_result.total_score:.1f}, "
-                f"Quality={confluence_result.quality.name}, "
-                f"SL={sl_price}, TP={tp_price}"
-            )
+            if confluence_result is not None and selected_arm == RouterArm.SMC:
+                self.log.info(
+                    f"SELL Signal: mode={mode_label} score={selected_score:.1f} "
+                    f"(smc_base={confluence_result.total_score:.1f}) "
+                    f"Quality={confluence_result.quality.name} "
+                    f"SL={sl_price}, TP={tp_price}"
+                )
+            else:
+                self.log.info(f"SELL Signal: mode={mode_label} score={selected_score:.1f} SL={sl_price}, TP={tp_price}")
+
+            if self._router:
+                qty_units = float(quantity.as_double()) if hasattr(quantity, "as_double") else float(quantity)
+                risk_usd = float(sl_distance) * qty_units * float(self._instrument_point_value_per_unit())
+                sess = self._current_session.session.name if self._current_session else "UNKNOWN"
+                reg = self._current_regime.regime.name if self._current_regime else "UNKNOWN"
+                vol_bucket = int(max(0.0, min(4.0, float(self._get_atr_percentile()) // 20.0)))
+                self._last_entry_meta = {
+                    "arm": selected_arm.value,
+                    "risk_usd": float(risk_usd),
+                    "ctx": (str(sess), str(reg), int(vol_bucket)),
+                    "score": float(selected_score),
+                    "variant": selected_trend.variant.value if selected_trend else None,
+                }
             self._enter_short(quantity, sl_price, tp_price)
 
     def _get_current_atr(self) -> float:

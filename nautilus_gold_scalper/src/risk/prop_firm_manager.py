@@ -140,15 +140,11 @@ class PropFirmManager:
         now_et = now_dt.astimezone(self._consistency.et_tz)
         state = self.get_state()
         if not state.is_trading_allowed:
-            if self._raise_on_breach:
-                self._hard_stop(state)
             if self._terminated:
                 return False
             self._terminated = True
-            try:
+            if self._raise_on_breach:
                 self._hard_stop(state)
-            except AccountTerminatedException:
-                return False
             return False
         if state.is_trading_allowed and not self._consistency.can_trade(now_et):
             return False

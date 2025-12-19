@@ -123,22 +123,16 @@ class TestTotalDDTiers:
         assert idx == 1
         assert tier.action == DDAction.REDUCE
 
-    def test_critical_tier(self):
-        """Test 4.0% CRITICAL tier"""
+    def test_halt_tier_at_safety_buffer(self):
+        """Test 4.0% hard-block tier (HALT_ALL)"""
         tier, idx = DDProtectionCalculator.get_total_dd_tier(4.0)
         assert idx == 2
-        assert tier.action == DDAction.STOP_NEW
-
-    def test_halt_tier(self):
-        """Test 4.5% HALT_ALL tier"""
-        tier, idx = DDProtectionCalculator.get_total_dd_tier(4.5)
-        assert idx == 3
         assert tier.action == DDAction.HALT_ALL
 
     def test_terminated_tier(self):
         """Test 5.0% TERMINATED tier"""
         tier, idx = DDProtectionCalculator.get_total_dd_tier(5.0)
-        assert idx == 4
+        assert idx == 3
         assert tier.action == DDAction.TERMINATED
 
 
@@ -215,9 +209,23 @@ class TestDDProtectionState:
 
         assert state.daily_dd_pct == pytest.approx(3.0, abs=0.01)
         assert state.daily_action == DDAction.EMERGENCY_HALT
-        assert state.can_trade is True  # Still can close positions
+        assert state.can_trade is False
         assert state.can_open_new is False  # New positions blocked
         assert state.position_size_factor == 0.0
+
+
+    def test_trailing_dd_halt_buffer_state(self):
+        """Test DD state at 4.0% total DD (HALT_ALL safety buffer)."""
+        state = DDProtectionCalculator.calculate_state(
+            hwm=50000.0,
+            day_start_balance=50000.0,
+            current_equity=48000.0  # -$2,000 = 4.0% total DD
+        )
+
+        assert state.total_dd_pct == pytest.approx(4.0, abs=0.01)
+        assert state.total_action == DDAction.HALT_ALL
+        assert state.can_trade is False
+        assert state.can_open_new is False
 
     def test_apex_limit_breach(self):
         """Test DD state at 5.0% total DD (TERMINATED)"""
@@ -287,24 +295,24 @@ class TestTradeValidation:
 
         assert state.max_daily_dd_pct == pytest.approx(0.9, abs=0.01)
 
-        # Propose 1% risk (exceeds 0.9% limit)
+        # Propose 1% risk (also breaches the 4.0% trailing DD safety buffer)
         allowed, reason = DDProtectionCalculator.validate_trade(state, proposed_risk_pct=1.0)
         assert allowed is False
-        assert "exceed dynamic daily limit" in reason.lower()
+        assert "4.0%" in reason
 
-    def test_trade_blocked_would_breach_emergency_threshold(self):
-        """Test trade blocked when would breach 4.5% emergency threshold"""
-        # Account at 4.2% total DD
+    def test_trade_blocked_would_breach_trailing_safety_buffer(self):
+        """Test trade blocked when would breach 4.0% trailing DD safety buffer"""
+        # Account at 3.9% total DD
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
-            day_start_balance=47900.0,
-            current_equity=47900.0  # 4.2% total DD
+            day_start_balance=48050.0,
+            current_equity=48050.0  # 3.9% total DD
         )
 
-        # Propose 0.5% risk (would hit 4.7% > 4.5% emergency threshold)
-        allowed, reason = DDProtectionCalculator.validate_trade(state, proposed_risk_pct=0.5)
+        # Propose 0.2% risk (would hit 4.1% >= 4.0% safety buffer)
+        allowed, reason = DDProtectionCalculator.validate_trade(state, proposed_risk_pct=0.2)
         assert allowed is False
-        assert "apex termination" in reason.lower() or "emergency threshold" in reason.lower()
+        assert "4.0%" in reason
 
     def test_trade_approved_with_reduced_sizing(self):
         """Test trade approved at REDUCE tier (sizing handled externally)"""
