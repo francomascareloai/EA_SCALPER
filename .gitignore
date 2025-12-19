@@ -29,6 +29,7 @@ ENV/
 # IDE
 .vscode/
 .idea/
+.codex/
 *.swp
 *.swo
 *~
@@ -42,6 +43,9 @@ Thumbs.db
 logs/
 *.pid
 
+# Local state files
+.hbs_rng_state.json
+
 # Temporary files
 *.tmp
 *.temp
@@ -49,7 +53,6 @@ logs/
 # Backup files
 *.bak
 *.backup
-*.bundle
 
 # Large binary files (optional)
 *.exe
@@ -84,7 +87,6 @@ node_modules/
 MQL5/compile_log.txt
 
 # Large data files
-*.csv
 *.xlsx
 *.xls
 
@@ -98,6 +100,10 @@ secrets.json
 .env.local
 .env.production
 .env.development
+
+# Local model artifacts / training outputs (keep out of repo)
+models/scaler.pkl
+models/*.pkl
 
 # API Keys and Tokens (CRITICAL SECURITY)
 *personal_access_token*
@@ -124,6 +130,9 @@ claude*.json
 
 # Local helper binaries / symlinks
 tools/bin/
+
+# External vendored repos (symlinks)
+external/
 
 # Vendored g3 build output
 tools/g3/target/
@@ -169,18 +178,43 @@ _ARCHIVE/
 .DS_Store
 Thumbs.db
 
-# Local data (not tracked, large/reproducible)
-data/processed/
-data/features/
-data/segments/
-data/ticks/
-data/raw/
-data/catalog_native/
-data/catalog_native_sessions/
-!data/config.yaml
-!data/README.md
+# Local data (backup policy)
+# This repo is PUBLIC; keep only the canonical backtest dataset under data/raw/full_parquet.
+# Everything else under data/ stays local unless you explicitly opt-in.
+
+data/raw/*
+!data/raw/full_parquet/
+!data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet
 !data/raw/*.metadata.json
 
+data/catalog_native/
+data/catalog_native_sessions/
+data/catalog_native_smoke_test_full/
+data/derived/
+data/session_csvs/
+data/test_models/
+nautilus_gold_scalper/data/test_models/
+
+# Experiment artifacts
+experiments/
+
+# Large local git bundles (handled outside repo)
+EA_SCALPER_XAUUSD_backup_*.bundle
+
+# Node lockfile not used here
+package-lock.json
+
+# Python hub local data
+Python_Agent_Hub/app/data/
+Python_Agent_Hub/ml_pipeline/data/
+
+# Local session outputs
+.tmp_session_catalogs*/
+.tmp_session_out/
+.tmp_session_catalogs2/
+
+!data/config.yaml
+!data/README.md
+
 # Parquet datasets
-*.parquet
 
