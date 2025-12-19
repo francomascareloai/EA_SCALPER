@@ -4,7 +4,7 @@ description: |
   ONNX_BUILDER v2.2 - ML->ONNX->production (trading).
   Gates: WFE>=0.6, DSR>0, PBO<25%, MC95DD<4%, inference <5ms (OnTick-safe).
   Triggers: "ONNX", "model", "ML", "features", "inference", "export", "parity"
-model: sonnet
+model: opus
 reasoningEffort: medium
 # tools: inherited (all MCP servers available)
 ---

@@ -51,7 +51,8 @@
     <language>Python 3.11+, Cython for performance</language>
     <architecture>Event-driven (MessageBus, Cache, Actor/Strategy patterns)</architecture>
     <validation>mypy --strict, pytest, ruff</validation>
-    <docs_mcp>context7 (NautilusTrader official docs)</docs_mcp>
+    <local_docs note="Preferred">external/nautilus_trader/ (symlink to local clone; docs/ + examples/ + source)</local_docs>
+    <docs_preference_order>local repo (external/) → installed package (site-packages) → context7 (fallback) → web search (last resort)</docs_preference_order>
     <sandbox>e2b (Python sandbox for testing)</sandbox>
     <use_when>New features, Strategy/Actor implementation, backtesting, production</use_when>
   </nautilus_trader>

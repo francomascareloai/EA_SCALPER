@@ -5,7 +5,7 @@ description: |
   Enforces budgets: OnTick <50ms (TOTAL), Strategy handlers <1ms (per-handler), ONNX <5ms, Hub <400ms.
   Blocks deploy if exceeded.
   Triggers: "profile", "/optimize", "performance", "bottleneck", "slow", "budget"
-model: sonnet
+model: opus
 reasoningEffort: medium
 # tools: inherited (all MCP servers available)
 ---

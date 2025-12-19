@@ -4,7 +4,7 @@ description: |
   CLIPROXY_ENGINEER v1.1 - Go/CLIProxyAPI infrastructure subagent.
   Proxy configuration, OAuth flows, troubleshooting, and Go code. Trading-safe operations.
   Triggers: "cliproxy", "proxy", "oauth", "401", "403", "429", "502", "503", "504", "antigravity", "translator"
-model: sonnet
+model: opus
 reasoningEffort: medium
 ---
 

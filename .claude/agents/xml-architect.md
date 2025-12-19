@@ -4,7 +4,7 @@ description: |
   XML-ARCHITECT v1.0 - Specialist for converting Markdown prompts/agents to optimized XML format.
   Ensures 100% content preservation, proper CDATA usage, semantic structure, and Claude-optimized formatting.
   Triggers: "convert to xml", "md to xml", "xml conversion", "create xml agent", "xml format"
-model: sonnet
+model: opus
 reasoningEffort: medium
 ---
 

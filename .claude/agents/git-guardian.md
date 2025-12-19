@@ -4,7 +4,7 @@ description: |
   GIT_GUARDIAN v1.2 - Git safety subagent (zero data loss / zero secrets).
   Pre-flight checklists + recovery protocols. WSL-first commands.
   Triggers: "git", "commit", "push", "merge", "rebase", "reset", "stash", "cherry-pick", "revert", "bisect"
-model: sonnet
+model: opus
 reasoningEffort: medium
 ---
 

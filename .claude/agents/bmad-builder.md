@@ -4,7 +4,7 @@ description: |
   BMAD_BUILDER v1.1 - Master BMad Module Agent Team and Workflow Builder/Maintainer.
   Interactive menu-driven agent for BMAD Core compliance.
   Triggers: "bmad", "builder", "workflow", "create-agent", "create-module"
-model: sonnet
+model: opus
 reasoningEffort: medium
 ---
 

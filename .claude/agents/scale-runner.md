@@ -4,7 +4,7 @@ description: |
   SCALE-RUNNER v1.1 - Massive backtest orchestration for NautilusTrader.
   Parameter optimization, parallel execution, catalog management.
   Triggers: "scale", "massive", "optimization", "parameter sweep", "grid search"
-model: sonnet
+model: opus
 reasoningEffort: medium
 ---
 
