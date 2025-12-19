@@ -10,14 +10,6 @@
 
 ---
 
-`★ Insight ─────────────────────────────────────`
-- In this codebase, the *strategy* (`gold_scalper_strategy.py`) sets the effective execution threshold (70), not `ConfluenceScorer`’s internal default (60). Audits must validate both to avoid “safe-by-convention” assumptions.
-- The biggest scoring-risk here is *sequence bonus inflation*: a single boolean like `at_poi` can add +20, then get scaled (`SCORE_SCALE_FACTOR=5`) into a +100 swing before clamping.
-- There are **two different MTF managers** (`src/signals/mtf_manager.py` vs `src/indicators/mtf_manager.py`). Current tests cover the indicator version, while the main strategy uses the signals version — that’s a coverage gap and a common source of false confidence.
-`─────────────────────────────────────────────────`
-
----
-
 ## Module: `confluence_scorer.py`
 
 ### Overview
