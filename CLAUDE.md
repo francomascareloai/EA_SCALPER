@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.16</version>
+  <version>3.10.17</version>
   <last_updated>2025-12-19</last_updated>
-  <changelog>v3.10.16: CLIPROXY protection rule - NEVER restart/kill proxy without explicit user confirmation.</changelog>
-  <previous_changes>v3.10.15: Local-first NautilusTrader docs | v3.10.13: DD taxonomy unified, HWM price basis | v3.10.12: live_infrastructure, incident_response</previous_changes>
+  <changelog>v3.10.17: Add REVIEWER to opus model policy (was incorrectly using haiku for code reviews).</changelog>
+  <previous_changes>v3.10.16: CLIPROXY protection rule | v3.10.15: Local-first NautilusTrader docs | v3.10.13: DD taxonomy unified, HWM price basis</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -370,7 +370,7 @@
   </critic_gate>
 
   <model_policy>
-    <opus>trading|risk|apex|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|CRITIC|DAEMON</opus>
+    <opus>trading|risk|apex|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|CRITIC|DAEMON|REVIEWER</opus>
     <haiku>Explore|git|docs|file search</haiku>
     <default>When in doubt → opus for money/risk/trading</default>
     <version_reporting>Sub-agents include: AGENT_VERSION + CLAUDE_MD_VERSION + STATUS in output header</version_reporting>
