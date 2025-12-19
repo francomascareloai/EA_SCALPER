@@ -5,17 +5,17 @@
 - v2.1: Phase 00 COMPLETE (2025-12-16) - Foundation verified, all thresholds match
 
 ## Progress
-- **Phases Completed:** 1/10
-- **Current Phase:** Ready for Phase 01
+- **Phases Completed:** 4/11
+- **Current Phase:** Phase 04
 
 ## Phase Overview
 
 | Phase | Focus | Agents | Rounds | Priority | Status |
 |-------|-------|--------|--------|----------|--------|
 | 00 | Foundation Verification | 1 | 1 | P0 - BLOCKER | COMPLETE |
-| 01 | Core Strategy Audit | 1-2 | 1 | P0 - CRITICAL | PENDING |
-| 02 | Indicators SMC Audit | 2+2 | 2 | P0 - CRITICAL | PENDING |
-| 03 | Risk Modules Audit | 2+1 | 2 | P0 - CRITICAL | PENDING |
+| 01 | Core Strategy Audit | 1-2 | 1 | P0 - CRITICAL | COMPLETE (BLOCKED) |
+| 02 | Indicators SMC Audit | 2+2 | 2 | P0 - CRITICAL | COMPLETE (R0+R1+R2) |
+| 03 | Risk Modules Audit | 2+1 | 2 | P0 - CRITICAL | COMPLETE (REMEDIATED + R2) |
 | 04 | Signal Generators Audit | 2 | 1 | P1 - HIGH | PENDING |
 | 04.5 | ML Pipeline Audit | 1 | 1 | P0 - CRITICAL | PENDING |
 | 05 | Execution Layer Audit | 2 | 1 | P1 - HIGH | PENDING |
