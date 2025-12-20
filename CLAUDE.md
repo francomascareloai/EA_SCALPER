@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.18</version>
-  <last_updated>2025-12-19</last_updated>
-  <changelog>v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews.</changelog>
-  <previous_changes>v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule | v3.10.15: Local-first NautilusTrader docs</previous_changes>
+  <version>3.10.19</version>
+  <last_updated>2025-12-20</last_updated>
+  <changelog>v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC.</changelog>
+  <previous_changes>v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule | v3.10.15: Local-first NautilusTrader docs</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -120,6 +120,12 @@
 
   <thinking_protocol>
     <min_checklist>Root cause (5 whys) | consequences (2nd/3rd order) | edge cases | simplest safe fix | bias checks (look-ahead/slippage) | Apex impact | performance budget</min_checklist>
+    <falsification_first>
+      <rule>Default stance: assume we are wrong.</rule>
+      <rule>State the key claim and design the fastest/cheapest disproof test (data + invariant + small slice backtest).</rule>
+      <rule>For each assumption: attach a concrete validation step and a "what would change my mind" threshold.</rule>
+      <rule>If disproof found: stop, fix root cause, rerun the minimum test first.</rule>
+    </falsification_first>
     <escalation>Trading/risk/architecture changes → sequential-thinking (10+ thoughts) + tests</escalation>
   </thinking_protocol>
 
@@ -362,7 +368,7 @@
     <purpose>Adversarial review before reporting done</purpose>
     <two_layer>
       <layer1>Sub-agent self-review (5-7 thoughts, fix obvious issues)</layer1>
-      <layer2>Orchestrator spawns CRITIC (12-15 thoughts, 7 techniques: INVERSION, PRE-MORTEM, STRESS, REGIME, APEX_TRAP, EDGE, ASSUMPTION)</layer2>
+      <layer2>Orchestrator spawns CRITIC (12-15 thoughts, falsification-first + techniques: INVERSION, PRE-MORTEM, STRESS, REGIME, APEX_TRAP, EDGE, ASSUMPTION)</layer2>
     </two_layer>
     <spawn_when>Trading code | Risk/sizing | GO/NO-GO | Architecture</spawn_when>
     <checklist>Bugs | Logic | Apex compliance | Temporal (look-ahead) | Performance | Edge cases | Assumptions</checklist>
