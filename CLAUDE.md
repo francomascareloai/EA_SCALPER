@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.19</version>
+  <version>3.10.20</version>
   <last_updated>2025-12-20</last_updated>
-  <changelog>v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC.</changelog>
-  <previous_changes>v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule | v3.10.15: Local-first NautilusTrader docs</previous_changes>
+  <changelog>v3.10.20: Add ARGUS research gate to increase evidence-based decisions.</changelog>
+  <previous_changes>v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule | v3.10.15: Local-first NautilusTrader docs</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -126,6 +126,24 @@
       <rule>For each assumption: attach a concrete validation step and a "what would change my mind" threshold.</rule>
       <rule>If disproof found: stop, fix root cause, rerun the minimum test first.</rule>
     </falsification_first>
+    <argus_research_gate>
+      <purpose>Use ARGUS to kill bad ideas early and keep decisions evidence-based (updated sources).</purpose>
+      <when note="Trigger if ANY is true">
+        <trigger>New technique/claim: indicator, SMC rule, execution model, risk rule, ML feature/model</trigger>
+        <trigger>Methodology risk: CV/KFold/stacking, regime detection, labels, feature scaling, walk-forward, Monte Carlo</trigger>
+        <trigger>"Too good" results: Sharpe >3.0, accuracy >80%, WFE/PSR unusually high, or suspiciously smooth equity</trigger>
+        <trigger>Disagreement between agents or unclear trade-off</trigger>
+        <trigger>Need up-to-date docs/library behavior</trigger>
+      </when>
+      <input_contract>
+        <rule>Define a testable CLAIM (metric + horizon + conditions).</rule>
+        <rule>Ask for FASTEST DISPROOF TEST first (falsification-first).</rule>
+        <rule>Require 3-way triangulation when possible: academic + code + empirical.</rule>
+        <rule>Map applicability to Apex/XAUUSD: costs, time gates, DD/HWM semantics, latency budgets.</rule>
+        <rule>Keep output compact: ≤300 words + 3 sources + next handoff.</rule>
+      </input_contract>
+      <handoff>ARGUS → CRITIC (adversarial check) → FORGE/ORACLE/SENTINEL/CRUCIBLE</handoff>
+    </argus_research_gate>
     <escalation>Trading/risk/architecture changes → sequential-thinking (10+ thoughts) + tests</escalation>
   </thinking_protocol>
 
