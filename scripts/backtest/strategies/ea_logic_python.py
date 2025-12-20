@@ -377,26 +377,40 @@ class NewsFilterPython:
 # -------------- STRUCTURE / OB / FVG / SWEEP / AMD --------------
 
 def detect_order_blocks(df: pd.DataFrame, displacement_mult: float = 2.0) -> List[Dict]:
-    obs = []
-    if "atr" not in df: return obs
+    """Detect order blocks with confirmation lag (WP3 causal)."""
+    obs: List[Dict] = []
+    if "atr" not in df:
+        return obs
     atr = df["atr"].values; o=df["open"].values; h=df["high"].values; l=df["low"].values; c=df["close"].values
-    for i in range(5, len(df)-3):
-        if np.isnan(atr[i]) or atr[i] <= 0: continue
+    confirm_lag = 3
+    for i in range(5, len(df) - confirm_lag):
+        if np.isnan(atr[i]) or atr[i] <= 0:
+            continue
+        confirm_idx = i + confirm_lag
         if c[i] < o[i]:
-            disp = h[i+1:i+4].max() - c[i]
-            if disp >= atr[i]*displacement_mult: obs.append({"idx":i,"type":"BULL","top":o[i],"bottom":l[i],"strength":disp/atr[i]})
+            disp = h[i + 1:confirm_idx + 1].max() - c[i]
+            if disp >= atr[i] * displacement_mult:
+                obs.append({"idx": i, "type": "BULL", "top": o[i], "bottom": l[i], "strength": disp / atr[i], "confirm_idx": confirm_idx})
         if c[i] > o[i]:
-            disp = c[i] - l[i+1:i+4].min()
-            if disp >= atr[i]*displacement_mult: obs.append({"idx":i,"type":"BEAR","top":h[i],"bottom":o[i],"strength":disp/atr[i]})
+            disp = c[i] - l[i + 1:confirm_idx + 1].min()
+            if disp >= atr[i] * displacement_mult:
+                obs.append({"idx": i, "type": "BEAR", "top": h[i], "bottom": o[i], "strength": disp / atr[i], "confirm_idx": confirm_idx})
     return obs
 
 def detect_fvg(df: pd.DataFrame, min_gap: float = 0.3) -> List[Dict]:
-    fvgs=[]; h=df["high"].values; l=df["low"].values
-    for i in range(2,len(df)):
-        c1h=h[i-2]; c3l=l[i]
-        if c3l>c1h and (c3l-c1h)>=min_gap: fvgs.append({"idx":i-1,"type":"BULL","top":c3l,"bottom":c1h})
-        c1l=l[i-2]; c3h=h[i]
-        if c1l>c3h and (c1l-c3h)>=min_gap: fvgs.append({"idx":i-1,"type":"BEAR","top":c1l,"bottom":c3h})
+    """Detect fair value gaps (WP3 causal: confirm at third candle)."""
+    fvgs: List[Dict] = []
+    h = df["high"].values
+    l = df["low"].values
+    for i in range(2, len(df)):
+        c1h = h[i - 2]
+        c3l = l[i]
+        if c3l > c1h and (c3l - c1h) >= min_gap:
+            fvgs.append({"idx": i, "type": "BULL", "top": c3l, "bottom": c1h})
+        c1l = l[i - 2]
+        c3h = h[i]
+        if c1l > c3h and (c1l - c3h) >= min_gap:
+            fvgs.append({"idx": i, "type": "BEAR", "top": c1l, "bottom": c3h})
     return fvgs
 
 def proximity_score(price: float, low: float, high: float, atr: float) -> float:
@@ -626,12 +640,21 @@ class EALogic:
         obs = detect_order_blocks(ltf_df, self.cfg.ob_displacement_mult)
         fvgs = detect_fvg(ltf_df, self.cfg.fvg_min_gap)
         price = float(ltf_df["close"].iloc[-1])
+
+        # WP3: enforce confirmation lag (OB/FVG only usable once confirmed).
+        current_idx = len(ltf_df) - 1
+
         ob_score=0.0; ob_zone=(0.0,0.0)
         for ob in reversed(obs):
+            if current_idx < int(ob.get("confirm_idx", ob["idx"])):
+                continue
             ob_score = max(ob_score, proximity_score(price, ob["bottom"], ob["top"], atr))
             if ob_score>0: ob_zone=(ob["bottom"], ob["top"]); break
+
         fvg_score=0.0; fvg_zone=(0.0,0.0)
         for f in reversed(fvgs):
+            if current_idx < int(f.get("idx", 0)):
+                continue
             fvg_score = max(fvg_score, proximity_score(price, f["bottom"], f["top"], atr))
             if fvg_score>0: fvg_zone=(f["bottom"], f["top"]); break
         has_sweep, sweep_dir = liquidity_sweep(ltf_df, 20, 0.1)
@@ -669,10 +692,27 @@ class EALogic:
             fib_score = 50.0
         if mtf_alignment is None:
             mtf_alignment = 50.0
-            if not htf_df.empty:
-                htf_ma = htf_df["close"].rolling(50, min_periods=1).mean().iloc[-1]
-                htf_trend_bull = htf_df["close"].iloc[-1] > htf_ma
-                mtf_alignment = 80.0 if (htf_trend_bull and bias=="BULL") or ((not htf_trend_bull) and bias=="BEAR") else 40.0
+            if htf_df is not None and not htf_df.empty:
+                # WP3: enforce causal HTF usage.
+                # Pandas resample() labels HTF bars by period start by default.
+                # A HTF bar is only fully known once (bar_start + HTF_tf) <= now.
+                htf_df = htf_df.copy()
+                if hasattr(htf_df, "index") and len(htf_df.index) > 0:
+                    try:
+                        ts_now = pd.Timestamp(now)
+                        htf_idx = pd.to_datetime(htf_df.index)
+                        htf_df = htf_df.loc[htf_idx + pd.Timedelta("1h") <= ts_now]
+                    except Exception:
+                        # Fallback: keep original behavior (best-effort) if index is not datetime-like.
+                        try:
+                            htf_df = htf_df.loc[:now]
+                        except Exception:
+                            pass
+
+                if not htf_df.empty:
+                    htf_ma = htf_df["close"].rolling(50, min_periods=1).mean().iloc[-1]
+                    htf_trend_bull = htf_df["close"].iloc[-1] > htf_ma
+                    mtf_alignment = 80.0 if (htf_trend_bull and bias=="BULL") or ((not htf_trend_bull) and bias=="BEAR") else 40.0
         mtf_score = float(mtf_alignment)
         fp_score = float(fp_score)
         direction = SignalType.NONE

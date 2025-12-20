@@ -734,9 +734,23 @@ class TickBacktester:
             # Get real footprint score for this bar (or default)
             real_fp_score = self.fp_scores.get(timestamp, self.config.fp_score)
             
+            htf_window = None
+            if self.htf_bars is not None and not self.htf_bars.empty:
+                # WP3 / A-001: prevent HTF look-ahead by slicing to "as-of" timestamp.
+                # Pandas resample() labels bars by period start by default.
+                # A HTF bar is only fully known once (bar_start + HTF_TF) <= now.
+                ts = pd.Timestamp(timestamp)
+                htf_window = self.htf_bars.loc[:ts].copy()
+                htf_window = htf_window[htf_window.index + pd.Timedelta("1h") <= ts]
+
+                # Fail-fast guard: last HTF bar must be closed.
+                if not htf_window.empty:
+                    last_start = pd.Timestamp(htf_window.index[-1])
+                    assert last_start + pd.Timedelta("1h") <= ts
+
             setup = self.ea.evaluate_from_df(
                 ltf_window,
-                self.htf_bars if self.htf_bars is not None else ltf_window,
+                htf_window if htf_window is not None and not htf_window.empty else ltf_window,
                 timestamp,
                 ml_prob=self.config.ml_prob,
                 fp_score=real_fp_score,

@@ -217,6 +217,7 @@ class OrderBlock:
     top: float
     bottom: float
     strength: float
+    confirm_idx: int
     used: bool = False
 
 
@@ -231,54 +232,59 @@ class FVG:
 
 
 def detect_order_blocks(df: pd.DataFrame, displacement_mult: float = 2.0) -> List[OrderBlock]:
-    """Detect Order Blocks"""
-    obs = []
+    """Detect Order Blocks (WP3 causal: confirmation lag enforced)."""
+    obs: List[OrderBlock] = []
     atr = df['atr'].values
-    
-    for i in range(5, len(df) - 3):
+
+    # Confirmation uses up to the next 3 candles; a block at i becomes usable only at (i + 3).
+    confirm_lag = 3
+
+    for i in range(5, len(df) - confirm_lag):
         if pd.isna(atr[i]) or atr[i] <= 0:
             continue
-        
+
         o, h, l, c = df['open'].iloc[i], df['high'].iloc[i], df['low'].iloc[i], df['close'].iloc[i]
-        
+        confirm_idx = i + confirm_lag
+
         # Bullish OB: bearish candle before bullish displacement
         if c < o:  # bearish candle
-            disp = df['high'].iloc[i+1:i+4].max() - c
+            disp = df['high'].iloc[i + 1:confirm_idx + 1].max() - c
             if disp >= atr[i] * displacement_mult:
-                obs.append(OrderBlock(i, df.index[i], 'BULL', o, l, disp/atr[i]))
-        
+                obs.append(OrderBlock(i, df.index[i], 'BULL', o, l, disp / atr[i], confirm_idx))
+
         # Bearish OB: bullish candle before bearish displacement
         if c > o:  # bullish candle
-            disp = c - df['low'].iloc[i+1:i+4].min()
+            disp = c - df['low'].iloc[i + 1:confirm_idx + 1].min()
             if disp >= atr[i] * displacement_mult:
-                obs.append(OrderBlock(i, df.index[i], 'BEAR', h, o, disp/atr[i]))
-    
+                obs.append(OrderBlock(i, df.index[i], 'BEAR', h, o, disp / atr[i], confirm_idx))
+
     return obs
 
 
 def detect_fvgs(df: pd.DataFrame, min_gap: float = 0.3) -> List[FVG]:
-    """Detect Fair Value Gaps"""
-    fvgs = []
-    
+    """Detect Fair Value Gaps (WP3 causal: confirm at third candle)."""
+    fvgs: List[FVG] = []
+
     for i in range(2, len(df)):
-        # Bullish FVG: gap up
-        c1_high = df['high'].iloc[i-2]
+        # Bullish FVG: gap up (candle 1 high < candle 3 low)
+        c1_high = df['high'].iloc[i - 2]
         c3_low = df['low'].iloc[i]
-        
+
         if c3_low > c1_high:
             gap = c3_low - c1_high
             if gap >= min_gap:
-                fvgs.append(FVG(i-1, df.index[i-1], 'BULL', c3_low, c1_high))
-        
-        # Bearish FVG: gap down
-        c1_low = df['low'].iloc[i-2]
+                # Confirmed at candle 3 (index i), not at i-1.
+                fvgs.append(FVG(i, df.index[i], 'BULL', c3_low, c1_high))
+
+        # Bearish FVG: gap down (candle 1 low > candle 3 high)
+        c1_low = df['low'].iloc[i - 2]
         c3_high = df['high'].iloc[i]
-        
+
         if c1_low > c3_high:
             gap = c1_low - c3_high
             if gap >= min_gap:
-                fvgs.append(FVG(i-1, df.index[i-1], 'BEAR', c1_low, c3_high))
-    
+                fvgs.append(FVG(i, df.index[i], 'BEAR', c1_low, c3_high))
+
     return fvgs
 
 
@@ -361,9 +367,18 @@ class SMCAblationBacktester:
         
         # Merge footprint data if available
         if fp_df is not None and cfg.use_footprint_filter:
-            # Merge footprint score into ltf_bars
+            # WP3: Footprint bars are grouped by bar start (floor). Metrics are only known once the bar closes.
+            # Align footprint timestamps to bar close time so we never use future ticks.
+            fp_aligned = fp_df.copy()
+            fp_aligned.index = pd.to_datetime(fp_aligned.index)
+            try:
+                fp_tf = pd.Timedelta(cfg.ltf)
+            except Exception:
+                fp_tf = pd.Timedelta('5min')
+            fp_aligned.index = fp_aligned.index + fp_tf
+
             ltf_bars = ltf_bars.merge(
-                fp_df[['fp_score', 'delta', 'stacked_imbal', 'absorption']],
+                fp_aligned[['fp_score', 'delta', 'stacked_imbal', 'absorption']],
                 left_index=True, right_index=True, how='left'
             )
             ltf_bars['fp_score'] = ltf_bars['fp_score'].fillna(50)  # Neutral default
@@ -385,7 +400,13 @@ class SMCAblationBacktester:
         if cfg.use_mtf_filter and htf_bars is not None:
             htf_bars['ma_htf'] = htf_bars['close'].rolling(cfg.htf_ma_period).mean()
             htf_bias = htf_bars['close'] > htf_bars['ma_htf']
-            ltf_bars['htf_bullish'] = htf_bias.reindex(ltf_bars.index, method='ffill')
+
+            # WP3: Pandas resample labels bars by period start. HTF bias should only be usable after the HTF bar closes.
+            # Make the bias available at (bar_start + HTF_tf) by shifting the index forward.
+            htf_bias_available = htf_bias.copy()
+            htf_bias_available.index = pd.to_datetime(htf_bias_available.index) + pd.Timedelta(cfg.htf)
+
+            ltf_bars['htf_bullish'] = htf_bias_available.reindex(ltf_bars.index, method='ffill')
         else:
             ltf_bars['htf_bullish'] = True
         
@@ -447,7 +468,8 @@ class SMCAblationBacktester:
                 
                 # Check OBs for entry
                 for ob in obs:
-                    if ob.idx in used_obs or ob.idx >= i:
+                    # WP3: OB is only usable after its confirmation lag.
+                    if ob.idx in used_obs or i < ob.confirm_idx:
                         continue
                     
                     # Bullish OB entry
