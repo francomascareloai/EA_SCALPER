@@ -29,7 +29,14 @@ from nautilus_trader.model import (
     QuoteTick,
 )
 from nautilus_trader.model.enums import OrderSide, PositionSide, TimeInForce
-from nautilus_trader.model.events import PositionChanged, PositionClosed, PositionOpened
+from nautilus_trader.model.events import (
+    OrderAccepted,
+    OrderCanceled,
+    OrderRejected,
+    PositionChanged,
+    PositionClosed,
+    PositionOpened,
+)
 from nautilus_trader.model.instruments import Instrument
 from nautilus_trader.model.objects import Price, Quantity
 
@@ -116,6 +123,19 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._pending_sl: Price | None = None
         self._pending_tp: Price | None = None
 
+        # Execution/order lifecycle tracking (WP0: fail-safe execution)
+        self._entry_client_order_id: str | None = None
+        self._bracket_sl_client_order_id: str | None = None
+        self._bracket_tp_client_order_id: str | None = None
+        self._bracket_sl_confirmed: bool = False
+        self._bracket_tp_confirmed: bool = False
+        self._bracket_submitted_ts_ns: int | None = None
+        self._bracket_confirm_timeout_ns: int = int(getattr(config, "bracket_confirm_timeout_ns", 5_000_000_000))
+        self._active_position_id: str | None = None
+        self._execution_failsafe_triggered: bool = False
+        self._trading_blocked_today: bool = False
+        self._position_opened_ts_ns: int | None = None
+
         # Current analysis results
         self._current_regime: RegimeAnalysis | None = None
         self._current_session: SessionInfo | None = None
@@ -152,6 +172,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         # Subscribe to quote ticks for spread monitoring
         self.subscribe_quote_ticks(self.config.instrument_id)
+
+        # Latest market timestamp (ns) for deterministic time-based guards
+        self._last_market_ts_ns: int | None = None
 
         # Daily resets are handled using event timestamps (ET) to keep backtests deterministic.
         # Do not rely on wall-clock timers here.
@@ -204,6 +227,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._daily_trades = 0
         self._daily_pnl = 0.0
         self._is_trading_allowed = True
+        self._trading_blocked_today = False
+        self._clear_pending_orders_and_brackets(reason="reset")
         self.log.info("[RESET] Daily reset - preserving indicator state")
 
         # DO NOT reset regime/session - let them update naturally from incoming bars
@@ -224,6 +249,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._daily_trades = 0
         self._daily_pnl = 0.0
         self._is_trading_allowed = True
+        self._trading_blocked_today = False
+        self._clear_pending_orders_and_brackets(reason="new_day")
         self.log.info("[DAILY_RESET] _is_trading_allowed = True (daily reset)")
 
         # Reset PropFirmManager daily counters (if exists)
@@ -266,6 +293,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
     def on_bar(self, bar: Bar) -> None:
         """Process incoming bar data."""
+        # WP0: maintain a deterministic market timestamp even if quote ticks stall.
+        self._last_market_ts_ns = int(bar.ts_event)
+
         # Debug logging only (avoid stdout prints in hot path)
         total_bars = len(self._ltf_bars) + len(self._mtf_bars) + len(self._htf_bars)
         if total_bars < 5 or total_bars % 100 == 0:
@@ -281,6 +311,22 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Check for daily reset
         if hasattr(self, '_check_daily_reset'):
             self._check_daily_reset(bar.ts_event)
+
+        # WP0: bracket watchdog also runs on bars (covers quote-tick stalls).
+        if (
+            self._position is not None
+            and not self._execution_failsafe_triggered
+            and self._bracket_sl_client_order_id is not None
+            and not self._bracket_sl_confirmed
+        ):
+            if self._bracket_submitted_ts_ns is not None:
+                elapsed_ns = int(bar.ts_event) - int(self._bracket_submitted_ts_ns)
+                if elapsed_ns > int(self._bracket_confirm_timeout_ns):
+                    self._trigger_execution_failsafe(reason="bracket_sl_not_confirmed_timeout")
+            elif self._position_opened_ts_ns is not None:
+                elapsed_ns = int(bar.ts_event) - int(self._position_opened_ts_ns)
+                if elapsed_ns > int(self._bracket_confirm_timeout_ns):
+                    self._trigger_execution_failsafe(reason="sl_not_confirmed_after_position_open")
 
         # Route to appropriate storage
         if self.config.htf_bar_type and bar.bar_type == self.config.htf_bar_type:
@@ -315,6 +361,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if not self.instrument:
             return
 
+        self._last_market_ts_ns = int(tick.ts_event)
+
         spread = float(tick.ask_price - tick.bid_price)
         spread_points = int(spread / self.instrument.price_increment)
 
@@ -322,22 +370,81 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             if self.config.debug_mode:
                 self.log.warning(f"Spread too wide: {spread_points} points")
 
-        # Intrabar drawdown monitoring (mark-to-market)
+        # WP0: bracket confirmation watchdog (deterministic, ts_event-driven)
+        if (
+            self._position is not None
+            and not self._execution_failsafe_triggered
+            and self._bracket_submitted_ts_ns is not None
+            and self._bracket_sl_client_order_id is not None
+            and not self._bracket_sl_confirmed
+        ):
+            elapsed_ns = int(tick.ts_event) - int(self._bracket_submitted_ts_ns)
+            if elapsed_ns > int(self._bracket_confirm_timeout_ns):
+                self._trigger_execution_failsafe(reason="bracket_sl_not_confirmed_timeout")
+
+        # WP0: if a position is open, SL must be confirmed within a safety window.
+        # This covers cases where bracket submission timestamp wasn't set (no quote ticks).
+        if (
+            self._position is not None
+            and not self._execution_failsafe_triggered
+            and self._bracket_sl_client_order_id is not None
+            and not self._bracket_sl_confirmed
+            and self._position_opened_ts_ns is not None
+        ):
+            elapsed_since_open_ns = int(tick.ts_event) - int(self._position_opened_ts_ns)
+            if elapsed_since_open_ns > int(self._bracket_confirm_timeout_ns):
+                self._trigger_execution_failsafe(reason="sl_not_confirmed_after_position_open")
+
         self._tick_counter += 1
+
+        equity = self._compute_equity_from_tick(tick)
+        if equity is None:
+            return
+        now_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
+
+        # Intrabar drawdown monitoring (mark-to-market)
         if getattr(self, "_drawdown_tracker", None) and self._position:
-            equity = self._compute_equity_from_tick(tick)
-            if equity is not None:
-                now_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
-                analysis = self._drawdown_tracker.update(equity, now=now_dt)
-                self._apply_drawdown_limits(analysis)
+            analysis = self._drawdown_tracker.update(equity, now=now_dt)
+            self._apply_drawdown_limits(analysis)
+
+        # Prop-firm manager intrabar enforcement (uses conservative MTM equity)
+        if getattr(self, "_prop_firm", None) and self._position:
+            try:
+                self._prop_firm.update_equity(equity, now=now_dt)
+                self._prop_firm.ensure_compliance(now=now_dt)
+            except Exception:
+                self.log.debug("Prop firm intrabar check failed", exc_info=True)
+
+        # Circuit breaker intrabar enforcement (uses conservative MTM equity)
+        if getattr(self, "_circuit_breaker", None) and self._position:
+            try:
+                self._circuit_breaker.update_equity(equity, now=now_dt)
+                if not self._circuit_breaker.can_trade(now=now_dt):
+                    self._trigger_execution_failsafe(reason="circuit_breaker_dd_breach")
+            except Exception:
+                self.log.debug("Circuit breaker intrabar check failed", exc_info=True)
 
     # ========== Position Event Handlers ==========
 
     def on_position_opened(self, event: PositionOpened) -> None:
         """Handle position opened event."""
-        self._position = self.cache.position(event.position_id)
+        cache = getattr(self, "cache", None)
+        if cache is not None and hasattr(cache, "position"):
+            self._position = cache.position(event.position_id)
+
         self._daily_trades += 1
         # qty calculation moved to execution cost section (avoid duplicate code)
+
+        # Bind lifecycle to the new position and reset bracket confirmation state
+        self._active_position_id = str(event.position_id)
+        self._position_opened_ts_ns = int(getattr(event, "ts_event", 0) or 0) or None
+        self._bracket_sl_confirmed = False
+        self._bracket_tp_confirmed = False
+        self._execution_failsafe_triggered = False
+
+        if self._position is None:
+            self._trigger_execution_failsafe(reason="position_opened_but_cache_position_missing")
+            return
 
         self.log.info(
             f"Position OPENED: {self._position.side} "
@@ -345,9 +452,21 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             f"(Daily trades: {self._daily_trades})"
         )
 
+        # Capture whether we had protective orders staged at the time the position opened.
+        had_pending_protection = bool(self._pending_sl or self._pending_tp)
+
         # Submit SL/TP orders if pending
-        if self._pending_sl or self._pending_tp:
+        if had_pending_protection:
             self._submit_bracket_orders()
+
+            # WP0: SL is mandatory safety protection; if we failed to submit it, fail-safe immediately.
+            if self._bracket_sl_client_order_id is None:
+                self._trigger_execution_failsafe(reason="position_opened_without_sl")
+                return
+        else:
+            # WP0: Never allow an open position without protective orders staged.
+            self._trigger_execution_failsafe(reason="position_opened_without_protective_orders")
+            return
 
         # Apply execution costs (slippage + commission) on entry
         # Handle avg_px_open being Price or float
@@ -373,7 +492,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
     def on_position_changed(self, event: PositionChanged) -> None:
         """Handle position changed event."""
-        self._position = self.cache.position(event.position_id)
+        cache = getattr(self, "cache", None)
+        if cache is not None and hasattr(cache, "position"):
+            self._position = cache.position(event.position_id)
 
     def on_position_closed(self, event: PositionClosed) -> None:
         """Handle position closed event."""
@@ -497,11 +618,14 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         )
         self.submit_order(order)
 
+        # Track entry order id (for IOC reject/cancel cleanup)
+        self._entry_client_order_id = str(order.client_order_id)
+
         # Queue SL/TP orders if provided (handled in on_position_opened)
         self._pending_sl = sl_price
         self._pending_tp = tp_price
 
-        self.log.info(f"Entering LONG with qty={quantity}")
+        self.log.info(f"Entering LONG with qty={quantity} (entry_id={self._entry_client_order_id})")
 
     def _enter_short(self, quantity: Quantity, sl_price: Price | None = None, tp_price: Price | None = None) -> None:
         """Enter a short position."""
@@ -524,10 +648,13 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         )
         self.submit_order(order)
 
+        # Track entry order id (for IOC reject/cancel cleanup)
+        self._entry_client_order_id = str(order.client_order_id)
+
         self._pending_sl = sl_price
         self._pending_tp = tp_price
 
-        self.log.info(f"Entering SHORT with qty={quantity}")
+        self.log.info(f"Entering SHORT with qty={quantity} (entry_id={self._entry_client_order_id})")
 
     def _close_position(self) -> None:
         """Close current position."""
@@ -536,6 +663,98 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         self.close_position(self._position)
         self.log.info("Closing position")
+
+    def _clear_pending_orders_and_brackets(self, reason: str) -> None:
+        # Clear pending SL/TP prices
+        self._pending_sl = None
+        self._pending_tp = None
+
+        # Clear lifecycle tracking
+        self._entry_client_order_id = None
+        self._bracket_sl_client_order_id = None
+        self._bracket_tp_client_order_id = None
+        self._bracket_sl_confirmed = False
+        self._bracket_tp_confirmed = False
+        self._active_position_id = None
+        self._position_opened_ts_ns = None
+        self._bracket_submitted_ts_ns = None
+
+        if getattr(self.config, "debug_mode", False):
+            self.log.debug(f"[WP0] cleared pending brackets ({reason})")
+
+    def _trigger_execution_failsafe(self, reason: str) -> None:
+        """Fail-safe: cancel orders, flatten positions, and halt trading."""
+        if self._execution_failsafe_triggered:
+            return
+        self._execution_failsafe_triggered = True
+
+        self.log.error(f"[FAILSAFE] {reason} -> cancel_all_orders + close_all_positions + HALT")
+        try:
+            self.cancel_all_orders(self.config.instrument_id)
+        except Exception:
+            self.log.debug("[FAILSAFE] cancel_all_orders failed", exc_info=True)
+        try:
+            self.close_all_positions(self.config.instrument_id)
+        except Exception:
+            self.log.debug("[FAILSAFE] close_all_positions failed", exc_info=True)
+
+        self._is_trading_allowed = False
+        self._trading_blocked_today = True
+
+        self._clear_pending_orders_and_brackets(reason=reason)
+
+    def on_order_rejected(self, event: OrderRejected) -> None:
+        # Entry rejected: clear pending brackets if no position was opened
+        if self._entry_client_order_id and str(event.client_order_id) == self._entry_client_order_id:
+            if self._position is None:
+                self._clear_pending_orders_and_brackets(reason="entry_rejected")
+            self._entry_client_order_id = None
+            return
+
+        # Bracket rejected while position open:
+        # - SL reject is critical -> fail-safe
+        # - TP reject is non-fatal (keep SL protection), clear TP tracking
+        if self._position is not None and str(event.client_order_id) == self._bracket_sl_client_order_id:
+            self._trigger_execution_failsafe(reason="bracket_sl_rejected")
+            return
+
+        if self._position is not None and str(event.client_order_id) == self._bracket_tp_client_order_id:
+            self._bracket_tp_client_order_id = None
+            self._bracket_tp_confirmed = False
+            self.log.warning("[WP0] TP rejected; continuing with SL protection only")
+            return
+
+    def on_order_canceled(self, event: OrderCanceled) -> None:
+        # Entry canceled: clear pending brackets if no position was opened
+        if self._entry_client_order_id and str(event.client_order_id) == self._entry_client_order_id:
+            if self._position is None:
+                self._clear_pending_orders_and_brackets(reason="entry_canceled")
+            self._entry_client_order_id = None
+            return
+
+        # Bracket canceled while position open:
+        # - SL cancel is critical -> fail-safe
+        # - TP cancel is non-fatal (keep SL protection), clear TP tracking
+        if self._position is not None and str(event.client_order_id) == self._bracket_sl_client_order_id:
+            self._trigger_execution_failsafe(reason="bracket_sl_canceled")
+            return
+
+        if self._position is not None and str(event.client_order_id) == self._bracket_tp_client_order_id:
+            self._bracket_tp_client_order_id = None
+            self._bracket_tp_confirmed = False
+            self.log.warning("[WP0] TP canceled; continuing with SL protection only")
+            return
+
+    def on_order_accepted(self, event: OrderAccepted) -> None:
+        cid = str(event.client_order_id)
+        if cid == self._bracket_sl_client_order_id:
+            self._bracket_sl_confirmed = True
+        elif cid == self._bracket_tp_client_order_id:
+            self._bracket_tp_confirmed = True
+
+        # Do NOT fail-safe based on acceptance ordering alone.
+        # The SL may be accepted after TP depending on venue/broker routing.
+        # We enforce SL presence via a timestamp watchdog in on_quote_tick.
 
     def _submit_bracket_orders(self) -> None:
         """Submit SL and TP orders for current position."""
@@ -550,6 +769,13 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         else:
             exit_side = OrderSide.BUY
 
+        # Reset bracket tracking for this position
+        self._bracket_sl_client_order_id = None
+        self._bracket_tp_client_order_id = None
+        self._bracket_sl_confirmed = False
+        self._bracket_tp_confirmed = False
+        self._bracket_submitted_ts_ns = None
+
         # Submit Stop Loss
         if self._pending_sl:
             sl_order = self.order_factory.stop_market(
@@ -561,7 +787,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 reduce_only=True,
             )
             self.submit_order(sl_order)
-            self.log.info(f"SL order submitted @ {self._pending_sl}")
+            self._bracket_sl_client_order_id = str(sl_order.client_order_id)
+            self.log.info(f"SL order submitted @ {self._pending_sl} (id={self._bracket_sl_client_order_id})")
 
         # Submit Take Profit
         if self._pending_tp:
@@ -574,9 +801,15 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 reduce_only=True,
             )
             self.submit_order(tp_order)
-        self.log.info(f"TP order submitted @ {self._pending_tp}")
+            self._bracket_tp_client_order_id = str(tp_order.client_order_id)
+            self.log.info(f"TP order submitted @ {self._pending_tp} (id={self._bracket_tp_client_order_id})")
 
-        # Clear pending
+        # Start confirmation watchdog (timestamp driven, deterministic)
+        # We use the latest market timestamp (set in on_quote_tick) when available.
+        now_ns = int(getattr(self, "_last_market_ts_ns", 0) or 0)
+        self._bracket_submitted_ts_ns = now_ns if now_ns > 0 else int(getattr(self._position, "ts_opened", 0) or 0) or None
+
+        # Clear pending prices (order events confirm protection)
         self._pending_sl = None
         self._pending_tp = None
 
