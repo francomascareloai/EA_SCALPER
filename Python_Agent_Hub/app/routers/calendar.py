@@ -201,13 +201,13 @@ async def export_calendar(
 ):
     """
     Export calendar to CSV file.
-    
+
     The CSV can be loaded by MQL5 for offline/backtest use.
     """
     try:
         service = get_calendar_service()
         service.export_to_csv(filepath)
-        
+
         return {
             'status': 'success',
             'filepath': filepath,
@@ -215,6 +215,31 @@ async def export_calendar(
         }
     except Exception as e:
         logger.error(f"Error exporting calendar: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/export-news-calendar")
+async def export_news_calendar_csv(
+    filepath: str = Query(..., description="Path to export NewsCalendar CSV file"),
+    buffer_before_min: int = Query(30, ge=0, le=240),
+    buffer_after_min: int = Query(30, ge=0, le=240),
+):
+    """Export to `nautilus_gold_scalper` NewsCalendar CSV schema."""
+    try:
+        service = get_calendar_service()
+        service.export_to_news_calendar_csv(
+            filepath,
+            buffer_before_min=buffer_before_min,
+            buffer_after_min=buffer_after_min,
+        )
+
+        return {
+            'status': 'success',
+            'filepath': filepath,
+            'message': 'NewsCalendar CSV exported successfully'
+        }
+    except Exception as e:
+        logger.error(f"Error exporting NewsCalendar CSV: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

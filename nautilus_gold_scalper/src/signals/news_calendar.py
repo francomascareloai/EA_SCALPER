@@ -5,10 +5,15 @@ Detects economic news events and determines trading windows.
 Migrated from MQL5/Include/EA_SCALPER/Analysis/CNewsCalendarNative.mqh
 """
 
+import csv
+import json
 import logging
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -163,11 +168,12 @@ WEEKLY_SCHEDULE: dict[str, list[str]] = {
 # ============================================================================
 
 def get_hardcoded_events_2025() -> list[NewsEvent]:
+    """Hardcoded fallback events.
+
+    Note: This list is intentionally minimal and may become stale. Prefer loading
+    a verified calendar from a local JSON/CSV file.
     """
-    Return major economic events for 2025.
-    Updated monthly as new dates are confirmed.
-    """
-    events = []
+    events: list[NewsEvent] = []
 
     # December 2025 - Major events
     december_events = [
@@ -231,8 +237,8 @@ class NewsCalendar:
     Economic news calendar for Gold trading.
 
     Features:
-    - Hardcoded major events (always works)
-    - Optional external API integration
+    - Local file loader (preferred, deterministic)
+    - Hardcoded fallback events
     - Time window detection
     - Trading action recommendations
     """
@@ -244,6 +250,8 @@ class NewsCalendar:
         minutes_before_medium: int = 15,
         minutes_after_medium: int = 10,
         blackout_minutes: int = 5,
+        *,
+        events_path: str | Path | None = None,
     ):
         """
         Initialize NewsCalendar.
@@ -261,10 +269,16 @@ class NewsCalendar:
         self.minutes_after_medium = minutes_after_medium
         self.blackout_minutes = blackout_minutes
 
+        # Local events source
+        self._events_path: Path | None = Path(events_path) if events_path is not None else None
+
         # Cache
         self._events: list[NewsEvent] = []
         self._last_cache_update: datetime | None = None
         self._cache_ttl_minutes: int = 60  # Refresh every hour
+
+        # Sorted index for fast lookup
+        self._event_times: list[datetime] = []
 
         # State
         self._last_check_time: datetime | None = None
@@ -413,8 +427,17 @@ class NewsCalendar:
         if not self._events:
             return result
 
-        # Search through cached events
-        for event in self._events:
+        # Search through cached events (fast slice via bisect)
+        search_before_min = max(self.minutes_before_high * 2, self.minutes_before_medium * 2)
+        search_after_min = max(self.minutes_after_high, self.minutes_after_medium)
+
+        start_time = now_param - timedelta(minutes=search_after_min)
+        end_time = now_param + timedelta(minutes=search_before_min)
+
+        start_idx = bisect_left(self._event_times, start_time)
+        end_idx = bisect_right(self._event_times, end_time)
+
+        for event in self._events[start_idx:end_idx]:
             if not event.is_valid:
                 continue
 
@@ -571,26 +594,193 @@ class NewsCalendar:
             self._refresh_cache(now=now)
 
     def _refresh_cache(self, now: datetime | None = None) -> None:
-        """Refresh event cache from all sources."""
+        """Refresh event cache from local sources.
+
+        Priority:
+        1) Local file (JSON/CSV) if configured
+        2) Hardcoded fallback events
+
+        Note: This module intentionally does not fetch from the internet.
+        """
         now = now or datetime.now(timezone.utc)
-        events = []
 
-        # Load hardcoded events
-        events.extend(get_hardcoded_events_2025())
+        events: list[NewsEvent] = []
+        if self._events_path is not None:
+            try:
+                events.extend(self._load_events_file(self._events_path))
+            except Exception as exc:
+                logger.warning(f"Failed to load news calendar from {self._events_path}: {exc}")
 
-        # TODO: Optional - Add Forex Factory scraping
-        # TODO: Optional - Add economic calendar API
+        if not events:
+            events.extend(get_hardcoded_events_2025())
 
-        # Filter: only future events
-        events = [e for e in events if e.time_utc > now]
+        # Keep all loaded events (past and future).
+        # Consumers pass a reference `now` into `check_news_window(now=...)` for backtests.
+        # Filtering to future-only would break historical evaluation.
+        # Filtering to past-only would break live usage.
 
         # Sort by time
         events.sort(key=lambda e: e.time_utc)
 
         self._events = events
+        self._event_times = [e.time_utc for e in events]
         self._last_cache_update = now
 
         logger.info(f"NewsCalendar: Cache refreshed with {len(events)} events")
+
+    def _load_events_file(self, path: Path) -> list[NewsEvent]:
+        """Load events from a local JSON or CSV file.
+
+        JSON schema (list):
+          [{"time_utc": "2025-12-05T13:30:00Z", "event_name": "Nonfarm Payrolls", "impact": 4, ...}, ...]
+
+        CSV columns:
+          time_utc,event_name,currency,impact,buffer_before_min,buffer_after_min
+        """
+        if not path.exists():
+            raise FileNotFoundError(str(path))
+
+        suffix = path.suffix.lower()
+        if suffix == ".json":
+            with open(path) as f:
+                raw = json.load(f)
+            if not isinstance(raw, list):
+                raise ValueError("News calendar JSON must be a list")
+            return [self._parse_event_dict(x) for x in raw]
+
+        if suffix in {".csv"}:
+            events: list[NewsEvent] = []
+            skipped_rows = 0
+
+            def _iter_non_comment_lines(f: Any) -> Any:
+                for line in f:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    if stripped.startswith("#"):
+                        continue
+                    yield line
+
+            with open(path, newline="", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(_iter_non_comment_lines(f))
+                for row_index, row in enumerate(reader, start=1):
+                    try:
+                        event = self._parse_event_dict(row)
+                    except Exception as exc:
+                        skipped_rows += 1
+                        logger.debug(
+                            f"NewsCalendar: skipping invalid CSV row {row_index} in {path}: {exc}"
+                        )
+                        continue
+                    if not event.event_name:
+                        skipped_rows += 1
+                        continue
+                    events.append(event)
+
+            if skipped_rows:
+                logger.info(
+                    f"NewsCalendar: loaded {len(events)} events from {path} (skipped {skipped_rows} rows)"
+                )
+
+            return events
+
+        raise ValueError(f"Unsupported news calendar format: {suffix}")
+
+    def _parse_time_utc(self, value: Any) -> datetime:
+        if isinstance(value, datetime):
+            dt = value
+        elif isinstance(value, (int, float)):
+            dt = datetime.fromtimestamp(float(value), tz=timezone.utc)
+        elif isinstance(value, str):
+            s = value.strip()
+            if not s:
+                raise ValueError("Empty time value")
+
+            if s.isdigit():
+                ts = float(s)
+                if ts > 10_000_000_000:
+                    ts = ts / 1000.0
+                dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+            else:
+                if s.endswith("Z"):
+                    s = s[:-1] + "+00:00"
+                dt = datetime.fromisoformat(s)
+        else:
+            raise ValueError("Invalid time_utc type")
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+
+        return dt
+
+    def _parse_impact(self, value: Any) -> NewsImpact:
+        if isinstance(value, NewsImpact):
+            return value
+
+        if isinstance(value, (int, float)):
+            try:
+                return NewsImpact(int(value))
+            except Exception:
+                return NewsImpact.NONE
+
+        if isinstance(value, str):
+            s = value.strip().upper()
+            if not s:
+                return NewsImpact.NONE
+
+            if s.isdigit() or (s.startswith("-") and s[1:].isdigit()):
+                try:
+                    return NewsImpact(int(s))
+                except Exception:
+                    return NewsImpact.NONE
+
+            mapping = {
+                "NONE": NewsImpact.NONE,
+                "LOW": NewsImpact.LOW,
+                "MEDIUM": NewsImpact.MEDIUM,
+                "MID": NewsImpact.MEDIUM,
+                "HIGH": NewsImpact.HIGH,
+                "CRITICAL": NewsImpact.CRITICAL,
+            }
+            return mapping.get(s, NewsImpact.NONE)
+
+        return NewsImpact.NONE
+
+    def _parse_event_dict(self, d: dict[str, Any]) -> NewsEvent:
+        def _get(key: str, default: Any = None) -> Any:
+            return d.get(key, default)
+
+        time_raw = (
+            _get("time_utc")
+            or _get("time")
+            or _get("timestamp")
+            or _get("timestamp_utc")
+        )
+        if time_raw in (None, ""):
+            raise ValueError("Missing time_utc")
+
+        dt = self._parse_time_utc(time_raw)
+
+        impact_raw = _get("impact", NewsImpact.NONE)
+        impact = self._parse_impact(impact_raw)
+
+        event_name = str(_get("event_name") or _get("event") or _get("name") or "").strip()
+        currency = str(_get("currency", "USD") or "USD").strip()
+
+        return NewsEvent(
+            time_utc=dt,
+            event_name=event_name,
+            currency=currency or "USD",
+            impact=impact,
+            buffer_before_min=int(_get("buffer_before_min", 30) or 30),
+            buffer_after_min=int(_get("buffer_after_min", 30) or 30),
+            forecast=float(_get("forecast", 0.0) or 0.0),
+            previous=float(_get("previous", 0.0) or 0.0),
+            actual=float(_get("actual", 0.0) or 0.0),
+            is_valid=bool(_get("is_valid", True)),
+        )
 
     def _is_gold_relevant_event(self, event_name: str) -> bool:
         """Check if event is relevant for Gold trading."""

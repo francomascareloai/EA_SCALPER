@@ -13,7 +13,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from heapq import heappop, heappush
 from pathlib import Path
-from typing import Literal, cast
+from typing import Any, Literal, cast
+
+from numpy.typing import NDArray
 
 import numpy as np
 import pandas as pd
@@ -22,6 +24,13 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from nautilus_trader.backtest.engine import BacktestEngine as NautilusEngine
+from nautilus_trader.backtest.models import (
+    LatencyModel,
+    OneTickSlippageFillModel,
+    PerContractFeeModel,
+    ThreeTierFillModel,
+    TwoTierFillModel,
+)
 from nautilus_trader.config import BacktestEngineConfig, LoggingConfig, RiskEngineConfig
 from nautilus_trader.model.currencies import USD, XAU
 from nautilus_trader.model.data import Bar, BarSpecification, BarType, QuoteTick
@@ -63,11 +72,11 @@ Gateway = Literal["rithmic", "tradovate"]
 
 _MISSING = object()
 
-def _deep_update(dst: dict, src: dict) -> dict:
+def _deep_update(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
     """Recursively update nested dicts (in-place), returning dst."""
     for key, value in src.items():
         if isinstance(value, dict) and isinstance(dst.get(key), dict):
-            _deep_update(cast(dict, dst[key]), value)
+            _deep_update(cast(dict[str, Any], dst[key]), cast(dict[str, Any], value))
         else:
             dst[key] = value
     return dst
@@ -165,26 +174,16 @@ def create_mgc_instrument(venue: Venue) -> FuturesContract:
 
 
 def apex_commission_per_side(product: Product, gateway: Gateway) -> float:
-    """Return Apex all-in commission per side for a product + gateway.
+    """Backward-compatible wrapper.
 
-    Sources (Apex Help Center, verified 2025-12-17):
-    - Tradovate Commission & Instruments: MGC = $0.67 per side ($1.34 RT)
-    - Rithmic Commissions & Instruments: MGC = $0.76 per side ($1.52 RT)
-
-    Notes:
-    - We model commission as "per side" (per fill). Round turn ~= 2x per-side.
-    - Keep this function as the single source of truth for Apex commission assumptions.
+    Prefer `nautilus_gold_scalper.src.execution.commission_schedule` for new code.
     """
-    if product != "mgc":
-        raise ValueError(f"Unsupported Apex commission lookup for product={product!r}")
-    if gateway == "rithmic":
-        return 0.76
-    if gateway == "tradovate":
-        return 0.67
-    raise ValueError(f"Unsupported gateway={gateway!r}")
+    from nautilus_gold_scalper.src.execution.commission_schedule import commission_per_side_usd
+
+    return float(commission_per_side_usd(profile="apex", product=product, gateway=gateway))
 
 
-def _quantize_to_tick(values: np.ndarray, tick: float, mode: Literal["nearest", "floor", "ceil"]) -> np.ndarray:
+def _quantize_to_tick(values: NDArray[np.float64], tick: float, mode: Literal["nearest", "floor", "ceil"]) -> NDArray[np.float64]:
     if tick <= 0:
         return values
     scaled = values / tick
@@ -419,7 +418,7 @@ def load_m5_bars_csv(filepath: Path, start_date: str, end_date: str) -> pd.DataF
     return df
 
 
-def load_yaml_config(config_path: Path) -> dict:
+def load_yaml_config(config_path: Path) -> dict[str, Any]:
     """Load YAML config if present, else return empty dict."""
     if not config_path.exists():
         return {}
@@ -431,8 +430,15 @@ def load_yaml_config(config_path: Path) -> dict:
         return {}
 
 
-def build_strategy_config(cfg: dict, bar_type: BarType, instrument_id):
+def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id: InstrumentId) -> GoldScalperConfig:
     """Build GoldScalperConfig from YAML dict + defaults."""
+
+    def _infer_slippage_in_fills(execution_cfg: dict[str, Any]) -> bool:
+        # If the runner is configured to use an engine FillModel, then fill prices already
+        # include slippage (and strategy-side slippage cash adjustment must be disabled).
+        v = execution_cfg.get("fill_model", "")
+        s = str(v).strip().lower()
+        return s not in ("", "none", "off")
     confluence_cfg = cfg.get("confluence", {}) if isinstance(cfg, dict) else {}
     risk_cfg = cfg.get("risk", {}) if isinstance(cfg, dict) else {}
     news_cfg = cfg.get("news", {}) if isinstance(cfg, dict) else {}
@@ -440,9 +446,13 @@ def build_strategy_config(cfg: dict, bar_type: BarType, instrument_id):
     exec_cfg = cfg.get("execution", {}) if isinstance(cfg, dict) else {}
     session_cfg = cfg.get("session", {}) if isinstance(cfg, dict) else {}
     structure_cfg = cfg.get("structure", {}) if isinstance(cfg, dict) else {}
-    ob_cfg = cfg.get("order_blocks", cfg.get("ob", {})) if isinstance(cfg, dict) else {}
-    fvg_cfg = cfg.get("fvg", {}) if isinstance(cfg, dict) else {}
-    sweeps_cfg = cfg.get("liquidity_sweeps", cfg.get("sweeps", {})) if isinstance(cfg, dict) else {}
+    ob_cfg_raw = cfg.get("order_blocks", cfg.get("ob", {})) if isinstance(cfg, dict) else {}
+    fvg_cfg_raw = cfg.get("fvg", {}) if isinstance(cfg, dict) else {}
+    sweeps_cfg_raw = cfg.get("liquidity_sweeps", cfg.get("sweeps", {})) if isinstance(cfg, dict) else {}
+
+    ob_cfg = ob_cfg_raw if isinstance(ob_cfg_raw, dict) else {}
+    fvg_cfg = fvg_cfg_raw if isinstance(fvg_cfg_raw, dict) else {}
+    sweeps_cfg = sweeps_cfg_raw if isinstance(sweeps_cfg_raw, dict) else {}
     amd_cfg = cfg.get("amd", {}) if isinstance(cfg, dict) else {}
     mtf_cfg = cfg.get("mtf", {}) if isinstance(cfg, dict) else {}
     footprint_cfg = cfg.get("footprint", {}) if isinstance(cfg, dict) else {}
@@ -494,10 +504,14 @@ def build_strategy_config(cfg: dict, bar_type: BarType, instrument_id):
             v = _first_present(confluence_cfg, legacy_keys)
         if v is _MISSING:
             return default
-        try:
+        if isinstance(v, (int, float)):
             return float(v)
-        except Exception:
-            return default
+        if isinstance(v, str):
+            try:
+                return float(v)
+            except Exception:
+                return default
+        return default
 
     # Derive time cutoffs with fallback to execution config
     cutoff_str = exec_cfg.get("flatten_time_et", time_cfg.get("cutoff_et", "16:59"))
@@ -513,6 +527,7 @@ def build_strategy_config(cfg: dict, bar_type: BarType, instrument_id):
         instrument_id=instrument_id,
         ltf_bar_type=bar_type,
         execution_threshold=int(execution_threshold),
+        slippage_in_fills=_infer_slippage_in_fills(exec_cfg),
         min_mtf_confluence=float(confluence_cfg.get("min_score_to_trade", 50)),
         min_rr_ratio=float(exec_cfg.get("min_rr_ratio", 1.5)),
         target_rr_ratio=float(exec_cfg.get("target_rr_ratio", 2.5)),
@@ -530,10 +545,14 @@ def build_strategy_config(cfg: dict, bar_type: BarType, instrument_id):
         use_news_filter=news_cfg.get("enabled", True),
         news_score_penalty=int(news_cfg.get("score_penalty", -15)),
         news_size_multiplier=float(news_cfg.get("size_multiplier", 0.5)),
+        news_events_path=(str(news_cfg.get("events_path")) if news_cfg.get("events_path") else None),
         flatten_time_et=cutoff_str,
         allow_overnight=exec_cfg.get("allow_overnight", time_cfg.get("allow_overnight", False)),
         slippage_ticks=int(exec_cfg.get("slippage_ticks", 2)),
         slippage_multiplier=float(exec_cfg.get("slippage_multiplier", 1.5)),
+        commission_source=str(exec_cfg.get("commission_source", "manual")),
+        commission_profile=str(exec_cfg.get("commission_profile", "apex")),
+        commission_gateway=str(exec_cfg.get("commission_gateway", "tradovate")),
         commission_per_contract=float(exec_cfg.get("commission_per_contract", 2.5)),
         latency_ms=int(exec_cfg.get("latency_ms", 0)),
         partial_fill_prob=float(exec_cfg.get("partial_fill_prob", 0.0)),
@@ -737,6 +756,7 @@ class BacktestRunner:
         latency_ms: int = 0,
         partial_fill_prob: float = 0.0,
         partial_fill_ratio: float = 0.5,
+        fill_model: str = "realistic",
         seed: int = 42,
     ):
         self.initial_balance = initial_balance
@@ -751,6 +771,7 @@ class BacktestRunner:
         self.latency_ms = latency_ms
         self.partial_fill_prob = partial_fill_prob
         self.partial_fill_ratio = partial_fill_ratio
+        self.fill_model = str(fill_model)
         self.seed = int(seed)
         self.metrics_jsonl: str | None = None
 
@@ -778,12 +799,12 @@ class BacktestRunner:
         risk_per_trade: float | None = None,
         product: Product | None = None,
         gateway: Gateway | None = None,
-        config_overrides: dict[str, object] | None = None,
+        config_overrides: dict[str, Any] | None = None,
         quiet: bool = False,
         catalog_path: str | None = None,
         catalog_paths: list[str] | None = None,
         strategy_config_path: Path | None = None,
-    ):
+    ) -> BacktestSummary | None:
         """Run backtest with NautilusTrader.
 
         - `feed="ticks"`: loads QuoteTicks and aggregates bars internally (slow, most live-like).
@@ -825,6 +846,129 @@ class BacktestRunner:
         engine = NautilusEngine(config=engine_config)
         self.engine = engine
 
+        resolved_product: Product = product or self.product
+        resolved_gateway: Gateway = gateway or self.gateway
+
+        # Create instrument early (needed for lot_size conversion in engine fee model)
+        if resolved_product == "xauusd":
+            instrument = create_xauusd_instrument(self.venue)
+        elif resolved_product == "mgc":
+            instrument = create_mgc_instrument(self.venue)
+        else:  # pragma: no cover
+            raise ValueError(f"Unsupported product={resolved_product!r}")
+        self.instrument = instrument
+
+        # Load strategy YAML config early so engine models (fills/fees/latency) match the strategy config.
+        default_cfg_path = Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml"
+        cfg_path = strategy_config_path if strategy_config_path is not None else default_cfg_path
+        strategy_cfg_dict = load_yaml_config(cfg_path)
+        strategy_cfg_dict.setdefault("confluence", {})
+        strategy_cfg_dict.setdefault("execution", {})
+        strategy_cfg_dict.setdefault("risk", {})
+        strategy_cfg_dict.setdefault("news", {})
+        strategy_cfg_dict.setdefault("footprint", {})
+        strategy_cfg_dict.setdefault("regime", {})
+        strategy_cfg_dict.setdefault("selector", {})
+
+        confluence_cfg = strategy_cfg_dict["confluence"] if isinstance(strategy_cfg_dict["confluence"], dict) else {}
+        exec_cfg = strategy_cfg_dict["execution"] if isinstance(strategy_cfg_dict["execution"], dict) else {}
+        risk_cfg = strategy_cfg_dict["risk"] if isinstance(strategy_cfg_dict["risk"], dict) else {}
+        news_cfg = strategy_cfg_dict["news"] if isinstance(strategy_cfg_dict["news"], dict) else {}
+
+        if config_overrides:
+            # Allow workflows (grid search) to sweep params without editing YAML.
+            try:
+                _deep_update(strategy_cfg_dict, config_overrides)
+            except Exception as exc:
+                _p(f"WARNING: could not apply config_overrides: {exc}")
+
+        # Refresh views after _deep_update
+        confluence_cfg = strategy_cfg_dict["confluence"] if isinstance(strategy_cfg_dict["confluence"], dict) else {}
+        exec_cfg = strategy_cfg_dict["execution"] if isinstance(strategy_cfg_dict["execution"], dict) else {}
+        risk_cfg = strategy_cfg_dict["risk"] if isinstance(strategy_cfg_dict["risk"], dict) else {}
+        news_cfg = strategy_cfg_dict["news"] if isinstance(strategy_cfg_dict["news"], dict) else {}
+
+        # Apply runtime overrides so CLI/test args actually take effect.
+        confluence_cfg["execution_threshold"] = int(execution_threshold)
+        confluence_cfg["min_score_to_trade"] = int(execution_threshold)
+        exec_cfg["use_session_filter"] = bool(use_session_filter)
+        exec_cfg["use_regime_filter"] = bool(use_regime_filter)
+        exec_cfg["use_mtf"] = bool(use_mtf)
+        exec_cfg["use_footprint"] = bool(use_footprint)
+        exec_cfg["slippage_ticks"] = int(self.slippage_ticks)
+        exec_cfg["latency_ms"] = int(self.latency_ms)
+        exec_cfg["partial_fill_prob"] = float(self.partial_fill_prob)
+        exec_cfg["partial_fill_ratio"] = float(self.partial_fill_ratio)
+        exec_cfg["fill_model"] = str(self.fill_model)
+        exec_cfg["debug_mode"] = bool(debug_mode)
+        exec_cfg["prop_firm_enabled"] = bool(prop_firm_enabled)
+        # Keep strategy-side risk state aligned with the backtest account.
+        exec_cfg["initial_balance"] = float(self.initial_balance)
+        news_cfg["enabled"] = bool(use_news_filter)
+        if risk_per_trade is not None:
+            risk_cfg["max_risk_per_trade"] = float(risk_per_trade)
+
+        # Commission schedule knobs must reflect the run-time gateway/product.
+        exec_cfg.setdefault("commission_source", "manual")
+        exec_cfg.setdefault("commission_profile", "apex")
+        exec_cfg["commission_gateway"] = str(resolved_gateway)
+
+        commission_source = str(exec_cfg.get("commission_source", "manual")).strip().lower()
+        commission_profile = str(exec_cfg.get("commission_profile", "apex")).strip().lower()
+        if commission_source == "schedule":
+            from nautilus_gold_scalper.src.execution.commission_schedule import commission_per_side_usd
+
+            resolved_commission_per_contract = float(
+                commission_per_side_usd(
+                    profile=cast(Any, commission_profile),
+                    product=cast(Any, resolved_product),
+                    gateway=cast(Any, resolved_gateway),
+                )
+            )
+        else:
+            resolved_commission_per_contract = float(self.commission_per_contract)
+
+        self.commission_per_contract = float(resolved_commission_per_contract)
+        strategy_cfg_dict["execution"]["commission_per_contract"] = float(resolved_commission_per_contract)
+
+        fill_model: object | None = None
+        fee_model: object | None = None
+        latency_model: object | None = None
+
+        # Fill slippage model (engine-level): defines fill prices.
+        # NOTE: TwoTier/ThreeTier are depth simulators and can create >1 tick average slippage for large orders.
+        resolved_fill_model = str(self.fill_model or "").strip().lower()
+        if resolved_fill_model in ("", "none", "off"):
+            fill_model = None
+        elif resolved_fill_model in ("one_tick", "one-tick", "1tick", "1_tick"):
+            fill_model = OneTickSlippageFillModel()
+        elif resolved_fill_model in ("two_tier", "two-tier", "2tier", "2_tier"):
+            fill_model = TwoTierFillModel()
+        elif resolved_fill_model in ("three_tier", "three-tier", "3tier", "3_tier", "realistic"):
+            fill_model = ThreeTierFillModel()
+        else:
+            raise ValueError(f"Unsupported fill_model={resolved_fill_model!r}")
+
+        # Fee model (engine-level): defines account commissions.
+        # Interpretation: `commission_per_contract` is per side for ONE lot.
+        # Nautilus `PerContractFeeModel` charges per filled Quantity unit, so we convert
+        # USD/lot -> USD/unit using the instrument lot size.
+        fee_model = None
+        if resolved_commission_per_contract is not None and float(resolved_commission_per_contract) != 0.0:
+            lot_size_units = float(instrument.lot_size.as_double())
+            commission_per_unit = float(resolved_commission_per_contract) / max(1e-9, lot_size_units)
+            fee_model = PerContractFeeModel(Money(Decimal(str(commission_per_unit)), USD))
+
+        # Latency model (engine-level): adds delays to order messages.
+        resolved_latency_ms = int(self.latency_ms)
+        if resolved_latency_ms > 0:
+            latency_model = LatencyModel(
+                base_latency_nanos=0,
+                insert_latency_nanos=resolved_latency_ms * 1_000_000,
+                update_latency_nanos=resolved_latency_ms * 1_000_000,
+                cancel_latency_nanos=resolved_latency_ms * 1_000_000,
+            )
+
         # Add venue
         engine.add_venue(
             venue=self.venue,
@@ -833,19 +977,11 @@ class BacktestRunner:
             base_currency=USD,
             starting_balances=[Money(self.initial_balance, USD)],
             default_leverage=Decimal("20"),
+            fill_model=fill_model,
+            fee_model=fee_model,
+            latency_model=latency_model,
         )
 
-        resolved_product: Product = product or self.product
-        resolved_gateway: Gateway = gateway or self.gateway
-
-        # Create instrument
-        if resolved_product == "xauusd":
-            instrument = create_xauusd_instrument(self.venue)
-        elif resolved_product == "mgc":
-            instrument = create_mgc_instrument(self.venue)
-        else:  # pragma: no cover
-            raise ValueError(f"Unsupported product={resolved_product!r}")
-        self.instrument = instrument
         engine.add_instrument(instrument)
 
         _p(f"Instrument: {instrument.id} (product={resolved_product}, gateway={resolved_gateway})")
@@ -860,6 +996,7 @@ class BacktestRunner:
         project_root = Path(__file__).parent.parent.parent
         repo_root = project_root.parent
         tick_path = (project_root / data_config["active_dataset"]["path"]).resolve()
+        tick_path_str = str(tick_path)
         native_catalog_path = data_config["active_dataset"].get("native_catalog_path")
         # Resolve native catalog path(s). Overrides are resolved relative to repo root, while the
         # default config path is resolved relative to nautilus_gold_scalper/ (project_root).
@@ -876,16 +1013,16 @@ class BacktestRunner:
             native_catalogs = [(project_root / native_catalog_path).resolve()]
 
         _p(f"[CONFIG] Using dataset: {data_config['active_dataset']['name']}")
-        _p(f"[CONFIG] Path: {tick_path}")
+        _p(f"[CONFIG] Path: {tick_path_str}")
         if native_catalogs:
-            existing = [p for p in native_catalogs if p.exists()]
-            if existing:
-                if len(existing) == 1:
-                    _p(f"[CONFIG] Native catalog detected: {existing[0]}")
+            existing_paths = [p for p in native_catalogs if p.exists()]
+            if existing_paths:
+                if len(existing_paths) == 1:
+                    _p(f"[CONFIG] Native catalog detected: {existing_paths[0]}")
                 else:
-                    _p(f"[CONFIG] Native catalogs detected: {len(existing)}")
-                    for p in existing:
-                        _p(f"  - {p}")
+                    _p(f"[CONFIG] Native catalogs detected: {len(existing_paths)}")
+                    for cat_path in existing_paths:
+                        _p(f"  - {cat_path}")
 
         step = sample_to_step(sample_rate)
 
@@ -997,46 +1134,7 @@ class BacktestRunner:
             engine.add_data(bars)
             _p(f"Added {len(bars):,} bars to engine (external bars feed)")
 
-        # Configure strategy from YAML + overrides
-        default_cfg_path = Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml"
-        cfg_path = strategy_config_path if strategy_config_path is not None else default_cfg_path
-        strategy_cfg_dict = load_yaml_config(cfg_path)
-        strategy_cfg_dict.setdefault("confluence", {})
-        strategy_cfg_dict.setdefault("execution", {})
-        strategy_cfg_dict.setdefault("risk", {})
-        strategy_cfg_dict.setdefault("news", {})
-        strategy_cfg_dict.setdefault("footprint", {})
-        strategy_cfg_dict.setdefault("regime", {})
-        strategy_cfg_dict.setdefault("selector", {})
-
-        # Apply runtime overrides so CLI/test args actually take effect.
-        strategy_cfg_dict["confluence"]["execution_threshold"] = int(execution_threshold)
-        strategy_cfg_dict["confluence"]["min_score_to_trade"] = int(execution_threshold)
-        strategy_cfg_dict["execution"]["use_session_filter"] = bool(use_session_filter)
-        strategy_cfg_dict["execution"]["use_regime_filter"] = bool(use_regime_filter)
-        strategy_cfg_dict["execution"]["use_mtf"] = bool(use_mtf)
-        strategy_cfg_dict["execution"]["use_footprint"] = bool(use_footprint)
-        strategy_cfg_dict["execution"]["slippage_ticks"] = int(self.slippage_ticks)
-        strategy_cfg_dict["execution"]["commission_per_contract"] = float(self.commission_per_contract)
-        strategy_cfg_dict["execution"]["latency_ms"] = int(self.latency_ms)
-        strategy_cfg_dict["execution"]["partial_fill_prob"] = float(self.partial_fill_prob)
-        strategy_cfg_dict["execution"]["partial_fill_ratio"] = float(self.partial_fill_ratio)
-        strategy_cfg_dict["execution"]["debug_mode"] = bool(debug_mode)
-        strategy_cfg_dict["execution"]["prop_firm_enabled"] = bool(prop_firm_enabled)
-        # Keep strategy-side risk state aligned with the backtest account.
-        # (Used by PropFirm/DD trackers and as the initial equity baseline.)
-        strategy_cfg_dict["execution"]["initial_balance"] = float(self.initial_balance)
-        strategy_cfg_dict["news"]["enabled"] = bool(use_news_filter)
-        if risk_per_trade is not None:
-            strategy_cfg_dict["risk"]["max_risk_per_trade"] = float(risk_per_trade)
-
-        if config_overrides:
-            # Allow workflows (grid search) to sweep params without editing YAML.
-            try:
-                _deep_update(strategy_cfg_dict, cast(dict, config_overrides))
-            except Exception as exc:
-                _p(f"WARNING: could not apply config_overrides: {exc}")
-
+        # Configure strategy from YAML + overrides (built earlier so engine + strategy share the same economics)
         strategy_config = build_strategy_config(strategy_cfg_dict, bar_type, instrument.id)
 
         strategy = GoldScalperStrategy(config=strategy_config)
@@ -1110,9 +1208,9 @@ class BacktestRunner:
         out_dir = output_dir or (Path("logs") / "backtest_latest")
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        fills = None
-        positions = None
-        account = None
+        fills: Any | None = None
+        positions: Any | None = None
+        account: Any | None = None
 
         if reports in ("summary", "full"):
             try:
@@ -1190,7 +1288,7 @@ class BacktestRunner:
                     lot_size = 100.0
             filled_lots_sum = (float(filled_qty_sum) / lot_size) if lot_size > 0 else 0.0
             commission_est = float(filled_lots_sum) * float(self.commission_per_contract)
-            total_pnl = final_balance - float(self.initial_balance) - commission_est
+            total_pnl = final_balance - float(self.initial_balance)
 
             if reports in ("summary", "full"):
                 print("\n" + "="*60)
@@ -1198,9 +1296,11 @@ class BacktestRunner:
                 print("="*60)
                 print(f"Final Balance: ${final_balance:,.2f}")
                 pct = (total_pnl / float(self.initial_balance) * 100.0) if self.initial_balance else 0.0
-                print(f"Total PnL (net commissions): ${total_pnl:,.2f} ({pct:.2f}%)")
+                print(f"Total PnL: ${total_pnl:,.2f} ({pct:.2f}%)")
                 if commission_est > 0:
-                    print(f"Commission est.: ${commission_est:,.2f} ((sum(filled_qty)/lot_size) × {self.commission_per_contract})")
+                    print(
+                        f"Commission est.: ${commission_est:,.2f} ((sum(filled_qty)/lot_size) × {self.commission_per_contract})"
+                    )
 
             # Calculate performance metrics using MetricsCalculator (best-effort; must not break summary/trades).
             try:
@@ -1370,7 +1470,7 @@ def _resolve_session_catalogs(
     return selected_paths
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     import argparse
 
@@ -1388,6 +1488,11 @@ def main():
     parser.add_argument('--bars-file', default=None, help='Optional M5 bars CSV file for fast screening (feed=bars)')
     parser.add_argument('--sweep', action='store_true', help='Run parameter sweep')
     parser.add_argument('--no-news', action='store_true', help='Disable news filter')
+    parser.add_argument(
+        '--news-events-path',
+        default=None,
+        help='Optional local NewsCalendar CSV/JSON path (overrides YAML news.events_path)',
+    )
     parser.add_argument('--no-session-filter', action='store_true', help='Disable session filter (useful for session-sliced catalogs)')
     parser.add_argument('--no-regime-filter', action='store_true', help='Disable regime filter')
     parser.add_argument('--no-mtf', action='store_true', help='Disable MTF manager')
@@ -1433,14 +1538,34 @@ def main():
     config_path = Path(args.config)
     cfg = load_yaml_config(config_path)
     exec_cfg = cfg.get("execution", {}) if isinstance(cfg, dict) else {}
+
+    config_overrides: dict[str, object] | None = None
+    if args.news_events_path:
+        config_overrides = {'news': {'events_path': args.news_events_path}}
     threshold = args.threshold if args.threshold is not None else exec_cfg.get("execution_threshold", 70)
     slippage_ticks = args.slippage if args.slippage is not None else exec_cfg.get("slippage_ticks", 2)
     if args.commission is not None:
         commission = float(args.commission)
-    elif args.product == "mgc":
-        commission = apex_commission_per_side("mgc", cast(Gateway, args.gateway))
     else:
-        commission = float(exec_cfg.get("commission_per_contract", 2.5))
+        commission_source = str(exec_cfg.get("commission_source", "manual")).strip().lower()
+        commission_profile = str(exec_cfg.get("commission_profile", "apex")).strip().lower()
+        commission_gateway = str(exec_cfg.get("commission_gateway", args.gateway)).strip().lower()
+
+        if commission_source == "schedule":
+            from nautilus_gold_scalper.src.execution.commission_schedule import commission_per_side_usd
+
+            commission = float(
+                commission_per_side_usd(
+                    profile=cast(Any, commission_profile),
+                    product=cast(Any, cast(Product, args.product)),
+                    gateway=cast(Any, cast(Gateway, commission_gateway)),
+                )
+            )
+        elif args.product == "mgc":
+            # Backward-compat for older configs/tests.
+            commission = apex_commission_per_side("mgc", cast(Gateway, args.gateway))
+        else:
+            commission = float(exec_cfg.get("commission_per_contract", 2.5))
     latency_ms = args.latency if args.latency is not None else exec_cfg.get("latency_ms", 0)
     partial_prob = args.partial_prob if args.partial_prob is not None else exec_cfg.get("partial_fill_prob", 0.0)
     partial_ratio = args.partial_ratio if args.partial_ratio is not None else exec_cfg.get("partial_fill_ratio", 0.5)
@@ -1457,6 +1582,7 @@ def main():
         latency_ms=latency_ms,
         partial_fill_prob=partial_prob,
         partial_fill_ratio=partial_ratio,
+        fill_model=str(exec_cfg.get("fill_model", "realistic")),
     )
     runner.metrics_jsonl = metrics_jsonl
 
@@ -1481,7 +1607,7 @@ def main():
     if args.sweep:
         # Parameter sweep mode
         thresholds = [60, 70, 75, 80]
-        results = []
+        results: list[dict[str, float]] = []
 
         for thresh in thresholds:
             print(f"\n>>> Testing threshold={thresh}...")
@@ -1496,6 +1622,7 @@ def main():
                     latency_ms=latency_ms,
                     partial_fill_prob=partial_prob,
                     partial_fill_ratio=partial_ratio,
+                    fill_model=str(exec_cfg.get("fill_model", "realistic")),
                 )
                 runner.run(
                     start_date=args.start,
@@ -1522,33 +1649,38 @@ def main():
                     catalog_path=args.catalog_path,
                     catalog_paths=catalog_paths,
                     strategy_config_path=config_path,
+                    config_overrides=config_overrides,
                 )
 
                 # Get results
+                assert runner.engine is not None
                 account = runner.engine.trader.generate_account_report(runner.venue)
-                final = float(account['total'].iloc[-1]) if len(account) > 0 else 100000
+                final = float(account["total"].iloc[-1]) if len(account) > 0 else 100000
                 pnl = final - 100000
 
                 fills = runner.engine.trader.generate_order_fills_report()
                 trades = len(fills) // 2
 
-                results.append({
-                    'threshold': thresh,
-                    'pnl': pnl,
-                    'trades': trades,
-                    'final_balance': final,
-                })
+                results.append(
+                    {
+                        "threshold": int(thresh),
+                        "pnl": float(pnl),
+                        "trades": int(trades),
+                        "final_balance": float(final),
+                    }
+                )
                 print(f"    PnL: ${pnl:,.2f}, Trades: {trades}")
+                assert runner.engine is not None
                 runner.engine.dispose()
             except Exception as e:
                 print(f"    ERROR: {e}")
-                results.append({'threshold': thresh, 'error': str(e)})
+                results.append({"threshold": float(thresh), "pnl": 0.0, "trades": 0.0, "final_balance": 0.0})
 
         print("\n" + "="*60)
         print("PARAMETER SWEEP RESULTS")
         print("="*60)
         for r in results:
-            if 'error' not in r:
+            if "error" not in r:
                 print(f"Threshold {r['threshold']}: PnL=${r['pnl']:,.2f}, Trades={r['trades']}")
     else:
         # Single run mode
@@ -1577,6 +1709,7 @@ def main():
             catalog_path=args.catalog_path,
             catalog_paths=catalog_paths,
             strategy_config_path=config_path,
+            config_overrides=config_overrides,
         )
 
 

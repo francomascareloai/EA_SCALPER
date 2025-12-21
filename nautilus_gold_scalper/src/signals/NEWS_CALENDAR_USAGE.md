@@ -26,8 +26,11 @@ calendar = NewsCalendar(
     blackout_minutes=5,       # Hard blackout before/after
 )
 
-# Check current status
+# Check current status (live uses wall-clock; backtests should pass `now=...`)
 window = calendar.check_news_window()
+
+# Backtests: pass the simulated timestamp (bar time) instead of wall-clock
+# window = calendar.check_news_window(now=bar_time)
 
 if window.action == NewsTradeAction.BLOCK:
     # Don't trade!
@@ -45,7 +48,11 @@ else:
 ### Check News Window
 
 ```python
+# Live usage (wall-clock):
 window = calendar.check_news_window()
+
+# Backtests: pass the simulated timestamp
+# window = calendar.check_news_window(now=bar_time)
 
 # Returns NewsWindow with:
 # - in_window: bool (are we in a news window?)
@@ -140,8 +147,10 @@ final_lot = base_lot * news_multiplier
 
 ```python
 def on_bar(self, bar: Bar) -> None:
-    # Check news before generating signals
-    window = self.news_calendar.check_news_window()
+    # Check news before generating signals.
+    # Backtests: pass the bar timestamp via `now=...` to avoid wall-clock time.
+    bar_time = datetime.fromtimestamp(bar.ts_event / 1e9, tz=timezone.utc)
+    window = self.news_calendar.check_news_window(now=bar_time)
     
     if window.action == NewsTradeAction.BLOCK:
         self.log.warning(f"Trading blocked: {window.reason}")
@@ -191,8 +200,26 @@ friday_events = get_weekly_events_for_day("Friday")
 
 ## Data Sources
 
-### Current (v1.0)
-- **Hardcoded Events**: Major 2025 events (always works)
+### Current (v1.1)
+- **Local File (recommended)**: JSON/CSV events file (deterministic, works offline)
+- **Hardcoded Events**: Minimal fallback (may become stale)
+
+#### Local file format
+
+JSON (list of dicts):
+- `time_utc`: ISO8601 (`...Z` supported)
+- `event_name`: string
+- `currency`: string (default `USD`)
+- `impact`: int (`0..4`, matches `NewsImpact`)
+- `buffer_before_min` / `buffer_after_min`: ints
+
+CSV columns:
+- `time_utc,event_name,currency,impact,buffer_before_min,buffer_after_min`
+
+#### Wiring
+
+- YAML: set `news.events_path` in `nautilus_gold_scalper/configs/strategy_config.yaml` to point to the local file.
+- CLI override (backtests): pass `--news-events-path /path/to/events.csv` to `nautilus_gold_scalper/scripts/backtest/run_backtest.py` (overrides YAML).
 
 ### Future (Optional)
 - **Forex Factory Scraping**: Real-time data
@@ -228,6 +255,8 @@ calendar.print_status()
 ## Example: Full Integration
 
 ```python
+from datetime import datetime, timezone
+
 class GoldScalperStrategy(Strategy):
     def on_start(self):
         # Initialize calendar
@@ -236,27 +265,28 @@ class GoldScalperStrategy(Strategy):
             minutes_after_high=15,
             blackout_minutes=5,
         )
-        
+
     def on_bar(self, bar: Bar):
-        # Check news first
-        window = self.news_calendar.check_news_window()
-        
+        # Check news first (backtests: use bar timestamp, not wall-clock)
+        bar_time = datetime.fromtimestamp(bar.ts_event / 1e9, tz=timezone.utc)
+        window = self.news_calendar.check_news_window(now=bar_time)
+
         if window.action == NewsTradeAction.BLOCK:
             self.log.warning(f"News block: {window.reason}")
             return
-        
+
         # Calculate confluence with news adjustment
         score = self.confluence_scorer.calculate_score()
         score += window.score_adjustment
-        
+
         # Adjust threshold if caution
         threshold = 70 if window.action == NewsTradeAction.TRADE_CAUTION else 65
-        
+
         if score >= threshold:
             # Calculate size with news multiplier
             base_size = self.calculate_base_size()
             final_size = base_size * window.size_multiplier
-            
+
             self.buy(final_size)
 ```
 

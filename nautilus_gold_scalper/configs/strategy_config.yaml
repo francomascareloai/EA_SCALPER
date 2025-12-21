@@ -51,12 +51,25 @@ risk:
   dd_soft: 0.03
   dd_hard: 0.05
   kelly_fraction: 0.25
+news:
+  enabled: true
+  score_penalty: -15
+  size_multiplier: 0.5
+  # Optional local file to load economic events (CSV/JSON).
+  # CSV schema: time_utc,event_name,currency,impact,buffer_before_min,buffer_after_min
+  # Example path: nautilus_gold_scalper/data/raw/news_events_2020_today.csv
+  # HF ForexFactory: use only the validated USD subset produced by scripts/data/validate_hf_forex_factory_calendar.py
+  events_path: nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_validated.csv
 execution:
   execution_threshold: 40
   slippage_ticks: 2
   slippage_multiplier: 1.5
   latency_ms: 50
-  # Commission per side (USD) for 1 lot/contract. For Apex futures, use `apex_commission_per_side`.
+  # Commission per side (USD) for 1 lot/contract.
+  # If commission_source=schedule, commission_per_contract is derived from profile+gateway.
+  commission_source: schedule  # manual | schedule
+  commission_profile: apex    # apex | ftmo
+  commission_gateway: tradovate  # tradovate | rithmic
   commission_per_contract: 2.5
   fill_model: realistic
   allow_overnight: false

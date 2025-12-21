@@ -19,6 +19,8 @@ Events tracked for Gold:
 - Jobless Claims (MEDIUM)
 """
 
+import argparse
+import csv
 import os
 import json
 import time
@@ -462,17 +464,81 @@ class EconomicCalendarService:
     def export_to_csv(self, filepath: str):
         """Export events to CSV for MQL5 consumption."""
         self._ensure_data()
-        
+
         header = "timestamp_utc,event,currency,impact,forecast,previous,actual"
         lines = [header]
-        
+
         for event in self.cache.events:
             lines.append(event.to_csv_row())
-        
+
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write('\n'.join(lines))
-        
+
         logger.info(f"Exported {len(self.cache.events)} events to {filepath}")
+
+    def export_to_news_calendar_csv(
+        self,
+        filepath: str,
+        *,
+        buffer_before_min: int = 30,
+        buffer_after_min: int = 30,
+    ) -> None:
+        """Export events to `nautilus_gold_scalper` NewsCalendar CSV schema.
+
+        Output columns:
+          time_utc,event_name,currency,impact,buffer_before_min,buffer_after_min,forecast,previous,actual,is_valid
+
+        Notes:
+        - `time_utc` is ISO8601 with `Z` suffix.
+        - `impact` is mapped to NewsCalendar ints: LOW=1, MEDIUM=2, HIGH=3.
+        """
+        self._ensure_data()
+
+        header = [
+            "time_utc",
+            "event_name",
+            "currency",
+            "impact",
+            "buffer_before_min",
+            "buffer_after_min",
+            "forecast",
+            "previous",
+            "actual",
+            "is_valid",
+        ]
+
+        with open(filepath, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=header)
+            writer.writeheader()
+
+            for event in self.cache.events:
+                # Map string impact to NewsCalendar int impact
+                if event.impact == NewsImpact.HIGH:
+                    impact_int = 3
+                elif event.impact == NewsImpact.MEDIUM:
+                    impact_int = 2
+                elif event.impact == NewsImpact.LOW:
+                    impact_int = 1
+                else:
+                    impact_int = 0
+
+                dt = event.datetime_utc
+                time_utc = dt.replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+
+                writer.writerow({
+                    "time_utc": time_utc,
+                    "event_name": event.event,
+                    "currency": event.currency,
+                    "impact": impact_int,
+                    "buffer_before_min": buffer_before_min,
+                    "buffer_after_min": buffer_after_min,
+                    "forecast": event.forecast if event.forecast is not None else "",
+                    "previous": event.previous if event.previous is not None else "",
+                    "actual": event.actual if event.actual is not None else "",
+                    "is_valid": "true",
+                })
+
+        logger.info(f"Exported {len(self.cache.events)} events to NewsCalendar CSV {filepath}")
     
     def health_check(self) -> dict:
         """Check service health."""
