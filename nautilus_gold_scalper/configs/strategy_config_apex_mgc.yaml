@@ -98,8 +98,11 @@ execution:
   slippage_ticks: 2
   slippage_multiplier: 1.5
   latency_ms: 50
-  # Commission is computed by runner for Apex products unless you override via CLI.
-  commission_per_contract: 2.5
+  # Commission is derived from schedule (Apex + gateway), unless overridden via CLI.
+  commission_source: schedule
+  commission_profile: apex
+  commission_gateway: tradovate
+  commission_per_contract: 0.0  # ignored when commission_source=schedule
   fill_model: realistic
   partial_fill_prob: 0.1
   partial_fill_ratio: 0.5

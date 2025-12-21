@@ -6,16 +6,10 @@ Tests import `scripts.run_backtest`, but the actual implementation lives in
 
 from __future__ import annotations
 
-from .backtest.run_backtest import (
-    BacktestRunner,
-    apex_commission_per_side,
-    create_mgc_instrument,
-    create_xauusd_instrument,
-)
+from .backtest.run_backtest import BacktestRunner, create_mgc_instrument, create_xauusd_instrument
 
 __all__ = [
     "BacktestRunner",
-    "apex_commission_per_side",
     "create_mgc_instrument",
     "create_xauusd_instrument",
 ]

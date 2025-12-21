@@ -22,6 +22,7 @@ class OrderBlock:
     top: float
     bottom: float
     strength: float
+    confirm_idx: int
     mitigated: bool = False
     
 
@@ -35,10 +36,7 @@ def load_data(filepath: str) -> pd.DataFrame:
 
 
 def detect_order_blocks(df: pd.DataFrame, min_displacement: float = 2.0) -> List[OrderBlock]:
-    """
-    Detect Order Blocks with displacement validation.
-    OB = Last opposing candle before strong displacement move.
-    """
+    """Detect Order Blocks with displacement validation (WP3 causal)."""
     # Add ATR
     df['tr'] = np.maximum(
         df['high'] - df['low'],
@@ -48,48 +46,52 @@ def detect_order_blocks(df: pd.DataFrame, min_displacement: float = 2.0) -> List
         )
     )
     df['atr'] = df['tr'].rolling(14).mean().fillna(1.0)
-    
-    order_blocks = []
-    
-    for i in range(5, len(df) - 3):
+
+    order_blocks: List[OrderBlock] = []
+    confirm_lag = 3
+
+    for i in range(5, len(df) - confirm_lag):
         atr = df['atr'].iloc[i]
-        
+        confirm_idx = i + confirm_lag
+
         # Check for Bullish OB: Bearish candle followed by bullish displacement
         if df['close'].iloc[i] < df['open'].iloc[i]:  # Bearish candle
             # Check displacement in next 1-3 candles
-            max_high = df['high'].iloc[i+1:i+4].max()
+            max_high = df['high'].iloc[i + 1:confirm_idx + 1].max()
             displacement = max_high - df['close'].iloc[i]
-            
+
             if displacement >= atr * min_displacement:
-                # Valid Bullish OB
-                ob = OrderBlock(
-                    idx=i,
-                    time=df.index[i],
-                    ob_type='BULL',
-                    top=df['open'].iloc[i],
-                    bottom=df['low'].iloc[i],
-                    strength=displacement / atr
+                order_blocks.append(
+                    OrderBlock(
+                        idx=i,
+                        time=df.index[i],
+                        ob_type='BULL',
+                        top=df['open'].iloc[i],
+                        bottom=df['low'].iloc[i],
+                        strength=displacement / atr,
+                        confirm_idx=confirm_idx,
+                    )
                 )
-                order_blocks.append(ob)
-        
+
         # Check for Bearish OB: Bullish candle followed by bearish displacement
         if df['close'].iloc[i] > df['open'].iloc[i]:  # Bullish candle
             # Check displacement in next 1-3 candles
-            min_low = df['low'].iloc[i+1:i+4].min()
+            min_low = df['low'].iloc[i + 1:confirm_idx + 1].min()
             displacement = df['close'].iloc[i] - min_low
-            
+
             if displacement >= atr * min_displacement:
-                # Valid Bearish OB
-                ob = OrderBlock(
-                    idx=i,
-                    time=df.index[i],
-                    ob_type='BEAR',
-                    top=df['high'].iloc[i],
-                    bottom=df['open'].iloc[i],
-                    strength=displacement / atr
+                order_blocks.append(
+                    OrderBlock(
+                        idx=i,
+                        time=df.index[i],
+                        ob_type='BEAR',
+                        top=df['high'].iloc[i],
+                        bottom=df['open'].iloc[i],
+                        strength=displacement / atr,
+                        confirm_idx=confirm_idx,
+                    )
                 )
-                order_blocks.append(ob)
-    
+
     return order_blocks
 
 
@@ -155,6 +157,9 @@ def backtest_ob_strategy(df: pd.DataFrame, order_blocks: List[OrderBlock],
             # Find active unmitigated OBs
             for ob in order_blocks:
                 if ob.idx in used_obs:
+                    continue
+                # WP3: OB only becomes tradable after confirmation lag.
+                if i < ob.confirm_idx:
                     continue
                 
                 # Check if price is at OB zone

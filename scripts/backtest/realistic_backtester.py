@@ -22,7 +22,7 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import warnings
 warnings.filterwarnings('ignore')
@@ -277,52 +277,67 @@ class ONNXMock:
 class MTFAnalyzer:
     """
     Multi-Timeframe alignment analyzer.
-    
-    Calculates alignment score across multiple timeframes.
+
+    WP3: Must be causal.
+    Alignment at time `current_time` must only use bars fully known at that time.
     """
-    
+
     def __init__(self, timeframes: List[str]):
         self.timeframes = timeframes
         self.bars_cache: Dict[str, pd.DataFrame] = {}
-    
-    def calculate_alignment(self, bars_dict: Dict[str, pd.DataFrame], 
-                           current_idx: int) -> float:
+
+    @staticmethod
+    def _closed_bars_asof(bars: pd.DataFrame, current_time: datetime, timeframe: str) -> pd.DataFrame:
+        """Return only bars that are fully closed as of current_time.
+
+        Pandas resample() labels by period start by default (label='left').
+        A bar is fully closed when (bar_start + timeframe) <= current_time.
         """
-        Calculate MTF alignment score.
-        
+        if bars.empty:
+            return bars
+
+        ts = pd.Timestamp(current_time)
+        tf_delta = pd.Timedelta(timeframe)
+        return bars[bars.index + tf_delta <= ts]
+
+    def calculate_alignment(self, bars_dict: Dict[str, pd.DataFrame], current_time: datetime) -> float:
+        """Calculate MTF alignment score (causal).
+
         Args:
             bars_dict: Dict of timeframe -> OHLC DataFrame
-            current_idx: Current bar index in primary timeframe
-        
+            current_time: Current timestamp in primary timeframe
+
         Returns:
             Alignment score 0-1 (1 = all timeframes agree)
         """
-        directions = []
-        
+        directions: list[int] = []
+
         for tf, bars in bars_dict.items():
-            if len(bars) < 20:
+            if bars is None or bars.empty:
                 continue
-            
-            # Simple trend direction based on MA
-            close = bars['close'].values
-            ma_fast = pd.Series(close).rolling(10).mean().iloc[-1]
-            ma_slow = pd.Series(close).rolling(20).mean().iloc[-1]
-            
+
+            bars_asof = self._closed_bars_asof(bars, current_time, tf)
+            if len(bars_asof) < 20:
+                continue
+
+            # Simple trend direction based on MA (computed on truncated history)
+            close = bars_asof['close']
+            ma_fast = close.rolling(10, min_periods=10).mean().iloc[-1]
+            ma_slow = close.rolling(20, min_periods=20).mean().iloc[-1]
+
             if ma_fast > ma_slow:
                 directions.append(1)  # Bullish
             elif ma_fast < ma_slow:
                 directions.append(-1)  # Bearish
             else:
                 directions.append(0)
-        
+
         if not directions:
             return 0.5
-        
+
         # Alignment = proportion of timeframes agreeing
-        avg_direction = np.mean(directions)
-        alignment = abs(avg_direction)  # 0 = mixed, 1 = all agree
-        
-        return alignment
+        avg_direction = float(np.mean(directions))
+        return float(abs(avg_direction))  # 0 = mixed, 1 = all agree
 
 
 # =============================================================================
@@ -999,8 +1014,8 @@ class RealisticBacktester:
         }
         ml_prob = self.onnx.predict_direction(features)
         
-        # 3. Calculate MTF alignment
-        mtf_alignment = self.mtf.calculate_alignment(bars_dict, idx)
+        # 3. Calculate MTF alignment (causal, as-of timestamp)
+        mtf_alignment = self.mtf.calculate_alignment(bars_dict, timestamp)
         
         # 4. Create BarData for EALogic
         bar_data = BarData(
@@ -1255,24 +1270,74 @@ class RealisticBacktester:
 # =============================================================================
 
 def main():
-    """Run realistic backtest"""
+    """Run realistic backtest."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Realistic Event-Driven Backtester v2.0")
+    parser.add_argument(
+        "--ticks",
+        required=True,
+        help="Path to tick data (.parquet or .csv)",
+    )
+    parser.add_argument("--max-ticks", type=int, default=5_000_000)
+    parser.add_argument("--start-date", default=None, help="Filter start (YYYY-MM-DD)")
+    parser.add_argument("--end-date", default=None, help="Filter end (YYYY-MM-DD)")
+
+    parser.add_argument(
+        "--news-csv",
+        default=None,
+        help=(
+            "Optional Finnhub calendar CSV (timestamp_utc,event,currency,impact,...) for news-aware latency. "
+            "Only affects simulated latency volatility drag."
+        ),
+    )
+    parser.add_argument("--news-window-min", type=int, default=30)
+
+    parser.add_argument(
+        "--export-trades",
+        default=None,
+        help="Write Oracle-compatible trades CSV",
+    )
+
+    args = parser.parse_args()
+
     config = RealisticBacktestConfig(
         execution_mode=ExecutionMode.PESSIMISTIC,
         enable_latency_sim=True,
         enable_onnx_mock=True,
         min_confluence=65.0,
-        debug=True,
-        debug_interval=500
+        debug=False,
+        debug_interval=500,
     )
-    
-    tick_path = "C:/Users/Admin/Documents/EA_SCALPER_XAUUSD/scripts/backtest/tmp_ticks.csv"
-    
+
     bt = RealisticBacktester(config)
-    results = bt.run(tick_path, max_ticks=50_000)
-    
-    export_path = "C:/Users/Admin/Documents/EA_SCALPER_XAUUSD/data/realistic_trades.csv"
-    bt.export_trades(export_path)
-    
+
+    # Optional: load news timestamps to flag high-volatility periods.
+    news_times_utc: set[datetime] | None = None
+    if args.news_csv:
+        import pandas as pd
+
+        news_df = pd.read_csv(args.news_csv)
+        if 'timestamp_utc' in news_df.columns:
+            news_times_utc = {
+                datetime.fromtimestamp(int(ts), tz=timezone.utc)
+                for ts in news_df['timestamp_utc'].dropna().astype(int).tolist()
+            }
+
+    results = bt.run(
+        args.ticks,
+        max_ticks=args.max_ticks,
+        start_date=args.start_date,
+        end_date=args.end_date,
+    )
+
+    if args.export_trades:
+        bt.export_trades(args.export_trades)
+
+    # Print compact info about the news set if provided.
+    if news_times_utc is not None:
+        print(f"[News] Loaded {len(news_times_utc)} event timestamps from {args.news_csv}")
+
     return results
 
 

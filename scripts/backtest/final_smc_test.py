@@ -23,6 +23,7 @@ class OrderBlock:
     top: float
     bottom: float
     strength: float
+    confirm_idx: int
 
 
 class SMCBacktester:
@@ -36,30 +37,52 @@ class SMCBacktester:
         self.max_dd = initial_balance * max_dd_pct
     
     def detect_obs(self, df: pd.DataFrame, min_disp: float = 2.0) -> List[OrderBlock]:
-        """Detect Order Blocks"""
+        """Detect Order Blocks (WP3 causal: confirmation lag enforced)."""
         df['tr'] = np.maximum(
             df['high'] - df['low'],
             np.maximum(abs(df['high'] - df['close'].shift(1)),
                       abs(df['low'] - df['close'].shift(1))))
         df['atr'] = df['tr'].rolling(14).mean().fillna(1.0)
-        
-        obs = []
-        for i in range(5, len(df) - 3):
+
+        obs: List[OrderBlock] = []
+        confirm_lag = 3
+
+        for i in range(5, len(df) - confirm_lag):
             atr = df['atr'].iloc[i]
-            
+            confirm_idx = i + confirm_lag
+
             # Bullish OB
             if df['close'].iloc[i] < df['open'].iloc[i]:
-                disp = df['high'].iloc[i+1:i+4].max() - df['close'].iloc[i]
+                disp = df['high'].iloc[i + 1:confirm_idx + 1].max() - df['close'].iloc[i]
                 if disp >= atr * min_disp:
-                    obs.append(OrderBlock(i, df.index[i], 'BULL',
-                                         df['open'].iloc[i], df['low'].iloc[i], disp/atr))
-            
+                    obs.append(
+                        OrderBlock(
+                            i,
+                            df.index[i],
+                            'BULL',
+                            df['open'].iloc[i],
+                            df['low'].iloc[i],
+                            disp / atr,
+                            confirm_idx,
+                        )
+                    )
+
             # Bearish OB
             if df['close'].iloc[i] > df['open'].iloc[i]:
-                disp = df['close'].iloc[i] - df['low'].iloc[i+1:i+4].min()
+                disp = df['close'].iloc[i] - df['low'].iloc[i + 1:confirm_idx + 1].min()
                 if disp >= atr * min_disp:
-                    obs.append(OrderBlock(i, df.index[i], 'BEAR',
-                                         df['high'].iloc[i], df['open'].iloc[i], disp/atr))
+                    obs.append(
+                        OrderBlock(
+                            i,
+                            df.index[i],
+                            'BEAR',
+                            df['high'].iloc[i],
+                            df['open'].iloc[i],
+                            disp / atr,
+                            confirm_idx,
+                        )
+                    )
+
         return obs
     
     def run(self, df: pd.DataFrame, obs: List[OrderBlock],
@@ -114,6 +137,9 @@ class SMCBacktester:
                 
                 for ob in obs:
                     if ob.idx in used_obs:
+                        continue
+                    # WP3: OB only becomes tradable after confirmation lag.
+                    if i < ob.confirm_idx:
                         continue
                     
                     if ob.ob_type == 'BULL':

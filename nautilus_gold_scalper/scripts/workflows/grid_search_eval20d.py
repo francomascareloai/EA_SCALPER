@@ -37,7 +37,6 @@ from ..backtest.run_backtest import (
     Gateway,
     Product,
     _quantize_to_tick,
-    apex_commission_per_side,
     create_mgc_instrument,
     create_xauusd_instrument,
     load_m5_bars_csv,
@@ -304,7 +303,13 @@ def main() -> int:
 
     commission_per_side = 0.0
     if args.product == "mgc":
-        commission_per_side = apex_commission_per_side("mgc", cast(Gateway, args.gateway))
+        from nautilus_gold_scalper.src.execution.commission_schedule import commission_per_side_usd
+
+        commission_per_side = commission_per_side_usd(
+            profile="apex",
+            product="mgc",
+            gateway=cast(Gateway, args.gateway),
+        )
 
     # Build combos (cartesian or sampled)
     keys = list(param_space.keys())
@@ -338,14 +343,14 @@ def main() -> int:
         run_dir = out_root / f"run_{i:04d}"
         run_dir.mkdir(parents=True, exist_ok=True)
 
-        runner_kwargs: dict[str, object] = {
+        runner_kwargs: dict[str, Any] = {
             "initial_balance": float(args.account),
             "log_level": "ERROR",
             "commission_per_contract": float(commission_per_side),
             "product": cast(Product, args.product),
             "gateway": cast(Gateway, args.gateway),
         }
-        run_kwargs: dict[str, object] = {
+        run_kwargs: dict[str, Any] = {
             "start_date": args.start,
             "end_date": args.end,
             "feed": "bars",
@@ -359,6 +364,15 @@ def main() -> int:
             "quiet": True,
         }
         config_overrides: dict[str, Any] = {}
+        if args.product == "mgc":
+            config_overrides.setdefault("execution", {})
+            cast(dict[str, Any], config_overrides["execution"]).update(
+                {
+                    "commission_source": "schedule",
+                    "commission_profile": "apex",
+                    "commission_gateway": cast(Gateway, args.gateway),
+                }
+            )
 
         for k, v in combo.items():
             ks = str(k)
