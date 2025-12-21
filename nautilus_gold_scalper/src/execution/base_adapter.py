@@ -12,9 +12,17 @@ from __future__ import annotations
 import itertools
 from collections.abc import Generator
 from dataclasses import dataclass
+from datetime import datetime, time, timezone
 from pathlib import Path
 
 import pandas as pd
+
+try:
+    from zoneinfo import ZoneInfo
+
+    _ET_TZ: ZoneInfo | None = ZoneInfo("America/New_York")
+except Exception:  # pragma: no cover
+    _ET_TZ = None
 
 
 @dataclass
@@ -35,6 +43,9 @@ class BaseExecutionAdapter:
     - Offline-first: if no connection params are provided, works in simulator mode.
     - Deterministic: order ids are incremental and stored in-memory.
     - Tick source: CSV/Parquet with bid/ask/last/volume columns.
+
+    WP1/WP4 safety: enforces Apex time gates at the adapter layer as a last line of
+    defense (strategy-level checks are not sufficient under stalls/miswiring).
     """
 
     def __init__(self, name: str, symbol: str, data_path: Path | None = None):
@@ -99,13 +110,29 @@ class BaseExecutionAdapter:
         order_type: str = "market",
         price: float | None = None,
         time_in_force: str = "GTC",
+        *,
+        ts_utc: datetime | None = None,
     ) -> int:
-        """
-        Store order locally and return order id.
+        """Store order locally and return order id.
+
+        Safety: Enforces Apex time gates in ET at the adapter boundary.
+        - After 16:30 ET: blocks *new entries*.
+        - Reduce-only / flatten orders are allowed at any time.
+
+        If ET conversion is unavailable, fail-closed for new entries.
+
         Subclasses can override to route to real venues.
         """
         if not self._connected:
             raise RuntimeError("Adapter not connected")
+
+        now_utc = ts_utc or datetime.now(timezone.utc)
+        if now_utc.tzinfo is None:
+            now_utc = now_utc.replace(tzinfo=timezone.utc)
+
+        if not self._is_order_allowed(now_utc=now_utc, order_type=order_type):
+            raise RuntimeError("Order blocked by Apex time gate")
+
         oid = next(self._order_counter)
         self._orders[oid] = {
             "side": side,
@@ -114,8 +141,37 @@ class BaseExecutionAdapter:
             "price": price,
             "tif": time_in_force,
             "status": "NEW",
+            "ts_utc": now_utc,
         }
         return oid
+
+    def _is_order_allowed(self, *, now_utc: datetime, order_type: str) -> bool:
+        if _ET_TZ is None:
+            return False
+
+        dt_et = now_utc.astimezone(_ET_TZ)
+        now_time = dt_et.time()
+
+        urgent = time(16, 30)
+        emergency = time(16, 55)
+        cutoff = time(16, 59)
+
+        order_type_norm = order_type.lower().strip()
+        is_reduce_only = order_type_norm in {"close", "flatten", "reduce", "reduce_only"}
+
+        # Reduce-only / flatten orders are allowed at any time.
+        if is_reduce_only:
+            return True
+
+        # Never allow new entries after urgent.
+        if now_time >= urgent:
+            return False
+
+        # Block any new orders after emergency/cutoff (defense in depth).
+        if now_time >= emergency or now_time >= cutoff:
+            return False
+
+        return True
 
     def cancel_order(self, order_id: int) -> bool:
         if order_id in self._orders:
