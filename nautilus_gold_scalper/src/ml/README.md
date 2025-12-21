@@ -182,6 +182,24 @@ This will:
 
 ## Integration with ML Models
 
+### Recommended: FeaturePipeline (train/inference parity)
+
+Use `FeaturePipeline` to keep feature order and scaler parameters identical between
+training and inference.
+
+```python
+from src.ml import FeaturePipeline
+
+# Training
+pipeline = FeaturePipeline()
+X_train = pipeline.fit(train_df, method="standard")
+pipeline.save("data/models/feature_pipeline.json")
+
+# Inference
+pipeline = FeaturePipeline.load("data/models/feature_pipeline.json")
+X_live = pipeline.transform(live_df)
+```
+
 ### For Training
 
 ```python

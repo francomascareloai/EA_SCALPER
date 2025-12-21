@@ -2,11 +2,13 @@
 
 from .ensemble_predictor import EnsembleConfig, EnsemblePrediction, EnsemblePredictor
 from .feature_engineering import FeatureConfig, FeatureEngineer
+from .pipeline import FeaturePipeline
 from .model_trainer import ModelTrainer, TrainingConfig, TrainingResult
 
 __all__ = [
     'FeatureEngineer',
     'FeatureConfig',
+    'FeaturePipeline',
     'ModelTrainer',
     'TrainingConfig',
     'TrainingResult',

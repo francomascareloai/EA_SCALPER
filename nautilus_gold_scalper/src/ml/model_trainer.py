@@ -5,7 +5,7 @@ STREAM G - Machine Learning (Part 2)
 Provides training infrastructure for trading ML models:
 - Walk-Forward Analysis (WFA) training
 - Purged K-Fold cross-validation
-- Model serialization (pickle, ONNX)
+- Model serialization (ONNX-only)
 - Training metrics tracking
 - Early stopping with patience
 """
@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-import pickle
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -57,8 +56,8 @@ try:
     import onnx
     import onnxmltools
     import onnxruntime as ort
-    from onnxmltools.convert.common.data_types import FloatTensorType
     from skl2onnx import convert_sklearn
+    from skl2onnx.common.data_types import FloatTensorType
     HAS_ONNX = True
 except ImportError:
     HAS_ONNX = False
@@ -523,33 +522,28 @@ class ModelTrainer:
         return importance
 
     def _save_model(self, model: Any, model_type: str) -> str:
-        """
-        Save model to disk in ONNX format.
+        """Save model to disk in ONNX format.
 
-        Falls back to pickle only if ONNX export fails.
+        Security: pickle serialization is disabled (RCE risk). If ONNX export is not
+        available, the caller must handle persistence outside this module.
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        if HAS_ONNX and self.config.save_onnx:
-            # Try ONNX export first
-            filename = f"{model_type}_{timestamp}.onnx"
-            filepath = Path(self.config.model_dir) / filename
+        if not self.config.save_onnx:
+            raise RuntimeError("Model persistence disabled (save_onnx=False)")
 
-            try:
-                self._save_model_onnx(model, str(filepath), model_type)
-                logger.info(f"Model saved to ONNX: {filepath}")
-                return str(filepath)
-            except Exception as e:
-                logger.warning(f"ONNX export failed: {e}. Falling back to pickle.")
+        if not HAS_ONNX:
+            raise RuntimeError("ONNX libraries not installed; cannot save model safely")
 
-        # Fallback to pickle (with security warning)
-        logger.warning("Using pickle serialization - security vulnerability! Consider using ONNX.")
-        filename = f"{model_type}_{timestamp}.pkl"
+        filename = f"{model_type}_{timestamp}.onnx"
         filepath = Path(self.config.model_dir) / filename
 
-        with open(filepath, "wb") as f:
-            pickle.dump(model, f)
+        try:
+            self._save_model_onnx(model, str(filepath), model_type)
+        except Exception as e:
+            raise RuntimeError(f"ONNX export failed for {model_type}: {e}") from e
 
+        logger.info(f"Model saved to ONNX: {filepath}")
         return str(filepath)
 
     def _save_model_onnx(self, model: Any, filepath: str, model_type: str) -> None:
@@ -612,35 +606,20 @@ class ModelTrainer:
             json.dump(metadata, f, indent=2)
 
     def load_model(self, model_path: str) -> Any:
-        """
-        Load model from disk.
+        """Load model from disk.
 
-        Tries ONNX first, falls back to pickle with warning.
+        Security: pickle deserialization is disabled (RCE risk). Only ONNX models are
+        supported.
         """
         path = Path(model_path)
 
-        # Try ONNX first
-        if HAS_ONNX and path.suffix == '.onnx':
-            try:
-                return self._load_model_onnx(str(path))
-            except Exception as e:
-                logger.warning(f"ONNX load failed: {e}. Trying pickle fallback.")
+        if path.suffix != ".onnx":
+            raise ValueError(f"Unsupported model format: {path.suffix} (expected .onnx)")
 
-        # Try to find ONNX version if pickle path given
-        if path.suffix == '.pkl':
-            onnx_path = path.with_suffix('.onnx')
-            if onnx_path.exists() and HAS_ONNX:
-                try:
-                    logger.info(f"Found ONNX version, loading: {onnx_path}")
-                    return self._load_model_onnx(str(onnx_path))
-                except Exception as e:
-                    logger.warning(f"ONNX load failed: {e}. Loading pickle.")
+        if not HAS_ONNX:
+            raise RuntimeError("ONNX libraries not installed; cannot load model")
 
-        # Fallback to pickle (with security warning)
-        logger.warning("Loading pickle file - security vulnerability! Migrate to ONNX.")
-        with open(model_path, "rb") as f:
-            model = pickle.load(f)
-        return model
+        return self._load_model_onnx(str(path))
 
     def _load_model_onnx(self, filepath: str) -> ort.InferenceSession:
         """

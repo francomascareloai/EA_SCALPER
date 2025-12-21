@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import logging
-import pickle
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -23,15 +22,15 @@ import numpy as np
 try:
     from ..core.definitions import MarketRegime, SignalType
 except ImportError:  # Allow import when src/ is placed on sys.path (tests do this)
-    from core.definitions import MarketRegime, SignalType  # type: ignore[no-redef]
+    from core.definitions import MarketRegime, SignalType
 
 logger = logging.getLogger(__name__)
 
 try:
     import onnxmltools
     import onnxruntime as ort
-    from onnxmltools.convert.common.data_types import FloatTensorType
     from skl2onnx import convert_sklearn
+    from skl2onnx.common.data_types import FloatTensorType
     HAS_ONNX = True
 except ImportError:
     HAS_ONNX = False
@@ -95,6 +94,9 @@ class EnsemblePredictor:
     - Regime-adaptive weight adjustment
     - Confidence calibration
     - Disagreement detection
+
+    Input contract:
+    - `features` must match the trained feature count for the ensemble.
     """
 
     def __init__(self, config: EnsembleConfig | None = None):
@@ -102,6 +104,7 @@ class EnsemblePredictor:
         self._models: dict[str, Any] = {}
         self._calibrators: dict[str, Any] = {}
         self._is_fitted = False
+        self._n_features: int | None = None
 
     def add_model(self, name: str, model: Any, weight: float | None = None) -> None:
         """
@@ -113,6 +116,15 @@ class EnsemblePredictor:
             weight: Optional weight override
         """
         self._models[name] = model
+
+        n_features = self._infer_n_features(model)
+        if n_features is not None:
+            if self._n_features is None:
+                self._n_features = n_features
+            elif self._n_features != n_features:
+                raise ValueError(
+                    f"Inconsistent n_features across models: {self._n_features} vs {n_features}"
+                )
 
         if weight is not None:
             self.config.model_weights[name] = weight
@@ -133,6 +145,24 @@ class EnsemblePredictor:
         if total > 0:
             for name in self.config.model_weights:
                 self.config.model_weights[name] /= total
+
+    def _infer_n_features(self, model: Any) -> int | None:
+        if hasattr(model, "n_features_in_"):
+            try:
+                return int(getattr(model, "n_features_in_"))
+            except Exception:
+                return None
+
+        # ONNX Runtime session
+        if HAS_ONNX and isinstance(model, ort.InferenceSession):
+            try:
+                shape = model.get_inputs()[0].shape
+                if len(shape) >= 2 and shape[1] is not None:
+                    return int(shape[1])
+            except Exception:
+                return None
+
+        return None
 
     def predict(
         self,
@@ -159,6 +189,12 @@ class EnsemblePredictor:
         # Ensure 2D
         if features.ndim == 1:
             features = features.reshape(1, -1)
+
+        # Validate feature shape (prevent runtime misalignment)
+        if self._n_features is not None and int(features.shape[1]) != int(self._n_features):
+            raise ValueError(
+                f"Invalid features shape: expected n_features={self._n_features}, got {features.shape[1]}"
+            )
 
         # Get weights for current regime
         weights = self._get_regime_weights(regime)
@@ -454,7 +490,8 @@ class EnsemblePredictor:
         Saves:
         - Config as JSON
         - Each model as ONNX
-        - Calibrators as pickle (small, internal use)
+
+        Security: pickle serialization is disabled.
         """
         base_path = Path(filepath)
         base_dir = base_path.parent
@@ -481,22 +518,14 @@ class EnsemblePredictor:
                     self._save_model_onnx(model, str(onnx_path), model_name)
                     logger.info(f"Saved {model_name} to ONNX: {onnx_path}")
                 except Exception as e:
-                    logger.warning(f"Failed to save {model_name} to ONNX: {e}. Using pickle fallback.")
-                    pkl_path = models_dir / f"{model_name}.pkl"
-                    with open(pkl_path, 'wb') as f:
-                        pickle.dump(model, f)
+                    raise RuntimeError(
+                        f"Failed to save {model_name} to ONNX: {e}"
+                    ) from e
         else:
-            # Fallback to pickle if ONNX not available
-            logger.warning("ONNX not available, using pickle - security vulnerability!")
-            models_path = ensemble_dir / "models.pkl"
-            with open(models_path, 'wb') as f:
-                pickle.dump(self._models, f)
+            raise RuntimeError("ONNX not available; cannot save models safely")
 
-        # Save calibrators (small objects, keep as pickle for simplicity)
         if self._calibrators:
-            calibrators_path = ensemble_dir / "calibrators.pkl"
-            with open(calibrators_path, 'wb') as f:
-                pickle.dump(self._calibrators, f)
+            logger.warning("Skipping calibrator persistence (pickle disabled)")
 
         logger.info(f"Ensemble saved to: {ensemble_dir}")
 
@@ -578,13 +607,12 @@ class EnsemblePredictor:
             # Try to find directory version
             ensemble_dir = base_path.parent / base_path.stem
             if not ensemble_dir.exists():
-                # Fallback to pickle
-                return cls._load_pickle(filepath)
+                raise FileNotFoundError(f"Ensemble directory not found: {ensemble_dir}")
 
         # Load config from JSON
         config_path = ensemble_dir / "config.json"
         if not config_path.exists():
-            return cls._load_pickle(filepath)
+            raise FileNotFoundError(f"Missing config.json in ensemble dir: {ensemble_dir}")
 
         with open(config_path) as f:
             config_dict = json.load(f)
@@ -604,18 +632,9 @@ class EnsemblePredictor:
                 except Exception as e:
                     logger.warning(f"Failed to load {model_name} from ONNX: {e}")
         else:
-            # Try pickle fallback
-            models_pkl = ensemble_dir / "models.pkl"
-            if models_pkl.exists():
-                logger.warning("Loading models from pickle - security vulnerability!")
-                with open(models_pkl, 'rb') as f:
-                    predictor._models = pickle.load(f)
+            raise RuntimeError("ONNX not available; cannot load models")
 
-        # Load calibrators
-        calibrators_path = ensemble_dir / "calibrators.pkl"
-        if calibrators_path.exists():
-            with open(calibrators_path, 'rb') as f:
-                predictor._calibrators = pickle.load(f)
+        predictor._calibrators = {}
 
         predictor._is_fitted = len(predictor._models) > 0
 
@@ -623,18 +642,9 @@ class EnsemblePredictor:
 
     @classmethod
     def _load_pickle(cls, filepath: str) -> EnsemblePredictor:
-        """Fallback loader for old pickle format."""
-        logger.warning("Loading pickle file - security vulnerability! Migrate to ONNX.")
-
-        with open(filepath, "rb") as f:
-            state = pickle.load(f)
-
-        predictor = cls(config=state["config"])
-        predictor._models = state["models"]
-        predictor._calibrators = state.get("calibrators", {})
-        predictor._is_fitted = len(predictor._models) > 0
-
-        return predictor
+        raise RuntimeError(
+            "Pickle loading is disabled (RCE risk). Re-export ensemble to ONNX/JSON."
+        )
 
     @staticmethod
     def _load_model_onnx(filepath: str) -> ort.InferenceSession:
