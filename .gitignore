@@ -216,5 +216,11 @@ Python_Agent_Hub/ml_pipeline/data/
 !data/config.yaml
 !data/README.md
 
+# Nautilus scalper local datasets (keep out of repo)
+nautilus_gold_scalper/data/raw/
+
+# Local Claude state
+.claude/_disabled/
+
 # Parquet datasets
 
