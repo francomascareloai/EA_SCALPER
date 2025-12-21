@@ -71,6 +71,93 @@ USD_EVENT_SCHEDULES: dict[str, EventSchedule] = {
 }
 
 
+PROFILE_EVENT_FILTERS: dict[str, set[str]] = {
+    # All defined anchor events.
+    "anchor_usd": set(USD_EVENT_SCHEDULES.keys()),
+    # High-signal XAUUSD movers; intentionally smaller = less noise.
+    "top_movers_usd": {
+        "Non-Farm Employment Change",
+        "Unemployment Rate",
+        "CPI m/m",
+        "CPI y/y",
+        "Core CPI m/m",
+        "Retail Sales m/m",
+        "ISM Manufacturing PMI",
+        "ISM Services PMI",
+        "Advance GDP q/q",
+        "FOMC Statement",
+        "Federal Funds Rate",
+        "FOMC Press Conference",
+    },
+    # Only the most market-moving events.
+    "critical_only_usd": {
+        "Non-Farm Employment Change",
+        "FOMC Statement",
+        "Federal Funds Rate",
+        "FOMC Press Conference",
+        "CPI m/m",
+        "CPI y/y",
+    },
+}
+
+
+EXPECTED_PER_YEAR: dict[str, int] = {
+    # Monthly (approx 12/year)
+    "CPI m/m": 12,
+    "CPI y/y": 12,
+    "Core CPI m/m": 12,
+    "Core CPI y/y": 12,
+    "PPI m/m": 12,
+    "Core PPI m/m": 12,
+    "Core PCE Price Index m/m": 12,
+    "Retail Sales m/m": 12,
+    "Core Retail Sales m/m": 12,
+    "Unemployment Rate": 12,
+    "Non-Farm Employment Change": 12,
+    "Average Hourly Earnings m/m": 12,
+    "ADP Non-Farm Employment Change": 12,
+    "JOLTS Job Openings": 12,
+    "Personal Spending m/m": 12,
+    "Trade Balance": 12,
+    "Industrial Production m/m": 12,
+    "Capacity Utilization Rate": 12,
+    "Building Permits": 12,
+    "Housing Starts": 12,
+    "Existing Home Sales": 12,
+    "New Home Sales": 12,
+    "CB Consumer Confidence": 12,
+    "Durable Goods Orders m/m": 12,
+    "Core Durable Goods Orders m/m": 12,
+    "Philly Fed Manufacturing Index": 12,
+    "Empire State Manufacturing Index": 12,
+    "Chicago PMI": 12,
+    "ISM Manufacturing PMI": 12,
+    "ISM Services PMI": 12,
+    "Flash Manufacturing PMI": 12,
+    "Flash Services PMI": 12,
+    "Prelim UoM Consumer Sentiment": 12,
+    "Revised UoM Consumer Sentiment": 12,
+
+    # Weekly
+    "Unemployment Claims": 52,
+
+    # Quarterly (approx 4/year)
+    "Advance GDP q/q": 4,
+    "Prelim GDP q/q": 4,
+    "Final GDP q/q": 4,
+    "Advance GDP Price Index q/q": 4,
+    "Prelim GDP Price Index q/q": 4,
+    "Final GDP Price Index q/q": 4,
+
+    # Fed schedule (typically 8/year; projections are fewer)
+    "FOMC Statement": 8,
+    "FOMC Press Conference": 8,
+    "FOMC Meeting Minutes": 8,
+    "FOMC Economic Projections": 4,
+    "Federal Funds Rate": 8,
+}
+
+
 HF_IMPACT_MAP: dict[str, int] = {
     "HIGH IMPACT EXPECTED": 3,
     "MEDIUM IMPACT EXPECTED": 2,
@@ -103,17 +190,44 @@ def _parse_args() -> argparse.Namespace:
         help="Currency to validate (default: USD).",
     )
     p.add_argument(
+        "--profile",
+        default="anchor_usd",
+        choices=["anchor_usd", "top_movers_usd", "critical_only_usd"],
+        help=(
+            "Validation profile controlling which events are emitted to the output CSV. "
+            "anchor_usd=all anchor events, top_movers_usd=high-signal subset, critical_only_usd=only top-impact."
+        ),
+    )
+    p.add_argument(
         "--max-delta-min",
         type=float,
         default=5.0,
         help="Max absolute delta in minutes to consider a timestamp aligned (default: 5).",
     )
     p.add_argument(
+        "--coverage-mode",
+        default="warn",
+        choices=["off", "warn", "fail"],
+        help=(
+            "Coverage gate: validate expected event frequency by year for each anchor event. "
+            "off=skip, warn=print warnings, fail=non-zero exit code."
+        ),
+    )
+    p.add_argument(
+        "--coverage-min-ratio",
+        type=float,
+        default=0.7,
+        help=(
+            "Minimum observed/expected ratio per year for coverage gate (default: 0.7). "
+            "Example: 0.7 means allow up to 30% missing."
+        ),
+    )
+    p.add_argument(
         "--out-csv",
         default=None,
         help=(
             "Optional output CSV path (NewsCalendar schema). If provided, will write a strict, USD-only calendar "
-            "with expected ET->UTC timestamps for anchor events."
+            "with expected ET->UTC timestamps for selected anchor events."
         ),
     )
     p.add_argument(
@@ -157,6 +271,62 @@ def _map_hf_impact(series: pd.Series) -> pd.Series:
     return s.map(HF_IMPACT_MAP).fillna(0).astype("int64")
 
 
+def _apply_coverage_gate(
+    *,
+    profile: str,
+    coverage_mode: str,
+    coverage_min_ratio: float,
+    usable_utc_by_event: dict[str, pd.Series],
+) -> tuple[bool, list[str]]:
+    if coverage_mode == "off":
+        return True, []
+
+    issues: list[str] = []
+    ok = True
+
+    for event_name, expected_utc in usable_utc_by_event.items():
+        expected_per_year = EXPECTED_PER_YEAR.get(event_name)
+        if expected_per_year is None or expected_per_year <= 0:
+            continue
+
+        dt = pd.to_datetime(expected_utc, utc=True, errors="coerce")
+        dt = dt[dt.notna()]
+        if dt.empty:
+            issues.append(f"{event_name}: no timestamps after alignment")
+            ok = False
+            continue
+
+        years = dt.dt.year
+        counts = years.value_counts().sort_index()
+
+        min_year = int(years.min())
+        max_year = int(years.max())
+        # Avoid false failures due to partial-year boundaries.
+        check_years = range(min_year + 1, max_year) if max_year - min_year >= 2 else []
+
+        for year in check_years:
+            count = int(counts.get(year, 0))
+            ratio = float(count) / float(expected_per_year)
+            if ratio < float(coverage_min_ratio):
+                issues.append(
+                    f"{event_name}: year={int(year)} observed={int(count)} expected={int(expected_per_year)} ratio={ratio:.2f}"
+                )
+                ok = False
+
+    if issues:
+        header = f"--- Coverage Gate (profile={profile}, min_ratio={coverage_min_ratio}) ---"
+        print(header)
+        for msg in issues[:200]:
+            print(f"- {msg}")
+        if len(issues) > 200:
+            print(f"... ({len(issues) - 200} more)")
+
+    if not ok and coverage_mode == "fail":
+        return False, issues
+
+    return True, issues
+
+
 def main() -> int:
     args = _parse_args()
 
@@ -179,10 +349,14 @@ def main() -> int:
 
     df["impact_mapped"] = _map_hf_impact(df["Impact"])
 
+    profile = str(args.profile)
+    allowed_events = PROFILE_EVENT_FILTERS.get(profile, set(USD_EVENT_SCHEDULES.keys()))
+
     max_delta = float(args.max_delta_min)
 
     results: list[dict[str, object]] = []
     corrected_rows: list[pd.DataFrame] = []
+    usable_utc_by_event: dict[str, pd.Series] = {}
 
     for event_name, schedule in USD_EVENT_SCHEDULES.items():
         sub = df[df["Event"].astype("string") == event_name].copy()
@@ -191,8 +365,10 @@ def main() -> int:
                 {
                     "event": event_name,
                     "count": 0,
-                    "match_rate": None,
+                    "aligned_rate": None,
                     "median_abs_delta_min": None,
+                    "systematic_delta_min": None,
+                    "systematic_rate": None,
                     "utc_hhmm_top": {},
                 }
             )
@@ -201,7 +377,18 @@ def main() -> int:
         expected_utc, abs_delta = _expected_utc_series(sub["dt_utc"], schedule)
         sub["expected_utc"] = expected_utc
         sub["abs_delta_min"] = abs_delta
-        sub["aligned"] = sub["abs_delta_min"] <= max_delta
+
+        aligned = sub["abs_delta_min"] <= max_delta
+        median_abs_delta = float(sub["abs_delta_min"].median())
+
+        # If the dataset has a consistent offset (e.g., a timezone encoding issue),
+        # treat those rows as usable after schedule-based correction.
+        systematic_mask = (sub["abs_delta_min"] - median_abs_delta).abs() <= max_delta
+        systematic_rate = float(systematic_mask.mean())
+        accept_systematic = systematic_rate >= 0.80 and median_abs_delta > max_delta
+
+        usable = aligned | (systematic_mask if accept_systematic else False)
+        sub["usable"] = usable
 
         utc_hhmm_top = (
             sub["dt_utc"].dt.strftime("%H:%M").value_counts().head(6).to_dict()  # type: ignore[call-arg]
@@ -211,11 +398,18 @@ def main() -> int:
             {
                 "event": event_name,
                 "count": int(len(sub)),
-                "match_rate": float(sub["aligned"].mean()),
-                "median_abs_delta_min": float(sub["abs_delta_min"].median()),
+                "aligned_rate": float(aligned.mean()),
+                "median_abs_delta_min": median_abs_delta,
+                "systematic_delta_min": median_abs_delta if accept_systematic else None,
+                "systematic_rate": systematic_rate if accept_systematic else None,
                 "utc_hhmm_top": utc_hhmm_top,
             }
         )
+
+        usable_utc_by_event[event_name] = sub.loc[sub["usable"], "expected_utc"]
+
+        if event_name not in allowed_events:
+            continue
 
         # Build corrected output rows
         out = pd.DataFrame(
@@ -223,10 +417,12 @@ def main() -> int:
                 "time_utc": sub["expected_utc"].dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "event_name": event_name,
                 "currency": currency,
-                "impact": int(schedule.impact_override) if schedule.impact_override is not None else sub["impact_mapped"],
+                "impact": int(schedule.impact_override)
+                if schedule.impact_override is not None
+                else sub["impact_mapped"],
                 "buffer_before_min": 30,
                 "buffer_after_min": 30,
-                "is_valid": sub["aligned"],
+                "is_valid": sub["usable"],
                 "abs_delta_min": sub["abs_delta_min"],
             }
         )
@@ -237,20 +433,36 @@ def main() -> int:
         corrected_rows.append(out)
 
     # Print summary
-    print(f"Currency={currency} | max_delta_min={max_delta}")
+    print(f"Currency={currency} | profile={profile} | max_delta_min={max_delta}")
     print("--- Timezone Gate (anchor events) ---")
     for r in results:
         event = r["event"]
         count = r["count"]
-        match_rate = r["match_rate"]
+        aligned_rate = r["aligned_rate"]
         med = r["median_abs_delta_min"]
+        sys_delta = r["systematic_delta_min"]
+        sys_rate = r["systematic_rate"]
         top = r["utc_hhmm_top"]
         if count == 0:
             print(f"- {event}: MISSING")
             continue
+
+        extra = ""
+        if sys_delta is not None and sys_rate is not None:
+            extra = f", systematic_delta_min={sys_delta:.1f} (rate={sys_rate:.3f})"
+
         print(
-            f"- {event}: n={count}, match_rate={match_rate:.3f}, median_abs_delta_min={med:.1f}, utc_hhmm_top={top}"
+            f"- {event}: n={count}, aligned_rate={aligned_rate:.3f}, median_abs_delta_min={med:.1f}{extra}, utc_hhmm_top={top}"
         )
+
+    coverage_ok, _ = _apply_coverage_gate(
+        profile=profile,
+        coverage_mode=str(args.coverage_mode),
+        coverage_min_ratio=float(args.coverage_min_ratio),
+        usable_utc_by_event=usable_utc_by_event,
+    )
+    if not coverage_ok:
+        return 2
 
     if args.out_csv:
         out_path = Path(args.out_csv).expanduser().resolve()
