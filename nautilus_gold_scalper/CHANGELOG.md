@@ -28,6 +28,29 @@
 
 ---
 
+## nautilus_gold_scalper/scripts/backtest/run_backtest.py - 2025-12-20 18:32 (FORGE)
+
+### ✨ FEATURE: Local NewsCalendar dataset support in backtests
+
+**What:** Enabled deterministic loading of a local economic-events file (CSV/JSON) for `NewsCalendar` during backtests, with YAML + CLI wiring.
+**Why:** Support offline, reproducible historical evaluation of news windows without relying on wall-clock time or live APIs.
+**Impact:**
+- `NewsCalendar` keeps both past+future events; backtests pass bar timestamps via `check_news_window(now=...)`.
+- `run_backtest.py` accepts `--news-events-path` to override YAML `news.events_path`.
+**Files:**
+- `nautilus_gold_scalper/src/signals/news_calendar.py`
+- `nautilus_gold_scalper/configs/strategy_config.yaml`
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+- `nautilus_gold_scalper/tests/test_signals/test_news_calendar.py`
+- `nautilus_gold_scalper/src/signals/NEWS_CALENDAR_USAGE.md`
+**Validation:**
+- `.venv/bin/pytest -q nautilus_gold_scalper/tests/test_signals/test_news_calendar.py`
+- `.venv/bin/mypy --strict nautilus_gold_scalper/src/signals/news_calendar.py`
+- `.venv/bin/mypy --strict nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+**Commit:** pending
+
+---
+
 ## 2025-12-18 19:27 (FORGE)
 
 ### ⚙️ CONFIG: Local NautilusTrader docs via symlink
@@ -42,6 +65,41 @@
 - `nautilus_gold_scalper/INDEX.md`
 
 **Validation:** `external/nautilus_trader/docs` accessible; symlink present; git ignores `external/`.
+**Commit:** pending
+
+---
+
+## 2025-12-20 15:30 (FORGE)
+
+### ⚙️ CONFIG: Enable clock-timer time gates by default (WP1)
+
+**What:** Enabled `TimeConstraintManager` wall-clock enforcement via Nautilus `Clock` timers by default (1s interval).
+**Why:** Ensures Apex time gates (4:30 block / 4:55 emergency flatten / 4:59 cutoff) still trigger if market data feed stalls.
+**Impact:** Live/paper runs enforce close rules even without ticks/bars; behavior can be disabled/adjusted via `time_gate_use_clock_timer` and `time_gate_timer_interval_ns`.
+**Files:**
+- `nautilus_gold_scalper/src/strategies/base_strategy.py`
+- `nautilus_gold_scalper/tests/test_risk/test_time_constraint_manager.py`
+
+**Validation:** `.venv/bin/pytest -q`, `.venv/bin/mypy --config-file mypy.ini`
+**Commit:** pending
+
+---
+
+## 2025-12-20 02:25 (FORGE)
+
+### 🐛 BUGFIX: Execution fail-safe for bracket/IOC reject paths (WP0)
+
+**What:** Added order lifecycle tracking and a hard fail-safe to prevent unprotected positions when bracket SL/TP reject/cancel occurs; clears stale pending SL/TP on IOC entry reject/cancel.
+**Why:** Phase 08 identified execution safety as a NO-GO blocker (risk of naked exposure).
+**Impact:** Strategy halts + cancels orders + flattens positions on bracket failure; improves correctness under rejects/cancels.
+**Files:**
+- `nautilus_gold_scalper/src/strategies/base_strategy.py`
+- `nautilus_gold_scalper/tests/test_execution/test_execution_failsafe.py`
+
+**Validation:**
+- `pytest -q nautilus_gold_scalper/tests/test_execution/test_execution_failsafe.py`
+- `pytest -q nautilus_gold_scalper/tests/test_integration/test_strategy_flow.py`
+
 **Commit:** pending
 
 ---

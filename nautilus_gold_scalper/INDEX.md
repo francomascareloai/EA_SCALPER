@@ -2,7 +2,7 @@
 
 **Owner:** FORGE  
 **Scope:** Python/NautilusTrader migration of EA_SCALPER_XAUUSD  
-**Last update:** 2025-12-18
+**Last update:** 2025-12-20
 ## Directory Map (high level)
 - `configs/` – central strategy config (`strategy_config.yaml`)
 - `configs/strategy_config_apex_mgc.yaml` – Apex/MGC profile (TrendFollow + router enabled; commented)
@@ -29,24 +29,31 @@
 - `external/nautilus_trader/` – symlink to a full NautilusTrader clone (docs + examples + source) for fast local lookup without MCP/web.
 
 ## Current State (backtesting realism)
-- Tick-first Nautilus runner (`scripts/run_backtest.py`): auto-detects tick files under `Python_Agent_Hub/ml_pipeline/data`, converts to `QuoteTick`, aggregates to M5 bars, defaults to all ticks (sample=1), execution threshold 70.
-- Prop/FTMO risk tightened: intrabar mark-to-market + `DrawdownTracker` enforcing daily/total DD; auto-halt + flatten on breach; daily reset wired.
-- News-aware: `GoldScalperStrategy` now gates signals with `NewsCalendar` (blocking CRITICAL/HIGH windows, score penalty, size multiplier).
-- TrendFollow added (optional): pullback + breakout candidates; optional EV router selects between SMC vs TrendFollow by EV (R-multiples) with DD penalties (Apex-first).
-- Footprint thresholds rebalanced (strong-signal threshold 60) to align with tests; still feeds confluence.
-- MT5/Ninja adapters stubbed (`src/execution/mt5_adapter.py`, `ninjatrader_adapter.py`) plus base offline adapter.
-- All Python tests green: `python -m pytest tests` (183 passed).
-- Config single-source: `configs/strategy_config.yaml` now holds execution realism, spread monitor, cutoff times, circuit breaker, consistency cap, and telemetry JSONL path.
-- Telemetry: JSONL sink (`logs/telemetry.jsonl`) captures spread/circuit/cutoff/partial-fill events for audits.
+- Tick-first Nautilus runner (`scripts/backtest/run_backtest.py`): reads YAML config (`configs/strategy_config.yaml` by default), loads ticks/bars, and runs the real NautilusTrader backtest engine.
+- Execution realism is engine-first:
+  - Fill slippage via `fill_model` passed to `engine.add_venue(...)`.
+  - Commissions via `PerContractFeeModel` passed to `engine.add_venue(...)` (converted from USD/lot → USD/unit using `instrument.lot_size`).
+  - Latency via `LatencyModel` passed to `engine.add_venue(...)`.
+- Strategy-side cost accounting avoids double counting:
+  - `slippage_in_fills` is inferred from `execution.fill_model` in the runner and passed into `GoldScalperConfig`.
+  - When `slippage_in_fills=True`, the strategy still tracks an execution cost estimate for telemetry but does not subtract slippage again from PnL.
+- Commission source of truth is centralized:
+  - Config knobs: `execution.commission_source` (`manual|schedule`), `execution.commission_profile` (`apex|ftmo`), `execution.commission_gateway` (`tradovate|rithmic`).
+  - Schedule lookup lives in `src/execution/commission_schedule.py` (Apex+MGC is implemented; FTMO schedule intentionally raises until defined).
+  - Both the runner (engine fee model) and strategy (ExecutionModel) can reference the same schedule so backtests and live logic don’t drift.
+- Risk: intrabar mark-to-market + `DrawdownTracker` enforcing daily/total DD; auto-halt + flatten on breach; daily reset wired.
+- News-aware: `GoldScalperStrategy` gates signals with `NewsCalendar` (blocking CRITICAL/HIGH windows, score penalty, size multiplier).
+- Telemetry: JSONL sink (`logs/telemetry.jsonl`) captures spread/circuit/cutoff/partial-fill and (optionally) execution-cost estimates for audits.
 
 ## Open Issues (next)
 
 ### 🚨 CRITICAL BUGS (2025-12-11 Analysis)
 - ✅ FIXED: Look-ahead bias in ML feature_engineering.py (swing points with center=True)
 - ✅ FIXED: Missing `_min_bars_for_signal` attribute in base_strategy.py
-- ❌ PENDING: Pickle security in model_trainer.py / ensemble_predictor.py (should be ONNX-only)
+- ✅ FIXED: Pickle disabled; ONNX export working (see `src/ml/model_trainer.py` and `src/ml/ensemble_predictor.py`).
 - ❌ PENDING: 4:59 PM ET deadline NOT enforced in execution adapters (Apex violation risk)
-- ❌ PENDING: Slippage model not integrated with base_adapter.py (unrealistic backtests)
+- ✅ FIXED (backtests): Slippage model integrated in Nautilus engine runner via venue `fill_model` (see `scripts/backtest/run_backtest.py`).
+- ❌ PENDING (adapters): Wire slippage/fees into live execution adapters (MT5/Ninja) where applicable.
 - ❌ PENDING: News calendar hardcoded to Dec 2025 only
 
 ### P1 - High Priority
