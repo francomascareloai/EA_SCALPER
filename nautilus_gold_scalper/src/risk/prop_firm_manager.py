@@ -150,6 +150,19 @@ class PropFirmManager:
             return False
         return state.is_trading_allowed
 
+    def ensure_compliance(self, now: datetime | None = None) -> PropFirmState:
+        """Enforce hard stop when already in breach.
+
+        This is intended for intrabar checks while positions are open.
+        """
+        now_dt = self._resolve_now(now)
+        state = self.get_state()
+        if state.is_hard_breached and not self._terminated:
+            self._terminated = True
+            if self._raise_on_breach:
+                self._hard_stop(state)
+        return state
+
     def validate_trade(self, risk_amount: float, contracts: float) -> tuple[bool, str]:
         """
         Validate trade against prop firm limits.

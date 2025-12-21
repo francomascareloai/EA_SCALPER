@@ -233,7 +233,15 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     allow_overnight: bool = False
     slippage_ticks: int = 2
     slippage_multiplier: float = 1.5
+
+    # Commission configuration
+    # - commission_source=manual: use commission_per_contract directly
+    # - commission_source=schedule: derive commission_per_contract from profile+gateway
+    commission_source: str = "manual"  # "manual" | "schedule"
+    commission_profile: str = "apex"  # "apex" | "ftmo"
+    commission_gateway: str = "tradovate"  # "tradovate" | "rithmic"
     commission_per_contract: float = 2.5
+
     latency_ms: int = 0
     partial_fill_prob: float = 0.0  # 0-1
     partial_fill_ratio: float = 0.5  # fraction to fill if partial triggers
@@ -501,7 +509,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # News calendar (optional)
         if self.config.use_news_filter:
-            self._news_calendar = NewsCalendar()
+            self._news_calendar = NewsCalendar(events_path=getattr(self.config, "news_events_path", None))
 
         # Execution realism (per-fill slippage + commission) - requires instrument.
         try:
@@ -509,11 +517,30 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             tick_size = float(self.instrument.price_increment.as_double())
             slippage_ticks = int(max(0, getattr(self.config, "slippage_ticks", 2)))
             base_cents = int(round(slippage_ticks * tick_size * 100))
-            comm_per_lot = Decimal(str(getattr(self.config, "commission_per_contract", 2.5)))
+
+            comm_source = str(getattr(self.config, "commission_source", "manual")).strip().lower()
+            if comm_source == "schedule":
+                from nautilus_gold_scalper.src.execution.commission_schedule import commission_per_side_usd
+
+                profile = str(getattr(self.config, "commission_profile", "apex")).strip().lower()
+                gateway = str(getattr(self.config, "commission_gateway", "tradovate")).strip().lower()
+
+                # Infer product from instrument raw symbol.
+                raw_symbol = str(getattr(self.instrument, "raw_symbol", "")).strip().lower()
+                product = "mgc" if raw_symbol == "mgc" else "xauusd"
+
+                commission_per_lot = commission_per_side_usd(
+                    profile=profile,  # type: ignore[arg-type]
+                    product=product,  # type: ignore[arg-type]
+                    gateway=gateway,  # type: ignore[arg-type]
+                )
+            else:
+                commission_per_lot = float(getattr(self.config, "commission_per_contract", 2.5))
+
             costs = ExecutionCosts(
                 base_slippage_cents=Decimal(str(max(0, base_cents))),
                 slippage_multiplier=Decimal(str(getattr(self.config, "slippage_multiplier", 1.5))),
-                commission_per_lot=comm_per_lot,
+                commission_per_lot=Decimal(str(commission_per_lot)),
             )
             self._execution_model = ExecutionModel(costs)
         except Exception as exc:
@@ -582,6 +609,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             urgent=self._parse_cutoff(self.config.time_urgent_et),
             emergency=self._parse_cutoff(self.config.time_emergency_et),
             telemetry=self._telemetry if getattr(self.config, "telemetry_capture_cutoff", True) else None,
+            clock=self.clock,
+            use_clock_timer=bool(getattr(self.config, "time_gate_use_clock_timer", False)),
+            timer_interval_ns=int(getattr(self.config, "time_gate_timer_interval_ns", 10_000_000_000)),
         )
 
         # Circuit breaker integration
@@ -1909,8 +1939,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 try:
                     tick_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
                     self._prop_firm.update_equity(equity, now=tick_dt)
-                    # stop immediately if breach occurs
+                    self._prop_firm.ensure_compliance(now=tick_dt)
+                    # If ensure_compliance triggers, it will hard-stop; fail-safe fallback.
                     if not self._prop_firm.can_trade(now=tick_dt):
+                        super()._trigger_execution_failsafe(reason="prop_firm_dd_breach")
                         return
                 except Exception as exc:
                     logger.debug(f"Prop firm equity update failed: {exc}")
@@ -1922,6 +1954,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 try:
                     tick_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
                     self._circuit_breaker.update_equity(equity, now=tick_dt)
+                    if not self._circuit_breaker.can_trade(now=tick_dt):
+                        # Circuit breaker breach while in-position: fail-safe flatten + halt.
+                        super()._trigger_execution_failsafe(reason="circuit_breaker_dd_breach")
+                        return
                 except Exception as exc:
                     logger.debug(f"Circuit breaker equity update failed: {exc}")
 

@@ -8,6 +8,8 @@ from datetime import datetime, time
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
+from nautilus_trader.common.component import Clock, TimeEvent
+
 try:
     ET_TZ: ZoneInfo | None = ZoneInfo("America/New_York")
 except Exception:  # pragma: no cover
@@ -26,6 +28,10 @@ class TimeConstraintManager:
         emergency: time = time(16, 55),
         allow_overnight: bool = False,
         telemetry: TimeManagedStrategy.Telemetry | None = None,
+        *,
+        clock: Clock | None = None,
+        use_clock_timer: bool = False,
+        timer_interval_ns: int = 10_000_000_000,
     ) -> None:
         self.strategy = strategy
         self.cutoff = cutoff
@@ -37,6 +43,14 @@ class TimeConstraintManager:
         self.allow_overnight = allow_overnight
         self._issued: set[str] = set()
         self.telemetry = telemetry
+
+        self._clock = clock
+        self._use_clock_timer = use_clock_timer
+        self._timer_interval_ns = int(timer_interval_ns)
+        self._timer_name = "apex_time_gates"
+
+        if self._use_clock_timer and self._clock is not None:
+            self._ensure_timer_started()
 
     def can_open_new(self, ts_ns: int) -> bool:
         """Return True if opening *new* positions is allowed at `ts_ns` (ET)."""
@@ -54,6 +68,45 @@ class TimeConstraintManager:
             return False
 
         return True
+
+    def check_wall_clock(self) -> bool:
+        """Safety enforcement when feed stalls (live mode).
+
+        Uses the strategy clock timestamp to enforce emergency close even if no
+        market events are arriving.
+        """
+        if self._clock is None:
+            return True
+        return self.check(int(self._clock.timestamp_ns()))
+
+    def on_timer(self, event: TimeEvent) -> None:
+        if getattr(event, "name", "") != self._timer_name:
+            return
+        self.check_wall_clock()
+
+    def _ensure_timer_started(self) -> None:
+        if self._clock is None:
+            return
+        # Safe to call multiple times; cancel if already exists.
+        if self._timer_name in set(self._clock.timer_names()):
+            try:
+                self._clock.cancel_timer(self._timer_name)
+            except Exception:
+                pass
+
+        now_ns = int(self._clock.timestamp_ns())
+        start_ns = now_ns
+        stop_ns = now_ns + int(24 * 60 * 60 * 1_000_000_000)
+
+        self._clock.set_timer_ns(
+            name=self._timer_name,
+            interval_ns=int(self._timer_interval_ns),
+            start_time_ns=int(start_ns),
+            stop_time_ns=int(stop_ns),
+            callback=self.on_timer,
+            allow_past=True,
+            fire_immediately=True,
+        )
 
     def check(self, ts_ns: int) -> bool:
         """Return True if trading may continue at `ts_ns` (ET).
@@ -108,6 +161,11 @@ class TimeConstraintManager:
 
     def _force_close_all(self, dt_et: datetime) -> None:
         """Flatten all positions and block further trading for the day."""
+        try:
+            self.strategy.cancel_all_orders(getattr(self.strategy.config, "instrument_id", None))
+        except Exception:
+            pass
+
         try:
             self.strategy.close_all_positions(getattr(self.strategy.config, "instrument_id", None))
         except Exception:
@@ -165,5 +223,6 @@ class TimeManagedStrategy(Protocol):
     _is_trading_allowed: bool
     _trading_blocked_today: bool
 
+    def cancel_all_orders(self, instrument_id: object) -> None: ...
     def close_all_positions(self, instrument_id: object) -> None: ...
     def close_position(self, position_id: object) -> None: ...

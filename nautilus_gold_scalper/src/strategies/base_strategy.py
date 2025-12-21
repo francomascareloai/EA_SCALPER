@@ -88,6 +88,16 @@ class BaseStrategyConfig(NautilusStrategyConfig):  # type: ignore[misc]
     # Debugging
     debug_mode: bool = False
 
+    # WP1: Feed-stall-proof time gate enforcement (live/paper).
+    # Uses Nautilus Clock timers to run time checks even when market events stop.
+    time_gate_use_clock_timer: bool = True
+    time_gate_timer_interval_ns: int = 1_000_000_000
+
+    # News calendar (local file path). If unset, NewsCalendar uses a minimal fallback.
+    news_events_path: str | None = None
+
+    slippage_in_fills: bool = False
+
 
 class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
     """
@@ -468,22 +478,25 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self._trigger_execution_failsafe(reason="position_opened_without_protective_orders")
             return
 
-        # Apply execution costs (slippage + commission) on entry
-        # Handle avg_px_open being Price or float
-        avg_price = self._position.avg_px_open.as_double() if hasattr(self._position.avg_px_open, 'as_double') else float(self._position.avg_px_open)
-        qty = self._position.quantity.as_double() if hasattr(self._position.quantity, 'as_double') else float(self._position.quantity)
+        # Apply strategy-side execution costs on entry ONLY when the backtest engine
+        # is not already applying fees/slippage into account equity.
+        # (We treat engine models as source of truth for account reports.)
+        if self._execution_model and not bool(getattr(self.config, "slippage_in_fills", False)):
+            # Handle avg_px_open being Price or float
+            avg_price = self._position.avg_px_open.as_double() if hasattr(self._position.avg_px_open, "as_double") else float(self._position.avg_px_open)
+            qty = self._position.quantity.as_double() if hasattr(self._position.quantity, "as_double") else float(self._position.quantity)
 
-        open_cost = self._calculate_execution_cost(
-            side="buy" if self._position.side == PositionSide.LONG else "sell",
-            price=avg_price,
-            quantity=qty,
-        )
-        if open_cost > 0:
-            self._daily_pnl -= open_cost
-            self._equity_base -= open_cost
-            if isinstance(self._fill_costs, dict):
-                self._fill_costs[str(event.position_id)] = open_cost
-            self.log.info(f"Execution cost (open): -${open_cost:.2f}")
+            open_cost = self._calculate_execution_cost(
+                side="buy" if self._position.side == PositionSide.LONG else "sell",
+                price=avg_price,
+                quantity=qty,
+            )
+            if open_cost > 0:
+                self._daily_pnl -= open_cost
+                self._equity_base -= open_cost
+                if isinstance(self._fill_costs, dict):
+                    self._fill_costs[str(event.position_id)] = open_cost
+                self.log.info(f"Execution cost (open): -${open_cost:.2f}")
 
         # Check if max daily trades reached
         if self._daily_trades >= self.config.max_trades_per_day:
@@ -508,11 +521,14 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             close_px = getattr(self._position, "avg_px_close", self._position.avg_px_open) if hasattr(self._position, "avg_px_close") else self._position.avg_px_open
             close_price = close_px.as_double() if hasattr(close_px, 'as_double') else float(close_px)
 
-            close_cost = self._calculate_execution_cost(
-                side="sell" if self._position.side == PositionSide.LONG else "buy",
-                price=close_price,
-                quantity=qty,
-            )
+            # If engine fill/fee models are enabled, realized_pnl already includes fees.
+            close_cost = 0.0
+            if self._execution_model and not bool(getattr(self.config, "slippage_in_fills", False)):
+                close_cost = self._calculate_execution_cost(
+                    side="sell" if self._position.side == PositionSide.LONG else "buy",
+                    price=close_price,
+                    quantity=qty,
+                )
             net_pnl = pnl - close_cost
 
             self._daily_pnl += net_pnl
@@ -943,13 +959,17 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 except Exception:
                     lot_size_oz = float(XAUUSD_LOT_SIZE)
             lots = float(quantity) / lot_size_oz if lot_size_oz > 0 else 0.0
+            commission_cost = float(self._execution_model.commission(Decimal(str(lots))))
+
+            if bool(getattr(self.config, "slippage_in_fills", False)):
+                return commission_cost
+
             slip_price = self._execution_model.apply_slippage(
                 side=side,
                 current_price=Decimal(str(price)),
             )
             point_value = self._instrument_point_value_per_unit()
             slip_cost = abs(float(slip_price) - float(price)) * float(quantity) * point_value
-            commission_cost = float(self._execution_model.commission(Decimal(str(lots))))
             return slip_cost + commission_cost
         except Exception as exc:  # pragma: no cover
             self.log.debug(f"Execution cost calc failed: {exc}")
