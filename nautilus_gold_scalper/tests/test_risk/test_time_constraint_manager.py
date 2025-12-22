@@ -81,10 +81,17 @@ def test_time_manager_flattens_in_emergency_window():
     assert s._trading_blocked_today is True
 
 
+def test_time_manager_cutoff_clamps_emergency_gate():
+    s = DummyStrategy()
+    mgr = TimeConstraintManager(strategy=s, allow_overnight=False, cutoff=datetime.time(16, 59), emergency=datetime.time(17, 5))
+    assert mgr.warnings["emergency"] == datetime.time(16, 59)
+
+
 def test_time_manager_blocks_and_flattens_at_cutoff():
     s = DummyStrategy()
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
     assert mgr.check(ts_at(16, 59)) is False
+    assert "cutoff" in mgr._issued
     assert s.canceled is True
     assert s.closed is True
     assert s._is_trading_allowed is False
@@ -119,6 +126,58 @@ def test_time_manager_wall_clock_check_uses_clock_timestamp(monkeypatch):
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False, clock=clk, use_clock_timer=True)
 
     assert mgr.check_wall_clock() is False
+    assert s.canceled is True
+    assert s.closed is True
+    assert s._is_trading_allowed is False
+    assert s._trading_blocked_today is True
+
+
+def test_time_manager_clock_timer_triggers_enforcement_path():
+    s = DummyStrategy()
+
+    class DummyClock:
+        def __init__(self) -> None:
+            self.set_timer_calls: list[dict[str, object]] = []
+
+        def timestamp_ns(self) -> int:
+            return ts_at(16, 55)
+
+        def timer_names(self) -> list[str]:
+            return []
+
+        def cancel_timer(self, _name: str) -> None:
+            return None
+
+        def set_timer_ns(self, **kwargs) -> None:
+            self.set_timer_calls.append(dict(kwargs))
+
+    clk = DummyClock()
+    mgr = TimeConstraintManager(
+        strategy=s,
+        allow_overnight=False,
+        clock=clk,
+        use_clock_timer=True,
+        timer_interval_ns=123,
+    )
+
+    assert len(clk.set_timer_calls) == 1
+    call = clk.set_timer_calls[0]
+    assert call["name"] == "apex_time_gates"
+    assert call["interval_ns"] == 123
+    assert call["fire_immediately"] is True
+    assert call["allow_past"] is True
+    assert isinstance(call["start_time_ns"], int)
+    assert isinstance(call["stop_time_ns"], int)
+
+    callback = call["callback"]
+    assert callable(callback)
+
+    callback(type("Evt", (), {"name": "not_apex_time_gates"}))
+    assert s.canceled is False
+    assert s.closed is False
+
+    callback(type("Evt", (), {"name": "apex_time_gates"}))
+
     assert s.canceled is True
     assert s.closed is True
     assert s._is_trading_allowed is False

@@ -59,7 +59,7 @@ news:
   # CSV schema: time_utc,event_name,currency,impact,buffer_before_min,buffer_after_min
   # Example path: nautilus_gold_scalper/data/raw/news_events_2020_today.csv
   # HF ForexFactory: use only the validated USD subset produced by scripts/data/validate_hf_forex_factory_calendar.py
-  events_path: nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_validated.csv
+  events_path: nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_top_movers_validated.csv
 execution:
   execution_threshold: 40
   slippage_ticks: 2

@@ -56,13 +56,13 @@
 | P06-R2-P06-R2E-002 | Apex Compliance | 06-R2 | Apex mismatch: FTMO-like DD + realized-only equity + missing ET gates in realistic_backtester | MANIFEST.md |
 | P07-001 | Test Coverage | 07 | Coverage below minimum thresholds (52.68% line / 28.66% branch) | MANIFEST.md, PHASE_07_COVERAGE_FINDINGS.md |
 | P07-002 | Test Coverage | 07 | Core strategy orchestration largely untested (`gold_scalper_strategy.py` ~15% line) | MANIFEST.md, PHASE_07_COVERAGE_FINDINGS.md |
-| P08-001 | Risk / Drawdown | 08 | DD breach does not force-flatten open positions (can block entries only) | MANIFEST.md |
-| P08-002 | Risk / Drawdown | 08 | Multiple DD systems have inconsistent thresholds/enforcement (DDProtection/DrawdownTracker/CircuitBreaker) | MANIFEST.md |
+| P08-001 | Risk / Drawdown | 08 | DD breach does not force-flatten open positions (can block entries only) | MANIFEST.md | **Fixed (WP2)** |
+| P08-002 | Risk / Drawdown | 08 | Multiple DD systems have inconsistent thresholds/enforcement (DDProtection/DrawdownTracker/CircuitBreaker) | MANIFEST.md | **Fixed (WP2)** |
 | P08-003 | Apex Compliance | 08 | Cross-timeframe semantic collision: MTF zones overwritten by LTF detections (`_mtf_order_blocks/_mtf_fvgs`) | MANIFEST.md |
-| P08-004 | Apex Compliance | 08 | Bracket SL/TP is not fail-safe; reject/failure can leave naked position | MANIFEST.md |
-| P08-005 | Execution Safety | 08 | Missing order-event state machine; stale pending SL/TP can persist across rejects/cancels | MANIFEST.md |
-| P08-006 | Apex Compliance | 08 | Live time gates are data-driven (ts_event); no wall-clock/scheduler fail-safe under feed stalls | MANIFEST.md |
-| P08-007 | Apex Compliance | 08 | No guaranteed 'flat by 16:59 ET' enforcement independent of tick arrival (opportunistic closes) | MANIFEST.md |
+| P08-004 | Apex Compliance | 08 | Bracket SL/TP is not fail-safe; reject/failure can leave naked position | MANIFEST.md | **In Progress (WP0)** |
+| P08-005 | Execution Safety | 08 | Missing order-event state machine; stale pending SL/TP can persist across rejects/cancels | MANIFEST.md | **In Progress (WP0)** |
+| P08-006 | Apex Compliance | 08 | Live time gates are data-driven (ts_event); no wall-clock/scheduler fail-safe under feed stalls | MANIFEST.md | **Fixed (WP1)** |
+| P08-007 | Apex Compliance | 08 | No guaranteed 'flat by 16:59 ET' enforcement independent of tick arrival (opportunistic closes) | MANIFEST.md | **Fixed (WP1)** |
 
 ## HIGH (Open)
 | ID | Category | Phase Hint | Summary | Sources |

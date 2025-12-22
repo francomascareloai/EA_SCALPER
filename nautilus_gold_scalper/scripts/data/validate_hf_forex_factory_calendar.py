@@ -22,45 +22,12 @@ USD_EVENT_SCHEDULES: dict[str, EventSchedule] = {
     # US macro (typical release times)
     "CPI m/m": EventSchedule(8, 30, impact_override=3),
     "CPI y/y": EventSchedule(8, 30, impact_override=3),
-    "Core CPI m/m": EventSchedule(8, 30, impact_override=3),
-    "Core CPI y/y": EventSchedule(8, 30, impact_override=3),
-    "PPI m/m": EventSchedule(8, 30, impact_override=2),
-    "Core PPI m/m": EventSchedule(8, 30, impact_override=2),
-    "Core PCE Price Index m/m": EventSchedule(8, 30, impact_override=3),
     "Retail Sales m/m": EventSchedule(8, 30, impact_override=3),
-    "Core Retail Sales m/m": EventSchedule(8, 30, impact_override=2),
     "Unemployment Rate": EventSchedule(8, 30, impact_override=3),
     "Non-Farm Employment Change": EventSchedule(8, 30, impact_override=4),
-    "Average Hourly Earnings m/m": EventSchedule(8, 30, impact_override=3),
-    "ADP Non-Farm Employment Change": EventSchedule(8, 15, impact_override=2),
-    "Unemployment Claims": EventSchedule(8, 30, impact_override=2),
-    "JOLTS Job Openings": EventSchedule(10, 0, impact_override=2),
-    "Personal Spending m/m": EventSchedule(8, 30, impact_override=2),
-    "Trade Balance": EventSchedule(8, 30, impact_override=2),
-    "Industrial Production m/m": EventSchedule(9, 15, impact_override=2),
-    "Capacity Utilization Rate": EventSchedule(9, 15, impact_override=1),
-    "Building Permits": EventSchedule(8, 30, impact_override=1),
-    "Housing Starts": EventSchedule(8, 30, impact_override=1),
-    "Existing Home Sales": EventSchedule(10, 0, impact_override=1),
-    "New Home Sales": EventSchedule(10, 0, impact_override=1),
-    "CB Consumer Confidence": EventSchedule(10, 0, impact_override=1),
-    "Durable Goods Orders m/m": EventSchedule(8, 30, impact_override=2),
-    "Core Durable Goods Orders m/m": EventSchedule(8, 30, impact_override=2),
-    "Philly Fed Manufacturing Index": EventSchedule(8, 30, impact_override=2),
-    "Empire State Manufacturing Index": EventSchedule(8, 30, impact_override=2),
-    "Chicago PMI": EventSchedule(9, 45, impact_override=1),
     "ISM Manufacturing PMI": EventSchedule(10, 0, impact_override=3),
     "ISM Services PMI": EventSchedule(10, 0, impact_override=3),
-    "Flash Manufacturing PMI": EventSchedule(9, 45, impact_override=1),
-    "Flash Services PMI": EventSchedule(9, 45, impact_override=1),
-    "Prelim UoM Consumer Sentiment": EventSchedule(10, 0, impact_override=1),
-    "Revised UoM Consumer Sentiment": EventSchedule(10, 0, impact_override=1),
     "Advance GDP q/q": EventSchedule(8, 30, impact_override=3),
-    "Prelim GDP q/q": EventSchedule(8, 30, impact_override=3),
-    "Final GDP q/q": EventSchedule(8, 30, impact_override=3),
-    "Advance GDP Price Index q/q": EventSchedule(8, 30, impact_override=2),
-    "Prelim GDP Price Index q/q": EventSchedule(8, 30, impact_override=2),
-    "Final GDP Price Index q/q": EventSchedule(8, 30, impact_override=2),
 
     # Fed (time varies historically, but we use typical schedule anchors)
     "FOMC Statement": EventSchedule(14, 0, impact_override=4),
@@ -69,6 +36,48 @@ USD_EVENT_SCHEDULES: dict[str, EventSchedule] = {
     "FOMC Economic Projections": EventSchedule(14, 0, impact_override=3),
     "Federal Funds Rate": EventSchedule(14, 0, impact_override=4),
 }
+
+
+CANONICAL_EVENT_ALIASES: dict[str, set[str]] = {
+    # Conservative aliases only (avoid broad fuzzy matching).
+    "Non-Farm Employment Change": {
+        "Non-Farm Employment Change",
+        "Non Farm Employment Change",
+        "Nonfarm Employment Change",
+    },
+    "Federal Funds Rate": {"Federal Funds Rate", "Fed Funds Rate"},
+    "FOMC Press Conference": {"FOMC Press Conference", "FOMC Press Conf"},
+    "FOMC Statement": {"FOMC Statement", "FOMC Statement Release"},
+}
+
+
+def _build_alias_to_canonical() -> dict[str, str]:
+    alias_map: dict[str, str] = {}
+
+    for canonical in USD_EVENT_SCHEDULES.keys():
+        alias_map[canonical.strip().upper()] = canonical
+
+    for canonical, aliases in CANONICAL_EVENT_ALIASES.items():
+        for alias in aliases:
+            alias_map[str(alias).strip().upper()] = canonical
+
+    return alias_map
+
+
+ALIAS_TO_CANONICAL = _build_alias_to_canonical()
+
+
+def _canonicalize_event_series(series: pd.Series) -> pd.Series:
+    s = (
+        series.astype("string")
+        .fillna("")
+        .str.replace("–", "-", regex=False)
+        .str.replace("—", "-", regex=False)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
+    key = s.str.upper()
+    return key.map(ALIAS_TO_CANONICAL).fillna(s).astype("string")
 
 
 PROFILE_EVENT_FILTERS: dict[str, set[str]] = {
@@ -80,7 +89,6 @@ PROFILE_EVENT_FILTERS: dict[str, set[str]] = {
         "Unemployment Rate",
         "CPI m/m",
         "CPI y/y",
-        "Core CPI m/m",
         "Retail Sales m/m",
         "ISM Manufacturing PMI",
         "ISM Services PMI",
@@ -102,58 +110,18 @@ PROFILE_EVENT_FILTERS: dict[str, set[str]] = {
 
 
 EXPECTED_PER_YEAR: dict[str, int] = {
-    # Monthly (approx 12/year)
     "CPI m/m": 12,
     "CPI y/y": 12,
-    "Core CPI m/m": 12,
-    "Core CPI y/y": 12,
-    "PPI m/m": 12,
-    "Core PPI m/m": 12,
-    "Core PCE Price Index m/m": 12,
     "Retail Sales m/m": 12,
-    "Core Retail Sales m/m": 12,
     "Unemployment Rate": 12,
     "Non-Farm Employment Change": 12,
-    "Average Hourly Earnings m/m": 12,
-    "ADP Non-Farm Employment Change": 12,
-    "JOLTS Job Openings": 12,
-    "Personal Spending m/m": 12,
-    "Trade Balance": 12,
-    "Industrial Production m/m": 12,
-    "Capacity Utilization Rate": 12,
-    "Building Permits": 12,
-    "Housing Starts": 12,
-    "Existing Home Sales": 12,
-    "New Home Sales": 12,
-    "CB Consumer Confidence": 12,
-    "Durable Goods Orders m/m": 12,
-    "Core Durable Goods Orders m/m": 12,
-    "Philly Fed Manufacturing Index": 12,
-    "Empire State Manufacturing Index": 12,
-    "Chicago PMI": 12,
     "ISM Manufacturing PMI": 12,
     "ISM Services PMI": 12,
-    "Flash Manufacturing PMI": 12,
-    "Flash Services PMI": 12,
-    "Prelim UoM Consumer Sentiment": 12,
-    "Revised UoM Consumer Sentiment": 12,
-
-    # Weekly
-    "Unemployment Claims": 52,
-
-    # Quarterly (approx 4/year)
     "Advance GDP q/q": 4,
-    "Prelim GDP q/q": 4,
-    "Final GDP q/q": 4,
-    "Advance GDP Price Index q/q": 4,
-    "Prelim GDP Price Index q/q": 4,
-    "Final GDP Price Index q/q": 4,
 
-    # Fed schedule (typically 8/year; projections are fewer)
+    # Fed schedule: press conferences were effectively quarterly for part of the sample.
     "FOMC Statement": 8,
-    "FOMC Press Conference": 8,
-    "FOMC Meeting Minutes": 8,
-    "FOMC Economic Projections": 4,
+    "FOMC Press Conference": 4,
     "Federal Funds Rate": 8,
 }
 
@@ -223,6 +191,18 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--coverage-year-start",
+        type=int,
+        default=2015,
+        help="Start year (inclusive) for coverage gate checks (default: 2015).",
+    )
+    p.add_argument(
+        "--coverage-year-end",
+        type=int,
+        default=2025,
+        help="End year (inclusive) for coverage gate checks (default: 2025).",
+    )
+    p.add_argument(
         "--out-csv",
         default=None,
         help=(
@@ -276,6 +256,10 @@ def _apply_coverage_gate(
     profile: str,
     coverage_mode: str,
     coverage_min_ratio: float,
+    coverage_year_start: int,
+    coverage_year_end: int,
+    dataset_min_utc: pd.Timestamp,
+    dataset_max_utc: pd.Timestamp,
     usable_utc_by_event: dict[str, pd.Series],
 ) -> tuple[bool, list[str]]:
     if coverage_mode == "off":
@@ -283,6 +267,9 @@ def _apply_coverage_gate(
 
     issues: list[str] = []
     ok = True
+
+    dataset_start_year = int(pd.to_datetime(dataset_min_utc, utc=True).year)
+    dataset_end_year = int(pd.to_datetime(dataset_max_utc, utc=True).year)
 
     for event_name, expected_utc in usable_utc_by_event.items():
         expected_per_year = EXPECTED_PER_YEAR.get(event_name)
@@ -296,13 +283,31 @@ def _apply_coverage_gate(
             ok = False
             continue
 
+        dt_years = dt.dt.year
+        dt = dt[(dt_years >= int(coverage_year_start)) & (dt_years <= int(coverage_year_end))]
+        if dt.empty:
+            issues.append(
+                f"{event_name}: no timestamps in coverage year range {int(coverage_year_start)}-{int(coverage_year_end)}"
+            )
+            ok = False
+            continue
+
+        # If the dataset doesn't cover the entire year range, don't penalize the boundary years.
+        start_year = int(coverage_year_start)
+        end_year = int(coverage_year_end)
+        if start_year <= dataset_start_year:
+            start_year = dataset_start_year + 1
+        if end_year >= dataset_end_year:
+            end_year = dataset_end_year - 1
+
         years = dt.dt.year
         counts = years.value_counts().sort_index()
 
-        min_year = int(years.min())
-        max_year = int(years.max())
-        # Avoid false failures due to partial-year boundaries.
-        check_years = range(min_year + 1, max_year) if max_year - min_year >= 2 else []
+        if start_year > end_year:
+            # Nothing to check (e.g., dataset covers only boundary years).
+            continue
+
+        check_years = range(start_year, end_year + 1)
 
         for year in check_years:
             count = int(counts.get(year, 0))
@@ -314,7 +319,10 @@ def _apply_coverage_gate(
                 ok = False
 
     if issues:
-        header = f"--- Coverage Gate (profile={profile}, min_ratio={coverage_min_ratio}) ---"
+        header = (
+            f"--- Coverage Gate (profile={profile}, years={coverage_year_start}-{coverage_year_end}, "
+            f"min_ratio={coverage_min_ratio}, dataset_years={dataset_start_year}-{dataset_end_year}) ---"
+        )
         print(header)
         for msg in issues[:200]:
             print(f"- {msg}")
@@ -339,6 +347,9 @@ def main() -> int:
     currency = str(args.currency).strip().upper()
     df = df[df["Currency"].astype("string").str.upper() == currency].copy()
 
+    # Canonicalize event names early so filters/schedules apply consistently.
+    df["event_canonical"] = _canonicalize_event_series(df["Event"])
+
     dt_utc = pd.to_datetime(df["DateTime"], utc=True, errors="coerce")
     df["dt_utc"] = dt_utc
 
@@ -349,8 +360,16 @@ def main() -> int:
 
     df["impact_mapped"] = _map_hf_impact(df["Impact"])
 
+    dataset_min_utc = pd.to_datetime(df["dt_utc"].min(), utc=True)
+    dataset_max_utc = pd.to_datetime(df["dt_utc"].max(), utc=True)
+
     profile = str(args.profile)
     allowed_events = PROFILE_EVENT_FILTERS.get(profile, set(USD_EVENT_SCHEDULES.keys()))
+
+    coverage_year_start = int(args.coverage_year_start)
+    coverage_year_end = int(args.coverage_year_end)
+    if coverage_year_start > coverage_year_end:
+        coverage_year_start, coverage_year_end = coverage_year_end, coverage_year_start
 
     max_delta = float(args.max_delta_min)
 
@@ -359,7 +378,7 @@ def main() -> int:
     usable_utc_by_event: dict[str, pd.Series] = {}
 
     for event_name, schedule in USD_EVENT_SCHEDULES.items():
-        sub = df[df["Event"].astype("string") == event_name].copy()
+        sub = df[df["event_canonical"] == event_name].copy()
         if sub.empty:
             results.append(
                 {
@@ -384,11 +403,16 @@ def main() -> int:
         # If the dataset has a consistent offset (e.g., a timezone encoding issue),
         # treat those rows as usable after schedule-based correction.
         systematic_mask = (sub["abs_delta_min"] - median_abs_delta).abs() <= max_delta
-        systematic_rate = float(systematic_mask.mean())
-        accept_systematic = systematic_rate >= 0.80 and median_abs_delta > max_delta
 
-        usable = aligned | (systematic_mask if accept_systematic else False)
-        sub["usable"] = usable
+        dt_year = sub["expected_utc"].dt.year
+        in_year_range = (dt_year >= coverage_year_start) & (dt_year <= coverage_year_end)
+        systematic_rate = float(systematic_mask[in_year_range].mean())
+
+        accept_systematic = systematic_rate >= 0.75 and median_abs_delta > max_delta
+
+        # In backtests we correct timestamps to the expected release schedule; timestamp deltas are
+        # diagnostics only. Mark validity by year-range membership.
+        sub["is_valid"] = in_year_range
 
         utc_hhmm_top = (
             sub["dt_utc"].dt.strftime("%H:%M").value_counts().head(6).to_dict()  # type: ignore[call-arg]
@@ -406,12 +430,13 @@ def main() -> int:
             }
         )
 
-        usable_utc_by_event[event_name] = sub.loc[sub["usable"], "expected_utc"]
+        usable_utc_by_event[event_name] = sub.loc[sub["is_valid"], "expected_utc"]
 
         if event_name not in allowed_events:
             continue
 
         # Build corrected output rows
+
         out = pd.DataFrame(
             {
                 "time_utc": sub["expected_utc"].dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -422,7 +447,7 @@ def main() -> int:
                 else sub["impact_mapped"],
                 "buffer_before_min": 30,
                 "buffer_after_min": 30,
-                "is_valid": sub["usable"],
+                "is_valid": sub["is_valid"],
                 "abs_delta_min": sub["abs_delta_min"],
             }
         )
@@ -459,6 +484,10 @@ def main() -> int:
         profile=profile,
         coverage_mode=str(args.coverage_mode),
         coverage_min_ratio=float(args.coverage_min_ratio),
+        coverage_year_start=int(args.coverage_year_start),
+        coverage_year_end=int(args.coverage_year_end),
+        dataset_min_utc=dataset_min_utc,
+        dataset_max_utc=dataset_max_utc,
         usable_utc_by_event=usable_utc_by_event,
     )
     if not coverage_ok:

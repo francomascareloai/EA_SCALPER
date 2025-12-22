@@ -157,7 +157,7 @@ class PropFirmManager:
         """
         now_dt = self._resolve_now(now)
         state = self.get_state()
-        if state.is_hard_breached and not self._terminated:
+        if (state.is_hard_breached or (state.dd_protection is not None and not state.dd_protection.can_trade)) and not self._terminated:
             self._terminated = True
             if self._raise_on_breach:
                 self._hard_stop(state)

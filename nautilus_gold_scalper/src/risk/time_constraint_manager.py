@@ -35,6 +35,9 @@ class TimeConstraintManager:
     ) -> None:
         self.strategy = strategy
         self.cutoff = cutoff
+        if emergency > cutoff:
+            emergency = cutoff
+
         self.warnings = {
             "warning": warning,
             "urgent": urgent,
@@ -127,16 +130,15 @@ class TimeConstraintManager:
                 self._log_warning(level, dt_et)
                 self._issued.add(level)
 
-        # Emergency window: force-close on every call until flat.
-        if now_time >= self.warnings["emergency"]:
-            self._force_close_all(dt_et)
+        # Cutoff window: force-close on every call until flat.
+        if now_time >= self.cutoff:
+            self._force_close_all(dt_et, trigger="cutoff", gate_time=self.cutoff)
+            self._issued.add("cutoff")
             return False
 
-        # Cutoff window: flatten once and block trading for the rest of the day.
-        if now_time >= self.cutoff:
-            if "cutoff" not in self._issued:
-                self._force_close_all(dt_et)
-                self._issued.add("cutoff")
+        # Emergency window: force-close on every call until flat.
+        if now_time >= self.warnings["emergency"]:
+            self._force_close_all(dt_et, trigger="emergency", gate_time=self.warnings["emergency"])
             return False
 
         return True
@@ -152,14 +154,18 @@ class TimeConstraintManager:
 
         # Degraded mode: without reliable ET conversion, fail-safe.
         # If we can't compute ET reliably, assume we're in the danger window and block.
-        self._force_close_all(datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("UTC")))
+        self._force_close_all(
+            datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("UTC")),
+            trigger="timezone_unavailable",
+            gate_time=None,
+        )
         return datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("UTC"))
 
     def reset_daily(self) -> None:
         """Reset warning flags for a new trading day."""
         self._issued.clear()
 
-    def _force_close_all(self, dt_et: datetime) -> None:
+    def _force_close_all(self, dt_et: datetime, *, trigger: str, gate_time: time | None) -> None:
         """Flatten all positions and block further trading for the day."""
         try:
             self.strategy.cancel_all_orders(getattr(self.strategy.config, "instrument_id", None))
@@ -178,16 +184,22 @@ class TimeConstraintManager:
         self.strategy._is_trading_allowed = False
         self.strategy._trading_blocked_today = True
 
-        cutoff_str = self.cutoff.strftime("%H:%M")
+        gate_str = gate_time.strftime("%H:%M") if gate_time is not None else "unknown"
         if "flatten" not in self._issued:
             self._issued.add("flatten")
             self.strategy.log.warning(
-                f'{{"event":"apex_cutoff","ts":"{dt_et.isoformat()}","action":"flatten","reason":"{cutoff_str} cutoff"}}'
+                f'{{"event":"apex_cutoff","ts":"{dt_et.isoformat()}","action":"flatten","trigger":"{trigger}","gate":"{gate_str} ET"}}'
             )
             if self.telemetry:
                 self.telemetry.emit(
                     "apex_cutoff",
-                    {"ts": dt_et.isoformat(), "action": "flatten", "reason": "cutoff_reached", "cutoff": cutoff_str},
+                    {
+                        "ts": dt_et.isoformat(),
+                        "action": "flatten",
+                        "trigger": trigger,
+                        "gate": gate_str,
+                        "reason": f"{trigger}_reached",
+                    },
                 )
 
     def _log_warning(self, level: str, dt_et: datetime) -> None:

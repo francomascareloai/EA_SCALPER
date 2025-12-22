@@ -63,6 +63,29 @@
 
 ## Log Entries
 
+## 2025-12-21 12:55 [FORGE] - risk/drawdown (WP2 Force-Flat on DD breach)
+
+**Bug:** DD breach path in `BaseGoldStrategy._apply_drawdown_limits()` only blocked entries and attempted a single-position close (not a full fail-safe flatten).
+**Impact:** If drawdown breaches while in-position, open risk could remain longer than one control loop and working orders may remain, increasing Apex termination risk.
+**Root Cause:** DrawdownTracker enforcement path was not aligned with the strategy-wide fail-safe invariant (cancel orders + flatten + halt).
+**Fix:** Apply safety-buffer thresholds (daily 3.0%, trailing 4.0%) and trigger `_trigger_execution_failsafe(...)` when breached while in-position.
+**Files:**
+- `nautilus_gold_scalper/src/strategies/base_strategy.py`
+- `nautilus_gold_scalper/tests/test_execution/test_execution_failsafe.py`
+**Validation:** `.venv/bin/pytest -q`, `.venv/bin/mypy --strict -p nautilus_gold_scalper`
+**Commit:** pending
+
+## 2025-12-21 08:22 [FORGE] - signals/news_data (NewsWindowData publish/catalog)
+
+**Bug:** `NewsWindowData` subclassed Nautilus `Data` without implementing required `ts_event/ts_init` properties (and without serialization registration).
+**Impact:** `publish_data(DataType(NewsWindowData), ...)` could fail at runtime and downstream catalog/serialization would be undefined.
+**Root Cause:** Removed `@customdataclass` to avoid duplicate global registration, but did not replace it with a safe timestamp+serialization implementation.
+**Fix:** Implemented `ts_event/ts_init` on `NewsWindowData` and registered message-bus + Arrow serialization (idempotent registration).
+**Files:**
+- `nautilus_gold_scalper/src/signals/news_data.py`
+**Validation:** `.venv/bin/pytest -q`, `.venv/bin/mypy --strict --config-file mypy.ini`
+**Commit:** pending
+
 ## 2025-12-20 18:32 [FORGE] - signals/news_calendar (Backtest support)
 
 **Bug:** `NewsCalendar` cache refresh previously filtered events by wall-clock “future-only”, breaking historical backtest evaluation.
@@ -92,7 +115,8 @@
 
 **Fix:**
 - Added lifecycle tracking for entry + bracket client_order_ids.
-- Added order event handlers (`on_order_rejected/on_order_canceled/on_order_accepted`) to clear stale pending state on entry reject/cancel.
+- Added order event handlers (`on_order_rejected/on_order_canceled/on_order_accepted`) + deferred cleanup with grace window to avoid cancel/reject-before-fill race.
+- Enforced strict TP expectation: if TP was requested and TP order is missing/rejected/canceled → fail-safe (flatten + halt).
 - Added fail-safe: if bracket is rejected/canceled while position is open, cancel all orders + close all positions + halt trading.
 
 **Prevention (MANDATORY - Protocol Updates):**
@@ -120,13 +144,18 @@
 
 **Root Cause:** Time gates were evaluated only when market events arrived; no wall-clock scheduler was enabled by default.
 
-**Fix:** Enabled clock-timer scheduling by default (`time_gate_use_clock_timer=True`) and set a conservative timer interval (`1s`) so `check_wall_clock()` runs even with stalled feeds.
+**Fix:**
+- Ensure time gates can be enforced via clock timer path (`set_timer_ns → on_timer → check_wall_clock`) under feed stalls.
+- Timer activation now respects `prop_firm_enabled`, `allow_overnight`, and `time_gate_use_clock_timer`.
+- Emergency gate is clamped to never exceed cutoff (defensive).
+- Flatten telemetry/log payload now includes `trigger` + `gate` for clearer audit trails.
 
 **Files:**
-- `nautilus_gold_scalper/src/strategies/base_strategy.py`
+- `nautilus_gold_scalper/src/risk/time_constraint_manager.py`
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
 - `nautilus_gold_scalper/tests/test_risk/test_time_constraint_manager.py`
 
-**Validation:** `.venv/bin/pytest -q`, `.venv/bin/mypy --config-file mypy.ini`
+**Validation:** `.venv/bin/pytest -q`, `.venv/bin/mypy --strict -p nautilus_gold_scalper`
 **Commit:** pending
 
 ### 2025-12-08 18:00 [FORGE] - BUGFIX_LOG.md

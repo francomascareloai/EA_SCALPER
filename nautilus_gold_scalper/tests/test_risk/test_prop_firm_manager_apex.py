@@ -44,3 +44,23 @@ def test_prop_firm_manager_hard_stop_on_breach():
 
     assert s.stopped is True
     assert s.flattened is True
+
+
+def test_prop_firm_ensure_compliance_hard_stops_on_dd_protection_halt():
+    limits = PropFirmLimits(
+        account_size=100_000.0,
+        daily_loss_limit=50_000.0,
+        trailing_drawdown=50_000.0,
+    )
+    mgr = PropFirmManager(limits=limits)
+    s = DummyStrategy()
+    mgr.set_strategy(s)
+    mgr.initialize(100_000.0)
+
+    mgr.update_equity(96_000.0)
+
+    with pytest.raises(AccountTerminatedException):
+        mgr.ensure_compliance()
+
+    assert s.stopped is True
+    assert s.flattened is True

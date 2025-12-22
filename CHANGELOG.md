@@ -1,5 +1,15 @@
 # CHANGELOG - BIBLIOTECA TRADING
 
+## [2025-12-21] - Backtest News Calendar (USD Top Movers)
+- News validator: adicionada canonicalização de nomes + coverage gate por faixa de anos (2015–2025) para evitar falsos negativos por variantes de eventos.
+- Strategy config: `news.events_path` aponta para `nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_top_movers_validated.csv`.
+- Nautilus Data stream: `NewsWindowData` agora tem `ts_event/ts_init` e serialização registrada (MessageBus + Arrow) para replay/catalog.
+- Execution safety (WP0): bracket SL/TP agora é fail-safe com lifecycle tracking, watchdog e emergency flatten+halt em rejeição/cancelamento; inclui grace window (default 5s) para evitar race de IOC cancel/reject antes de `PositionOpened`.
+- Apex time gates resilience (WP1): adiciona enforcement via clock timer (`set_timer_ns → on_timer → check_wall_clock`) para fechar posições mesmo com feed stall; respeita `prop_firm_enabled`/`allow_overnight`/`time_gate_use_clock_timer` e inclui `trigger`/`gate` em telemetry/log de flatten.
+- Risk fail-safe (WP2): DD breach em posição agora força `cancel_all_orders + close_all_positions + HALT` via `_trigger_execution_failsafe`, com safety buffer (daily 3.0%, trailing 4.0%).
+- CLIProxyAPI docs: added quick troubleshooting checklist and API key rotation guidance.
+- CLIProxyAPI mgmt usage: added server-side rolling windows (30m/1h/5h) + persistence + in-panel link (on `#/usage`) to `/management-metrics.html`.
+
 ## [2025-12-15] - CLIProxy (Claude Code) Thinking/Tool-Use Fix + Repo Hygiene
 - CLIProxyAPI (submodule): corrigido compatibilidade de *extended thinking* quando há `tool_use` no histórico (evita `400 INVALID_ARGUMENT` por ausência de `thinking.signature`).
 - CLIProxyAPI: preserva `thoughtSignature` corretamente em streaming e non-streaming (ordem correta de `thinking` → `signature_delta`).

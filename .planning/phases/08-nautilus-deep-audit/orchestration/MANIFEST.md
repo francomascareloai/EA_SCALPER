@@ -17,14 +17,14 @@
 | 02 R2 | COMPLETE | PHASE_02_R2_FOLLOWUP_FINDINGS.md | R1 remediations verified (OB/FVG causal), tests present for OB/FVG/Liquidity; remaining items are completeness/enhancements | 0 CRITICAL, 5 HIGH (defer), 2 MEDIUM (open), 0 LOW |
 | 03 | COMPLETE (REMEDIATED) | PHASE_03_B_APEX_FINDINGS.md | Remediated time gates + DD semantics + conservative HWM pricing + validate_trade gate | 9 CRITICAL, 11 HIGH, 9 MEDIUM, 2 LOW |
 | 03 R2 | COMPLETE | PHASE_03_R2_FOLLOWUP_FINDINGS.md | Re-validated Phase 03 integration contracts: time gates + validate_trade are wired; remaining risks are fail-open on feed errors and no independent close scheduler | 0 CRITICAL (verified), 2 HIGH (open), 2 MEDIUM (open), 0 LOW |
-| 04 | READY | - | - | - |
+| 04 | COMPLETE (BLOCKED) | PHASE_04_FINDINGS.md | Scoring correctness (at_poi), MTF test mismatch, news tz crash risk | 3 CRITICAL, 6 HIGH, 10 MEDIUM, 5 LOW |
 | 04.5 | COMPLETE (BLOCKED) | PHASE_04.5_ML_FINDINGS.md | Stacking KFold look-ahead + train/inference parity gaps | 1 CRITICAL, 2 HIGH, 2 MEDIUM |
-| 05 | READY | - | - | - |
-| 06 R1 | READY | - | - | - |
-| 06 R2 | READY | - | - | - |
-| 07 | READY | - | - | - |
-| 08 | READY | - | - | - |
-| 09 | READY | - | - | - |
+| 05 | COMPLETE (BLOCKED) | PHASE_05_FINDINGS.md | Execution lifecycle not production-ready; adapters stubs; protective orders not guaranteed | 9 CRITICAL, 5 HIGH, 4 MEDIUM, 0 LOW |
+| 06 R1 | COMPLETE (BLOCKED) | PHASE_06_FINDINGS.md | Confirmed temporal leakage + Apex invariants missing across scripts | 12 CRITICAL, 21 HIGH, 19 MEDIUM, 8 LOW |
+| 06 R2 | COMPLETE (BLOCKED) | PHASE_06_FINDINGS.md | Validation scripts inherit leakage / execution optimism | 12 CRITICAL, 21 HIGH, 19 MEDIUM, 8 LOW |
+| 07 | COMPLETE (BLOCK) | PHASE_07_COVERAGE_FINDINGS.md | Coverage below minimums; strategy orchestration largely untested | 2 CRITICAL, 3 HIGH, 2 MEDIUM, 0 LOW |
+| 08 | COMPLETE (BLOCKED) | PHASE_08_FINDINGS.md | Integration blockers: fail-safe execution, DD force-flat, time-gate scheduler, timestamp wiring | 7 CRITICAL, 10 HIGH, 6 MEDIUM, 2 LOW |
+| 09 | COMPLETE (NO-GO) | AUDIT_REPORT.md | Final synthesis: NO-GO; move to remediation WPs | Open issues (deduped): 40 CRITICAL, 54 HIGH, 42 MEDIUM, 17 LOW |
 
 ## Plan Review Status (CRITIC)
 
@@ -67,14 +67,18 @@
 
 ## Issue Summary (Cumulative)
 
+> Canonical inventory: `ISSUES_TRACKER.md` (deduped). Counts below reflect the current post-audit deduped open inventory.
+
 | Severity | Count | Resolved | Open |
 |----------|-------|----------|------|
-| CRITICAL | 13 | 0 | 13 |
-| HIGH | 22 | 0 | 22 |
-| MEDIUM | 18 | 0 | 18 |
-| LOW | 7 | 0 | 7 |
+| CRITICAL | 40 | - | 40 |
+| HIGH | 54 | - | 54 |
+| MEDIUM | 42 | - | 42 |
+| LOW | 17 | - | 17 |
 
 ## Open Issues (Cumulative)
+
+> NOTE: This table is legacy/incomplete. Use `ISSUES_TRACKER.md` for the full deduped inventory and current statuses.
 
 | ID | Phase | Severity | Description | Status |
 |----|-------|----------|-------------|--------|

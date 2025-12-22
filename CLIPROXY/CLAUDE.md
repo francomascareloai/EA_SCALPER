@@ -128,6 +128,21 @@ tail -f CLIPROXY/CLIProxyAPI/logs/server.out
 
 ## Known Issues & Troubleshooting
 
+### 0. Claude Code tools “param do nada” / tool loop corruption
+
+**Symptom**: tools stop mid-run, missing `tool_result`, orphan `tool_use_id`, “No tool call found …”.
+
+**Root cause**: streaming (`text/event-stream`) interruptions can drop part of the stream around tool calls, corrupting the tool loop ordering.
+
+**Mitigation**: CLIProxyAPI forces **non-streaming JSON** when the request includes `tools` / `tool_choice` or tool-use history.
+
+**Toggle** (only if needed):
+```bash
+export CLIPROXY_DISABLE_NONSTREAM_TOOLS_GUARD=1
+```
+
+**Verification**: see `CLIPROXY/CLIProxyAPI/docs/troubleshooting-quick.md`.
+
 ### 1. Thinking + Tool Use Conflict (Antigravity)
 
 **Symptom**: `400 invalid_request_error: Expected thinking, but found tool_use`
@@ -233,6 +248,7 @@ When spawning the CLIPROXY-ENGINEER subagent, it should:
 | `docs/sdk-advanced.md` | Custom executors/translators |
 | `docs/sdk-access.md` | Access control |
 | `docs/amp-cli-integration.md` | Amp CLI setup |
+| `docs/troubleshooting-quick.md` | 1-page checklist for Claude Code issues |
 | `docs/troubleshooting-antigravity.md` | Antigravity issues |
 
 ---

@@ -17,6 +17,7 @@ from .news_calendar import (
     NewsWindow,
     get_weekly_events_for_day,
 )
+from .news_data import NewsWindowData
 
 __all__ = [
     'MTFManager',
@@ -29,6 +30,7 @@ __all__ = [
     'NewsWindow',
     'NewsImpact',
     'NewsTradeAction',
+    'NewsWindowData',
     'get_weekly_events_for_day',
     'EntryOptimizer',
     'OptimalEntry',

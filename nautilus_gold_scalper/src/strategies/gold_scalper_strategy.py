@@ -75,7 +75,10 @@ from ..signals.trend_follow import (
 
 # Import signal generators
 from ..signals.mtf_manager import MTFManager
+from nautilus_trader.model.data import DataType
+
 from ..signals.news_calendar import NewsCalendar, NewsTradeAction
+from ..signals.news_data import NewsWindowData
 from ..utils.metrics import MetricsCalculator, PerformanceMetrics
 from ..utils.telemetry import TelemetrySink
 from .base_strategy import BaseGoldStrategy, BaseStrategyConfig
@@ -389,6 +392,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             friday_close_hour=int(getattr(self.config, "session_friday_close_hour", 14)),
         )
 
+        # Subscribe to strategy-published news state (for replay/logging/ML features).
+        self.subscribe_data(DataType(NewsWindowData))
+
         # Regime detector
         self._regime_detector = RegimeDetector(
             hurst_period=int(getattr(self.config, "regime_hurst_period", 100)),
@@ -610,7 +616,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             emergency=self._parse_cutoff(self.config.time_emergency_et),
             telemetry=self._telemetry if getattr(self.config, "telemetry_capture_cutoff", True) else None,
             clock=self.clock,
-            use_clock_timer=bool(getattr(self.config, "time_gate_use_clock_timer", False)),
+            use_clock_timer=(
+                bool(getattr(self.config, "prop_firm_enabled", True))
+                and (not bool(self.config.allow_overnight))
+                and bool(getattr(self.config, "time_gate_use_clock_timer", True))
+            ),
             timer_interval_ns=int(getattr(self.config, "time_gate_timer_interval_ns", 10_000_000_000)),
         )
 
@@ -827,10 +837,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # Reset daily counters
             self._daily_trades = 0
             self._daily_pnl = 0.0
-            # Re-enable trading after prior-day cutoff/blocks
-            self._is_trading_allowed = True
-            self._trading_blocked_today = False
-            self.log.info("[DAILY_RESET] trading_allowed=True (lifted prior cutoff/blocks)")
+            # Re-enable trading only if we are not in an execution failsafe halt.
+            self._is_trading_allowed = not bool(getattr(self, "_execution_failsafe_triggered", False))
+            self._trading_blocked_today = bool(getattr(self, "_execution_failsafe_triggered", False))
+            self.log.info(
+                f"[DAILY_RESET] trading_allowed={self._is_trading_allowed} (lifted prior cutoff/blocks)"
+            )
             if self._drawdown_tracker:
                 try:
                     self._drawdown_tracker.reset_daily()
@@ -1024,38 +1036,47 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             return
 
         # Check prop firm limits (only if enabled)
-        if self.config.prop_firm_enabled and self._prop_firm and not self._prop_firm.can_trade(now=bar_time):
-            if should_log:
-                self.log.info("[SIGNAL_CHECK] Prop firm manager BLOCKED")
-            if self._telemetry:
-                self._telemetry.emit("signal_reject", {"reason": "prop_firm", "bar": len(self._ltf_bars)})
-            self._is_trading_allowed = False
-            self.log.warning("[BLOCKED] _is_trading_allowed = False (prop_firm.can_trade() returned False)")
-            return
+        if self.config.prop_firm_enabled and self._prop_firm:
+            try:
+                if not self._prop_firm.can_trade(now=bar_time):
+                    if should_log:
+                        self.log.info("[SIGNAL_CHECK] Prop firm manager BLOCKED")
+                    if self._telemetry:
+                        self._telemetry.emit("signal_reject", {"reason": "prop_firm", "bar": len(self._ltf_bars)})
+                    self._is_trading_allowed = False
+                    self.log.warning("[BLOCKED] _is_trading_allowed = False (prop_firm.can_trade() returned False)")
+                    return
+            except Exception as exc:
+                super()._trigger_execution_failsafe(reason=f"prop_firm_signal_gate_exception:{type(exc).__name__}")
+                return
 
         # Circuit breaker gate
         if self._circuit_breaker:
-            cb_state = self._circuit_breaker.get_state()
-            if self._last_cb_level != cb_state.level:
-                self._last_cb_level = cb_state.level
-                self.log.warning(
-                    f'{{"event":"circuit_state","level":"{cb_state.level.name}","can_trade":{cb_state.can_trade},'
-                    f'"size_mult":{cb_state.size_multiplier:.2f},"daily_dd":{cb_state.daily_dd_percent:.2f},'
-                    f'"total_dd":{cb_state.total_dd_percent:.2f},"consec_losses":{cb_state.consecutive_losses}}}'
-                )
-                if self._telemetry and getattr(self.config, "telemetry_capture_circuit", True):
-                    self._telemetry.emit(
-                        "circuit_state",
-                        {
-                            "level": cb_state.level.name,
-                            "can_trade": cb_state.can_trade,
-                            "size_mult": cb_state.size_multiplier,
-                            "daily_dd": cb_state.daily_dd_percent,
-                            "total_dd": cb_state.total_dd_percent,
-                            "consec_losses": cb_state.consecutive_losses,
-                        },
+            try:
+                cb_state = self._circuit_breaker.get_state()
+                if self._last_cb_level != cb_state.level:
+                    self._last_cb_level = cb_state.level
+                    self.log.warning(
+                        f'{{"event":"circuit_state","level":"{cb_state.level.name}","can_trade":{cb_state.can_trade},'
+                        f'"size_mult":{cb_state.size_multiplier:.2f},"daily_dd":{cb_state.daily_dd_percent:.2f},'
+                        f'"total_dd":{cb_state.total_dd_percent:.2f},"consec_losses":{cb_state.consecutive_losses}}}'
                     )
-            cb_allowed = self._circuit_breaker.can_trade(now=bar_time)
+                    if self._telemetry and getattr(self.config, "telemetry_capture_circuit", True):
+                        self._telemetry.emit(
+                            "circuit_state",
+                            {
+                                "level": cb_state.level.name,
+                                "can_trade": cb_state.can_trade,
+                                "size_mult": cb_state.size_multiplier,
+                                "daily_dd": cb_state.daily_dd_percent,
+                                "total_dd": cb_state.total_dd_percent,
+                                "consec_losses": cb_state.consecutive_losses,
+                            },
+                        )
+                cb_allowed = self._circuit_breaker.can_trade(now=bar_time)
+            except Exception as exc:
+                super()._trigger_execution_failsafe(reason=f"circuit_breaker_signal_gate_exception:{type(exc).__name__}")
+                return
             if not cb_allowed:
                 if should_log:
                     self.log.info(f"[SIGNAL_CHECK] Circuit breaker BLOCKED (level={cb_state.level.name})")
@@ -1069,6 +1090,15 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Strategy selector gate (regime/session/safety context)
         if self._strategy_selector:
+            try:
+                circuit_ok = True if not self._circuit_breaker else self._circuit_breaker.can_trade(now=bar_time)
+            except Exception as exc:
+                super()._trigger_execution_failsafe(reason=f"circuit_breaker_signal_gate_exception:{type(exc).__name__}")
+                return
+            spread_ok = True
+            if self._spread_monitor is not None:
+                spread_ok = bool(self._spread_snapshot.can_trade) if self._spread_snapshot else False
+
             context = MarketContext(
                 hurst=self._current_regime.hurst_exponent if self._current_regime else 0.5,
                 entropy=self._current_regime.shannon_entropy if self._current_regime else 2.0,
@@ -1079,8 +1109,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 is_newyork=self._current_session.session == TradingSession.SESSION_NY if self._current_session else False,
                 is_overlap=self._current_session.session == TradingSession.SESSION_LONDON_NY_OVERLAP if self._current_session else False,
                 is_asian=self._current_session.session == TradingSession.SESSION_ASIAN if self._current_session else False,
-                circuit_ok=True if not self._circuit_breaker else self._circuit_breaker.can_trade(now=bar_time),
-                spread_ok=self._spread_snapshot.can_trade if self._spread_snapshot else True,
+                circuit_ok=circuit_ok,
+                spread_ok=spread_ok,
                 spread_ratio=self._spread_snapshot.spread_ratio if self._spread_snapshot and hasattr(self._spread_snapshot, "spread_ratio") else 1.0,
                 daily_dd_percent=self._drawdown_tracker.get_daily_drawdown_pct() if self._drawdown_tracker else 0.0,
                 total_dd_percent=self._drawdown_tracker.get_total_drawdown_pct() if self._drawdown_tracker else 0.0,
@@ -1099,30 +1129,68 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 return
 
         # Consistency rule (30% daily of cumulative profit)
-        if self._consistency_tracker and not self._consistency_tracker.can_trade(now=bar_time.astimezone(self._consistency_tracker.et_tz)):
-            if should_log:
-                self.log.info("[SIGNAL_CHECK] Consistency tracker BLOCKED (30% daily profit cap)")
-            if self._telemetry:
-                self._telemetry.emit("signal_reject", {"reason": "consistency_cap", "bar": len(self._ltf_bars)})
-            self._is_trading_allowed = False
-            self.log.warning("[BLOCKED] _is_trading_allowed = False (consistency_tracker 30% daily cap)")
-            return
+        if self._consistency_tracker:
+            try:
+                ok = self._consistency_tracker.can_trade(now=bar_time.astimezone(self._consistency_tracker.et_tz))
+            except Exception as exc:
+                super()._trigger_execution_failsafe(reason=f"consistency_tracker_gate_exception:{type(exc).__name__}")
+                return
+            if not ok:
+                if should_log:
+                    self.log.info("[SIGNAL_CHECK] Consistency tracker BLOCKED (30% daily profit cap)")
+                if self._telemetry:
+                    self._telemetry.emit("signal_reject", {"reason": "consistency_cap", "bar": len(self._ltf_bars)})
+                self._is_trading_allowed = False
+                self.log.warning("[BLOCKED] _is_trading_allowed = False (consistency_tracker 30% daily cap)")
+                return
 
         # Circuit breaker guard
-        if self._circuit_breaker and not self._circuit_breaker.can_trade(now=bar_time):
-            if should_log:
-                self.log.info("[SIGNAL_CHECK] Circuit breaker guard BLOCKED")
-            if self._telemetry:
-                self._telemetry.emit("signal_reject", {"reason": "circuit_breaker_guard", "bar": len(self._ltf_bars)})
-            self._is_trading_allowed = False
-            self.log.warning("[BLOCKED] _is_trading_allowed = False (circuit_breaker.can_trade() returned False)")
-            return
+        if self._circuit_breaker:
+            try:
+                cb_guard_ok = self._circuit_breaker.can_trade(now=bar_time)
+            except Exception as exc:
+                super()._trigger_execution_failsafe(reason=f"circuit_breaker_signal_gate_exception:{type(exc).__name__}")
+                return
+            if not cb_guard_ok:
+                if should_log:
+                    self.log.info("[SIGNAL_CHECK] Circuit breaker guard BLOCKED")
+                if self._telemetry:
+                    self._telemetry.emit("signal_reject", {"reason": "circuit_breaker_guard", "bar": len(self._ltf_bars)})
+                self._is_trading_allowed = False
+                self.log.warning("[BLOCKED] _is_trading_allowed = False (circuit_breaker.can_trade() returned False)")
+                return
 
         # News filter (uses bar timestamp for backtest realism)
         news_window = None
         if self.config.use_news_filter and self._news_calendar:
             bar_time = datetime.fromtimestamp(bar.ts_event / 1e9, tz=timezone.utc)
             news_window = self._news_calendar.check_news_window(now=bar_time)
+
+            # Publish deterministic, ts_event-aligned news state for downstream consumers (catalog/ML/analysis).
+            try:
+                ev = news_window.event
+                self.publish_data(
+                    DataType(NewsWindowData),
+                    NewsWindowData(
+                        instrument_id=self.config.instrument_id,
+                        in_window=bool(news_window.in_window),
+                        action=int(news_window.action),
+                        minutes_to_event=int(news_window.minutes_to_event),
+                        is_before_event=bool(news_window.is_before_event),
+                        score_adjustment=int(news_window.score_adjustment),
+                        size_multiplier=float(news_window.size_multiplier),
+                        event_name=str(ev.event_name) if ev is not None else "",
+                        currency=str(ev.currency) if ev is not None else "",
+                        impact=int(ev.impact) if ev is not None else 0,
+                        reason=str(news_window.reason),
+                        ts_event=int(bar.ts_event),
+                        ts_init=int(bar.ts_init),
+                    ),
+                )
+            except Exception:
+                if should_log:
+                    self.log.debug("[NEWS] publish_data failed", exc_info=True)
+
             if news_window.action == NewsTradeAction.BLOCK:
                 if should_log:
                     self.log.info(f"[SIGNAL_CHECK] News filter BLOCKED: {news_window.reason}")
@@ -1413,7 +1481,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         if self.config.prop_firm_enabled and self._prop_firm:
             qty_units = float(quantity.as_double()) if hasattr(quantity, "as_double") else float(quantity)
             risk_usd = float(sl_distance) * qty_units * float(self._instrument_point_value_per_unit())
-            ok, reason = self._prop_firm.validate_trade(risk_amount=risk_usd, contracts=qty_units)
+            try:
+                ok, reason = self._prop_firm.validate_trade(risk_amount=risk_usd, contracts=qty_units)
+            except Exception as exc:
+                super()._trigger_execution_failsafe(reason=f"prop_firm_validate_trade_exception:{type(exc).__name__}")
+                return
             if not ok:
                 if should_log:
                     self.log.info(f"[SIGNAL_CHECK] Prop firm validate_trade BLOCKED: {reason}")
@@ -1929,8 +2001,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                                 "score_adjustment": snapshot.score_adjustment,
                             },
                         )
-            except Exception:
+            except Exception as exc:
+                # Fail closed on spread-monitor failure: treat as non-tradable until next good snapshot.
                 self._spread_snapshot = None
+                self._is_trading_allowed = False
+                self._trading_blocked_today = True
+                self.log.warning(f"[BLOCKED] spread_monitor_exception:{type(exc).__name__} -> trading halted")
 
         # Update prop-firm trailing drawdown with mark-to-market equity
         if self._prop_firm:
@@ -1945,7 +2021,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         super()._trigger_execution_failsafe(reason="prop_firm_dd_breach")
                         return
                 except Exception as exc:
-                    logger.debug(f"Prop firm equity update failed: {exc}")
+                    # Fail closed: do not keep trading if prop-firm compliance check errors.
+                    super()._trigger_execution_failsafe(reason=f"prop_firm_intrabar_exception: {type(exc).__name__}")
+                    return
 
         # Circuit breaker equity feed
         if self._circuit_breaker:
@@ -1959,7 +2037,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         super()._trigger_execution_failsafe(reason="circuit_breaker_dd_breach")
                         return
                 except Exception as exc:
-                    logger.debug(f"Circuit breaker equity update failed: {exc}")
+                    super()._trigger_execution_failsafe(reason=f"circuit_breaker_intrabar_exception: {type(exc).__name__}")
+                    return
 
         # TimeConstraintManager handles cutoff/flatten logic
 
