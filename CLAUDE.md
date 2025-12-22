@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.20</version>
-  <last_updated>2025-12-20</last_updated>
-  <changelog>v3.10.20: Add ARGUS research gate to increase evidence-based decisions.</changelog>
-  <previous_changes>v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule | v3.10.15: Local-first NautilusTrader docs</previous_changes>
+  <version>3.10.21</version>
+  <last_updated>2025-12-22</last_updated>
+  <changelog>v3.10.21: Add anti_hallucination_protocol for Opus 4.5 migration - API citation, numeric calculation, and uncertainty escalation rules.</changelog>
+  <previous_changes>v3.10.20: Add ARGUS research gate to increase evidence-based decisions. | v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -275,6 +275,54 @@
   </nautilus_trader_local_docs>
 
   <security>Never expose secrets/keys/credentials</security>
+
+  <anti_hallucination_protocol priority="CRITICAL">
+    <purpose>Prevent invented APIs, wrong calculations, and false confidence when using Claude Opus 4.5</purpose>
+    <context>Opus is superior for complex reasoning but may be more "creative" than deterministic models. These rules enforce verification.</context>
+
+    <api_citation_rule>
+      <when>Using ANY library API (NautilusTrader, pandas, numpy, onnxruntime, pytz, requests, etc.)</when>
+      <must>Cite source: grep external/nautilus_trader OR context7 docs OR site-packages inspection</must>
+      <must>If method signature uncertain: STOP, search, verify BEFORE writing code</must>
+      <must>Include file:line reference when citing from local source</must>
+      <forbidden>NEVER invent method names, parameters, return types, or class hierarchies</forbidden>
+      <forbidden>NEVER assume API behavior from similar libraries</forbidden>
+      <example_bad>strategy.submit_order(order) # assumed API</example_bad>
+      <example_good>strategy.submit_order_list(...) # verified: nautilus_trader/trading/strategy.pyx:892</example_good>
+      <nautilus_priority>For NautilusTrader: ALWAYS search external/nautilus_trader/examples/ first</nautilus_priority>
+    </api_citation_rule>
+
+    <numeric_calculation_rule>
+      <when>DD%, HWM, lot size, PnL, position sizing, Kelly fraction, spread ratio, any money math</when>
+      <must>Show formula in comment above code</must>
+      <must>Include worked example with specific numbers in comment</must>
+      <must>Add runtime assertion that result is in expected range</must>
+      <must>For division: always check denominator != 0</must>
+      <must>For percentages: verify 0 <= value <= 100 (or appropriate range)</must>
+      <example>
+        # Formula: trailing_dd_pct = (hwm - current_equity) / hwm * 100
+        # Example: hwm=52000, equity=50000 → (52000-50000)/52000*100 = 3.85%
+        trailing_dd_pct = (hwm - current_equity) / hwm * 100
+        assert 0 <= trailing_dd_pct <= 100, f"Invalid DD%: {trailing_dd_pct}"
+      </example>
+    </numeric_calculation_rule>
+
+    <uncertainty_escalation>
+      <when>Confidence less than 90% on API behavior, calculation correctness, or edge case handling</when>
+      <action>State explicitly: "UNCERTAINTY: [what I'm unsure about]"</action>
+      <action>Propose verification method: test, grep, context7, or ask user</action>
+      <action>DO NOT implement until verified</action>
+      <action>If multiple valid interpretations exist: list them and pick most conservative</action>
+      <forbidden>Proceeding with "probably works" for risk/, execution/, or strategy code</forbidden>
+      <forbidden>Assuming behavior from outdated training data when current docs available</forbidden>
+    </uncertainty_escalation>
+
+    <verification_hierarchy>
+      <order>1) Local source (external/nautilus_trader, site-packages) → 2) context7 docs → 3) exa web search → 4) Ask user</order>
+      <rule>For NautilusTrader: local source is AUTHORITATIVE over web search</rule>
+      <rule>For Apex rules: CLAUDE.md is AUTHORITATIVE (apex_non_negotiables section)</rule>
+    </verification_hierarchy>
+  </anti_hallucination_protocol>
 </core>
 
 <orchestration_protocol>
