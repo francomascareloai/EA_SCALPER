@@ -666,19 +666,36 @@ class EnsemblePredictor:
 
 class StackingEnsemble:
     """
-    Stacking ensemble using meta-learner.
+    Stacking ensemble using meta-learner with temporal cross-validation.
 
-    First layer: Base models generate predictions
+    First layer: Base models generate predictions using TimeSeriesSplit
     Second layer: Meta-model combines predictions
+
+    IMPORTANT: Input data MUST be sorted ascending by time to prevent look-ahead bias.
+    The fit() method uses TimeSeriesSplit which ensures training data is always
+    temporally before test data in each fold.
     """
 
     def __init__(
         self,
         base_models: dict[str, Any],
         meta_model: Any | None = None,
+        n_splits: int = 5,
+        gap: int = 10,
     ):
+        """
+        Initialize stacking ensemble.
+
+        Args:
+            base_models: Dictionary of model name to model instance.
+            meta_model: Optional meta-model for stacking (defaults to LogisticRegression).
+            n_splits: Number of time-series CV splits (default 5).
+            gap: Number of samples to skip between train and test to prevent leakage (default 10).
+        """
         self.base_models = base_models
         self.meta_model = meta_model
+        self.n_splits = n_splits
+        self.gap = gap
         self._is_fitted = False
 
     def fit(
@@ -689,21 +706,34 @@ class StackingEnsemble:
         y_val: np.ndarray[Any, Any] | None = None,
     ) -> None:
         """
-        Fit stacking ensemble.
+        Fit stacking ensemble using temporal cross-validation.
 
-        Uses out-of-fold predictions from base models to train meta-model.
+        Uses TimeSeriesSplit to generate out-of-fold predictions from base models,
+        ensuring training data is always temporally before test data (no look-ahead).
+
+        CRITICAL: Input data X, y MUST be sorted ascending by time.
+
+        Args:
+            X: Feature matrix (n_samples, n_features), sorted by time ascending.
+            y: Target labels.
+            X_val: Optional validation features (unused, kept for API compatibility).
+            y_val: Optional validation labels (unused, kept for API compatibility).
         """
-        from sklearn.model_selection import KFold
+        from sklearn.model_selection import TimeSeriesSplit
 
         n_samples = len(X)
         n_models = len(self.base_models)
 
-        # Generate out-of-fold predictions
-        oof_predictions = np.zeros((n_samples, n_models))
+        # Generate out-of-fold predictions using TimeSeriesSplit (temporal CV)
+        # Note: With TimeSeriesSplit, early samples are never in test set
+        # We use NaN for samples without predictions and filter them for meta-model
+        oof_predictions = np.full((n_samples, n_models), np.nan)
 
-        kf = KFold(n_splits=5, shuffle=False)
+        # TimeSeriesSplit ensures train is ALWAYS before test (no look-ahead)
+        # gap parameter adds purging buffer between train and test
+        tscv = TimeSeriesSplit(n_splits=self.n_splits, gap=self.gap)
 
-        for _fold_idx, (train_idx, val_idx) in enumerate(kf.split(X)):
+        for _fold_idx, (train_idx, val_idx) in enumerate(tscv.split(X)):
             X_train, X_val_fold = X[train_idx], X[val_idx]
             y_train = y[train_idx]
 
@@ -718,7 +748,19 @@ class StackingEnsemble:
                 else:
                     oof_predictions[val_idx, model_idx] = model.predict(X_val_fold)
 
-        # Fit meta-model on OOF predictions
+        # Filter to samples that have OOF predictions (exclude early samples without predictions)
+        # With TimeSeriesSplit, first few samples are never in test set
+        valid_mask = ~np.isnan(oof_predictions[:, 0])
+        oof_valid = oof_predictions[valid_mask]
+        y_valid = y[valid_mask]
+
+        if len(y_valid) == 0:
+            raise ValueError(
+                "No valid OOF predictions generated. "
+                "Ensure dataset is large enough for n_splits + gap."
+            )
+
+        # Fit meta-model on OOF predictions (only samples with valid predictions)
         if self.meta_model is None:
             try:
                 from sklearn.linear_model import LogisticRegression
@@ -726,9 +768,9 @@ class StackingEnsemble:
             except ImportError as err:
                 raise ImportError("sklearn required for stacking") from err
 
-        self.meta_model.fit(oof_predictions, y)
+        self.meta_model.fit(oof_valid, y_valid)
 
-        # Refit base models on full data
+        # Refit base models on full data for final predictions
         for _name, model in self.base_models.items():
             model.fit(X, y)
 

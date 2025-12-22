@@ -271,7 +271,8 @@ class EntryOptimizer:
         current_price: float,
         atr: float,
         golden_pocket: tuple[float, float] | None = None,
-        fib_targets: tuple[float, float, float] | None = None
+        fib_targets: tuple[float, float, float] | None = None,
+        current_time: datetime | None = None,
     ) -> OptimalEntry:
         """Optimize entry for BUY signal."""
         entry = OptimalEntry()
@@ -392,8 +393,10 @@ class EntryOptimizer:
             entry.is_valid = True
 
         # Set validity window (15 min bars * max_wait_bars)
+        # Use provided current_time for backtest determinism, fallback to wall-clock for live
+        base_time = current_time if current_time is not None else datetime.now(timezone.utc)
         entry.max_wait_bars = self.max_wait_bars
-        entry.valid_until = datetime.now(timezone.utc) + timedelta(minutes=15 * self.max_wait_bars)
+        entry.valid_until = base_time + timedelta(minutes=15 * self.max_wait_bars)
 
         return entry
 
@@ -407,7 +410,8 @@ class EntryOptimizer:
         current_price: float,
         atr: float,
         golden_pocket: tuple[float, float] | None = None,
-        fib_targets: tuple[float, float, float] | None = None
+        fib_targets: tuple[float, float, float] | None = None,
+        current_time: datetime | None = None,
     ) -> OptimalEntry:
         """Optimize entry for SELL signal."""
         entry = OptimalEntry()
@@ -526,7 +530,9 @@ class EntryOptimizer:
             entry.is_valid = True
 
         entry.max_wait_bars = self.max_wait_bars
-        entry.valid_until = datetime.now(timezone.utc) + timedelta(minutes=15 * self.max_wait_bars)
+        # Use provided current_time for backtest determinism, fallback to wall-clock for live
+        base_time = current_time if current_time is not None else datetime.now(timezone.utc)
+        entry.valid_until = base_time + timedelta(minutes=15 * self.max_wait_bars)
 
         return entry
 
@@ -544,6 +550,7 @@ class EntryOptimizer:
         fib_targets: tuple[float, float, float] | None = None,
         spread_ratio: float = 1.0,
         signal_urgency: float = 1.0,
+        current_time: datetime | None = None,
     ) -> OptimalEntry:
         """
         Calculate optimal entry parameters.
@@ -561,6 +568,8 @@ class EntryOptimizer:
             fib_targets: Tuple(tp1, tp2, tp3) using Fib extensions
             spread_ratio: Current spread / average spread ratio
             signal_urgency: 0-1 urgency score; low urgency blocks in high spread
+            current_time: Event/bar timestamp for backtest determinism.
+                          If None, falls back to datetime.now(timezone.utc) for live trading.
 
         Returns:
             OptimalEntry with calculated levels
@@ -577,12 +586,12 @@ class EntryOptimizer:
         if direction == SignalDirection.SIGNAL_BUY:
             self._current_entry = self._optimize_for_buy(
                 fvg_low, fvg_high, ob_low, ob_high, sweep_level, current_price, atr,
-                golden_pocket, fib_targets
+                golden_pocket, fib_targets, current_time
             )
         else:
             self._current_entry = self._optimize_for_sell(
                 fvg_low, fvg_high, ob_low, ob_high, sweep_level, current_price, atr,
-                golden_pocket, fib_targets
+                golden_pocket, fib_targets, current_time
             )
 
         # Apply spread awareness: block or adjust if spread is elevated
@@ -595,11 +604,25 @@ class EntryOptimizer:
         logger.debug(f"Optimal entry calculated: {self.get_entry_info()}")
         return self._current_entry
 
-    def should_enter_now(self, current_price: float) -> bool:
-        """Check if should enter at current price."""
+    def should_enter_now(
+        self,
+        current_price: float,
+        current_time: datetime | None = None,
+    ) -> bool:
+        """
+        Check if should enter at current price.
+
+        Args:
+            current_price: Current market price to evaluate.
+            current_time: Event/bar timestamp for backtest determinism.
+                          If None, falls back to datetime.now(timezone.utc) for live trading.
+
+        Returns:
+            True if entry conditions are met and setup is not expired.
+        """
         if not self._current_entry.is_valid:
             return False
-        if self.has_expired():
+        if self.has_expired(current_time):
             return False
 
         # Market entries execute immediately
@@ -627,11 +650,21 @@ class EntryOptimizer:
         return (self._current_entry.acceptable_low <= current_price <=
                 self._current_entry.acceptable_high)
 
-    def has_expired(self) -> bool:
-        """Check if entry setup has expired."""
+    def has_expired(self, current_time: datetime | None = None) -> bool:
+        """
+        Check if entry setup has expired.
+
+        Args:
+            current_time: Event/bar timestamp for backtest determinism.
+                          If None, falls back to datetime.now(timezone.utc) for live trading.
+
+        Returns:
+            True if the entry setup has expired.
+        """
         if self._current_entry.valid_until is None:
             return True
-        return datetime.now(timezone.utc) > self._current_entry.valid_until
+        check_time = current_time if current_time is not None else datetime.now(timezone.utc)
+        return check_time > self._current_entry.valid_until
 
     @property
     def current_entry(self) -> OptimalEntry:

@@ -107,19 +107,29 @@ class FeatureEngineer:
 
         Args:
             df: DataFrame with columns ['open', 'high', 'low', 'close', 'volume']
-               Index should be datetime.
+               Index should be datetime and MUST be sorted ascending by time.
 
         Returns:
             DataFrame with all engineered features.
 
         Raises:
-            ValueError: If required columns are missing.
+            ValueError: If required columns are missing or index is not time-sorted.
         """
         # Validate input
         required_cols = ['open', 'high', 'low', 'close', 'volume']
         missing = [col for col in required_cols if col not in df.columns]
         if missing:
             raise ValueError(f"Missing required columns: {missing}")
+
+        # CRITICAL: Validate index is sorted ascending by time to prevent look-ahead bias
+        # Rolling calculations assume data is in chronological order
+        if isinstance(df.index, pd.DatetimeIndex):
+            if not df.index.is_monotonic_increasing:
+                raise ValueError(
+                    "DataFrame index must be sorted ascending by time. "
+                    "Use df.sort_index() before calling compute_all_features(). "
+                    "Unsorted data causes look-ahead bias in rolling calculations."
+                )
 
         # Initialize feature dataframe
         features = pd.DataFrame(index=df.index)
@@ -661,10 +671,22 @@ class FeatureEngineer:
         """
         Scale features for ML model input.
 
+        IMPORTANT: To prevent data leakage in train/test scenarios:
+        1. Call with fit=True on TRAINING data only
+        2. Call with fit=False on TEST data (uses scaler fitted on train)
+
+        Example:
+            # Correct usage - prevents leakage
+            train_scaled = engineer.scale_features(train_features, fit=True)
+            test_scaled = engineer.scale_features(test_features, fit=False)
+
+            # Or use the helper method:
+            train_scaled, test_scaled = engineer.scale_train_test(train_features, test_features)
+
         Args:
             features: DataFrame of features to scale
             method: 'standard' (StandardScaler) or 'robust' (RobustScaler)
-            fit: If True, fit the scaler. If False, use existing scaler.
+            fit: If True, fit the scaler on this data. If False, use existing scaler.
 
         Returns:
             Scaled features DataFrame
@@ -694,6 +716,38 @@ class FeatureEngineer:
         )
 
         return scaled_df
+
+    def scale_train_test(
+        self,
+        train_features: pd.DataFrame,
+        test_features: pd.DataFrame,
+        method: str = 'standard'
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Scale train and test features without data leakage.
+
+        This helper method ensures the scaler is fit ONLY on training data,
+        then applied to both train and test. This prevents leakage of test
+        statistics into the training process.
+
+        Args:
+            train_features: Training features DataFrame (used to fit scaler).
+            test_features: Test features DataFrame (transformed only, no fitting).
+            method: 'standard' (StandardScaler) or 'robust' (RobustScaler).
+
+        Returns:
+            Tuple of (scaled_train, scaled_test) DataFrames.
+
+        Example:
+            train_scaled, test_scaled = engineer.scale_train_test(train_features, test_features)
+        """
+        # Fit scaler on training data only
+        scaled_train = self.scale_features(train_features, method=method, fit=True)
+
+        # Apply same scaler to test data (no fitting)
+        scaled_test = self.scale_features(test_features, method=method, fit=False)
+
+        return scaled_train, scaled_test
 
     def get_feature_names(self) -> list[str]:
         """

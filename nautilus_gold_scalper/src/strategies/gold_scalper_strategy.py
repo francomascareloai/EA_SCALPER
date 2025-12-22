@@ -355,7 +355,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._htf_bias: MarketBias = MarketBias.RANGING
         self._mtf_order_blocks: list[OrderBlock] = []
         self._mtf_fvgs: list[FairValueGap] = []
-        self._current_spread: float = 0.0
+        self._current_spread: float = float("inf")  # Fail-closed: unknown spread blocks entries
 
         # HBS (Human Behavior Simulator) components
         self._hbs: HumanBehaviorSimulator | None = None
@@ -1204,8 +1204,18 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # apply conservative size/score adjustments
             self._news_size_mult = max(news_window.size_multiplier, 0.0)
 
-        # Check spread
+        # Check spread (fail-closed: block entries if spread is unknown or unhealthy)
         spread_score_adj = 0
+        if self._spread_monitor is not None and self._spread_snapshot is None:
+            # No valid spread data yet - fail closed (block entry)
+            if should_log:
+                self.log.info("[SIGNAL_CHECK] Spread BLOCKED: no spread snapshot (waiting for first quote)")
+            if self._telemetry:
+                self._telemetry.emit("signal_reject", {
+                    "reason": "spread_missing",
+                    "bar": len(self._ltf_bars)
+                })
+            return
         if self._spread_snapshot:
             if not self._spread_snapshot.can_trade:
                 if should_log:

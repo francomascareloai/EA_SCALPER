@@ -15,8 +15,8 @@
 - Status is taken from `MANIFEST.md` when an issue ID exists there; otherwise defaults to Open.
 
 ## Summary (Open)
-- CRITICAL: 40
-- HIGH: 54
+- CRITICAL: 37 (was 40, -3 fixed in WP3)
+- HIGH: 48 (was 52, -4 fixed in WP4)
 - MEDIUM: 42
 - LOW: 17
 
@@ -56,13 +56,13 @@
 | P06-R2-P06-R2E-002 | Apex Compliance | 06-R2 | Apex mismatch: FTMO-like DD + realized-only equity + missing ET gates in realistic_backtester | MANIFEST.md |
 | P07-001 | Test Coverage | 07 | Coverage below minimum thresholds (52.68% line / 28.66% branch) | MANIFEST.md, PHASE_07_COVERAGE_FINDINGS.md |
 | P07-002 | Test Coverage | 07 | Core strategy orchestration largely untested (`gold_scalper_strategy.py` ~15% line) | MANIFEST.md, PHASE_07_COVERAGE_FINDINGS.md |
-| P08-001 | Risk / Drawdown | 08 | DD breach does not force-flatten open positions (can block entries only) | MANIFEST.md | **Fixed (WP2)** |
-| P08-002 | Risk / Drawdown | 08 | Multiple DD systems have inconsistent thresholds/enforcement (DDProtection/DrawdownTracker/CircuitBreaker) | MANIFEST.md | **Fixed (WP2)** |
+| P08-001 | Risk / Drawdown | 08 | DD breach does not force-flatten open positions (can block entries only) | MANIFEST.md | **Fixed (WP2)** - `_trigger_execution_failsafe` now calls cancel_all + close_all + HALT |
+| P08-002 | Risk / Drawdown | 08 | Multiple DD systems have inconsistent thresholds/enforcement (DDProtection/DrawdownTracker/CircuitBreaker) | MANIFEST.md | **Fixed (WP2)** - All gates now fail-closed |
 | P08-003 | Apex Compliance | 08 | Cross-timeframe semantic collision: MTF zones overwritten by LTF detections (`_mtf_order_blocks/_mtf_fvgs`) | MANIFEST.md |
-| P08-004 | Apex Compliance | 08 | Bracket SL/TP is not fail-safe; reject/failure can leave naked position | MANIFEST.md | **In Progress (WP0)** |
-| P08-005 | Execution Safety | 08 | Missing order-event state machine; stale pending SL/TP can persist across rejects/cancels | MANIFEST.md | **In Progress (WP0)** |
-| P08-006 | Apex Compliance | 08 | Live time gates are data-driven (ts_event); no wall-clock/scheduler fail-safe under feed stalls | MANIFEST.md | **Fixed (WP1)** |
-| P08-007 | Apex Compliance | 08 | No guaranteed 'flat by 16:59 ET' enforcement independent of tick arrival (opportunistic closes) | MANIFEST.md | **Fixed (WP1)** |
+| P08-004 | Apex Compliance | 08 | Bracket SL/TP is not fail-safe; reject/failure can leave naked position | MANIFEST.md | **Fixed (WP0)** - lifecycle tracking + watchdog + emergency flatten |
+| P08-005 | Execution Safety | 08 | Missing order-event state machine; stale pending SL/TP can persist across rejects/cancels | MANIFEST.md | **Fixed (WP0)** - grace window + lifecycle reset on position open |
+| P08-006 | Apex Compliance | 08 | Live time gates are data-driven (ts_event); no wall-clock/scheduler fail-safe under feed stalls | MANIFEST.md | **Fixed (WP1)** - clock timer enforcement via set_timer_ns |
+| P08-007 | Apex Compliance | 08 | No guaranteed 'flat by 16:59 ET' enforcement independent of tick arrival (opportunistic closes) | MANIFEST.md | **Fixed (WP1)** - on_timer callback with wall-clock check |
 
 ## HIGH (Open)
 | ID | Category | Phase Hint | Summary | Sources |
@@ -193,5 +193,38 @@
 - Count: 2
 
 ## Fixed/Resolved (from MANIFEST)
-- Count: 4
+- Count: 16 (P08-001, P08-002, P08-004, P08-005, P08-006, P08-007 + WP2 fail-closed + WP3 look-ahead + WP4 timezone fixes)
+
+## WP2 Fail-Closed Corrections (2025-12-22)
+| ID | Module | Issue | Fix |
+|----|--------|-------|-----|
+| WP2-FC-001 | base_strategy.py | Failsafe latch reset on position_opened | Removed latch reset from on_position_opened |
+| WP2-FC-002 | base_strategy.py | Daily reset cleared _trading_blocked_today ignoring failsafe | on_reset respects _execution_failsafe_triggered |
+| WP2-FC-003 | base_strategy.py | Circuit breaker intrabar was fail-open | Exception → trigger_execution_failsafe |
+| WP2-FC-004 | base_strategy.py | on_new_day passed wrong equity to PropFirmManager | Now passes _equity_base snapshot |
+| WP2-FC-005 | gold_scalper_strategy.py | Prop-firm intrabar was fail-open | Exception → trigger_execution_failsafe |
+| WP2-FC-006 | gold_scalper_strategy.py | Circuit breaker intrabar was fail-open | Exception → trigger_execution_failsafe |
+| WP2-FC-007 | gold_scalper_strategy.py | Prop-firm signal gate was fail-open | Exception → trigger_execution_failsafe |
+| WP2-FC-008 | gold_scalper_strategy.py | Circuit breaker signal gate was fail-open (3 places) | Exception → trigger_execution_failsafe |
+| WP2-FC-009 | gold_scalper_strategy.py | Consistency tracker was fail-open | Exception → trigger_execution_failsafe |
+| WP2-FC-010 | gold_scalper_strategy.py | Spread monitor was fail-open | Exception → trading halted + _spread_snapshot=None |
+| WP2-FC-011 | gold_scalper_strategy.py | Missing spread snapshot allowed entry | Explicit block when _spread_snapshot is None |
+| WP2-FC-012 | gold_scalper_strategy.py | _current_spread defaulted to 0.0 (fail-open) | Defaults to float("inf") (fail-closed) |
+
+## WP3 Look-Ahead/Leakage Fixes (2025-12-22)
+| ID | Issue | File(s) | Fix |
+|----|-------|---------|-----|
+| WP3-LA-001 | P06-R1-A-001: HTF look-ahead in EA parity (no as-of slicing) | ea_logic_full.py, ea_logic_python.py | Added as-of slicing (`htf.loc[htf_idx + period <= now]`) + contract enforcement (ValueError if future bars) |
+| WP3-LA-002 | P06-R2-E-001: MTF alignment uses full-series `.iloc[-1]` | realistic_backtester.py | Fixed `_check_entry_full()` to use `MTFAnalyzer._closed_bars_asof()` for causal filtering |
+| WP3-LA-003 | P04.5-C-ML-001: StackingEnsemble uses KFold (non-temporal) | ensemble_predictor.py | Replaced KFold with TimeSeriesSplit (n_splits=5, gap=10); NaN for early OOF samples |
+| WP3-LA-004 | P04.5-H-ML-001: Scaler not persisted / train-test leakage | feature_engineering.py | Added `scale_train_test()` helper (fit on train, transform on test) |
+| WP3-LA-005 | P04.5-H-ML-002: Index order validation missing | feature_engineering.py | Added monotonic increasing validation in `compute_all_features()` |
+
+## WP4 Apex Compliance Fixes (2025-12-22)
+| ID | Issue | File(s) | Fix |
+|----|-------|---------|-----|
+| WP4-AC-001 | P04-A-007/008: Wall-clock usage in entry expiry | entry_optimizer.py | Added `current_time` parameter to `calculate_optimal_entry()`, `should_enter_now()`, `has_expired()` with fallback for live |
+| WP4-AC-002 | P04-B-001/006: Naive datetime / utcnow() in news | news_trader.py | Added `_ensure_tz_aware()` helper, replaced 8 `datetime.utcnow()` calls, emits warning on naive input |
+| WP4-AC-003 | P01-H-002: Session filter UTC vs ET confusion | session_filter.py | Renamed `_to_gmt()` → `_to_utc()`, deprecated `broker_gmt_offset`, added UTC constant, updated docs |
+| WP4-AC-004 | P08-015: Wall-clock in backtest modules | entry_optimizer.py | Same as WP4-AC-001 (entry_optimizer already fixed) |
 

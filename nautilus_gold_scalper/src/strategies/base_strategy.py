@@ -199,11 +199,11 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
     def on_stop(self) -> None:
         """Cleanup on strategy stop."""
-        # Close all open positions
-        self.close_all_positions(self.config.instrument_id)
-
-        # Cancel all pending orders
+        # Cancel all pending orders FIRST (including SL/TP) to avoid orphaned orders
         self.cancel_all_orders(self.config.instrument_id)
+
+        # Then close all open positions
+        self.close_all_positions(self.config.instrument_id)
 
         # Unsubscribe from data
         if self.config.ltf_bar_type:

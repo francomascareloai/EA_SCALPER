@@ -2500,8 +2500,44 @@ class EALogic:
         m5_rsi = float(ltf['rsi'].iloc[-1]) if not np.isnan(ltf['rsi'].iloc[-1]) else 50.0
         m5_atr = float(ltf['atr'].iloc[-1])
         
-        # HTF (H1)
-        htf = htf_df.copy() if htf_df is not None and not htf_df.empty else ltf
+        # HTF (H1) - WP3 causal enforcement: apply as-of slicing
+        if htf_df is not None and not htf_df.empty:
+            htf = htf_df.copy()
+            # Apply as-of filter: H1 bar is only available after its close time
+            # (bar_start + 1 hour). This prevents look-ahead leakage.
+            if hasattr(htf.index, 'to_series') or hasattr(htf.index, 'dtype'):
+                try:
+                    ts_now = pd.Timestamp(now)
+                    htf_idx = pd.to_datetime(htf.index)
+                    # H1 bar is only valid once bar_close <= now
+                    # For bars indexed by open time, bar_close = index + 1h
+                    htf = htf.loc[htf_idx + pd.Timedelta("1h") <= ts_now]
+                except Exception:
+                    # Fallback: use simple index slicing if index is datetime-like
+                    try:
+                        htf = htf.loc[:now]
+                    except Exception:
+                        pass  # Keep original if slicing fails
+
+            # Contract enforcement: raise if HTF still has future data
+            if len(htf) > 0:
+                try:
+                    last_htf_bar_time = pd.to_datetime(htf.index[-1])
+                    htf_bar_close_time = last_htf_bar_time + pd.Timedelta("1h")
+                    if htf_bar_close_time > pd.Timestamp(now):
+                        raise ValueError(
+                            f"HTF look-ahead leakage: htf[-1]={last_htf_bar_time}, "
+                            f"bar_close={htf_bar_close_time}, now={now}. "
+                            "HTF bar not yet closed at decision time."
+                        )
+                except (TypeError, ValueError) as e:
+                    if "look-ahead" in str(e):
+                        raise
+                    # Index is not datetime-like, skip validation
+                    pass
+        else:
+            htf = ltf
+
         if 'atr' not in htf.columns:
             htf['tr'] = (htf['high'] - htf['low']).combine(
                 (htf['high'] - htf['close'].shift(1)).abs(), max

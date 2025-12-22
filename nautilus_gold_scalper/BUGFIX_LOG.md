@@ -63,6 +63,59 @@
 
 ## Log Entries
 
+## 2025-12-22 [FORGE] - ml/ensemble_predictor (CRITICAL - Look-ahead Leakage)
+
+**Module:** `nautilus_gold_scalper/src/ml/ensemble_predictor.py`
+**Severity:** CRITICAL (Backtest inflation - unrealistic results)
+**Bug:** `StackingEnsemble.fit()` used `sklearn.model_selection.KFold` which allows future data to train models that predict past data, causing severe look-ahead bias in stacking ensemble OOF predictions.
+
+**Impact:**
+- Massive overfitting: meta-model trained on OOF predictions contaminated by future information
+- Backtest results inflated: strategy would appear profitable but fail in live trading
+- Could pass validation gates (WFE/SQN/PSR) with artificially good metrics
+
+**Root Cause (5 Whys):**
+1. Why? KFold was used instead of TimeSeriesSplit
+2. Why? Original implementation didn't consider temporal ordering for CV
+3. Why? Standard sklearn examples use KFold for classification
+4. Why? Time-series specific CV wasn't enforced in code review
+5. Why? No automated check for temporal CV in ML pipeline
+
+**Fix:** Replaced `KFold` with `TimeSeriesSplit` with configurable gap parameter. Added proper handling of samples without OOF predictions (early samples never in test set with TimeSeriesSplit).
+
+**Prevention (MANDATORY - Protocol Updates):**
+- Added `gap` parameter to StackingEnsemble constructor (default=10)
+- Added docstring warning that input data MUST be sorted ascending by time
+- Validated TimeSeriesSplit ensures train is ALWAYS temporally before test
+
+**Files:**
+- `nautilus_gold_scalper/src/ml/ensemble_predictor.py` (fixed)
+- `nautilus_gold_scalper/src/ml/feature_engineering.py` (index validation added)
+
+**Validation:** `mypy --strict`, `pytest nautilus_gold_scalper/tests/test_onnx_migration.py`
+**Commit:** pending
+
+## 2025-12-22 [FORGE] - ml/feature_engineering (Index order validation)
+
+**Module:** `nautilus_gold_scalper/src/ml/feature_engineering.py`
+**Severity:** MEDIUM (Look-ahead prevention)
+**Bug:** `compute_all_features()` did not validate that input DataFrame index is sorted ascending by time. Unsorted data would produce invalid rolling calculations.
+
+**Impact:** If data is accidentally shuffled, all rolling-based features would be computed incorrectly, potentially introducing look-ahead bias in feature engineering.
+
+**Root Cause:** No defensive check for temporal ordering in input data.
+
+**Fix:**
+1. Added index validation in `compute_all_features()` - raises ValueError if DatetimeIndex is not monotonically increasing
+2. Added `scale_train_test()` helper method to prevent scaler leakage
+3. Enhanced docstrings with usage examples for proper train/test scaling
+
+**Files:**
+- `nautilus_gold_scalper/src/ml/feature_engineering.py`
+
+**Validation:** `mypy --strict`, manual test of index validation and scale_train_test
+**Commit:** pending
+
 ## 2025-12-21 12:55 [FORGE] - risk/drawdown (WP2 Force-Flat on DD breach)
 
 **Bug:** DD breach path in `BaseGoldStrategy._apply_drawdown_limits()` only blocked entries and attempted a single-position close (not a full fail-safe flatten).

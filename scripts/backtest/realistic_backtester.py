@@ -138,6 +138,12 @@ class RealisticBacktestConfig:
     debug: bool = False
     debug_interval: int = 500
 
+    # Reproducibility
+    # Set random_seed to an integer for reproducible backtests.
+    # When set, np.random.seed(random_seed) is called at initialization,
+    # ensuring latency jitter, slippage, and ONNX noise produce identical results.
+    random_seed: int | None = None
+
 
 # =============================================================================
 # LATENCY SIMULATOR
@@ -546,7 +552,12 @@ class RealisticBacktester:
     
     def __init__(self, config: RealisticBacktestConfig = None):
         self.config = config or RealisticBacktestConfig()
-        
+
+        # Seed RNGs for reproducibility (BEFORE creating components that use randomness)
+        if self.config.random_seed is not None:
+            np.random.seed(self.config.random_seed)
+            print(f"[Init] RNG seeded with {self.config.random_seed} for reproducibility")
+
         # Components
         self.latency_sim = LatencySimulator(self.config)
         self.execution = RealisticExecutionModel(self.config, self.latency_sim)
@@ -867,40 +878,48 @@ class RealisticBacktester:
     def _check_entry_full(self, timestamp: datetime, bar: pd.Series,
                           bars_dict: Dict[str, pd.DataFrame], idx: int,
                           latency_ms: float) -> bool:
-        """Check entry using FULL EA port (ea_logic_full.py)"""
-        
+        """Check entry using FULL EA port (ea_logic_full.py)
+
+        WP3 FIX: Uses _closed_bars_asof() to ensure only FULLY CLOSED bars are used.
+        A bar is fully closed when: bar_start + timeframe <= current_time.
+        This prevents look-ahead bias from incomplete HTF bars.
+        """
+
         # Extract MTF data
         h1_bars = bars_dict.get('1h', bars_dict.get('60min', None))
         m15_bars = bars_dict.get('15min', None)
         m5_bars = bars_dict.get('5min', None)
-        
+
         if h1_bars is None or m15_bars is None or m5_bars is None:
             if self.config.debug:
                 print(f"[DEBUG] Missing MTF bars")
             return False
-        
-        # Get aligned bars (by timestamp, not by index)
+
+        # WP3 FIX: Filter to only FULLY CLOSED bars (causal - no look-ahead)
+        # Use MTFAnalyzer._closed_bars_asof() for proper temporal filtering
         try:
-            # Find closest bars for each timeframe
-            h1_idx = h1_bars.index.get_indexer([timestamp], method='ffill')[0]
-            m15_idx = m15_bars.index.get_indexer([timestamp], method='ffill')[0]
-            m5_idx = m5_bars.index.get_indexer([timestamp], method='ffill')[0]
-            
-            if h1_idx < 50 or m15_idx < 50 or m5_idx < 20:
+            h1_closed = MTFAnalyzer._closed_bars_asof(h1_bars, timestamp, '1h')
+            m15_closed = MTFAnalyzer._closed_bars_asof(m15_bars, timestamp, '15min')
+            m5_closed = MTFAnalyzer._closed_bars_asof(m5_bars, timestamp, '5min')
+
+            # Check minimum bar counts on CLOSED bars only
+            if len(h1_closed) < 50 or len(m15_closed) < 50 or len(m5_closed) < 20:
                 if self.config.debug and idx % 500 == 0:
-                    print(f"[DEBUG] Not enough history: H1={h1_idx}, M15={m15_idx}, M5={m5_idx}")
+                    print(f"[DEBUG] Not enough closed history: H1={len(h1_closed)}, M15={len(m15_closed)}, M5={len(m5_closed)}")
                 return False  # Not enough history
-            
-            # Get close arrays (RegimeDetector needs up to 220 bars for hurst_long_window)
-            h1_closes = h1_bars['close'].iloc[max(0, h1_idx-250):h1_idx+1].values
-            m15_closes = m15_bars['close'].iloc[max(0, m15_idx-250):m15_idx+1].values
-            m5_closes = m5_bars['close'].iloc[max(0, m5_idx-100):m5_idx+1].values
-            
-            # Get highs/lows for sweep detection
-            m15_highs = m15_bars['high'].iloc[max(0, m15_idx-50):m15_idx+1].values
-            m15_lows = m15_bars['low'].iloc[max(0, m15_idx-50):m15_idx+1].values
-            
-            # Calculate ATRs
+
+            # Get close arrays from CLOSED bars only (RegimeDetector needs up to 220 bars)
+            # Formula: trailing_dd_pct = (hwm - current_equity) / hwm * 100
+            # Using [-N:] slice on closed bars ensures only past data is used
+            h1_closes = h1_closed['close'].iloc[-min(251, len(h1_closed)):].values
+            m15_closes = m15_closed['close'].iloc[-min(251, len(m15_closed)):].values
+            m5_closes = m5_closed['close'].iloc[-min(101, len(m5_closed)):].values
+
+            # Get highs/lows for sweep detection from CLOSED bars
+            m15_highs = m15_closed['high'].iloc[-min(51, len(m15_closed)):].values
+            m15_lows = m15_closed['low'].iloc[-min(51, len(m15_closed)):].values
+
+            # Calculate ATRs from CLOSED bars
             def calc_atr(bars_df, period=14):
                 if len(bars_df) < period + 1:
                     return 5.0  # Default
@@ -912,9 +931,9 @@ class RealisticBacktester:
                     )
                 )
                 return tr.rolling(period).mean().iloc[-1]
-            
-            h1_atr = calc_atr(h1_bars.iloc[max(0, h1_idx-20):h1_idx+1])
-            m15_atr = calc_atr(m15_bars.iloc[max(0, m15_idx-20):m15_idx+1])
+
+            h1_atr = calc_atr(h1_closed.iloc[-min(21, len(h1_closed)):])
+            m15_atr = calc_atr(m15_closed.iloc[-min(21, len(m15_closed)):])
             
             # Get M5 RSI
             m5_rsi = bar.get('rsi', 50)
@@ -925,10 +944,11 @@ class RealisticBacktester:
             
         except Exception as e:
             return False
-        
+
         # Call EALogicFull.analyze()
-        # Build LTF dataframe window (includes fp_score if merged)
-        ltf_window = m5_bars.iloc[max(0, m5_idx-120):m5_idx+1].copy()
+        # Build LTF dataframe window from CLOSED bars (includes fp_score if merged)
+        # WP3 FIX: Use m5_closed instead of m5_bars to prevent look-ahead
+        ltf_window = m5_closed.iloc[-min(121, len(m5_closed)):].copy()
 
         result = self.ea_logic_full.analyze(
             h1_closes=h1_closes,

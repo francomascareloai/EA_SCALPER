@@ -20,6 +20,11 @@ from .economic_calendar import (
     EconomicCalendar,
     EconomicEvent,
 )
+from .execution_model import (
+    ExecutionCosts,
+    ExecutionModel,
+    ExecutionRealism,
+)
 
 # HBS modules
 from .human_config import (
@@ -53,6 +58,10 @@ __all__ = [
     'TickEvent',
     'MT5Adapter',
     'NinjaTraderAdapter',
+    # Execution Model
+    'ExecutionModel',
+    'ExecutionCosts',
+    'ExecutionRealism',
     # HBS Config
     'HumanSimConfig',
     'get_default_config',

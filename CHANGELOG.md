@@ -1,5 +1,34 @@
 # CHANGELOG - BIBLIOTECA TRADING
 
+## [2025-12-22] - WP4 Apex Compliance Fixes Complete
+- **WP4 (Apex Compliance)**: Timezone and wall-clock determinism fixes:
+  - `entry_optimizer.py`: Added `current_time` parameter to `calculate_optimal_entry()`, `should_enter_now()`, `has_expired()` for backtest determinism
+  - `news_trader.py`: Replaced 8 `datetime.utcnow()` calls with timezone-aware pattern, added `_ensure_tz_aware()` helper with warning on naive input
+  - `session_filter.py`: Renamed `_to_gmt()` → `_to_utc()`, deprecated `broker_gmt_offset` parameter, added `_UTC` constant
+
+## [2025-12-22] - WP3 Look-Ahead/Leakage Fixes Complete
+- **WP3 (Temporal Integrity)**: All critical look-ahead bugs fixed:
+  - HTF as-of slicing in EA parity scripts (`ea_logic_full.py`, `ea_logic_python.py`)
+  - Contract enforcement: ValueError if future bars detected after slicing
+  - MTF alignment in `realistic_backtester.py` uses `_closed_bars_asof()` for causal filtering
+  - ML `StackingEnsemble`: replaced KFold with TimeSeriesSplit (n_splits=5, gap=10)
+  - Feature engineering: added index order validation (monotonic increasing)
+  - Feature engineering: added `scale_train_test()` helper to prevent scaler leakage
+
+## [2025-12-22] - WP2 Fail-Closed Enforcement Complete
+- **WP0 (Execution Safety)**: Bracket SL/TP lifecycle tracking + watchdog + emergency flatten on reject/cancel.
+- **WP1 (Timer-Path Enforcement)**: Clock timer via `set_timer_ns` + wall-clock check in `on_timer` for 4:55 PM ET force-close independent of tick arrival.
+- **WP2 (Drawdown Safety)**: All safety gates now fail-closed:
+  - Failsafe latch no longer resets on PositionOpened (permanent until restart)
+  - Daily reset (`on_reset`) respects `_execution_failsafe_triggered` flag
+  - Circuit breaker (intrabar + signal gate): exception → failsafe
+  - Prop-firm manager (intrabar + signal gate): exception → failsafe
+  - Consistency tracker: exception → failsafe
+  - Spread monitor: exception → trading halted + snapshot=None
+  - Missing spread snapshot blocks entry explicitly
+  - `_current_spread` defaults to `float("inf")` (triple defense pattern)
+  - `on_new_day` passes correct `_equity_base` snapshot to PropFirmManager
+
 ## [2025-12-21] - Backtest News Calendar (USD Top Movers)
 - News validator: adicionada canonicalização de nomes + coverage gate por faixa de anos (2015–2025) para evitar falsos negativos por variantes de eventos.
 - Strategy config: `news.events_path` aponta para `nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_top_movers_validated.csv`.

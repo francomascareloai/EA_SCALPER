@@ -2,16 +2,29 @@
 Session Filter para XAUUSD.
 Migrado de: MQL5/Include/EA_SCALPER/Analysis/CSessionFilter.mqh
 
-XAUUSD Session Dynamics:
-- ASIAN (00:00-07:00 GMT): LOW volatility, range-bound, DO NOT TRADE
-- LONDON (07:00-12:00 GMT): HIGH volatility, trend initiation, BEST WINDOW
-- OVERLAP (12:00-15:00 GMT): HIGHEST volatility, PRIME WINDOW
-- NY (15:00-17:00 GMT): HIGH volatility, continuation/reversal
-- LATE (17:00-21:00 GMT): LOW liquidity, erratic, AVOID
+XAUUSD Session Dynamics (UTC-based, fixed - do NOT shift with DST):
+- ASIAN (00:00-07:00 UTC): LOW volatility, range-bound, DO NOT TRADE
+- LONDON (07:00-12:00 UTC): HIGH volatility, trend initiation, BEST WINDOW
+- OVERLAP (12:00-15:00 UTC): HIGHEST volatility, PRIME WINDOW
+- NY (15:00-17:00 UTC): HIGH volatility, continuation/reversal
+- LATE (17:00-21:00 UTC): LOW liquidity, erratic, AVOID
+
+NOTE: Session boundaries are defined in UTC (equivalent to GMT) and do NOT shift
+with DST transitions. This is intentional for backtesting determinism - the session
+windows remain stable across the entire dataset. During DST transitions, the actual
+local trading hours in London/NY shift by ~1 hour, but for volatility pattern
+filtering purposes, fixed UTC windows are acceptable.
+
+For Apex time gates (4:30 PM, 4:55 PM, 4:59 PM ET), use TimeConstraintManager
+which properly handles America/New_York timezone with DST awareness.
 """
 from datetime import datetime, time, timedelta
 from typing import Any
+import warnings
 from zoneinfo import ZoneInfo
+
+# UTC timezone for consistent session detection
+_UTC = ZoneInfo("UTC")
 
 from ..core.data_types import SessionInfo
 from ..core.definitions import SessionQuality, TradingSession
@@ -26,9 +39,13 @@ class SessionFilter:
     - Qualidade da sessao para trading
     - Se trading e permitido
     - Fatores de ajuste (volatilidade, spread)
+
+    Session boundaries are in UTC and do NOT shift with DST. This is intentional
+    for backtesting determinism. For Apex time gates (4:30/4:55/4:59 PM ET),
+    use TimeConstraintManager which handles America/New_York properly.
     """
 
-    # Session windows (GMT)
+    # Session windows (UTC - fixed, do NOT shift with DST)
     SESSIONS = {
         TradingSession.SESSION_ASIAN: {
             "start": time(0, 0),
@@ -78,22 +95,37 @@ class SessionFilter:
         Inicializa o filtro de sessao.
 
         Args:
-            broker_gmt_offset: Offset GMT do broker (horas; ex.: +2 para GMT+2)
+            broker_gmt_offset: DEPRECATED - ignored. Timestamps are expected in UTC.
+                NautilusTrader provides UTC timestamps; no offset needed.
             allow_asian: Override para permitir Asian session
             allow_late_ny: Override para permitir Late NY
-            friday_close_hour: Hora GMT para fechar posicoes na sexta-feira
+            friday_close_hour: Hora UTC para fechar posicoes na sexta-feira.
+                NOTE: For Apex compliance (ET-based), use TimeConstraintManager instead.
+
+        Timestamps passed to this filter should come from bar.ts_event or bar.ts_init
+        (NautilusTrader), which are always UTC. Do NOT pass datetime.now() in backtest
+        context as that would make results non-deterministic.
         """
-        self.broker_gmt_offset = broker_gmt_offset
+        # Deprecation warning for broker_gmt_offset
+        if broker_gmt_offset != 0:
+            warnings.warn(
+                "broker_gmt_offset is deprecated and ignored. "
+                "All timestamps are expected in UTC (NautilusTrader standard). "
+                "This parameter will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.broker_gmt_offset = 0  # Always 0 - kept for backward compat signature
         self.allow_asian = allow_asian
         self.allow_late_ny = allow_late_ny
         self.friday_close_hour = friday_close_hour
 
     def get_session_info(self, timestamp: datetime) -> SessionInfo:
         """Obtem informacoes completas sobre a sessao atual."""
-        gmt_time = self._to_gmt(timestamp)
-        current_time = gmt_time.time()
+        utc_time = self._to_utc(timestamp)
+        current_time = utc_time.time()
 
-        if gmt_time.weekday() >= 5:
+        if utc_time.weekday() >= 5:
             return SessionInfo(
                 session=TradingSession.SESSION_WEEKEND,
                 quality=SessionQuality.SESSION_QUALITY_BLOCKED,
@@ -104,7 +136,7 @@ class SessionFilter:
                 reason="Weekend - mercado fechado",
             )
 
-        if gmt_time.weekday() == 4 and gmt_time.hour >= self.friday_close_hour:
+        if utc_time.weekday() == 4 and utc_time.hour >= self.friday_close_hour:
             return SessionInfo(
                 session=TradingSession.SESSION_LATE_NY,
                 quality=SessionQuality.SESSION_QUALITY_BLOCKED,
@@ -112,12 +144,12 @@ class SessionFilter:
                 hours_until_close=0.0,
                 volatility_factor=0.0,
                 spread_factor=1.5,
-                reason=f"Friday apos {self.friday_close_hour}:00 GMT",
+                reason=f"Friday apos {self.friday_close_hour}:00 UTC",
             )
 
         session, session_config = self._identify_session(current_time)
         is_allowed, reason = self._is_trading_allowed(session)
-        hours_until_close = self._hours_until(session_config["end"], gmt_time)
+        hours_until_close = self._hours_until(session_config["end"], utc_time)
 
         return SessionInfo(
             session=session,
@@ -130,7 +162,7 @@ class SessionFilter:
         )
 
     def _identify_session(self, current_time: time) -> tuple[TradingSession, dict[str, Any]]:
-        """Identifica qual sessao esta ativa com base no horario GMT."""
+        """Identifica qual sessao esta ativa com base no horario UTC."""
         for session, config in self.SESSIONS.items():
             start = config.get("start")
             end = config.get("end")
@@ -160,21 +192,34 @@ class SessionFilter:
 
         return False, f"{session.name} - nao tradavel"
 
-    def _to_gmt(self, timestamp: datetime) -> datetime:
-        """Converte timestamp (broker/server) para GMT considerando offset configurado."""
+    def _to_utc(self, timestamp: datetime) -> datetime:
+        """Convert timestamp to UTC for session detection.
+
+        Args:
+            timestamp: datetime from bar.ts_event/ts_init (NautilusTrader).
+                - If timezone-aware: convert to UTC
+                - If naive: assume already UTC (NautilusTrader standard)
+
+        Returns:
+            Naive datetime in UTC for session boundary comparison.
+
+        Note:
+            Do NOT pass datetime.now() in backtest context - use bar timestamps
+            for deterministic results.
+        """
         if timestamp.tzinfo is None:
-            ts_utc = timestamp
+            # Naive datetime - assume UTC (NautilusTrader standard)
+            return timestamp
         else:
-            ts_utc = timestamp.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+            # Timezone-aware - convert to UTC and strip tzinfo for comparison
+            return timestamp.astimezone(_UTC).replace(tzinfo=None)
 
-        return ts_utc - timedelta(hours=self.broker_gmt_offset)
-
-    def _hours_until(self, session_end: time, gmt_time: datetime) -> float:
+    def _hours_until(self, session_end: time, utc_time: datetime) -> float:
         """Calcula horas restantes ate o fim da sessao atual."""
-        end_dt = datetime.combine(gmt_time.date(), session_end)
-        if end_dt <= gmt_time:
+        end_dt = datetime.combine(utc_time.date(), session_end)
+        if end_dt <= utc_time:
             end_dt += timedelta(days=1)
-        delta = end_dt - gmt_time
+        delta = end_dt - utc_time
         return max(0.0, delta.total_seconds() / 3600.0)
 
 
@@ -191,7 +236,7 @@ class SessionFilter:
         Example:
             filter = SessionFilter()
             from datetime import datetime
-            ts = datetime(2024, 1, 15, 13, 30)  # 13:30 GMT = Overlap
+            ts = datetime(2024, 1, 15, 13, 30)  # 13:30 UTC = Overlap
             filter.is_valid_session(ts)  # Returns: True
         """
         info = self.get_session_info(timestamp)
@@ -210,7 +255,7 @@ class SessionFilter:
         Example:
             filter = SessionFilter()
             from datetime import datetime
-            ts = datetime(2024, 1, 15, 13, 30)  # 13:30 GMT
+            ts = datetime(2024, 1, 15, 13, 30)  # 13:30 UTC
             session = filter.get_current_session(ts)
             # session == TradingSession.SESSION_LONDON_NY_OVERLAP: True
         """

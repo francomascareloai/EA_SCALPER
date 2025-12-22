@@ -709,6 +709,23 @@ class EALogic:
                         except Exception:
                             pass
 
+                    # WP3 contract enforcement: raise if HTF still contains future data
+                    if len(htf_df) > 0:
+                        try:
+                            last_htf_bar_time = pd.to_datetime(htf_df.index[-1])
+                            htf_bar_close_time = last_htf_bar_time + pd.Timedelta("1h")
+                            if htf_bar_close_time > ts_now:
+                                raise ValueError(
+                                    f"HTF look-ahead leakage: htf[-1]={last_htf_bar_time}, "
+                                    f"bar_close={htf_bar_close_time}, now={now}. "
+                                    "HTF bar not yet closed at decision time."
+                                )
+                        except (TypeError, ValueError) as e:
+                            if "look-ahead" in str(e):
+                                raise
+                            # Index is not datetime-like, skip validation
+                            pass
+
                 if not htf_df.empty:
                     htf_ma = htf_df["close"].rolling(50, min_periods=1).mean().iloc[-1]
                     htf_trend_bull = htf_df["close"].iloc[-1] > htf_ma

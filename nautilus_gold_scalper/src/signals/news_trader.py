@@ -16,12 +16,39 @@ Critical news events for XAUUSD:
 - GDP: Strong growth = USD up = Gold down
 - Jobless Claims: High unemployment = USD down = Gold up
 """
+import warnings
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import IntEnum
 
 from nautilus_gold_scalper.src.core.definitions import SignalType
 from nautilus_gold_scalper.src.signals.news_calendar import NewsEvent, NewsImpact
+
+
+def _ensure_tz_aware(dt: datetime | None) -> datetime:
+    """Return timezone-aware UTC datetime, warn if naive input provided.
+
+    Args:
+        dt: Input datetime (can be None, naive, or tz-aware)
+
+    Returns:
+        Timezone-aware UTC datetime. If dt is None, returns current UTC time.
+    """
+    if dt is None:
+        return datetime.now(timezone.utc)
+
+    if dt.tzinfo is None:
+        # Issue P04-B-001: Naive timestamps silently assumed UTC
+        warnings.warn(
+            "NewsTrader received naive datetime; assuming UTC. "
+            "Pass timezone-aware datetime to avoid ambiguity.",
+            UserWarning,
+            stacklevel=3,
+        )
+        return dt.replace(tzinfo=timezone.utc)
+
+    # Convert to UTC if different timezone
+    return dt.astimezone(timezone.utc)
 
 
 class NewsTradingMode(IntEnum):
@@ -177,13 +204,12 @@ class NewsTrader:
         Get next upcoming high-impact event.
 
         Args:
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
 
         Returns:
             Next event or None if no events scheduled
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         for event in self.events:
             if event.time_utc > now and event.impact >= NewsImpact.HIGH:
@@ -195,13 +221,12 @@ class NewsTrader:
         Check if currently in a news window (before/after high-impact news).
 
         Args:
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
 
         Returns:
             True if in news window
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         for event in self.events:
             if event.impact < NewsImpact.HIGH:
@@ -230,14 +255,13 @@ class NewsTrader:
         - Stop hunting becomes extreme
 
         Args:
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
             block_medium: Whether to also block medium-impact news
 
         Returns:
             True if trading should be blocked
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         min_impact = NewsImpact.MEDIUM if block_medium else NewsImpact.HIGH
 
@@ -276,13 +300,12 @@ class NewsTrader:
             actual: Actual released value
             forecast: Forecast value
             previous: Previous value
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
 
         Returns:
             SignalType or None
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         # Only generate signal shortly after release (within 5 minutes)
         time_since_release = (now - event.time_utc).total_seconds()
@@ -310,13 +333,12 @@ class NewsTrader:
         Useful for pre-positioning or adjusting existing positions.
 
         Args:
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
 
         Returns:
             Tuple of (signal, confidence) where confidence is 0-1
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         next_event = self.get_next_event(now)
         if next_event is None:
@@ -364,13 +386,12 @@ class NewsTrader:
             event: News event to analyze
             current_price: Current market price
             atr_value: Current ATR value for volatility
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
 
         Returns:
             NewsTradeSetup with all details
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         minutes_to_event = int((event.time_utc - now).total_seconds() / 60)
 
@@ -440,10 +461,9 @@ class NewsTrader:
 
         Args:
             price: Current price
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         if self.spike_tracking.spike_start_time is None:
             self.spike_tracking.spike_start_time = now
@@ -656,13 +676,12 @@ class NewsTrader:
         Get current status string for logging/display.
 
         Args:
-            now: Current time (UTC), defaults to datetime.utcnow()
+            now: Current time (UTC), defaults to datetime.now(timezone.utc)
 
         Returns:
             Status string
         """
-        if now is None:
-            now = datetime.utcnow()
+        now = _ensure_tz_aware(now)
 
         if self.should_block_trading(now):
             event = self.get_next_event(now)
