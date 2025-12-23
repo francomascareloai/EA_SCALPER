@@ -74,12 +74,14 @@ Phase 08 → CRITIC + SENTINEL (opus) → loop ate APPROVED → DONE
 
 **Model Policy:**
 - **Opus**: ALL phases (creditos infinitos)
+- **Parallel Agents**: SEM LIMITE - spawn quantos forem necessarios
 
 ---
 
 ## Autonomous Loop Protocol
 
 **REGRA: O agent DEVE fazer loop CRITIC → fix → CRITIC ate GO.**
+**REGRA: Pode spawnar MULTIPLOS agents em PARALELO para resolver mais rapido.**
 
 ```python
 # Pseudocode do comportamento esperado
@@ -98,27 +100,56 @@ def execute_phase(phase):
             save_output(f"PHASE_{phase}_CRITIC_REVIEW.md")
             return "PROCEED_TO_NEXT_PHASE"
 
-        elif critic_verdict == "CONDITIONAL":
-            # Fix automatico
+        elif critic_verdict in ["CONDITIONAL", "NO-GO"]:
             issues = critic_verdict.issues
-            for issue in issues:
-                auto_fix(issue)
-            # Loop continua
 
-        elif critic_verdict == "NO-GO":
-            # Tentar fix automatico
-            if can_auto_fix(critic_verdict.issues):
-                auto_fix(critic_verdict.issues)
-                # Loop continua
+            # PARALLEL FIX - spawn multiple agents at once
+            if len(issues) > 1:
+                parallel_fix(issues)  # Multiple FORGE agents in parallel
             else:
-                # Nao consegue resolver sozinho
-                ask_user(critic_verdict.issues)
-                return "WAITING_USER_INPUT"
+                auto_fix(issues[0])
+
+            # Loop continua automaticamente
 
     # Depois de 3 tentativas, escalar pro usuario
     ask_user("3 tentativas falharam. Issues: ...")
     return "WAITING_USER_INPUT"
+
+
+def parallel_fix(issues: list):
+    """
+    Spawn multiple agents in parallel to fix issues faster.
+    No limit on agents - use as many as needed.
+    """
+    agents = []
+    for issue in issues:
+        if issue.type == "code_bug":
+            agents.append(spawn_agent("FORGE", issue, model="opus"))
+        elif issue.type == "look_ahead":
+            agents.append(spawn_agent("ORACLE", issue, model="opus"))
+        elif issue.type == "risk_logic":
+            agents.append(spawn_agent("SENTINEL", issue, model="opus"))
+        elif issue.type == "architecture":
+            agents.append(spawn_agent("CRUCIBLE", issue, model="opus"))
+
+    # Wait for all to complete
+    wait_all(agents)
+
+    # Verify all fixes
+    run_tests()
 ```
+
+**Parallel Agent Strategy:**
+| Situacao | Agents Paralelos |
+|----------|------------------|
+| 1 issue | 1 FORGE |
+| 2-3 issues | 2-3 FORGE em paralelo |
+| Issues de tipos diferentes | FORGE + ORACLE + SENTINEL em paralelo |
+| Fase inteira | FORGE (code) + ORACLE (validation) + CRITIC (review) |
+| Phase 02 (look-ahead) | 17 grep checks em paralelo |
+| Phase 06 (metrics) | WFE + SQN + PSR + DSR + PBO + MC em paralelo |
+
+**NAO TEM LIMITE - spawn o que precisar.**
 
 **Quando perguntar ao usuario:**
 | Situacao | Acao |
