@@ -151,6 +151,80 @@ def parallel_fix(issues: list):
 
 **NAO TEM LIMITE - spawn o que precisar.**
 
+---
+
+## Backtest Verification Protocol
+
+**REGRA: Toda mudanca de codigo DEVE ser verificada com backtest rapido.**
+
+```python
+# Apos QUALQUER fix de codigo
+def verify_fix(fix_description: str):
+    # 1. Tests unitarios
+    run("mypy --strict nautilus_gold_scalper/")
+    run("pytest -q")
+
+    # 2. BACKTEST RAPIDO (1 semana de dados)
+    result = run_quick_backtest(
+        period="1_week",  # 2024-01-01 a 2024-01-07
+        dataset="xauusd_2003_2025_stride20_full.parquet"
+    )
+
+    # 3. Verificar metricas basicas
+    assert result.trades > 0, "Zero trades = algo quebrado"
+    assert result.no_errors, "Erros no backtest"
+
+    # 4. Comparar com baseline
+    if result.trades < baseline.trades * 0.5:
+        raise Alert("Trade count caiu 50%+ - investigar")
+
+    return result
+```
+
+**Quick Backtest Config:**
+```python
+quick_backtest_config = {
+    "dataset": "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet",
+    "start": "2024-01-01",
+    "end": "2024-01-07",  # 1 semana = rapido
+    "purpose": "verify_fix",
+}
+
+# Comando rapido
+# python -m nautilus_gold_scalper.run_backtest --start 2024-01-01 --end 2024-01-07 --quick
+```
+
+**Quando rodar backtest:**
+| Situacao | Backtest |
+|----------|----------|
+| Fix de bug em codigo | Quick (1 semana) |
+| Mudanca em indicador | Quick (1 semana) |
+| Mudanca em confluence scorer | Quick (1 semana) |
+| Mudanca em risk/sizing | Quick (1 semana) |
+| Fim de fase (validation) | Full (6 meses) |
+| Phase 06 final | Full + Monte Carlo |
+
+**Metricas do Quick Backtest:**
+| Metrica | Threshold | Acao se falhar |
+|---------|-----------|----------------|
+| Trades | > 0 | STOP - algo quebrou |
+| Errors | 0 | STOP - fix introduziu bug |
+| Trade count vs baseline | > 50% | WARN - investigar |
+| Win rate | > 0% | WARN - verificar logica |
+
+**Integracao no Loop:**
+```
+Fix aplicado
+    ↓
+mypy + pytest
+    ↓
+Quick backtest (1 semana)
+    ↓
+Metricas OK? → CRITIC review
+    ↓
+Metricas FAIL? → Mais fixes (loop)
+```
+
 **Quando perguntar ao usuario:**
 | Situacao | Acao |
 |----------|------|
