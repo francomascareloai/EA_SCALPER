@@ -31,33 +31,113 @@ OUTPUT FOLDER: .planning/phases/09-strategy-activation/orchestration/
 
 ---
 
-## Execution Flow (with CRITIC gates)
+## Execution Flow (AUTONOMOUS with CRITIC loops)
 
 ```
-Phase 00-A → CRITIC review (sonnet) → GO/NO-GO
+┌─────────────────────────────────────────────────────────────┐
+│  AUTONOMOUS LOOP - Agent fixes until CRITIC gives GO       │
+│                                                             │
+│  Phase → Execute → CRITIC review → GO? ─YES→ Next Phase    │
+│                         │                                   │
+│                         NO                                  │
+│                         ↓                                   │
+│                    Auto-fix issues                          │
+│                         │                                   │
+│                         └──→ CRITIC review (loop)           │
+│                                                             │
+│  Max 3 loops. If still NO-GO after 3: ask user.            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Flow por fase:**
+```
+Phase 00-A → CRITIC (sonnet) → loop ate GO → Next
       ↓
-Phase 00-B → CRITIC review (sonnet) → GO/NO-GO
+Phase 00-B → CRITIC (sonnet) → loop ate GO → Next
       ↓
-Phase 01 → CRITIC review (sonnet) → GO/NO-GO
+Phase 01 → CRITIC (sonnet) → loop ate GO → Next
       ↓
-Phase 02 → CRITIC review (opus) → GO/NO-GO (CRITICAL - look-ahead)
+Phase 02 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
       ↓
-Phase 03 → CRITIC review (sonnet) → GO/NO-GO
+Phase 03 → CRITIC (sonnet) → loop ate GO → Next
       ↓
-Phase 04 → User decision
+Phase 04 → USER DECISION REQUIRED (unico ponto de parada obrigatorio)
       ↓
-Phase 05 → CRITIC review (sonnet) → GO/NO-GO
+Phase 05 → CRITIC (sonnet) → loop ate GO → Next
       ↓
-Phase 06 → CRITIC review (opus) → GO/NO-GO (CRITICAL - metrics)
+Phase 06 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
       ↓
-Phase 07 → CRITIC review (sonnet) → GO/NO-GO
+Phase 07 → CRITIC (sonnet) → loop ate GO → Next
       ↓
-Phase 08 → CRITIC + SENTINEL (opus) → FINAL APPROVAL
+Phase 08 → CRITIC + SENTINEL (opus) → loop ate APPROVED → DONE
 ```
 
 **Model Policy:**
 - **Sonnet**: Phases 00-A, 00-B, 01, 03, 05, 07 (standard review)
 - **Opus**: Phases 02, 06, 08 (CRITICAL - money/risk/look-ahead)
+
+---
+
+## Autonomous Loop Protocol
+
+**REGRA: O agent DEVE fazer loop CRITIC → fix → CRITIC ate GO.**
+
+```python
+# Pseudocode do comportamento esperado
+def execute_phase(phase):
+    max_loops = 3
+
+    for attempt in range(max_loops):
+        # 1. Executar a fase
+        result = run_phase_tasks(phase)
+
+        # 2. Rodar CRITIC
+        critic_verdict = spawn_critic(phase, result)
+
+        if critic_verdict == "GO":
+            save_output(f"PHASE_{phase}_COMPLETE.md")
+            save_output(f"PHASE_{phase}_CRITIC_REVIEW.md")
+            return "PROCEED_TO_NEXT_PHASE"
+
+        elif critic_verdict == "CONDITIONAL":
+            # Fix automatico
+            issues = critic_verdict.issues
+            for issue in issues:
+                auto_fix(issue)
+            # Loop continua
+
+        elif critic_verdict == "NO-GO":
+            # Tentar fix automatico
+            if can_auto_fix(critic_verdict.issues):
+                auto_fix(critic_verdict.issues)
+                # Loop continua
+            else:
+                # Nao consegue resolver sozinho
+                ask_user(critic_verdict.issues)
+                return "WAITING_USER_INPUT"
+
+    # Depois de 3 tentativas, escalar pro usuario
+    ask_user("3 tentativas falharam. Issues: ...")
+    return "WAITING_USER_INPUT"
+```
+
+**Quando perguntar ao usuario:**
+| Situacao | Acao |
+|----------|------|
+| CRITIC GO | Continuar automaticamente |
+| CRITIC CONDITIONAL + fix obvio | Fix automatico, loop |
+| CRITIC NO-GO + fix possivel | Fix automatico, loop |
+| CRITIC NO-GO + nao sabe como resolver | Perguntar usuario |
+| 3 loops sem GO | Perguntar usuario |
+| Phase 04 (MEAN_REVERT) | Sempre perguntar (decisao de negocio) |
+| Decisao arquitetural ambigua | Perguntar usuario |
+| Risco de perder dinheiro | Perguntar usuario |
+
+**O que NAO perguntar:**
+- Erros de sintaxe (fix automatico)
+- Tests falhando (fix automatico)
+- CRITIC pedindo mais validacao (fazer a validacao)
+- Arquivos faltando (criar)
 
 ---
 
@@ -427,6 +507,45 @@ Cada CRITIC review deve responder:
 1. ...
 2. ...
 ```
+
+---
+
+## O Que Voce Recebe no Final
+
+**Ao final de CADA fase (apos loops automaticos):**
+
+```
+orchestration/
+├── PHASE_XX_COMPLETE.md       ← Resumo do que foi feito
+├── PHASE_XX_CRITIC_REVIEW.md  ← CRITIC deu GO
+└── [outros outputs da fase]
+```
+
+**Ao final de TODAS as fases (Phase 08 APPROVED):**
+
+```
+ROBO PRONTO PARA APEX:
+├── Codigo corrigido e validado
+├── Todos os 9 fatores funcionando
+├── Metricas validadas (WFE/SQN/PSR/DSR/PBO/MC)
+├── 2 semanas paper trading OK
+├── CRITIC reviews: todos GO
+├── SENTINEL: APPROVED
+└── Pronto para deploy em Apex Evaluation $50k
+```
+
+**Voce so sera interrompido se:**
+1. Phase 04: Decisao sobre MEAN_REVERT (implementar/remover/adiar)
+2. 3 loops CRITIC sem resolver (agent travou)
+3. Decisao arquitetural que muda a direcao
+4. GO/NO-GO gates que resultam em STOP (ex: SMC < EMA)
+
+**Voce NAO sera interrompido para:**
+- Bugs encontrados (fix automatico)
+- Tests falhando (fix automatico)
+- CRITIC pedindo ajustes (ajuste automatico)
+- Arquivos faltando (criar automatico)
+- Metricas ruins (investigar e corrigir automatico)
 
 ---
 
