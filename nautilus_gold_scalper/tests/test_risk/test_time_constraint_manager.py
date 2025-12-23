@@ -113,6 +113,7 @@ def test_time_manager_wall_clock_check_uses_clock_timestamp(monkeypatch):
         def timestamp_ns(self) -> int:
             return ts_at(16, 55)
 
+        @property
         def timer_names(self) -> list[str]:
             return []
 
@@ -142,6 +143,7 @@ def test_time_manager_clock_timer_triggers_enforcement_path():
         def timestamp_ns(self) -> int:
             return ts_at(16, 55)
 
+        @property
         def timer_names(self) -> list[str]:
             return []
 

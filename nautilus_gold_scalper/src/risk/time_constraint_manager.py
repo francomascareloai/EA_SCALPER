@@ -91,7 +91,8 @@ class TimeConstraintManager:
         if self._clock is None:
             return
         # Safe to call multiple times; cancel if already exists.
-        if self._timer_name in set(self._clock.timer_names()):
+        # timer_names is a property (list), not a method
+        if self._timer_name in self._clock.timer_names:
             try:
                 self._clock.cancel_timer(self._timer_name)
             except Exception:

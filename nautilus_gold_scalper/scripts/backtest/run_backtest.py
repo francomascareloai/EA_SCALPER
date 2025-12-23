@@ -538,8 +538,10 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
         use_footprint=exec_cfg.get("use_footprint", True),
         prop_firm_enabled=True,
         account_balance=exec_cfg.get("initial_balance", 100000.0),
-        daily_loss_limit_pct=float(risk_cfg.get("dd_soft", 5.0)) * 100 if risk_cfg.get("dd_soft", 0) < 1 else float(risk_cfg.get("dd_soft", 5.0)),
-        total_loss_limit_pct=float(risk_cfg.get("dd_hard", 10.0)) * 100 if risk_cfg.get("dd_hard", 0) < 1 else float(risk_cfg.get("dd_hard", 10.0)),
+        # DD limits: config uses fractions (0.03 = 3%), but GoldScalperConfig expects percent-points (3.0)
+        # Safe conversion: if value < 1, treat as fraction and multiply by 100
+        daily_loss_limit_pct=float(risk_cfg.get("dd_soft", 0.03)) * 100.0 if float(risk_cfg.get("dd_soft", 0.03)) < 1.0 else float(risk_cfg.get("dd_soft", 3.0)),
+        total_loss_limit_pct=float(risk_cfg.get("dd_hard", 0.05)) * 100.0 if float(risk_cfg.get("dd_hard", 0.05)) < 1.0 else float(risk_cfg.get("dd_hard", 5.0)),
         risk_per_trade=Decimal(str(risk_cfg.get("max_risk_per_trade", 0.01))),
         max_spread_points=int(spread_cfg.get("max_spread_points", exec_cfg.get("max_spread_points", 80))),
         use_news_filter=news_cfg.get("enabled", True),
@@ -754,8 +756,8 @@ class BacktestRunner:
         product: Product = "xauusd",
         gateway: Gateway = "tradovate",
         latency_ms: int = 0,
-        partial_fill_prob: float = 0.0,
-        partial_fill_ratio: float = 0.5,
+        partial_fill_prob: float = 0.0,  # NOTE: Not wired to engine fill model (placeholder)
+        partial_fill_ratio: float = 0.5,  # NOTE: Not wired to engine fill model (placeholder)
         fill_model: str = "realistic",
         seed: int = 42,
     ):
@@ -993,6 +995,13 @@ class BacktestRunner:
 
         with open(config_path, encoding="utf-8") as f:
             data_config = yaml.safe_load(f) or {}
+
+        # Validate required config structure
+        if "active_dataset" not in data_config:
+            raise ValueError("data/config.yaml must contain 'active_dataset' section")
+        if "path" not in data_config["active_dataset"]:
+            raise ValueError("data/config.yaml active_dataset must contain 'path'")
+
         project_root = Path(__file__).parent.parent.parent
         repo_root = project_root.parent
         tick_path = (project_root / data_config["active_dataset"]["path"]).resolve()
@@ -1088,6 +1097,17 @@ class BacktestRunner:
                 quote_ticks = ticks_lists[0] if ticks_lists else []
             _p(f"[CATALOG] Loaded {len(quote_ticks):,} ticks from native catalog(s)")
             if step > 1:
+                # WARNING: Catalog mode loads ALL ticks into memory BEFORE sampling.
+                # For stride1 datasets (~654M ticks, ~14GB), this requires 50GB+ RAM.
+                # Consider using stride20 dataset or pre-sampled catalog for lower memory usage.
+                import warnings
+                if len(quote_ticks) > 50_000_000:
+                    warnings.warn(
+                        f"Catalog loaded {len(quote_ticks):,} ticks before sampling. "
+                        f"This requires significant RAM. Consider using stride20 dataset.",
+                        ResourceWarning,
+                        stacklevel=2,
+                    )
                 quote_ticks = quote_ticks[::step]
         elif feed == "ticks" or (feed == "bars" and bars_override is None and bars_df is None):
             if not tick_path.exists():
@@ -1111,6 +1131,8 @@ class BacktestRunner:
         _p(f"Bar type: {bar_type}")
 
         if feed == "ticks":
+            if not quote_ticks:
+                raise ValueError(f"No tick data found for period {start_date} to {end_date}. Check date range and data source.")
             engine.add_data(quote_ticks)
             _p(f"Added {len(quote_ticks):,} ticks to engine (bars aggregated internally)")
         else:
@@ -1498,7 +1520,9 @@ def main() -> None:
     parser.add_argument('--no-mtf', action='store_true', help='Disable MTF manager')
     parser.add_argument('--no-footprint', action='store_true', help='Disable footprint/orderflow component')
     parser.add_argument('--no-prop', action='store_true', help='Disable prop-firm rules (for diagnostics only)')
-    parser.add_argument('--config', default='nautilus_gold_scalper/configs/strategy_config.yaml', help='Path to strategy YAML')
+    # Default config path relative to script location (works from any CWD)
+    _default_config = str(Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml")
+    parser.add_argument('--config', default=_default_config, help='Path to strategy YAML')
     parser.add_argument('--latency', type=int, default=None, help='Simulated latency in ms')
     parser.add_argument('--slippage', type=int, default=None, help='Slippage in ticks (overrides config)')
     parser.add_argument('--commission', type=float, default=None, help='Commission per contract (overrides config)')
@@ -1655,8 +1679,8 @@ def main() -> None:
                 # Get results
                 assert runner.engine is not None
                 account = runner.engine.trader.generate_account_report(runner.venue)
-                final = float(account["total"].iloc[-1]) if len(account) > 0 else 100000
-                pnl = final - 100000
+                final = float(account["total"].iloc[-1]) if len(account) > 0 else runner.initial_balance
+                pnl = final - runner.initial_balance
 
                 fills = runner.engine.trader.generate_order_fills_report()
                 trades = len(fills) // 2

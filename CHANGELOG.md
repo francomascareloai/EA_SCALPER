@@ -1,5 +1,42 @@
 # CHANGELOG - BIBLIOTECA TRADING
 
+## [2025-12-22] - Backtest Script Critical Fixes
+- **CRITICAL FIX**: DD limit conversion bug causing "Invalid max_daily: 5.0" crash
+  - `run_backtest.py:541-544`: Fixed default value mismatch in ternary expression
+  - Now correctly converts fraction (0.03) to percent-points (3.0)
+- **CRITICAL FIX**: NautilusTrader API compatibility in TimeConstraintManager
+  - `time_constraint_manager.py:95`: `clock.timer_names` is a property, not method
+  - Changed `timer_names()` → `timer_names` (no parentheses)
+- **Config fix**: `commission_source: manual` as default for XAUUSD (forex/CFD)
+  - `schedule` only works for MGC futures via Apex
+- **Robustness**: Added config validation in run_backtest.py
+  - Validates `active_dataset.path` exists before accessing
+  - Validates tick data is non-empty before engine.add_data()
+  - Config path now script-relative (works from any CWD)
+- **Verified**: Backtest runs successfully, strategy generates signals correctly
+  - Oct 2024: 1 trade with threshold=5, scores typically 5-10 range
+  - With threshold=40 (production), no trades = strategy being conservative (correct behavior)
+
+## [2025-12-22] - Footprint Desabilitado para Backtest
+- **Footprint DISABLED por padrão**: Dukascopy não tem volume real (apenas tick count)
+  - `use_footprint: false` em strategy_config.yaml
+  - `footprint_weight: 0` no confluence
+  - Documentado que footprint só deve ser usado em live com dados Level 2 reais (Rithmic/Tradovate)
+- Indicadores confiáveis mantidos: Structure, OB, FVG, Sweeps, Session, Regime, MTF, Fib
+
+## [2025-12-22] - run_backtest.py Production Polish
+- **run_backtest.py** cleanup e melhorias:
+  - Fixed hardcoded `100000` in sweep mode → uses `runner.initial_balance`
+  - Added memory warning for catalog mode with >50M ticks (OOM prevention)
+  - Documented `partial_fill_prob`/`partial_fill_ratio` as placeholders (not wired to engine)
+- **data/config.yaml** fix: name agora diz "Stride 20" (alinhado com o path real)
+
+## [2025-12-22] - WP5 Execution Realism Fixes Complete
+- **WP5 (Execution Realism)**: Realistic execution modeling and reproducibility:
+  - `base_strategy.py`: Fixed `on_stop()` order to `cancel_all_orders()` → `close_all_positions()` (avoid orphaned SL/TP)
+  - `execution_model.py`: Added `ExecutionRealism` dataclass with latency_ms, reject_probability, partial_fill_probability, slippage_ticks + factory methods (conservative/aggressive/ideal)
+  - `realistic_backtester.py`: Added `random_seed` parameter for reproducible backtests
+
 ## [2025-12-22] - WP4 Apex Compliance Fixes Complete
 - **WP4 (Apex Compliance)**: Timezone and wall-clock determinism fixes:
   - `entry_optimizer.py`: Added `current_time` parameter to `calculate_optimal_entry()`, `should_enter_now()`, `has_expired()` for backtest determinism

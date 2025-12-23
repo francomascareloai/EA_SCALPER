@@ -1,7 +1,7 @@
 confluence:
   min_score_to_trade: 40
   execution_threshold: 40
-  footprint_weight: 10
+  footprint_weight: 0  # DISABLED - not reliable without real order flow data
   fib_weight: 10
   # New-style confluence weight caps (0-100) used by ConfluenceScorer.
   # These are NOT necessarily normalized; they act as max contribution per factor.
@@ -14,12 +14,15 @@ confluence:
     fvg: 10
     fib: 10
     mtf: 15
-    footprint: 10
+    footprint: 0  # DISABLED - Dukascopy data has no real volume/order flow
   session_weights:
     asian: null
     london: null
     ny_overlap: null
     ny: null
+# Footprint is DISABLED by default for backtesting.
+# Dukascopy forex data does not have real order flow (volume is tick count, not transactions).
+# Enable ONLY for live trading with real Level 2 data from Rithmic/Tradovate.
 footprint:
   cluster_size: 0.5
   tick_size: 0.01
@@ -66,11 +69,12 @@ execution:
   slippage_multiplier: 1.5
   latency_ms: 50
   # Commission per side (USD) for 1 lot/contract.
-  # If commission_source=schedule, commission_per_contract is derived from profile+gateway.
-  commission_source: schedule  # manual | schedule
+  # commission_source=schedule only works for MGC (Apex futures).
+  # For XAUUSD (forex/CFD simulation), use manual with commission_per_contract.
+  commission_source: manual  # manual | schedule (schedule only for MGC)
   commission_profile: apex    # apex | ftmo
   commission_gateway: tradovate  # tradovate | rithmic
-  commission_per_contract: 2.5
+  commission_per_contract: 2.5  # Used when commission_source=manual
   fill_model: realistic
   allow_overnight: false
   partial_fill_prob: 0.1
@@ -83,7 +87,7 @@ execution:
   use_regime_filter: false
   require_htf_align: false
   use_mtf: true
-  use_footprint: true
+  use_footprint: false  # DISABLED - not reliable for backtest (Dukascopy has no real volume)
 spread_monitor:
   history_size: 200
   warning_ratio: 2.0
