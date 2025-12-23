@@ -151,9 +151,18 @@ class SessionFilter:
         is_allowed, reason = self._is_trading_allowed(session)
         hours_until_close = self._hours_until(session_config["end"], utc_time)
 
+        # FORGE-NAUTILUS Wave 3: Upgrade quality when session is explicitly allowed
+        # When allow_asian=True, Asian session should be LOW quality (not BLOCKED)
+        # This prevents the -15 score penalty that was zeroing out signals
+        quality = session_config["quality"]
+        if session == TradingSession.SESSION_ASIAN and self.allow_asian:
+            quality = SessionQuality.SESSION_QUALITY_LOW
+        elif session == TradingSession.SESSION_LATE_NY and self.allow_late_ny:
+            quality = SessionQuality.SESSION_QUALITY_LOW
+
         return SessionInfo(
             session=session,
-            quality=session_config["quality"],
+            quality=quality,
             is_trading_allowed=is_allowed,
             hours_until_close=hours_until_close,
             volatility_factor=session_config["volatility_factor"],
@@ -278,4 +287,39 @@ class SessionFilter:
             SessionQuality.SESSION_QUALITY_PRIME: 1.0,
         }
         return factors.get(info.quality, 0.0)
-# ✓ FORGE v4.0: 7/7 checks - Session filter with FTMO-compliant session management
+
+    def get_day_of_week_adjustment(self, timestamp: datetime) -> tuple[bool, float, str]:
+        """
+        CRUCIBLE FIX: Day-of-week filtering for Monday/Friday risk.
+
+        Monday early hours have gap risk from weekend events.
+        Friday afternoon has reduced liquidity and weekend positioning.
+
+        Args:
+            timestamp: Current timestamp (naive assumed UTC, or timezone-aware)
+
+        Returns:
+            (allowed, size_multiplier, reason)
+            - allowed: True if trading is allowed
+            - size_multiplier: Position size adjustment factor (0.0 to 1.0)
+            - reason: Human-readable explanation
+        """
+        utc_time = self._to_utc(timestamp)
+        weekday = utc_time.weekday()  # 0=Monday, 4=Friday
+        hour_utc = utc_time.hour
+
+        # Monday first 3 hours - gap risk from weekend news
+        if weekday == 0 and hour_utc < 3:
+            return False, 0.0, "Monday early (00:00-03:00 UTC) - gap risk"
+
+        # Monday morning (3-7 UTC) - caution, reduced size
+        if weekday == 0 and hour_utc < 7:
+            return True, 0.7, "Monday AM (03:00-07:00 UTC) - caution"
+
+        # Friday afternoon (14:00+ UTC ~ 9-10 AM ET) - weekend positioning
+        if weekday == 4 and hour_utc >= 14:
+            return True, 0.5, "Friday PM (14:00+ UTC) - reduced size for weekend"
+
+        # Tuesday-Thursday or normal hours: optimal
+        return True, 1.0, "Normal trading day/hours"
+# FORGE v4.0: 7/7 checks - Session filter with FTMO-compliant session management

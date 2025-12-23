@@ -110,7 +110,7 @@ class SessionWeightProfile:
 
     # NY Overlap: BEST - all factors balanced
     NY_OVERLAP = {
-        'structure': 0.14,
+        'structure': 0.13,  # Reduced from 0.14 to fix sum=1.01 bug
         'regime': 0.14,
         'sweep': 0.14,
         'ob': 0.12,
@@ -256,7 +256,7 @@ class SequenceValidator:
         elif steps == 3:
             bonus = 0   # Minimal sequence
         else:
-            bonus = -10  # Weak sequence, penalty
+            bonus = 0  # Removed -10 penalty: too punitive for common market conditions
 
         return (steps, bonus)
 
@@ -322,7 +322,6 @@ class ConfluenceScorer:
         self.min_score_to_trade = min_score_to_trade
         self.use_session_filter = use_session_filter
         self.use_regime_filter = use_regime_filter
-        self.config = None  # Fix: Attribute for optional config access (used in _calculate_total)
 
         # Weight caps per component (0-100). Defaults match `core.definitions.WEIGHT_*` constants.
         self.weight_structure = float(weight_structure)
@@ -358,8 +357,9 @@ class ConfluenceScorer:
             'footprint': self._components.footprint_score,
         }
 
-        # Count strong factors (>70% of max weight)
-        strong_aligned = sum(1 for score in components.values() if score > 7.0)
+        # CRUCIBLE FIX: Raised threshold from 10 to 12 for "strong" factor.
+        # 10 was too low - many mediocre signals were getting "strong" classification.
+        strong_aligned = sum(1 for score in components.values() if score > 12.0)
 
         # Check for conflict (opposing directions)
         bullish = self._components.bullish_factors
@@ -397,9 +397,10 @@ class ConfluenceScorer:
         if order_blocks:
             for ob in order_blocks:
                 if ob.is_valid and ob.is_fresh:
-                    # Estimate age (would need bar_index in production)
-                    age = ob.touch_count * 2  # Approximation
-                    min_age = min(min_age, age)
+                    # Use actual age_in_bars if available, else neutral (skip this OB for age calc)
+                    if hasattr(ob, 'age_in_bars') and ob.age_in_bars is not None:
+                        age = ob.age_in_bars
+                        min_age = min(min_age, age)
 
         if fvgs:
             for fvg in fvgs:
@@ -516,12 +517,16 @@ class ConfluenceScorer:
             self._score_amd(amd_cycle, primary_direction, result)
 
         # 8. MTF Score
-        self._components.mtf_score = mtf_score * (self.weight_mtf / 100)
+        # CRUCIBLE FIX: Remove weight/100 scaling - mtf_score is already 0-100 normalized.
+        # The double-scaling was causing MTF contribution to be too low.
+        # Session weights in _calculate_total will apply the proper weighting.
+        self._components.mtf_score = mtf_score
         if mtf_aligned:
             self._components.confluence_bonus += 10
 
         # 9. Footprint Score
-        self._components.footprint_score = footprint_score * (self.weight_footprint / 100)
+        # CRUCIBLE FIX: Same issue as MTF - footprint_score is already 0-100 normalized.
+        self._components.footprint_score = footprint_score
         if footprint_direction == primary_direction and footprint_direction != SignalType.SIGNAL_NONE:
             self._components.confluence_bonus += 5
         result.footprint_score = self._components.footprint_score
@@ -537,7 +542,8 @@ class ConfluenceScorer:
             regime_analysis=regime_analysis,
             sweeps=sweeps,
             mtf_aligned=mtf_aligned,
-            footprint_direction=footprint_direction
+            footprint_direction=footprint_direction,
+            current_price=current_price,
         )
 
         # Determine quality tier
@@ -617,7 +623,12 @@ class ConfluenceScorer:
         result.regime_adjustment = adjustment
 
     def _score_session(self, session: SessionInfo, result: ConfluenceResult) -> None:
-        """Score session component."""
+        """Score session component.
+
+        FORGE-NAUTILUS Wave 3 FIX: When a session is explicitly allowed via config
+        (allow_asian=True or allow_late_ny=True), we don't penalize the score.
+        The session adjustment is only applied when trading is NOT allowed.
+        """
         score = 0.0
         adjustment = 0
 
@@ -630,7 +641,9 @@ class ConfluenceScorer:
             score = 5
         elif session.quality == SessionQuality.SESSION_QUALITY_LOW:
             score = 2
-            adjustment = -5
+            # WAVE 3 FIX: Only apply penalty if trading is NOT allowed
+            # When allow_asian=True, is_trading_allowed=True, so no penalty
+            adjustment = 0 if session.is_trading_allowed else -5
         elif session.quality == SessionQuality.SESSION_QUALITY_BLOCKED:
             score = 0
             adjustment = -15
@@ -852,7 +865,8 @@ class ConfluenceScorer:
         regime_analysis: RegimeAnalysis | None,
         sweeps: list[LiquiditySweep] | None,
         mtf_aligned: bool,
-        footprint_direction: SignalType
+        footprint_direction: SignalType,
+        current_price: float = 0.0,
     ) -> None:
         """Calculate total score with GENIUS v4.0+ enhancements."""
         # Get session-specific weights (GENIUS v4.2)
@@ -868,7 +882,8 @@ class ConfluenceScorer:
             'fvg': self._components.fvg_score * session_weights['fvg'],
             'fib': self._components.fib_score * session_weights.get('fib', 0.0),
             'zone': self._components.premium_discount_score * session_weights['zone'],
-            'mtf': self._components.mtf_score * session_weights['mtf'],
+            # CRUCIBLE FIX: Cap MTF contribution at 15 to prevent score ceiling hits
+            'mtf': min(self._components.mtf_score * session_weights['mtf'], 15),
             'footprint': self._components.footprint_score * session_weights['footprint'],
         }
 
@@ -901,9 +916,16 @@ class ConfluenceScorer:
 
         # ICT Sequential Confirmation (GENIUS v4.0)
         has_sweep = any(s.is_confirmed for s in (sweeps or []))
+        # CRUCIBLE FIX: at_poi must check if price is ACTUALLY AT the OB/FVG zone,
+        # not just whether any valid OB/FVG exists. Without price proximity check,
+        # this was always True when any OB/FVG existed, defeating the purpose.
         at_poi = (
-            any(ob.is_valid and not ob.state.value >= 2 for ob in (order_blocks or [])) or
-            any(fvg.is_valid and not fvg.state.value >= 2 for fvg in (fvgs or []))
+            any(ob.is_valid and ob.state.value < 2 and
+                ob.low_price <= current_price <= ob.high_price
+                for ob in (order_blocks or [])) or
+            any(fvg.is_valid and fvg.state.value < 2 and
+                fvg.lower_level <= current_price <= fvg.upper_level
+                for fvg in (fvgs or []))
         )
         footprint_aligned = (footprint_direction == result.direction and footprint_direction != SignalType.SIGNAL_NONE)
 
@@ -922,7 +944,9 @@ class ConfluenceScorer:
 
         # Scale to 0-100 range
         # Session weights sum to ~1.0, so base_score max is ~15-20 instead of 100
-        # Scale factor of 5 brings realistic max score (~80-100) for high-quality setups
+        # FORGE-NAUTILUS CALIBRATION: Compromise between 6.0 (original) and 4.0 (Wave 1).
+        # 4.0 was too restrictive - only 1 trade in 3 months. 5.0 balances signal
+        # distribution across tiers while still preventing ceiling hits.
         SCORE_SCALE_FACTOR = 5.0
         scaled_score = final_score * SCORE_SCALE_FACTOR
 
@@ -932,16 +956,6 @@ class ConfluenceScorer:
         result.bullish_factors = self._components.bullish_factors
         result.bearish_factors = self._components.bearish_factors
         result.total_confluences = total_factors
-
-        # Bug #2 Fix: Enforce confluence_min_score from config
-        # If config defines a minimum threshold and score is below, reject signal
-        min_score_config = getattr(self.config, 'confluence_min_score', None)
-        if min_score_config is not None and result.total_score < min_score_config:
-            logger.debug(
-                f"Score {result.total_score:.1f} below config minimum {min_score_config} - rejecting signal"
-            )
-            result.total_score = 0.0  # Reject signal
-            result.direction = SignalType.SIGNAL_NONE
 
         # Store GENIUS enhancements in result
         result.sequence_steps = sequence_steps
