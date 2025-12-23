@@ -44,7 +44,17 @@ python -m nautilus_gold_scalper.run_backtest --start 2024-01-01 --end 2024-01-07
 - NUNCA dizer "deve funcionar" sem testar
 - NUNCA inventar metricas - usar output real
 
-### 5. Verificacao Obrigatoria
+### 5. Consultar Documentacao NautilusTrader
+```bash
+# ANTES de escrever codigo NautilusTrader:
+# 1. Buscar em external/nautilus_trader/examples/
+# 2. Buscar em external/nautilus_trader/docs/
+# 3. Se nao encontrar: usar context7 MCP para docs atualizados
+# 4. NUNCA inventar APIs - sempre verificar assinatura real
+rg -n "metodo_ou_classe" external/nautilus_trader/
+```
+
+### 6. Verificacao Obrigatoria
 ```bash
 # Antes de qualquer GO:
 mypy --strict nautilus_gold_scalper/
