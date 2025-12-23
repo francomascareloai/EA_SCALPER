@@ -1,18 +1,62 @@
 # ROADMAP FINAL: Strategy Activation & Validation
 
 **Document:** 01-ROADMAP-FINAL.md
-**Version:** 1.0
+**Version:** 2.0 (ARGUS-Integrated)
 **Created:** 2025-12-23
+**Last Updated:** 2025-12-23
 **Status:** READY FOR EXECUTION
-**Philosophy:** FIX FIRST, VALIDATE SECOND, SIMPLIFY IF NECESSARY
+**Philosophy:** FIX FIRST + ARGUS VALIDATED + FALSIFICATION-FIRST
+
+---
+
+## Executive Summary
+
+This is the **definitive** Phase 09 planning document, incorporating:
+- **FIX FIRST** philosophy from v1/v2 synthesis
+- **ALL ARGUS research findings** from 6 research documents
+- **47 failure modes** from prop firm analysis
+- **17 look-ahead patterns** from bias detection research
+- **PBO/DSR metrics** as new GO/NO-GO criteria
+- **DAEMON's economic concerns** addressed with baseline validation gate
+
+> "Better to have a war machine than a weak little pistol."
+> "But a war machine must be validated before battle."
+
+---
+
+## ARGUS Research Integration
+
+### Research Documents Analyzed
+
+| Document | Key Findings | Integration |
+|----------|--------------|-------------|
+| ARGUS_BACKTESTING_DEEP_DIVE | Latency modeling, Shadow Exchange | Phase 06 MC simulation |
+| ARGUS_BACKTESTING_RESEARCH_20251130 | WFA/MC specs, DSR formula | Phase 02/06 validation |
+| ARGUS_PROP_FIRM_FAILURES | 47 failure modes, automation ban | All phases, Phase 07 |
+| ARGUS_LOOKAHEAD_DETECTION | 17 patterns, NautilusTrader config | Phase 02 audit |
+| RESEARCH_GAP_ANALYSIS | 5 critical gaps | Phases 02, 05, 06 |
+| DAEMON_FUNDAMENTAL_REVIEW | Economic concerns, baseline test | Phase 00-A (NEW) |
+
+### Critical Findings Integrated
+
+**TIER 1 - FUNDAMENTAL:**
+- [x] Automation prohibition on PA/Live accounts
+- [x] HWM tracks unrealized peaks (trap awareness)
+- [x] PBO/DSR metrics added to GO/NO-GO
+
+**TIER 2 - COMPLIANCE:**
+- [x] 30% per-trade loss limit
+- [x] 5:1 R:R enforcement
+- [x] NautilusTrader bar configuration requirements
+
+**TIER 3 - VALIDATION:**
+- [x] 17 look-ahead pattern checklist
+- [x] 47 failure mode matrix
+- [x] WFA/Monte Carlo specifications
 
 ---
 
 ## Philosophy: FIX FIRST, VALIDATE SECOND
-
-> "Better to have a war machine than a weak little pistol."
-
-This roadmap follows a fundamentally different approach from previous versions (v1 and v2):
 
 | Previous Approach | This Approach |
 |-------------------|---------------|
@@ -20,34 +64,21 @@ This roadmap follows a fundamentally different approach from previous versions (
 | Conclude "system is over-engineered" | Investigate root cause FIRST |
 | Pre-decide to simplify to 3-4 factors | Fix bugs, THEN validate full system |
 | Archive complexity before testing | DISABLE components, don't archive |
+| No baseline comparison | **EMA baseline test FIRST** (from DAEMON) |
+| Assume implementation will work | **Falsification-first** approach |
 
-### The Core Principle
+### Core Principle (Updated)
 
-1. **The current 9-factor system is NOT WORKING because of BUGS, not complexity**
-2. **FIX the bugs first** (semantic collision, file paths, trade clustering)
-3. **RUN the FIXED system** with all 9 factors at multiple thresholds
-4. **VALIDATE**: Does the fixed system produce enough trades with edge?
+1. **Run baseline validation** (Phase 00-A) - Let data decide
+2. **FIX the bugs** (semantic collision, clustering, paths)
+3. **RUN the FIXED system** with all 9 factors
+4. **VALIDATE** with enhanced metrics (WFE, SQN, PSR, **DSR, PBO**)
 5. **IF YES**: Keep the complexity - we have a war machine
 6. **IF NO**: THEN consider simplification as Plan B
-
-### Why This Matters
-
-The CRITIC review identified **confirmation bias** in previous planning:
-- All agents concluded "simplify" based on a BROKEN system
-- No counterfactual test: "What happens if we fix the bugs and keep 9 factors?"
-- Trade clustering (all 7 trades in Jan 2-10) was noted but never investigated
-- Decisions were made BEFORE gathering diagnostic data
-
-This roadmap corrects that error by following **falsification-first** protocol:
-- State the claim: "9 factors are unnecessary complexity"
-- Design fastest disproof test: Fix semantic collision, run 9-factor system
-- If 50+ trades with 4+ factors firing: Claim DISPROVED
 
 ---
 
 ## Decision Log
-
-These decisions have been made by the user (Franco):
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
@@ -56,58 +87,107 @@ These decisions have been made by the user (Franco):
 | **AdaptiveEVRouter** | DISABLE (not archive) | Preserve optionality for when trade frequency increases |
 | **StrategySelector** | KEEP | Validate gates work before simplifying |
 | **TREND_FOLLOW Strategy** | KEEP | Validate after SMC_SCALPER |
-| **MEAN_REVERT Strategy** | VALIDATE FIRST | Research says gold doesn't mean-revert, but test empirically |
+| **MEAN_REVERT Strategy** | VALIDATE FIRST | Research says gold doesn't mean-revert, test empirically |
 | **Simplification** | PLAN B | Only if fixed system fails validation |
+| **Execution Mode** | AUTO + SIGNAL_ONLY | Support both for PA/Live compliance (**NEW**) |
+| **Baseline Test** | RUN FIRST | From DAEMON - let data decide (**NEW**) |
 
 ---
 
-## Phase Overview
+## Phase Overview (Revised)
 
-| Phase | Plan File | Focus | Duration | GO/NO-GO Gate |
-|-------|-----------|-------|----------|---------------|
-| **00** | (inline below) | Critical Bug Fixes | 1 week | All 9 factors score > 0 in test |
-| **01** | `02-PHASE-01-PLAN.md` | Cleanup & Consolidation | 3 days | Dead code archived, architecture documented |
-| **02** | `03-PHASE-02-PLAN.md` | SMC_SCALPER Deep Audit | 2 weeks | All indicators validated, backtest passes |
-| **03** | `04-PHASE-03-PLAN.md` | TREND_FOLLOW Activation | 1 week | Strategy enabled with edge verified |
-| **04** | `05-PHASE-04-PLAN.md` | MEAN_REVERT Decision | 3 days | User decision: implement/remove/defer |
-| **05** | `06-PHASE-05-PLAN.md` | Framework Integration | 1 week | Selector + Router validated |
-| **06** | `07-PHASE-06-PLAN.md` | Multi-Strategy Backtest | 1 week | Combined metrics meet targets |
-| **07** | (inline below) | Paper Trading | 2 weeks | No critical issues |
-| **08** | (inline below) | Production Readiness | 1 week | SENTINEL sign-off |
+| Phase | Focus | Duration | GO/NO-GO Gate |
+|-------|-------|----------|---------------|
+| **00-A** | **BASELINE VALIDATION (NEW)** | 2-4 hours | SMC > EMA by 20%+ |
+| **00-B** | Critical Bug Fixes | 1 week | All 9 factors score > 0 |
+| **01** | Cleanup & Consolidation | 3 days | Dead code archived, architecture documented |
+| **02** | SMC_SCALPER Deep Audit | 2 weeks | **+17 look-ahead checks, NautilusTrader config** |
+| **03** | TREND_FOLLOW Activation | 1 week | Strategy enabled with edge verified |
+| **04** | MEAN_REVERT Decision | 3 days | User decision: implement/remove/defer |
+| **05** | Framework Integration | 1 week | **+30% limit, 5:1 R:R, execution modes** |
+| **06** | Multi-Strategy Backtest | 1 week | **+PBO/DSR, failure mode matrix** |
+| **07** | Paper Trading | 2 weeks | **+AUTO and SIGNAL_ONLY testing** |
+| **08** | Production Readiness | 1 week | SENTINEL sign-off |
 
-**Total Timeline:** 10-11 weeks
-
-**Note:** Phase 00, 07, and 08 are NEW phases added by the FIX FIRST approach. Phases 01-06 use the detailed v1 plans.
-
----
-
-## Detailed Phase Plans
-
-The detailed task breakdowns are in separate files for easy execution:
-
-| Phase | Plan File | Focus |
-|-------|-----------|-------|
-| 01 | `02-PHASE-01-PLAN.md` | Cleanup & Consolidation (dead code, NEWS_TRADER, MTF manager) |
-| 02 | `03-PHASE-02-PLAN.md` | SMC_SCALPER Deep Audit (OB, FVG, Sweep, Structure, Regime, Scorer) |
-| 03 | `04-PHASE-03-PLAN.md` | TREND_FOLLOW Activation (pullback + breakout) |
-| 04 | `05-PHASE-04-PLAN.md` | MEAN_REVERT Decision (research + implement/remove/defer) |
-| 05 | `06-PHASE-05-PLAN.md` | Framework Integration (Selector + Router validation) |
-| 06 | `07-PHASE-06-PLAN.md` | Multi-Strategy Backtest (individual vs combined) |
-
-**These detailed plans are the executable specifications. The sections below are executive summaries.**
+**Total Timeline:** 10-11 weeks (unchanged)
 
 ---
 
-## Phase 00: Critical Bug Fixes (1 week) - NEW PHASE
+## Phase 00-A: BASELINE VALIDATION (NEW - From DAEMON)
+
+### Objective
+Validate the core SMC thesis BEFORE spending weeks on fixes. Let data decide.
+
+### 00-A-01: Create Simple EMA Baseline (2 hours)
+
+**Baseline Strategy:**
+```python
+class EMABaseline:
+    """Simple EMA crossover for comparison."""
+
+    # EMA 20/50 crossover
+    # Same session filter as SMC
+    # Same risk management as SMC
+    # Same Apex compliance
+
+    def generate_signal(self, bars):
+        ema_fast = ema(bars.close, 20)
+        ema_slow = ema(bars.close, 50)
+
+        if ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]:
+            return Signal.BUY
+        elif ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]:
+            return Signal.SELL
+        return None
+```
+
+### 00-A-02: Run Identical Backtest (1 hour)
+
+**Configuration:**
+- Dataset: `xauusd_2003_2025_stride20_full.parquet`
+- Period: 2024-01-01 to 2024-06-30 (same as current)
+- Same sessions, same risk limits
+
+### 00-A-03: Comparison Analysis (1 hour)
+
+| Metric | SMC (Current) | EMA Baseline | Delta | Verdict |
+|--------|---------------|--------------|-------|---------|
+| Total Trades | 7 | ? | ? | ? |
+| Win Rate | 42.9% | ? | ? | ? |
+| Net PnL | +$319 | ? | ? | ? |
+| Sharpe | ? | ? | ? | ? |
+| Profit Factor | ? | ? | ? | ? |
+
+### Phase 00-A GO/NO-GO Gate
+
+```
+IF SMC < EMA (Sharpe/PF): STOP IMMEDIATELY
+   The philosophical foundation is broken.
+   Consider: Higher timeframe (H4/D1), different market, or simpler approach.
+
+IF SMC > EMA by < 20%: CAUTION
+   Complexity may not be justified.
+   Proceed but with heightened scrutiny.
+
+IF SMC > EMA by >= 20%: PROCEED
+   Core thesis validated. Continue with FIX FIRST.
+```
+
+**Owner:** ORACLE (opus)
+**Effort:** 2-4 hours
+
+---
+
+## Phase 00-B: Critical Bug Fixes (1 week)
 
 ### Objective
 Fix all known bugs that prevent the 9-factor system from functioning correctly.
 
-### 00-01: Semantic Collision Fix (Priority 0) - Day 1-2
+### 00-B-01: Semantic Collision Fix (Priority 0) - Day 1-2
 
-**Problem:** Variable `_mtf_order_blocks` is overwritten by LTF detection. Confluence scorer receives M5 data thinking it is M15 structural zones.
+**Problem:** Variable `_mtf_order_blocks` is overwritten by LTF detection.
 
-**User Decision:** Use M15 for OB/FVG (Option A from 02-CRITICAL_ISSUES_AUDIT.md)
+**User Decision:** Use M15 for OB/FVG (Option A)
 
 **Fix:**
 ```python
@@ -128,9 +208,9 @@ self._ltf_fvgs: list[FairValueGap] = []
 **Files to Modify:**
 | File | Change |
 |------|--------|
-| `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py` | Rename variables, fix detection logic |
-| `nautilus_gold_scalper/src/signals/mtf_manager.py` | Populate correct lists by timeframe |
-| `nautilus_gold_scalper/src/signals/confluence_scorer.py` | Receive M15 data for OB/FVG scoring |
+| `gold_scalper_strategy.py` | Rename variables, fix detection logic |
+| `signals/mtf_manager.py` | Populate correct lists by timeframe |
+| `signals/confluence_scorer.py` | Receive M15 data for OB/FVG scoring |
 
 **Validation:**
 1. Run 1-week backtest with diagnostic logging
@@ -140,53 +220,35 @@ self._ltf_fvgs: list[FairValueGap] = []
 **Owner:** FORGE (opus)
 **Effort:** 4-6 hours
 
-### 00-02: File Path Fixes (Priority 0) - Day 2
-
-**Problem:** Paths in planning docs don't match actual codebase structure.
+### 00-B-02: File Path Fixes - Day 2
 
 **Corrected Paths:**
-| Planned Path | Actual Path | Exists |
+| Planned Path | Actual Path | Action |
 |--------------|-------------|--------|
-| `src/indicators/mtf_manager.py` | `nautilus_gold_scalper/src/indicators/mtf_manager.py` | YES (legacy) |
-| `src/signals/mtf_manager.py` | `nautilus_gold_scalper/src/signals/mtf_manager.py` | YES (production) |
-| `tests/test_signals/test_mtf_manager.py` | Does not exist | MISSING |
-
-**Fix:**
-1. Create `_archive/` directory structure
-2. Add deprecation warning to legacy `indicators/mtf_manager.py`
-3. Create tests for production `signals/mtf_manager.py`
-4. Handle footprint test dependencies (tests reference removed code)
+| `src/indicators/mtf_manager.py` | `nautilus_gold_scalper/src/indicators/mtf_manager.py` | Deprecation warning |
+| `src/signals/mtf_manager.py` | `nautilus_gold_scalper/src/signals/mtf_manager.py` | Production version |
+| `tests/test_signals/test_mtf_manager.py` | Does not exist | CREATE |
 
 **Owner:** FORGE (opus)
 **Effort:** 3-4 hours
 
-### 00-03: Known Bug Fixes - Day 3-4
+### 00-B-03: Known Bug Fixes - Day 3-4
 
 **Already Fixed:**
 - [x] Score=0.0 session adjustment (commit 58b84178)
 
 **Still Open:**
-
 | Bug | Description | Investigation |
 |-----|-------------|---------------|
-| Trade Clustering | All 7 trades Jan 2-10, ZERO after | Check for state reset issues, memory leaks, MTF bar accumulation |
-| bracket_sl_canceled | Failsafe triggers repeatedly | Investigate bracket order rejection cause |
-| Temporal Integrity | MC/WFA scripts use leaky EA parity | Use main strategy backtest instead |
-
-**Trade Clustering Investigation:**
-1. Add logging for factor scores at week boundaries
-2. Compare factor activations: week 1 vs week 10 vs week 20
-3. Check for state variables that grow unbounded
-4. Verify MTF bar buffers don't overflow
+| Trade Clustering | All 7 trades Jan 2-10, ZERO after | Check state reset, memory leaks, MTF bar accumulation |
+| bracket_sl_canceled | Failsafe triggers repeatedly | Investigate bracket order rejection |
+| Temporal Integrity | MC/WFA scripts use leaky EA parity | Use main strategy backtest |
 
 **Owner:** FORGE (opus)
 **Effort:** 6-8 hours
 
-### 00-04: Diagnostic Logging - Day 4-5
+### 00-B-04: Diagnostic Logging - Day 4-5
 
-**Purpose:** Understand exactly why each factor scores what it does.
-
-**Implementation:**
 ```python
 # In confluence_scorer.py, add verbose logging
 logger.info(f"Factor breakdown:")
@@ -204,7 +266,7 @@ logger.info(f"  footprint={footprint_score:.2f}")
 **Owner:** FORGE (opus)
 **Effort:** 2 hours
 
-### Phase 00 GO/NO-GO Gate
+### Phase 00-B GO/NO-GO Gate
 
 **Criteria:**
 - [ ] All 9 factors can score > 0 (verify with diagnostic logs)
@@ -212,101 +274,20 @@ logger.info(f"  footprint={footprint_score:.2f}")
 - [ ] Test suite passes (`mypy --strict`, `pytest -q`)
 - [ ] File paths corrected and documented
 
-**Decision:**
-| Outcome | Action |
-|---------|--------|
-| All factors can fire | Proceed to Phase 01 |
-| 5+ factors fire | Proceed with caution, document non-firing |
-| < 5 factors fire | Investigate further before Phase 01 |
-
 ---
 
 ## Phase 01: Diagnostic & Baseline (3 days)
 
-### Objective
-Run the FIXED system and gather data to make informed decisions.
+*Detailed plan in `02-PHASE-01-PLAN.md`*
 
-### 01-01: Run Fixed System (Day 1)
-
-**Backtest Configuration:**
-- Dataset: `xauusd_2003_2025_stride20_full.parquet`
-- Period: 2024-01-01 to 2024-06-30 (6 months)
-- All 9 factors enabled
-- Threshold: 35 (original)
-
-**Metrics to Capture:**
-| Metric | Before Fix | After Fix | Delta |
-|--------|------------|-----------|-------|
-| Total Trades | 7 | ? | ? |
-| Factors Firing | 1 | ? | ? |
-| Win Rate | 42.9% | ? | ? |
-| Net PnL | +$319 | ? | ? |
-
-**Factor Activation Report:**
-| Factor | Fires > 0 | Avg Score | Max Score |
-|--------|-----------|-----------|-----------|
-| Structure | ? | ? | ? |
-| Regime | ? | ? | ? |
-| OB | ? | ? | ? |
-| FVG | ? | ? | ? |
-| Sweep | ? | ? | ? |
-| AMD | ? | ? | ? |
-| Fib | ? | ? | ? |
-| MTF | ? | ? | ? |
-| Footprint | ? | ? | ? |
-
-**Owner:** ORACLE (opus)
-**Effort:** 2-3 hours
-
-### 01-02: Threshold Sensitivity Analysis (Day 1-2)
-
-**Test Configurations:**
-| Config | Threshold | Expected Trades | Selectivity |
-|--------|-----------|-----------------|-------------|
-| A | 35 | Baseline | High |
-| B | 30 | +20-30% | Medium-High |
-| C | 25 | +50-100% | Medium |
-| D | 20 | +100%+ | Lower |
-
-**Analysis:**
-- Plot trades vs threshold
-- Plot WFE vs threshold (find optimal)
-- Identify minimum threshold for 200+ trades/6mo
-
-**Owner:** ORACLE (opus)
-**Effort:** 3-4 hours
-
-### 01-03: Simple Baseline (For Comparison ONLY) (Day 2-3)
-
-**Purpose:** Provide a REFERENCE point, not a replacement.
-
-**Baseline Strategy:**
-- EMA 20/50 crossover
-- Same session filter as SMC
-- Same risk management
-- Same Apex compliance
-
-**Comparison:**
-| Metric | SMC 9-Factor | EMA Baseline | Delta |
-|--------|--------------|--------------|-------|
-| Trades | ? | ? | ? |
-| WFE | ? | ? | ? |
-| SQN | ? | ? | ? |
-| Edge per Trade | ? | ? | ? |
-
-**Important:** This comparison is to establish a BAR, not to decide on simplification yet.
-
-**Owner:** ORACLE (opus)
-**Effort:** 2-3 hours
+### Summary
+- Run FIXED system with all 9 factors
+- Threshold sensitivity analysis (35, 30, 25, 20)
+- Compare to EMA baseline (reference only)
+- Capture factor activation report
 
 ### Phase 01 GO/NO-GO Gate
 
-**Criteria:**
-- [ ] Fixed system produces 50+ trades in 6 months
-- [ ] At least 4 factors contribute (score > 0)
-- [ ] No regression in win rate or PnL
-
-**Decision:**
 | Outcome | Action |
 |---------|--------|
 | 50+ trades, 4+ factors | PROCEED to Phase 02 with full 9-factor system |
@@ -315,281 +296,391 @@ Run the FIXED system and gather data to make informed decisions.
 
 ---
 
-## Phase 02: Full System Validation (1 week)
+## Phase 02: SMC Deep Audit (2 weeks) - ENHANCED
 
-### Objective
-Validate the fixed 9-factor system meets all success criteria.
+*Detailed plan in `03-PHASE-02-PLAN.md`*
 
-### 02-01: Extended Backtest (Day 1-3)
+### Additional Tasks (From ARGUS)
 
-**Configuration:**
-- Period: 2003-2020 (development)
-- Holdout: 2021-2025 (NEVER optimize on this)
-- Optimal threshold from Phase 01
+#### 02-NEW-01: Look-Ahead Pattern Verification
 
-**Validation Metrics:**
-| Metric | Target | Actual | Pass? |
-|--------|--------|--------|-------|
-| Trade Count | >= 200 in 6mo equivalent | ? | ? |
-| WFE | >= 0.6 | ? | ? |
-| SQN | >= 2.0 | ? | ? |
-| PSR | >= 0.85 | ? | ? |
-| DSR | >= 0.80 | ? | ? |
-| PBO | < 25% | ? | ? |
-| MC95DD | < 4% | ? | ? |
+**17 patterns to check (from ARGUS_LOOKAHEAD_DETECTION):**
 
-### 02-02: Walk-Forward Analysis (Day 3-4)
+| # | Pattern | Grep Command | Status |
+|---|---------|--------------|--------|
+| 1 | Future bar access | `rg -n "close\[-1\]" src/` | [ ] |
+| 2 | Unshifted iloc | `rg -n "\.iloc\[-1\]" src/` | [ ] |
+| 3 | Future-indexed arrays | `rg -n "\[i\+1\]" src/` | [ ] |
+| 4 | ta library defaults | `rg -n "ta\." src/` | [ ] |
+| 5 | Missing shift() | `rg -n "\.ewm\(|\.rolling\(" src/` | [ ] |
+| 6 | Full series indicators | `rg -n "def calculate.*bars\)" src/` | [ ] |
+| 7 | Current bar in rolling | `rg -n "window.*min_periods" src/` | [ ] |
+| 8 | EMA on unshifted | `rg -n "ema.*close\)" src/` | [ ] |
+| 9 | ATR with current bar | `rg -n "atr.*high.*low" src/` | [ ] |
+| 10 | Same-bar entry signal | `rg -n "signal.*close\[-0\]" src/` | [ ] |
+| 11 | Exit on entry bar | `rg -n "exit.*entry" src/` | [ ] |
+| 12 | TP/SL entry bar hit | `rg -n "tp_hit.*entry\|sl_hit.*entry" src/` | [ ] |
+| 13 | Bar open fill assumption | `rg -n "fill.*open" src/` | [ ] |
+| 14 | Bar timestamp interpret | `rg -n "ts_event\|ts_init" src/` | [ ] |
+| 15 | Close vs open execution | `rg -n "execute.*close" src/` | [ ] |
+| 16 | Tick aggregation timing | `rg -n "aggregate.*tick" src/` | [ ] |
+| 17 | Quote vs trade timestamp | `rg -n "quote.*timestamp" src/` | [ ] |
 
-**Configuration:**
-- 12 windows
-- IS: 2 years, OOS: 6 months
-- Purge gap: 1 week
+**Deliverable:** `orchestration/LOOKAHEAD_CHECKLIST.md`
 
-**Output:**
-- WFE per window
-- Aggregate WFE
-- Stability analysis
+#### 02-NEW-02: NautilusTrader Bar Configuration Audit
 
-### 02-03: Monte Carlo Stress Test (Day 4-5)
+**Required Settings (from ARGUS):**
+```python
+config = BacktestRunConfig(
+    engine=BacktestEngineConfig(
+        # CRITICAL: Bar timestamp at CLOSE, not open
+        bars_timestamp_on_close=True,
 
-**Configuration:**
-- 5000 runs
-- Block bootstrap (block size = avg trade duration)
-- Shuffle trades, resample with replacement
+        # CRITICAL: Delay signal until next bar
+        ts_init_delta=bar_interval_ns,  # 300_000_000_000 for M5
 
-**Output:**
-- MC 95th percentile DD
-- MC 99th percentile DD (must be < 5% for Apex)
-- Confidence intervals
+        # Execute on bar (not tick)
+        bar_execution=True,
 
-### 02-04: Holdout Validation (Day 5)
+        # Realistic high/low ordering
+        bar_adaptive_high_low_ordering=True,
+    ),
+)
+```
 
-**CRITICAL:** First time touching 2021-2025 data.
+**Verification:**
+```bash
+rg -n "bars_timestamp_on_close|ts_init_delta|bar_execution|bar_adaptive" src/
+```
 
-**Configuration:**
-- Apply model trained on 2003-2020
-- Run on 2021-2025 (5 years)
-- NO parameter adjustment allowed
+**Deliverable:** `orchestration/NAUTILUS_CONFIG_AUDIT.md`
 
-**Decision:**
-| Holdout WFE | Action |
-|-------------|--------|
-| >= 0.5 | EXCELLENT - edge persists |
-| 0.3 - 0.5 | CAUTION - investigate regime shift |
-| < 0.3 | LIKELY OVERFITTED |
+#### 02-NEW-03: HWM Protection Logic Design
 
-### Phase 02 GO/NO-GO Gate
+**Problem:** Unrealized profit raises HWM permanently.
+
+**Solution:** Scale-out on winners.
+
+```python
+def calculate_scale_out_levels(
+    entry_price: float,
+    take_profit: float,
+    risk_amount: float
+) -> list[ScaleOutLevel]:
+    """
+    Scale out to protect HWM.
+
+    Returns:
+    - 50% at +1R (protect breakeven)
+    - 25% at +2R (lock profit)
+    - 25% at full TP (maximize)
+    """
+    one_r = risk_amount
+    return [
+        ScaleOutLevel(pct=0.50, trigger=one_r),
+        ScaleOutLevel(pct=0.25, trigger=one_r * 2),
+        ScaleOutLevel(pct=0.25, trigger=take_profit),
+    ]
+```
+
+**Deliverable:** Design spec in `orchestration/HWM_PROTECTION_DESIGN.md`
+
+### Phase 02 GO/NO-GO Gate (Updated)
 
 **Criteria (ALL must pass):**
 - [ ] WFE >= 0.6
 - [ ] SQN >= 2.0
 - [ ] PSR >= 0.85
-- [ ] DSR >= 0.80
-- [ ] PBO < 25%
 - [ ] MC95DD < 4%
+- [ ] **17 look-ahead patterns verified PASS** (NEW)
+- [ ] **NautilusTrader config verified** (NEW)
 - [ ] Holdout WFE >= 0.5
 
-**Decision:**
-| Outcome | Action |
-|---------|--------|
-| All pass | PROCEED to Phase 03 |
-| Most pass, 1-2 marginal | CONDITIONAL proceed with monitoring |
-| Multiple failures | TRIGGER Plan B or HALT |
+---
+
+## Phase 03-04: Strategy Validation
+
+*Detailed plans in `04-PHASE-03-PLAN.md` and `05-PHASE-04-PLAN.md`*
+
+### Summary
+- SMC_SCALPER deep audit (factor contribution)
+- TREND_FOLLOW validation
+- MEAN_REVERT research and decision
 
 ---
 
-## Phase 03: Strategy-by-Strategy Audit (2 weeks)
+## Phase 05: Framework Integration - ENHANCED
 
-### Objective
-Validate each strategy individually before combining.
+*Detailed plan in `06-PHASE-05-PLAN.md`*
 
-### 03-01: SMC_SCALPER Deep Audit (Week 1)
+### Additional Tasks (From ARGUS)
 
-**Focus Areas:**
-1. Factor contribution analysis (mini-ablation)
-2. Session-specific performance
-3. Regime-specific performance
-4. Trade distribution across time
+#### 05-NEW-01: 30% Per-Trade Loss Limit
 
-**Deliverable:** `orchestration/SMC_SCALPER_AUDIT.md`
+**Requirement (from ARGUS_PROP_FIRM_FAILURES):**
+Single trade cannot lose > 30% of daily profit target.
 
-### 03-02: TREND_FOLLOW Validation (Week 2, Day 1-3)
+```python
+def validate_trade_risk(
+    stop_loss_pips: float,
+    lot_size: float,
+    daily_target: float,
+    max_loss_pct: float = 0.30
+) -> bool:
+    """
+    Validate trade doesn't exceed 30% of daily target.
 
-**Focus Areas:**
-1. EMA crossover + session filter
-2. Compare to SMC_SCALPER
-3. Correlation analysis
+    For $100k account:
+    - Daily target: ~$333/day (10% in 30 days)
+    - 30% of daily target: ~$100 max loss per trade
+    """
+    pip_value = 10.0 * lot_size  # XAUUSD pip value per lot
+    potential_loss = stop_loss_pips * pip_value
+    max_allowed_loss = daily_target * max_loss_pct
 
-**Decision:**
-| Comparison | Action |
-|------------|--------|
-| SMC >> TrendFollow | Focus on SMC |
-| SMC ~ TrendFollow | Keep both for diversification |
-| SMC << TrendFollow | Consider simplification |
+    return potential_loss <= max_allowed_loss
+```
 
-### 03-03: MEAN_REVERT Assessment (Week 2, Day 4-5)
+**Integration:** Add to StrategySelector Gate 2 (FTMO)
 
-**Research Context:** ARGUS found gold exhibits positive time series momentum, suggesting mean reversion may not work.
+#### 05-NEW-02: 5:1 R:R Enforcement
 
-**Test:**
-- Run mean revert strategy on XAUUSD
-- Compare to momentum baseline
-- If underperforms: DEFER (not archive)
+**Requirement (from ARGUS):**
+Risk must be <= 1/5 of reward OR <= 5% of evaluation daily target.
 
-**Decision:**
-| Outcome | Action |
-|---------|--------|
-| Positive edge | KEEP for diversification |
-| No edge | DEFER (keep code, disable in selector) |
-| Negative edge | DEFER and document |
+```python
+def validate_rr_ratio(
+    stop_loss_pips: float,
+    take_profit_pips: float,
+    lot_size: float,
+    daily_target: float,
+    min_rr: float = 5.0,
+    max_risk_pct: float = 0.05
+) -> bool:
+    """
+    Validate R:R ratio meets Apex requirements.
+    """
+    rr_ratio = take_profit_pips / stop_loss_pips
 
-### Phase 03 GO/NO-GO Gate
+    pip_value = 10.0 * lot_size
+    risk_amount = stop_loss_pips * pip_value
+    max_risk = daily_target * max_risk_pct
 
-**Criteria:**
-- [ ] At least 1 strategy meets all criteria
-- [ ] Strategy correlation < 0.7 (if keeping multiple)
-- [ ] No critical issues found
+    # Either R:R >= 5:1 OR risk <= 5% of daily target
+    return rr_ratio >= min_rr or risk_amount <= max_risk
+```
 
----
+**Integration:** Add to position_sizer.py
 
-## Phase 04: Framework Integration (1 week)
+#### 05-NEW-03: Execution Mode Configuration
 
-### Objective
-Validate that StrategySelector and AdaptiveEVRouter work correctly.
+**Requirement (from ARGUS_PROP_FIRM_FAILURES):**
+PA/Live accounts prohibit automation. Must support signal-only mode.
 
-### 04-01: StrategySelector Gate Validation
+```python
+class ExecutionMode(Enum):
+    AUTO = "auto"           # Full automation (eval/backtest)
+    SIGNAL_ONLY = "signal"  # Generate alerts, no OrderSubmit (PA/Live)
 
-**6 Gates to Test:**
-| Gate | Purpose | Test |
-|------|---------|------|
-| Safety | DD limits | Verify blocks when approaching limits |
-| FTMO | Consistency | Verify 30% rule enforcement |
-| News | High-impact events | Verify filtering |
-| Session | Trading windows | Verify Asian block |
-| Holiday | Market closures | Verify no trading |
-| Regime | Random walk detection | Verify blocking |
+@dataclass
+class StrategyConfig:
+    execution_mode: ExecutionMode = ExecutionMode.AUTO
 
-### 04-02: AdaptiveEVRouter (DISABLED MODE)
+def on_signal(self, signal: Signal):
+    if self.config.execution_mode == ExecutionMode.SIGNAL_ONLY:
+        self.send_alert(signal)  # Push notification, no execution
+        return
 
-**Status:** Router DISABLED, not archived.
+    # Full automation
+    self.submit_order(signal)
+```
 
-**Test:**
-- Verify static allocation works (100% to selected strategy)
-- Verify Thompson sampling code still compiles
-- Document re-enablement criteria
+**Integration:** Add to gold_scalper_strategy.py config
 
-**Re-enablement Criteria:**
-- Trade frequency > 200/year per strategy
-- Multiple strategies have validated edge
-- Correlation matrix can be computed
-
-### Phase 04 GO/NO-GO Gate
+### Phase 05 GO/NO-GO Gate (Updated)
 
 **Criteria:**
 - [ ] All 6 selector gates work correctly
 - [ ] Static allocation functions properly
 - [ ] Router code compiles (for future use)
+- [ ] **30% per-trade limit validated** (NEW)
+- [ ] **5:1 R:R enforcement working** (NEW)
+- [ ] **Both execution modes tested** (NEW)
 
 ---
 
-## Phase 05: Multi-Strategy Backtest (1 week)
+## Phase 06: Multi-Strategy Backtest - ENHANCED
 
-### Objective
-Validate combined strategy performance.
+*Detailed plan in `07-PHASE-06-PLAN.md`*
 
-### 05-01: Combined Backtest
+### Additional Tasks (From ARGUS)
 
-**Configurations:**
-| Config | Setup |
-|--------|-------|
-| A | SMC_SCALPER only |
-| B | TREND_FOLLOW only |
-| C | SMC + TREND (selector only) |
-| D | SMC + TREND + Router (if enabled) |
+#### 06-NEW-01: PBO Implementation
 
-### 05-02: Diversification Benefit Analysis
+**Probability of Backtest Overfitting (from ARGUS):**
 
-**Metrics:**
-| Metric | SMC | TF | Combined | Benefit |
-|--------|-----|----|---------| --------|
-| WFE | ? | ? | ? | ? |
-| SQN | ? | ? | ? | ? |
-| MaxDD | ? | ? | ? | ? |
-| Sharpe | ? | ? | ? | ? |
+```python
+from scipy.stats import spearmanr, norm
 
-**Expected:** Combined should have lower DD than either individual.
+def calculate_pbo(
+    in_sample_returns: list[float],
+    out_sample_returns: list[float]
+) -> float:
+    """
+    Calculate Probability of Backtest Overfitting.
 
-### Phase 05 GO/NO-GO Gate
+    Args:
+        in_sample_returns: IS returns for each strategy variant
+        out_sample_returns: OOS returns for corresponding variants
 
-**Criteria:**
-- [ ] Combined WFE >= 0.6
-- [ ] Combined MC95DD < 4%
-- [ ] Diversification benefit > 0 (or equal)
+    Returns:
+        PBO value between 0 and 1. Target: < 0.25
+    """
+    rho, _ = spearmanr(in_sample_returns, out_sample_returns)
+    n = len(in_sample_returns)
+    omega_hat = (1 - rho) / 2
+    pbo = norm.cdf(omega_hat * np.sqrt(n))
+
+    return pbo
+```
+
+#### 06-NEW-02: DSR Implementation
+
+**Deflated Sharpe Ratio (from ARGUS):**
+
+```python
+from scipy.stats import skew, kurtosis
+
+def calculate_dsr(
+    returns: np.ndarray,
+    num_trials: int
+) -> float:
+    """
+    Calculate Deflated Sharpe Ratio.
+
+    Args:
+        returns: Strategy returns
+        num_trials: Number of strategy variants tested
+
+    Returns:
+        DSR value. Target: > 0
+    """
+    sr = returns.mean() / returns.std() * np.sqrt(252)
+
+    # Haircut for multiple testing
+    T = len(returns)
+    gamma = 0.5772  # Euler-Mascheroni
+    sr_star = np.sqrt(2 * np.log(num_trials)) * (1 - gamma / np.log(num_trials))
+
+    # Standard error of SR
+    sr_se = np.sqrt((1 + 0.5 * sr**2 - skew(returns) * sr +
+                     (kurtosis(returns) - 3) / 4 * sr**2) / T)
+
+    dsr = (sr - sr_star) / sr_se
+
+    return dsr
+```
+
+**Integration:** Add to src/backtesting/validation_metrics.py
+
+#### 06-NEW-03: Failure Mode Matrix Verification
+
+**47 failure modes from ARGUS_PROP_FIRM_FAILURES:**
+
+| Category | Count | Key Modes |
+|----------|-------|-----------|
+| Trail DD | 4 | DD-01 to DD-04 |
+| Time Gates | 4 | TG-01 to TG-04 |
+| Risk | 4 | RK-01 to RK-04 |
+| Technical | 4 | TC-01 to TC-04 |
+| Automation | 4 | AU-01 to AU-04 |
+| Consistency | 4 | CN-01 to CN-04 |
+| Capital | 4 | CP-01 to CP-04 |
+| + 19 more | 19 | Various |
+
+**Deliverable:** `orchestration/FAILURE_MODE_MATRIX.md`
+
+### Phase 06 GO/NO-GO Gate (Updated)
+
+**Criteria (ALL must pass):**
+| Metric | Threshold | Source |
+|--------|-----------|--------|
+| WFE | >= 0.6 | CLAUDE.md |
+| SQN | >= 2.0 | CLAUDE.md |
+| PSR | >= 0.85 | CLAUDE.md |
+| **DSR** | **> 0** | **ARGUS (NEW)** |
+| **PBO** | **< 25%** | **ARGUS (NEW)** |
+| MC95DD | < 4% | CLAUDE.md (Apex) |
+| Min Trades | >= 200 | ARGUS + CLAUDE.md |
 
 ---
 
-## Phase 06: Paper Trading (2 weeks - MANDATORY)
+## Phase 07: Paper Trading - ENHANCED
 
-### Objective
-Validate the system works with LIVE data before risking real money.
+### Duration
+Minimum 2 weeks with live data feed, no real money.
 
-### Requirements (per CLAUDE.md production_workflow)
+### Additional Testing (From ARGUS)
 
-**Duration:** Minimum 2 weeks
+#### 07-NEW-01: Execution Mode Testing
 
-**Setup:**
-- Live data feed (not backtest replay)
-- Track unrealized PnL and HWM exactly as Apex would
-- NO real money at risk
+**Test Both Modes:**
+| Mode | Test | Expected |
+|------|------|----------|
+| AUTO | Full execution flow | Orders submitted |
+| SIGNAL_ONLY | Alert generation only | No OrderSubmit calls |
 
-**Verification Points:**
+**Verification:**
+```python
+# Week 1: AUTO mode
+config.execution_mode = ExecutionMode.AUTO
+# Verify orders are submitted correctly
 
-| ID | Test | Criterion |
-|----|------|-----------|
-| PT-001 | Time gate 4:30 PM | New trades blocked |
-| PT-002 | Time gate 4:55 PM | Emergency close initiates |
-| PT-003 | Time gate 4:59 PM | Position flat verified |
-| PT-004 | HWM tracking | Uses BID/ASK not MID |
-| PT-005 | Trailing DD | Correct calculation from HWM |
-| PT-006 | Broker SL | Exists as backup |
-| PT-007 | Latency | < 50ms on-tick |
+# Week 2: SIGNAL_ONLY mode
+config.execution_mode = ExecutionMode.SIGNAL_ONLY
+# Verify only alerts are generated
+```
 
-**Logging:**
-- All trades (entry, exit, PnL)
-- All signals (even those not executed)
-- Time gate events
-- DD calculations
+#### 07-NEW-02: Time Gate Live Verification
 
-### Phase 06 GO/NO-GO Gate
+| Test | Criterion |
+|------|-----------|
+| 4:30 PM ET block | New trades blocked |
+| 4:55 PM ET emergency | Close initiated |
+| 4:59 PM ET deadline | Position flat |
+| DST transition | Correct offset |
+| Clock drift | < 1 second |
+
+#### 07-NEW-03: HWM Tracking Verification
+
+| Check | Expected |
+|-------|----------|
+| Uses BID for longs | Conservative unrealized |
+| Uses ASK for shorts | Conservative unrealized |
+| Never uses MID | Prevents artificial HWM inflation |
+| Tick-by-tick updates | HWM never decreases |
+
+### Phase 07 GO/NO-GO Gate (Updated)
 
 **Criteria:**
 - [ ] No critical issues in 2 weeks
 - [ ] All time gates verified
-- [ ] HWM calculation verified
-- [ ] Latency within budget
-
-**Decision:**
-| Outcome | Action |
-|---------|--------|
-| No issues | PROCEED to Phase 07 |
-| Minor issues | FIX and restart 1-week paper trading |
-| Critical issues | HALT and investigate |
+- [ ] HWM calculation verified (BID/ASK)
+- [ ] Latency within budget (< 50ms)
+- [ ] **Both execution modes work** (NEW)
+- [ ] **47 failure mode checks pass** (NEW)
 
 ---
 
-## Phase 07: Production Readiness (1 week)
+## Phase 08: Production Readiness (1 week)
 
-### Objective
-Final checks before deploying real money.
-
-### 07-01: External CRITIC Review
-
-**Per CLAUDE.md production_workflow:**
-- Spawn EXTERNAL CRITIC (fresh context)
+### 08-01: External CRITIC Review
+- Fresh context, no prior bias
 - Review all validation artifacts
-- Catch blind spots the team missed
+- Catch blind spots
 
-### 07-02: SENTINEL Final Approval
+### 08-02: SENTINEL Final Approval
 
 **Apex Compliance Checklist:**
 - [ ] Trailing DD < 5% from HWM
@@ -597,175 +688,106 @@ Final checks before deploying real money.
 - [ ] Close all by 4:59 PM ET
 - [ ] Block new trades after 4:30 PM ET
 - [ ] Emergency close from 4:55 PM ET
-- [ ] HWM uses BID/ASK
+- [ ] HWM uses BID/ASK (not MID)
 - [ ] Broker-side SL as backup
+- [ ] **30% per-trade limit enforced** (NEW)
+- [ ] **5:1 R:R verified** (NEW)
+- [ ] **Automation prohibition understood** (NEW)
 
-### 07-03: Deployment Checklist
+### Phase 08 GO/NO-GO (FINAL GATE)
 
-**Technical:**
-- [ ] All tests pass
-- [ ] Coverage >= 70% line, >= 50% branch
-- [ ] No mypy errors
-- [ ] Latency verified
-
-**Operational:**
-- [ ] Runbook documented
-- [ ] Alerting configured
-- [ ] Rollback procedure documented
-- [ ] Emergency contact list
-
-### Phase 07 GO/NO-GO Gate
-
-**FINAL GATE - ALL MUST PASS:**
-- [ ] CRITIC review: No critical issues
-- [ ] SENTINEL approval: Obtained
-- [ ] All validation metrics: GREEN
-- [ ] Paper trading: PASSED
-- [ ] Deployment checklist: COMPLETE
-
-**Decision:**
-| Outcome | Action |
-|---------|--------|
-| All pass | **GO** - Deploy to smallest account ($50k) |
-| Any fail | **NO-GO** - Address issues, re-run relevant phases |
+| Check | Status |
+|-------|--------|
+| CRITIC review: No critical issues | [ ] |
+| SENTINEL approval obtained | [ ] |
+| All validation metrics GREEN | [ ] |
+| Paper trading PASSED | [ ] |
+| Deployment checklist COMPLETE | [ ] |
 
 ---
 
-## Success Metrics (From CLAUDE.md)
+## Success Metrics (Updated - ARGUS Integrated)
 
-These are the MANDATORY thresholds. No shortcuts.
-
-| Metric | Threshold | Description |
-|--------|-----------|-------------|
-| WFE | >= 0.6 | Walk-Forward Efficiency |
-| SQN | >= 2.0 | System Quality Number |
-| PSR | >= 0.85 | Probabilistic Sharpe Ratio |
-| DSR | >= 0.80 | Deflated Sharpe Ratio |
-| PBO | < 25% | Probability Backtest Overfitting |
-| MC95DD | < 4% | Monte Carlo 95th percentile DD |
-| Min Trades | >= 200 | Minimum for statistical validity |
-| Holdout | Positive | Edge on 2021-2025 |
+| Metric | Threshold | Source | Status |
+|--------|-----------|--------|--------|
+| WFE | >= 0.6 | CLAUDE.md | Original |
+| SQN | >= 2.0 | CLAUDE.md | Original |
+| PSR | >= 0.85 | CLAUDE.md | Original |
+| **DSR** | **> 0** | **ARGUS** | **NEW** |
+| **PBO** | **< 25%** | **ARGUS** | **NEW** |
+| MC95DD | < 4% | CLAUDE.md | Original (Apex) |
+| Min Trades | >= 200 | ARGUS + CLAUDE.md | Original |
+| Min Years | >= 5 | ARGUS | Original |
+| Holdout | Positive | CLAUDE.md | Original |
 
 ---
 
-## What We're KEEPING (Not Archiving)
+## Hard Exit Criteria (Updated)
+
+| Gate | Condition | Action |
+|------|-----------|--------|
+| **Phase 00-A** | **EMA > SMC by any margin** | **STOP or PIVOT** (NEW) |
+| Phase 00-B | Bugs cannot be fixed after 2 weeks | STOP or PIVOT |
+| Phase 01 | < 50 trades after fix | Trigger Plan B |
+| Phase 02 | WFE < 0.3 on development set | STOP |
+| Holdout | Negative return on 2021-2025 | STOP |
+| Any | Engineering hours > 400 with no progress | HARD PAUSE |
+| Any | Franco loses interest | STOP |
+
+**Fallback Options (from DAEMON):**
+1. Higher timeframe SMC (H4/D1 where ICT designed it)
+2. Different market (NQ/ES futures)
+3. Simple trend following
+4. Manual discretionary trading (14 signals/year is manageable)
+5. Buy existing EA ($100-$500)
+
+---
+
+## What We're KEEPING
 
 | Component | Status | Rationale |
 |-----------|--------|-----------|
-| **All 9 confluence factors** | ENABLED | Fix bugs first, then validate |
-| **AdaptiveEVRouter** | DISABLED (not archived) | Preserve optionality |
-| **StrategySelector** | ENABLED | Validate gates work |
-| **TREND_FOLLOW strategy** | TO VALIDATE | May provide diversification |
-| **MEAN_REVERT strategy** | TO VALIDATE | Research says no edge, but test empirically |
-| **All SMC indicators** | ENABLED | Core to strategy |
-
-**Key Principle:** DISABLE components, don't ARCHIVE them. Keep code in main branch for optionality.
+| All 9 confluence factors | ENABLED | Fix bugs first |
+| AdaptiveEVRouter | DISABLED (not archived) | Preserve optionality |
+| StrategySelector | ENABLED | Validate gates |
+| TREND_FOLLOW | TO VALIDATE | Diversification |
+| MEAN_REVERT | TO VALIDATE | Test empirically |
+| All SMC indicators | ENABLED | Core to strategy |
+| **Execution modes** | **BOTH** | **PA/Live compliance** (NEW) |
 
 ---
 
 ## Simplification is PLAN B
 
-**Trigger Conditions for Plan B:**
-
+**Trigger Conditions:**
 | Gate | Condition | Action |
 |------|-----------|--------|
-| Phase 00 | < 5 factors fire after bug fix | Investigate, then Plan B |
+| Phase 00-A | SMC < EMA | STOP or reconsider |
+| Phase 00-B | < 5 factors fire after fix | Investigate, then Plan B |
 | Phase 01 | < 50 trades after fix | Trigger Plan B |
 | Phase 02 | WFE < 0.5 | Trigger Plan B |
 | Phase 02 | Holdout WFE < 0.3 | Trigger Plan B |
 | Any | SMC < EMA baseline by 20%+ | Trigger Plan B |
 
 **Plan B Steps (from 08-SIMPLIFICATION_PLAN.md):**
-
-1. Reduce factors from 9 to 3-4 (Structure, OB, FVG, Session)
+1. Reduce factors from 9 to 3-4
 2. Set non-contributing factors to weight 0
-3. Lower threshold to 50 (new scale)
-4. Archive AdaptiveEVRouter (only if Plan B triggered)
+3. Lower threshold to 50
+4. Archive AdaptiveEVRouter
 5. Simplify StrategySelector to 2 gates
 
-**Important:** Plan B is ONLY triggered if the FIXED system fails. We do NOT pre-decide simplification.
-
 ---
 
-## Hard Exit Criteria
+## New Deliverables (ARGUS-Driven)
 
-**Conditions under which we STOP the project:**
-
-| Gate | Condition | Action |
-|------|-----------|--------|
-| Pre-Phase 00 | EMA baseline beats SMC after fix | STOP |
-| Phase 00 | Bugs cannot be fixed after 2 weeks | STOP or PIVOT |
-| Phase 02 | WFE < 0.3 on development set | STOP |
-| Holdout | Negative return on 2021-2025 | STOP |
-| Any | Engineering hours > 400 with no progress | HARD PAUSE |
-| Any | Franco loses interest | STOP |
-
-**Fallback Options:**
-1. Higher timeframe SMC (H4/D1 where ICT designed it)
-2. Different market (NQ/ES futures)
-3. Simple trend following
-4. Manual discretionary trading (14 signals/year is manageable)
-
----
-
-## Document Cleanup
-
-**After this roadmap is approved:**
-
-1. **Archive to `_archive/planning/v1-v2/`:**
-   - 00-BRIEF.md (v1)
-   - 00-BRIEF-v2.md
-   - 01-ROADMAP.md (v1)
-   - 01-ROADMAP-v2.md
-   - 03-PRE_ACTIVATION_CHECKLIST.md (v1)
-   - 03-PRE_ACTIVATION_CHECKLIST-v2.md
-   - 02-PHASE-01-PLAN.md through 07-PHASE-06-PLAN.md (all v1 phase plans)
-
-2. **Keep (this is the source of truth):**
-   - 01-ROADMAP-FINAL.md (THIS DOCUMENT)
-   - 02-CRITICAL_ISSUES_AUDIT.md (technical reference)
-   - 08-SIMPLIFICATION_PLAN.md (Plan B reference)
-   - orchestration/*.md (agent reviews for reference)
-
-3. **Create:**
-   - PLANNING_INDEX.md listing all current documents
-   - Update DOCS/_INDEX.md with Phase 09 links
-
----
-
-## Empirical Observations (Reference)
-
-### Current State (Before Fixes)
-
-**From 6-month backtest (2024-01-01 to 2024-06-30):**
-| Metric | Value |
-|--------|-------|
-| Total Trades | 7 |
-| Win Rate | 42.9% (3W/4L) |
-| Net PnL | +$319 |
-| Trade Frequency | ~1.2/month |
-
-**Factor Scores (During Asian Session):**
-```
-structure=15.0, regime=0.0, ob=0.0, fvg=0.0, sweep=0.0, amd=0.0, fib=0.0, mtf=0.0, footprint=0.0
-```
-
-**Score Ranges by Session:**
-| Session | Score Range | Threshold (35) | Result |
-|---------|-------------|----------------|--------|
-| Asian | 16-22 | Below | No trades (expected) |
-| London Open | 30-40 | Borderline | Some trades |
-| Overlap (Prime) | 44-52 | Above | Trades execute |
-| NY Session | 35-48 | Above | Trades execute |
-
-**Trade Clustering:** All 7 trades occurred Jan 2-10, 2024. ZERO trades after Jan 10.
-
-### Root Causes Identified
-
-1. **Semantic Collision:** `_mtf_order_blocks` overwritten by LTF data
-2. **Trade Clustering:** Time-dependent bug (state reset? memory leak?)
-3. **Footprint:** No futures data (dead code since day one)
-4. **Session Adjustment:** Was killing scores (FIXED in commit 58b84178)
+| Phase | Deliverable | Content |
+|-------|-------------|---------|
+| 02 | `LOOKAHEAD_CHECKLIST.md` | 17 patterns with grep commands |
+| 02 | `NAUTILUS_CONFIG_AUDIT.md` | Bar config verification |
+| 02 | `HWM_PROTECTION_DESIGN.md` | Scale-out logic |
+| 06 | `FAILURE_MODE_MATRIX.md` | 47 failure modes mapped |
+| 06 | `validation_metrics.py` | PBO/DSR implementation |
+| 07 | `EXECUTION_MODE_TEST.md` | AUTO vs SIGNAL_ONLY results |
 
 ---
 
@@ -773,70 +795,76 @@ structure=15.0, regime=0.0, ob=0.0, fvg=0.0, sweep=0.0, amd=0.0, fib=0.0, mtf=0.
 
 | Phase | Lead Agent | Support Agents |
 |-------|------------|----------------|
-| 00 | FORGE | - |
+| 00-A | ORACLE | DAEMON |
+| 00-B | FORGE | - |
 | 01 | ORACLE | FORGE |
-| 02 | ORACLE | CRUCIBLE |
+| 02 | ORACLE | CRUCIBLE, **ARGUS** |
 | 03 | CRUCIBLE | ORACLE, FORGE |
 | 04 | FORGE | SENTINEL |
 | 05 | ORACLE | CRUCIBLE |
-| 06 | FORGE | SENTINEL |
+| 06 | FORGE | SENTINEL, **ARGUS** |
 | 07 | SENTINEL | CRITIC |
-
-**Handoff Chain (for trading logic):**
-```
-FORGE -> REVIEWER -> ORACLE -> SENTINEL
-```
 
 ---
 
-## Risk Mitigation
+## Risk Mitigation (Updated)
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Semantic fix doesn't restore OB/FVG | MEDIUM | HIGH | Diagnostic logging before/after |
-| Trade clustering is unsolvable | LOW | HIGH | Investigate state management |
-| Fixed system still produces < 50 trades | MEDIUM | HIGH | Plan B (simplification) |
-| SMC approach is fundamentally flawed | LOW | HIGH | Baseline comparison, fallback options |
-| Timeline extends beyond 11 weeks | MEDIUM | MEDIUM | 50% buffer in estimates |
+| Semantic fix doesn't restore OB/FVG | MEDIUM | HIGH | Diagnostic logging |
+| Trade clustering unsolvable | LOW | HIGH | State management investigation |
+| Fixed system < 50 trades | MEDIUM | HIGH | Plan B (simplification) |
+| SMC fundamentally flawed | LOW | HIGH | **Baseline comparison FIRST** |
+| Timeline > 11 weeks | MEDIUM | MEDIUM | 50% buffer |
+| **Look-ahead bias undetected** | MEDIUM | **CRITICAL** | **17-pattern checklist** (NEW) |
+| **PA/Live automation ban** | **HIGH** | **MEDIUM** | **Execution modes** (NEW) |
 
 ---
 
-## Appendix: DAEMON Strategic Concerns
+## Appendix: ARGUS Research Summary
 
-DAEMON raised economic rationality concerns:
-- Expected value calculation: ~$11.67/hour at 300 hours invested
-- SMC crowding: patterns widely known, edge may be arbitraged away
-- Opportunity cost: alternative strategies may have better ROI
+### From ARGUS_PROP_FIRM_FAILURES
+- 47 failure modes identified
+- Automation prohibited on PA/Live
+- 30% per-trade loss limit
+- 5:1 R:R enforcement
+- HWM tracks unrealized peaks
 
-**User Decision:** Proceed anyway (learning value, Nautilus skills transfer)
+### From ARGUS_LOOKAHEAD_DETECTION
+- 17 look-ahead patterns cataloged
+- NautilusTrader config requirements
+- PBO < 25% and DSR > 0 thresholds
 
-**Hard Exit Gate Added:** If engineering hours > 400 with no progress, HARD PAUSE for strategic review.
-
----
-
-## Appendix: CRITIC Key Findings
-
-1. **Confirmation Bias:** Previous agents concluded "simplify" without testing fixed system
-2. **Trade Clustering:** Noted but never investigated (may reveal different root cause)
-3. **Counterfactual Missing:** "What if we fix bugs and keep 9 factors?" was never tested
-4. **Archive vs Disable:** DISABLE preserves optionality; ARCHIVE causes code rot
-
-**This roadmap addresses all CRITIC concerns by:**
-- Testing fixed system BEFORE simplifying
-- Investigating trade clustering in Phase 00
-- Running counterfactual test in Phase 01
-- Using DISABLE not ARCHIVE for components
+### From DAEMON_FUNDAMENTAL_REVIEW
+- Economic ROI concerns addressed with baseline test
+- SMC crowding acknowledged
+- Hard exit criteria added
 
 ---
 
-*"A 9-factor confluence system where 8 factors score zero is BROKEN, not sophisticated. Fix the foundation before deciding to remove floors."*
+## Appendix: DAEMON Economic Concerns
+
+DAEMON raised:
+- Expected value: ~$11.67/hour at 300 hours invested
+- SMC crowding: patterns widely known
+- Opportunity cost: alternatives may have better ROI
+
+**Resolution:**
+- Added Phase 00-A baseline test to validate thesis
+- If SMC < EMA: STOP immediately
+- User aware of opportunity cost, proceeding for learning value
+- Hard exit gate at 400 hours
+
+---
+
+*"A 9-factor confluence system where 8 factors score zero is BROKEN, not sophisticated. Fix the foundation before deciding to remove floors. But verify the foundation is worth fixing FIRST."*
 
 ---
 
 **AGENT:** FORGE-NAUTILUS (acting as MASTER PLANNER)
-**VERSION:** 1.1
+**VERSION:** 2.0 (ARGUS-Integrated)
 **CLAUDE_MD_VERSION:** 3.10.21
-**STATUS:** COMPLETE
+**STATUS:** COMPLETE - READY FOR EXECUTION
 
 ---
 
