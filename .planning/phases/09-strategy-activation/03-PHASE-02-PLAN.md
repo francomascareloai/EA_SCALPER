@@ -10,6 +10,50 @@
 
 ---
 
+## MANDATORY EXECUTION PROTOCOL
+
+**ESTE PROTOCOLO DEVE SER SEGUIDO EM TODAS AS ACOES:**
+
+### 1. Autonomous Loop (CRITIC ate GO)
+```
+Executar task → CRITIC review (opus) → GO?
+                      ↓ NO
+                Fix automatico → CRITIC review → loop (max 3x)
+                      ↓ ainda NO-GO apos 3x
+                Perguntar usuario
+```
+
+### 2. Quick Backtest Apos Cada Fix
+```bash
+# OBRIGATORIO apos qualquer mudanca de codigo
+python -m nautilus_gold_scalper.run_backtest --start 2024-01-01 --end 2024-01-07
+
+# Verificar:
+# - Trades > 0 (senao algo quebrou)
+# - Sem erros no log
+# - Trade count nao caiu 50%+
+```
+
+### 3. Parallel Agents (sem limite)
+- Pode spawnar multiplos agents em paralelo para fixes
+- FORGE + ORACLE + SENTINEL simultaneo se necessario
+- Nao economizar - usar quantos precisar
+
+### 4. Anti-Hallucination
+- SEMPRE mostrar output dos comandos
+- NUNCA dizer "deve funcionar" sem testar
+- NUNCA inventar metricas - usar output real
+
+### 5. Verificacao Obrigatoria
+```bash
+# Antes de qualquer GO:
+mypy --strict nautilus_gold_scalper/
+pytest -q
+# Quick backtest (1 semana)
+```
+
+---
+
 ## Objective
 
 Validar profundamente se a estratégia SMC (Smart Money Concept) tem edge real. Esta é a estratégia principal do robô - deve ser rigorosamente auditada antes de ativar outras.
