@@ -363,8 +363,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # BUG-11 FIX: Explicit timeframe-separated OB/FVG lists to prevent semantic collision.
         # Previously _mtf_order_blocks was overwritten by LTF detection (lines 1921-1937).
         self._htf_bias: MarketBias = MarketBias.RANGING
-        self._htf_order_blocks: list[OrderBlock] = []  # H1 - direction
-        self._htf_fvgs: list[FairValueGap] = []
+        # NOTE: _htf_order_blocks and _htf_fvgs are RESERVED for future HTF OB/FVG analysis.
+        # Currently only _htf_bias is populated in _on_htf_bar(). The OB/FVG lists are placeholders
+        # for when we implement direct OB/FVG detection on H1 timeframe (beyond structure bias).
+        # DO NOT remove - they maintain the uniform _htf_/_mtf_/_ltf_ naming convention (BUG-11 fix).
+        self._htf_order_blocks: list[OrderBlock] = []  # H1 - direction (RESERVED)
+        self._htf_fvgs: list[FairValueGap] = []  # H1 - RESERVED for future implementation
         self._mtf_order_blocks: list[OrderBlock] = []  # M15 - structure zones
         self._mtf_fvgs: list[FairValueGap] = []
         self._ltf_order_blocks: list[OrderBlock] = []  # M5 - entry timing

@@ -189,28 +189,85 @@ def calculate_ema(series: pd.Series, period: int) -> pd.Series:
 
 
 def find_swing_highs(df: pd.DataFrame, strength: int = 3) -> pd.Series:
-    """Find swing highs - points higher than strength bars on both sides."""
+    """
+    Find swing highs - points higher than strength bars on both sides.
+
+    LOOK-AHEAD FIX: Uses trailing detection to avoid future data access.
+    A swing high at bar i is only confirmed at bar i + strength (when we have
+    enough bars AFTER to verify). The signal is marked at the CONFIRMATION bar,
+    meaning the strategy can only act on this information at that time.
+
+    This is realistic: you don't know a point is a swing high until you see
+    strength bars on each side that are all lower.
+    """
     highs = pd.Series(False, index=df.index)
-    for i in range(strength, len(df) - strength):
+    # We need 2*strength bars of history to confirm a swing high
+    # At bar i, we check if bar (i - strength) was a swing high
+    for i in range(2 * strength, len(df)):
+        candidate_idx = i - strength  # The bar we're checking as a potential swing high
         is_high = True
+
+        # Check strength bars BEFORE the candidate
         for j in range(1, strength + 1):
-            if df['high'].iloc[i] <= df['high'].iloc[i - j] or df['high'].iloc[i] <= df['high'].iloc[i + j]:
+            before_idx = candidate_idx - j
+            if df['high'].iloc[candidate_idx] <= df['high'].iloc[before_idx]:
                 is_high = False
                 break
-        highs.iloc[i] = is_high
+
+        # Check strength bars AFTER the candidate (up to current bar i)
+        # These bars are now in the past relative to bar i (confirmation bar)
+        if is_high:
+            for j in range(1, strength + 1):
+                after_idx = candidate_idx + j
+                # after_idx <= i (current bar), so this is past data from bar i's perspective
+                if df['high'].iloc[candidate_idx] <= df['high'].iloc[after_idx]:
+                    is_high = False
+                    break
+
+        # CRITIC FIX: Mark at bar i (confirmation bar), not candidate_idx
+        # In real-time, we only KNOW about the swing at bar i (after seeing strength bars after)
+        # The actual swing price is at candidate_idx = i - strength, which BOS detection must look back for
+        if is_high:
+            highs.iloc[i] = True  # Mark at CONFIRMATION bar to avoid look-ahead
+
     return highs
 
 
 def find_swing_lows(df: pd.DataFrame, strength: int = 3) -> pd.Series:
-    """Find swing lows - points lower than strength bars on both sides."""
+    """
+    Find swing lows - points lower than strength bars on both sides.
+
+    LOOK-AHEAD FIX: Uses trailing detection to avoid future data access.
+    A swing low at bar i is only confirmed at bar i + strength (when we have
+    enough bars AFTER to verify).
+    """
     lows = pd.Series(False, index=df.index)
-    for i in range(strength, len(df) - strength):
+    # We need 2*strength bars of history to confirm a swing low
+    for i in range(2 * strength, len(df)):
+        candidate_idx = i - strength  # The bar we're checking as a potential swing low
         is_low = True
+
+        # Check strength bars BEFORE the candidate
         for j in range(1, strength + 1):
-            if df['low'].iloc[i] >= df['low'].iloc[i - j] or df['low'].iloc[i] >= df['low'].iloc[i + j]:
+            before_idx = candidate_idx - j
+            if df['low'].iloc[candidate_idx] >= df['low'].iloc[before_idx]:
                 is_low = False
                 break
-        lows.iloc[i] = is_low
+
+        # Check strength bars AFTER the candidate (up to current bar i)
+        if is_low:
+            for j in range(1, strength + 1):
+                after_idx = candidate_idx + j
+                if df['low'].iloc[candidate_idx] >= df['low'].iloc[after_idx]:
+                    is_low = False
+                    break
+
+        # CRITIC FIX: Mark at bar i (confirmation bar), not candidate_idx
+        # In real-time, we only KNOW about the swing at bar i (after seeing strength bars after)
+        # The actual swing price is at candidate_idx = i - strength, which BOS detection must look back for
+        if is_low:
+            lows.iloc[i] = True  # Mark at CONFIRMATION bar to avoid look-ahead
+
     return lows
 
 
@@ -312,17 +369,26 @@ def run_smc_strategy(df: pd.DataFrame, config: BacktestConfig) -> BacktestResult
     df['swing_low'] = find_swing_lows(df, config.swing_strength)
 
     # Track structure
+    # CRITIC FIX: Swings are now marked at confirmation bar (i), but actual swing price
+    # is at bar (i - swing_strength). We must look back to get the correct price.
     df['last_swing_high'] = np.nan
     df['last_swing_low'] = np.nan
 
     last_sh = np.nan
     last_sl = np.nan
+    strength = config.swing_strength  # Need this to look back for actual swing price
 
     for i in range(len(df)):
         if df['swing_high'].iloc[i]:
-            last_sh = df['high'].iloc[i]
+            # Swing confirmed at bar i, but actual high was at bar (i - strength)
+            swing_bar = i - strength
+            if swing_bar >= 0:
+                last_sh = df['high'].iloc[swing_bar]
         if df['swing_low'].iloc[i]:
-            last_sl = df['low'].iloc[i]
+            # Swing confirmed at bar i, but actual low was at bar (i - strength)
+            swing_bar = i - strength
+            if swing_bar >= 0:
+                last_sl = df['low'].iloc[swing_bar]
         df.loc[df.index[i], 'last_swing_high'] = last_sh
         df.loc[df.index[i], 'last_swing_low'] = last_sl
 

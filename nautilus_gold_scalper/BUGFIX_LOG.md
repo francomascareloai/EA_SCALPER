@@ -63,6 +63,52 @@
 
 ## Log Entries
 
+## 🚨 2025-12-23 [FORGE] - CRITICAL - BUG-11: Semantic Collision in Order Block Variables
+
+**Module:** strategies/gold_scalper_strategy.py
+**Severity:** CRITICAL (Trading logic - trade clustering, signal starvation)
+
+### Bug Description
+Semantic collision where `_mtf_order_blocks` was being overwritten by LTF detection logic.
+The variable intended for MTF (M15) order blocks was incorrectly populated in the LTF (M5)
+detection path, causing confusion and incorrect data sharing between timeframes.
+
+### Impact
+- Trade clustering: All trades concentrated in first week, none after
+- Signal starvation: MTF zones incorrectly replaced by LTF zones
+- Confluence scoring corrupted: Wrong zones passed to confluence calculator
+- Multi-timeframe analysis broken: MTF and LTF data cross-contaminated
+
+### Root Cause (5 Whys)
+1. Why? Trades clustered in first week, then stopped
+2. Why? Confluence scoring returned no valid signals after initial period
+3. Why? `_mtf_order_blocks` contained stale/wrong data
+4. Why? LTF detection code overwrote `_mtf_order_blocks` instead of `_ltf_order_blocks`
+5. Why? Variable naming was ambiguous; no explicit timeframe prefix enforcement
+
+### Fix
+Added explicit timeframe prefixes to ALL order block and FVG variables:
+- `_htf_order_blocks`, `_htf_fvgs` (H1 - direction/bias)
+- `_mtf_order_blocks`, `_mtf_fvgs` (M15 - structure zones)
+- `_ltf_order_blocks`, `_ltf_fvgs` (M5 - entry timing)
+
+Each timeframe detection path now writes ONLY to its own prefixed variable.
+
+### Prevention (MANDATORY - Protocol Updates)
+- Added explicit prefix convention: _htf_, _mtf_, _ltf_ for timeframe-specific data
+- Added integration test: test_bug11_semantic_collision.py
+- Code review checklist: verify variable timeframe matches detection context
+
+### Files Modified
+- nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py (variable declarations and assignments)
+- nautilus_gold_scalper/tests/test_strategies/test_bug11_semantic_collision.py (new test)
+- nautilus_gold_scalper/BUGFIX_LOG.md (this entry)
+
+**Validation:** Integration test verifies separate MTF/LTF lists
+**Commit:** pending
+
+---
+
 ## 2025-12-23 [FORGE-NAUTILUS] - Signal Starvation Fix (Wave 2)
 
 **Module:** strategies/gold_scalper_strategy.py, signals/confluence_scorer.py, configs/strategy_config_apex_mgc.yaml

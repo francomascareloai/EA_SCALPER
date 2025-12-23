@@ -9,6 +9,7 @@ Calculates optimal position size based on:
 
 Integrates with PropFirmManager for limit compliance.
 """
+import math
 from enum import IntEnum
 
 from ..core.definitions import (
@@ -155,8 +156,12 @@ class PositionSizer:
 
             risk_pct = risk_percent if risk_percent else self._risk_per_trade
             risk_pct = self._apply_drawdown_throttle(risk_pct, current_drawdown_pct)
+            # Apply regime multiplier BEFORE cap to ensure max_risk is never exceeded
+            risk_pct *= regime_multiplier
             risk_pct = min(risk_pct, self._max_risk_per_trade)
             lot = self._calculate_percent_risk(balance, risk_pct, stop_loss_pips, pip_value)
+            # regime_multiplier already applied to risk_pct; skip post-lot application
+            regime_multiplier = 1.0
 
         elif self._method == LotSizeMethod.KELLY:
             if stop_loss_pips is None or pip_value is None:
@@ -164,8 +169,12 @@ class PositionSizer:
 
             kelly_risk = self._calculate_kelly_risk()
             kelly_risk = self._apply_drawdown_throttle(kelly_risk, current_drawdown_pct)
+            # Apply regime multiplier BEFORE cap to ensure max_risk is never exceeded
+            kelly_risk *= regime_multiplier
             kelly_risk = min(kelly_risk, self._max_risk_per_trade)
             lot = self._calculate_percent_risk(balance, kelly_risk, stop_loss_pips, pip_value)
+            # regime_multiplier already applied to risk; skip post-lot application
+            regime_multiplier = 1.0
 
         elif self._method == LotSizeMethod.ATR:
             if atr_value is None or pip_value is None:
@@ -173,9 +182,13 @@ class PositionSizer:
 
             risk_pct = risk_percent if risk_percent else self._risk_per_trade
             risk_pct = self._apply_drawdown_throttle(risk_pct, current_drawdown_pct)
+            # Apply regime multiplier BEFORE cap to ensure max_risk is never exceeded
+            risk_pct *= regime_multiplier
             risk_pct = min(risk_pct, self._max_risk_per_trade)
             sl_pips = atr_value * self._atr_multiplier
             lot = self._calculate_percent_risk(balance, risk_pct, sl_pips, pip_value)
+            # regime_multiplier already applied to risk_pct; skip post-lot application
+            regime_multiplier = 1.0
 
         elif self._method == LotSizeMethod.ADAPTIVE:
             if stop_loss_pips is None or pip_value is None:
@@ -183,17 +196,34 @@ class PositionSizer:
 
             adaptive_risk = self._calculate_adaptive_risk()
             adaptive_risk = self._apply_drawdown_throttle(adaptive_risk, current_drawdown_pct)
+            # Apply regime multiplier BEFORE cap to ensure max_risk is never exceeded
+            adaptive_risk *= regime_multiplier
             adaptive_risk = min(adaptive_risk, self._max_risk_per_trade)
             lot = self._calculate_percent_risk(balance, adaptive_risk, stop_loss_pips, pip_value)
+            # regime_multiplier already applied to risk; skip post-lot application
+            regime_multiplier = 1.0
 
         else:
             raise ValueError(f"Unknown method: {self._method}")
 
-        # Apply regime multiplier
+        # Apply regime multiplier (already applied and reset to 1.0 for risk-based methods)
         lot *= regime_multiplier
 
         # Normalize and enforce limits
         lot = self._normalize_lot(lot)
+
+        # FINAL SAFETY: Verify actual risk does not exceed max_risk_per_trade
+        # This is a belt-and-suspenders check after all transformations
+        if lot > 0 and stop_loss_pips is not None and pip_value is not None and balance > 0:
+            # Formula: actual_risk = (lot * SL_pips * pip_value) / balance
+            # Example: lot=1, SL=50pips, pip_value=10, balance=100000
+            #          actual_risk = (1 * 50 * 10) / 100000 = 0.005 (0.5%)
+            actual_risk = (lot * stop_loss_pips * pip_value) / balance
+            if actual_risk > self._max_risk_per_trade:
+                # Scale down lot to respect max_risk
+                # max_lot = (balance * max_risk) / (SL_pips * pip_value)
+                max_lot = (balance * self._max_risk_per_trade) / (stop_loss_pips * pip_value)
+                lot = self._normalize_lot(max_lot)
 
         return lot
 
@@ -249,14 +279,27 @@ class PositionSizer:
         return lot
 
     def _apply_drawdown_throttle(self, risk_pct: float, drawdown_pct: float) -> float:
-        """Reduce risk when the account is in drawdown."""
+        """Reduce risk when the account is in drawdown.
+
+        CRUCIBLE FIX: Added 2% soft tier for earlier intervention.
+        Tiers (expressed as decimal drawdown):
+        - >= 5% (dd_hard, default 0.05): 75% cut (multiply by 0.25) - Critical zone
+        - >= 3% (dd_soft): 50% cut (multiply by 0.50) - Hard warning
+        - >= 2% (NEW):     25% cut (multiply by 0.75) - Soft warning
+        """
         drawdown_pct = max(0.0, drawdown_pct)
         throttled = risk_pct
 
+        # CRUCIBLE FIX: Multi-tier throttling with earlier intervention
         if drawdown_pct >= self._dd_hard:
-            throttled *= 0.25  # 75% cut beyond 5% DD
+            # Critical zone: >= 4-5% DD, cut risk by 75%
+            throttled *= 0.25
         elif drawdown_pct >= self._dd_soft:
-            throttled *= 0.50  # 50% cut beyond 3% DD
+            # Hard warning: >= 3% DD, cut risk by 50%
+            throttled *= 0.50
+        elif drawdown_pct >= 0.02:
+            # NEW: Soft tier at 2% DD, cut risk by 25%
+            throttled *= 0.75
 
         return max(0.0, throttled)
 
@@ -346,9 +389,13 @@ class PositionSizer:
         if lot <= 0:
             return 0.0
 
-        # Round to lot step
+        # BUG-1 FIX: Use floor() instead of round() to NEVER exceed risk cap.
+        # round() can round UP (e.g., 0.095 -> 0.10), causing lot size to exceed
+        # the calculated risk-compliant value.
+        # Formula: floor(lot / lot_step) * lot_step ensures we always round DOWN.
+        # Example: lot=0.095, lot_step=0.01 -> floor(9.5) * 0.01 = 9 * 0.01 = 0.09
         if self._lot_step > 0:
-            lot = round(lot / self._lot_step) * self._lot_step
+            lot = math.floor(lot / self._lot_step) * self._lot_step
 
         # Enforce minimum
         if lot < self._min_lot:
