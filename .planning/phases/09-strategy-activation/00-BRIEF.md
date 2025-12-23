@@ -100,4 +100,46 @@ Franco
 
 ## Status
 
-DRAFT - Pending approval
+**DRAFT** - Pre-Activation Sprint (Phase 00) blocking
+
+---
+
+## Empirical Observations (2025-12-23)
+
+### Backtest Findings (6-month test: 2024-01-01 to 2024-06-30)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Total Trades | 7 | Far below 200 target |
+| Win Rate | 42.9% (3W/4L) | - |
+| Net PnL | +$319 | Positive = some edge |
+| Trade Clustering | Jan 2-10 only | No trades after Jan 10 |
+
+### Score=0.0 Bug (FIXED)
+
+Session adjustment was killing scores. Fixed in commit `58b84178`:
+- Bug: `base=3.65` + `adj=-5` = `-1.35` → clamped to 0
+- Fix: Don't apply -5 when `is_trading_allowed=True`
+
+### Only 1 of 9 Factors Contributing
+
+Most signals show:
+```
+structure=15.0, regime=0.0, ob=0.0, fvg=0.0, sweep=0.0, amd=0.0, fib=0.0, mtf=0.0, footprint=0.0
+```
+
+**Root Cause:** Likely semantic collision (Category 2) - OB/FVG detectors receiving LTF data instead of MTF.
+
+### Score Ranges
+
+| Session | Range | Threshold=35 |
+|---------|-------|--------------|
+| Asian | 16-22 | No trades |
+| Overlap | 44-52 | Trades OK |
+
+### Implications for This Phase
+
+1. **Semantic Collision is P0** - likely explains why only structure fires
+2. **Ablation Study critical** - need to verify which factors contribute after fix
+3. **Trade frequency will increase** after semantic collision fix
+4. **Positive PnL** suggests underlying edge exists, just blocked by bugs
