@@ -51,30 +51,29 @@ OUTPUT FOLDER: .planning/phases/09-strategy-activation/orchestration/
 
 **Flow por fase:**
 ```
-Phase 00-A → CRITIC (sonnet) → loop ate GO → Next
+Phase 00-A → CRITIC (opus) → loop ate GO → Next
       ↓
-Phase 00-B → CRITIC (sonnet) → loop ate GO → Next
+Phase 00-B → CRITIC (opus) → loop ate GO → Next
       ↓
-Phase 01 → CRITIC (sonnet) → loop ate GO → Next
+Phase 01 → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 02 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
       ↓
-Phase 03 → CRITIC (sonnet) → loop ate GO → Next
+Phase 03 → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 04 → USER DECISION REQUIRED (unico ponto de parada obrigatorio)
       ↓
-Phase 05 → CRITIC (sonnet) → loop ate GO → Next
+Phase 05 → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 06 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
       ↓
-Phase 07 → CRITIC (sonnet) → loop ate GO → Next
+Phase 07 → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 08 → CRITIC + SENTINEL (opus) → loop ate APPROVED → DONE
 ```
 
 **Model Policy:**
-- **Sonnet**: Phases 00-A, 00-B, 01, 03, 05, 07 (standard review)
-- **Opus**: Phases 02, 06, 08 (CRITICAL - money/risk/look-ahead)
+- **Opus**: ALL phases (creditos infinitos)
 
 ---
 
@@ -156,9 +155,9 @@ def execute_phase(phase):
 - [ ] Metricas sao do OUTPUT real (nao inventadas)
 - [ ] Arquivo `PHASE_00A_BASELINE_RESULTS.md` criado
 
-**CRITIC review (sonnet):**
+**CRITIC review (opus):**
 ```
-Spawn CRITIC (sonnet) to review PHASE_00A_BASELINE_RESULTS.md
+Spawn CRITIC (opus) to review PHASE_00A_BASELINE_RESULTS.md
 Check: metrics match actual backtest output? comparison fair? conclusion justified?
 Verify: CRITIC Phase 00-A output file exists before proceeding.
 ```
@@ -179,9 +178,9 @@ Verify: CRITIC Phase 00-A output file exists before proceeding.
 - [ ] Backtest com diagnostic logging mostra 9 fatores > 0
 - [ ] Arquivo `PHASE_00B_BUGFIX_REPORT.md` criado
 
-**CRITIC review (sonnet):**
+**CRITIC review (opus):**
 ```
-Spawn CRITIC (sonnet) to review:
+Spawn CRITIC (opus) to review:
 1. Git diff - changes make sense?
 2. Semantic collision actually fixed?
 3. No new bugs introduced?
@@ -203,9 +202,9 @@ Spawn CRITIC (sonnet) to review:
 - [ ] Trade count > 50 (ou Plan B triggered)
 - [ ] Arquivo `PHASE_01_DIAGNOSTIC_RESULTS.md` criado
 
-**CRITIC review (sonnet):**
+**CRITIC review (opus):**
 ```
-Spawn CRITIC (sonnet) to review:
+Spawn CRITIC (opus) to review:
 1. Are diagnostic numbers from real backtest or estimated?
 2. Verify PHASE_00B_CRITIC_REVIEW.md exists (previous phase reviewed).
 ```
@@ -252,9 +251,9 @@ Spawn CRITIC (opus) to review:
 - [ ] Metricas reais do output
 - [ ] Arquivo `PHASE_03_TREND_FOLLOW.md` criado
 
-**CRITIC review (sonnet):**
+**CRITIC review (opus):**
 ```
-Spawn CRITIC (sonnet) to review:
+Spawn CRITIC (opus) to review:
 1. Strategy makes sense? Metrics from real backtest?
 2. Verify PHASE_02_CRITIC_REVIEW.md exists (previous phase reviewed).
 ```
@@ -294,9 +293,9 @@ Spawn CRITIC (sonnet) to review:
 - [ ] `pytest -q` passa
 - [ ] Arquivo `PHASE_05_INTEGRATION.md` criado
 
-**CRITIC review (sonnet):**
+**CRITIC review (opus):**
 ```
-Spawn CRITIC (sonnet) to review:
+Spawn CRITIC (opus) to review:
 1. Risk code correct? Edge cases handled? Tests exist?
 2. Verify PHASE_04_DECISION.md exists (user decision documented).
 ```
@@ -350,9 +349,9 @@ Spawn CRITIC (opus) to review:
   - `EXECUTION_MODE_TEST.md`
   - `PHASE_07_PAPER_TRADING.md`
 
-**CRITIC review (sonnet):**
+**CRITIC review (opus):**
 ```
-Spawn CRITIC (sonnet) to review:
+Spawn CRITIC (opus) to review:
 1. Paper trading actually happened? Logs real? Issues found?
 2. Verify PHASE_06_CRITIC_REVIEW.md exists (previous phase reviewed).
 ```
