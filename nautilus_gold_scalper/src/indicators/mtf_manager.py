@@ -2,6 +2,10 @@
 Multi-Timeframe (MTF) Manager for institutional trading.
 Migrated from: MQL5/Include/EA_SCALPER/Analysis/CMTFManager.mqh
 
+.. deprecated:: 2025-12-23
+    This module is DEPRECATED. Use ``nautilus_gold_scalper.src.signals.mtf_manager``
+    instead, which provides SMC-based structure analysis rather than EMA-based trend detection.
+
 Analyzes H1/M15/M5/M1 timeframes for trend alignment and confluence.
 Provides bias detection and alignment scoring for high-probability setups.
 
@@ -12,6 +16,7 @@ v1.0 Features:
 - HTF/MTF/LTF bias detection
 - Session quality integration
 """
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
@@ -22,6 +27,14 @@ from numpy.typing import NDArray
 
 from ..core.definitions import SignalType
 from ..core.exceptions import InsufficientDataError
+
+# Emit deprecation warning on import
+warnings.warn(
+    "nautilus_gold_scalper.src.indicators.mtf_manager is deprecated. "
+    "Use nautilus_gold_scalper.src.signals.mtf_manager instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class MTFTrend(IntEnum):

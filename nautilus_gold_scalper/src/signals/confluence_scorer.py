@@ -532,6 +532,24 @@ class ConfluenceScorer:
         result.footprint_score = self._components.footprint_score
         result.footprint_direction = footprint_direction
 
+        # BUG-11 DIAGNOSTIC: Verbose logging of all 9 factor scores for debugging confluence issues.
+        # This helps diagnose why trades are/aren't being triggered.
+        logger.debug(
+            "[CONFLUENCE_SCORER] All 9 Factors: "
+            f"Struct={self._components.structure_score:.1f} "
+            f"Regime={self._components.regime_score:.1f} "
+            f"Session={self._components.session_score:.1f} "
+            f"OB={self._components.ob_score:.1f} (count={len(order_blocks) if order_blocks else 0}) "
+            f"FVG={self._components.fvg_score:.1f} (count={len(fvgs) if fvgs else 0}) "
+            f"Fib={self._components.fib_score:.1f} "
+            f"Sweep={self._components.sweep_score:.1f} (count={len(sweeps) if sweeps else 0}) "
+            f"AMD={self._components.amd_score:.1f} "
+            f"MTF={self._components.mtf_score:.1f} (aligned={mtf_aligned}) "
+            f"Footprint={self._components.footprint_score:.1f} "
+            f"Bonus={self._components.confluence_bonus:.1f} "
+            f"| Dir={primary_direction.name} Price={current_price:.2f}"
+        )
+
         # Calculate total score with GENIUS v4.0+ enhancements
         self._calculate_total(
             result=result,
