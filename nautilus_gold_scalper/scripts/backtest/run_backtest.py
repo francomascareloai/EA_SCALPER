@@ -247,6 +247,30 @@ def load_tick_data(
     if df[['bid', 'ask']].isna().any().any():
         raise ValueError("Tick data contains NaN bid/ask values")
 
+    # Spread sanity: bid must be < ask (no crossed markets)
+    # Filter out invalid ticks instead of failing (small number is acceptable)
+    invalid_spread = df['bid'] >= df['ask']
+    n_invalid = invalid_spread.sum()
+    if n_invalid > 0:
+        pct_invalid = n_invalid / len(df) * 100
+        if pct_invalid > 0.1:  # More than 0.1% invalid = data quality issue
+            raise ValueError(f"Data quality issue: {n_invalid:,} ticks ({pct_invalid:.3f}%) have bid >= ask")
+        print(f"[WARN] Filtered {n_invalid:,} ticks with invalid spread (bid >= ask)")
+        df = df[~invalid_spread].copy()
+
+    # Price range sanity for XAUUSD (gold typically $200-$5000/oz historically)
+    # Filter out outliers instead of failing (small number is acceptable)
+    MIN_PRICE, MAX_PRICE = 200.0, 10000.0
+    out_of_range = (df['bid'] < MIN_PRICE) | (df['ask'] > MAX_PRICE)
+    n_bad = out_of_range.sum()
+    if n_bad > 0:
+        pct_bad = n_bad / len(df) * 100
+        if pct_bad > 0.1:  # More than 0.1% = data quality issue
+            sample_bad = df[out_of_range].head(3)[['datetime', 'bid', 'ask']].to_string()
+            raise ValueError(f"Data quality issue: {n_bad:,} ticks ({pct_bad:.3f}%) out of price range\n{sample_bad}")
+        print(f"[WARN] Filtered {n_bad:,} ticks with price out of range ({MIN_PRICE}-{MAX_PRICE})")
+        df = df[~out_of_range].copy()
+
     step = sample_to_step(sample)
     if step > 1:
         df = df.iloc[::step].copy()
