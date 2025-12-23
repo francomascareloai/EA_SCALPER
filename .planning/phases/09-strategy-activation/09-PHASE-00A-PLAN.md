@@ -3,10 +3,12 @@
 ## Metadata
 - **Phase:** 00-A
 - **Priority:** P0 - CRITICAL (GO/NO-GO GATE)
-- **Status:** Not Started
+- **Status:** COMPLETE
+- **Verdict:** CAUTION
 - **Agents:** 1 ORACLE (opus)
 - **Depends On:** None
 - **Duration:** 2-4 hours
+- **Completed:** 2025-12-23
 
 ---
 
@@ -22,7 +24,7 @@ Validar a tese central do SMC ANTES de gastar semanas em correções. Este é um
 
 ### Task 00A-01: Create EMA Baseline Strategy
 
-**Status:** Not Started
+**Status:** COMPLETE
 
 **Implementation:**
 ```python
@@ -54,15 +56,15 @@ class EMABaseline:
 - Same Apex compliance (time gates, DD limits)
 
 **Acceptance Criteria:**
-- [ ] EMA baseline strategy created
-- [ ] Uses same filters as SMC
-- [ ] Compiles without errors
+- [x] EMA baseline strategy created
+- [x] Uses same filters as SMC
+- [x] Compiles without errors
 
 ---
 
 ### Task 00A-02: Run Identical Backtest
 
-**Status:** Not Started
+**Status:** COMPLETE
 
 **Configuration:**
 ```python
@@ -83,28 +85,28 @@ backtest_config = {
 - Max Drawdown
 
 **Acceptance Criteria:**
-- [ ] Both strategies backtested on same period
-- [ ] All metrics captured
+- [x] Both strategies backtested on same period
+- [x] All metrics captured
 
 ---
 
 ### Task 00A-03: Comparison Analysis
 
-**Status:** Not Started
+**Status:** COMPLETE
 
 **Comparison Table:**
-| Metric | SMC (Current) | EMA Baseline | Delta | % Diff |
-|--------|---------------|--------------|-------|--------|
-| Total Trades | 7 | ? | ? | ? |
-| Win Rate | 42.9% | ? | ? | ? |
-| Net PnL | +$319 | ? | ? | ? |
-| Sharpe | ? | ? | ? | ? |
-| Profit Factor | ? | ? | ? | ? |
-| Max Drawdown | ? | ? | ? | ? |
+| Metric | SMC (Simplified) | EMA Baseline | Delta | % Diff |
+|--------|------------------|--------------|-------|--------|
+| Total Trades | 80 | 77 | +3 | +3.9% |
+| Win Rate | 31.2% | 29.9% | +1.4% | +4.6% |
+| Net PnL | -$8,505 | -$9,410 | +$905 | +9.6% |
+| Sharpe | -7.67 | -5.88 | -1.80 | -30.5% |
+| Profit Factor | 0.68 | 0.64 | +0.04 | +6.1% |
+| Max Drawdown | 10.08% | 10.08% | 0% | -0.1% |
 
 **Acceptance Criteria:**
-- [ ] Comparison table filled
-- [ ] Delta calculated for each metric
+- [x] Comparison table filled
+- [x] Delta calculated for each metric
 
 ---
 
