@@ -2,9 +2,9 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.22</version>
+  <version>3.10.23</version>
   <last_updated>2025-12-24</last_updated>
-  <changelog>v3.10.22: Add falsification patterns library (DeepThink-style) to standardize fast disproof tests across agents.</changelog>
+  <changelog>v3.10.23: Add git_safety rule forbidding git checkout/reset without explicit Franco approval.</changelog>
   <previous_changes>v3.10.20: Add ARGUS research gate to increase evidence-based decisions. | v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
@@ -44,6 +44,19 @@
   </workflow>
   <exception>If proxy is already dead (not running), can restart without asking</exception>
 </cliproxy_protection>
+
+<git_safety priority="CRITICAL">
+  <rule>NEVER run `git checkout` (or any checkout/switch that changes working tree) without EXPLICIT user confirmation from Franco.</rule>
+  <rule>NEVER discard local changes via `git restore`, `git checkout --`, `git reset --hard`, `git clean -fd`, or similar unless explicitly requested.</rule>
+  <reason>
+    These commands can silently lose work and have caused accidental context loss in prior sessions.
+  </reason>
+  <workflow>
+    1. If a solution would normally use checkout/switch: ASK Franco first
+    2. WAIT for explicit "sim/pode" approval
+    3. Only then execute the command
+  </workflow>
+</git_safety>
 
 <core>
   <dataset>
