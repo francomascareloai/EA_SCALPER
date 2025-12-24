@@ -2,20 +2,30 @@
 
 **Owner:** FORGE  
 **Scope:** Python/NautilusTrader migration of EA_SCALPER_XAUUSD  
-**Last update:** 2025-12-20
+**Last update:** 2025-12-24
 ## Directory Map (high level)
 - `configs/` – central strategy config (`strategy_config.yaml`)
 - `configs/strategy_config_apex_mgc.yaml` – Apex/MGC profile (TrendFollow + router enabled; commented)
 - `scripts/` – runners (`run_backtest.py`, future batch/optuna hooks)
 - `src/core/` – enums, constants, datatypes, exceptions
-- `src/indicators/` – regime, structure, footprint, OB/FVG, sweeps, AMD, MTF
-- `src/signals/` – confluence (GENIUS v4.2), news, entry optimizer, MTF manager, TrendFollow candidates
+- `src/indicators/` – regime, structure, footprint, OB/FVG, sweeps, AMD (includes deprecated shims)
+- `src/signals/` – confluence (GENIUS v4.2), news calendar/gating, entry optimizer, MTF manager (canonical), TrendFollow candidates
 - `src/risk/` – prop-firm manager, position sizer, spread monitor, circuit breaker, drawdown/VaR
 - `src/strategies/` – base & gold strategy, selector, adaptive router
 - `src/ml/` – feature engineering, trainer, ensemble predictor
 - `src/execution/` – trade manager (needs test fix), adapters archive
 - `tests/` – unit coverage per module family
 - `reports/backtests/` - output/logs (telemetry CSV from runners)
+
+## Active Modules (Phase 09 Simplification)
+
+### Strategy Selection
+- `src/strategies/strategy_selector.py` selects among `SMC_SCALPER`, `TREND_FOLLOW`, `MEAN_REVERT`, `SAFE_MODE`, or `NONE`.
+- News events are handled via selector penalties/blocks + `NewsCalendar` gating in `GoldScalperStrategy` (no dedicated NEWS_TRADER strategy selection).
+
+### Multi-Timeframe (MTF)
+- Canonical MTF implementation: `src/signals/mtf_manager.py` (SMC-based structure alignment).
+- Deprecated import path: `src/indicators/mtf_manager.py` (shim which re-exports from `src/signals/mtf_manager.py` and emits `DeprecationWarning`).
 
 ## Documentation (root level)
 - `INDEX.md` – This file: structural overview + current state
@@ -57,11 +67,11 @@
 - ❌ PENDING: News calendar hardcoded to Dec 2025 only
 
 ### P1 - High Priority
-1) Batch runner still bar-based (`scripts/batch_backtest.py`); upgrade to tick pipeline + news gating for large sweeps.  
-2) Telemetry JSONL added; still need Parquet schema (signal/open/close, news context, DD) for 1k+ backtests.  
-3) Strategy still runs with HTF disabled when using tick-only bars; optional H1 reconstruction from ticks is pending.  
-4) News events rely on hardcoded 2025 calendar; add loader for CSV/API and inject per-backtest window.  
-5) Execution adapters: wire real MT5/Ninja connections (currently offline stubs) and decide venue routing.  
+1) Batch runner still bar-based (`scripts/batch_backtest.py`); upgrade to tick pipeline + news gating for large sweeps.
+2) Telemetry JSONL added; still need Parquet schema (signal/open/close, news context, DD) for 1k+ backtests.
+3) Strategy still runs with HTF disabled when using tick-only bars; optional H1 reconstruction from ticks is pending.
+4) News events rely on hardcoded 2025 calendar; add loader for CSV/API and inject per-backtest window.
+5) Execution adapters: wire real MT5/Ninja connections (currently offline stubs) and decide venue routing.
 6) Prop firm circuit breaker: mapped to YAML thresholds; still need stress tests + cooldown tuning.
 
 ## Planned Improvements (backtest scale & quality)
@@ -79,13 +89,14 @@
 - Position sizing hooks: apply footprint/news/drawdown multipliers to risk% (partially in place).
 
 ## Changelog (recent)
+- 2025-12-24: StrategySelector no longer selects NEWS_TRADER; `src/indicators/mtf_manager.py` is now a deprecation shim to `src/signals/mtf_manager.py`.
 - 2025-12-11: **DEEP ANALYSIS** by FORGE - Found 7 bugs, fixed 2 critical (look-ahead bias in feature_engineering.py, missing `_min_bars_for_signal` in base_strategy.py)
-- 2025-12-03: NewsCalendar injected into GoldScalperStrategy (block/size/score), intrabar drawdown guard, MTM equity, daily reset tied to tracker.  
-- 2025-12-03: Tick runner defaults (sample=1, threshold=65), CLI `--no-news`, param sweep uses filters on.  
-- 2025-12-03: Footprint strong-signal threshold lifted to 60 to align with stacked+absorption tests.  
-- 2025-12-03: Fixed test blockers: TradeManager signature, DrawdownTracker (severity/streaks/analysis API), PropFirmManager (PropFirmLimits/RiskLevel compatibility).  
-- 2025-12-03: YAML-driven backtest realism (slippage/latency/commission), prop-firm gate, PositionSizer, footprint score in confluence, spread-aware risk, telemetry CSV, equity/DD tracking (`scripts/run_backtest.py`).  
-- 2025-12-03: Footprint Analyzer configurable (decay, score bounds); confluence logs footprint score/direction.  
+- 2025-12-03: NewsCalendar injected into GoldScalperStrategy (block/size/score), intrabar drawdown guard, MTM equity, daily reset tied to tracker.
+- 2025-12-03: Tick runner defaults (sample=1, threshold=65), CLI `--no-news`, param sweep uses filters on.
+- 2025-12-03: Footprint strong-signal threshold lifted to 60 to align with stacked+absorption tests.
+- 2025-12-03: Fixed test blockers: TradeManager signature, DrawdownTracker (severity/streaks/analysis API), PropFirmManager (PropFirmLimits/RiskLevel compatibility).
+- 2025-12-03: YAML-driven backtest realism (slippage/latency/commission), prop-firm gate, PositionSizer, footprint score in confluence, spread-aware risk, telemetry CSV, equity/DD tracking (`scripts/run_backtest.py`).
+- 2025-12-03: Footprint Analyzer configurable (decay, score bounds); confluence logs footprint score/direction.
 - 2025-12-03: Added `configs/strategy_config.yaml` as single source of tunables.
 
 ## Test Status

@@ -24,15 +24,7 @@ nautilus_gold_scalper/
 
 ## Migration Status
 
-- [x] STREAM CORE: definitions.py, data_types.py, exceptions.py
-- [ ] STREAM A: session_filter.py, regime_detector.py
-- [ ] STREAM B: structure_analyzer.py, footprint_analyzer.py
-- [ ] STREAM C: order_block, fvg, liquidity_sweep, amd
-- [ ] STREAM D: prop_firm_manager, position_sizer, drawdown, var
-- [ ] STREAM E: mtf_manager, confluence_scorer
-- [ ] STREAM F: base_strategy, gold_scalper_strategy
-- [ ] STREAM G: feature_engineering, model_trainer, ensemble
-- [ ] STREAM H: trade_manager, apex_adapter
+Migration is complete. For current active modules and architecture state, see `INDEX.md`.
 
 ## Quick Start
 

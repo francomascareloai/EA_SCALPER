@@ -1,0 +1,169 @@
+# SMC Strategy Optimization Configuration
+# Apex Optimizer v1.0
+
+metadata:
+  name: "SMC Confluence Optimization"
+  version: "1.0"
+  description: "Optimize SMC confluence weights and execution parameters for Apex compliance"
+  author: "Franco"
+
+search:
+  mode: bayesian
+  trials: 100
+  sampler: tpe
+  parallelism: 4
+  timeout_per_trial: 300
+  seed: 42
+
+  early_stop:
+    enabled: true
+    patience: 30
+    min_delta: 0.01
+    plateau_trials: 50
+
+parameters:
+  # Confluence scoring weights
+  confluence.scoring.weights.structure:
+    type: float
+    range: [0.15, 0.40]
+    step: 0.05
+    description: "Weight for structure/BOS signals"
+
+  confluence.scoring.weights.liquidity:
+    type: float
+    range: [0.10, 0.35]
+    step: 0.05
+    description: "Weight for liquidity sweep signals"
+
+  confluence.min_threshold:
+    type: float
+    range: [0.45, 0.75]
+    step: 0.05
+    description: "Minimum confluence score to trigger entry"
+
+  # Execution parameters
+  execution.atr_multiplier:
+    type: float
+    range: [1.5, 3.5]
+    step: 0.25
+    description: "ATR multiplier for SL distance"
+
+  execution.tp_ratio:
+    type: float
+    range: [1.5, 3.0]
+    step: 0.25
+    description: "Risk:Reward ratio for TP"
+
+  # Risk parameters
+  risk.max_risk_pct:
+    type: float
+    range: [0.5, 2.0]
+    step: 0.25
+    description: "Max risk per trade as % of equity"
+
+fixed:
+  session.start: "08:00"
+  session.end: "16:30"
+  time_gate.block_new: "16:30"
+  time_gate.force_close: "16:55"
+  risk.max_positions: 1
+
+constraints:
+  apex:
+    trailing_dd_max: 4.5
+    daily_profit_max: 29.0
+    overnight_positions: 0
+    time_gate_violations: 0
+
+  validation:
+    wfe_min: 0.6
+    sqn_min: 2.0
+    psr_min: 0.85
+    min_trades: 200
+    min_years: 5
+
+  anti_overfit:
+    pbo_max: 0.25
+    mc95_dd_max: 4.0
+
+objective:
+  direction: maximize
+  metric: composite
+
+  composite:
+    sqn:
+      weight: 0.40
+      normalize: 5.0
+    wfe:
+      weight: 0.35
+      normalize: 1.0
+    consistency:
+      weight: 0.25
+      source: positive_days_ratio
+      normalize: 1.0
+
+  penalties:
+    trailing_dd:
+      threshold: 3.0
+      decay_rate: 0.5
+    trades:
+      min_required: 200
+      penalty_below: 0.5
+
+validation:
+  inline_wfa:
+    enabled: true
+    windows: 5
+    is_ratio: 0.8
+    purge_days: 5
+    embargo_days: 2
+    early_prune_wfe: 0.5
+
+  regime_check:
+    enabled: false
+    regimes: [trend, range, volatile]
+    min_coverage: 0.7
+    classifier: volatility
+
+stress_test:
+  enabled: true
+  top_n: 5
+
+  monte_carlo:
+    enabled: true
+    simulations: 5000
+    block_bootstrap: true
+    block_size: auto
+    confidence_levels: [0.95, 0.99]
+
+  degradation:
+    enabled: true
+    rates: [0.10, 0.20, 0.30]
+    must_survive: 0.20
+
+  overfitting_detection:
+    cliff_check: true
+    island_check: true
+    regime_bias_check: true
+
+data:
+  path: "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
+  train_range:
+    start: "2010-01-01"
+    end: "2022-12-31"
+  test_range:
+    start: "2023-01-01"
+    end: "2024-12-31"
+
+output:
+  dir: "logs/optimization"
+  session_subfolder: true
+  reports: [json, csv]
+
+  checkpointing:
+    enabled: true
+    interval: 10
+
+  handoff:
+    enabled: true
+    target_agents: [ORACLE, SENTINEL]

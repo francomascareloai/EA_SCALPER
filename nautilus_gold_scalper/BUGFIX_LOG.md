@@ -63,6 +63,148 @@
 
 ## Log Entries
 
+## 🚨 2025-12-24 00:00 [ORCHESTRATOR] - CRITICAL - BUG-14: Look-ahead & State Leakage in SMC Detectors/Scorer
+
+**Module(s):**
+- `nautilus_gold_scalper/src/indicators/order_block_detector.py`
+- `nautilus_gold_scalper/src/indicators/fvg_detector.py`
+- `nautilus_gold_scalper/src/indicators/liquidity_sweep.py`
+- `nautilus_gold_scalper/src/indicators/structure_analyzer.py`
+- `nautilus_gold_scalper/src/indicators/regime_detector.py`
+- `nautilus_gold_scalper/src/signals/confluence_scorer.py`
+
+**Severity:** CRITICAL (Backtest invalidation / live divergence risk)
+
+### Bug Description
+Multiple SMC components read future bars (look-ahead), use non-causal global statistics, or carry state across independent runs. This invalidates backtests/WFA metrics and can cause live behavior to diverge from simulated behavior.
+
+### Evidence (file:line)
+- `nautilus_gold_scalper/src/indicators/order_block_detector.py:112` global mean volume: `np.mean(volumes)` uses full series
+- `nautilus_gold_scalper/src/indicators/order_block_detector.py:352` displacement uses `index + 1` (future bar)
+- `nautilus_gold_scalper/src/indicators/fvg_detector.py:107` global mean volume: `np.mean(volumes)` uses full series
+- `nautilus_gold_scalper/src/indicators/fvg_detector.py:357` volume spike loop includes `index + 1`
+- `nautilus_gold_scalper/src/indicators/liquidity_sweep.py:304` swing confirmation uses `highs[i + j]` / `lows[i + j]`
+- `nautilus_gold_scalper/src/indicators/liquidity_sweep.py:497` sweep validation scans forward from `index` for `max_bars_beyond`
+- `nautilus_gold_scalper/src/indicators/structure_analyzer.py:262` swing detection uses `highs[i + j]` / `lows[i + j]`
+- `nautilus_gold_scalper/src/indicators/structure_analyzer.py:270` swing points created with `timestamp=None`
+- `nautilus_gold_scalper/src/indicators/regime_detector.py:84` hardcoded bias: `hurst - 0.005`
+- `nautilus_gold_scalper/src/indicators/regime_detector.py:68` internal histories persist (`_hurst_history`, `_regime_history`)
+- `nautilus_gold_scalper/src/signals/confluence_scorer.py:946` AMD tracked but omitted from `weighted_scores`/base score
+
+### Impact
+- Backtest PnL, WFE, PSR, SQN, and MC metrics can be inflated/invalid.
+- Walk-forward and Monte Carlo outputs become unreliable for GO/NO-GO decisions.
+- Live trading cannot reproduce look-ahead-dependent signals.
+- Cross-run state retention can leak information between folds/segments.
+
+### Root Cause (5 Whys)
+1. Why? Several detectors implement “confirmation” using symmetric windows and forward validation.
+2. Why? Swing high/low and sweep validation were coded for retrospective detection, not real-time signal generation.
+3. Why? No invariant/tests enforce “bar t outputs depend only on bars ≤ t”.
+4. Why? Backtest-focused iteration lacked explicit temporal-audit gates.
+5. Why? Stateful detectors/scorers were reused across runs without a required reset/instance lifecycle.
+
+### Fix Plan (BUG-14) (PENDING)
+- Replace global `np.mean(volumes)` with causal trailing statistics (windowed or cumulative up to current index).
+- Remove `index + 1` displacement usage; define displacement causally.
+- Make swing/sweep logic causal OR explicitly delay signal emission until confirmation bars exist (and shift timestamps accordingly).
+- Add `reset()`/clear state to `RegimeDetector` and enforce per-run instantiation in backtests/WFA.
+- Resolve scorer consistency: include AMD in weighted total or remove AMD from factor accounting.
+
+### Prevention (PENDING - Protocol Updates)
+- Add unit tests asserting no future-bar access (e.g., index bounds checks and synthetic-series invariants).
+- Add a static scan gate for patterns like `i + j`, `index + 1`, and forward loops in indicator paths.
+- Document invariant in detector/scorer modules: “causal by default; retrospective detection must be explicitly labeled and delayed.”
+
+**Validation:** pending (Phase 02 causal-fix tasks + quick backtest)
+**Commit:** pending
+
+---
+
+## 2025-12-23 [FORGE] - BUG-13: Apex Cutoff Position Close Failure
+
+**Module:** risk/time_constraint_manager.py
+**Severity:** HIGH (Apex compliance - overnight position risk)
+
+### Bug Description
+At Apex cutoff (16:55 ET), `close_all_positions` was being called repeatedly on every tick,
+causing spam of CRITICAL_POSITIONS_NOT_CLOSED errors. The issue was twofold:
+1. In NautilusTrader backtesting, `close_all_positions()` submits market orders that are
+   processed asynchronously on the next tick, not immediately
+2. The code checked `positions_open()` immediately after submitting close orders, which
+   always showed positions as still open (orders not yet filled)
+3. On every subsequent tick, the code re-submitted close orders and logged CRITICAL errors
+
+### Impact
+- Massive log spam: Hundreds of CRITICAL_POSITIONS_NOT_CLOSED messages per session
+- Performance degradation: Redundant close order submissions
+- Misleading alerts: Made it appear positions weren't closing when they would close on next tick
+
+### Root Cause
+Asynchronous order processing in NautilusTrader backtest engine. Close orders are queued
+and processed on the next market data event, not synchronously during the call.
+
+### Fix (BUG-13)
+1. Added `_close_orders_submitted` flag to track if close orders have been submitted
+2. On first cutoff trigger: Submit close orders once, set flag
+3. On subsequent ticks: Check if positions closed, return early if already submitted
+4. Only log CRITICAL once (not on every tick) using `_issued` set tracking
+5. Use `reduce_only=False` to force close regardless of position state
+6. Reset tracking flags in `reset_daily()` for new trading day
+
+### Files Modified
+- nautilus_gold_scalper/src/risk/time_constraint_manager.py (lines 50-53, 180-257)
+  - Added `_close_orders_submitted` and `_close_submitted_ts_ns` tracking
+  - Rewrote `_force_close_all()` to submit orders only once
+  - Added reset in `reset_daily()`
+
+**Validation:** PASS - Backtest shows single cutoff log per day, no more spam
+**Commit:** pending
+
+---
+
+## 2025-12-23 [FORGE] - BUG-12: Position Price/Quantity Type Mismatch
+
+**Module:** strategies/gold_scalper_strategy.py
+**Severity:** MEDIUM (Telemetry/logging failure, trades still execute)
+
+### Bug Description
+In `on_position_opened()` and `on_position_closed()`, code assumed `position.avg_px_open`,
+`position.quantity`, `event.avg_px_close`, and `event.realized_pnl` were Nautilus `Price`/`Quantity`
+objects with `.as_double()` method. In some execution paths, these are already Python `float`
+values, causing AttributeError.
+
+### Impact
+- `[TRADE_MANAGER] fill_entry failed: 'float' object has no attribute 'as_double'`
+- `[TRADE_MANAGER] close_trade failed: 'float' object has no attribute 'as_double'`
+- Trade manager state not updated correctly
+- Telemetry/logging incomplete (trades still executed successfully)
+
+### Root Cause
+NautilusTrader returns different types depending on execution context:
+- Native backtest: Returns Price/Quantity objects
+- Some adapters/modes: Returns raw floats
+
+### Fix (BUG-12)
+Added `hasattr` check before calling `.as_double()` in two locations:
+1. `on_position_opened()` (lines 809-822) - entry price/quantity
+2. `on_position_closed()` (lines 844-855) - close price/realized PnL
+
+```python
+# Pattern applied to all affected values
+avg_px = getattr(object, "attribute", None)
+if avg_px is not None:
+    value = float(avg_px.as_double()) if hasattr(avg_px, "as_double") else float(avg_px)
+```
+
+### Files Modified
+- nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py (lines 809-822, 844-855)
+
+**Validation:** PASS - No more as_double errors in backtest logs
+**Commit:** pending
+
+---
+
 ## 🚨 2025-12-23 [FORGE] - CRITICAL - BUG-11: Semantic Collision in Order Block Variables
 
 **Module:** strategies/gold_scalper_strategy.py
