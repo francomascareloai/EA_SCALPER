@@ -229,12 +229,16 @@ class EntryMode(IntEnum):
 # === CONSTANTS ===
 
 # Risk Management Defaults
-DEFAULT_RISK_PER_TRADE = 0.01   # 1% per trade
+# CRUCIBLE FIX: Reduced risk per trade for Apex safety
+# With 4% halt threshold:
+# - 1% risk = only 4 losses to halt (too aggressive)
+# - 0.5% risk = 8 losses to halt (safer margin)
+DEFAULT_RISK_PER_TRADE = 0.005   # 0.5% per trade (CRUCIBLE: reduced from 1%)
 DEFAULT_MAX_DAILY_LOSS = 0.05   # 5% daily loss limit (FTMO)
 DEFAULT_MAX_TOTAL_LOSS = 0.10   # 10% total loss limit (FTMO)
 DEFAULT_SOFT_STOP = 0.04        # 4% soft stop (warning before hard limit)
 MAX_TRADES_PER_DAY = 15         # Maximum trades per day
-MAX_RISK_PER_TRADE = 0.01       # Hard cap per trade (FTMO-friendly)
+MAX_RISK_PER_TRADE = 0.0075     # 0.75% hard cap per trade (CRUCIBLE: reduced from 1%)
 
 # Signal Quality Tiers (0-100 score thresholds)
 TIER_S_MIN = 90                 # Elite setup, full position
@@ -273,3 +277,9 @@ DEFAULT_KELLY_FRACTION = 0.25   # Default Kelly fraction
 MIN_KELLY_FRACTION = 0.1        # Minimum Kelly fraction
 MAX_KELLY_FRACTION = 0.5        # Maximum Kelly fraction
 DEFAULT_ATR_MULTIPLIER = 1.5    # Default ATR multiplier for SL
+
+# Stop Loss Limits (price units for XAUUSD)
+# For XAUUSD: 1 point = $0.01, so 50 = $50 SL, 15 = $15 SL
+MAX_SL_DISTANCE = 50.0          # Maximum SL distance (~50 pips, $50 for 1 oz)
+MIN_SL_DISTANCE = 15.0          # Minimum SL distance (~15 pips, $15 for 1 oz)
+DEFAULT_SL_DISTANCE = 30.0      # Default SL distance (~30 pips, $30 for 1 oz)

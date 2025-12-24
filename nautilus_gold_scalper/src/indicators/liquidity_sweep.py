@@ -195,18 +195,19 @@ class LiquiditySweepDetector:
         n = len(highs)
         lookback = min(self.lookback_bars, n)
 
+        # NOTE: Equal-high detection must be causal.
+        # We only look backward from i and count prior touches.
         for i in range(self.swing_strength, lookback):
             if i >= len(timestamps):
                 break
+
             high_level = highs[i]
             touches = 1
             first_time = timestamps[i]
             last_time = timestamps[i]
 
-            # Look for other highs at this level
-            for j in range(i + 1, min(lookback, i + 10)):
-                if j >= len(timestamps):
-                    break
+            start = max(0, i - 10)
+            for j in range(start, i):
                 if abs(highs[j] - high_level) <= self.equal_tolerance:
                     touches += 1
                     if timestamps[j] < first_time:
@@ -214,9 +215,7 @@ class LiquiditySweepDetector:
                     if timestamps[j] > last_time:
                         last_time = timestamps[j]
 
-            # Valid equal high if enough touches
             if touches >= self.min_touches:
-                # Check if already exists
                 exists = any(
                     abs(pool.price_level - high_level) <= self.equal_tolerance
                     for pool in self._bsl_pools
@@ -245,18 +244,19 @@ class LiquiditySweepDetector:
         n = len(lows)
         lookback = min(self.lookback_bars, n)
 
+        # NOTE: Equal-low detection must be causal.
+        # We only look backward from i and count prior touches.
         for i in range(self.swing_strength, lookback):
             if i >= len(timestamps):
                 break
+
             low_level = lows[i]
             touches = 1
             first_time = timestamps[i]
             last_time = timestamps[i]
 
-            # Look for other lows at this level
-            for j in range(i + 5, min(lookback, i + 50)):
-                if j >= len(timestamps):
-                    break
+            start = max(0, i - 50)
+            for j in range(start, i):
                 if abs(lows[j] - low_level) <= self.equal_tolerance:
                     touches += 1
                     if timestamps[j] < first_time:
@@ -264,9 +264,7 @@ class LiquiditySweepDetector:
                     if timestamps[j] > last_time:
                         last_time = timestamps[j]
 
-            # Valid equal low if enough touches
             if touches >= self.min_touches:
-                # Check if already exists
                 exists = any(
                     abs(pool.price_level - low_level) <= self.equal_tolerance
                     for pool in self._ssl_pools
@@ -292,31 +290,40 @@ class LiquiditySweepDetector:
         lows: NDArray[np.floating[Any]],
         timestamps: NDArray[np.datetime64],
     ) -> None:
-        """Find swing highs (BSL)."""
+        """Find swing highs (BSL) causally.
+
+        A swing high is confirmed only after `swing_strength` bars have elapsed.
+        We therefore evaluate candidate index `cand = i - strength` using a symmetric
+        window which is fully known at time `i`.
+        """
         n = len(highs)
         lookback = min(self.lookback_bars, n)
         strength = self.swing_strength
 
-        for i in range(strength, lookback - strength):
-            is_swing_high = True
+        if lookback < (strength * 2 + 1):
+            return
 
-            # Check bars on both sides
+        for i in range(strength * 2, lookback):
+            cand = i - strength
+            if cand - strength < 0 or cand + strength >= len(highs):
+                continue
+
+            is_swing_high = True
             for j in range(1, strength + 1):
-                if highs[i] <= highs[i - j] or highs[i] <= highs[i + j]:
+                if highs[cand] <= highs[cand - j] or highs[cand] <= highs[cand + j]:
                     is_swing_high = False
                     break
 
             if is_swing_high:
-                # Check if already exists (equal high or swing)
                 exists = any(
-                    abs(pool.price_level - highs[i]) <= self.equal_tolerance
+                    abs(pool.price_level - highs[cand]) <= self.equal_tolerance
                     for pool in self._bsl_pools
                 )
 
                 if not exists:
                     pool = LiquidityPool()
-                    pool.timestamp = datetime.fromtimestamp(timestamps[i].astype("datetime64[s]").astype(int))
-                    pool.price_level = float(highs[i])
+                    pool.timestamp = datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int))
+                    pool.price_level = float(highs[cand])
                     pool.liquidity_type = LiquidityType.LIQUIDITY_BSL
                     pool.state = LiquidityState.LIQUIDITY_UNTAPPED
                     pool.touch_count = 1
@@ -333,31 +340,40 @@ class LiquiditySweepDetector:
         lows: NDArray[np.floating[Any]],
         timestamps: NDArray[np.datetime64],
     ) -> None:
-        """Find swing lows (SSL)."""
+        """Find swing lows (SSL) causally.
+
+        A swing low is confirmed only after `swing_strength` bars have elapsed.
+        We evaluate candidate index `cand = i - strength` using a symmetric window
+        which is fully known at time `i`.
+        """
         n = len(lows)
         lookback = min(self.lookback_bars, n)
         strength = self.swing_strength
 
-        for i in range(strength, lookback - strength):
-            is_swing_low = True
+        if lookback < (strength * 2 + 1):
+            return
 
-            # Check bars on both sides
+        for i in range(strength * 2, lookback):
+            cand = i - strength
+            if cand - strength < 0 or cand + strength >= len(lows):
+                continue
+
+            is_swing_low = True
             for j in range(1, strength + 1):
-                if lows[i] >= lows[i - j] or lows[i] >= lows[i + j]:
+                if lows[cand] >= lows[cand - j] or lows[cand] >= lows[cand + j]:
                     is_swing_low = False
                     break
 
             if is_swing_low:
-                # Check if already exists
                 exists = any(
-                    abs(pool.price_level - lows[i]) <= self.equal_tolerance
+                    abs(pool.price_level - lows[cand]) <= self.equal_tolerance
                     for pool in self._ssl_pools
                 )
 
                 if not exists:
                     pool = LiquidityPool()
-                    pool.timestamp = datetime.fromtimestamp(timestamps[i].astype("datetime64[s]").astype(int))
-                    pool.price_level = float(lows[i])
+                    pool.timestamp = datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int))
+                    pool.price_level = float(lows[cand])
                     pool.liquidity_type = LiquidityType.LIQUIDITY_SSL
                     pool.state = LiquidityState.LIQUIDITY_UNTAPPED
                     pool.touch_count = 1
@@ -492,17 +508,8 @@ class LiquiditySweepDetector:
         if closes[index] >= sweep_level:
             return False
 
-        # Check how many bars stayed beyond (fake if too many)
-        bars_beyond = 0
-        for i in range(index, min(index + self.max_bars_beyond + 1, len(closes))):
-            if closes[i] > sweep_level:
-                bars_beyond += 1
-            else:
-                break
-
-        if bars_beyond > self.max_bars_beyond:
-            return False
-
+        # NOTE: We intentionally do NOT scan forward bars here.
+        # Forward validation introduces look-ahead in backtests.
         return True
 
     def _validate_sweep_bearish(
@@ -536,17 +543,8 @@ class LiquiditySweepDetector:
         if closes[index] <= sweep_level:
             return False
 
-        # Check how many bars stayed beyond
-        bars_beyond = 0
-        for i in range(index, min(index + self.max_bars_beyond + 1, len(closes))):
-            if closes[i] < sweep_level:
-                bars_beyond += 1
-            else:
-                break
-
-        if bars_beyond > self.max_bars_beyond:
-            return False
-
+        # NOTE: We intentionally do NOT scan forward bars here.
+        # Forward validation introduces look-ahead in backtests.
         return True
 
     def _calculate_sweep_strength(

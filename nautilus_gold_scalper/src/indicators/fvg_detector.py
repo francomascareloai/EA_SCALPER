@@ -103,12 +103,17 @@ class FVGDetector:
         # Reset storage
         self._fvgs = []
 
-        # Calculate average volume if provided
-        avg_volume = float(np.mean(volumes)) if volumes is not None else None
-
         # Scan for FVGs causally: confirm the 3-candle pattern at the close of candle i.
         # Here, i is the third candle; the pattern uses candles (i-2, i-1, i).
         for i in range(2, n):
+            # Causal trailing average volume (exclude current candle).
+            avg_volume: float | None = None
+            if volumes is not None:
+                start = max(0, i - 50)
+                window = volumes[start:i]
+                if len(window) > 0:
+                    avg_volume = float(np.mean(window))
+
             # Check for bullish FVG
             if self._is_bullish_fvg_pattern(highs, lows, i):
                 fvg = self._create_bullish_fvg(
@@ -352,11 +357,11 @@ class FVGDetector:
         if volumes is None or avg_volume is None or avg_volume == 0:
             return False
 
-        # Check volume of the 3 candles forming the FVG
-        total_volume: float = 0.0
-        for i in range(index - 1, min(index + 2, len(volumes))):
-            total_volume += float(volumes[i])
+        # Check volume of the 3 candles forming the FVG (index-2, index-1, index).
+        if index - 2 < 0:
+            return False
 
+        total_volume = float(volumes[index - 2]) + float(volumes[index - 1]) + float(volumes[index])
         return (total_volume / 3) > avg_volume * self.volume_threshold
 
     def _calculate_fvg_quality_score(self, fvg: FairValueGap) -> float:

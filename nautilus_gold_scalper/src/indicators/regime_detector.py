@@ -70,6 +70,14 @@ class RegimeDetector:
         self._bars_in_current_regime = 0
         self._previous_regime: MarketRegime = MarketRegime.REGIME_UNKNOWN
 
+    def reset(self) -> None:
+        """Reset internal state to avoid cross-run leakage (e.g., WFA folds/backtest segments)."""
+        self._kalman = KalmanState()
+        self._regime_history = []
+        self._hurst_history = []
+        self._bars_in_current_regime = 0
+        self._previous_regime = MarketRegime.REGIME_UNKNOWN
+
     def analyze(
         self,
         prices: NDArray[np.floating[Any]],
@@ -81,7 +89,7 @@ class RegimeDetector:
             raise InsufficientDataError(f"Precisa de pelo menos {min_bars} barras")
 
         hurst = self._calculate_hurst(prices[-self.hurst_period :])
-        hurst = max(0.0, min(1.0, hurst - 0.005))  # small bias to favor reverting in tests
+        hurst = max(0.0, min(1.0, hurst))
         entropy = self._calculate_entropy(prices[-self.entropy_period :])
         vr = self._calculate_variance_ratio(prices[-self.vr_period * 2 :])
 
@@ -378,4 +386,36 @@ class RegimeDetector:
 
         # Fallback (should not reach here with proper thresholds)
         return "RANDOM_WALK"
-# ✓ FORGE v4.0: 7/7 checks
+
+    def is_regime_stable(
+        self, min_bars: int = 10, max_transition_prob: float = 0.4
+    ) -> tuple[bool, str]:
+        """
+        CRUCIBLE FIX: Require regime stability before trading.
+
+        Avoids entering trades during regime transitions which have
+        higher failure rates due to changing market dynamics.
+
+        Args:
+            min_bars: Minimum bars in current regime required (default: 10)
+            max_transition_prob: Maximum acceptable transition probability (default: 0.4)
+
+        Returns:
+            (stable, reason)
+            - stable: True if regime is stable enough for trading
+            - reason: Human-readable explanation
+        """
+        # Check minimum bars in current regime
+        if self._bars_in_current_regime < min_bars:
+            return False, f"Regime too new ({self._bars_in_current_regime}/{min_bars} bars)"
+
+        # Calculate current transition probability from Hurst history
+        if len(self._hurst_history) >= 10:
+            current_hurst = self._hurst_history[-1]
+            transition_prob = self._calculate_transition_probability(current_hurst)
+
+            if transition_prob > max_transition_prob:
+                return False, f"High transition probability ({transition_prob:.1%} > {max_transition_prob:.0%})"
+
+        return True, "Regime stable"
+# FORGE v4.0: 7/7 checks

@@ -256,21 +256,30 @@ class StructureAnalyzer:
         n = len(highs)
         strength = self.swing_strength
 
-        for i in range(strength, n - strength):
+        # Causal swing detection with delayed confirmation.
+        # A swing at candidate index `cand` is only confirmed once `strength` bars have elapsed.
+        # We evaluate `cand = i - strength` using the symmetric window [cand-strength, cand+strength]
+        # which is fully known at time `i`.
+        if n < (strength * 2 + 1):
+            return
+
+        for i in range(strength * 2, n):
+            cand = i - strength
+            if cand - strength < 0 or cand + strength >= n:
+                continue
+
             # Check swing high
             is_swing_high = True
-            for j in range(-strength, strength + 1):
-                if j == 0:
-                    continue
-                if highs[i + j] >= highs[i]:
+            for j in range(1, strength + 1):
+                if highs[cand] <= highs[cand - j] or highs[cand] <= highs[cand + j]:
                     is_swing_high = False
                     break
 
             if is_swing_high:
                 self._swing_highs.append(SwingPoint(
-                    timestamp=None,
-                    price=float(highs[i]),
-                    bar_index=i,
+                    timestamp=datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int)),
+                    price=float(highs[cand]),
+                    bar_index=cand,
                     is_high=True,
                     point_type=StructurePointType.HH,  # Will be reclassified
                     is_valid=True,
@@ -278,18 +287,16 @@ class StructureAnalyzer:
 
             # Check swing low
             is_swing_low = True
-            for j in range(-strength, strength + 1):
-                if j == 0:
-                    continue
-                if lows[i + j] <= lows[i]:
+            for j in range(1, strength + 1):
+                if lows[cand] >= lows[cand - j] or lows[cand] >= lows[cand + j]:
                     is_swing_low = False
                     break
 
             if is_swing_low:
                 self._swing_lows.append(SwingPoint(
-                    timestamp=None,
-                    price=float(lows[i]),
-                    bar_index=i,
+                    timestamp=datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int)),
+                    price=float(lows[cand]),
+                    bar_index=cand,
                     is_high=False,
                     point_type=StructurePointType.LL,  # Will be reclassified
                     is_valid=True,

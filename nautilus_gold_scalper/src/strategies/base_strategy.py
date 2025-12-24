@@ -24,6 +24,7 @@ from nautilus_trader.core.message import Event
 from nautilus_trader.model import (
     Bar,
     BarType,
+    ClientOrderId,
     InstrumentId,
     Position,
     QuoteTick,
@@ -78,6 +79,11 @@ class BaseStrategyConfig(NautilusStrategyConfig):  # type: ignore[misc]
     min_rr_ratio: float = 1.5
     target_rr_ratio: float = 2.5
     max_spread_points: int = 80
+
+    # Bracket order confirmation timeout (nanoseconds)
+    # Default 60 seconds for backtest compatibility with stride tick data
+    # In live trading, this can be reduced to 5-10 seconds
+    bracket_confirm_timeout_ns: int = 60_000_000_000
 
     # Feature flags
     use_session_filter: bool = True
@@ -143,7 +149,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._bracket_tp_confirmed: bool = False
         self._bracket_tp_expected: bool = False
         self._bracket_submitted_ts_ns: int | None = None
-        self._bracket_confirm_timeout_ns: int = int(getattr(config, "bracket_confirm_timeout_ns", 5_000_000_000))
+        self._bracket_confirm_timeout_ns: int = int(getattr(config, "bracket_confirm_timeout_ns", 60_000_000_000))
         self._active_position_id: str | None = None
         self._execution_failsafe_triggered: bool = False
         self._trading_blocked_today: bool = False
@@ -239,8 +245,12 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._position = None
         self._daily_trades = 0
         self._daily_pnl = 0.0
-        self._is_trading_allowed = not bool(getattr(self, "_execution_failsafe_triggered", False))
-        self._trading_blocked_today = bool(getattr(self, "_execution_failsafe_triggered", False))
+        # BUG-6 FIX: Also reset failsafe on reset() for fresh start
+        if self._execution_failsafe_triggered:
+            self.log.info("[RESET] Clearing execution failsafe")
+            self._execution_failsafe_triggered = False
+        self._is_trading_allowed = True
+        self._trading_blocked_today = False
         self._clear_pending_orders_and_brackets(reason="reset")
         self.log.info("[RESET] Daily reset - preserving indicator state")
 
@@ -258,7 +268,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if hasattr(self, "_check_daily_reset"):
             try:
                 ts_ns = int(getattr(event, "ts_event", 0) or 0)
-                self._check_daily_reset(ts_ns)  # type: ignore[attr-defined]
+                self._check_daily_reset(ts_ns)
                 return
             except Exception:
                 self.log.debug("Delegated daily reset failed", exc_info=True)
@@ -269,9 +279,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._daily_trades = 0
         self._daily_pnl = 0.0
 
-        # Only clear daily-scoped blocks here; trailing DD is not a daily rule.
-        self._is_trading_allowed = not bool(getattr(self, "_execution_failsafe_triggered", False))
-        self._trading_blocked_today = bool(getattr(self, "_execution_failsafe_triggered", False))
+        # BUG-6 FIX: Reset execution failsafe at start of new trading day.
+        # Previously, failsafe persisted forever once triggered, blocking all future trades.
+        # In backtest mode, each day should start fresh. In live, overnight positions are not allowed
+        # anyway (Apex rule), so resetting is safe.
+        # Formula: new_day = fresh_start (no persistent halt from previous day's cutoff)
+        if self._execution_failsafe_triggered:
+            self.log.info("[DAILY_RESET] Clearing execution failsafe from previous day")
+            self._execution_failsafe_triggered = False
+
+        # Daily blocks now properly reset
+        self._is_trading_allowed = True
+        self._trading_blocked_today = False
         self._clear_pending_orders_and_brackets(reason="new_day")
         self.log.info(f"[DAILY_RESET] _is_trading_allowed = {self._is_trading_allowed} (daily reset)")
 
@@ -528,10 +547,44 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.log.warning(f"[BLOCKED] _is_trading_allowed = False (max daily trades: {self._daily_trades})")
 
     def on_position_changed(self, event: PositionChanged) -> None:
-        """Handle position changed event."""
+        """Handle position changed event.
+
+        BUG-5 FIX: When position quantity increases (additional partial fills),
+        the SL order must be updated to match the new position quantity.
+        Otherwise, some units remain unprotected.
+        """
         cache = getattr(self, "cache", None)
-        if cache is not None and hasattr(cache, "position"):
-            self._position = cache.position(event.position_id)
+        if cache is None or not hasattr(cache, "position"):
+            return
+
+        # Capture old quantity before updating position
+        old_qty: float = 0.0
+        if self._position is not None:
+            old_qty = (
+                self._position.quantity.as_double()
+                if hasattr(self._position.quantity, "as_double")
+                else float(self._position.quantity)
+            )
+
+        # Update position from cache
+        self._position = cache.position(event.position_id)
+
+        if self._position is None:
+            return
+
+        # Get new quantity
+        new_qty = (
+            self._position.quantity.as_double()
+            if hasattr(self._position.quantity, "as_double")
+            else float(self._position.quantity)
+        )
+
+        # BUG-5 FIX: If quantity increased and we have an SL order, update it
+        # Formula: qty_delta = new_qty - old_qty
+        # Example: old_qty=50, new_qty=100 -> delta=50 (positive means increase)
+        qty_delta = new_qty - old_qty
+        if qty_delta > 0 and self._bracket_sl_client_order_id is not None:
+            self._sync_sl_quantity_on_position_increase(new_qty)
 
     def on_position_closed(self, event: PositionClosed) -> None:
         """Handle position closed event."""
@@ -753,7 +806,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.log.debug(f"[WP0] cleared pending brackets ({reason})")
 
     def _trigger_execution_failsafe(self, reason: str) -> None:
-        """Fail-safe: cancel orders, flatten positions, and halt trading."""
+        """Fail-safe: cancel orders, flatten positions, and halt trading.
+
+        BUG-13 FIX: Try reduce_only=True first, then reduce_only=False on failure.
+        """
         if self._execution_failsafe_triggered:
             return
         self._execution_failsafe_triggered = True
@@ -763,10 +819,17 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.cancel_all_orders(self.config.instrument_id)
         except Exception:
             self.log.debug("[FAILSAFE] cancel_all_orders failed", exc_info=True)
+
+        # BUG-13 FIX: Try with reduce_only=True first, then False as fallback
         try:
-            self.close_all_positions(self.config.instrument_id)
+            self.close_all_positions(self.config.instrument_id, reduce_only=True)
         except Exception:
-            self.log.debug("[FAILSAFE] close_all_positions failed", exc_info=True)
+            self.log.debug("[FAILSAFE] close_all_positions (reduce_only=True) failed", exc_info=True)
+            try:
+                # Fallback: force close without reduce_only restriction
+                self.close_all_positions(self.config.instrument_id, reduce_only=False)
+            except Exception:
+                self.log.debug("[FAILSAFE] close_all_positions (reduce_only=False) failed", exc_info=True)
 
         self._is_trading_allowed = False
         self._trading_blocked_today = True
@@ -899,6 +962,86 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if self._bracket_tp_expected and self._bracket_tp_client_order_id is None:
             self._trigger_execution_failsafe(reason="position_opened_without_tp")
             return
+
+    def _sync_sl_quantity_on_position_increase(self, new_qty: float) -> None:
+        """BUG-5 FIX: Update SL order quantity when position quantity increases.
+
+        When additional partial fills increase position size, the existing SL
+        order may cover less than the full position, leaving units unprotected.
+
+        This method cancels the existing SL and submits a new one with the
+        correct quantity.
+
+        Args:
+            new_qty: The new total position quantity to protect.
+
+        Formula: SL quantity must equal position quantity for full protection.
+        Example: If position grew from 50 to 100 units, cancel SL(50), submit SL(100).
+        """
+        if self._position is None:
+            return
+
+        if self._bracket_sl_client_order_id is None:
+            # No SL to update - this should not happen, but fail-safe
+            self._trigger_execution_failsafe(reason="position_increased_without_sl")
+            return
+
+        # Get current SL trigger price from cache (need to preserve it)
+        sl_trigger_price: Price | None = None
+        try:
+            # Try to find the SL order in cache to get its trigger price
+            # Note: ClientOrderId imported at module level (FORGE recommendation)
+            sl_order_id = ClientOrderId(self._bracket_sl_client_order_id)
+            sl_order = self.cache.order(sl_order_id)
+            if sl_order is not None:
+                sl_trigger_price = getattr(sl_order, "trigger_price", None)
+        except Exception:
+            self.log.warning("[BUG-5] Could not retrieve SL trigger price from cache")
+
+        if sl_trigger_price is None:
+            # Cannot proceed without knowing where to place SL
+            self._trigger_execution_failsafe(reason="position_increased_sl_price_unknown")
+            return
+
+        # Cancel existing SL order
+        try:
+            # Note: ClientOrderId imported at module level (FORGE recommendation)
+            old_sl_order_id = ClientOrderId(self._bracket_sl_client_order_id)
+            old_sl_order = self.cache.order(old_sl_order_id)
+            if old_sl_order is not None:
+                self.cancel_order(old_sl_order)
+                self.log.info(
+                    f"[BUG-5] Cancelled old SL order (id={self._bracket_sl_client_order_id}) "
+                    f"due to position quantity increase"
+                )
+        except Exception as e:
+            self.log.warning(f"[BUG-5] Failed to cancel old SL order: {e}")
+
+        # Submit new SL order with updated quantity
+        if self._position.side == PositionSide.LONG:
+            exit_side = OrderSide.SELL
+        else:
+            exit_side = OrderSide.BUY
+
+        new_sl_qty = self._quantity_from_float(new_qty, rounding="floor")
+        new_sl_order = self.order_factory.stop_market(
+            instrument_id=self.config.instrument_id,
+            order_side=exit_side,
+            quantity=new_sl_qty,
+            trigger_price=sl_trigger_price,
+            time_in_force=TimeInForce.GTC,
+            reduce_only=True,
+        )
+        self.submit_order(new_sl_order)
+
+        # Update tracking
+        self._bracket_sl_client_order_id = str(new_sl_order.client_order_id)
+        self._bracket_sl_confirmed = False  # Reset confirmation status
+
+        self.log.info(
+            f"[BUG-5] Submitted new SL order @ {sl_trigger_price} with qty={new_sl_qty} "
+            f"(id={self._bracket_sl_client_order_id})"
+        )
 
     def _simulate_partial_fill(self, quantity: Quantity, side: str) -> Quantity:
         """

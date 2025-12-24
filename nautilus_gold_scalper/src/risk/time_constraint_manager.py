@@ -4,7 +4,7 @@ Enforces Apex daily cutoff (4:59 PM ET) with staged warnings.
 """
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime, time, timezone as dt_timezone
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
@@ -46,6 +46,11 @@ class TimeConstraintManager:
         self.allow_overnight = allow_overnight
         self._issued: set[str] = set()
         self.telemetry = telemetry
+
+        # BUG-13 FIX: Track if close orders have already been submitted
+        # to prevent spamming on every tick after cutoff
+        self._close_orders_submitted: bool = False
+        self._close_submitted_ts_ns: int | None = None
 
         self._clock = clock
         self._use_clock_timer = use_clock_timer
@@ -155,35 +160,83 @@ class TimeConstraintManager:
 
         # Degraded mode: without reliable ET conversion, fail-safe.
         # If we can't compute ET reliably, assume we're in the danger window and block.
+        # M4 FIX: Use datetime.timezone.utc (imported as dt_timezone) as ultimate fallback
+        # in case ZoneInfo("UTC") also fails.
+        try:
+            fallback_tz = ZoneInfo("UTC")
+        except Exception:
+            fallback_tz = dt_timezone.utc  # type: ignore[assignment]
         self._force_close_all(
-            datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("UTC")),
+            datetime.fromtimestamp(ts_ns / 1e9, tz=fallback_tz),
             trigger="timezone_unavailable",
             gate_time=None,
         )
-        return datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("UTC"))
+        return datetime.fromtimestamp(ts_ns / 1e9, tz=fallback_tz)
 
     def reset_daily(self) -> None:
         """Reset warning flags for a new trading day."""
         self._issued.clear()
+        # BUG-13 FIX: Reset close order tracking for new day
+        self._close_orders_submitted = False
+        self._close_submitted_ts_ns = None
 
     def _force_close_all(self, dt_et: datetime, *, trigger: str, gate_time: time | None) -> None:
-        """Flatten all positions and block further trading for the day."""
+        """Flatten all positions and block further trading for the day.
+
+        BUG-13 FIX: In NautilusTrader backtesting, close_all_positions() submits
+        market orders that are processed asynchronously on the next tick.
+        We must track that close orders have been submitted and not spam
+        retries on every tick. Only submit close orders once, then rely on
+        normal order flow to fill them.
+        """
+        # BUG-13 FIX: Check if we already submitted close orders
+        # If so, don't keep re-submitting on every tick
+        if self._close_orders_submitted:
+            # Check if positions are now closed
+            remaining = list(self.strategy.cache.positions_open())
+            if not remaining:
+                # Success - positions closed, nothing more to do
+                return
+            # Still have positions open - just return and let the engine process
+            # the close orders we already submitted. Only log CRITICAL once.
+            if "critical_logged" not in self._issued:
+                self._issued.add("critical_logged")
+                self.strategy.log.error(
+                    f'{{"event":"CRITICAL_POSITIONS_PENDING_CLOSE","trigger":"{trigger}",'
+                    f'"remaining_count":{len(remaining)},'
+                    f'"note":"Close orders submitted, waiting for fill"}}'
+                )
+            return
+
+        # First time in cutoff window - submit close orders
+        self._close_orders_submitted = True
+
+        # Cancel all orders first (SL/TP that might interfere)
         try:
             self.strategy.cancel_all_orders(getattr(self.strategy.config, "instrument_id", None))
         except Exception:
             pass
 
+        # Submit close orders (they will be processed on next tick in backtest)
         try:
-            self.strategy.close_all_positions(getattr(self.strategy.config, "instrument_id", None))
+            # Try close_all_positions first
+            self.strategy.close_all_positions(
+                getattr(self.strategy.config, "instrument_id", None),
+                reduce_only=False,  # Force close, don't use reduce_only which can fail
+            )
         except Exception:
+            # Fallback: try closing positions individually
             for pos in self.strategy.cache.positions_open():
                 try:
-                    self.strategy.close_position(pos)
+                    self.strategy.close_position(pos, reduce_only=False)
                 except Exception:
                     pass
 
-        self.strategy._is_trading_allowed = False
-        self.strategy._trading_blocked_today = True
+        # Block further trading
+        if hasattr(self.strategy, "_is_trading_allowed"):
+            self.strategy._is_trading_allowed = False
+        if hasattr(self.strategy, "_trading_blocked_today"):
+            self.strategy._trading_blocked_today = True
 
         gate_str = gate_time.strftime("%H:%M") if gate_time is not None else "unknown"
         if "flatten" not in self._issued:
@@ -237,5 +290,5 @@ class TimeManagedStrategy(Protocol):
     _trading_blocked_today: bool
 
     def cancel_all_orders(self, instrument_id: object) -> None: ...
-    def close_all_positions(self, instrument_id: object) -> None: ...
-    def close_position(self, position_id: object) -> None: ...
+    def close_all_positions(self, instrument_id: object, reduce_only: bool = ...) -> None: ...
+    def close_position(self, position_id: object, reduce_only: bool = ...) -> None: ...

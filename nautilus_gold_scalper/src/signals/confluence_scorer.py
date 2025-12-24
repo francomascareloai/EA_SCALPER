@@ -14,6 +14,7 @@ GENIUS v4.0+ Features:
 - Phase 1 multipliers: alignment, freshness, divergence (v4.1)
 - ICT 7-step sequential confirmation (v4.0)
 """
+
 import logging
 from dataclasses import dataclass
 
@@ -77,6 +78,37 @@ class ScoringComponents:
     bearish_factors: int = 0
 
 
+@dataclass
+class FactorActivationCounters:
+    """Counts how often each factor contributes during a run."""
+
+    bars_analyzed: int = 0
+
+    structure_fired: int = 0
+    order_blocks_fired: int = 0
+    fvgs_fired: int = 0
+    session_allowed: int = 0
+    mtf_aligned: int = 0
+    amd_fired: int = 0
+    fibonacci_fired: int = 0
+    footprint_fired: int = 0
+    liquidity_sweep_fired: int = 0
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            "bars_analyzed": self.bars_analyzed,
+            "structure_fired": self.structure_fired,
+            "order_blocks_fired": self.order_blocks_fired,
+            "fvgs_fired": self.fvgs_fired,
+            "session_allowed": self.session_allowed,
+            "mtf_aligned": self.mtf_aligned,
+            "amd_fired": self.amd_fired,
+            "fibonacci_fired": self.fibonacci_fired,
+            "footprint_fired": self.footprint_fired,
+            "liquidity_sweep_fired": self.liquidity_sweep_fired,
+        }
+
+
 class SessionWeightProfile:
     """
     Session-specific factor weights (GENIUS v4.2).
@@ -89,7 +121,8 @@ class SessionWeightProfile:
         'sweep': 0.08,
         'ob': 0.17,
         'fvg': 0.14,
-        'zone': 0.07,
+        'zone': 0.04,
+        'amd': 0.03,
         'mtf': 0.10,
         'footprint': 0.08,
         'fib': 0.09,
@@ -106,6 +139,7 @@ class SessionWeightProfile:
         'mtf': 0.10,
         'footprint': 0.08,
         'fib': 0.05,
+        'amd': 0.0,
     }
 
     # NY Overlap: BEST - all factors balanced
@@ -119,6 +153,7 @@ class SessionWeightProfile:
         'mtf': 0.12,
         'footprint': 0.11,
         'fib': 0.05,
+        'amd': 0.0,
     }
 
     # NY session: Momentum, footprint is king
@@ -132,6 +167,7 @@ class SessionWeightProfile:
         'mtf': 0.12,
         'footprint': 0.22,
         'fib': 0.06,
+        'amd': 0.0,
     }
 
     # Default (unknown/late sessions): Balanced
@@ -145,6 +181,7 @@ class SessionWeightProfile:
         'mtf': 0.12,
         'footprint': 0.12,
         'fib': 0.06,
+        'amd': 0.0,
     }
 
     @classmethod
@@ -335,6 +372,7 @@ class ConfluenceScorer:
         self.weight_footprint = float(weight_footprint)
 
         self._components = ScoringComponents()
+        self._factor_counters = FactorActivationCounters()
 
     def _calculate_alignment_multiplier(self, result: ConfluenceResult) -> float:
         """
@@ -479,6 +517,7 @@ class ConfluenceScorer:
         """
         result = ConfluenceResult()
         self._components = ScoringComponents()
+        self._factor_counters.bars_analyzed += 1
 
         # Determine primary direction from structure
         primary_direction = SignalType.SIGNAL_NONE
@@ -522,11 +561,14 @@ class ConfluenceScorer:
         # Session weights in _calculate_total will apply the proper weighting.
         self._components.mtf_score = mtf_score
         if mtf_aligned:
+            self._factor_counters.mtf_aligned += 1
             self._components.confluence_bonus += 10
 
         # 9. Footprint Score
         # CRUCIBLE FIX: Same issue as MTF - footprint_score is already 0-100 normalized.
         self._components.footprint_score = footprint_score
+        if self._components.footprint_score > 0:
+            self._factor_counters.footprint_fired += 1
         if footprint_direction == primary_direction and footprint_direction != SignalType.SIGNAL_NONE:
             self._components.confluence_bonus += 5
         result.footprint_score = self._components.footprint_score
@@ -608,6 +650,8 @@ class ConfluenceScorer:
 
         self._components.structure_score = min(self.weight_structure, score)
         result.structure_score = self._components.structure_score
+        if self._components.structure_score > 0:
+            self._factor_counters.structure_fired += 1
 
         logger.debug(f"Structure score: {self._components.structure_score:.1f}, bias={state.bias}")
 
@@ -670,6 +714,8 @@ class ConfluenceScorer:
         self._components.session_adjustment = adjustment
         result.session_score = score
         result.session_filter_ok = session.is_trading_allowed
+        if session.is_trading_allowed:
+            self._factor_counters.session_allowed += 1
 
     def _score_order_blocks(
         self,
@@ -713,6 +759,8 @@ class ConfluenceScorer:
 
         self._components.ob_score = min(self.weight_order_block, score)
         result.ob_score = self._components.ob_score
+        if self._components.ob_score > 0:
+            self._factor_counters.order_blocks_fired += 1
 
     def _score_fvgs(
         self,
@@ -756,6 +804,8 @@ class ConfluenceScorer:
 
         self._components.fvg_score = min(self.weight_fvg, score)
         result.fvg_score = self._components.fvg_score
+        if self._components.fvg_score > 0:
+            self._factor_counters.fvgs_fired += 1
 
     def _score_sweeps(
         self,
@@ -791,6 +841,8 @@ class ConfluenceScorer:
 
         self._components.sweep_score = min(self.weight_liquidity_sweep, score)
         result.sweep_score = self._components.sweep_score
+        if self._components.sweep_score > 0:
+            self._factor_counters.liquidity_sweep_fired += 1
 
     def _score_amd(
         self,
@@ -826,6 +878,8 @@ class ConfluenceScorer:
 
         self._components.amd_score = min(self.weight_amd_cycle, score)
         result.amd_score = self._components.amd_score
+        if self._components.amd_score > 0:
+            self._factor_counters.amd_fired += 1
 
     def _score_fibonacci(
         self,
@@ -863,6 +917,8 @@ class ConfluenceScorer:
         score = min(self.weight_fib, score)
         self._components.fib_score = score
         result.fib_score = score
+        if score > 0:
+            self._factor_counters.fibonacci_fired += 1
 
         if fib.direction == SignalType.SIGNAL_BUY:
             self._components.bullish_factors += 1
@@ -900,6 +956,8 @@ class ConfluenceScorer:
             'fvg': self._components.fvg_score * session_weights['fvg'],
             'fib': self._components.fib_score * session_weights.get('fib', 0.0),
             'zone': self._components.premium_discount_score * session_weights['zone'],
+            # AMD is a confluence factor and must contribute to the base score.
+            'amd': self._components.amd_score * session_weights.get('amd', 0.0),
             # CRUCIBLE FIX: Cap MTF contribution at 15 to prevent score ceiling hits
             'mtf': min(self._components.mtf_score * session_weights['mtf'], 15),
             'footprint': self._components.footprint_score * session_weights['footprint'],
@@ -1071,3 +1129,7 @@ class ConfluenceScorer:
     def get_components(self) -> ScoringComponents:
         """Get detailed scoring components."""
         return self._components
+
+    def get_factor_counters(self) -> FactorActivationCounters:
+        """Get activation counters for the current run."""
+        return self._factor_counters

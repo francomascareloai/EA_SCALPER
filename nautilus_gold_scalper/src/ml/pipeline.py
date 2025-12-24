@@ -67,7 +67,8 @@ class FeaturePipeline:
 
     def to_numpy(self, df: pd.DataFrame) -> np.ndarray[Any, Any]:
         """Transform features and return numpy array for model input."""
-        return self.transform(df).to_numpy()
+        array_any = self.transform(df).to_numpy()
+        return np.asarray(array_any)
 
     def save(self, path: str) -> None:
         """Save pipeline config, feature order, and scaler state to JSON."""

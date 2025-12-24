@@ -806,8 +806,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 # Get actual fill details from the position
                 position = self.cache.position(event.position_id)
                 if position:
-                    actual_entry = float(position.avg_px_open.as_double())
-                    actual_qty = float(position.quantity.as_double())
+                    # BUG-12 FIX: Handle both Price objects (with as_double) and raw floats
+                    avg_px = position.avg_px_open
+                    actual_entry = float(avg_px.as_double()) if hasattr(avg_px, "as_double") else float(avg_px)
+                    qty = position.quantity
+                    actual_qty = float(qty.as_double()) if hasattr(qty, "as_double") else float(qty)
                     self._trade_manager.fill_entry(
                         trade_id=self._active_trade_id,
                         actual_entry_price=actual_entry,
@@ -838,8 +841,18 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # CRUCIBLE FIX: Close trade in TradeManager
         if self._trade_manager and self._active_trade_id:
             try:
-                close_price = float(event.avg_px_close.as_double()) if hasattr(event, "avg_px_close") else 0.0
-                realized_pnl = float(event.realized_pnl.as_double()) if hasattr(event, "realized_pnl") else None
+                # BUG-12 FIX: Handle both Price objects (with as_double) and raw floats
+                avg_px_close = getattr(event, "avg_px_close", None)
+                if avg_px_close is not None:
+                    close_price = float(avg_px_close.as_double()) if hasattr(avg_px_close, "as_double") else float(avg_px_close)
+                else:
+                    close_price = 0.0
+
+                realized_pnl_val = getattr(event, "realized_pnl", None)
+                if realized_pnl_val is not None:
+                    realized_pnl = float(realized_pnl_val.as_double()) if hasattr(realized_pnl_val, "as_double") else float(realized_pnl_val)
+                else:
+                    realized_pnl = None
                 self._trade_manager.close_trade(
                     trade_id=self._active_trade_id,
                     close_price=close_price,
@@ -1006,6 +1019,14 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             except Exception as exc:
                 self.log.debug(f"[HBS] DelayedExecutor shutdown failed: {exc}")
 
+        # Emit factor activation counters (always, even if no trades were closed)
+        if self._telemetry and self._confluence_scorer:
+            try:
+                counters = self._confluence_scorer.get_factor_counters()
+                self._telemetry.emit('factor_activation_counters', counters.as_dict())
+            except Exception:
+                pass
+
         # Calculate and emit final performance metrics
         self._calculate_and_emit_metrics()
 
@@ -1038,7 +1059,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
     def _on_mtf_bar(self, bar: Bar) -> None:
         """Process M15 bar - Update structure zones."""
-        if len(self._mtf_bars) < 30:
+        min_bars = 3
+        if self._ob_detector is not None:
+            min_bars = max(min_bars, int(getattr(self._ob_detector, "lookback_bars", 50)))
+        if len(self._mtf_bars) < min_bars:
             return
 
         closes = np.array([b.close.as_double() for b in self._mtf_bars[-100:]])
@@ -1049,15 +1073,21 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Detect order blocks
         if self._ob_detector:
-            self._mtf_order_blocks = self._ob_detector.detect(
-                opens, highs, lows, closes, volumes
-            )
+            try:
+                self._mtf_order_blocks = self._ob_detector.detect(
+                    opens, highs, lows, closes, volumes
+                )
+            except InsufficientDataError:
+                return
 
         # Detect FVGs
         if self._fvg_detector:
-            self._mtf_fvgs = self._fvg_detector.detect(
-                opens, highs, lows, closes, volumes
-            )
+            try:
+                self._mtf_fvgs = self._fvg_detector.detect(
+                    opens, highs, lows, closes, volumes
+                )
+            except InsufficientDataError:
+                return
 
         if self.config.debug_mode:
             self.log.debug(f"MTF: {len(self._mtf_order_blocks)} OBs, {len(self._mtf_fvgs)} FVGs")

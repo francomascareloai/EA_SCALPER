@@ -369,8 +369,13 @@ class TradeManager:
 
         return actions
 
-    def execute_partial(self, trade_id: str, closed_quantity: Decimal,
-                       close_price: float, pnl: float) -> TradeInfo:
+    def execute_partial(
+        self,
+        trade_id: str,
+        closed_quantity: Decimal,
+        close_price: float,
+        pnl: float | None,
+    ) -> TradeInfo:
         """
         Record execution of partial profit take.
 
@@ -399,7 +404,8 @@ class TradeManager:
 
         # Update trade
         trade.current_quantity -= closed_quantity
-        trade.realized_pnl += pnl
+        if pnl is not None:
+            trade.realized_pnl += pnl
         trade.partial_count += 1
 
         if trade.current_quantity > 0:

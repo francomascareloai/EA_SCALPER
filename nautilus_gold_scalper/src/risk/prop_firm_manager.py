@@ -36,10 +36,14 @@ class RiskLevel(IntEnum):
 @dataclass
 class PropFirmLimits:
     account_size: float = 100_000.0
-    daily_loss_limit: float = 3_000.0          # absolute $
-    trailing_drawdown: float = 3_000.0         # absolute $
+    # H4 FIX: Legacy dollar-based limits DEPRECATED.
+    # These are kept for backward compatibility but should NOT be used.
+    # Use DDProtectionCalculator (percentage-based) instead.
+    # The percentage system (4% halt, 5% Apex limit) is authoritative.
+    daily_loss_limit: float = 3_000.0          # DEPRECATED: use DDProtectionCalculator
+    trailing_drawdown: float = 3_000.0         # DEPRECATED: use DDProtectionCalculator
     buffer_pct: float = 0.1                    # 10% buffer for prudence
-    max_contracts: int = 20
+    max_contracts: int = 1000  # Raised for XAUUSD CFD (no real contract limit); override for MGC futures
 
 
 @dataclass
@@ -100,6 +104,29 @@ class PropFirmManager:
         return now if now is not None else datetime.now(timezone.utc)
 
     def update_equity(self, equity: float, now: datetime | None = None) -> None:
+        """Update current equity and high-water mark.
+
+        H3 FIX: IMPORTANT - Conservative Price Requirement for Apex Compliance.
+
+        Per CLAUDE.md hwm_trap_warning and price_basis rules:
+        - LONG positions: caller MUST compute unrealized P/L using BID price
+        - SHORT positions: caller MUST compute unrealized P/L using ASK price
+        - NEVER use MID price - it artificially inflates unrealized profit
+
+        The equity parameter should reflect:
+            equity = account_balance + sum(unrealized_pnl_at_conservative_prices)
+
+        Where unrealized_pnl_at_conservative_prices uses:
+            LONG: (bid_price - entry_price) * position_size
+            SHORT: (entry_price - ask_price) * position_size
+
+        This ensures HWM is not artificially inflated by optimistic mid-price valuations.
+
+        Args:
+            equity: Current account equity INCLUDING unrealized P/L computed with
+                    conservative (BID for longs, ASK for shorts) prices.
+            now: Optional timestamp for the update.
+        """
         if not self._initialized:
             self.initialize(equity)
         self._equity = equity
@@ -178,6 +205,16 @@ class PropFirmManager:
         if contracts > self.limits.max_contracts:
             return False, "Max contracts exceeded"
 
+        # CRUCIBLE FIX: Single trade loss cap (flash crash protection)
+        # Formula: potential_loss_pct = risk_amount / equity * 100
+        # Example: risk=1500, equity=100000 -> 1500/100000*100 = 1.5%
+        SINGLE_TRADE_LOSS_CAP = 0.015  # 1.5% max per trade
+        if self._equity > 0:
+            potential_loss_pct = risk_amount / self._equity
+            assert 0 <= potential_loss_pct <= 1, f"Invalid loss pct: {potential_loss_pct}"
+            if potential_loss_pct > SINGLE_TRADE_LOSS_CAP:
+                return False, f"Single trade loss {potential_loss_pct*100:.2f}% exceeds {SINGLE_TRADE_LOSS_CAP*100}% cap"
+
         # Legacy daily limit check (keep for backward compatibility)
         available = self.get_max_risk_available()
         if risk_amount > available:
@@ -210,29 +247,30 @@ class PropFirmManager:
         daily_loss = max(0.0, self._daily_start_equity - self._equity)
         trailing_dd = max(0.0, self._high_water - self._equity)
 
-        daily_limit = self.limits.daily_loss_limit
-        # risk levels based on % of limit
-        pct = (daily_loss / daily_limit) * 100 if daily_limit else 0
+        # H4 FIX: Use DDProtectionCalculator (percentage-based) as authoritative source.
+        # Legacy dollar-based checks are DEPRECATED and kept only for backward compatibility.
+        # The dd_protection state determines risk level and trading permission.
+        dd_protection = self.get_dd_protection_state()
+
+        # Map DDProtectionState to RiskLevel for backward compatibility
         risk_level = RiskLevel.NORMAL
         is_hard_breached = False
 
-        if pct >= 95 or trailing_dd >= self.limits.trailing_drawdown:
-            risk_level = RiskLevel.CRITICAL
+        if not dd_protection.can_trade:
+            # DDProtectionCalculator halted trading (trailing >= 4% or daily >= 3%)
+            risk_level = RiskLevel.BREACHED
             is_hard_breached = True
-        elif pct >= 75:
+        elif dd_protection.total_dd_pct >= 3.5 or dd_protection.daily_dd_pct >= 2.5:
+            # CRITICAL zone: close to halt thresholds
+            risk_level = RiskLevel.CRITICAL
+        elif dd_protection.total_dd_pct >= 3.0 or dd_protection.daily_dd_pct >= 2.0:
+            # HIGH risk zone
             risk_level = RiskLevel.HIGH
-        elif pct >= 55:
+        elif dd_protection.total_dd_pct >= 1.5 or dd_protection.daily_dd_pct >= 1.5:
+            # ELEVATED risk zone
             risk_level = RiskLevel.ELEVATED
         else:
             risk_level = RiskLevel.NORMAL
-
-        # if beyond limits, mark breached
-        if daily_loss >= daily_limit or trailing_dd >= self.limits.trailing_drawdown:
-            risk_level = RiskLevel.BREACHED
-            is_hard_breached = True
-
-        # Get DD protection state (AGENTS.md v3.7.0 multi-tier system)
-        dd_protection = self.get_dd_protection_state()
 
         return PropFirmState(
             is_trading_allowed=not is_hard_breached and dd_protection.can_trade,

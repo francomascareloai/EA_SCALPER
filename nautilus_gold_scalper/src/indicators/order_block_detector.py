@@ -100,7 +100,7 @@ class OrderBlockDetector:
             raise InsufficientDataError(f"Need at least {self.lookback_bars} bars for order block detection")
 
         if timestamps is None:
-            timestamps = np.arange(n, dtype="datetime64[ns]")
+            timestamps = np.arange(n).astype("datetime64[ns]")
 
         if current_price is None:
             current_price = float(closes[-1])
@@ -108,19 +108,24 @@ class OrderBlockDetector:
         # Reset storage
         self._order_blocks = []
 
-        # Calculate average volume if provided
-        avg_volume = float(np.mean(volumes)) if volumes is not None else None
-
         # Scan for order blocks causally (no future bars).
         # We confirm an OB only once the immediate displacement candle is present.
         # Candidate OB candle is (i - 1); displacement candle is i.
         for i in range(6, n):
             ob_index = i - 1
 
+            # Causal trailing average volume (exclude current OB candle).
+            avg_volume: float | None = None
+            if volumes is not None:
+                start = max(0, ob_index - 50)
+                window = volumes[start:ob_index]
+                if len(window) > 0:
+                    avg_volume = float(np.mean(window))
+
             # Check for bullish order block confirmed by the displacement candle at i
             if self._is_bullish_ob_pattern(opens, highs, lows, closes, i):
                 ob = self._create_bullish_ob(
-                    opens, highs, lows, closes, volumes, timestamps, ob_index, avg_volume
+                    opens, highs, lows, closes, volumes, timestamps, ob_index, i, avg_volume
                 )
                 if ob and self._validate_ob(ob):
                     self._order_blocks.append(ob)
@@ -130,7 +135,7 @@ class OrderBlockDetector:
             # Check for bearish order block confirmed by the displacement candle at i
             if self._is_bearish_ob_pattern(opens, highs, lows, closes, i):
                 ob = self._create_bearish_ob(
-                    opens, highs, lows, closes, volumes, timestamps, ob_index, avg_volume
+                    opens, highs, lows, closes, volumes, timestamps, ob_index, i, avg_volume
                 )
                 if ob and self._validate_ob(ob):
                     self._order_blocks.append(ob)
@@ -239,6 +244,7 @@ class OrderBlockDetector:
         volumes: NDArray[np.floating[Any]] | None,
         timestamps: NDArray[np.datetime64],
         index: int,
+        confirmation_index: int,
         avg_volume: float | None,
     ) -> OrderBlock | None:
         """Create a bullish order block structure."""
@@ -258,7 +264,14 @@ class OrderBlockDetector:
         ob.direction = SignalType.SIGNAL_BUY
 
         # Calculate metrics
-        ob.displacement_size = self._calculate_displacement(highs, lows, closes, index, bullish=True)
+        ob.displacement_size = self._calculate_displacement(
+            highs,
+            lows,
+            closes,
+            ob_index=index,
+            confirmation_index=confirmation_index,
+            bullish=True,
+        )
         ob.volume_ratio = self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
 
         # Quality assessment
@@ -289,6 +302,7 @@ class OrderBlockDetector:
         volumes: NDArray[np.floating[Any]] | None,
         timestamps: NDArray[np.datetime64],
         index: int,
+        confirmation_index: int,
         avg_volume: float | None,
     ) -> OrderBlock | None:
         """Create a bearish order block structure."""
@@ -308,7 +322,14 @@ class OrderBlockDetector:
         ob.direction = SignalType.SIGNAL_SELL
 
         # Calculate metrics
-        ob.displacement_size = self._calculate_displacement(highs, lows, closes, index, bullish=False)
+        ob.displacement_size = self._calculate_displacement(
+            highs,
+            lows,
+            closes,
+            ob_index=index,
+            confirmation_index=confirmation_index,
+            bullish=False,
+        )
         ob.volume_ratio = self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
 
         # Quality assessment
@@ -345,18 +366,24 @@ class OrderBlockDetector:
         highs: NDArray[np.floating[Any]],
         lows: NDArray[np.floating[Any]],
         closes: NDArray[np.floating[Any]],
-        index: int,
+        ob_index: int,
+        confirmation_index: int,
         bullish: bool,
     ) -> float:
-        """Calculate displacement size for a confirmed OB (causal)."""
-        displacement_index = index + 1
-        if displacement_index >= len(closes):
+        """Calculate displacement size for a confirmed OB.
+
+        Displacement is measured using the confirmation candle which must already exist
+        when the OB is emitted (no forward scan beyond `confirmation_index`).
+        """
+        if confirmation_index < 0 or confirmation_index >= len(closes):
+            return 0.0
+        if ob_index < 0 or ob_index >= len(closes):
             return 0.0
 
         if bullish:
-            return float(max(0.0, closes[displacement_index] - highs[index]))
+            return float(max(0.0, closes[confirmation_index] - highs[ob_index]))
 
-        return float(max(0.0, lows[index] - closes[displacement_index]))
+        return float(max(0.0, lows[ob_index] - closes[confirmation_index]))
 
     def _calculate_volume_ratio(
         self,

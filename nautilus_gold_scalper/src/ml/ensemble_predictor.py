@@ -19,10 +19,15 @@ from typing import Any, cast
 
 import numpy as np
 
-try:
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
     from ..core.definitions import MarketRegime, SignalType
-except ImportError:  # Allow import when src/ is placed on sys.path (tests do this)
-    from core.definitions import MarketRegime, SignalType
+else:
+    try:
+        from ..core.definitions import MarketRegime, SignalType
+    except ImportError:  # Allow import when src/ is placed on sys.path (tests do this)
+        from core.definitions import MarketRegime, SignalType
 
 logger = logging.getLogger(__name__)
 
