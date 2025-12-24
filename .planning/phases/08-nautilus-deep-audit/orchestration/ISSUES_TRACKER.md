@@ -15,9 +15,9 @@
 - Status is taken from `MANIFEST.md` when an issue ID exists there; otherwise defaults to Open.
 
 ## Summary (Open)
-- CRITICAL: 37 (was 40, -3 fixed in WP3)
-- HIGH: 48 (was 52, -4 fixed in WP4)
-- MEDIUM: 42
+- CRITICAL: 34 (was 37, -3 fixed in WP5)
+- HIGH: 48
+- MEDIUM: 40 (was 42, -2 fixed in WP5)
 - LOW: 17
 
 ## CRITICAL (Open)
@@ -193,7 +193,7 @@
 - Count: 2
 
 ## Fixed/Resolved (from MANIFEST)
-- Count: 16 (P08-001, P08-002, P08-004, P08-005, P08-006, P08-007 + WP2 fail-closed + WP3 look-ahead + WP4 timezone fixes)
+- Count: 21 (P08-001 to P08-007 + WP2 fail-closed + WP3 look-ahead + WP4 timezone + WP5 execution)
 
 ## WP2 Fail-Closed Corrections (2025-12-22)
 | ID | Module | Issue | Fix |
@@ -227,4 +227,13 @@
 | WP4-AC-002 | P04-B-001/006: Naive datetime / utcnow() in news | news_trader.py | Added `_ensure_tz_aware()` helper, replaced 8 `datetime.utcnow()` calls, emits warning on naive input |
 | WP4-AC-003 | P01-H-002: Session filter UTC vs ET confusion | session_filter.py | Renamed `_to_gmt()` → `_to_utc()`, deprecated `broker_gmt_offset`, added UTC constant, updated docs |
 | WP4-AC-004 | P08-015: Wall-clock in backtest modules | entry_optimizer.py | Same as WP4-AC-001 (entry_optimizer already fixed) |
+
+## WP5 Execution Realism Fixes (2025-12-22)
+| ID | Issue | File(s) | Fix |
+|----|-------|---------|-----|
+| WP5-ER-001 | P08-023: Emergency close doesn't cancel orders | base_strategy.py | Fixed `on_stop()` order: now `cancel_all_orders()` → `close_all_positions()` |
+| WP5-ER-002 | P05-B-B-001: No latency/reject modeling | execution_model.py | Added `ExecutionRealism` dataclass with latency_ms, reject_probability, partial_fill_probability, slippage_ticks |
+| WP5-ER-003 | P05-B-B-006: Random slippage non-reproducible | realistic_backtester.py | Added `random_seed` parameter to `RealisticBacktestConfig`, seeds `np.random` at init |
+| WP5-ER-004 | P06-R2-E-P06-R2E-010: No seed control | realistic_backtester.py | Same as WP5-ER-003 |
+| WP5-ER-005 | Cleanup: unused type:ignore | base_strategy.py | Removed stale `# type: ignore[attr-defined]` comment |
 

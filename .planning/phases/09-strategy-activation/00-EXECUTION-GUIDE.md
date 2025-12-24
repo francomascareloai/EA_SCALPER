@@ -299,7 +299,7 @@ Spawn CRITIC (opus) to review:
 
 **Executar:**
 ```
-/run-plan .planning/phases/09-strategy-activation/02-PHASE-01-PLAN.md
+/run-plan .planning/phases/09-strategy-activation/02-PHASE-01-PLAN.md ok
 ```
 
 **Verificar antes de GO:**
