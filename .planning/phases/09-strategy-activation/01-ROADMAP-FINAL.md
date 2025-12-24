@@ -100,7 +100,7 @@ This is the **definitive** Phase 09 planning document, incorporating:
 |-------|-------|----------|---------------|
 | **00-A** | **BASELINE VALIDATION (NEW)** | 2-4 hours | SMC > EMA by 20%+ |
 | **00-B** | Critical Bug Fixes | 1 week | All 9 factors score > 0 |
-| **00-C** | **PORTFOLIO STRATEGY REVIEW (NEW)** | 1 day | Portfolio decision + falsification plan locked |
+| **00-C** | **PORTFOLIO STRATEGY REVIEW (NEW)** | 1 day | COMPLETE - Decisions locked, falsification thresholds documented |
 | **01** | Cleanup & Consolidation | 3 days | Dead code archived, architecture documented |
 | **02** | SMC_SCALPER Deep Audit | 2 weeks | **+17 look-ahead checks, NautilusTrader config** |
 | **03** | TREND_FOLLOW Activation | 1 week | Strategy enabled with edge verified |
@@ -284,25 +284,20 @@ Lock the **portfolio-level thesis** (what strategies we run, which are redundant
 
 This phase is intentionally **decision + falsification-first**, not code-first.
 
-### Inputs (existing docs)
-- Portfolio review + improvement ideas: `nautilus_gold_scalper/FUTURE_IMPROVEMENTS.md` (CRUCIBLE 2025-12-24 section)
-- Falsification test suite (ghost/shifted-levels/HWM survival): `05-FALSIFICATION_TESTS.md`
+### Status: COMPLETE (2025-12-24)
 
-### Decisions to lock (portfolio)
-- **Redundancy:** consolidate `SMC_SCALPER` + `SCALPER` into one microstructure scalper (zones + confirmation + strict spread/news/session gates) OR keep separate (only if proven non-correlated).
-- **Additions (max 2, conditional):**
-  - Volatility Expansion Breakout (range → impulse)
-  - Anchored VWAP mean-reversion
-- **Apex/HWM constraints:** mandatory de-risk in profit + time-based exits near 4:55–4:59 PM ET.
+**Key findings:**
+- Code analysis confirms NO separate "SCALPER" exists - only SMC_SCALPER (consolidation already done)
+- Regime-to-strategy routing: Hurst>0.55→TREND_FOLLOW, Hurst<0.40→MEAN_REVERT, else→SMC_SCALPER
+- Falsification test thresholds locked (Ghost Test, Shifted Levels, MC95DD survival)
 
-### Deliverable
-- `orchestration/PHASE_00C_PORTFOLIO_REVIEW.md`:
-  - What we keep / consolidate / defer
-  - Which falsification tests are required next and what would change our mind
+**Deliverables:**
+- [x] `orchestration/PHASE_00C_PORTFOLIO_REVIEW.md` - Complete with code analysis
+- [x] `11-PHASE-00C-SUMMARY.md` - Phase summary
 
 ### Phase 00-C GO/NO-GO Gate
-- [ ] Portfolio decision documented (keep/consolidate/defer) with rationale tied to Apex risk
-- [ ] Falsification tests to run next are enumerated with explicit thresholds (pass/fail)
+- [x] Portfolio decision documented (keep/consolidate/defer) with rationale tied to Apex risk
+- [x] Falsification tests to run next are enumerated with explicit thresholds (pass/fail)
 
 ---
 
