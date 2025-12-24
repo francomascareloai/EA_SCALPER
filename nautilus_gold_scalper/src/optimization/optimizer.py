@@ -22,7 +22,7 @@ from nautilus_gold_scalper.src.optimization.config import (
     OptimizationConfig,
     ObjectiveConfig,
 )
-from nautilus_gold_scalper.src.optimization.search.base import TrialResult
+from nautilus_gold_scalper.src.optimization.search.base import SearchStrategy, TrialResult
 from nautilus_gold_scalper.src.optimization.search.bayesian import BayesianSearch
 from nautilus_gold_scalper.src.optimization.validation.wfa_inline import InlineWFA, WFAResult
 from nautilus_gold_scalper.src.optimization.constraints.apex import ApexConstraintChecker
@@ -126,6 +126,7 @@ class ApexOptimizer:
         start_time = time.time()
 
         # Layer 1 + 2: Search with inline validation
+        searcher: SearchStrategy
         if self.config.search.mode == "bayesian":
             searcher = BayesianSearch(self.config)
             self._results = searcher.search(
@@ -158,6 +159,7 @@ class ApexOptimizer:
         self._results.sort(key=lambda r: r.score, reverse=True)
 
         # Generate reports
+        assert self._output_dir is not None, "Output directory not initialized"
         reporter = SummaryReporter(self._output_dir, self.config)
         report_paths = reporter.generate_reports(self._results, study_stats)
 

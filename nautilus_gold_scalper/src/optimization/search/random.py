@@ -15,6 +15,7 @@ import random
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from nautilus_gold_scalper.src.optimization.config import OptimizationConfig, ParameterSpec
 from nautilus_gold_scalper.src.optimization.search.base import (
@@ -65,7 +66,7 @@ class RandomSearch(SearchStrategy):
     def _generate_lhs_samples(self, n_samples: int) -> list[dict[str, Any]]:
         """Generate N stratified samples."""
         # Dictionary to hold lists of values for each param
-        param_values: dict[str, np.ndarray] = {}
+        param_values: dict[str, npt.NDArray[Any]] = {}
 
         for spec in self.config.parameters:
             if spec.param_type == "float":

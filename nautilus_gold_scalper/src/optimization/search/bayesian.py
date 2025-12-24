@@ -363,7 +363,7 @@ class BayesianSearch(SearchStrategy):
         """Get best parameters found during search."""
         if self._study is None or self._study.best_trial is None:
             return {}
-        return self._study.best_trial.params
+        return dict(self._study.best_trial.params)
 
     def get_study_summary(self) -> dict[str, Any]:
         """Get summary statistics from the search."""

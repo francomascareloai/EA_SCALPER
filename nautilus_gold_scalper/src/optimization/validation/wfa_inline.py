@@ -346,7 +346,7 @@ class InlineWFA:
         std_ret = float(pnl_series.std())
         if std_ret == 0:
             return 0.0
-        return mean_ret / std_ret * np.sqrt(periods_per_year)
+        return float(mean_ret / std_ret * np.sqrt(periods_per_year))
 
     def _compute_sortino(self, pnl_series: pd.Series, periods_per_year: int = 252) -> float:
         """
@@ -363,7 +363,7 @@ class InlineWFA:
         downside_std = float(downside.std())
         if downside_std == 0:
             return 10.0
-        return mean_ret / downside_std * np.sqrt(periods_per_year)
+        return float(mean_ret / downside_std * np.sqrt(periods_per_year))
 
     def _compute_profit_factor(self, pnl_series: pd.Series) -> float:
         """

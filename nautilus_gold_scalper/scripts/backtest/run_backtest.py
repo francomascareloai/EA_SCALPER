@@ -619,6 +619,8 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
         trend_follow_mode=str(exec_cfg.get("trend_follow_mode", "BOTH")),
         enable_trend_pullback=bool(exec_cfg.get("enable_trend_pullback", True)),
         enable_trend_breakout=bool(exec_cfg.get("enable_trend_breakout", True)),
+        regime_stability_min_bars=int(exec_cfg.get("regime_stability_min_bars", 0)),
+        regime_stability_max_transition_prob=float(exec_cfg.get("regime_stability_max_transition_prob", 1.0)),
         router_adaptive_ev=bool(exec_cfg.get("router_adaptive_ev", False)),
         router_min_trades_to_trust=int(exec_cfg.get("router_min_trades_to_trust", 30)),
         router_score_weight=float(exec_cfg.get("router_score_weight", 0.10)),

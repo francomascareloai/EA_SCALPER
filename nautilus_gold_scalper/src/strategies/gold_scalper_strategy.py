@@ -121,6 +121,11 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     enable_trend_pullback: bool = True
     enable_trend_breakout: bool = True
 
+    # Optional regime stability gate (disabled by default).
+    # If enabled, blocks new trades during regime transitions.
+    regime_stability_min_bars: int = 0
+    regime_stability_max_transition_prob: float = 1.0
+
     # Adaptive EV router (optional; disabled by default)
     router_adaptive_ev: bool = False
     router_min_trades_to_trust: int = 30
@@ -325,6 +330,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # Analyzers
         self._session_filter: SessionFilter | None = None
         self._regime_detector: RegimeDetector | None = None
+
+        # Configuration sanity checks
+        if (not bool(getattr(self.config, "enable_smc", True))) and (not bool(getattr(self.config, "enable_trend_follow", False))):
+            logger.warning("[CONFIG] Both enable_smc=false and enable_trend_follow=false; strategy will not trade")
         self._structure_analyzer: StructureAnalyzer | None = None
         self._footprint_analyzer: FootprintAnalyzer | None = None
         self._ob_detector: OrderBlockDetector | None = None
@@ -1181,11 +1190,28 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             if dow_mult < 1.0 and should_log:
                 self.log.info(f"[FILTER] Day-of-week size adjustment: {dow_mult:.2f}x ({dow_reason})")
 
-        # FORGE-NAUTILUS Phase 09: Removed redundant is_regime_stable() gate.
-        # Rationale: Confluence scorer already penalizes RANDOM_WALK (-50, INVALID) and
-        # TRANSITIONING (-20, 30% weight). The gate was causing ~10k+ false rejections
-        # per quarter by blocking even good regimes with high transition_prob estimates.
-        # Regime filtering is now handled exclusively by confluence scoring.
+        # Optional: regime stability gate
+        # Default is disabled (min_bars=0, max_transition_prob=1.0) to avoid signal starvation.
+        min_bars = int(getattr(self.config, "regime_stability_min_bars", 0))
+        max_tp = float(getattr(self.config, "regime_stability_max_transition_prob", 1.0))
+        if min_bars > 0 and self._regime_detector and self._current_regime is not None:
+            is_stable, regime_reason = self._regime_detector.is_regime_stable(
+                min_bars=min_bars,
+                max_transition_prob=max_tp,
+            )
+            if not is_stable:
+                if should_log:
+                    self.log.info(f"[SIGNAL_CHECK] Regime unstable: {regime_reason}")
+                if self._telemetry:
+                    self._telemetry.emit(
+                        "signal_reject",
+                        {
+                            "reason": "regime_unstable",
+                            "regime_reason": regime_reason,
+                            "bar": len(self._ltf_bars),
+                        },
+                    )
+                return
 
         # Apex entry gate (block new trades after 4:30 PM ET)
         # Only apply if prop_firm_enabled - allows backtest without time constraints
@@ -1491,6 +1517,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 )
 
                 mode = str(getattr(self.config, "trend_follow_mode", "BOTH")).strip().upper()
+                valid_modes = {"PULLBACK_ONLY", "BREAKOUT_ONLY", "BOTH"}
+                if mode not in valid_modes:
+                    self.log.warning(f"[TREND] Invalid trend_follow_mode={mode!r}; using BOTH")
+                    mode = "BOTH"
+
                 if mode == "PULLBACK_ONLY":
                     trend_candidates = [c for c in trend_candidates if c.variant == TrendFollowVariant.PULLBACK]
                 elif mode == "BREAKOUT_ONLY":
@@ -1646,6 +1677,30 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         if selected_arm == RouterArm.SMC and confluence_result is not None:
             signal = confluence_result.direction
         elif selected_trend is not None:
+            # HTF alignment for TrendFollow (prevent counter-trend entries when alignment is required).
+            # If HTF bias is bullish, block SHORT trend candidates; if bearish, block LONG.
+            if self.config.require_htf_align:
+                htf_bullish = self._htf_bias == MarketBias.BULLISH
+                htf_bearish = self._htf_bias == MarketBias.BEARISH
+                trend_is_long = selected_trend.direction == TrendDirection.LONG
+                if (htf_bullish and not trend_is_long) or (htf_bearish and trend_is_long):
+                    if should_log:
+                        self.log.info(
+                            f"[SIGNAL_CHECK] TrendFollow direction {selected_trend.direction.value} "
+                            f"opposes HTF bias {self._htf_bias.name} - blocked"
+                        )
+                    if self._telemetry:
+                        self._telemetry.emit(
+                            "signal_reject",
+                            {
+                                "reason": "htf_direction_conflict",
+                                "htf_bias": self._htf_bias.name,
+                                "signal_direction": selected_trend.direction.value,
+                                "bar": len(self._ltf_bars),
+                            },
+                        )
+                    return
+
             signal = SignalType.SIGNAL_BUY if selected_trend.direction == TrendDirection.LONG else SignalType.SIGNAL_SELL
             sl_distance = float(selected_trend.sl_distance)
 
