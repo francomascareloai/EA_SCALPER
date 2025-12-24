@@ -58,6 +58,15 @@ Phase 00-B → CRITIC (opus) → loop ate GO → Next
 Phase 00-C → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 01 → CRITIC (opus) → loop ate GO → Next
+```
+
+**Retrofit Note (when phases were already executed):**
+- If you already ran Phase 03/04 before Phase 00-C existed, **do not re-run** earlier phases.
+- Treat Phase 00-C as a **retroactive gate** to be executed **before Phase 05/06**.
+- Required artifacts:
+  - `orchestration/PHASE_00C_PORTFOLIO_REVIEW.md`
+  - `orchestration/PHASE_04_DECISION.md` (must include the Phase 00-C retrofit addendum if Phase 04 already ran)
+
       ↓
 Phase 02 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
       ↓
