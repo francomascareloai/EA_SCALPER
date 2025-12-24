@@ -2,9 +2,9 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.21</version>
-  <last_updated>2025-12-22</last_updated>
-  <changelog>v3.10.21: Add anti_hallucination_protocol for Opus 4.5 migration - API citation, numeric calculation, and uncertainty escalation rules.</changelog>
+  <version>3.10.22</version>
+  <last_updated>2025-12-24</last_updated>
+  <changelog>v3.10.22: Add falsification patterns library (DeepThink-style) to standardize fast disproof tests across agents.</changelog>
   <previous_changes>v3.10.20: Add ARGUS research gate to increase evidence-based decisions. | v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
@@ -126,6 +126,69 @@
       <rule>For each assumption: attach a concrete validation step and a "what would change my mind" threshold.</rule>
       <rule>If disproof found: stop, fix root cause, rerun the minimum test first.</rule>
     </falsification_first>
+
+    <falsification_patterns_library priority="CRITICAL">
+      <purpose>Codify DeepThink-style Red Team reasoning into repeatable, fast disproof tests.</purpose>
+      <rule>Before any expensive work: pick 1 pattern and run the fastest disproof test first.</rule>
+
+      <pattern name="ghost_test" when="Edge attribution is unclear (filters vs signals / component A vs B)">
+        <description>Replace the component under test with a null/random baseline while keeping everything else identical.</description>
+        <examples>
+          <example>Signals vs Filters: Replace signal generator with random.choice(), keep regime/session/time gates. If performance remains positive → filters are the edge.</example>
+          <example>Model vs Baseline: Compare complex scorer vs trivial baseline. If delta is small → complexity is placebo.</example>
+        </examples>
+        <success_criteria>
+          <rule>If baseline ≈ full system (within noise) → delete/simplify the component under test.</rule>
+          <rule>If baseline is materially worse (p &lt; 0.05) → component adds real value.</rule>
+        </success_criteria>
+      </pattern>
+
+      <pattern name="permutation_importance" when="Need factor importance without destroying distribution">
+        <description>Shuffle a factor/feature array to break correlation with outcomes while preserving its distribution.</description>
+        <success_criteria>
+          <rule>Δ metric &gt; +threshold → factor contributes (keep).</rule>
+          <rule>Δ metric ≈ 0 → factor is noise (delete).</rule>
+          <rule>Δ metric &lt; 0 → factor is toxic (delete).</rule>
+        </success_criteria>
+      </pattern>
+
+      <pattern name="shifted_levels" when="Testing precision claims (levels/thresholds/zones)">
+        <description>Add bounded random offsets to precise levels (e.g., OB/FVG levels). If performance is unchanged, precision is likely illusory.</description>
+        <success_criteria>
+          <rule>If Performance(exact) ≈ Performance(shifted) → levels are not predictive; simplify/remove.</rule>
+          <rule>If exact materially outperforms shifted (p &lt; 0.05) → precision matters; keep and harden.</rule>
+        </success_criteria>
+      </pattern>
+
+      <pattern name="data_destruction" when="Testing whether a pattern truly drives triggers">
+        <description>Remove or weaken the alleged pattern while keeping distributions similar (e.g., shrink wicks, remove gaps).</description>
+        <success_criteria>
+          <rule>If performance/triggers unchanged → pattern logic is likely narrative/overfit.</rule>
+          <rule>If performance degrades significantly → pattern is likely causal (or at least predictive).</rule>
+        </success_criteria>
+      </pattern>
+
+      <pattern name="monte_carlo_survival" when="Robustness under hostile constraints (Apex DD/HWM, slippage, latency)">
+        <description>Simulate many runs with randomized seeds/paths to estimate survival probability, not just point performance.</description>
+        <success_criteria>
+          <rule>Prefer survival distributions and worst-case (e.g., MC95DD) over single-run metrics.</rule>
+          <rule>Any strategy with high blow-up probability under constraints is NO-GO regardless of backtest beauty.</rule>
+        </success_criteria>
+      </pattern>
+    </falsification_patterns_library>
+
+    <quantification_requirements priority="CRITICAL">
+      <rule>Avoid adjectives without numbers: "better" → Δ metric (e.g., ΔSharpe, ΔWFE, ΔMC95DD).</rule>
+      <rule>For risk decisions: report probabilities (e.g., survival rate) using Monte Carlo or bootstrap.</rule>
+      <rule>For comparisons: require repeated runs (bootstrap/MC) and a significance threshold (default p &lt; 0.05).</rule>
+    </quantification_requirements>
+
+    <fastest_disproof_protocol priority="CRITICAL">
+      <rule>Before committing to multi-day refactors or full-dataset backtests: design and run a 1-hour disproof test first.</rule>
+      <rule>If the 1-hour test falsifies the claim: STOP and pivot/simplify before investing further.</rule>
+      <rule>If not falsified: proceed to the next cheapest validation step (1-day), then full rigor.</rule>
+    </fastest_disproof_protocol>
+
     <argus_research_gate>
       <purpose>Use ARGUS to kill bad ideas early and keep decisions evidence-based (updated sources).</purpose>
       <when note="Trigger if ANY is true">
