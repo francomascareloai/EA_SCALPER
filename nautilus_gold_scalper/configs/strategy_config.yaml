@@ -1,6 +1,6 @@
 confluence:
-  min_score_to_trade: 40
-  execution_threshold: 40
+  min_score_to_trade: 35  # FORGE recommended: after removing -10 penalty + scale 6.0
+  execution_threshold: 35  # FORGE recommended: matches expected score distribution
   footprint_weight: 0  # DISABLED - not reliable without real order flow data
   fib_weight: 10
   # New-style confluence weight caps (0-100) used by ConfluenceScorer.
@@ -50,7 +50,7 @@ spread:
   block_ratio: 5.0
   urgency_threshold: 0.8
 risk:
-  max_risk_per_trade: 0.01
+  max_risk_per_trade: 0.005  # Reduced from 0.01 to 0.5% per trade (Oracle finding: $2300 single-trade losses)
   dd_soft: 0.03
   dd_hard: 0.05
   kelly_fraction: 0.25
@@ -64,7 +64,7 @@ news:
   # HF ForexFactory: use only the validated USD subset produced by scripts/data/validate_hf_forex_factory_calendar.py
   events_path: nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_top_movers_validated.csv
 execution:
-  execution_threshold: 40
+  execution_threshold: 35  # FORGE recommended: matches confluence threshold
   slippage_ticks: 2
   slippage_multiplier: 1.5
   latency_ms: 50
@@ -83,8 +83,8 @@ execution:
   fill_reject_spread_factor: 0.05
   max_spread_points: 80
   use_selector: false
-  use_session_filter: false
-  use_regime_filter: false
+  use_session_filter: true   # ENABLED: Oracle finding - trades during bad sessions
+  use_regime_filter: true    # ENABLED: Oracle finding - trades against regime
   require_htf_align: false
   use_mtf: true
   use_footprint: false  # DISABLED - not reliable for backtest (Dukascopy has no real volume)
@@ -102,8 +102,9 @@ time:
   emergency_et: '16:55'
 session:
   broker_gmt_offset: 0
-  allow_asian: false
-  allow_late_ny: false
+  # FORGE-NAUTILUS Wave 2: Enable for backtest exploration (signal starvation fix)
+  allow_asian: true
+  allow_late_ny: true
   friday_close_hour: 14
 structure:
   swing_strength: 3

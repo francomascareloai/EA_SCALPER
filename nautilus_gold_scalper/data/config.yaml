@@ -2,7 +2,7 @@
 # SINGLE SOURCE OF TRUTH for data paths
 
 active_dataset:
-  name: "XAUUSD Tick Data 2003-2025 (Stride 1 COMPLETE)"
+  name: "XAUUSD Tick Data 2003-2025 (Stride 20 - Default)"
   path: "../data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
   native_catalog_path: "../data/catalog_native/xauusd_2003_2025_stride1_COMPLETE"
   format: "parquet"
@@ -11,9 +11,10 @@ active_dataset:
   period:
     start: "2003-05-05"
     end: "2025-11-28"
-  stride: 1
-  size_gb: 13.9
-  total_ticks: 654586033
+  stride: 20
+  size_gb: 0.7
+  total_ticks: 32729302
+  notes: "Stride 20 is recommended for normal backtests (memory-safe). Use catalog mode for stride 1."
 
 datasets:
   stride20:

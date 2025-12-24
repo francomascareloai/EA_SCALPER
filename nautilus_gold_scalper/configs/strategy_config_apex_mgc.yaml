@@ -17,9 +17,11 @@
 ################################################################################
 
 confluence:
-  # Keep confluence threshold conservative for Apex. You can sweep this later.
-  min_score_to_trade: 70
-  execution_threshold: 70
+  # FORGE-NAUTILUS CALIBRATION: Reduced from 70 to 55 to address signal starvation.
+  # Wave 1 thresholds were too restrictive (only 1 trade in 3 months).
+  # 55 is still conservative but allows valid B-tier signals through.
+  min_score_to_trade: 55
+  execution_threshold: 55
   footprint_weight: 10
   fib_weight: 10
   weights:
@@ -72,7 +74,8 @@ risk:
 
 execution:
   # Must match confluence execution_threshold (runner overwrites runtime threshold too).
-  execution_threshold: 70
+  # FORGE-NAUTILUS CALIBRATION: Reduced from 70 to 55 (sync with confluence section).
+  execution_threshold: 55
 
   # Trading mode toggles (Apex-first)
   use_selector: true
@@ -128,9 +131,22 @@ time:
 
 session:
   broker_gmt_offset: 0
-  allow_asian: false
-  allow_late_ny: false
+  # FORGE-NAUTILUS: Enable Asian for backtest exploration (signal starvation fix)
+  allow_asian: true
+  allow_late_ny: true
   friday_close_hour: 14
+
+# FORGE-NAUTILUS: Selector thresholds widened to reduce random-walk blocking
+# Old: hurst_trend 0.55, hurst_revert 0.40 -> ~40-60% block rate
+# New: hurst_trend 0.58, hurst_revert 0.35 -> narrower "random" band
+selector:
+  hurst_trend_threshold: 0.58
+  hurst_revert_threshold: 0.35
+  entropy_low_threshold: 1.5
+  entropy_high_threshold: 2.5
+  allow_asian_session: true
+  allow_news_trading: true
+  ftmo_safe_mode: false
 
 structure:
   swing_strength: 3

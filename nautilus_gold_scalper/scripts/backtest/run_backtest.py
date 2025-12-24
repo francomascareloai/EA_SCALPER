@@ -546,9 +546,36 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
     max_spread_points = int(exec_cfg.get("max_spread_points", spread_cfg.get("max_spread_points", 80)))
     max_spread_pips = float(spreadmon_cfg.get("max_spread_pips", max_spread_points / 10.0))
 
+    # Derive multi-timeframe bar types from the primary LTF bar type.
+    # Without these, BaseGoldStrategy.on_bar() will never route MTF/HTF bars, leaving
+    # the MTF-driven OB/FVG inputs empty.
+    use_mtf = bool(exec_cfg.get("use_mtf", True))
+    require_htf_align = bool(exec_cfg.get("require_htf_align", True))
+    agg_source = bar_type.aggregation_source
+    mtf_bar_type = (
+        BarType(
+            instrument_id=instrument_id,
+            bar_spec=BarSpecification(step=15, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+            aggregation_source=agg_source,
+        )
+        if use_mtf
+        else None
+    )
+    htf_bar_type = (
+        BarType(
+            instrument_id=instrument_id,
+            bar_spec=BarSpecification(step=60, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+            aggregation_source=agg_source,
+        )
+        if require_htf_align
+        else None
+    )
+
     return GoldScalperConfig(
         strategy_id="GOLD-TICK-001",
         instrument_id=instrument_id,
+        htf_bar_type=htf_bar_type,
+        mtf_bar_type=mtf_bar_type,
         ltf_bar_type=bar_type,
         execution_threshold=int(execution_threshold),
         slippage_in_fills=_infer_slippage_in_fills(exec_cfg),
@@ -557,8 +584,8 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
         target_rr_ratio=float(exec_cfg.get("target_rr_ratio", 2.5)),
         use_session_filter=exec_cfg.get("use_session_filter", True),
         use_regime_filter=exec_cfg.get("use_regime_filter", True),
-        require_htf_align=exec_cfg.get("require_htf_align", True),
-        use_mtf=exec_cfg.get("use_mtf", True),
+        require_htf_align=require_htf_align,
+        use_mtf=use_mtf,
         use_footprint=exec_cfg.get("use_footprint", True),
         prop_firm_enabled=True,
         account_balance=exec_cfg.get("initial_balance", 100000.0),
@@ -609,12 +636,12 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
         cb_level_3_dd=float(cb_cfg.get("level_3_dd", 3.0)),
         cb_level_4_dd=float(cb_cfg.get("level_4_dd", 4.0)),
         cb_level_5_dd=float(cb_cfg.get("level_5_dd", 4.5)),
-        cb_cooldown_1=int(cb_cfg.get("cooldown_minutes", {}).get("level_1", 5)),
-        cb_cooldown_2=int(cb_cfg.get("cooldown_minutes", {}).get("level_2", 15)),
-        cb_cooldown_3=int(cb_cfg.get("cooldown_minutes", {}).get("level_3", 30)),
-        cb_cooldown_4=int(cb_cfg.get("cooldown_minutes", {}).get("level_4", 1440)),
-        cb_size_mult_2=float(cb_cfg.get("size_multipliers", {}).get("level_2", 0.75)),
-        cb_size_mult_3=float(cb_cfg.get("size_multipliers", {}).get("level_3", 0.5)),
+        cb_cooldown_1=int((cb_cfg.get("cooldown_minutes") or {}).get("level_1", 5)),
+        cb_cooldown_2=int((cb_cfg.get("cooldown_minutes") or {}).get("level_2", 15)),
+        cb_cooldown_3=int((cb_cfg.get("cooldown_minutes") or {}).get("level_3", 30)),
+        cb_cooldown_4=int((cb_cfg.get("cooldown_minutes") or {}).get("level_4", 1440)),
+        cb_size_mult_2=float((cb_cfg.get("size_multipliers") or {}).get("level_2", 0.75)),
+        cb_size_mult_3=float((cb_cfg.get("size_multipliers") or {}).get("level_3", 0.5)),
         cb_auto_recovery=bool(cb_cfg.get("auto_recovery", True)),
         consistency_cap_pct=float(consistency_cfg.get("daily_profit_cap_pct", 30.0)),
         telemetry_enabled=bool(telemetry_cfg.get("enabled", True)),
@@ -1581,6 +1608,17 @@ def main() -> None:
         help='Include all session catalogs under --sessions-root (product-filtered).',
     )
     parser.add_argument('--risk', type=float, default=None, help='Risk per trade (fraction, e.g. 0.005 = 0.5 percent)')
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Enable detailed score debugging (logs every confluence calculation)',
+    )
+    parser.add_argument(
+        '--isolate',
+        default=None,
+        choices=['structure', 'regime', 'session', 'ob', 'fvg', 'sweep', 'amd', 'fib', 'mtf', 'footprint'],
+        help='Isolate a single indicator for testing (sets only that weight to 100, others to 0)',
+    )
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -1590,6 +1628,32 @@ def main() -> None:
     config_overrides: dict[str, object] | None = None
     if args.news_events_path:
         config_overrides = {'news': {'events_path': args.news_events_path}}
+
+    # --isolate: override confluence weights to test single indicator
+    if args.isolate:
+        indicator_map = {
+            'structure': 'structure',
+            'regime': 'regime',
+            'session': None,  # session is scored separately
+            'ob': 'order_block',
+            'fvg': 'fvg',
+            'sweep': 'liquidity_sweep',
+            'amd': 'amd_cycle',
+            'fib': 'fib',
+            'mtf': 'mtf',
+            'footprint': 'footprint',
+        }
+        # Zero out all weights, then set isolated one to 100
+        isolated_weights = {k: 0 for k in indicator_map.values() if k}
+        yaml_key = indicator_map.get(args.isolate)
+        if yaml_key:
+            isolated_weights[yaml_key] = 100
+        config_overrides = config_overrides or {}
+        config_overrides['confluence'] = config_overrides.get('confluence', {})
+        if isinstance(config_overrides['confluence'], dict):
+            config_overrides['confluence']['weights'] = isolated_weights
+        print(f"[ISOLATE] Testing only '{args.isolate}' indicator (weight=100, others=0)")
+
     threshold = args.threshold if args.threshold is not None else exec_cfg.get("execution_threshold", 70)
     slippage_ticks = args.slippage if args.slippage is not None else exec_cfg.get("slippage_ticks", 2)
     if args.commission is not None:
@@ -1614,10 +1678,40 @@ def main() -> None:
             commission = apex_commission_per_side("mgc", cast(Gateway, args.gateway))
         else:
             commission = float(exec_cfg.get("commission_per_contract", 2.5))
-    latency_ms = args.latency if args.latency is not None else exec_cfg.get("latency_ms", 0)
-    partial_prob = args.partial_prob if args.partial_prob is not None else exec_cfg.get("partial_fill_prob", 0.0)
-    partial_ratio = args.partial_ratio if args.partial_ratio is not None else exec_cfg.get("partial_fill_ratio", 0.5)
+    latency_ms = args.latency if args.latency is not None else (exec_cfg.get("latency_ms") or 0)
+    partial_prob = args.partial_prob if args.partial_prob is not None else (exec_cfg.get("partial_fill_prob") or 0.0)
+    partial_ratio = args.partial_ratio if args.partial_ratio is not None else (exec_cfg.get("partial_fill_ratio") or 0.5)
     metrics_jsonl = args.metrics_jsonl
+
+    # BUG-2 FIX: Resolve session/regime filter settings from config when CLI flags not explicitly set.
+    # Previously, --no-session-filter (action='store_true') always defaulted to False when not passed,
+    # which was then inverted to use_session_filter=True, ignoring the config file setting.
+    # Formula: if CLI flag explicitly set (True), force disable; else use config value.
+    # Example: config has use_session_filter=false, no CLI flag -> should be False (was True before fix)
+    resolved_use_session_filter = (
+        False if args.no_session_filter
+        else exec_cfg.get("use_session_filter", True)
+    )
+    resolved_use_regime_filter = (
+        False if args.no_regime_filter
+        else exec_cfg.get("use_regime_filter", True)
+    )
+    resolved_use_mtf = (
+        False if args.no_mtf
+        else exec_cfg.get("use_mtf", True)
+    )
+    resolved_use_footprint = (
+        False if args.no_footprint
+        else exec_cfg.get("use_footprint", True)
+    )
+    resolved_prop_firm_enabled = (
+        False if args.no_prop
+        else exec_cfg.get("prop_firm_enabled", True)
+    )
+    resolved_use_news_filter = (
+        False if args.no_news
+        else exec_cfg.get("use_news_filter", True)
+    )
 
     runner_log_level = "ERROR" if args.quiet else ("ERROR" if args.sweep else "INFO")
     runner = BacktestRunner(
@@ -1672,16 +1766,16 @@ def main() -> None:
                     partial_fill_ratio=partial_ratio,
                     fill_model=str(exec_cfg.get("fill_model", "realistic")),
                 )
-                runner.run(
+                summary = runner.run(
                     start_date=args.start,
                     end_date=args.end,
                     sample_rate=args.sample,
-                    use_session_filter=not args.no_session_filter,
-                    use_regime_filter=not args.no_regime_filter,
-                    use_mtf=not args.no_mtf,
-                    use_footprint=not args.no_footprint,
-                    prop_firm_enabled=not args.no_prop,
-                    use_news_filter=not args.no_news,
+                    use_session_filter=resolved_use_session_filter,  # BUG-2 FIX
+                    use_regime_filter=resolved_use_regime_filter,    # BUG-2 FIX
+                    use_mtf=resolved_use_mtf,                        # BUG-2 FIX
+                    use_footprint=resolved_use_footprint,            # BUG-2 FIX
+                    prop_firm_enabled=resolved_prop_firm_enabled,    # BUG-2 FIX
+                    use_news_filter=resolved_use_news_filter,        # BUG-2 FIX
                     execution_threshold=thresh,
                     debug_mode=False,
                     feed=args.feed,
@@ -1698,16 +1792,18 @@ def main() -> None:
                     catalog_paths=catalog_paths,
                     strategy_config_path=config_path,
                     config_overrides=config_overrides,
+                    return_summary=True,
                 )
 
-                # Get results
-                assert runner.engine is not None
-                account = runner.engine.trader.generate_account_report(runner.venue)
-                final = float(account["total"].iloc[-1]) if len(account) > 0 else runner.initial_balance
-                pnl = final - runner.initial_balance
-
-                fills = runner.engine.trader.generate_order_fills_report()
-                trades = len(fills) // 2
+                # Get results from summary (engine is disposed after run())
+                if summary is not None:
+                    pnl = summary.total_pnl
+                    trades = summary.trades
+                    final = summary.final_balance
+                else:
+                    pnl = 0.0
+                    trades = 0
+                    final = runner.initial_balance
 
                 results.append(
                     {
@@ -1718,8 +1814,6 @@ def main() -> None:
                     }
                 )
                 print(f"    PnL: ${pnl:,.2f}, Trades: {trades}")
-                assert runner.engine is not None
-                runner.engine.dispose()
             except Exception as e:
                 print(f"    ERROR: {e}")
                 results.append({"threshold": float(thresh), "pnl": 0.0, "trades": 0.0, "final_balance": 0.0})
@@ -1732,18 +1826,22 @@ def main() -> None:
                 print(f"Threshold {r['threshold']}: PnL=${r['pnl']:,.2f}, Trades={r['trades']}")
     else:
         # Single run mode
+        verbose_mode = bool(args.verbose)
+        if verbose_mode:
+            print("[VERBOSE] Detailed score logging enabled - will show every confluence calculation")
+
         runner.run(
             start_date=args.start,
             end_date=args.end,
             sample_rate=args.sample,
-            use_session_filter=not args.no_session_filter,
-            use_regime_filter=not args.no_regime_filter,
-            use_mtf=not args.no_mtf,  # HTF/MTF derived from aggregated bars
-            use_footprint=not args.no_footprint,
-            prop_firm_enabled=not args.no_prop,
-            use_news_filter=not args.no_news,
+            use_session_filter=resolved_use_session_filter,  # BUG-2 FIX
+            use_regime_filter=resolved_use_regime_filter,    # BUG-2 FIX
+            use_mtf=resolved_use_mtf,  # HTF/MTF derived from aggregated bars  # BUG-2 FIX
+            use_footprint=resolved_use_footprint,            # BUG-2 FIX
+            prop_firm_enabled=resolved_prop_firm_enabled,    # BUG-2 FIX
+            use_news_filter=resolved_use_news_filter,        # BUG-2 FIX
             execution_threshold=threshold,
-            debug_mode=True,
+            debug_mode=verbose_mode,
             feed=args.feed,
             data_source=args.source,
             profile=args.profile,
