@@ -5,8 +5,8 @@ Port of CStrategySelector.mqh from MQL5.
 
 Decision Hierarchy (6 Gates):
 1. SAFETY FIRST - Circuit breaker, spread, FTMO
-2. NEWS CHECK - If in window, use NewsTrader
-3. FTMO SAFE MODE - If near DD limit, reduce exposure
+2. FTMO SAFE MODE - If near DD limit, reduce exposure
+3. NEWS CHECK - Apply penalties/blocks (no dedicated news strategy)
 4. SESSION CHECK - London/NY best, avoid Asia
 5. HOLIDAY CHECK - Reduced liquidity days
 6. REGIME SELECTION - Trend/Revert/Random based on Hurst/Entropy
@@ -149,7 +149,7 @@ class StrategySelector:
     Uses 6-gate decision hierarchy to select optimal strategy:
     1. Safety blocks (circuit breaker, spread, weekend)
     2. FTMO safe mode (near DD limits)
-    3. News events (high impact → news trader)
+    3. News events (apply penalties/blocks; no dedicated news strategy)
     4. Session (Asian blocked by default)
     5. Holiday (reduced position size)
     6. Regime (trending/reverting/random)
@@ -369,15 +369,20 @@ class StrategySelector:
         # GATE 3: NEWS CHECK
         # ================================================================
 
-        if self.allow_news_trading and self._context.in_news_window:
-            # High impact news - use news trader
-            if self._context.news_impact == NewsImpact.IMPACT_HIGH:
-                result.strategy = StrategyType.STRATEGY_NEWS_TRADER
-                result.size_multiplier = 0.5  # Reduced size for news
-                result.score_adjustment = 0
-                result.can_trade = True
-                result.reason = "High impact news window"
+        # No dedicated "news trader" strategy.
+        # If enabled, we allow trading during news windows with reduced size / confluence penalty.
+        if self._context.in_news_window:
+            if not self.allow_news_trading:
+                result.strategy = StrategyType.STRATEGY_NONE
+                result.can_trade = False
+                result.reason = "News window - trading disabled"
                 return result
+
+            # High impact news window - reduce size (but still route by regime)
+            if self._context.news_impact == NewsImpact.IMPACT_HIGH:
+                result.size_multiplier = 0.5
+                result.score_adjustment = -20
+                # Continue to regime selection
 
             # Medium impact - reduce normal trading
             if self._context.news_impact == NewsImpact.IMPACT_MEDIUM:
@@ -524,7 +529,7 @@ class StrategySelector:
         """Get human-readable strategy name."""
         names = {
             StrategyType.STRATEGY_NONE: "NONE",
-            StrategyType.STRATEGY_NEWS_TRADER: "NEWS_TRADER",
+            StrategyType.STRATEGY_NEWS_TRADER: "NEWS_TRADER",  # Deprecated: no longer selected by StrategySelector
             StrategyType.STRATEGY_TREND_FOLLOW: "TREND_FOLLOW",
             StrategyType.STRATEGY_MEAN_REVERT: "MEAN_REVERT",
             StrategyType.STRATEGY_SMC_SCALPER: "SMC_SCALPER",
