@@ -28,6 +28,22 @@
 
 ---
 
+## Phase 03 TrendFollow - 2025-12-24 (FORGE/CRITIC)
+
+### 🐛 BUGFIX: Harden TrendFollow gates (fail-closed)
+
+**What:** Hardened TrendFollow activation path with fail-closed config validation and regime stability gating; added Phase 03 TrendFollow report with real backtest metrics.
+**Why:** Prevent misconfiguration from increasing aggressiveness and avoid trading without HTF regime context when stability gate is enabled.
+**Impact:**
+- Invalid `trend_follow_mode` disables TrendFollow (warn-once).
+- `regime_stability_min_bars>0` blocks until HTF regime + detector available (warn-once).
+**Files:**
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+- `.planning/phases/09-strategy-activation/orchestration/PHASE_03_TREND_FOLLOW.md`
+**Validation:** `.venv/bin/pytest -q`; CRITIC (Sonnet) verdict GO
+
+---
+
 ## nautilus_gold_scalper/scripts/backtest/run_backtest.py - 2025-12-20 18:32 (FORGE)
 
 ### ✨ FEATURE: Local NewsCalendar dataset support in backtests

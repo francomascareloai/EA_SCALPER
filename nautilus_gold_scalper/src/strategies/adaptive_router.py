@@ -22,6 +22,7 @@ class RouterArm(str, Enum):
     SMC = "smc"
     TREND_PULLBACK = "trend_pullback"
     TREND_BREAKOUT = "trend_breakout"
+    MEAN_REVERT = "mean_revert"
 
 
 @dataclass(frozen=True, slots=True)

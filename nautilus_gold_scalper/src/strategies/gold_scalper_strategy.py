@@ -76,6 +76,7 @@ from ..signals.trend_follow import (
     TrendFollowVariant,
     generate_trend_follow_candidates,
 )
+from ..signals.mean_revert import MeanRevertCandidate, generate_mean_revert_candidates
 
 # Import signal generators
 from ..signals.mtf_manager import MTFManager
@@ -120,6 +121,15 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     trend_follow_mode: str = "BOTH"
     enable_trend_pullback: bool = True
     enable_trend_breakout: bool = True
+
+    # MeanRevert (optional; disabled by default)
+    enable_mean_revert: bool = False
+    mean_revert_bb_period: int = 20
+    mean_revert_bb_k: float = 2.0
+    mean_revert_rsi_period: int = 14
+    mean_revert_rsi_oversold: float = 30.0
+    mean_revert_rsi_overbought: float = 70.0
+    mean_revert_max_atr_percentile: float = 70.0
 
     # Optional regime stability gate (disabled by default).
     # If enabled, blocks new trades during regime transitions.
@@ -332,8 +342,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._regime_detector: RegimeDetector | None = None
 
         # Configuration sanity checks
-        if (not bool(getattr(self.config, "enable_smc", True))) and (not bool(getattr(self.config, "enable_trend_follow", False))):
-            logger.warning("[CONFIG] Both enable_smc=false and enable_trend_follow=false; strategy will not trade")
+        if (not bool(getattr(self.config, "enable_smc", True))) and (not bool(getattr(self.config, "enable_trend_follow", False))) and (not bool(getattr(self.config, "enable_mean_revert", False))):
+            logger.warning("[CONFIG] All paths disabled (enable_smc=false, enable_trend_follow=false, enable_mean_revert=false); strategy will not trade")
+
+        # Note: trend_follow_mode is validated and fail-closed in the signal path using _log_once.
         self._structure_analyzer: StructureAnalyzer | None = None
         self._footprint_analyzer: FootprintAnalyzer | None = None
         self._ob_detector: OrderBlockDetector | None = None
@@ -364,6 +376,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._last_spread_state: int | None = None
         self._last_cb_level: int | None = None
         self._telemetry: TelemetrySink | None = None
+        self._execution_failsafe_triggered: bool = False
 
         # Adaptive router attribution (optional)
         self._router: AdaptiveEVRouter | None = None
@@ -377,6 +390,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # Analysis state (per timeframe)
         # BUG-11 FIX: Explicit timeframe-separated OB/FVG lists to prevent semantic collision.
         # Previously _mtf_order_blocks was overwritten by LTF detection (lines 1921-1937).
+        # NOTE: Bias is fail-closed during warmup (RANGING blocks entries when require_htf_align=True).
         self._htf_bias: MarketBias = MarketBias.RANGING
         # NOTE: _htf_order_blocks and _htf_fvgs are RESERVED for future HTF OB/FVG analysis.
         # Currently only _htf_bias is populated in _on_htf_bar(). The OB/FVG lists are placeholders
@@ -1194,7 +1208,24 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # Default is disabled (min_bars=0, max_transition_prob=1.0) to avoid signal starvation.
         min_bars = int(getattr(self.config, "regime_stability_min_bars", 0))
         max_tp = float(getattr(self.config, "regime_stability_max_transition_prob", 1.0))
-        if min_bars > 0 and self._regime_detector and self._current_regime is not None:
+        if min_bars > 0:
+            if self._current_regime is None:
+                # Fail-closed: if the user explicitly enabled the gate, do not trade until HTF regime is available.
+                self._log_once(
+                    "regime_stability_no_regime",
+                    "[CONFIG] regime_stability_min_bars>0 but current_regime is None (HTF regime not initialized yet) - blocked",
+                    level="warning",
+                )
+                return
+            if self._regime_detector is None:
+                # Fail-closed: if the detector is missing, the gate cannot be enforced.
+                self._log_once(
+                    "regime_stability_no_detector",
+                    "[CONFIG] regime_stability_min_bars>0 but regime_detector is None - blocked",
+                    level="warning",
+                )
+                return
+
             is_stable, regime_reason = self._regime_detector.is_regime_stable(
                 min_bars=min_bars,
                 max_transition_prob=max_tp,
@@ -1283,6 +1314,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 return
 
         # Strategy selector gate (regime/session/safety context)
+        selected_strategy: StrategyType | None = None
         if self._strategy_selector:
             try:
                 circuit_ok = True if not self._circuit_breaker else self._circuit_breaker.can_trade(now=bar_time)
@@ -1310,6 +1342,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 total_dd_percent=self._drawdown_tracker.get_total_drawdown_pct() if self._drawdown_tracker else 0.0,
             )
             selection = self._strategy_selector.select_strategy(context)
+            selected_strategy = selection.strategy
             if selection.strategy in (StrategyType.STRATEGY_NONE, StrategyType.STRATEGY_SAFE_MODE):
                 if should_log:
                     self.log.info(f"[SIGNAL_CHECK] Strategy selector BLOCKED: {selection.strategy.name}, reason={selection.reason}")
@@ -1495,17 +1528,27 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         news_score_adj = news_window.score_adjustment if news_window else 0
         effective_score = (confluence_result.total_score + news_score_adj + spread_score_adj) if confluence_result else 0.0
 
+        try:
+            inst = self.instrument
+            tick_size = float(inst.price_increment.as_double()) if inst else float(XAUUSD_POINT)
+            atr = float(self._get_current_atr())
+            atr_p = float(self._get_atr_percentile())
+            closes = np.array([b.close.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
+            highs = np.array([b.high.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
+            lows = np.array([b.low.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
+        except Exception as exc:
+            self.log.debug(f"[SIGNALS] LTF extraction failed: {exc}")
+            tick_size = float(XAUUSD_POINT)
+            atr = 0.0
+            atr_p = 0.0
+            closes = np.array([], dtype=np.float64)
+            highs = np.array([], dtype=np.float64)
+            lows = np.array([], dtype=np.float64)
+
         # Optional TrendFollow candidates (pullback + breakout)
         trend_candidates: list[TrendFollowCandidate] = []
         if bool(getattr(self.config, "enable_trend_follow", False)):
             try:
-                inst = self.instrument
-                tick_size = float(inst.price_increment.as_double()) if inst else float(XAUUSD_POINT)
-                atr = float(self._get_current_atr())
-                atr_p = float(self._get_atr_percentile())
-                closes = np.array([b.close.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
-                highs = np.array([b.high.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
-                lows = np.array([b.low.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
                 trend_candidates = generate_trend_follow_candidates(
                     closes=closes,
                     highs=highs,
@@ -1519,8 +1562,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 mode = str(getattr(self.config, "trend_follow_mode", "BOTH")).strip().upper()
                 valid_modes = {"PULLBACK_ONLY", "BREAKOUT_ONLY", "BOTH"}
                 if mode not in valid_modes:
-                    self.log.warning(f"[TREND] Invalid trend_follow_mode={mode!r}; using BOTH")
-                    mode = "BOTH"
+                    # Fail-closed: treat as disabled (do not silently increase aggressiveness).
+                    trend_candidates = []
+                    self._log_once("trend_follow_mode_invalid", f"[CONFIG] Invalid trend_follow_mode={mode!r}; TrendFollow disabled", level="warning")
 
                 if mode == "PULLBACK_ONLY":
                     trend_candidates = [c for c in trend_candidates if c.variant == TrendFollowVariant.PULLBACK]
@@ -1535,7 +1579,30 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 self.log.debug(f"[TREND] candidate gen failed: {exc}")
                 trend_candidates = []
 
-        if confluence_result is None and not trend_candidates:
+        # Optional MeanRevert candidates (BB + RSI)
+        mean_candidates: list[MeanRevertCandidate] = []
+        if bool(getattr(self.config, "enable_mean_revert", False)) and (selected_strategy == StrategyType.STRATEGY_MEAN_REVERT):
+            try:
+                mean_candidates = generate_mean_revert_candidates(
+                    closes=closes,
+                    highs=highs,
+                    lows=lows,
+                    tick_size=tick_size,
+                    atr=atr,
+                    atr_percentile=atr_p,
+                    bb_period=int(getattr(self.config, "mean_revert_bb_period", 20)),
+                    bb_k=float(getattr(self.config, "mean_revert_bb_k", 2.0)),
+                    rsi_period=int(getattr(self.config, "mean_revert_rsi_period", 14)),
+                    rsi_oversold=float(getattr(self.config, "mean_revert_rsi_oversold", 30.0)),
+                    rsi_overbought=float(getattr(self.config, "mean_revert_rsi_overbought", 70.0)),
+                    max_atr_percentile=float(getattr(self.config, "mean_revert_max_atr_percentile", 70.0)),
+                    min_score=float(self.config.execution_threshold),
+                )
+            except Exception as exc:
+                self.log.debug(f"[MEAN] candidate gen failed: {exc}")
+                mean_candidates = []
+
+        if confluence_result is None and not trend_candidates and not mean_candidates:
             if should_log:
                 self.log.info("[SIGNAL_CHECK] Confluence returned None (insufficient data or error)")
             if self._telemetry:
@@ -1572,21 +1639,31 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         self._last_confluence = confluence_result
 
-        # Router/deterministic selection: choose between SMC and TrendFollow variants
+        # Router/deterministic selection: choose between SMC, TrendFollow variants, and MeanRevert
         selected_arm: RouterArm = RouterArm.SMC
         selected_score: float = float(effective_score)
         selected_trend: TrendFollowCandidate | None = None
+        selected_mean: MeanRevertCandidate | None = None
 
         # Deterministic fallback (if router disabled)
         if trend_candidates:
-            best = max(
+            best_trend = max(
                 trend_candidates,
                 key=lambda c: (float(c.score), 1 if c.variant == TrendFollowVariant.PULLBACK else 0),
             )
-            if confluence_result is None or float(best.score) > float(selected_score) + 1e-9:
-                selected_trend = best
-                selected_arm = RouterArm.TREND_PULLBACK if best.variant == TrendFollowVariant.PULLBACK else RouterArm.TREND_BREAKOUT
-                selected_score = float(best.score)
+            if confluence_result is None or float(best_trend.score) > float(selected_score) + 1e-9:
+                selected_trend = best_trend
+                selected_mean = None
+                selected_arm = RouterArm.TREND_PULLBACK if best_trend.variant == TrendFollowVariant.PULLBACK else RouterArm.TREND_BREAKOUT
+                selected_score = float(best_trend.score)
+
+        if mean_candidates:
+            best_mean = max(mean_candidates, key=lambda c: float(c.score))
+            if confluence_result is None or float(best_mean.score) > float(selected_score) + 1e-9:
+                selected_trend = None
+                selected_mean = best_mean
+                selected_arm = RouterArm.MEAN_REVERT
+                selected_score = float(best_mean.score)
 
         # Adaptive router selection (EV w/ DD penalty) - optional
         if self._router:
@@ -1602,6 +1679,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 for tc in trend_candidates:
                     arm = RouterArm.TREND_PULLBACK if tc.variant == TrendFollowVariant.PULLBACK else RouterArm.TREND_BREAKOUT
                     router_candidates.append(RouterCandidate(arm=arm, score=float(tc.score), meta={"kind": "trend"}))
+                for mc in mean_candidates:
+                    router_candidates.append(RouterCandidate(arm=RouterArm.MEAN_REVERT, score=float(mc.score), meta={"kind": "mean"}))
 
                 sel = self._router.select(
                     ctx=ctx,
@@ -1615,11 +1694,21 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     selected_arm = sel.arm
                     if selected_arm == RouterArm.SMC:
                         selected_trend = None
+                        selected_mean = None
                         selected_score = float(effective_score)
-                    else:
+                    elif selected_arm in (RouterArm.TREND_PULLBACK, RouterArm.TREND_BREAKOUT):
+                        selected_mean = None
                         want = TrendFollowVariant.PULLBACK if selected_arm == RouterArm.TREND_PULLBACK else TrendFollowVariant.BREAKOUT
                         selected_trend = max((c for c in trend_candidates if c.variant == want), key=lambda x: float(x.score), default=None)
                         selected_score = float(selected_trend.score) if selected_trend else 0.0
+                    elif selected_arm == RouterArm.MEAN_REVERT:
+                        selected_trend = None
+                        selected_mean = max(mean_candidates, key=lambda x: float(x.score), default=None)
+                        selected_score = float(selected_mean.score) if selected_mean else 0.0
+                    else:
+                        selected_trend = None
+                        selected_mean = None
+                        selected_score = 0.0
 
                     if self._telemetry:
                         self._telemetry.emit(
@@ -1639,6 +1728,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                                     "trend_breakout": float(
                                         max((c.score for c in trend_candidates if c.variant == TrendFollowVariant.BREAKOUT), default=0.0)
                                     ),
+                                    "mean_revert": float(max((c.score for c in mean_candidates), default=0.0)),
                                 },
                             },
                         )
@@ -1703,6 +1793,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
             signal = SignalType.SIGNAL_BUY if selected_trend.direction == TrendDirection.LONG else SignalType.SIGNAL_SELL
             sl_distance = float(selected_trend.sl_distance)
+        elif selected_mean is not None:
+            # MeanRevert is only enabled when selector chooses MEAN_REVERT.
+            signal = SignalType.SIGNAL_BUY if selected_mean.direction == TrendDirection.LONG else SignalType.SIGNAL_SELL
+            sl_distance = float(selected_mean.sl_distance)
 
         if signal == SignalType.SIGNAL_NONE:
             return
@@ -1834,7 +1928,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     "risk_usd": float(risk_usd),
                     "ctx": (str(sess), str(reg), int(vol_bucket)),
                     "score": float(selected_score),
-                    "variant": selected_trend.variant.value if selected_trend else None,
+                    "variant": selected_trend.variant.value if selected_trend else ("bb_rsi" if selected_mean else None),
                 }
             self._enter_long(quantity, sl_price, tp_price)
 
@@ -1888,7 +1982,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     "risk_usd": float(risk_usd),
                     "ctx": (str(sess), str(reg), int(vol_bucket)),
                     "score": float(selected_score),
-                    "variant": selected_trend.variant.value if selected_trend else None,
+                    "variant": selected_trend.variant.value if selected_trend else ("bb_rsi" if selected_mean else None),
                 }
             self._enter_short(quantity, sl_price, tp_price)
 
@@ -2285,9 +2379,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # - Too tight stops (< MIN_SL_DISTANCE) that get hit by noise
         # - Huge losses (> MAX_SL_DISTANCE) that violate Apex DD limits
         if raw_sl <= 0:
-            clamped_sl = DEFAULT_SL_DISTANCE
+            clamped_sl: float = float(DEFAULT_SL_DISTANCE)
         else:
-            clamped_sl = max(MIN_SL_DISTANCE, min(raw_sl, MAX_SL_DISTANCE))
+            clamped_sl = float(max(MIN_SL_DISTANCE, min(raw_sl, MAX_SL_DISTANCE)))
 
         # Sanity check assertion
         assert MIN_SL_DISTANCE <= clamped_sl <= MAX_SL_DISTANCE, \
