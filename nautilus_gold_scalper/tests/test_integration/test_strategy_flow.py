@@ -38,12 +38,12 @@ def generate_trending_data(n_bars: int = 200, direction: str = "bull") -> dict:
     base_price = 2650.0
     trend = 0.15 if direction == "bull" else -0.15
 
-    closes = [base_price]
+    closes_list: list[float] = [base_price]
     for _ in range(1, n_bars):
         change = trend + np.random.normal(0, 0.5)
-        closes.append(closes[-1] + change)
+        closes_list.append(closes_list[-1] + change)
 
-    closes = np.array(closes)
+    closes = np.array(closes_list)
     highs = closes + np.random.uniform(0.5, 2.0, n_bars)
     lows = closes - np.random.uniform(0.5, 2.0, n_bars)
 

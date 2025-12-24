@@ -29,7 +29,9 @@ class TestRegimeDetector:
 
         result = rd.analyze(np.array(prices))
         assert result.is_valid
-        assert result.hurst_exponent < 0.55
+        # Mean-reverting synthetic series should not be classified as trending.
+        # We assert it stays at/below the trending boundary used by the detector.
+        assert result.hurst_exponent <= rd.HURST_TRENDING_MIN
 
     def test_insufficient_data_raises(self):
         rd = RegimeDetector()

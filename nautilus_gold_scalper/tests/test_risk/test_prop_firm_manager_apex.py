@@ -25,18 +25,28 @@ class DummyStrategy:
 
 
 def test_prop_firm_manager_hard_stop_on_breach():
+    """Test that PropFirmManager triggers hard stop when DD limits are breached.
+
+    H4 FIX: This test now uses percentage-based DD system (DDProtectionCalculator).
+    The legacy dollar-based limits are DEPRECATED.
+    DDProtectionCalculator halts trading at:
+    - trailing DD >= 4% (from HWM)
+    - daily DD >= 3% (from day start)
+    """
     limits = PropFirmLimits(
         account_size=100_000.0,
-        daily_loss_limit=1_000.0,
-        trailing_drawdown=1_000.0,
+        # Legacy limits are deprecated - DDProtectionCalculator is authoritative
+        daily_loss_limit=50_000.0,  # High value to avoid legacy interference
+        trailing_drawdown=50_000.0,  # High value to avoid legacy interference
     )
     mgr = PropFirmManager(limits=limits)
     s = DummyStrategy()
     mgr.set_strategy(s)
     mgr.initialize(100_000.0)
 
-    # Simulate equity drop beyond trailing DD
-    mgr.update_equity(98_900.0)  # DD = 1,100 > 1,000
+    # Simulate equity drop to trigger DDProtectionCalculator halt threshold (>= 4% trailing DD)
+    # 4.5% DD = $4,500 loss from HWM of $100k
+    mgr.update_equity(95_500.0)  # 4.5% trailing DD - exceeds 4% halt threshold
 
     # Should raise exception on breach
     with pytest.raises(AccountTerminatedException):

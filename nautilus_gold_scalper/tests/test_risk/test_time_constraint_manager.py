@@ -45,7 +45,8 @@ def ts_at(hour: int, minute: int) -> int:
     """Create timestamp in ET timezone (not UTC)."""
     try:
         from zoneinfo import ZoneInfo
-        et_tz = ZoneInfo("America/New_York")
+
+        et_tz: datetime.tzinfo = ZoneInfo("America/New_York")
     except Exception:
         # Fallback for testing: use UTC offset approximation
         et_tz = datetime.timezone(datetime.timedelta(hours=-5))
