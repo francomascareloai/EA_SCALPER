@@ -124,6 +124,9 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
 
     # MeanRevert (optional; disabled by default)
     enable_mean_revert: bool = False
+    # When true, MeanRevert runs even if StrategySelector would block / route elsewhere.
+    # Intended for controlled evaluation (ablation/reachability), not default trading.
+    force_mean_revert: bool = False
     mean_revert_bb_period: int = 20
     mean_revert_bb_k: float = 2.0
     mean_revert_rsi_period: int = 14
@@ -136,8 +139,8 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     regime_stability_min_bars: int = 0
     regime_stability_max_transition_prob: float = 1.0
 
-    # Adaptive EV router (optional; disabled by default)
-    router_adaptive_ev: bool = False
+    # Adaptive EV router (enabled by default for strategy arm selection)
+    router_adaptive_ev: bool = True
     router_min_trades_to_trust: int = 30
     router_score_weight: float = 0.10
     router_dd_penalty_total: float = 0.20
@@ -1343,7 +1346,16 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             )
             selection = self._strategy_selector.select_strategy(context)
             selected_strategy = selection.strategy
-            if selection.strategy in (StrategyType.STRATEGY_NONE, StrategyType.STRATEGY_SAFE_MODE):
+
+            # Evaluation mode: force MeanRevert even when selector would block (e.g. RANDOM_WALK).
+            # Safety gates still apply (spread/circuit/time/prop-firm).
+            if (
+                selection.strategy == StrategyType.STRATEGY_NONE
+                and bool(getattr(self.config, "enable_mean_revert", False))
+                and bool(getattr(self.config, "force_mean_revert", False))
+            ):
+                selected_strategy = StrategyType.STRATEGY_MEAN_REVERT
+            elif selection.strategy in (StrategyType.STRATEGY_NONE, StrategyType.STRATEGY_SAFE_MODE):
                 if should_log:
                     self.log.info(f"[SIGNAL_CHECK] Strategy selector BLOCKED: {selection.strategy.name}, reason={selection.reason}")
                 if self._telemetry:
