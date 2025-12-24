@@ -24,6 +24,7 @@
 
 | Feature | Prioridade | Esforco | Status |
 |---------|------------|---------|--------|
+| **Setup Quality Filter** | P1 | 4-6h | TODO (conditional) |
 | **Fibonacci Golden Pocket** | P1 | 4-6h | TODO |
 | **Adaptive Kelly Sizing** | P1 | 6-8h | TODO |
 | **Spread-Aware Entry** | P1 | 4-6h | TODO |
@@ -112,6 +113,63 @@
 ---
 
 ## PHASE 1: QUICK WINS (P1) ⚡
+
+### 1.0 Setup Quality Filter [PRIORITY: HIGH] ⭐ NEW
+
+**Source:** Phase 00-C Portfolio Review → CRUCIBLE / SENTINEL analysis
+
+**Motivacao:** Reduzir churn e melhorar assertividade filtrando trades de baixa qualidade ANTES de entrar. Trades ruíns (baixa confluência, regime indefinido, muito próximo do último trade) destroem edge e aumentam risco HWM.
+
+**Arquivos alvo:**
+- `src/risk/setup_quality_filter.py` (a criar)
+- `src/strategies/gold_scalper_strategy.py`
+- `src/signals/confluence_engine.py`
+
+**Proposta (conceito):**
+```python
+class SetupQualityFilter:
+    """Filter trades by quality score."""
+
+    def __init__(self):
+        self.session_thresholds = {
+            "LONDON": 75,      # Highest bar (best liquidity)
+            "NY_OVERLAP": 70,  # High bar
+            "NY": 65,          # Medium bar
+            "ASIAN": 80,       # Very selective (low liquidity)
+        }
+        self.min_time_between_trades_minutes = 30  # Anti-churn
+        self.regime_clarity_threshold = 0.7  # Hurst distance from 0.5
+
+    def passes_quality_gate(
+        self,
+        confluence_score: float,
+        session: str,
+        minutes_since_last_trade: int,
+        regime_clarity: float,
+    ) -> bool:
+        threshold = self.session_thresholds.get(session, 70)
+        if confluence_score < threshold:
+            return False
+        if minutes_since_last_trade < self.min_time_between_trades_minutes:
+            return False
+        if regime_clarity < self.regime_clarity_threshold:
+            return False
+        return True
+```
+
+**Gate condicional:** Implementar SOMENTE se Ghost Test (T1) confirmar que sinais adicionam edge.
+
+**Impacto esperado:**
+- Frequência de trades: -30% a -50%
+- Win rate: +10% a +20%
+- Variância de equity: -20% a -30%
+
+**Esforço:** 4-6 horas
+**Prioridade:** **P1**
+**Status:** ❌ TODO (conditional on Ghost Test)
+**Referencias:** Phase 00-C Portfolio Review, CRUCIBLE analysis 2025-12-24
+
+---
 
 ### 1.1 Fibonacci Golden Pocket Integration [PRIORITY: HIGH]
 
@@ -673,6 +731,7 @@ class PortfolioHeatManager:
 
 | Date | Change |
 |------|--------|
+| 2025-12-24 | **NEW** - Added Setup Quality Filter (P1, conditional on Ghost Test) from Phase 00-C |
 | 2025-12-08 | **TEMPLATE FIX** - Reformatted to match DOCS/02_IMPLEMENTATION/FUTURE_IMPROVEMENTS.md structure |
 | 2025-12-08 | Initial creation with 12 ideas organized by priority (P1-P4) |
 

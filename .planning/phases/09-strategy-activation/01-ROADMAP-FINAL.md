@@ -387,6 +387,77 @@ rg -n "bars_timestamp_on_close|ts_init_delta|bar_execution|bar_adaptive" src/
 
 **Solution:** Scale-out on winners.
 
+#### 02-NEW-04: Setup Quality Filter (CONDITIONAL - after Ghost Test)
+
+**Trigger:** Only implement if Ghost Test (T1) proves SMC signals ADD edge.
+
+**Problem:** Too many marginal trades dilute edge and increase HWM trap exposure.
+
+**Solution:** Accept fewer trades, but higher quality.
+
+```python
+class SetupQualityFilter:
+    """
+    Filter trades by quality score.
+
+    Reduces trade frequency but increases win rate and reduces variance.
+    Key for Apex HWM survival: fewer trades = less exposure.
+    """
+
+    def __init__(self):
+        # Session-specific thresholds (London more selective)
+        self.session_thresholds = {
+            "LONDON": 75,      # Highest bar (best liquidity)
+            "NY_OVERLAP": 70,  # High bar
+            "NY": 65,          # Medium bar
+            "ASIAN": 80,       # Very selective (low liquidity)
+        }
+        self.min_time_between_trades_minutes = 30  # Anti-churn
+        self.regime_clarity_threshold = 0.7  # Hurst distance from 0.5
+
+    def passes_quality_gate(
+        self,
+        confluence_score: float,
+        session: str,
+        minutes_since_last_trade: int,
+        regime_clarity: float,
+    ) -> bool:
+        """
+        Quality gate: trade only high-quality setups.
+
+        Args:
+            confluence_score: 0-100 from confluence scorer
+            session: Current trading session
+            minutes_since_last_trade: Time since last trade
+            regime_clarity: abs(hurst - 0.5) * 2 (0=unclear, 1=clear)
+
+        Returns:
+            True if setup passes quality filter
+        """
+        # 1. Session-adjusted confluence threshold
+        threshold = self.session_thresholds.get(session, 70)
+        if confluence_score < threshold:
+            return False
+
+        # 2. Anti-churn: minimum time between trades
+        if minutes_since_last_trade < self.min_time_between_trades_minutes:
+            return False
+
+        # 3. Regime clarity: don't trade in transition zones
+        if regime_clarity < self.regime_clarity_threshold:
+            return False
+
+        return True
+```
+
+**Expected Impact:**
+- -30-50% trade frequency
+- +10-20% win rate
+- -20-30% equity variance
+- Better Apex survival (fewer HWM spikes)
+
+**Deliverable:** Design spec in `orchestration/SETUP_QUALITY_FILTER_DESIGN.md`
+
 ```python
 def calculate_scale_out_levels(
     entry_price: float,
