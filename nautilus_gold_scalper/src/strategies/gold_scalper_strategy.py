@@ -110,8 +110,14 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     use_footprint_boost: bool = True
     use_bandit_context: bool = False
 
+    # Strategy toggles (useful for isolated backtests)
+    enable_smc: bool = True
+
     # TrendFollow (optional; disabled by default)
     enable_trend_follow: bool = False
+    # Mode is an optional convenience override for the booleans below:
+    # - "PULLBACK_ONLY" | "BREAKOUT_ONLY" | "BOTH"
+    trend_follow_mode: str = "BOTH"
     enable_trend_pullback: bool = True
     enable_trend_breakout: bool = True
 
@@ -562,9 +568,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 product = "mgc" if raw_symbol == "mgc" else "xauusd"
 
                 commission_per_lot = commission_per_side_usd(
-                    profile=profile,  # type: ignore[arg-type]
-                    product=product,  # type: ignore[arg-type]
-                    gateway=gateway,  # type: ignore[arg-type]
+                    profile=profile,
+                    product=product,
+                    gateway=gateway,
                 )
             else:
                 commission_per_lot = float(getattr(self.config, "commission_per_contract", 2.5))
@@ -1175,21 +1181,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             if dow_mult < 1.0 and should_log:
                 self.log.info(f"[FILTER] Day-of-week size adjustment: {dow_mult:.2f}x ({dow_reason})")
 
-        # FORGE-NAUTILUS Wave 2: Regime stability check
-        # NOTE: Set min_bars=1 to effectively disable blocking (regime changes too frequently on H1)
-        # Skip check entirely if regime hasn't warmed up yet (avoid blocking during warmup)
-        if self.config.use_regime_filter and self._regime_detector and self._current_regime is not None:
-            is_stable, regime_reason = self._regime_detector.is_regime_stable(min_bars=1)
-            if not is_stable:
-                if should_log:
-                    self.log.info(f"[SIGNAL_CHECK] Regime unstable: {regime_reason}")
-                if self._telemetry:
-                    self._telemetry.emit("signal_reject", {
-                        "reason": "regime_unstable",
-                        "regime_reason": regime_reason,
-                        "bar": len(self._ltf_bars)
-                    })
-                return
+        # FORGE-NAUTILUS Phase 09: Removed redundant is_regime_stable() gate.
+        # Rationale: Confluence scorer already penalizes RANDOM_WALK (-50, INVALID) and
+        # TRANSITIONING (-20, 30% weight). The gate was causing ~10k+ false rejections
+        # per quarter by blocking even good regimes with high transition_prob estimates.
+        # Regime filtering is now handled exclusively by confluence scoring.
 
         # Apex entry gate (block new trades after 4:30 PM ET)
         # Only apply if prop_firm_enabled - allows backtest without time constraints
@@ -1438,16 +1434,18 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     })
                 return
 
-        # Calculate confluence score (SMC candidate)
-        if should_log:
-            self.log.info(f"[SIGNAL_CHECK] Calculating confluence at bar {len(self._ltf_bars)}...")
-        confluence_result = self._calculate_confluence(bar)
+        # Calculate confluence score (SMC candidate) unless explicitly disabled.
+        confluence_result = None
+        if bool(getattr(self.config, "enable_smc", True)):
+            if should_log:
+                self.log.info(f"[SIGNAL_CHECK] Calculating confluence at bar {len(self._ltf_bars)}...")
+            confluence_result = self._calculate_confluence(bar)
 
         # BUG-4 FIX: HTF direction alignment check - block signals opposing HTF bias
         # This prevents SELL signals when HTF (H1) is BULLISH and vice versa.
         # The existing check at lines 1246-1256 only blocks RANGING/TRANSITION,
         # but not opposite direction signals. This gate enforces HTF > LTF priority.
-        if self.config.require_htf_align and confluence_result:
+        if self.config.require_htf_align and confluence_result is not None:
             htf_bullish = self._htf_bias == MarketBias.BULLISH
             htf_bearish = self._htf_bias == MarketBias.BEARISH
             signal_buy = confluence_result.direction == SignalType.SIGNAL_BUY
@@ -1491,10 +1489,17 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     atr_percentile=atr_p,
                     min_score=float(self.config.execution_threshold),
                 )
-                if not bool(getattr(self.config, "enable_trend_pullback", True)):
-                    trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.PULLBACK]
-                if not bool(getattr(self.config, "enable_trend_breakout", True)):
-                    trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.BREAKOUT]
+
+                mode = str(getattr(self.config, "trend_follow_mode", "BOTH")).strip().upper()
+                if mode == "PULLBACK_ONLY":
+                    trend_candidates = [c for c in trend_candidates if c.variant == TrendFollowVariant.PULLBACK]
+                elif mode == "BREAKOUT_ONLY":
+                    trend_candidates = [c for c in trend_candidates if c.variant == TrendFollowVariant.BREAKOUT]
+                else:
+                    if not bool(getattr(self.config, "enable_trend_pullback", True)):
+                        trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.PULLBACK]
+                    if not bool(getattr(self.config, "enable_trend_breakout", True)):
+                        trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.BREAKOUT]
             except Exception as exc:
                 self.log.debug(f"[TREND] candidate gen failed: {exc}")
                 trend_candidates = []

@@ -133,8 +133,25 @@ class ApexOptimizer:
                 constraint_fn=self._constraint_fn,
             )
             study_stats = searcher.get_study_summary()
+        elif self.config.search.mode == "grid":
+            from nautilus_gold_scalper.src.optimization.search.grid import GridSearch
+
+            searcher = GridSearch(self.config)
+            self._results = searcher.search(
+                objective_fn=self._objective_fn,
+                constraint_fn=self._constraint_fn,
+            )
+            study_stats = searcher.get_study_summary()
+        elif self.config.search.mode == "random":
+            from nautilus_gold_scalper.src.optimization.search.random import RandomSearch
+
+            searcher = RandomSearch(self.config)
+            self._results = searcher.search(
+                objective_fn=self._objective_fn,
+                constraint_fn=self._constraint_fn,
+            )
+            study_stats = searcher.get_study_summary()
         else:
-            # TODO: Implement grid and random search
             raise NotImplementedError(f"Search mode {self.config.search.mode} not yet implemented")
 
         # Sort by score

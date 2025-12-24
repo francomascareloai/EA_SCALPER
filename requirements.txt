@@ -24,6 +24,7 @@ skl2onnx>=1.16.0
 # === STATISTICS ===
 statsmodels>=0.14.0
 arch>=6.0.0  # GJR-GARCH volatility modeling
+optuna>=3.0.0
 
 # === SERVICES / API ===
 fastapi>=0.110.0

@@ -3,7 +3,7 @@
 ## Metadata
 - **Phase:** 03
 - **Priority:** P0 - CRITICAL
-- **Status:** Not Started
+- **Status:** In Progress (wiring + isolated backtests complete)
 - **Agents:** 1 CRUCIBLE (opus) + 1 ORACLE (backtest)
 - **Depends On:** Phase 02 Complete (SMC GO)
 - **Checkpoint:** Human approval before Phase 04
@@ -85,7 +85,7 @@ Ativar e validar a estratégia Trend Follow (pullback + breakout). Esta estraté
 
 ### Task 03-01: TrendFollow Code Audit
 
-**Status:** Not Started
+**Status:** Completed
 
 **File:** `src/signals/trend_follow.py` (~196 lines)
 
@@ -130,7 +130,7 @@ Ativar e validar a estratégia Trend Follow (pullback + breakout). Esta estraté
 
 ### Task 03-02: TrendFollow Integration Check
 
-**Status:** Not Started
+**Status:** Completed
 
 **Files:**
 - `gold_scalper_strategy.py` (lines ~1499-1545)
@@ -181,7 +181,7 @@ on_data()
 
 ### Task 03-03: TrendFollow Backtest Isolado
 
-**Status:** Not Started
+**Status:** Completed (2024-01-01..2024-01-15, feed=ticks)
 
 **Action:** Run backtest with ONLY TREND_FOLLOW strategy.
 
@@ -218,6 +218,13 @@ config = {
 
 **Required Metrics (per variant):**
 | Metric | Threshold | Required |
+
+**Observed (2024-01-01..2024-01-15, feed=ticks):**
+- BOTH: Trades=14, WinRate=71.4%, TotalPnL=$16.20, FinalBalance=$100,016.20
+- PULLBACK_ONLY: Trades=13, WinRate=76.9%, TotalPnL=$-34.71, FinalBalance=$99,965.29
+- BREAKOUT_ONLY: Trades=17, WinRate=64.7%, TotalPnL=$839.25, FinalBalance=$100,839.25
+
+Notes: frequent `[FAILSAFE]` triggers observed (cutoff pending close, bracket cancel, prop_firm_dd_breach) during these short-window runs.
 |--------|-----------|----------|
 | WFE | >= 0.6 | Yes |
 | SQN | >= 2.0 | Yes |
