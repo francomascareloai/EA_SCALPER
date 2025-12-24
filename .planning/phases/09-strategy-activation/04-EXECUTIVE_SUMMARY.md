@@ -38,7 +38,8 @@ High-level overview connecting all Phase 09 documentation for decision-making.
 **Outcome**: Multi-strategy system with proven edge
 
 ### Level 2: Tactical (01-ROADMAP.md)
-**6 Phases**:
+**Phases + Pre-Work gates**:
+- **Phase 00 (pre-work):** baseline validation + critical bug fixes + **portfolio strategy review (NEW)**
 1. Cleanup \u0026 Consolidation (dead code, MTF duplication)
 2. SMC_SCALPER Deep Audit (CRUCIBLE validates each indicator)
 3. TREND_FOLLOW Activation (pullback + breakout)

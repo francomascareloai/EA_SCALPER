@@ -20,6 +20,7 @@
 | Relatórios de backtest | `04_REPORTS/BACKTESTS/` |
 | Validação (WFA/MC) | `04_REPORTS/VALIDATION/` |
 | Decisões GO/NO-GO | `04_REPORTS/DECISIONS/` |
+| Ideias e melhorias (Nautilus) | `../nautilus_gold_scalper/FUTURE_IMPROVEMENTS.md` |
 | Pesquisa e findings | `03_RESEARCH/` |
 | Guias de setup | `05_GUIDES/SETUP/` |
 | Referência técnica | `06_REFERENCE/` |

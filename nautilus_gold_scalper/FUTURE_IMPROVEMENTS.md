@@ -40,6 +40,77 @@
 
 ---
 
+## CRUCIBLE (2025-12-24) — Portfolio Strategy Review (Trend/MeanRevert/SMC/Scalper)
+
+> **Status:** 📋 PLANNED (analysis captured; requires ORACLE+SENTINEL validation before implementation)
+>
+> **Goal:** Maximize lucratividade com menor risco, mantendo compliance Apex (HWM trailing DD 5% inclui unrealized; sem overnight; time gates 4:30/4:55/4:59 ET).
+>
+> **Key Decision (recommended):** Consolidar `SMC + scalper` (alto overlap/correlação) em um único “microstructure scalper” mais robusto (zonas + confirmação + gates) e manter `trend-follow` + `mean-revert` como pilares por regime. Adicionar no máximo 2 edges complementares (somente se os testes falsificação-first apontarem necessidade): **Volatility Expansion Breakout** e **Anchored VWAP MR**.
+
+### Diagnóstico do portfólio (redundâncias / conflitos / gaps)
+- **Redundância provável:** `SMC scalper` e `scalper` operam a mesma microestrutura → duplica custo/risco em vez de diversificar edge.
+- **Conflito típico:** trend-follow vs mean-revert em transição rápida de regime → flip-flop/churn.
+- **Gaps de edge:** falta um edge menos dependente de “níveis SMC precisos” para (a) expansão de volatilidade/breakouts e/ou (b) mean-revert mais estrutural (VWAP/anchor).
+
+### Apex / HWM Trap (risco principal)
+- **Maior risco:** trend-follow (winners elevam HWM e reversões intraday podem matar via trailing DD). Também qualquer lógica que “deixa correr” perto do close.
+- **Mitigação obrigatória:** de-risk em lucro (parcial + stop conservador), caps por sessão/hora, e saídas agressivas conforme aproxima `4:55–4:59 PM ET`.
+
+### Melhorias por estratégia (ideias de lógica/execução, não-código)
+**Trend-follow**
+- De-risk em lucro (objetivo: reduzir variância de equity e evitar HWM trap, não maximizar R por trade).
+- Filtro de volatility expansion (evitar trend-follow em compressão/chop).
+- Anti-flip-flop (persistência de regime antes de alternar).
+- Time-based exits (flatten mais cedo conforme aproxima o close ET).
+
+**Mean reversion / min-revert**
+- Proibir MR em regime de ruptura/spikes/news (MR = edge de range, não de cauda).
+- Entradas por zona (bands) + confirmação (falha em continuar + retorno), não por nível “milimétrico”.
+- Cap de re-entries por janela/sessão (evita death-by-a-thousand-cuts).
+- SL adaptativo ao spread/sessão: se spread subiu e o SL mínimo não cabe no risco, não operar.
+
+**SMC**
+- Tratar OB/FVG como zonas com tolerância; precisão extrema é suspeita (overfit).
+- Confirmar com eventos observáveis (quebra/reteste/falha), sem depender de barras futuras.
+- Regras explícitas por sessão (London/NY overlap por padrão; bloquear Asia/late NY).
+- News-aware: bloquear pré-evento e operar pós-evento com atraso/confirm.
+
+**Scalper (genérico)**
+- Consolidar com SMC para reduzir correlação e custo.
+- Trocar “mais trades” por “melhor fill”: operar só com spread aceitável.
+- Impor `min SL vs spread` + anti-noise/tempo mínimo de hold quando aplicável.
+- Cap de frequência por hora/sessão para proteger o dia (Apex: sobreviver > brilhar).
+
+### Estratégias adicionais (no máximo 2, somente se necessário)
+**1) Volatility Expansion Breakout (range → impulso)**
+- **Hipótese de edge:** XAUUSD frequentemente sai de compressões com movimentos rápidos.
+- **Complementa:** quando mean-revert falha (início de tendência) e quando SMC “preciso” é frágil.
+- **Risco:** false breakouts em chop → mitigação com confirmação + gates de sessão/spread/news.
+
+**2) Anchored VWAP / Intraday VWAP Pullback**
+- **Hipótese de edge:** MR mais robusto ao redor de “preço justo” intraday do que OB/FVG milimétrico.
+- **Complementa:** range pós-impulso com sinal menos narrativo.
+- **Risco:** tendência forte “escada” contra VWAP → mitigação com regime filter (não operar em expansion/trend).
+
+### Falsificação-first (testes baratos antes de investir tempo)
+**Test 1 — Ghost Test (sinal vs filtros)**
+- Manter gates (sessão/spread/news/tempo/risco) e substituir o gerador de entradas por baseline simples/aleatório.
+- **Interpretação:** se performance/DD mudam pouco → edge vem de filtros/seleção (ou viés), não do sinal.
+
+**Test 2 — Shifted Levels (precisão SMC é ilusão?)**
+- Aplicar jitter controlado nos níveis OB/FVG/liquidez mantendo o resto igual.
+- **Interpretação:** se resultado não degrada materialmente → simplificar para zonas/bands/VWAP.
+
+**Opcional — Monte Carlo Survival (robustez Apex)**
+- Simular slippage/spread hostis e medir sobrevivência; preferir distribuição a ponto.
+- Gate recomendado: `MC95DD < 4%` (buffer antes do 5% Apex).
+
+### Métricas e gates para GO (ORACLE)
+- Exigir WFA/OOS + robustez: `WFE`, `SQN`, `PSR`, `DSR`, `PBO`, `MC95DD`.
+
+---
+
 ## PHASE 1: QUICK WINS (P1) ⚡
 
 ### 1.1 Fibonacci Golden Pocket Integration [PRIORITY: HIGH]

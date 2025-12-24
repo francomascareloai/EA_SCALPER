@@ -55,6 +55,8 @@ Phase 00-A → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 00-B → CRITIC (opus) → loop ate GO → Next
       ↓
+Phase 00-C → CRITIC (opus) → loop ate GO → Next
+      ↓
 Phase 01 → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 02 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
