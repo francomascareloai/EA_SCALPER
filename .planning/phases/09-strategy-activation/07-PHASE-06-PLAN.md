@@ -390,9 +390,12 @@ NO-GO if:
 06-05 (DAEMON) ────────→ [DAEMON]
         ↓
 06-06 (GO/NO-GO) ─────→ [Human Decision]
+        ↓
+        └──→ If GO: 06-07 (M15 Experiment) ───→ [ORACLE] (OPTIONAL)
 ```
 
 **Note:** ORACLE 1 and ORACLE 2 can run in parallel for baselines.
+**Note:** Task 06-07 is optional and only runs after GO decision.
 
 ---
 
@@ -405,6 +408,7 @@ NO-GO if:
 - [ ] DAEMON strategic review complete
 - [ ] Final GO/NO-GO decision made
 - [ ] User approval obtained
+- [ ] (OPTIONAL) M15 timeframe experiment completed
 
 ---
 
@@ -416,6 +420,7 @@ NO-GO if:
 4. `MULTI_STRATEGY_COMPARISON.md` - Master comparison
 5. `orchestration/DAEMON_STRATEGIC_REVIEW.md` - Strategic analysis
 6. `orchestration/PHASE_06_FINAL_DECISION.md` - GO/NO-GO
+7. (OPTIONAL) `orchestration/M15_TIMEFRAME_EXPERIMENT.md` - M15 primary test results
 
 ---
 
