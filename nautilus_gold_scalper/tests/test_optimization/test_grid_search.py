@@ -4,9 +4,9 @@ from typing import Any
 
 import pytest
 
-from nautilus_gold_scalper.src.optimization.config import OptimizationConfig, ParameterSpec, SearchConfig
-from nautilus_gold_scalper.src.optimization.search.base import TrialResult
-from nautilus_gold_scalper.src.optimization.search.grid import GridSearch, estimate_grid_size
+from src.optimization.config import OptimizationConfig, ParameterSpec, SearchConfig
+from src.optimization.search.base import TrialResult
+from src.optimization.search.grid import GridSearch, estimate_grid_size
 
 
 @pytest.fixture

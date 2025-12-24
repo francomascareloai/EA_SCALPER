@@ -19,11 +19,11 @@ import optuna
 from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
 from optuna.pruners import MedianPruner
 
-from nautilus_gold_scalper.src.optimization.config import (
+from src.optimization.config import (
     OptimizationConfig,
     ParameterSpec,
 )
-from nautilus_gold_scalper.src.optimization.search.base import (
+from src.optimization.search.base import (
     SearchStrategy,
     TrialResult,
     ObjectiveFn,

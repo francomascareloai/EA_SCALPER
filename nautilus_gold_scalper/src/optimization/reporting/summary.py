@@ -15,8 +15,8 @@ from typing import Any, TYPE_CHECKING
 import pandas as pd
 
 if TYPE_CHECKING:
-    from nautilus_gold_scalper.src.optimization.search.base import TrialResult
-    from nautilus_gold_scalper.src.optimization.config import OptimizationConfig
+    from src.optimization.search.base import TrialResult
+    from src.optimization.config import OptimizationConfig
 
 
 class SummaryReporter:

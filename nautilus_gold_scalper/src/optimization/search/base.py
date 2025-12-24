@@ -1,15 +1,15 @@
-"""
-Base search strategy interface.
-"""
+"""Base search strategy interface."""
+
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from nautilus_gold_scalper.src.optimization.config import OptimizationConfig
+from src.optimization.config import OptimizationConfig
 
 
-@dataclass
+@dataclass(slots=True)
 class TrialResult:
     """Result from a single optimization trial."""
 
@@ -56,13 +56,34 @@ class TrialResult:
 
 ObjectiveFn = Callable[[dict[str, Any]], TrialResult]
 ConstraintFn = Callable[[TrialResult], list[float]]
+OnResultFn = Callable[[TrialResult], None]
 
 
 class SearchStrategy(ABC):
     """Abstract base class for search strategies."""
 
-    def __init__(self, config: OptimizationConfig) -> None:
+    def __init__(
+        self,
+        config: OptimizationConfig,
+        *,
+        on_result: OnResultFn | None = None,
+        max_results_in_ram: int | None = None,
+    ) -> None:
         self.config = config
+        self._on_result = on_result
+        self._max_results_in_ram = max_results_in_ram
+        self._results: list[TrialResult] = []
+
+    def _record_result(self, result: TrialResult) -> None:
+        if self._on_result is not None:
+            self._on_result(result)
+
+        self._results.append(result)
+
+        if self._max_results_in_ram is not None and len(self._results) > self._max_results_in_ram:
+            # Keep only top-N by score to cap RAM.
+            self._results.sort(key=lambda r: r.score, reverse=True)
+            del self._results[self._max_results_in_ram :]
 
     @abstractmethod
     def search(
@@ -70,24 +91,12 @@ class SearchStrategy(ABC):
         objective_fn: ObjectiveFn,
         constraint_fn: ConstraintFn | None = None,
     ) -> list[TrialResult]:
-        """
-        Execute search and return list of trial results.
-
-        Args:
-            objective_fn: Function that takes params dict and returns TrialResult
-            constraint_fn: Optional function that returns constraint violations
-
-        Returns:
-            List of TrialResult sorted by score (best first)
-        """
-        ...
+        """Execute search and return list of trial results."""
 
     @abstractmethod
     def get_best_params(self) -> dict[str, Any]:
         """Get best parameters found during search."""
-        ...
 
     @abstractmethod
     def get_study_summary(self) -> dict[str, Any]:
         """Get summary statistics from the search."""
-        ...

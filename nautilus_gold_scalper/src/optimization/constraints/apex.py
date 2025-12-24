@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from nautilus_gold_scalper.src.optimization.search.base import TrialResult
+    from src.optimization.search.base import TrialResult
 
 
 @dataclass(frozen=True, slots=True)

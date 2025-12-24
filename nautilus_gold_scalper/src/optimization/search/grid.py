@@ -6,15 +6,17 @@ Key requirements (Phase 10-02):
 - Deterministic iteration order (reproducible).
 - Fail-fast if estimated grid size exceeds `max_grid_size`.
 - Avoid materializing the full grid in memory.
+
+Supports optional on-disk streaming and bounded in-RAM retention via SearchStrategy.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Callable
 
-from nautilus_gold_scalper.src.optimization.config import OptimizationConfig, ParameterSpec
-from nautilus_gold_scalper.src.optimization.search.base import (
+from src.optimization.config import OptimizationConfig, ParameterSpec
+from src.optimization.search.base import (
     ConstraintFn,
     ObjectiveFn,
     SearchStrategy,
@@ -25,9 +27,14 @@ from nautilus_gold_scalper.src.optimization.search.base import (
 class GridSearch(SearchStrategy):
     """Deterministic grid search over ParameterSpec ranges/choices."""
 
-    def __init__(self, config: OptimizationConfig) -> None:
-        super().__init__(config)
-        self._results: list[TrialResult] = []
+    def __init__(
+        self,
+        config: OptimizationConfig,
+        *,
+        on_result: Callable[[TrialResult], None] | None = None,
+        max_results_in_ram: int | None = None,
+    ) -> None:
+        super().__init__(config, on_result=on_result, max_results_in_ram=max_results_in_ram)
 
     def search(
         self,
@@ -45,18 +52,15 @@ class GridSearch(SearchStrategy):
 
         for trial_id, params in enumerate(iter_grid_params(self.config.parameters)):
             result = objective_fn(params)
-
-            # Attach trial id (objective returns TrialResult with trial_id=0)
             result.trial_id = trial_id
 
             if constraint_fn is not None:
                 constraints = constraint_fn(result)
                 if any(c > 0 for c in constraints):
-                    # Match BayesianSearch behavior: hard reject
                     result.apex_compliant = False
                     result.score = -999.0
 
-            self._results.append(result)
+            self._record_result(result)
 
         self._results.sort(key=lambda r: r.score, reverse=True)
         return self._results
@@ -96,7 +100,6 @@ def estimate_param_cardinality(spec: ParameterSpec) -> int:
         if high < low:
             raise ValueError(f"Parameter {spec.name}: invalid range ({low}, {high})")
 
-        # inclusive endpoints, with step
         n = int((high - low) / spec.step) + 1
         if n <= 0:
             raise ValueError(f"Parameter {spec.name}: empty grid (check range/step)")
@@ -115,7 +118,7 @@ def iter_grid_values(spec: ParameterSpec) -> Iterator[Any]:
     if spec.param_type == "float":
         assert spec.range is not None
         assert spec.step is not None
-        low, high = spec.range
+        low, _high = spec.range
         n = estimate_param_cardinality(spec)
         for i in range(n):
             yield low + i * spec.step

@@ -5,9 +5,9 @@ from typing import Any
 import numpy as np
 import pytest
 
-from nautilus_gold_scalper.src.optimization.config import OptimizationConfig, ParameterSpec, SearchConfig
-from nautilus_gold_scalper.src.optimization.search.base import TrialResult
-from nautilus_gold_scalper.src.optimization.search.random import RandomSearch
+from src.optimization.config import OptimizationConfig, ParameterSpec, SearchConfig
+from src.optimization.search.base import TrialResult
+from src.optimization.search.random import RandomSearch
 
 
 @pytest.fixture

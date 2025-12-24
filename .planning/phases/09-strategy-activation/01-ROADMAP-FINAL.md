@@ -87,7 +87,7 @@ This is the **definitive** Phase 09 planning document, incorporating:
 | **AdaptiveEVRouter** | DISABLE (not archive) | Preserve optionality for when trade frequency increases |
 | **StrategySelector** | KEEP | Validate gates work before simplifying |
 | **TREND_FOLLOW Strategy** | KEEP | Validate after SMC_SCALPER |
-| **MEAN_REVERT Strategy** | VALIDATE FIRST | Research says gold doesn't mean-revert, test empirically |
+| **MEAN_REVERT Strategy** | IMPLEMENTED (opt-in) | Implemented BB+RSI generator + routing; keep disabled until validated empirically |
 | **Simplification** | PLAN B | Only if fixed system fails validation |
 | **Execution Mode** | AUTO + SIGNAL_ONLY | Support both for PA/Live compliance (**NEW**) |
 | **Baseline Test** | RUN FIRST | From DAEMON - let data decide (**NEW**) |

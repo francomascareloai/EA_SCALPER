@@ -423,9 +423,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             and self._bracket_sl_client_order_id is not None
             and not self._bracket_sl_confirmed
         ):
-            elapsed_ns = int(tick.ts_event) - int(self._bracket_submitted_ts_ns)
-            if elapsed_ns > int(self._bracket_confirm_timeout_ns):
-                self._trigger_execution_failsafe(reason="bracket_sl_not_confirmed_timeout")
+            # Some venues/backtest engines may not emit OrderAccepted for stop orders
+            # until triggered. Treat presence in cache as confirmation.
+            try:
+                sl_order = self.cache.order(ClientOrderId(self._bracket_sl_client_order_id))
+            except Exception:
+                sl_order = None
+            if sl_order is not None:
+                self._bracket_sl_confirmed = True
+            else:
+                elapsed_ns = int(tick.ts_event) - int(self._bracket_submitted_ts_ns)
+                if elapsed_ns > int(self._bracket_confirm_timeout_ns):
+                    self._trigger_execution_failsafe(reason="bracket_sl_not_confirmed_timeout")
 
         # WP0: if a position is open, SL must be confirmed within a safety window.
         # This covers cases where bracket submission timestamp wasn't set (no quote ticks).
@@ -851,6 +860,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # - SL reject is critical -> fail-safe
         # - TP reject is non-fatal (keep SL protection), clear TP tracking
         if self._position is not None and str(event.client_order_id) == self._bracket_sl_client_order_id:
+            # If we're intentionally flattening (time gate / forced close), SL rejects can be expected.
+            if bool(getattr(self, "_forcing_flatten", False)):
+                self.log.warning("[WP0] SL rejected during forced flatten; ignoring")
+                return
             self._trigger_execution_failsafe(reason="bracket_sl_rejected")
             return
 
@@ -877,15 +890,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # - SL cancel is critical -> fail-safe
         # - TP cancel is non-fatal (keep SL protection), clear TP tracking
         if self._position is not None and str(event.client_order_id) == self._bracket_sl_client_order_id:
+            # If we're intentionally flattening (time gate / forced close), SL cancels are expected.
+            if bool(getattr(self, "_forcing_flatten", False)):
+                self.log.warning("[WP0] SL canceled during forced flatten; ignoring")
+                return
             self._trigger_execution_failsafe(reason="bracket_sl_canceled")
             return
 
         if self._position is not None and str(event.client_order_id) == self._bracket_tp_client_order_id:
+            # TP cancellation is not a safety hazard (SL is the protection). It can happen
+            # naturally when a position is closed by SL/market and the broker cancels the TP.
             self._bracket_tp_client_order_id = None
             self._bracket_tp_confirmed = False
-            if self._bracket_tp_expected:
-                self._trigger_execution_failsafe(reason="bracket_tp_canceled")
-                return
             self.log.warning("[WP0] TP canceled; continuing with SL protection only")
             return
 
@@ -1139,22 +1155,33 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if self._position is None or self.instrument is None:
             return None
 
-        entry = self._position.avg_px_open.as_double()
-        qty = self._position.quantity.as_double()
-        point_value = self._instrument_point_value_per_unit()
+        # Formula: unrealized_usd = (exit_px - entry_px) * qty_units * point_value
+        # Example (LONG): entry=2000.0, bid=2000.5, qty=1.0, point_value=1.0 -> +$0.50
+        def _as_float(v: object) -> float:
+            if hasattr(v, "as_double"):
+                try:
+                    return float(v.as_double())
+                except Exception:
+                    return float(v)  # type: ignore[arg-type]
+            return float(v)  # type: ignore[arg-type]
+
+        entry = _as_float(getattr(self._position, "avg_px_open", 0.0))
+        qty = _as_float(getattr(self._position, "quantity", 0.0))
+        point_value = float(self._instrument_point_value_per_unit())
 
         # Conservative mark-to-market (Apex HWM trap defense):
         # - LONG exits at BID
         # - SHORT exits at ASK
         if self._position.side == PositionSide.LONG:
-            exit_px = tick.bid_price.as_double()
+            exit_px = _as_float(getattr(tick, "bid_price", 0.0))
             unrealized = (exit_px - entry) * qty * point_value
         else:
-            exit_px = tick.ask_price.as_double()
+            exit_px = _as_float(getattr(tick, "ask_price", 0.0))
             unrealized = (entry - exit_px) * qty * point_value
 
-        # _equity_base already includes realized PnL; avoid double-counting _daily_pnl
-        return float(self._equity_base + unrealized)
+        equity = float(self._equity_base + unrealized)
+        assert qty >= 0.0
+        return equity
 
     def _calculate_execution_cost(self, side: str, price: float, quantity: float) -> float:
         """

@@ -7,7 +7,7 @@ Three-layer architecture:
 3. STRESS: Monte Carlo + overfitting detection (top N only)
 """
 
-from nautilus_gold_scalper.src.optimization.config import OptimizationConfig
-from nautilus_gold_scalper.src.optimization.optimizer import ApexOptimizer
+from src.optimization.config import OptimizationConfig
+from src.optimization.optimizer import ApexOptimizer
 
 __all__ = ["ApexOptimizer", "OptimizationConfig"]

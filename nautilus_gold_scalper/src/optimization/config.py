@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Sequence
 
 import yaml
 
 
-SearchMode = Literal["grid", "random", "bayesian", "wfo", "coarse_fine"]
+SearchMode = Literal["grid", "random", "bayesian", "wfo", "coarse_fine", "successive_halving"]
 ParamType = Literal["float", "int", "categorical"]
 
 
@@ -48,6 +48,26 @@ class EarlyStopConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class SuccessiveHalvingConfig:
+    """Successive Halving (multi-fidelity) configuration.
+
+    Fidelity schedule is expressed as rolling windows ending at train_end.
+
+    - window_days: list of rung window sizes in days.
+        Use 0 to mean "full" (train_start..train_end).
+    - wfa_windows: list of InlineWFA.windows per rung.
+        Must match window_days length.
+    - eta: reduction factor (keep top ceil(n/eta) each rung).
+    """
+
+    enabled: bool = True
+    eta: int = 3
+    window_days: Sequence[int] = (90, 365, 0)
+    wfa_windows: Sequence[int] = (1, 3, 5)
+    promotion_metric: str = "score"  # score | wfe | sqn
+
+
+@dataclass(frozen=True, slots=True)
 class SearchConfig:
     """Search strategy configuration."""
 
@@ -60,6 +80,7 @@ class SearchConfig:
     parallelism: int = 4
     timeout_per_trial: int = 300  # seconds
     early_stop: EarlyStopConfig = field(default_factory=EarlyStopConfig)
+    successive_halving: SuccessiveHalvingConfig = field(default_factory=SuccessiveHalvingConfig)
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,6 +259,11 @@ class OutputConfig:
     checkpoint_interval: int = 10
     handoff_enabled: bool = True
 
+    # Memory / persistence controls
+    results_parquet: str | None = None
+    results_flush_every: int = 50
+    max_results_in_ram: int | None = 500
+
 
 @dataclass(slots=True)
 class OptimizationConfig:
@@ -311,6 +337,16 @@ class OptimizationConfig:
             plateau_trials=early_stop_raw.get("plateau_trials", 50),
         )
 
+        # Parse successive halving
+        sh_raw = search_raw.get("successive_halving", {})
+        successive_halving = SuccessiveHalvingConfig(
+            enabled=sh_raw.get("enabled", True),
+            eta=sh_raw.get("eta", 3),
+            window_days=tuple(sh_raw.get("window_days", (90, 365, 0))),
+            wfa_windows=tuple(sh_raw.get("wfa_windows", (1, 3, 5))),
+            promotion_metric=sh_raw.get("promotion_metric", "score"),
+        )
+
         # Parse search config
         search = SearchConfig(
             mode=search_raw.get("mode", "bayesian"),
@@ -322,6 +358,7 @@ class OptimizationConfig:
             parallelism=search_raw.get("parallelism", 4),
             timeout_per_trial=search_raw.get("timeout_per_trial", 300),
             early_stop=early_stop,
+            successive_halving=successive_halving,
         )
 
         # Parse constraints
@@ -447,6 +484,7 @@ class OptimizationConfig:
 
         # Parse output config
         checkpoint_raw = output_raw.get("checkpointing", {})
+        streaming_raw = output_raw.get("streaming", {})
 
         output_config = OutputConfig(
             dir=output_raw.get("dir", "logs/optimization"),
@@ -455,6 +493,9 @@ class OptimizationConfig:
             checkpoint_enabled=checkpoint_raw.get("enabled", True),
             checkpoint_interval=checkpoint_raw.get("interval", 10),
             handoff_enabled=output_raw.get("handoff", {}).get("enabled", True),
+            results_parquet=streaming_raw.get("results_parquet"),
+            results_flush_every=streaming_raw.get("flush_every", 50),
+            max_results_in_ram=streaming_raw.get("max_results_in_ram", 500),
         )
 
         return cls(

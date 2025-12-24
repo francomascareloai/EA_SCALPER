@@ -196,12 +196,17 @@ class TimeConstraintManager:
             remaining = list(self.strategy.cache.positions_open())
             if not remaining:
                 # Success - positions closed, nothing more to do
+                try:
+                    setattr(self.strategy, "_forcing_flatten", False)
+                except Exception:
+                    pass
                 return
             # Still have positions open - just return and let the engine process
             # the close orders we already submitted. Only log CRITICAL once.
             if "critical_logged" not in self._issued:
                 self._issued.add("critical_logged")
-                self.strategy.log.error(
+                # In backtests, close orders can fill on a later tick; treat as WARN.
+                self.strategy.log.warning(
                     f'{{"event":"CRITICAL_POSITIONS_PENDING_CLOSE","trigger":"{trigger}",'
                     f'"remaining_count":{len(remaining)},'
                     f'"note":"Close orders submitted, waiting for fill"}}'
@@ -210,6 +215,13 @@ class TimeConstraintManager:
 
         # First time in cutoff window - submit close orders
         self._close_orders_submitted = True
+
+        # Signal that we're intentionally flattening (so strategy-level WP0 logic
+        # can ignore benign bracket cancellations during the forced close).
+        try:
+            setattr(self.strategy, "_forcing_flatten", True)
+        except Exception:
+            pass
 
         # Cancel all orders first (SL/TP that might interfere)
         try:

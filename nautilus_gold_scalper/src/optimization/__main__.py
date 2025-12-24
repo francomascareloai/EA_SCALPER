@@ -2,8 +2,8 @@
 CLI entry point for Apex Optimizer.
 
 Usage:
-    python -m nautilus_gold_scalper.src.optimization --config configs/grids/smc_optimization.yaml
-    python -m nautilus_gold_scalper.src.optimization --config configs/grids/smc_optimization.yaml --trials 50 --dry-run
+    python -m src.optimization --config configs/grids/smc_optimization.yaml
+    python -m src.optimization --config configs/grids/smc_optimization.yaml --trials 50 --dry-run
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from pathlib import Path
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from nautilus_gold_scalper.src.optimization.config import OptimizationConfig
-from nautilus_gold_scalper.src.optimization.optimizer import ApexOptimizer
+from src.optimization.config import OptimizationConfig
+from src.optimization.optimizer import ApexOptimizer
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -37,13 +37,13 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   # Run Bayesian optimization with 100 trials
-  python -m nautilus_gold_scalper.src.optimization --config configs/grids/smc.yaml --trials 100
+  python -m src.optimization --config configs/grids/smc.yaml --trials 100
 
   # Dry run to see grid size
-  python -m nautilus_gold_scalper.src.optimization --config configs/grids/smc.yaml --dry-run
+  python -m src.optimization --config configs/grids/smc.yaml --dry-run
 
   # Run with custom output directory
-  python -m nautilus_gold_scalper.src.optimization --config configs/grids/smc.yaml --output logs/my_run
+  python -m src.optimization --config configs/grids/smc.yaml --output logs/my_run
 """,
     )
 
@@ -57,7 +57,7 @@ Examples:
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["grid", "random", "bayesian", "wfo"],
+        choices=["grid", "random", "bayesian", "wfo", "successive_halving"],
         default=None,
         help="Search mode (overrides config)",
     )
@@ -139,6 +139,9 @@ def main() -> int:
         print(f"Version: {config.version}")
         print(f"\nSearch:")
         print(f"  Mode: {args.mode or config.search.mode}")
+        if (args.mode or config.search.mode) == "successive_halving":
+            sh = config.search.successive_halving
+            print(f"  SuccessiveHalving: eta={sh.eta} window_days={list(sh.window_days)} wfa_windows={list(sh.wfa_windows)}")
         print(f"  Trials: {args.trials or config.search.trials}")
         print(f"  Parallelism: {args.parallelism or config.search.parallelism}")
         print(f"  Seed: {args.seed or config.search.seed}")
@@ -193,7 +196,7 @@ def main() -> int:
     print()
     print("NOTE: To run optimization, integrate with BacktestRunner:")
     print()
-    print("  from nautilus_gold_scalper.src.optimization import ApexOptimizer")
+    print("  from src.optimization import ApexOptimizer")
     print("  from nautilus_gold_scalper.scripts.backtest.run_backtest import BacktestRunner")
     print()
     print("  def backtest_fn(params, start, end):")

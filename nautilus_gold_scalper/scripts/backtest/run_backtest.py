@@ -454,7 +454,13 @@ def load_yaml_config(config_path: Path) -> dict[str, Any]:
         return {}
 
 
-def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id: InstrumentId) -> GoldScalperConfig:
+def build_strategy_config(
+    cfg: dict[str, Any],
+    bar_type: BarType,
+    instrument_id: InstrumentId,
+    *,
+    ltf_minutes: int,
+) -> GoldScalperConfig:
     """Build GoldScalperConfig from YAML dict + defaults."""
 
     def _infer_slippage_in_fills(execution_cfg: dict[str, Any]) -> bool:
@@ -552,10 +558,35 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
     use_mtf = bool(exec_cfg.get("use_mtf", True))
     require_htf_align = bool(exec_cfg.get("require_htf_align", True))
     agg_source = bar_type.aggregation_source
+
+    # Keep timeframes consistent across LTF experiments.
+    # Default: M5/M15/H1.
+    # - MTF must be > LTF (otherwise MTF bars collapse into LTF) and periodic.
+    # - HTF for this project stays at 60m (periodic requirement for MINUTE bars).
+    ltf_minutes_int = max(1, int(ltf_minutes))
+
+    def _pick_mtf_minutes(ltf_min: int) -> int:
+        # Nautilus requires bar steps to evenly divide 60 for MINUTE aggregation.
+        allowed = (5, 10, 12, 15, 20, 30, 60)
+        # Default behavior for the project.
+        if ltf_min == 5:
+            return 15
+        # Prefer 2x LTF if valid and periodic, else 3x, else the next allowed bucket.
+        for candidate in (ltf_min * 2, ltf_min * 3):
+            if candidate in allowed and candidate > ltf_min:
+                return candidate
+        for a in allowed:
+            if a > ltf_min:
+                return a
+        return 60
+
+    mtf_minutes = _pick_mtf_minutes(ltf_minutes_int)
+    htf_minutes = 60
+
     mtf_bar_type = (
         BarType(
             instrument_id=instrument_id,
-            bar_spec=BarSpecification(step=15, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+            bar_spec=BarSpecification(step=mtf_minutes, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
             aggregation_source=agg_source,
         )
         if use_mtf
@@ -564,7 +595,7 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
     htf_bar_type = (
         BarType(
             instrument_id=instrument_id,
-            bar_spec=BarSpecification(step=60, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+            bar_spec=BarSpecification(step=htf_minutes, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
             aggregation_source=agg_source,
         )
         if require_htf_align
@@ -619,6 +650,13 @@ def build_strategy_config(cfg: dict[str, Any], bar_type: BarType, instrument_id:
         trend_follow_mode=str(exec_cfg.get("trend_follow_mode", "BOTH")),
         enable_trend_pullback=bool(exec_cfg.get("enable_trend_pullback", True)),
         enable_trend_breakout=bool(exec_cfg.get("enable_trend_breakout", True)),
+        enable_mean_revert=bool(exec_cfg.get("enable_mean_revert", False)),
+        mean_revert_bb_period=int(exec_cfg.get("mean_revert_bb_period", 20)),
+        mean_revert_bb_k=float(exec_cfg.get("mean_revert_bb_k", 2.0)),
+        mean_revert_rsi_period=int(exec_cfg.get("mean_revert_rsi_period", 14)),
+        mean_revert_rsi_oversold=float(exec_cfg.get("mean_revert_rsi_oversold", 30.0)),
+        mean_revert_rsi_overbought=float(exec_cfg.get("mean_revert_rsi_overbought", 70.0)),
+        mean_revert_max_atr_percentile=float(exec_cfg.get("mean_revert_max_atr_percentile", 70.0)),
         regime_stability_min_bars=int(exec_cfg.get("regime_stability_min_bars", 0)),
         regime_stability_max_transition_prob=float(exec_cfg.get("regime_stability_max_transition_prob", 1.0)),
         router_adaptive_ev=bool(exec_cfg.get("router_adaptive_ev", False)),
@@ -836,6 +874,7 @@ class BacktestRunner:
         self,
         start_date: str = "2024-10-01",
         end_date: str = "2024-12-31",
+        ltf_minutes: int = 5,
         sample_rate: Sample = 1,
         use_session_filter: bool = True,
         use_regime_filter: bool = True,
@@ -884,6 +923,7 @@ class BacktestRunner:
         _p(f"Period: {start_date} to {end_date}")
         _p(f"Sample: {sample_rate} (float fraction or N-step)")
         _p(f"Feed: {feed} | Source: {data_source}")
+        _p(f"LTF minutes: {ltf_minutes}")
         # Note: Filters/defaults are loaded from the selected strategy YAML.
         _p(f"Initial Balance: ${self.initial_balance:,.2f}")
 
@@ -1104,8 +1144,12 @@ class BacktestRunner:
         if feed == "bars" and use_catalog and bars_override is None:
             raise ValueError("bars feed requires parquet source or explicit bars_override (catalog->bars not enabled here)")
 
+        ltf_minutes_int = max(1, int(ltf_minutes))
+
         bars_df: pd.DataFrame | None = None
         if feed == "bars" and bars_override is None and bars_file:
+            if ltf_minutes_int != 5:
+                raise ValueError("bars_file input currently supports only M5 bars; use feed=ticks for ltf-minutes != 5")
             bars_path = Path(bars_file)
             if not bars_path.exists():
                 raise FileNotFoundError(f"bars_file not found: {bars_path}")
@@ -1177,7 +1221,7 @@ class BacktestRunner:
         bar_type = BarType(
             instrument_id=instrument.id,
             bar_spec=BarSpecification(
-                step=5,
+                step=ltf_minutes_int,
                 aggregation=BarAggregation.MINUTE,
                 price_type=PriceType.MID,
             ),
@@ -1199,7 +1243,7 @@ class BacktestRunner:
                 # resample ticks into bars (slower than bars_file, still faster than full tick engine)
                 assert df is not None
                 assert not use_catalog
-                bars_df2 = aggregate_tick_df_to_ohlcv(df, interval_minutes=5)
+                bars_df2 = aggregate_tick_df_to_ohlcv(df, interval_minutes=ltf_minutes_int)
                 if resolved_product == "mgc":
                     tick = float(instrument.price_increment.as_double())
                     bars_df2 = bars_df2.copy()
@@ -1212,7 +1256,7 @@ class BacktestRunner:
             _p(f"Added {len(bars):,} bars to engine (external bars feed)")
 
         # Configure strategy from YAML + overrides (built earlier so engine + strategy share the same economics)
-        strategy_config = build_strategy_config(strategy_cfg_dict, bar_type, instrument.id)
+        strategy_config = build_strategy_config(strategy_cfg_dict, bar_type, instrument.id, ltf_minutes=ltf_minutes_int)
 
         strategy = GoldScalperStrategy(config=strategy_config)
         engine.add_strategy(strategy)
@@ -1558,6 +1602,7 @@ def main() -> None:
     parser.add_argument('--gateway', choices=['rithmic', 'tradovate'], default='tradovate', help='Apex gateway (commission schedule)')
     parser.add_argument('--threshold', type=int, default=None, help='Execution threshold (overrides config)')
     parser.add_argument('--sample', type=float, default=1.0, help='Sampling: float fraction (0-1) or N-step (>=1)')
+    parser.add_argument('--ltf-minutes', type=int, default=5, help='LTF bar interval in minutes (default: 5)')
     parser.add_argument('--feed', choices=['ticks', 'bars'], default='ticks', help='Data feed mode')
     parser.add_argument('--source', choices=['auto', 'parquet', 'catalog'], default='auto', help='Data source selection')
     parser.add_argument('--profile', action='store_true', help='Print coarse timing JSON')
@@ -1573,6 +1618,24 @@ def main() -> None:
     parser.add_argument('--no-session-filter', action='store_true', help='Disable session filter (useful for session-sliced catalogs)')
     parser.add_argument('--no-regime-filter', action='store_true', help='Disable regime filter')
     parser.add_argument('--no-mtf', action='store_true', help='Disable MTF manager')
+    parser.add_argument('--disable-smc', action='store_true', help='Disable SMC path (overrides YAML execution.enable_smc)')
+    parser.add_argument('--enable-trend-follow', action='store_true', help='Enable TrendFollow path (overrides YAML execution.enable_trend_follow)')
+    parser.add_argument(
+        '--trend-follow-mode',
+        choices=['PULLBACK_ONLY', 'BREAKOUT_ONLY', 'BOTH'],
+        default=None,
+        help='Override YAML execution.trend_follow_mode (only if TrendFollow enabled)',
+    )
+    parser.add_argument(
+        '--enable-mean-revert',
+        action='store_true',
+        help='Enable MeanRevert path (overrides YAML execution.enable_mean_revert; forces use_selector=true)',
+    )
+    parser.add_argument(
+        '--mr-only',
+        action='store_true',
+        help='Trade only MeanRevert (disables SMC + TrendFollow; forces use_selector=true)',
+    )
     parser.add_argument('--no-footprint', action='store_true', help='Disable footprint/orderflow component')
     parser.add_argument('--no-prop', action='store_true', help='Disable prop-firm rules (for diagnostics only)')
     # Default config path relative to script location (works from any CWD)
@@ -1632,6 +1695,31 @@ def main() -> None:
     config_overrides: dict[str, object] | None = None
     if args.news_events_path:
         config_overrides = {'news': {'events_path': args.news_events_path}}
+
+    # TrendFollow/SMC overrides (avoid editing YAML for quick experiments)
+    if args.disable_smc or args.enable_trend_follow or (args.trend_follow_mode is not None):
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault('execution', {})
+        exec_over = config_overrides.get('execution')
+        if isinstance(exec_over, dict):
+            if args.disable_smc:
+                exec_over['enable_smc'] = False
+            if args.enable_trend_follow:
+                exec_over['enable_trend_follow'] = True
+            if args.trend_follow_mode is not None:
+                exec_over['trend_follow_mode'] = str(args.trend_follow_mode)
+
+    # MeanRevert overrides
+    if args.enable_mean_revert or args.mr_only:
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault('execution', {})
+        exec_over = config_overrides.get('execution')
+        if isinstance(exec_over, dict):
+            exec_over['enable_mean_revert'] = True
+            exec_over['use_selector'] = True
+            if args.mr_only:
+                exec_over['enable_smc'] = False
+                exec_over['enable_trend_follow'] = False
 
     # --isolate: override confluence weights to test single indicator
     if args.isolate:
@@ -1773,6 +1861,7 @@ def main() -> None:
                 summary = runner.run(
                     start_date=args.start,
                     end_date=args.end,
+                    ltf_minutes=int(args.ltf_minutes),
                     sample_rate=args.sample,
                     use_session_filter=resolved_use_session_filter,  # BUG-2 FIX
                     use_regime_filter=resolved_use_regime_filter,    # BUG-2 FIX
@@ -1837,6 +1926,7 @@ def main() -> None:
         runner.run(
             start_date=args.start,
             end_date=args.end,
+            ltf_minutes=int(args.ltf_minutes),
             sample_rate=args.sample,
             use_session_filter=resolved_use_session_filter,  # BUG-2 FIX
             use_regime_filter=resolved_use_regime_filter,    # BUG-2 FIX

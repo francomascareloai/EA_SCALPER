@@ -65,7 +65,7 @@ def generate_trend_follow_candidates(
     ema_slow: int = 50,
     pullback_lookback: int = 10,
     breakout_lookback: int = 20,
-    min_atr_percentile_breakout: float = 55.0,
+    min_atr_percentile_breakout: float = 65.0,
     min_score: float = 60.0,
 ) -> list[TrendFollowCandidate]:
     """
@@ -112,7 +112,7 @@ def generate_trend_follow_candidates(
 
     touch_dist = float(max(tick_size, min(float(max(0.0, atr)) * 0.35, float(max(0.0, atr)) or tick_size)))
 
-    if is_up and sep_ticks >= 2.0:
+    if is_up and sep_ticks >= 4.0:
         ema_ref = float(min(prev_ema_f, last_ema_f))
         touched = min(prev_low, last_low) <= ema_ref + touch_dist
         bounced = last_close > last_ema_f and (prev_close <= prev_ema_f or prev_low <= prev_ema_f)
@@ -131,7 +131,7 @@ def generate_trend_follow_candidates(
                         meta={"sep_ticks": sep_ticks, "atr_percentile": atr_p},
                     )
                 )
-    elif is_down and sep_ticks >= 2.0:
+    elif is_down and sep_ticks >= 4.0:
         ema_ref = float(max(prev_ema_f, last_ema_f))
         touched = max(prev_high_bar, last_high_bar) >= ema_ref - touch_dist
         bounced = last_close < last_ema_f and (prev_close >= prev_ema_f or prev_high_bar >= prev_ema_f)

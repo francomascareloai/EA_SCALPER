@@ -2516,37 +2516,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 self._trading_blocked_today = True
                 self.log.warning(f"[BLOCKED] spread_monitor_exception:{type(exc).__name__} -> trading halted")
 
-        # Update prop-firm trailing drawdown with mark-to-market equity
-        if self._prop_firm:
-            equity = self._compute_equity_from_tick(tick)
-            if equity is not None:
-                try:
-                    tick_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
-                    self._prop_firm.update_equity(equity, now=tick_dt)
-                    self._prop_firm.ensure_compliance(now=tick_dt)
-                    # If ensure_compliance triggers, it will hard-stop; fail-safe fallback.
-                    if not self._prop_firm.can_trade(now=tick_dt):
-                        super()._trigger_execution_failsafe(reason="prop_firm_dd_breach")
-                        return
-                except Exception as exc:
-                    # Fail closed: do not keep trading if prop-firm compliance check errors.
-                    super()._trigger_execution_failsafe(reason=f"prop_firm_intrabar_exception: {type(exc).__name__}")
-                    return
-
-        # Circuit breaker equity feed
-        if self._circuit_breaker:
-            equity = self._compute_equity_from_tick(tick)
-            if equity is not None:
-                try:
-                    tick_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
-                    self._circuit_breaker.update_equity(equity, now=tick_dt)
-                    if not self._circuit_breaker.can_trade(now=tick_dt):
-                        # Circuit breaker breach while in-position: fail-safe flatten + halt.
-                        super()._trigger_execution_failsafe(reason="circuit_breaker_dd_breach")
-                        return
-                except Exception as exc:
-                    super()._trigger_execution_failsafe(reason=f"circuit_breaker_intrabar_exception: {type(exc).__name__}")
-                    return
+        # Prop-firm + circuit-breaker enforcement runs in BaseStrategy.on_quote_tick.
 
         # CRUCIBLE FIX: Process trade management (trailing/breakeven/partial) on every tick
         if self._position and self._trade_manager and self._active_trade_id:
@@ -2831,20 +2801,3 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         except Exception as exc:
             self.log.error(f"Failed to calculate metrics: {exc}")
             return None
-    def _compute_equity_from_tick(self, tick: QuoteTick) -> float | None:
-        """
-        Compute mark-to-market equity including unrealized PnL.
-        """
-        try:
-            equity = float(self._equity_base)
-            if self._position:
-                from nautilus_trader.model.enums import PositionSide
-                mkt_price = tick.bid_price if self._position.side == PositionSide.LONG else tick.ask_price
-                unreal = self._position.unrealized_pnl(mkt_price)
-                equity += float(unreal)
-            return equity
-        except Exception as exc:
-            self.log.debug(f"Equity computation failed: {exc}")
-            return None
-
-

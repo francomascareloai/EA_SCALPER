@@ -28,6 +28,26 @@
 
 ---
 
+## Apex Optimizer - 2025-12-24 (GPT-5.2)
+
+### ✨ FEATURE: Add Successive Halving multi-fidelity mode
+
+**What:** Added `successive_halving` search mode to prune weak parameter sets early using rolling date windows + fewer InlineWFA windows.
+**Why:** Reduce compute and RAM pressure during optimization by promoting only top configs to higher-fidelity evaluation.
+**Impact:**
+- New `search.mode: successive_halving` uses `search.trials` as initial pool size, then promotes `ceil(n/eta)` each rung.
+- Fidelity is configured via `search.successive_halving.window_days` (rolling windows ending at `data.train_end`, `0` means full window) + `search.successive_halving.wfa_windows`.
+**Files:**
+- `nautilus_gold_scalper/src/optimization/search/successive_halving.py`
+- `nautilus_gold_scalper/src/optimization/optimizer.py`
+- `nautilus_gold_scalper/src/optimization/config.py`
+- `nautilus_gold_scalper/src/optimization/__main__.py`
+- `nautilus_gold_scalper/configs/grids/smc_optimization.yaml`
+- `nautilus_gold_scalper/tests/test_optimization/test_successive_halving_search.py`
+**Validation:** `.venv/bin/mypy --strict nautilus_gold_scalper/src/optimization/**/*.py`; `.venv/bin/pytest -q nautilus_gold_scalper/tests/test_optimization/test_grid_search.py nautilus_gold_scalper/tests/test_optimization/test_random_search.py nautilus_gold_scalper/tests/test_optimization/test_successive_halving_search.py`
+
+---
+
 ## Phase 03 TrendFollow - 2025-12-24 (FORGE/CRITIC)
 
 ### 🐛 BUGFIX: Harden TrendFollow gates (fail-closed)

@@ -16,7 +16,7 @@ except Exception:  # pragma: no cover
 try:
     from nautilus_trader.serialization.arrow.serializer import register_arrow
 except Exception:  # pragma: no cover
-    register_arrow = None  # type: ignore[assignment]
+    register_arrow = None
 
 
 class NewsWindowData(Data):  # type: ignore[misc]
