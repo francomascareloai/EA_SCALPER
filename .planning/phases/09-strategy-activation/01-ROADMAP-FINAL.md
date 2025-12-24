@@ -291,13 +291,22 @@ This phase is intentionally **decision + falsification-first**, not code-first.
 - Regime-to-strategy routing: Hurst>0.55→TREND_FOLLOW, Hurst<0.40→MEAN_REVERT, else→SMC_SCALPER
 - Falsification test thresholds locked (Ghost Test, Shifted Levels, MC95DD survival)
 
+**Mean Revert Evaluation (2025-12-24):**
+- 6-month backtest (2024-01-01 to 2024-06-30) completed
+- 29 trades, 79.3% WR, +$1,587 PnL, Sharpe 2.73, Max DD 1.51%
+- **VERDICT: NEEDS_MORE_DATA** - 29 trades insufficient (need 100+)
+- SQN 0.78 below 2.0 target (sample size issue)
+- 8 improvements identified (P0: scale-out, max loss cap, 2-year backtest)
+
 **Deliverables:**
 - [x] `orchestration/PHASE_00C_PORTFOLIO_REVIEW.md` - Complete with code analysis
 - [x] `11-PHASE-00C-SUMMARY.md` - Phase summary
+- [x] `12-PHASE-00C-MR-EVALUATION-SUMMARY.md` - MR backtest results + improvements
 
 ### Phase 00-C GO/NO-GO Gate
 - [x] Portfolio decision documented (keep/consolidate/defer) with rationale tied to Apex risk
 - [x] Falsification tests to run next are enumerated with explicit thresholds (pass/fail)
+- [x] MR initial validation complete - pending 2-year extended backtest
 
 ---
 
