@@ -1,7 +1,0 @@
-# RAG Database Directory
-# Contains:
-# - lancedb/  : Vector database files
-# - models/   : Cached embedding models (~120MB after first use)
-#
-# This directory is auto-created by mcp-local-rag
-# Add to .gitignore to avoid committing large files
