@@ -191,7 +191,7 @@ data/catalog_native/
 data/catalog_native_sessions/
 data/catalog_native_smoke_test_full/
 data/derived/
-data/session_csvs/
+data/session_csvs
 data/test_models/
 nautilus_gold_scalper/data/test_models/
 
@@ -224,3 +224,9 @@ nautilus_gold_scalper/data/raw/
 
 # Parquet datasets
 
+
+# RAG database symlink
+.rag-db
+
+# Scratch test files
+teste.py
