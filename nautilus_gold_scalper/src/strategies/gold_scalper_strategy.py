@@ -69,6 +69,7 @@ from ..risk.position_sizer import PositionSizer
 from ..risk.prop_firm_manager import PropFirmManager
 from ..risk.spread_monitor import SpreadMonitor
 from ..risk.time_constraint_manager import TimeConstraintManager
+from ..risk.unified_risk_policy import UnifiedRiskPolicy
 from ..signals.confluence_scorer import ConfluenceScorer
 from ..signals.trend_follow import (
     TrendDirection,
@@ -122,6 +123,15 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     enable_trend_pullback: bool = True
     enable_trend_breakout: bool = True
 
+    # TrendFollow breakout variant tuning ("ER-gated breakout")
+    # These are generic and do not rely on any proprietary EA implementation.
+    trend_breakout_lookback: int = 30
+    trend_min_atr_percentile_breakout: float = 65.0
+    trend_er_enabled: bool = False
+    trend_er_period: int = 48
+    trend_er_smoothing: int = 3
+    trend_er_min: float = 0.30
+
     # MeanRevert (optional; disabled by default)
     enable_mean_revert: bool = False
     # When true, MeanRevert runs even if StrategySelector would block / route elsewhere.
@@ -133,11 +143,25 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     mean_revert_rsi_oversold: float = 30.0
     mean_revert_rsi_overbought: float = 70.0
     mean_revert_max_atr_percentile: float = 70.0
+    mean_revert_er_enabled: bool = False
+    mean_revert_er_period: int = 48
+    mean_revert_er_smoothing: int = 3
+    mean_revert_er_max: float = 0.30
 
     # Optional regime stability gate (disabled by default).
     # If enabled, blocks new trades during regime transitions.
     regime_stability_min_bars: int = 0
     regime_stability_max_transition_prob: float = 1.0
+
+    # TradeManager tuning (R-based) — configurable to test breakout-style management
+    # Examples: trade_trailing_start_r=1.7 to mirror TrailingActCoef, target_rr_ratio=4.8 to mirror ProfitTargetCoef.
+    trade_partial_tp_r: float = 1.0
+    trade_partial_tp_percent: float = 0.5
+    trade_trailing_start_r: float = 1.0
+
+    # Optional per-arm TP RR overrides (if 0.0 => use BaseStrategyConfig.target_rr_ratio)
+    trend_target_rr_ratio: float = 0.0
+    mean_revert_target_rr_ratio: float = 0.0
 
     # Adaptive EV router (enabled by default for strategy arm selection)
     router_adaptive_ev: bool = True
@@ -380,6 +404,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._last_cb_level: int | None = None
         self._telemetry: TelemetrySink | None = None
         self._execution_failsafe_triggered: bool = False
+
+        # Unified entry gating surface (Phase 11 Safety Layer)
+        self._unified_risk_policy = UnifiedRiskPolicy()
 
         # Adaptive router attribution (optional)
         self._router: AdaptiveEVRouter | None = None
@@ -784,15 +811,18 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Trade Manager initialization (CRUCIBLE FIX: active trade management)
         # Replaces static "set and forget" SL/TP with dynamic trailing/breakeven/partials
-        # Expected improvement: 0.15R -> 0.60R per trade (4x improvement)
-        # Configuration: partial_tp_r=1.0 (50% at 1R), trailing_start_r=1.0 (trail at 1R)
+        partial_tp_r = float(getattr(self.config, "trade_partial_tp_r", 1.0))
+        partial_tp_percent = float(getattr(self.config, "trade_partial_tp_percent", 0.5))
+        trailing_start_r = float(getattr(self.config, "trade_trailing_start_r", 1.0))
+
         self._trade_manager = TradeManager(
-            partial_tp_r=1.0,           # Take 50% profit at 1R
-            partial_tp_percent=0.5,     # Close 50% at partial TP
-            trailing_start_r=1.0,       # Start trailing at 1R (also moves to breakeven)
+            partial_tp_r=partial_tp_r,
+            partial_tp_percent=partial_tp_percent,
+            trailing_start_r=trailing_start_r,
         )
         self.log.info(
-            f"TradeManager initialized: partial_tp_r=1.0, partial_tp_percent=0.5, trailing_start_r=1.0"
+            "TradeManager initialized: "
+            f"partial_tp_r={partial_tp_r}, partial_tp_percent={partial_tp_percent}, trailing_start_r={trailing_start_r}"
         )
 
         # Validate all critical analyzers
@@ -1247,36 +1277,41 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     )
                 return
 
-        # Apex entry gate (block new trades after 4:30 PM ET)
-        # Only apply if prop_firm_enabled - allows backtest without time constraints
-        if self.config.prop_firm_enabled and self._time_manager and not self._time_manager.can_open_new(bar.ts_event):
-            if should_log:
-                self.log.info("[SIGNAL_CHECK] Time manager entry gate BLOCKED (after 4:30 PM ET)")
-            if self._telemetry:
-                self._telemetry.emit("signal_reject", {"reason": "time_gate_entry", "bar": len(self._ltf_bars)})
-            return
-        # Check blocked_today flag (only relevant when prop_firm_enabled)
-        if self.config.prop_firm_enabled and getattr(self, "_trading_blocked_today", False):
-            if should_log:
-                self.log.info("[SIGNAL_CHECK] Trading blocked today flag set")
-            if self._telemetry:
-                self._telemetry.emit("signal_reject", {"reason": "blocked_today", "bar": len(self._ltf_bars)})
-            return
+        # Unified safety policy surface (Phase 11)
+        # NOTE: This is entry-only gating; forced close / flatten must bypass it.
+        time_gate_ok = True
+        if self.config.prop_firm_enabled and self._time_manager:
+            time_gate_ok = bool(self._time_manager.can_open_new(bar.ts_event))
 
-        # Check prop firm limits (only if enabled)
+        blocked_today = bool(self.config.prop_firm_enabled and getattr(self, "_trading_blocked_today", False))
+
+        prop_firm_ok = True
         if self.config.prop_firm_enabled and self._prop_firm:
             try:
-                if not self._prop_firm.can_trade(now=bar_time):
-                    if should_log:
-                        self.log.info("[SIGNAL_CHECK] Prop firm manager BLOCKED")
-                    if self._telemetry:
-                        self._telemetry.emit("signal_reject", {"reason": "prop_firm", "bar": len(self._ltf_bars)})
-                    self._is_trading_allowed = False
-                    self.log.warning("[BLOCKED] _is_trading_allowed = False (prop_firm.can_trade() returned False)")
-                    return
+                prop_firm_ok = bool(self._prop_firm.can_trade(now=bar_time))
             except Exception as exc:
                 super()._trigger_execution_failsafe(reason=f"prop_firm_signal_gate_exception:{type(exc).__name__}")
                 return
+
+        decision = self._unified_risk_policy.evaluate_entry(
+            time_gate_ok=time_gate_ok,
+            blocked_today=blocked_today,
+            prop_firm_ok=prop_firm_ok,
+            circuit_ok=True,
+            size_factor=1.0,
+            must_flatten=False,
+        )
+
+        if not decision.can_open_new:
+            if should_log:
+                self.log.info(f"[SIGNAL_CHECK] UnifiedRiskPolicy BLOCKED: {','.join(decision.reasons) if decision.reasons else 'unknown'}")
+            if self._telemetry and decision.reasons:
+                # Use the first reason for existing dashboards; keep details in log.
+                self._telemetry.emit("signal_reject", {"reason": decision.reasons[0], "bar": len(self._ltf_bars)})
+            if (not prop_firm_ok) and self.config.prop_firm_enabled:
+                self._is_trading_allowed = False
+                self.log.warning("[BLOCKED] _is_trading_allowed = False (prop_firm.can_trade() returned False)")
+            return
 
         # Circuit breaker gate
         if self._circuit_breaker:
@@ -1568,6 +1603,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     tick_size=tick_size,
                     atr=atr,
                     atr_percentile=atr_p,
+                    breakout_lookback=int(getattr(self.config, "trend_breakout_lookback", 30)),
+                    min_atr_percentile_breakout=float(getattr(self.config, "trend_min_atr_percentile_breakout", 65.0)),
+                    er_enabled=bool(getattr(self.config, "trend_er_enabled", False)),
+                    er_period=int(getattr(self.config, "trend_er_period", 48)),
+                    er_smoothing=int(getattr(self.config, "trend_er_smoothing", 3)),
+                    er_min=float(getattr(self.config, "trend_er_min", 0.30)),
                     min_score=float(self.config.execution_threshold),
                 )
 
@@ -1608,6 +1649,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     rsi_oversold=float(getattr(self.config, "mean_revert_rsi_oversold", 30.0)),
                     rsi_overbought=float(getattr(self.config, "mean_revert_rsi_overbought", 70.0)),
                     max_atr_percentile=float(getattr(self.config, "mean_revert_max_atr_percentile", 70.0)),
+                    er_enabled=bool(getattr(self.config, "mean_revert_er_enabled", False)),
+                    er_period=int(getattr(self.config, "mean_revert_er_period", 48)),
+                    er_smoothing=int(getattr(self.config, "mean_revert_er_smoothing", 3)),
+                    er_max=float(getattr(self.config, "mean_revert_er_max", 0.30)),
                     min_score=float(self.config.execution_threshold),
                 )
             except Exception as exc:
@@ -1908,6 +1953,14 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         current_price = bar.close.as_double()
         mode_label = selected_arm.value
 
+        tp_rr = float(self.config.target_rr_ratio)
+        if selected_arm in (RouterArm.TREND_PULLBACK, RouterArm.TREND_BREAKOUT):
+            if float(self.config.trend_target_rr_ratio) > 0.0:
+                tp_rr = float(self.config.trend_target_rr_ratio)
+        elif selected_arm == RouterArm.MEAN_REVERT:
+            if float(self.config.mean_revert_target_rr_ratio) > 0.0:
+                tp_rr = float(self.config.mean_revert_target_rr_ratio)
+
         if signal == SignalType.SIGNAL_BUY:
             # Use Decimal for precise price calculations
             current_decimal = Decimal(str(current_price))
@@ -1915,7 +1968,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # For BUY: round SL down (worse case / more conservative risk), TP down (easier to hit).
             sl_price = self._price_from_float(float(sl_decimal), rounding="floor")
 
-            tp_distance = sl_distance * self.config.target_rr_ratio
+            tp_distance = sl_distance * tp_rr
             tp_decimal = current_decimal + Decimal(str(tp_distance))
             tp_price = self._price_from_float(float(tp_decimal), rounding="floor")
 
@@ -1969,7 +2022,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # For SELL: round SL up (worse case / more conservative risk), TP up (easier to hit).
             sl_price = self._price_from_float(float(sl_decimal), rounding="ceil")
 
-            tp_distance = sl_distance * self.config.target_rr_ratio
+            tp_distance = sl_distance * tp_rr
             tp_decimal = current_decimal - Decimal(str(tp_distance))
             tp_price = self._price_from_float(float(tp_decimal), rounding="ceil")
 
