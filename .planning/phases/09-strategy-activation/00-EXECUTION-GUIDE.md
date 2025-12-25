@@ -401,6 +401,8 @@ Spawn CRITIC (opus) to review:
 /run-plan .planning/phases/09-strategy-activation/06-PHASE-05-PLAN.md
 ```
 
+Nota: se você quiser marcar como aprovado, faça isso na mensagem após o `/run-plan` (não no comando).
+
 **Verificar antes de GO:**
 - [ ] 30% per-trade limit code exists (show code)
 - [ ] 5:1 R:R enforcement code exists (show code)

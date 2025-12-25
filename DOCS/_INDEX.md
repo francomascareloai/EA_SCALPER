@@ -17,6 +17,7 @@
 | Deliverables de fase | `02_IMPLEMENTATION/PHASES/PHASE_N/` |
 | Audit do código | `02_IMPLEMENTATION/PHASES/PHASE_0_AUDIT/` |
 | Audit Analysis 2025-12-01 | `02_IMPLEMENTATION/PHASES/PHASE_0_AUDIT/20251201_ANALYSIS_MODULES_FIX.md` |
+| Heavy Audit 2025-12-24 (NO-GO) | `.planning/phases/09-strategy-activation/orchestration/2025-12-24_heavy-audit/SYNTHESIS_FINAL_VERDICT.md` |
 | Relatórios de backtest | `04_REPORTS/BACKTESTS/` |
 | Validação (WFA/MC) | `04_REPORTS/VALIDATION/` |
 | Decisões GO/NO-GO | `04_REPORTS/DECISIONS/` |

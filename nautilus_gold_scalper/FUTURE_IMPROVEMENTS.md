@@ -28,6 +28,7 @@
 | **Fibonacci Golden Pocket** | P1 | 4-6h | TODO |
 | **Adaptive Kelly Sizing** | P1 | 6-8h | TODO |
 | **Spread-Aware Entry** | P1 | 4-6h | TODO |
+| **Kaufman ER Breakout (Donchian)** | P2 | 1-2d | IDEA (needs validation) |
 | **Bayesian Confluence** | P2 | 2-3d | PLANNED |
 | **HMM Regime Predictor** | P2 | 3-5d | PLANNED |
 | **Strategy Selector** | P2 | 8-12h | PLANNED |
@@ -113,6 +114,39 @@
 ---
 
 ## PHASE 1: QUICK WINS (P1) ⚡
+
+### 1.X Kaufman ER‑Gated Donchian Breakout ("Breakout Chinês" — parâmetros inspiracionais) [PRIORIDADE: P2]
+
+**Contexto:** Recebemos apenas o set de parâmetros de um EA proprietário focado em breakout (sem código e sem conseguir rodar). O objetivo aqui NÃO é copiar o robô, e sim extrair ideias genéricas e testáveis que façam sentido para XAUUSD sob regras Apex.
+
+**O que os parâmetros sugerem (hipótese):**
+- `KaufmanEffRtoPrd=48` → filtro de regime por **Kaufman Efficiency Ratio** (market “limpo” vs chop)
+- `Period=30` → breakout tipo **Donchian N‑bar** (rompe máxima/mínima dos últimos N candles)
+- `ProfitTargetCoef=4.8` → alvo como múltiplo de risco (**TP ≈ 4.8R**)
+- `TrailingActCoef=1.7` + `TrailingStop=70` → trailing com **gatilho de ativação** (ativa só depois de ~1.7R)
+- `volatility filter period=14` + `smoothing=3` → pré‑condição de volatilidade + suavização de sinal
+
+**Por que pode valer a pena:**
+- Breakout tende a funcionar melhor quando o mercado está “direcional”; ER é um filtro simples e conhecido para separar ruído de impulso.
+- Separar `trail_activate_R` de `trail_distance` é uma alavanca real para reduzir stopouts precoces em tendências.
+- `TP em R` permite otimização coerente e comparável entre regimes (evita parâmetros em “pips” não portáveis).
+
+**Por que pode NÃO valer a pena / riscos (Apex + XAUUSD):**
+- Unidades ambíguas (`StopLoss=55`, `TrailingStop=70`) podem ser **incompatíveis** com spread/slippage reais do XAUUSD.
+- TP alto (4.8R) + trailing tardio pode aumentar exposição ao **HWM trap** (unrealized sobe HWM; reversões matam via trailing DD).
+- Sem evidência (sem backtest do EA), a gente pode estar perseguindo um “edge narrativo” que na prática vem de filtros/execução.
+
+**Plano de validação (falsificação‑first, barato):**
+1) **Ghost test (filtros vs sinal):** comparar breakout com ER‑gate ON vs OFF vs gate aleatório (mesma frequência).
+2) **Shifted levels:** jitter no nível do Donchian; se performance não muda, a precisão do breakout é placebo.
+3) **Cenário conservador de execução:** spread×1.5 + slippage adverso; exigir `MC95DD < 4%` (buffer Apex) + `WFE≥0.60` + `PSR≥0.85` + `DSR>0`.
+
+**Integração prevista (quando for implementar):**
+- Reusar o caminho existente de breakout em `src/signals/trend_follow.py` e adicionar parâmetros opcionais para ER‑gate + trailing activation + TP em R.
+- Manter time gates Apex (4:30/4:55/4:59 ET) como hard constraints (não otimizar).
+
+**Status:** IDEA (requer ORACLE + SENTINEL antes de qualquer merge)
+
 
 ### 1.0 Setup Quality Filter [PRIORITY: HIGH] ⭐ NEW
 

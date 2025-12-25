@@ -34,6 +34,27 @@
 - `FUTURE_IMPROVEMENTS.md` – Brainstorming repository for optimization ideas (WHY/WHAT/IMPACT/EFFORT/PRIORITY). Includes **CRUCIBLE (2025-12-24) Portfolio Strategy Review** section.
 - `README.md` – Project overview + quick start
 - `*.md` (other) – Implementation notes, migration summaries
+- Virtual Gate PRD: `DOCS/02_IMPLEMENTATION/PHASES/PHASE_4_INTEGRATION/20251225_VIRTUAL_GATE_PRD/PRD.md`
+- Virtual Gate test checklist: `DOCS/02_IMPLEMENTATION/PHASES/PHASE_4_INTEGRATION/20251225_VIRTUAL_GATE_PRD/TEST_CHECKLIST.md`
+
+## Heavy Audit (Strategy Falsification) – 2025-12-24
+
+**Goal:** Kill/confirm edge with falsification-first testing (TrendFollow vs MeanRevert) under realistic costs and Apex constraints.
+
+**Artifacts (source of truth):**
+- Folder: `.planning/phases/09-strategy-activation/orchestration/2025-12-24_heavy-audit/`
+- Final verdict: `.planning/phases/09-strategy-activation/orchestration/2025-12-24_heavy-audit/SYNTHESIS_FINAL_VERDICT.md`
+
+**What was tested (high-level):**
+- Factor isolation: TrendFollow variants vs MeanRevert (`ROUND2_FACTOR_ISOLATION.md`)
+- Timeframe analysis: M5 vs M15 (H1 blocked by BarSpecification aggregation) (`ROUND3_TIMEFRAME_ANALYSIS.md`)
+- Parameter sensitivity: ADX/RSI/BB/SLTP sweeps (`ROUND4_PARAMETER_SENSITIVITY.md`)
+- Final validation: Walk-Forward Analysis windows across 2024 (`ROUND5_WFA_VALIDATION.md`)
+
+**Conclusion (TL;DR):**
+- TrendFollow: **TOXIC / ABORT** (catastrophic win rate and/or no signals on M15)
+- MeanRevert: **NO-GO** (fails WFA, high variance/regime dependence; no stable OOS edge)
+- Key takeaway: if any “edge” exists, it is dominated by the **ADX regime filter**, not BB/RSI signal logic
 
 ## Local NautilusTrader reference (offline)
 - `external/nautilus_trader/` – symlink to a full NautilusTrader clone (docs + examples + source) for fast local lookup without MCP/web.
