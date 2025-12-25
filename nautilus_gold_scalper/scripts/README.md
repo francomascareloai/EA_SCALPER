@@ -22,7 +22,11 @@ Alguns imports antigos em testes/planos usam `scripts.*` (package local). Para e
 
 ## Workflows (screening/otimização)
 
-- Grid search rápido focado em meta +$3000 / 20 dias (conta 50k):
+- Otimização unificada (grid/random/bayesian/successive_halving):
+  - `python nautilus_gold_scalper/scripts/optimize.py --config nautilus_gold_scalper/configs/grids/smc_optimization_fast.yaml --dry-run`
+  - `python nautilus_gold_scalper/scripts/optimize.py --config nautilus_gold_scalper/configs/grids/smc_optimization_fast.yaml --mode successive_halving --trials 64`
+
+- Grid search rápido focado em meta +$3000 / 20 dias (conta 50k) (LEGACY, mantido por compatibilidade):
   - `python -m nautilus_gold_scalper.scripts.workflows.grid_search_eval20d --start 2020-01-01 --end 2020-06-30`
   - Métricas “radar-safe”: `--max-daily-share 0.30 --min-positive-days-ratio 0.60 --min-operated-days 5`
 
