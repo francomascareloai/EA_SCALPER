@@ -71,6 +71,7 @@ from ..risk.spread_monitor import SpreadMonitor
 from ..risk.exposure_caps import ExposureCaps
 from ..risk.time_constraint_manager import TimeConstraintManager
 from ..risk.unified_risk_policy import UnifiedRiskPolicy
+from ..risk.virtual_gate import VirtualGate, VirtualGateInput
 from ..risk.volatility_spacing import VolatilitySpacing
 from ..signals.confluence_scorer import ConfluenceScorer
 from ..signals.trend_follow import (
@@ -439,10 +440,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             max_cooldown_seconds=float(getattr(self.config, "vol_spacing_max_seconds", 300.0)),
             reference_volatility=float(getattr(self.config, "vol_spacing_reference_atr", 1.0)),
         )
+        self._virtual_gate = VirtualGate()
         self._unified_risk_policy = UnifiedRiskPolicy(
             exposure_caps=self._exposure_caps,
             news_guard=None,
             volatility_spacing=self._volatility_spacing,
+            virtual_gate=self._virtual_gate,
         )
 
         # Adaptive router attribution (optional)
@@ -1404,6 +1407,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             last_entry_ts_ns=self._last_entry_ts_ns,
             now_ts_ns=int(bar.ts_event),
             volatility=atr,
+            virtual_gate_input=VirtualGateInput(
+                decision_ts_ns=int(bar.ts_event),
+                bar_ts_ns=[int(b.ts_event) for b in self._ltf_bars[-21:-1]],
+                bar_highs=[float(b.high.as_double()) for b in self._ltf_bars[-21:-1]],
+                bar_lows=[float(b.low.as_double()) for b in self._ltf_bars[-21:-1]],
+            ),
             base_size_factor=float(getattr(self, "_news_size_mult", 1.0)),
         )
 

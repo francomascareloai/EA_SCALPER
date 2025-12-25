@@ -7,6 +7,7 @@ from ..signals.news_calendar import NewsWindow
 from .exposure_caps import ExposureCaps
 from .news_guard import NewsGuard
 from .volatility_spacing import VolatilitySpacing
+from .virtual_gate import VirtualGate, VirtualGateInput
 
 def _clamp01(value: float) -> float:
     if value <= 0.0:
@@ -52,10 +53,12 @@ class UnifiedRiskPolicy:
         exposure_caps: ExposureCaps | None = None,
         news_guard: NewsGuard | None = None,
         volatility_spacing: VolatilitySpacing | None = None,
+        virtual_gate: VirtualGate | None = None,
     ) -> None:
         self._exposure_caps = exposure_caps
         self._news_guard = news_guard
         self._volatility_spacing = volatility_spacing
+        self._virtual_gate = virtual_gate
 
     def evaluate_entry(
         self,
@@ -73,6 +76,7 @@ class UnifiedRiskPolicy:
         last_entry_ts_ns: int | None = None,
         now_ts_ns: int | None = None,
         volatility: float | None = None,
+        virtual_gate_input: VirtualGateInput | None = None,
         base_size_factor: float = 1.0,
     ) -> RiskDecision:
         reasons: list[str] = []
@@ -122,6 +126,20 @@ class UnifiedRiskPolicy:
             )
             if not sp.allow_entry:
                 reasons.append(sp.reason or "volatility_spacing")
+
+        # Virtual gate (entry-only)
+        if self._virtual_gate is not None:
+            if virtual_gate_input is None:
+                reasons.append("virtual_gate_missing_input")
+            else:
+                vg = self._virtual_gate.evaluate(
+                    decision_ts_ns=int(virtual_gate_input.decision_ts_ns),
+                    bar_ts_ns=virtual_gate_input.bar_ts_ns,
+                    bar_highs=virtual_gate_input.bar_highs,
+                    bar_lows=virtual_gate_input.bar_lows,
+                )
+                if not vg.gate_ok:
+                    reasons.append(vg.gate_reason or "virtual_gate")
 
         _ = now_utc
 
