@@ -13,8 +13,8 @@ Key Features:
     - Glob pattern support for multi-file Parquet datasets
 
 Example:
-    >>> from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
-    >>> from nautilus_gold_scalper.src.validation.core.engine import ValidationEngine
+    >>> from src.validation.core.config import ValidationConfig
+    >>> from src.validation.core.engine import ValidationEngine
     >>>
     >>> config = ValidationConfig(catalog_path="/data/catalogs/xauusd")
     >>> engine = ValidationEngine(config)
@@ -51,8 +51,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 import duckdb
 import polars as pl
 import pyarrow as pa
-from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
-from nautilus_gold_scalper.src.validation.core.results import (
+from src.validation.core.config import ValidationConfig
+from src.validation.core.results import (
     CheckResult,
     PhaseResult,
     PipelineResult,

@@ -19,6 +19,37 @@ brew services start cliproxyapi
 
 ## Comandos Essenciais
 
+### 0. Rebuild + Restart (quando mudar código)
+
+**Regra de ouro**: não reinicie o proxy no meio de uma resposta (especialmente com tools/streaming). Espere o CLI ficar ocioso.
+
+#### Opção A: Rebuild local (Go)
+```bash
+cd /home/franco/projetos/EA_SCALPER_XAUUSD/CLIPROXY/CLIProxyAPI
+# Rebuild do binário local
+go build -o ./cli-proxy-api ./cmd/server
+```
+
+#### Restart (binário local)
+- Se você iniciou em foreground: `Ctrl+C` e rode de novo.
+- Se você iniciou em background (nohup): finalize pelo PID e suba novamente:
+```bash
+pgrep -af "cli-proxy-api -config" || true
+# escolha o PID correto e finalize (SIGTERM)
+kill -TERM <PID>
+
+nohup ./cli-proxy-api -config /home/franco/.cliproxy/config.yaml > ./cliproxyapi.run.log 2>&1 & disown
+```
+
+#### Opção B: Docker (script existente no repo)
+```bash
+cd /home/franco/projetos/EA_SCALPER_XAUUSD/CLIPROXY/CLIProxyAPI
+bash ./docker-build.sh
+# escolha:
+# 1) Pre-built image
+# 2) Build from source and run
+```
+
 ### 1. Login / Autenticação (Codex + Antigravity)
 
 > Dica (WSL): se o browser não abrir corretamente, use `--no-browser` para imprimir a URL e finalize o OAuth manualmente.
@@ -64,27 +95,27 @@ curl -sS -m 2 http://127.0.0.1:8317/v1/models | head
 ```
 
 ### 2.2. Restart + testes (script)
-```bash
-cd /home/franco/projetos/EA_SCALPER_XAUUSD/CLIPROXY/CLIProxyAPI
-bash ./cliproxyctl.sh doctor
-```
+
+> Nota: este README referencia `cliproxyctl.sh`, mas esse script **não está presente** em `CLIPROXY/CLIProxyAPI/` neste workspace.
+> Use a seção **0. Rebuild + Restart** acima (Go ou Docker) até o script existir.
 
 ### 2.3. Ver quais contas/auth existem (sem expor tokens)
 
 ### 2.4. Parar/Desligar o proxy
+
+Preferir parar com PID (mais seguro que `pkill`):
 ```bash
-pkill -f "cli-proxy-api"
-# Verificar se parou:
-ps aux | grep cli-proxy-api | grep -v grep
-```
-```bash
-cd /home/franco/projetos/EA_SCALPER_XAUUSD/CLIPROXY/CLIProxyAPI
-bash ./cliproxyctl.sh accounts
+pgrep -af "cli-proxy-api -config" || true
+kill -TERM <PID>
 ```
 
 ## Windows (controller com botao)
 
 ### Opcao A (recomendado): GUI rapido (Start/Stop/Restart/Status)
+
+> Nota: este README referencia `cliproxyctl-gui.cmd`, mas esse arquivo **não está presente** em `CLIPROXY/CLIProxyAPI/` neste workspace.
+> Se você tiver esse controller no seu setup Windows, mantenha o fluxo; caso contrário use os comandos de Go/Docker.
+
 Abra um PowerShell no Windows e rode:
 ```powershell
 cd C:\Users\franco\projetos\EA_SCALPER_XAUUSD\CLIPROXY\CLIProxyAPI
@@ -95,6 +126,9 @@ No app, selecione:
 - `wsl` para controlar o proxy dentro do WSL (chama `bash ./cliproxyctl.sh` via `wsl.exe`)
 
 ### Opcao B: CLI (PowerShell)
+
+> Nota: este README referencia `cliproxyctl.ps1`, mas esse arquivo **não está presente** em `CLIPROXY/CLIProxyAPI/` neste workspace.
+
 ```powershell
 cd C:\Users\franco\projetos\EA_SCALPER_XAUUSD\CLIPROXY\CLIProxyAPI
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\cliproxyctl.ps1 -Action status -Mode windows

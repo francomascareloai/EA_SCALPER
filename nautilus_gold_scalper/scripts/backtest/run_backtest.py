@@ -21,7 +21,13 @@ import numpy as np
 import pandas as pd
 import yaml
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Ensure imports work regardless of current working directory.
+# - `src.*` lives under `nautilus_gold_scalper/src` (needs project root on sys.path)
+# - `nautilus_gold_scalper.*` is imported as a namespace package (needs repo root on sys.path)
+_project_root = Path(__file__).resolve().parent.parent.parent
+_repo_root = _project_root.parent
+sys.path.insert(0, str(_repo_root))
+sys.path.insert(0, str(_project_root))
 
 from nautilus_trader.backtest.engine import BacktestEngine as NautilusEngine
 from nautilus_trader.backtest.models import (
@@ -71,6 +77,39 @@ Product = Literal["xauusd", "mgc"]
 Gateway = Literal["rithmic", "tradovate"]
 
 _MISSING = object()
+
+# Nautilus disallows MINUTE bars with step=60; use HOUR(1) instead.
+# For MINUTE aggregation, supported steps are divisors of 60 (excluding 60 itself).
+_MINUTE_BAR_STEPS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30)
+
+
+def _bar_spec_from_minutes(*, minutes: int) -> BarSpecification:
+    minutes_int = int(minutes)
+    if minutes_int <= 0:
+        raise ValueError(f"Invalid timeframe minutes={minutes!r} (must be > 0)")
+
+    if minutes_int % 60 == 0:
+        hours = minutes_int // 60
+        if hours <= 0:
+            raise ValueError(f"Invalid timeframe minutes={minutes!r} (hours must be > 0)")
+        return BarSpecification(step=hours, aggregation=BarAggregation.HOUR, price_type=PriceType.MID)
+
+    if minutes_int not in _MINUTE_BAR_STEPS:
+        raise ValueError(
+            "Invalid timeframe minutes={m}: supported minute steps are divisors of 60 "
+            "(1,2,3,4,5,6,10,12,15,20,30) or any multiple of 60 (hour bars).".format(m=minutes_int)
+        )
+
+    return BarSpecification(step=minutes_int, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID)
+
+
+def _bar_type_from_minutes(*, instrument_id: InstrumentId, minutes: int, aggregation_source: AggregationSource) -> BarType:
+    return BarType(
+        instrument_id=instrument_id,
+        bar_spec=_bar_spec_from_minutes(minutes=minutes),
+        aggregation_source=aggregation_source,
+    )
+
 
 def _deep_update(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
     """Recursively update nested dicts (in-place), returning dst."""
@@ -378,6 +417,10 @@ def build_ticks_with_wrangler(
 def load_m5_bars_csv(filepath: Path, start_date: str, end_date: str) -> pd.DataFrame:
     """Load M5 bars file (CSV or Parquet) into an OHLCV DataFrame indexed by UTC timestamp.
 
+    Temporal correctness:
+    - If the input timestamp represents bar *start*, shift the index forward by 5 minutes
+      so downstream logic treats OHLC as known only at bar close.
+
     Supported inputs:
     - FTMO-style CSV with `Date` (YYYYMMDD) + `Time` (HH:MM:SS) and `Open/High/Low/Close[/Volume]`
     - CSV/Parquet with a `timestamp` or `datetime` column plus `open/high/low/close[/volume]`
@@ -433,6 +476,10 @@ def load_m5_bars_csv(filepath: Path, start_date: str, end_date: str) -> pd.DataF
         df = df.sort_index()
         if not df.index.is_monotonic_increasing:
             raise ValueError("Bar data timestamps not monotonic even after sort")
+
+    # Assume bars are timestamped by bar *start* and shift to bar close (M5) to
+    # avoid look-ahead when consuming OHLC in the strategy.
+    df.index = pd.to_datetime(df.index, utc=True) + pd.Timedelta(minutes=5)
 
     start_ts = pd.Timestamp(start_date, tz="UTC")
     end_ts = pd.Timestamp(end_date, tz="UTC") + pd.Timedelta(days=1)
@@ -494,6 +541,7 @@ def build_strategy_config(
     consistency_cfg = cfg.get("consistency", {}) if isinstance(cfg, dict) else {}
     telemetry_cfg = cfg.get("telemetry", {}) if isinstance(cfg, dict) else {}
     telemetry_capture = telemetry_cfg.get("capture", {}) if isinstance(telemetry_cfg, dict) else {}
+    ml_cfg = cfg.get("ml", {}) if isinstance(cfg, dict) else {}
 
     confluence_weights = confluence_cfg.get("weights", {}) if isinstance(confluence_cfg, dict) else {}
 
@@ -560,42 +608,63 @@ def build_strategy_config(
     agg_source = bar_type.aggregation_source
 
     # Keep timeframes consistent across LTF experiments.
-    # Default: M5/M15/H1.
-    # - MTF must be > LTF (otherwise MTF bars collapse into LTF) and periodic.
-    # - HTF for this project stays at 60m (periodic requirement for MINUTE bars).
+    # Default hierarchy: LTF < MTF < HTF.
     ltf_minutes_int = max(1, int(ltf_minutes))
 
     def _pick_mtf_minutes(ltf_min: int) -> int:
-        # Nautilus requires bar steps to evenly divide 60 for MINUTE aggregation.
-        allowed = (5, 10, 12, 15, 20, 30, 60)
+        """Pick a valid MTF timeframe in minutes strictly greater than LTF."""
+
         # Default behavior for the project.
         if ltf_min == 5:
             return 15
-        # Prefer 2x LTF if valid and periodic, else 3x, else the next allowed bucket.
+
         for candidate in (ltf_min * 2, ltf_min * 3):
-            if candidate in allowed and candidate > ltf_min:
+            if candidate <= ltf_min:
+                continue
+            try:
+                _bar_spec_from_minutes(minutes=candidate)
+            except ValueError:
+                pass
+            else:
                 return candidate
-        for a in allowed:
-            if a > ltf_min:
-                return a
-        return 60
+
+        # Standard buckets; includes 60+ which will map to hour bars.
+        buckets = (5, 10, 12, 15, 20, 30, 60, 120, 240, 360, 720, 1440)
+        for candidate in buckets:
+            if candidate <= ltf_min:
+                continue
+            try:
+                _bar_spec_from_minutes(minutes=candidate)
+            except ValueError:
+                continue
+            else:
+                return candidate
+
+        # Fall back to 2x if possible (hour bars), else fail fast.
+        candidate = ltf_min * 2
+        if candidate > ltf_min:
+            _bar_spec_from_minutes(minutes=candidate)
+            return candidate
+        raise ValueError(f"Could not choose MTF minutes for ltf_min={ltf_min}")
 
     mtf_minutes = _pick_mtf_minutes(ltf_minutes_int)
-    htf_minutes = 60
+
+    # Default: HTF stays at 60m for sub-hour LTF; otherwise, promote to 4x LTF.
+    htf_minutes = 60 if ltf_minutes_int < 60 else ltf_minutes_int * 4
 
     mtf_bar_type = (
-        BarType(
+        _bar_type_from_minutes(
             instrument_id=instrument_id,
-            bar_spec=BarSpecification(step=mtf_minutes, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+            minutes=mtf_minutes,
             aggregation_source=agg_source,
         )
         if use_mtf
         else None
     )
     htf_bar_type = (
-        BarType(
+        _bar_type_from_minutes(
             instrument_id=instrument_id,
-            bar_spec=BarSpecification(step=htf_minutes, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+            minutes=htf_minutes,
             aggregation_source=agg_source,
         )
         if require_htf_align
@@ -613,6 +682,11 @@ def build_strategy_config(
         min_mtf_confluence=float(confluence_cfg.get("min_score_to_trade", 50)),
         min_rr_ratio=float(exec_cfg.get("min_rr_ratio", 1.5)),
         target_rr_ratio=float(exec_cfg.get("target_rr_ratio", 2.5)),
+        trend_target_rr_ratio=float(exec_cfg.get("trend_target_rr_ratio", 0.0)),
+        mean_revert_target_rr_ratio=float(exec_cfg.get("mean_revert_target_rr_ratio", 0.0)),
+        trade_partial_tp_r=float(exec_cfg.get("trade_partial_tp_r", 1.0)),
+        trade_partial_tp_percent=float(exec_cfg.get("trade_partial_tp_percent", 0.5)),
+        trade_trailing_start_r=float(exec_cfg.get("trade_trailing_start_r", 1.0)),
         use_session_filter=exec_cfg.get("use_session_filter", True),
         use_regime_filter=exec_cfg.get("use_regime_filter", True),
         require_htf_align=require_htf_align,
@@ -650,6 +724,50 @@ def build_strategy_config(
         trend_follow_mode=str(exec_cfg.get("trend_follow_mode", "BOTH")),
         enable_trend_pullback=bool(exec_cfg.get("enable_trend_pullback", True)),
         enable_trend_breakout=bool(exec_cfg.get("enable_trend_breakout", True)),
+
+        # TrendFollow moving average type
+        trend_ma_type=str(exec_cfg.get("trend_ma_type", "EMA")),
+
+        # TrendFollow core MA periods
+        trend_ema_fast=int(exec_cfg.get("trend_ema_fast", 20)),
+        trend_ema_slow=int(exec_cfg.get("trend_ema_slow", 50)),
+        trend_pullback_lookback=int(exec_cfg.get("trend_pullback_lookback", 10)),
+
+        # TrendFollow breakout variants
+        trend_enable_donchian_breakout=bool(exec_cfg.get("trend_enable_donchian_breakout", True)),
+        trend_enable_swing_breakout=bool(exec_cfg.get("trend_enable_swing_breakout", False)),
+        trend_swing_strength=int(exec_cfg.get("trend_swing_strength", 3)),
+        trend_swing_lookback_bars=int(exec_cfg.get("trend_swing_lookback_bars", 120)),
+
+        # Breakout buffers
+        trend_breakout_entry_buffer_atr_mult=float(exec_cfg.get("trend_breakout_entry_buffer_atr_mult", 0.0)),
+        trend_breakout_sl_buffer_atr_mult=float(exec_cfg.get("trend_breakout_sl_buffer_atr_mult", 0.25)),
+
+        # Pullback strictness
+        trend_pullback_require_recross=bool(exec_cfg.get("trend_pullback_require_recross", False)),
+        trend_pullback_recross_lookback=int(exec_cfg.get("trend_pullback_recross_lookback", 1)),
+
+        # Breakout gates
+        trend_breakout_lookback=int(exec_cfg.get("trend_breakout_lookback", 30)),
+        trend_min_atr_percentile_breakout=float(exec_cfg.get("trend_min_atr_percentile_breakout", 65.0)),
+        trend_er_enabled=bool(exec_cfg.get("trend_er_enabled", False)),
+        trend_er_period=int(exec_cfg.get("trend_er_period", 48)),
+        trend_er_smoothing=int(exec_cfg.get("trend_er_smoothing", 3)),
+        trend_er_min=float(exec_cfg.get("trend_er_min", 0.30)),
+        trend_sep_ticks_min=float(exec_cfg.get("trend_sep_ticks_min", 4.0)),
+        trend_touch_dist_mult=float(exec_cfg.get("trend_touch_dist_mult", 0.35)),
+        trend_min_score=float(exec_cfg.get("trend_min_score", 60.0)),
+
+        # Parabolic SAR (alignment filter)
+        psar_enabled=bool(exec_cfg.get("psar_enabled", False)),
+        psar_step=float(exec_cfg.get("psar_step", 0.02)),
+        psar_max=float(exec_cfg.get("psar_max", 0.20)),
+        psar_use_prev_bar=bool(exec_cfg.get("psar_use_prev_bar", True)),
+        psar_apply_to_trend=bool(exec_cfg.get("psar_apply_to_trend", True)),
+        psar_apply_to_smc=bool(exec_cfg.get("psar_apply_to_smc", False)),
+
+        ghost_mode=bool(exec_cfg.get("ghost_mode", False)),
+        ghost_seed=int(exec_cfg.get("ghost_seed", 1337)),
         enable_mean_revert=bool(exec_cfg.get("enable_mean_revert", False)),
         mean_revert_bb_period=int(exec_cfg.get("mean_revert_bb_period", 20)),
         mean_revert_bb_k=float(exec_cfg.get("mean_revert_bb_k", 2.0)),
@@ -657,6 +775,11 @@ def build_strategy_config(
         mean_revert_rsi_oversold=float(exec_cfg.get("mean_revert_rsi_oversold", 30.0)),
         mean_revert_rsi_overbought=float(exec_cfg.get("mean_revert_rsi_overbought", 70.0)),
         mean_revert_max_atr_percentile=float(exec_cfg.get("mean_revert_max_atr_percentile", 70.0)),
+        mean_revert_er_enabled=bool(exec_cfg.get("mean_revert_er_enabled", False)),
+        mean_revert_er_period=int(exec_cfg.get("mean_revert_er_period", 48)),
+        mean_revert_er_smoothing=int(exec_cfg.get("mean_revert_er_smoothing", 3)),
+        mean_revert_er_max=float(exec_cfg.get("mean_revert_er_max", 0.30)),
+        force_mean_revert=bool(exec_cfg.get("force_mean_revert", False)),
         regime_stability_min_bars=int(exec_cfg.get("regime_stability_min_bars", 0)),
         regime_stability_max_transition_prob=float(exec_cfg.get("regime_stability_max_transition_prob", 1.0)),
         router_adaptive_ev=bool(exec_cfg.get("router_adaptive_ev", False)),
@@ -664,6 +787,20 @@ def build_strategy_config(
         router_score_weight=float(exec_cfg.get("router_score_weight", 0.10)),
         router_dd_penalty_total=float(exec_cfg.get("router_dd_penalty_total", 0.20)),
         router_dd_penalty_daily=float(exec_cfg.get("router_dd_penalty_daily", 0.10)),
+        # Phase 11 safety layer (entry-only)
+        max_concurrent_positions=int(exec_cfg.get("max_concurrent_positions", 1)),
+        max_concurrent_instruments=int(exec_cfg.get("max_concurrent_instruments", 1)),
+        vol_spacing_min_seconds=float(exec_cfg.get("vol_spacing_min_seconds", 0.0)),
+        vol_spacing_max_seconds=float(exec_cfg.get("vol_spacing_max_seconds", 300.0)),
+        vol_spacing_reference_atr=float(exec_cfg.get("vol_spacing_reference_atr", 1.0)),
+        virtual_gate_enabled=bool(exec_cfg.get("virtual_gate_enabled", True)),
+        virtual_gate_lookback_bars=int(exec_cfg.get("virtual_gate_lookback_bars", 20)),
+        virtual_gate_range_spike_multiplier=float(exec_cfg.get("virtual_gate_range_spike_multiplier", 3.0)),
+        virtual_gate_cluster_spike_multiplier=float(exec_cfg.get("virtual_gate_cluster_spike_multiplier", 2.5)),
+        virtual_gate_cluster_max_fraction=float(exec_cfg.get("virtual_gate_cluster_max_fraction", 0.30)),
+        virtual_gate_fail_open_on_insufficient_history=bool(
+            exec_cfg.get("virtual_gate_fail_open_on_insufficient_history", True)
+        ),
         max_spread_pips=max_spread_pips,
         spread_warning_ratio=float(spreadmon_cfg.get("warning_ratio", spread_cfg.get("warning_ratio", 2.0))),
         spread_block_ratio=float(spreadmon_cfg.get("block_ratio", spread_cfg.get("block_ratio", 5.0))),
@@ -691,6 +828,11 @@ def build_strategy_config(
         telemetry_capture_spread=bool(telemetry_capture.get("spread", True)),
         telemetry_capture_circuit=bool(telemetry_capture.get("circuit", True)),
         telemetry_capture_cutoff=bool(telemetry_capture.get("cutoff", True)),
+        ml_filter_enabled=bool(ml_cfg.get("filter_enabled", False)) if isinstance(ml_cfg, dict) else False,
+        ml_filter_mode=str(ml_cfg.get("filter_mode", "log_only")) if isinstance(ml_cfg, dict) else "log_only",
+        ml_filter_min_p_edge=float(ml_cfg.get("filter_min_p_edge", 0.55)) if isinstance(ml_cfg, dict) else 0.55,
+        ml_filter_model_path=(ml_cfg.get("filter_model_path") if isinstance(ml_cfg, dict) else None),
+        ml_capture_enabled=bool(ml_cfg.get("capture_enabled", False)) if isinstance(ml_cfg, dict) else False,
         session_broker_gmt_offset=int(session_cfg.get("broker_gmt_offset", 0)),
         session_allow_asian=bool(session_cfg.get("allow_asian", False)),
         session_allow_late_ny=bool(session_cfg.get("allow_late_ny", False)),
@@ -815,7 +957,13 @@ def build_strategy_config(
 
 
 def aggregate_tick_df_to_ohlcv(df: pd.DataFrame, interval_minutes: int) -> pd.DataFrame:
-    """Aggregate (datetime,bid,ask) ticks into OHLCV bars using mid price."""
+    """Aggregate (datetime,bid,ask) ticks into OHLCV bars using mid price.
+
+    Temporal correctness:
+    - Use left-closed bins (include bar start, exclude bar end).
+    - Label bars by *bar close* timestamp (right label) so consumers don't treat
+      full OHLC as known at bar start.
+    """
     if df.empty:
         return pd.DataFrame()
 
@@ -823,8 +971,9 @@ def aggregate_tick_df_to_ohlcv(df: pd.DataFrame, interval_minutes: int) -> pd.Da
     ticks["mid"] = (ticks["bid"] + ticks["ask"]) / 2.0
     ticks = ticks.set_index("datetime")
 
-    ohlc = ticks["mid"].resample(f"{interval_minutes}min").ohlc()
-    vol = ticks["mid"].resample(f"{interval_minutes}min").count()
+    rs = ticks["mid"].resample(f"{interval_minutes}min", closed="left", label="right")
+    ohlc = rs.ohlc()
+    vol = rs.count()
     bars_df = ohlc.join(vol.rename("volume")).dropna()
     return bars_df
 
@@ -1218,13 +1367,9 @@ class BacktestRunner:
 
         # Create bar type for internal aggregation from ticks
         agg_source = AggregationSource.INTERNAL if feed == "ticks" else AggregationSource.EXTERNAL
-        bar_type = BarType(
+        bar_type = _bar_type_from_minutes(
             instrument_id=instrument.id,
-            bar_spec=BarSpecification(
-                step=ltf_minutes_int,
-                aggregation=BarAggregation.MINUTE,
-                price_type=PriceType.MID,
-            ),
+            minutes=ltf_minutes_int,
             aggregation_source=agg_source,
         )
         _p(f"Bar type: {bar_type}")
@@ -1257,6 +1402,7 @@ class BacktestRunner:
 
         # Configure strategy from YAML + overrides (built earlier so engine + strategy share the same economics)
         strategy_config = build_strategy_config(strategy_cfg_dict, bar_type, instrument.id, ltf_minutes=ltf_minutes_int)
+
 
         strategy = GoldScalperStrategy(config=strategy_config)
         engine.add_strategy(strategy)
@@ -1649,6 +1795,8 @@ def main() -> None:
     parser.add_argument('--metrics-jsonl', default=None, help='Optional path to write metrics JSONL')
     parser.add_argument('--out-dir', default=None, help='Optional output dir for reports (fills/positions/account)')
     parser.add_argument('--quiet', action='store_true', help='Suppress console + logging noise (recommended for sweeps)')
+    parser.add_argument('--telemetry-path', default=None, help='Override YAML telemetry.path (JSONL)')
+    parser.add_argument('--ml-capture', action='store_true', help='Enable ML snapshot capture to telemetry (ml_snapshot events)')
     parser.add_argument(
         '--catalog-path',
         default=None,
@@ -1686,6 +1834,36 @@ def main() -> None:
         choices=['structure', 'regime', 'session', 'ob', 'fvg', 'sweep', 'amd', 'fib', 'mtf', 'footprint'],
         help='Isolate a single indicator for testing (sets only that weight to 100, others to 0)',
     )
+    # TrendFollow parameter overrides for sensitivity sweeps (Oracle/CRITIC recommendations)
+    parser.add_argument(
+        '--trend-sep-ticks',
+        type=float,
+        default=None,
+        help='EMA separation threshold in ticks (default: 4.0)',
+    )
+    parser.add_argument(
+        '--trend-touch-dist-mult',
+        type=float,
+        default=None,
+        help='Touch distance as ATR multiplier (default: 0.35)',
+    )
+    parser.add_argument(
+        '--trend-min-score',
+        type=float,
+        default=None,
+        help='Minimum signal score threshold (default: 60.0)',
+    )
+    parser.add_argument(
+        '--ghost-mode',
+        action='store_true',
+        help='Ghost Test: randomize signal directions to test filter edge',
+    )
+    parser.add_argument(
+        '--ghost-seed',
+        type=int,
+        default=None,
+        help='Ghost Test seed for deterministic runs (default: 1337)',
+    )
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -1695,6 +1873,20 @@ def main() -> None:
     config_overrides: dict[str, object] | None = None
     if args.news_events_path:
         config_overrides = {'news': {'events_path': args.news_events_path}}
+
+    if args.telemetry_path:
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault('telemetry', {})
+        tel_over = config_overrides.get('telemetry')
+        if isinstance(tel_over, dict):
+            tel_over['path'] = str(args.telemetry_path)
+
+    if args.ml_capture:
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault('ml', {})
+        ml_over = config_overrides.get('ml')
+        if isinstance(ml_over, dict):
+            ml_over['capture_enabled'] = True
 
     # TrendFollow/SMC overrides (avoid editing YAML for quick experiments)
     if args.disable_smc or args.enable_trend_follow or (args.trend_follow_mode is not None):
@@ -1720,6 +1912,30 @@ def main() -> None:
             if args.mr_only:
                 exec_over['enable_smc'] = False
                 exec_over['enable_trend_follow'] = False
+
+    # TrendFollow parameter overrides (sensitivity sweeps per Oracle/CRITIC)
+    _tf_param_override = (
+        getattr(args, 'trend_sep_ticks', None) is not None
+        or getattr(args, 'trend_touch_dist_mult', None) is not None
+        or getattr(args, 'trend_min_score', None) is not None
+        or getattr(args, 'ghost_mode', False)
+        or getattr(args, 'ghost_seed', None) is not None
+    )
+    if _tf_param_override:
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault('execution', {})
+        exec_over = config_overrides.get('execution')
+        if isinstance(exec_over, dict):
+            if getattr(args, 'trend_sep_ticks', None) is not None:
+                exec_over['trend_sep_ticks_min'] = float(args.trend_sep_ticks)
+            if getattr(args, 'trend_touch_dist_mult', None) is not None:
+                exec_over['trend_touch_dist_mult'] = float(args.trend_touch_dist_mult)
+            if getattr(args, 'trend_min_score', None) is not None:
+                exec_over['trend_min_score'] = float(args.trend_min_score)
+            if getattr(args, 'ghost_mode', False):
+                exec_over['ghost_mode'] = True
+            if getattr(args, 'ghost_seed', None) is not None:
+                exec_over['ghost_seed'] = int(args.ghost_seed)
 
     # --isolate: override confluence weights to test single indicator
     if args.isolate:

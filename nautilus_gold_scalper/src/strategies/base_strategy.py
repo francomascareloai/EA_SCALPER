@@ -336,6 +336,11 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
     def on_bar(self, bar: Bar) -> None:
         """Process incoming bar data."""
+        # Guard against revision bars (partial updates). We only want final OHLC bars to
+        # avoid any look-ahead from in-progress aggregation.
+        if getattr(bar, "is_revision", False):
+            return
+
         # WP0: maintain a deterministic market timestamp even if quote ticks stall.
         self._last_market_ts_ns = int(bar.ts_event)
         self._finalize_entry_terminal_if_safe(int(bar.ts_event))
@@ -477,11 +482,19 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 return
 
         # Circuit breaker intrabar enforcement (uses conservative MTM equity)
+        # IMPORTANT: CircuitBreaker `can_trade()` can be False due to cooldowns after consecutive
+        # losses (LEVEL_1/2) or temporary risk pauses. That should NOT trigger an emergency
+        # flatten + HALT while a position is open; it's an *entry* gate.
+        # Only hard lockdown states should force an emergency flatten.
         if getattr(self, "_circuit_breaker", None) and self._position:
             try:
+                from nautilus_gold_scalper.src.risk.circuit_breaker import CircuitBreakerLevel
+
                 self._circuit_breaker.update_equity(equity, now=now_dt)
-                if not self._circuit_breaker.can_trade(now=now_dt):
-                    self._trigger_execution_failsafe(reason="circuit_breaker_dd_breach")
+                cb_state = self._circuit_breaker.get_state()
+
+                if cb_state.level >= CircuitBreakerLevel.LEVEL_4_CRITICAL:
+                    self._trigger_execution_failsafe(reason=f"circuit_breaker_lockdown:{cb_state.level.name}")
                     return
             except Exception as exc:
                 self._trigger_execution_failsafe(reason=f"circuit_breaker_intrabar_exception: {type(exc).__name__}")

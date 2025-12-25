@@ -85,6 +85,21 @@ execution:
   use_mtf: true
   use_footprint: true
 
+  # Phase 11 Safety Layer (VirtualGate)
+  virtual_gate_enabled: true
+  virtual_gate_lookback_bars: 20
+  virtual_gate_range_spike_multiplier: 3.0
+  virtual_gate_cluster_spike_multiplier: 2.5
+  virtual_gate_cluster_max_fraction: 0.30
+  virtual_gate_fail_open_on_insufficient_history: true
+
+  # Phase 11 Safety Layer (existing)
+  max_concurrent_positions: 1
+  max_concurrent_instruments: 1
+  vol_spacing_min_seconds: 0.0
+  vol_spacing_max_seconds: 300.0
+  vol_spacing_reference_atr: 1.0
+
   # TrendFollow + Router (NEW)
   enable_trend_follow: true
   enable_trend_pullback: true

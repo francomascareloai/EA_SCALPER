@@ -13,12 +13,12 @@ Validation Checks:
     6. Schema Consistency: All Parquet files have expected columns
 
 Example:
-    >>> from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
-    >>> from nautilus_gold_scalper.src.validation.core.engine import (
+    >>> from src.validation.core.config import ValidationConfig
+    >>> from src.validation.core.engine import (
     ...     ValidationEngine,
     ...     DuckDBConnection,
     ... )
-    >>> from nautilus_gold_scalper.src.validation.phases.phase_1a import Phase1AValidator
+    >>> from src.validation.phases.phase_1a import Phase1AValidator
     >>>
     >>> config = ValidationConfig(catalog_path="/path/to/catalog")
     >>> engine = ValidationEngine(config)
@@ -37,12 +37,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import polars as pl
-from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
-from nautilus_gold_scalper.src.validation.core.engine import (
+from src.validation.core.config import ValidationConfig
+from src.validation.core.engine import (
     DuckDBConnection,
     PhaseValidator,
 )
-from nautilus_gold_scalper.src.validation.core.results import (
+from src.validation.core.results import (
     CheckResult,
     PhaseResult,
     ValidationStatus,

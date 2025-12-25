@@ -9,6 +9,8 @@ Implements the complete SMC (Smart Money Concepts) trading system:
 - Prop firm risk management
 """
 import logging
+import random
+import time
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -74,10 +76,12 @@ from ..risk.unified_risk_policy import UnifiedRiskPolicy
 from ..risk.virtual_gate import VirtualGate, VirtualGateInput
 from ..risk.volatility_spacing import VolatilitySpacing
 from ..signals.confluence_scorer import ConfluenceScorer
+from ..ml.entry_filter import OnnxEntryFilter
 from ..signals.trend_follow import (
     TrendDirection,
     TrendFollowCandidate,
     TrendFollowVariant,
+    compute_psar_series,
     generate_trend_follow_candidates,
 )
 from ..signals.mean_revert import MeanRevertCandidate, generate_mean_revert_candidates
@@ -115,6 +119,14 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     use_footprint_boost: bool = True
     use_bandit_context: bool = False
 
+    # Parabolic SAR (PSAR) - optional alignment filter (disabled by default)
+    psar_enabled: bool = False
+    psar_step: float = 0.02
+    psar_max: float = 0.20
+    psar_use_prev_bar: bool = True
+    psar_apply_to_trend: bool = True
+    psar_apply_to_smc: bool = False
+
     # Strategy toggles (useful for isolated backtests)
     enable_smc: bool = True
 
@@ -126,14 +138,47 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     enable_trend_pullback: bool = True
     enable_trend_breakout: bool = True
 
+    # TrendFollow moving average type
+    trend_ma_type: str = "EMA"  # EMA | SMA
+
+    # TrendFollow core MA periods
+    trend_ema_fast: int = 20
+    trend_ema_slow: int = 50
+    trend_pullback_lookback: int = 10
+
     # TrendFollow breakout variant tuning ("ER-gated breakout")
     # These are generic and do not rely on any proprietary EA implementation.
     trend_breakout_lookback: int = 30
     trend_min_atr_percentile_breakout: float = 65.0
+
+    # Donchian breakout is the default to preserve existing behavior.
+    trend_enable_donchian_breakout: bool = True
+
+    # Optional swing breakout (StructureAnalyzer-style confirmed swings + ATR buffers).
+    trend_enable_swing_breakout: bool = False
+    trend_swing_strength: int = 3
+    trend_swing_lookback_bars: int = 120
+
+    # Breakout buffers
+    trend_breakout_entry_buffer_atr_mult: float = 0.0
+    trend_breakout_sl_buffer_atr_mult: float = 0.25
+
+    # Pullback strictness
+    trend_pullback_require_recross: bool = False
+    trend_pullback_recross_lookback: int = 1
+
     trend_er_enabled: bool = False
     trend_er_period: int = 48
     trend_er_smoothing: int = 3
     trend_er_min: float = 0.30
+
+    # TrendFollow signal-level tuning (CLI-sweepable via --trend-XXX)
+    trend_sep_ticks_min: float = 4.0  # EMA separation threshold in ticks
+    trend_touch_dist_mult: float = 0.35  # Touch distance as ATR multiplier
+    trend_min_score: float = 60.0  # Minimum signal score threshold
+
+    ghost_mode: bool = False  # Ghost Test: replace signals with random
+    ghost_seed: int = 1337  # Ghost Test seed (deterministic runs)
 
     # MeanRevert (optional; disabled by default)
     enable_mean_revert: bool = False
@@ -184,6 +229,14 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     vol_spacing_min_seconds: float = 0.0
     vol_spacing_max_seconds: float = 300.0
     vol_spacing_reference_atr: float = 1.0
+
+    # Phase 11 safety layer: VirtualGate (entry-only, bar-only)
+    virtual_gate_enabled: bool = True
+    virtual_gate_lookback_bars: int = 20
+    virtual_gate_range_spike_multiplier: float = 3.0
+    virtual_gate_cluster_spike_multiplier: float = 2.5
+    virtual_gate_cluster_max_fraction: float = 0.30
+    virtual_gate_fail_open_on_insufficient_history: bool = True
 
     # Adaptive EV router (enabled by default for strategy arm selection)
     router_adaptive_ev: bool = True
@@ -357,6 +410,16 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     telemetry_capture_circuit: bool = True
     telemetry_capture_cutoff: bool = True
 
+    # ML scaffolding (disabled by default).
+    # Intended for offline-trained, deterministic inference (ONNX) and dataset capture.
+    ml_filter_enabled: bool = False
+    ml_filter_mode: str = "log_only"  # "log_only" | "gate"
+    ml_filter_min_p_edge: float = 0.55
+    ml_filter_model_path: str | None = None
+
+    # When enabled, emits per-decision snapshots to telemetry for offline dataset building.
+    ml_capture_enabled: bool = False
+
     # HBS (Human Behavior Simulator) settings
     hbs_enabled: bool = True  # Master switch for HBS
     hbs_mode: str = "backtest"  # "backtest", "live", "paper"
@@ -440,7 +503,18 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             max_cooldown_seconds=float(getattr(self.config, "vol_spacing_max_seconds", 300.0)),
             reference_volatility=float(getattr(self.config, "vol_spacing_reference_atr", 1.0)),
         )
-        self._virtual_gate = VirtualGate()
+        self._virtual_gate = None
+        if bool(getattr(self.config, "virtual_gate_enabled", True)):
+            self._virtual_gate = VirtualGate(
+                lookback_bars=int(getattr(self.config, "virtual_gate_lookback_bars", 20)),
+                range_spike_multiplier=float(getattr(self.config, "virtual_gate_range_spike_multiplier", 3.0)),
+                cluster_spike_multiplier=float(getattr(self.config, "virtual_gate_cluster_spike_multiplier", 2.5)),
+                cluster_max_fraction=float(getattr(self.config, "virtual_gate_cluster_max_fraction", 0.30)),
+                fail_open_on_insufficient_history=bool(
+                    getattr(self.config, "virtual_gate_fail_open_on_insufficient_history", True)
+                ),
+            )
+
         self._unified_risk_policy = UnifiedRiskPolicy(
             exposure_caps=self._exposure_caps,
             news_guard=None,
@@ -493,6 +567,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Avoid log spam for expected warm-up/edge conditions.
         self._log_once_keys: set[str] = set()
+
+        # ML entry filter (ONNX) - fail-open.
+        self._ml_filter: OnnxEntryFilter | None = None
+        self._ml_filter_initialized: bool = False
 
     def _log_once(self, key: str, msg: str, *, level: Literal["debug", "info", "warning", "error"] = "debug") -> None:
         if key in self._log_once_keys:
@@ -724,6 +802,63 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             Path(getattr(self.config, "telemetry_path", "logs/telemetry.jsonl")),
             enabled=bool(getattr(self.config, "telemetry_enabled", True)),
         )
+
+        # ML filter setup (fail-open). Load at startup to avoid first-call latency.
+        # NOTE: do not load in hot path; do not stop trading if model is missing.
+        ml_enabled = bool(getattr(self.config, "ml_filter_enabled", False))
+        ml_path = getattr(self.config, "ml_filter_model_path", None)
+        if ml_enabled and ml_path:
+            try:
+                self._ml_filter = OnnxEntryFilter(Path(str(ml_path)))
+                self._ml_filter.initialize()
+                self._ml_filter_initialized = True
+                if self._telemetry:
+                    self._telemetry.emit(
+                        "ml_filter_init",
+                        {
+                            "enabled": True,
+                            "mode": str(getattr(self.config, "ml_filter_mode", "log_only")),
+                            "model_path": str(ml_path),
+                            "status": "ok" if self._ml_filter.init_error is None else "degraded",
+                            "error": self._ml_filter.init_error,
+                        },
+                    )
+            except Exception as exc:
+                self._ml_filter = None
+                self._ml_filter_initialized = False
+                self._log_once(
+                    "ml_filter_init_failed",
+                    f"[ML_FILTER] init failed (fail-open): {type(exc).__name__}: {exc}",
+                    level="warning",
+                )
+                if self._telemetry:
+                    self._telemetry.emit(
+                        "ml_filter_init",
+                        {
+                            "enabled": True,
+                            "mode": str(getattr(self.config, "ml_filter_mode", "log_only")),
+                            "model_path": str(ml_path),
+                            "status": "failed",
+                            "error": f"{type(exc).__name__}",
+                        },
+                    )
+        elif ml_enabled and not ml_path:
+            self._log_once(
+                "ml_filter_missing_path",
+                "[ML_FILTER] enabled but ml_filter_model_path is not set (fail-open)",
+                level="warning",
+            )
+            if self._telemetry:
+                self._telemetry.emit(
+                    "ml_filter_init",
+                    {
+                        "enabled": True,
+                        "mode": str(getattr(self.config, "ml_filter_mode", "log_only")),
+                        "model_path": None,
+                        "status": "missing_path",
+                        "error": None,
+                    },
+                )
 
         # Initialize metrics calculator
         self._metrics_calculator = MetricsCalculator(
@@ -1153,8 +1288,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Update regime (do NOT block trading here - check in _check_for_signal instead)
         if self._regime_detector:
-            self._current_regime = self._regime_detector.analyze(closes)
-            self.log.info(f"[HTF_REGIME] Regime detected: {self._current_regime.regime}")
+            try:
+                self._current_regime = self._regime_detector.analyze(closes)
+                self.log.info(f"[HTF_REGIME] Regime detected: {self._current_regime.regime}")
+            except InsufficientDataError:
+                # Expected early in a run until enough HTF bars accumulate.
+                self._current_regime = None
 
         if self.config.debug_mode:
             self.log.debug(f"HTF Bias: {self._htf_bias}, Regime: {self._current_regime.regime if self._current_regime else 'N/A'}")
@@ -1407,13 +1546,43 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             last_entry_ts_ns=self._last_entry_ts_ns,
             now_ts_ns=int(bar.ts_event),
             volatility=atr,
-            virtual_gate_input=VirtualGateInput(
-                decision_ts_ns=int(bar.ts_event),
-                bar_ts_ns=[int(b.ts_event) for b in self._ltf_bars[-21:-1]],
-                bar_highs=[float(b.high.as_double()) for b in self._ltf_bars[-21:-1]],
-                bar_lows=[float(b.low.as_double()) for b in self._ltf_bars[-21:-1]],
+            virtual_gate_input=(
+                None
+                if self._virtual_gate is None
+                else VirtualGateInput(
+                    decision_ts_ns=int(bar.ts_event),
+                    bar_ts_ns=[
+                        int(b.ts_event)
+                        for b in self._ltf_bars[
+                            -(
+                                int(getattr(self.config, "virtual_gate_lookback_bars", 20))
+                                + 1
+                            ) : -1
+                        ]
+                    ],
+                    bar_highs=[
+                        float(b.high.as_double())
+                        for b in self._ltf_bars[
+                            -(
+                                int(getattr(self.config, "virtual_gate_lookback_bars", 20))
+                                + 1
+                            ) : -1
+                        ]
+                    ],
+                    bar_lows=[
+                        float(b.low.as_double())
+                        for b in self._ltf_bars[
+                            -(
+                                int(getattr(self.config, "virtual_gate_lookback_bars", 20))
+                                + 1
+                            ) : -1
+                        ]
+                    ],
+                )
             ),
-            base_size_factor=float(getattr(self, "_news_size_mult", 1.0)),
+            # NOTE: Avoid double-applying `news_window.size_multiplier`.
+            # UnifiedRiskPolicy already applies `news_window.size_multiplier` to `size_factor`.
+            base_size_factor=1.0,
         )
 
         if not decision.can_open_new:
@@ -1658,14 +1827,55 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     tick_size=tick_size,
                     atr=atr,
                     atr_percentile=atr_p,
+                    ema_fast=int(getattr(self.config, "trend_ema_fast", 20)),
+                    ema_slow=int(getattr(self.config, "trend_ema_slow", 50)),
+                    ma_type=str(getattr(self.config, "trend_ma_type", "EMA")),
+                    pullback_lookback=int(getattr(self.config, "trend_pullback_lookback", 10)),
                     breakout_lookback=int(getattr(self.config, "trend_breakout_lookback", 30)),
                     min_atr_percentile_breakout=float(getattr(self.config, "trend_min_atr_percentile_breakout", 65.0)),
+                    donchian_breakout_enabled=bool(getattr(self.config, "trend_enable_donchian_breakout", True)),
+                    swing_breakout_enabled=bool(getattr(self.config, "trend_enable_swing_breakout", False)),
+                    swing_strength=int(getattr(self.config, "trend_swing_strength", 3)),
+                    swing_lookback_bars=int(getattr(self.config, "trend_swing_lookback_bars", 120)),
+                    breakout_entry_buffer_atr_mult=float(getattr(self.config, "trend_breakout_entry_buffer_atr_mult", 0.0)),
+                    breakout_sl_buffer_atr_mult=float(getattr(self.config, "trend_breakout_sl_buffer_atr_mult", 0.25)),
+                    pullback_require_recross=bool(getattr(self.config, "trend_pullback_require_recross", False)),
+                    pullback_recross_lookback=int(getattr(self.config, "trend_pullback_recross_lookback", 1)),
                     er_enabled=bool(getattr(self.config, "trend_er_enabled", False)),
                     er_period=int(getattr(self.config, "trend_er_period", 48)),
                     er_smoothing=int(getattr(self.config, "trend_er_smoothing", 3)),
                     er_min=float(getattr(self.config, "trend_er_min", 0.30)),
-                    min_score=float(self.config.execution_threshold),
+                    min_score=float(getattr(self.config, "trend_min_score", 60.0)),
+                    sep_ticks_min=float(getattr(self.config, "trend_sep_ticks_min", 4.0)),
+                    touch_dist_mult=float(getattr(self.config, "trend_touch_dist_mult", 0.35)),
                 )
+
+                # Ghost Test: replace signal directions with random if ghost_mode enabled
+                # This tests whether the edge comes from filters (session/regime/risk) or signals
+                if bool(getattr(self.config, "ghost_mode", False)) and trend_candidates:
+                    seed = int(getattr(self.config, "ghost_seed", 1337))
+                    rng = random.Random(seed)
+
+                    # Preserve candidate structure but randomize direction deterministically.
+                    randomized: list[TrendFollowCandidate] = []
+                    for cand in trend_candidates:
+                        new_dir = rng.choice([TrendDirection.LONG, TrendDirection.SHORT])
+                        randomized.append(
+                            TrendFollowCandidate(
+                                variant=cand.variant,
+                                direction=new_dir,
+                                score=cand.score,
+                                sl_distance=cand.sl_distance,
+                                reason=f"ghost_{cand.reason}",
+                                meta={
+                                    **cand.meta,
+                                    "ghost": True,
+                                    "ghost_seed": seed,
+                                    "original_dir": cand.direction.name,
+                                },
+                            )
+                        )
+                    trend_candidates = randomized
 
                 mode = str(getattr(self.config, "trend_follow_mode", "BOTH")).strip().upper()
                 valid_modes = {"PULLBACK_ONLY", "BREAKOUT_ONLY", "BOTH"}
@@ -1677,12 +1887,20 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 if mode == "PULLBACK_ONLY":
                     trend_candidates = [c for c in trend_candidates if c.variant == TrendFollowVariant.PULLBACK]
                 elif mode == "BREAKOUT_ONLY":
-                    trend_candidates = [c for c in trend_candidates if c.variant == TrendFollowVariant.BREAKOUT]
+                    trend_candidates = [
+                        c
+                        for c in trend_candidates
+                        if c.variant in (TrendFollowVariant.BREAKOUT, TrendFollowVariant.SWING_BREAKOUT)
+                    ]
                 else:
                     if not bool(getattr(self.config, "enable_trend_pullback", True)):
                         trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.PULLBACK]
                     if not bool(getattr(self.config, "enable_trend_breakout", True)):
-                        trend_candidates = [c for c in trend_candidates if c.variant != TrendFollowVariant.BREAKOUT]
+                        trend_candidates = [
+                            c
+                            for c in trend_candidates
+                            if c.variant not in (TrendFollowVariant.BREAKOUT, TrendFollowVariant.SWING_BREAKOUT)
+                        ]
             except Exception as exc:
                 self.log.debug(f"[TREND] candidate gen failed: {exc}")
                 trend_candidates = []
@@ -1713,6 +1931,72 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             except Exception as exc:
                 self.log.debug(f"[MEAN] candidate gen failed: {exc}")
                 mean_candidates = []
+
+        # Optional Parabolic SAR (PSAR) alignment filter (t-1 by default).
+        # This is applied *after* candidates are generated so we can block only the paths we want.
+        if bool(getattr(self.config, "psar_enabled", False)):
+            try:
+                psar_step = float(getattr(self.config, "psar_step", 0.02))
+                psar_max = float(getattr(self.config, "psar_max", 0.20))
+
+                # Sanity: PSAR params must be positive and bounded.
+                if psar_step <= 0.0 or psar_max <= 0.0:
+                    raise ValueError("psar_step/psar_max must be > 0")
+                if psar_step > psar_max:
+                    raise ValueError("psar_step must be <= psar_max")
+
+                sar = compute_psar_series(highs=highs, lows=lows, closes=closes, af_step=psar_step, af_max=psar_max)
+                if sar.size >= 2:
+                    use_prev = bool(getattr(self.config, "psar_use_prev_bar", True))
+                    idx = -2 if use_prev else -1
+                    psar_value = float(sar[idx])
+                    price_ref = float(closes[idx])
+
+                    apply_trend = bool(getattr(self.config, "psar_apply_to_trend", True))
+                    apply_smc = bool(getattr(self.config, "psar_apply_to_smc", False))
+
+                    if apply_trend and trend_candidates:
+                        before = len(trend_candidates)
+                        trend_candidates = [
+                            c
+                            for c in trend_candidates
+                            if (c.direction == TrendDirection.LONG and price_ref > psar_value)
+                            or (c.direction == TrendDirection.SHORT and price_ref < psar_value)
+                        ]
+                        if before > 0 and not trend_candidates and self._telemetry:
+                            self._telemetry.emit(
+                                "signal_reject",
+                                {
+                                    "reason": "psar_trend_alignment",
+                                    "bar": len(self._ltf_bars),
+                                    "psar": psar_value,
+                                    "price": price_ref,
+                                    "idx": idx,
+                                },
+                            )
+
+                    if apply_smc and confluence_result is not None:
+                        allow_buy = price_ref > psar_value
+                        allow_sell = price_ref < psar_value
+                        if (confluence_result.direction == SignalType.SIGNAL_BUY and not allow_buy) or (
+                            confluence_result.direction == SignalType.SIGNAL_SELL and not allow_sell
+                        ):
+                            if self._telemetry:
+                                self._telemetry.emit(
+                                    "signal_reject",
+                                    {
+                                        "reason": "psar_smc_alignment",
+                                        "bar": len(self._ltf_bars),
+                                        "psar": psar_value,
+                                        "price": price_ref,
+                                        "idx": idx,
+                                        "direction": confluence_result.direction.name,
+                                    },
+                                )
+                            confluence_result = None
+            except Exception as exc:
+                # Fail open: PSAR is experimental and must never block trading due to misconfig.
+                self.log.debug(f"[PSAR] filter skipped: {exc}")
 
         if confluence_result is None and not trend_candidates and not mean_candidates:
             if should_log:
@@ -1810,8 +2094,15 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         selected_score = float(effective_score)
                     elif selected_arm in (RouterArm.TREND_PULLBACK, RouterArm.TREND_BREAKOUT):
                         selected_mean = None
-                        want = TrendFollowVariant.PULLBACK if selected_arm == RouterArm.TREND_PULLBACK else TrendFollowVariant.BREAKOUT
-                        selected_trend = max((c for c in trend_candidates if c.variant == want), key=lambda x: float(x.score), default=None)
+                        want = TrendFollowVariant.PULLBACK if selected_arm == RouterArm.TREND_PULLBACK else None
+                        if want is not None:
+                            selected_trend = max((c for c in trend_candidates if c.variant == want), key=lambda x: float(x.score), default=None)
+                        else:
+                            selected_trend = max(
+                                (c for c in trend_candidates if c.variant in (TrendFollowVariant.BREAKOUT, TrendFollowVariant.SWING_BREAKOUT)),
+                                key=lambda x: float(x.score),
+                                default=None,
+                            )
                         selected_score = float(selected_trend.score) if selected_trend else 0.0
                     elif selected_arm == RouterArm.MEAN_REVERT:
                         selected_trend = None
@@ -1838,7 +2129,14 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                                         max((c.score for c in trend_candidates if c.variant == TrendFollowVariant.PULLBACK), default=0.0)
                                     ),
                                     "trend_breakout": float(
-                                        max((c.score for c in trend_candidates if c.variant == TrendFollowVariant.BREAKOUT), default=0.0)
+                                        max(
+                                            (
+                                                c.score
+                                                for c in trend_candidates
+                                                if c.variant in (TrendFollowVariant.BREAKOUT, TrendFollowVariant.SWING_BREAKOUT)
+                                            ),
+                                            default=0.0,
+                                        )
                                     ),
                                     "mean_revert": float(max((c.score for c in mean_candidates), default=0.0)),
                                 },
@@ -1846,6 +2144,44 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         )
             except Exception as exc:
                 self.log.debug(f"[ROUTER] selection failed: {exc}")
+
+        # ML dataset snapshot (post-selection, pre-threshold): capture context + selection outcome.
+        # Must never impact trading logic. Guarded by config.ml_capture_enabled.
+        self._emit_ml_snapshot(
+            stage="post_selection",
+            payload={
+                "ts_event": int(bar.ts_event),
+                "instrument_id": str(getattr(self.config, "instrument_id", "")),
+                "bar": int(len(self._ltf_bars)),
+                "open": float(bar.open.as_double()),
+                "high": float(bar.high.as_double()),
+                "low": float(bar.low.as_double()),
+                "close": float(bar.close.as_double()),
+                "session": self._current_session.session.name if self._current_session else "UNKNOWN",
+                "regime": self._current_regime.regime.name if self._current_regime else "UNKNOWN",
+                "vol_bucket": int(max(0, min(4, int(float(self._get_atr_percentile()) // 20.0)))),
+                "atr": float(self._get_current_atr()),
+                "atr_percentile": float(self._get_atr_percentile()),
+                "spread_points": float(self._current_spread),
+                "news_in_window": bool(news_window.in_window) if news_window else False,
+                "news_action": int(getattr(news_window.action, "value", news_window.action)) if news_window else int(0),
+                "news_minutes_to_event": int(news_window.minutes_to_event) if news_window else int(0),
+                "arm": str(selected_arm.value),
+                "selected_score": float(selected_score),
+                "execution_threshold": float(self.config.execution_threshold),
+                "smc_score": float(effective_score) if confluence_result is not None else None,
+                "trend_best_score": float(
+                    max((float(c.score) for c in trend_candidates), default=0.0)
+                )
+                if trend_candidates
+                else None,
+                "mean_best_score": float(
+                    max((float(c.score) for c in mean_candidates), default=0.0)
+                )
+                if mean_candidates
+                else None,
+            },
+        )
 
         # Check if selected candidate meets threshold
         if float(selected_score) < self.config.execution_threshold:
@@ -1912,6 +2248,73 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         if signal == SignalType.SIGNAL_NONE:
             return
+
+        # === ML Entry Filter Gate (fail-open) ===
+        # Runs after all existing safety gates and before HBS/position sizing.
+        # In log_only mode it never blocks; in gate mode it blocks when p_edge < threshold.
+        if bool(getattr(self.config, "ml_filter_enabled", False)) and self._ml_filter is not None:
+            try:
+                direction = "long" if signal == SignalType.SIGNAL_BUY else "short"
+                payload = {
+                    "open": float(bar.open.as_double()),
+                    "high": float(bar.high.as_double()),
+                    "low": float(bar.low.as_double()),
+                    "close": float(bar.close.as_double()),
+                    "atr": float(self._get_current_atr()),
+                    "atr_percentile": float(self._get_atr_percentile()),
+                    "spread_points": float(self._current_spread),
+                    "selected_score": float(selected_score),
+                    "execution_threshold": float(self.config.execution_threshold),
+                }
+
+                t0 = time.perf_counter_ns()
+                decision_ml = self._ml_filter.predict(
+                    payload,
+                    direction=direction,
+                    min_p_edge=float(getattr(self.config, "ml_filter_min_p_edge", 0.0)),
+                    mode=str(getattr(self.config, "ml_filter_mode", "log_only")),
+                )
+                dt_ms = (time.perf_counter_ns() - t0) / 1e6
+
+                if self._telemetry:
+                    self._telemetry.emit(
+                        "ml_filter_predict",
+                        {
+                            "direction": direction,
+                            "mode": str(getattr(self.config, "ml_filter_mode", "log_only")),
+                            "min_p_edge": float(getattr(self.config, "ml_filter_min_p_edge", 0.0)),
+                            "p_edge": decision_ml.p_edge,
+                            "should_trade": decision_ml.should_trade,
+                            "reason": decision_ml.reason,
+                            "latency_ms": float(decision_ml.latency_ms) if decision_ml.latency_ms is not None else float(dt_ms),
+                            "bar": len(self._ltf_bars),
+                        },
+                    )
+
+                if float(decision_ml.latency_ms or dt_ms) > 5.0 and self._telemetry:
+                    self._telemetry.emit(
+                        "ml_filter_slow",
+                        {
+                            "latency_ms": float(decision_ml.latency_ms or dt_ms),
+                            "threshold_ms": 5.0,
+                            "bar": len(self._ltf_bars),
+                        },
+                    )
+
+                # Only gate if mode is gate and decision says no.
+                if not decision_ml.should_trade:
+                    if self._telemetry:
+                        self._telemetry.emit(
+                            "signal_reject",
+                            {"reason": "ml_filter", "bar": len(self._ltf_bars)},
+                        )
+                    return
+            except Exception as exc:
+                self._log_once(
+                    "ml_filter_apply_failed",
+                    f"[ML_FILTER] apply failed (fail-open): {type(exc).__name__}: {exc}",
+                    level="warning",
+                )
 
         # === HBS (Human Behavior Simulator) Gate ===
         # Pass signal through HBS for stealth execution decisions
@@ -2892,6 +3295,21 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         hour = int(parts[0])
         minute = int(parts[1]) if len(parts) > 1 else 0
         return time(hour=hour, minute=minute)
+
+
+    def _emit_ml_snapshot(self, *, stage: str, payload: dict[str, object]) -> None:
+        """Emit ML dataset snapshot to telemetry (never affects trading logic)."""
+        if not self._telemetry:
+            return
+        if not bool(getattr(self.config, "ml_capture_enabled", False)):
+            return
+
+        try:
+            record = dict(payload)
+            record["stage"] = str(stage)
+            self._telemetry.emit("ml_snapshot", record)
+        except Exception:
+            return
 
 
     def _calculate_and_emit_metrics(self) -> PerformanceMetrics | None:

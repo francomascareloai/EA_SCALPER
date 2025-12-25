@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from .trend_follow import TrendDirection
+from .trend_follow import TrendDirection, _ema, _kaufman_efficiency_ratio_series
 
 
 class MeanRevertVariant(str, Enum):
@@ -91,11 +91,19 @@ def generate_mean_revert_candidates(
     rsi_overbought: float = 70.0,
     bb_touch_atr_frac: float = 0.15,
     max_atr_percentile: float = 70.0,
+    # Optional ER (Kaufman efficiency ratio) regime gate.
+    er_enabled: bool = False,
+    er_period: int = 48,
+    er_smoothing: int = 3,
+    er_max: float = 0.30,
     min_score: float = 60.0,
 ) -> list[MeanRevertCandidate]:
     """Produce zero or more MeanRevert candidates for the latest closed bar."""
 
     min_bars = max(int(bb_period) + 2, int(rsi_period) + 2, 50)
+    if bool(er_enabled):
+        min_bars = max(min_bars, int(max(2, er_period)) + int(max(0, er_smoothing)) + 2)
+
     if closes.size < min_bars:
         return []
 
@@ -109,6 +117,18 @@ def generate_mean_revert_candidates(
     last_close = float(c[-1])
     last_high = float(h[-1])
     last_low = float(l[-1])
+
+    # Optional ER gate: MR should avoid directional regimes.
+    # If enabled and ER > er_max: do not generate candidates.
+    er: float | None = None
+    if bool(er_enabled):
+        er_p = int(max(2, er_period))
+        er_series = _kaufman_efficiency_ratio_series(c, er_p)
+        if int(er_smoothing) > 1:
+            er_series = _ema(er_series, int(er_smoothing))
+        er = float(er_series[-1])
+        if float(er) > float(er_max):
+            return []
 
     mid = _sma(c, int(bb_period))
     sd = _std(c, int(bb_period))
@@ -159,6 +179,7 @@ def generate_mean_revert_candidates(
                             "bb_lower": lower,
                             "rsi": rsi,
                             "atr_percentile": atr_p,
+                            "er": er,
                         },
                     )
                 )
@@ -190,6 +211,7 @@ def generate_mean_revert_candidates(
                             "bb_lower": lower,
                             "rsi": rsi,
                             "atr_percentile": atr_p,
+                            "er": er,
                         },
                     )
                 )

@@ -13,12 +13,12 @@ Comprehensive validation of the 654M tick catalog including:
 All validations use DuckDB single queries for efficiency on 654M+ ticks.
 
 Example:
-    >>> from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
-    >>> from nautilus_gold_scalper.src.validation.core.engine import (
+    >>> from src.validation.core.config import ValidationConfig
+    >>> from src.validation.core.engine import (
     ...     DuckDBConnection,
     ...     ValidationEngine,
     ... )
-    >>> from nautilus_gold_scalper.src.validation.phases.phase_2 import Phase2Validator
+    >>> from src.validation.phases.phase_2 import Phase2Validator
     >>>
     >>> config = ValidationConfig(catalog_path="/data/catalog")
     >>> engine = ValidationEngine(config)
@@ -34,12 +34,12 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, ClassVar, TypedDict
 
 import numpy as np
-from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
-from nautilus_gold_scalper.src.validation.core.engine import (
+from src.validation.core.config import ValidationConfig
+from src.validation.core.engine import (
     DuckDBConnection,
     PhaseValidator,
 )
-from nautilus_gold_scalper.src.validation.core.results import (
+from src.validation.core.results import (
     CheckResult,
     PhaseResult,
     ValidationStatus,

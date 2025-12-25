@@ -5,10 +5,10 @@ Data Validation Pipeline Runner.
 Execute the full DuckDB/Polars-based validation pipeline on XAUUSD catalog data.
 
 Usage:
-    python -m nautilus_gold_scalper.src.validation.run_validation
+    python -m src.validation.run_validation
 
     # Or with custom catalog path:
-    python -m nautilus_gold_scalper.src.validation.run_validation --catalog /path/to/catalog
+    python -m src.validation.run_validation --catalog /path/to/catalog
 
 The pipeline validates:
     - Phase 1-A: Deep data validation (CSV → Parquet quality)
@@ -29,13 +29,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from nautilus_gold_scalper.src.validation.core.config import (
+from src.validation.core.config import (
     MemoryConfig,
     ValidationConfig,
 )
-from nautilus_gold_scalper.src.validation.core.engine import DuckDBConnection
-from nautilus_gold_scalper.src.validation.core.results import PipelineResult, ValidationStatus
-from nautilus_gold_scalper.src.validation.phases import (
+from src.validation.core.engine import DuckDBConnection
+from src.validation.core.results import PipelineResult, ValidationStatus
+from src.validation.phases import (
     Phase1AValidator,
     Phase2Validator,
     Phase3Validator,

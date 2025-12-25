@@ -5,16 +5,16 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
-from nautilus_gold_scalper.src.validation.core.config import (
+from src.validation.core.config import (
     DataQualityConfig,
     MemoryConfig,
     PriceValidationConfig,
     ValidationConfig,
 )
-from nautilus_gold_scalper.src.validation.core.engine import (
+from src.validation.core.engine import (
     DuckDBConnection,
 )
-from nautilus_gold_scalper.src.validation.core.results import (
+from src.validation.core.results import (
     CheckResult,
     PhaseResult,
     PipelineResult,

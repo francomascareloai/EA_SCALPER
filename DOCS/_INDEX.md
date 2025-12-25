@@ -1,6 +1,6 @@
 # DOCS INDEX
 
-**Last Updated**: 2025-12-01  
+**Last Updated**: 2025-12-25
 **Status**: Reorganizado conforme DOCS_REORGANIZATION_PLAN
 **Note**: 2025-12-01 FORGE — ONNX gate optional + spread guard wired in `MQL5/Experts/EA_SCALPER_XAUUSD.mq5`; model path resolution hardened in `Bridge/COnnxBrain.mqh`.
 
@@ -20,9 +20,11 @@
 | Heavy Audit 2025-12-24 (NO-GO) | `.planning/phases/09-strategy-activation/orchestration/2025-12-24_heavy-audit/SYNTHESIS_FINAL_VERDICT.md` |
 | Relatórios de backtest | `04_REPORTS/BACKTESTS/` |
 | Validação (WFA/MC) | `04_REPORTS/VALIDATION/` |
+| ML filter (telemetry→dataset→WFA) | `../nautilus_gold_scalper/scripts/ml/` |
 | Decisões GO/NO-GO | `04_REPORTS/DECISIONS/` |
 | Ideias e melhorias (Nautilus) | `../nautilus_gold_scalper/FUTURE_IMPROVEMENTS.md` |
 | Pesquisa e findings | `03_RESEARCH/` |
+| Auditorias de repos | `03_RESEARCH/REPOS/20251225_REPO_AUDIT_QTRADEX.md` |
 | Guias de setup | `05_GUIDES/SETUP/` |
 | Referência técnica | `06_REFERENCE/` |
 | MCPs e integrações | `06_REFERENCE/INTEGRATIONS/` |

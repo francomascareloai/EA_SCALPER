@@ -151,6 +151,9 @@ class UnifiedRiskPolicy:
             # Preserve existing NewsCalendar sizing semantics.
             size_factor *= float(getattr(news_window, "size_multiplier", 1.0))
 
+        # Safety: size_factor is a multiplier for entry sizing. Keep it bounded.
+        size_factor = _clamp01(float(size_factor))
+
         return RiskDecision(
             can_open_new=can_open_new,
             size_factor=size_factor,

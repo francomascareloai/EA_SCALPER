@@ -174,9 +174,12 @@ class TestApexCompliance:
     def test_config_values_loaded(self):
         """Test that config values are loaded correctly from YAML."""
         # This test verifies that GoldScalperConfig has correct default values
+        from nautilus_trader.model.identifiers import InstrumentId
+
+        from src.strategies.adaptive_router import RouterArm
         from src.strategies.gold_scalper_strategy import GoldScalperConfig
 
-        config = GoldScalperConfig(instrument_id="XAUUSD")
+        config = GoldScalperConfig(instrument_id=InstrumentId.from_str("XAU/USD.SIM"))
 
         # Verify Apex-specific values (5% DD is critical!)
         assert config.total_loss_limit_pct == 5.0, "Apex trailing DD limit should be 5%"
@@ -185,6 +188,19 @@ class TestApexCompliance:
         assert config.consistency_cap_pct == 30.0, "Consistency limit should be 30%"
         assert config.cb_level_1_losses == 3, "Circuit breaker L1 should trigger at 3 losses"
         assert config.cb_level_5_dd == 4.5, "Circuit breaker L5 should trigger at 4.5% DD"
+
+        # New config behavior: per-arm TP RR resolution
+        cfg2 = GoldScalperConfig(
+            instrument_id=InstrumentId.from_str("XAU/USD.SIM"),
+            target_rr_ratio=2.5,
+            trend_target_rr_ratio=4.0,
+            mean_revert_target_rr_ratio=1.8,
+        )
+
+        assert cfg2.resolve_tp_rr(arm=RouterArm.SMC) == 2.5
+        assert cfg2.resolve_tp_rr(arm=RouterArm.TREND_PULLBACK) == 4.0
+        assert cfg2.resolve_tp_rr(arm=RouterArm.TREND_BREAKOUT) == 4.0
+        assert cfg2.resolve_tp_rr(arm=RouterArm.MEAN_REVERT) == 1.8
 
 
 if __name__ == "__main__":

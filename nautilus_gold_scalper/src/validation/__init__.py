@@ -17,7 +17,7 @@ Performance vs NautilusTrader ParquetDataCatalog:
 - Code: 80% less code (declarative SQL vs imperative loops)
 """
 
-from nautilus_gold_scalper.src.validation.core.config import (
+from src.validation.core.config import (
     ApexConfig,
     BacktestThresholdConfig,
     DataQualityConfig,
@@ -26,13 +26,13 @@ from nautilus_gold_scalper.src.validation.core.config import (
     SessionConfig,
     ValidationConfig,
 )
-from nautilus_gold_scalper.src.validation.core.engine import (
+from src.validation.core.engine import (
     CatalogStats,
     DuckDBConnection,
     PhaseValidator,
     ValidationEngine,
 )
-from nautilus_gold_scalper.src.validation.core.results import (
+from src.validation.core.results import (
     CheckResult,
     PhaseResult,
     PipelineResult,

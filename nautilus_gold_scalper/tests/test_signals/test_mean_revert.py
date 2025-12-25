@@ -99,3 +99,42 @@ def test_mean_revert_insufficient_history_returns_empty() -> None:
     )
 
     assert cands == []
+
+
+def test_mean_revert_er_gate_blocks_when_er_high() -> None:
+    n = 200
+    closes = np.linspace(2000.0, 2100.0, n, dtype=np.float64)
+    highs = closes + 0.2
+    lows = closes - 0.2
+
+    # Force a clear oversold setup on the last bar so we would normally get a LONG candidate.
+    for i in range(n - 20, n - 1):
+        closes[i] = closes[i - 1] - 1.0
+        highs[i] = closes[i] + 0.2
+        lows[i] = closes[i] - 0.2
+    closes[-1] = closes[-2] - 15.0
+    highs[-1] = closes[-1] + 0.2
+    lows[-1] = closes[-1] - 0.2
+
+    # ER is high due to the strong trend in the earlier part of the series.
+    cands = generate_mean_revert_candidates(
+        closes=closes,
+        highs=highs,
+        lows=lows,
+        tick_size=0.1,
+        atr=5.0,
+        atr_percentile=40.0,
+        bb_period=20,
+        bb_k=2.0,
+        rsi_period=14,
+        rsi_oversold=35.0,
+        rsi_overbought=65.0,
+        max_atr_percentile=80.0,
+        er_enabled=True,
+        er_period=48,
+        er_smoothing=3,
+        er_max=0.05,
+        min_score=60.0,
+    )
+
+    assert cands == []

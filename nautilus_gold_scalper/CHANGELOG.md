@@ -28,6 +28,44 @@
 
 ---
 
+## ML Entry Filter (telemetry → dataset → WFA) - 2025-12-25 (GPT-5.2)
+
+### ✨ FEATURE + 🐛 BUGFIX: ML snapshot capture, dataset builder hardening, WFA JSON stability
+
+**What:**
+- Added CLI wiring to generate `ml_snapshot` telemetry during backtests, build a Parquet dataset from telemetry, and run a walk-forward sanity check (real vs ghost).
+
+**Why:**
+- Enable fast falsification-first checks for temporal leakage and ML overfit (ghost test baseline), using deterministic backtest telemetry as the single source of truth.
+
+**Impact:**
+- Backtest runner now supports forcing ML snapshot capture and telemetry path override:
+  - `run_backtest.py --ml-capture --telemetry-path <path>`
+- ML config (`ml:`) is now wired into `GoldScalperConfig` at construction time (immutable config).
+- Dataset builder now reliably reads heterogeneous telemetry JSONL without dropping late-appearing `ml_snapshot` keys (schema inference across entire file).
+- WFA script now works with `@dataclass(slots=True)` and outputs JSON-safe values (no `NaN`/`Inf`).
+
+**Files:**
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+  - Added CLI flags: `--ml-capture`, `--telemetry-path`
+  - Wired `ml:` YAML keys into `GoldScalperConfig` inside `build_strategy_config()`
+- `nautilus_gold_scalper/scripts/ml/build_dataset_from_telemetry.py`
+  - Fixed argparse help-string formatting (`%` escaping)
+  - Hardened `_read_jsonl()` to use `polars.read_ndjson(..., infer_schema_length=None)` so `ml_snapshot` fields are retained
+- `nautilus_gold_scalper/scripts/ml/validate_filter_wfa.py`
+  - Fixed fold serialization for `slots=True` dataclass
+  - JSON-safe output for folds (avoid `NaN`/`Inf`)
+
+**Artifacts (example outputs from quick run):**
+- `logs/telemetry_ml.jsonl` (contains `event=ml_snapshot` rows)
+- `logs/ml_dataset_2024-01-01_2024-01-03.parquet` (dataset built from telemetry)
+- `logs/wfa_y_good_*_*.json` (WFA outputs)
+
+**Validation:**
+- `.venv/bin/pytest -q nautilus_gold_scalper/tests/test_ml/test_build_dataset_from_telemetry.py nautilus_gold_scalper/tests/test_backtest/test_temporal_leakage_guards.py::test_bars_resample_is_labeled_at_bar_close`
+
+---
+
 ## Apex Optimizer - 2025-12-24 (GPT-5.2)
 
 ### ✨ FEATURE: Add Successive Halving multi-fidelity mode

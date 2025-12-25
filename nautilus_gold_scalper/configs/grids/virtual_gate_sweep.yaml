@@ -1,0 +1,197 @@
+# Virtual Gate (Phase 11) Parameter Sweep - FAST MODE
+# Apex Optimizer (successive_halving)
+#
+# Dotpaths like `execution.virtual_gate_lookback_bars` map into `GoldScalperConfig`
+# via `nautilus_gold_scalper/scripts/backtest/run_backtest.py:build_strategy_config`.
+#
+# Goal: coarse, falsification-friendly sweep of VirtualGate behavior without
+# expanding unrelated strategy search space.
+#
+# Recommended run:
+#   python nautilus_gold_scalper/scripts/optimize.py \
+#     --config nautilus_gold_scalper/configs/grids/virtual_gate_sweep.yaml
+#
+metadata:
+  name: "Virtual Gate Sweep - Fast"
+  version: "1.0"
+  description: "Coarse sweep of Phase 11 VirtualGate parameters with successive_halving"
+  author: "Franco"
+  created: "2025-12-25"
+
+search:
+  mode: successive_halving
+  trials: 64
+  sampler: lhs
+  parallelism: 4
+  timeout_per_trial: 300
+  seed: 42
+
+  successive_halving:
+    enabled: true
+    eta: 4
+    # Rung 0: cheap filter (rolling 30d, 1 WFA fold)
+    # Rung 1: rigorous evaluation (full window, 5 WFA folds)
+    window_days: [30, 0]
+    wfa_windows: [1, 5]
+    promotion_metric: score
+
+  early_stop:
+    enabled: true
+    patience: 20
+    min_delta: 0.01
+    plateau_trials: 30
+
+parameters:
+  # Ablation: does VirtualGate add edge beyond other filters?
+  execution.virtual_gate_enabled:
+    type: categorical
+    choices: [true, false]
+    description: "Enable/disable VirtualGate (ghost-style ablation)"
+
+  execution.virtual_gate_lookback_bars:
+    type: int
+    choices: [10, 20, 30]
+    description: "Lookback bars used by the gate"
+
+  execution.virtual_gate_range_spike_multiplier:
+    type: float
+    choices: [2.0, 2.5, 3.0, 3.5, 4.0]
+    description: "Reject if latest range / median_range exceeds this multiplier"
+
+  execution.virtual_gate_cluster_spike_multiplier:
+    type: float
+    choices: [2.0, 2.25, 2.5, 2.75, 3.0]
+    description: "Spike definition for turbulence clustering"
+
+  execution.virtual_gate_cluster_max_fraction:
+    type: float
+    choices: [0.15, 0.20, 0.25, 0.30, 0.35]
+    description: "Reject if fraction of spike bars in lookback exceeds this"
+
+fixed:
+  # Keep warmup behavior consistent and realistic for live trading.
+  execution.virtual_gate_fail_open_on_insufficient_history: true
+
+  # Time gates - Apex mandatory (kept explicit to avoid config drift).
+  time.cutoff_et: "16:55"
+  time.warning_et: "16:00"
+  time.urgent_et: "16:30"
+  time.emergency_et: "16:55"
+
+  # Execution safety
+  execution.allow_overnight: false
+  execution.use_session_filter: true
+  execution.use_regime_filter: true
+  execution.use_mtf: true
+
+constraints:
+  apex:
+    trailing_dd_max: 4.5
+    daily_profit_max: 29.0
+    overnight_positions: 0
+    time_gate_violations: 0
+
+  validation:
+    wfe_min: 0.6
+    sqn_min: 2.0
+    psr_min: 0.85
+    min_trades: 200
+    min_years: 5
+
+  anti_overfit:
+    pbo_max: 0.25
+    mc95_dd_max: 4.0
+
+objective:
+  direction: maximize
+  metric: composite
+
+  composite:
+    sqn:
+      weight: 0.40
+      normalize: 5.0
+    wfe:
+      weight: 0.35
+      normalize: 1.0
+    consistency:
+      weight: 0.25
+      source: positive_days_ratio
+      normalize: 1.0
+
+  penalties:
+    trailing_dd:
+      threshold: 3.0
+      decay_rate: 0.5
+    trades:
+      min_required: 200
+      penalty_below: 0.5
+
+validation:
+  inline_wfa:
+    enabled: true
+    windows: 5
+    is_ratio: 0.8
+    purge_days: 5
+    embargo_days: 2
+    early_prune_wfe: 0.5
+
+  regime_check:
+    enabled: false
+    regimes: [trend, range, volatile]
+    min_coverage: 0.7
+    classifier: volatility
+
+stress_test:
+  enabled: true
+  top_n: 5
+
+  monte_carlo:
+    enabled: true
+    simulations: 5000
+    block_bootstrap: true
+    block_size: auto
+    confidence_levels: [0.95, 0.99]
+
+  degradation:
+    enabled: true
+    rates: [0.10, 0.20, 0.30]
+    must_survive: 0.20
+
+  ghost_test:
+    enabled: false
+    sims: 200
+    seed_offset: 0
+    sharpe_delta_min: 0.5
+    p_value_max: 0.05
+
+  overfitting_detection:
+    cliff_check: true
+    island_check: true
+    regime_bias_check: true
+
+data:
+  path: "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
+  train_range:
+    start: "2010-01-01"
+    end: "2022-12-31"
+  test_range:
+    start: "2023-01-01"
+    end: "2024-12-31"
+
+output:
+  dir: "logs/optimization/virtual_gate_sweep"
+  session_subfolder: true
+  reports: [json, csv]
+
+  checkpointing:
+    enabled: true
+    interval: 10
+
+  streaming:
+    results_parquet: null
+    flush_every: 50
+    max_results_in_ram: 500
+
+  handoff:
+    enabled: true
+    target_agents: [ORACLE, SENTINEL]

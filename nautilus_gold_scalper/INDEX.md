@@ -2,7 +2,7 @@
 
 **Owner:** FORGE  
 **Scope:** Python/NautilusTrader migration of EA_SCALPER_XAUUSD  
-**Last update:** 2025-12-24
+**Last update:** 2025-12-25
 ## Directory Map (high level)
 - `configs/` – central strategy config (`strategy_config.yaml`)
 - `configs/strategy_config_apex_mgc.yaml` – Apex/MGC profile (TrendFollow + router enabled; commented)
@@ -12,7 +12,7 @@
 - `src/signals/` – confluence (GENIUS v4.2), news calendar/gating, entry optimizer, MTF manager (canonical), TrendFollow candidates
 - `src/risk/` – prop-firm manager, position sizer, spread monitor, circuit breaker, drawdown/VaR
 - `src/strategies/` – base & gold strategy, selector, adaptive router
-- `src/ml/` – feature engineering, trainer, ensemble predictor
+- `src/ml/` – entry filter runtime (ONNX), training/export, and feature contracts
 - `src/execution/` – trade manager (needs test fix), adapters archive
 - `tests/` – unit coverage per module family
 - `reports/backtests/` - output/logs (telemetry CSV from runners)
@@ -61,6 +61,11 @@
 
 ## Current State (backtesting realism)
 - Tick-first Nautilus runner (`scripts/backtest/run_backtest.py`): reads YAML config (`configs/strategy_config.yaml` by default), loads ticks/bars, and runs the real NautilusTrader backtest engine.
+- ML dataset pipeline (telemetry → dataset → WFA):
+  - Telemetry: `ml_snapshot` events emitted from `src/strategies/gold_scalper_strategy.py` when `config.ml_capture_enabled=True`.
+  - Backtest CLI wiring: `scripts/backtest/run_backtest.py --ml-capture --telemetry-path <path>`.
+  - Dataset builder: `scripts/ml/build_dataset_from_telemetry.py` (Parquet output).
+  - Walk-forward sanity: `scripts/ml/validate_filter_wfa.py` (real vs `--ghost`).
 - Execution realism is engine-first:
   - Fill slippage via `fill_model` passed to `engine.add_venue(...)`.
   - Commissions via `PerContractFeeModel` passed to `engine.add_venue(...)` (converted from USD/lot → USD/unit using `instrument.lot_size`).

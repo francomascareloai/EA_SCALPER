@@ -54,6 +54,15 @@ from src.optimization.config import OptimizationConfig, ParameterSpec
 from src.optimization.optimizer import ApexOptimizer
 from src.optimization.search.base import TrialResult
 
+
+def _normalize_jsonable(v: Any) -> Any:
+    """Convert common non-JSON types (numpy scalars) into JSON-friendly values."""
+    if isinstance(v, (np.integer,)):
+        return int(v)
+    if isinstance(v, (np.floating,)):
+        return float(v)
+    return v
+
 # Type checking imports for lazy-loaded modules
 if TYPE_CHECKING:
     from scripts.backtest.run_backtest import BacktestRunner as BacktestRunnerType
@@ -374,6 +383,13 @@ Modes:
         help="Data feed mode: ticks (accurate) or bars (fast)",
     )
 
+    parser.add_argument(
+        "--bars-file",
+        type=str,
+        default=None,
+        help="Path to M5 bars file (CSV/Parquet). Requires feed=bars (or --quick).",
+    )
+
     # NOTE: --resume flag removed in Round 2 (H2 fix) - was dead code (defined but never used).
     # Checkpoint resumption requires proper implementation with:
     # 1. Periodic checkpoint saving during optimization
@@ -413,6 +429,8 @@ def create_backtest_fn(
     if feed is None:
         feed = "bars" if args.quick else "ticks"
 
+    bars_file = str(args.bars_file) if args.bars_file else None
+
     def backtest_fn(
         params: dict[str, Any],
         start_date: str,
@@ -441,6 +459,7 @@ def create_backtest_fn(
             ltf_minutes=args.ltf_minutes,
             sample_rate=args.sample_rate,
             feed=feed,
+            bars_file=bars_file,
             return_summary=True,
             quiet=True,
             config_overrides=params,
@@ -459,116 +478,67 @@ def create_backtest_fn(
 def _extract_trades_df(runner: Any) -> pd.DataFrame:
     """Extract trades DataFrame from BacktestRunner.
 
-    Properly handles both LONG and SHORT positions:
-    - LONG: BUY opens, SELL closes. PnL = (exit - entry) * qty
-    - SHORT: SELL opens, BUY closes. PnL = (entry - exit) * qty
+    We intentionally avoid using `engine.cache.*` internals because the public Cache API
+    does not expose `fills()` in the installed NautilusTrader build.
 
-    Position matching uses FIFO (First-In-First-Out) within each side.
+    Source of truth for realized trades is `engine.trader.generate_positions_report()`,
+    which already contains realized PnL and open/close timestamps.
 
-    Example:
-        BUY 1 lot @ 2000 -> opens LONG
-        SELL 1 lot @ 2020 -> closes LONG, PnL = (2020-2000)*1 = +$20
-
-        SELL 1 lot @ 2000 -> opens SHORT
-        BUY 1 lot @ 1980 -> closes SHORT, PnL = (2000-1980)*1 = +$20
+    Returns a DataFrame which MUST include:
+    - `timestamp` (UTC datetime-like): used for WFA window assignment
+    - `pnl` (float): used for SQN/Sharpe and daily PnL aggregation
     """
     if runner.engine is None:
         return pd.DataFrame()
 
     try:
-        # Get fills from the execution engine
-        fills = runner.engine.cache.fills()
-        if not fills:
+        positions = runner.engine.trader.generate_positions_report()
+        if positions is None or len(positions) == 0:
             return pd.DataFrame()
 
-        # Convert fills to trades (pair entries with exits)
-        # Track LONG and SHORT positions separately for proper matching
-        trades: list[dict[str, Any]] = []
-        long_positions: dict[str, list[dict[str, Any]]] = {}   # BUY opens, SELL closes
-        short_positions: dict[str, list[dict[str, Any]]] = {}  # SELL opens, BUY closes
+        df = positions.copy()
 
-        for fill in fills:
-            instrument_id = str(fill.instrument_id)
-            if instrument_id not in long_positions:
-                long_positions[instrument_id] = []
-            if instrument_id not in short_positions:
-                short_positions[instrument_id] = []
+        # Timestamps: prefer explicit opened/closed datetime columns.
+        # (Some reports may also contain ns integer columns like ts_init.)
+        entry_time = None
+        exit_time = None
+        if "ts_opened" in df.columns:
+            entry_time = pd.to_datetime(df["ts_opened"], utc=True, errors="coerce")
+        elif "ts_init" in df.columns:
+            entry_time = pd.to_datetime(df["ts_init"], utc=True, errors="coerce", unit="ns")
 
-            fill_time = pd.Timestamp(fill.ts_event, unit="ns", tz="UTC")
-            fill_price = float(fill.last_px)
-            fill_qty = float(fill.last_qty)
+        if "ts_closed" in df.columns:
+            exit_time = pd.to_datetime(df["ts_closed"], utc=True, errors="coerce")
+        elif "ts_last" in df.columns:
+            exit_time = pd.to_datetime(df["ts_last"], utc=True, errors="coerce")
 
-            if fill.order_side.name == "BUY":
-                # BUY can either: (1) close a SHORT position, or (2) open a LONG position
-                if short_positions[instrument_id]:
-                    # Close SHORT position (FIFO)
-                    entry = short_positions[instrument_id].pop(0)
-                    # SHORT PnL = (entry_price - exit_price) * quantity
-                    # Profitable if price went DOWN
-                    pnl = (entry["entry_price"] - fill_price) * entry["quantity"]
+        # Realized PnL is recorded as strings like "339.57 USD".
+        # Keep it net-of-fees as reported by the engine.
+        if "realized_pnl" in df.columns:
+            pnl = (
+                df["realized_pnl"]
+                .astype(str)
+                .str.replace("USD", "", regex=False)
+                .str.strip()
+            )
+            pnl = pd.to_numeric(pnl, errors="coerce")
+        else:
+            pnl = pd.Series([np.nan] * len(df), dtype=float)
 
-                    trades.append({
-                        "entry_time": entry["entry_time"],
-                        "exit_time": fill_time,
-                        "entry_price": entry["entry_price"],
-                        "exit_price": fill_price,
-                        "quantity": entry["quantity"],
-                        "side": "SHORT",
-                        "pnl": pnl,
-                    })
-                else:
-                    # Open LONG position
-                    long_positions[instrument_id].append({
-                        "entry_time": fill_time,
-                        "entry_price": fill_price,
-                        "quantity": fill_qty,
-                    })
+        instrument_id = df["instrument_id"].astype(str) if "instrument_id" in df.columns else None
 
-            else:  # SELL
-                # SELL can either: (1) close a LONG position, or (2) open a SHORT position
-                if long_positions[instrument_id]:
-                    # Close LONG position (FIFO)
-                    entry = long_positions[instrument_id].pop(0)
-                    # LONG PnL = (exit_price - entry_price) * quantity
-                    # Profitable if price went UP
-                    pnl = (fill_price - entry["entry_price"]) * entry["quantity"]
+        trades = pd.DataFrame(
+            {
+                "instrument_id": instrument_id if instrument_id is not None else "",
+                "entry_time": entry_time,
+                "exit_time": exit_time,
+                "timestamp": exit_time if exit_time is not None else entry_time,
+                "pnl": pnl.astype(float),
+            }
+        )
 
-                    trades.append({
-                        "entry_time": entry["entry_time"],
-                        "exit_time": fill_time,
-                        "entry_price": entry["entry_price"],
-                        "exit_price": fill_price,
-                        "quantity": entry["quantity"],
-                        "side": "LONG",
-                        "pnl": pnl,
-                    })
-                else:
-                    # Open SHORT position
-                    short_positions[instrument_id].append({
-                        "entry_time": fill_time,
-                        "entry_price": fill_price,
-                        "quantity": fill_qty,
-                    })
-
-        # Log any unclosed positions (should not happen in well-formed backtests)
-        for instrument_id, positions in long_positions.items():
-            if positions:
-                logger.warning(
-                    f"Unclosed LONG positions for {instrument_id}: {len(positions)} trades"
-                )
-        for instrument_id, positions in short_positions.items():
-            if positions:
-                logger.warning(
-                    f"Unclosed SHORT positions for {instrument_id}: {len(positions)} trades"
-                )
-
-        # C3 fix (Round 4): Add timestamp column expected by wfa_inline.py
-        # wfa_inline.py:169 checks for "timestamp" column, we produce "entry_time"
-        # Without this mapping, analyze_trade_series returns [] -> trailing_dd=0.0 -> FALSE Apex compliance
-        df = pd.DataFrame(trades) if trades else pd.DataFrame()
-        if not df.empty:
-            df["timestamp"] = df["entry_time"]
-        return df
+        trades = trades.dropna(subset=["timestamp", "pnl"]).reset_index(drop=True)
+        return trades
 
     except Exception as e:
         logger.warning(f"Failed to extract trades: {e}")
@@ -961,19 +931,19 @@ def _save_results(
     results_data = []
     for r in results:
         results_data.append({
-            "trial_id": r.trial_id,
-            "params": r.params,
-            "score": r.score,
-            "sqn": r.sqn,
-            "sharpe": r.sharpe,
-            "sortino": r.sortino,
-            "wfe": r.wfe,
-            "trades": r.trades,
-            "win_rate": r.win_rate,
-            "max_drawdown_pct": r.max_drawdown_pct,
-            "trailing_dd": r.trailing_dd,
-            "apex_compliant": r.apex_compliant,
-            "total_pnl": r.total_pnl,
+            "trial_id": int(r.trial_id),
+            "params": {k: _normalize_jsonable(v) for k, v in dict(r.params).items()},
+            "score": float(r.score),
+            "sqn": float(r.sqn),
+            "sharpe": float(r.sharpe),
+            "sortino": float(r.sortino),
+            "wfe": float(r.wfe),
+            "trades": int(r.trades),
+            "win_rate": float(r.win_rate),
+            "max_drawdown_pct": float(r.max_drawdown_pct),
+            "trailing_dd": float(r.trailing_dd),
+            "apex_compliant": bool(r.apex_compliant),
+            "total_pnl": float(r.total_pnl),
         })
 
     # Save summary JSON (most critical - save first)
@@ -981,8 +951,10 @@ def _save_results(
     _atomic_write(summary_path, json.dumps(asdict(summary), indent=2, default=str))
 
     # Save all results as JSON
+    # NOTE: results_data can contain numpy scalars (np.int64/np.float64) depending on upstream.
+    # Use `default=str` to guarantee serialization without crashing after long runs.
     results_path = output_dir / "all_results.json"
-    _atomic_write(results_path, json.dumps(results_data, indent=2))
+    _atomic_write(results_path, json.dumps(results_data, indent=2, default=str))
 
     # Save as CSV for easy analysis
     csv_path = output_dir / "results.csv"
@@ -991,7 +963,7 @@ def _save_results(
 
     # Save top 10
     top_path = output_dir / "top10.json"
-    _atomic_write(top_path, json.dumps(results_data[:10], indent=2))
+    _atomic_write(top_path, json.dumps(results_data[:10], indent=2, default=str))
 
     logger.info(f"Saved results atomically to {output_dir}")
 

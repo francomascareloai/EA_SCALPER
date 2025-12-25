@@ -32,12 +32,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 
 import numpy as np
-from nautilus_gold_scalper.src.validation.core.config import ValidationConfig
-from nautilus_gold_scalper.src.validation.core.engine import (
+from src.validation.core.config import ValidationConfig
+from src.validation.core.engine import (
     DuckDBConnection,
     PhaseValidator,
 )
-from nautilus_gold_scalper.src.validation.core.results import (
+from src.validation.core.results import (
     PhaseResult,
     ValidationStatus,
 )

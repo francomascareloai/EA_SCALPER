@@ -46,6 +46,34 @@ def test_footprint_floor_index_is_shifted_to_bar_close() -> None:
     ]).tolist()
 
 
+def test_bars_resample_is_labeled_at_bar_close() -> None:
+    """WP3: Pandas resample must label OHLC at bar close, not bar start.
+
+    If bars are labeled at bar start, strategy can observe full OHLC as if it was
+    known at the beginning of the period (look-ahead).
+
+    Guard mirrors `aggregate_tick_df_to_ohlcv()`.
+    """
+
+    idx = pd.to_datetime(
+        [
+            "2025-01-01 10:00:01",
+            "2025-01-01 10:04:59",
+            "2025-01-01 10:05:00",
+        ],
+        utc=True,
+    )
+    df = pd.DataFrame({"bid": [100.0, 100.2, 100.1], "ask": [100.1, 100.3, 100.2]}, index=idx)
+    df = df.reset_index().rename(columns={"index": "datetime"})
+
+    from nautilus_gold_scalper.scripts.backtest.run_backtest import aggregate_tick_df_to_ohlcv
+
+    bars = aggregate_tick_df_to_ohlcv(df, interval_minutes=5)
+
+    # First bar covers [10:00, 10:05); it should be labeled at 10:05.
+    assert bars.index[0] == pd.Timestamp("2025-01-01 10:05:00+00:00")
+
+
 def test_build_strategy_config_maps_new_execution_fields() -> None:
     """Ensure runner maps new execution config keys into GoldScalperConfig."""
 
@@ -80,6 +108,17 @@ def test_build_strategy_config_maps_new_execution_fields() -> None:
             "mean_revert_er_max": 0.20,
             "force_mean_revert": True,
             "require_htf_align": False,
+            "max_concurrent_positions": 2,
+            "max_concurrent_instruments": 3,
+            "vol_spacing_min_seconds": 12.0,
+            "vol_spacing_max_seconds": 345.0,
+            "vol_spacing_reference_atr": 1.25,
+            "virtual_gate_enabled": False,
+            "virtual_gate_lookback_bars": 33,
+            "virtual_gate_range_spike_multiplier": 4.5,
+            "virtual_gate_cluster_spike_multiplier": 3.5,
+            "virtual_gate_cluster_max_fraction": 0.45,
+            "virtual_gate_fail_open_on_insufficient_history": False,
         }
     }
 
@@ -101,6 +140,19 @@ def test_build_strategy_config_maps_new_execution_fields() -> None:
     assert sc.mean_revert_er_smoothing == 3
     assert sc.mean_revert_er_max == 0.20
     assert sc.force_mean_revert is True
+
+    # Phase 11 safety layer mappings
+    assert sc.max_concurrent_positions == 2
+    assert sc.max_concurrent_instruments == 3
+    assert sc.vol_spacing_min_seconds == 12.0
+    assert sc.vol_spacing_max_seconds == 345.0
+    assert sc.vol_spacing_reference_atr == 1.25
+    assert sc.virtual_gate_enabled is False
+    assert sc.virtual_gate_lookback_bars == 33
+    assert sc.virtual_gate_range_spike_multiplier == 4.5
+    assert sc.virtual_gate_cluster_spike_multiplier == 3.5
+    assert sc.virtual_gate_cluster_max_fraction == 0.45
+    assert sc.virtual_gate_fail_open_on_insufficient_history is False
 
 
 def test_bar_spec_from_minutes_maps_60_to_hour() -> None:
