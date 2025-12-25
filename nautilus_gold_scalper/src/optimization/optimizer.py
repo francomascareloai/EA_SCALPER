@@ -25,11 +25,38 @@ import pandas as pd
 from src.optimization.config import OptimizationConfig
 from src.optimization.constraints.apex import ApexConstraintChecker
 from src.optimization.reporting.summary import SummaryReporter
-from src.optimization.search.base import TrialResult
+from src.optimization.search.base import SearchStrategy, TrialResult
 from src.optimization.validation.wfa_inline import InlineWFA, WFAResult
 
 
 logger = logging.getLogger(__name__)
+
+
+def _expand_dotpaths(flat_params: dict[str, Any]) -> dict[str, Any]:
+    """Expand dotpath keys into nested dict structure.
+
+    Example:
+        {"execution.mean_revert_bb_period": 20, "risk.max_positions": 1}
+        ->
+        {"execution": {"mean_revert_bb_period": 20}, "risk": {"max_positions": 1}}
+
+    Keys without dots are kept at root level.
+    """
+    result: dict[str, Any] = {}
+    for key, value in flat_params.items():
+        parts = key.split(".")
+        if len(parts) == 1:
+            # No dot, keep at root
+            result[key] = value
+        else:
+            # Traverse/create nested structure
+            current = result
+            for part in parts[:-1]:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            current[parts[-1]] = value
+    return result
 
 
 class ApexOptimizer:
@@ -109,16 +136,14 @@ class ApexOptimizer:
         start_time = time.time()
 
         mode = self.config.search.mode
+
+        searcher: SearchStrategy
+        study_stats: dict[str, Any]
+
         if mode == "bayesian":
             from src.optimization.search.bayesian import BayesianSearch
 
             searcher = BayesianSearch(self.config)
-            self._results = searcher.search(
-                objective_fn=self._objective_fn,
-                constraint_fn=self._constraint_fn,
-            )
-            study_stats = searcher.get_study_summary()
-
         elif mode == "grid":
             from src.optimization.search.grid import GridSearch
 
@@ -127,12 +152,6 @@ class ApexOptimizer:
                 on_result=on_result,
                 max_results_in_ram=self.config.output.max_results_in_ram,
             )
-            self._results = searcher.search(
-                objective_fn=self._objective_fn,
-                constraint_fn=self._constraint_fn,
-            )
-            study_stats = searcher.get_study_summary()
-
         elif mode == "random":
             from src.optimization.search.random import RandomSearch
 
@@ -141,16 +160,8 @@ class ApexOptimizer:
                 on_result=on_result,
                 max_results_in_ram=self.config.output.max_results_in_ram,
             )
-            self._results = searcher.search(
-                objective_fn=self._objective_fn,
-                constraint_fn=self._constraint_fn,
-            )
-            study_stats = searcher.get_study_summary()
-
         elif mode == "successive_halving":
-            from src.optimization.search.successive_halving import (
-                SuccessiveHalvingSearch,
-            )
+            from src.optimization.search.successive_halving import SuccessiveHalvingSearch
 
             searcher = SuccessiveHalvingSearch(
                 self.config,
@@ -158,22 +169,55 @@ class ApexOptimizer:
                 max_results_in_ram=self.config.output.max_results_in_ram,
                 objective_fn_with_fidelity=self._objective_fn_with_fidelity,
             )
-            self._results = searcher.search(
-                objective_fn=self._objective_fn,
-                constraint_fn=self._constraint_fn,
-            )
-            study_stats = searcher.get_study_summary()
-
         else:
             raise NotImplementedError(f"Search mode {mode} not yet implemented")
+
+        self._results = searcher.search(
+            objective_fn=self._objective_fn,
+            constraint_fn=self._constraint_fn,
+        )
+        study_stats = searcher.get_study_summary()
 
         self._results.sort(key=lambda r: r.score, reverse=True)
 
         reporter = SummaryReporter(self._output_dir, self.config)
         report_paths = reporter.generate_reports(self._results, study_stats)
 
+        # Layer 3b: Ghost Test (cheap falsification gate)
+        ghost_summary: dict[str, Any] | None = None
+        if self.config.stress_test.ghost_test.enabled and self._results:
+            try:
+                from src.optimization.stress.ghost_test import ghost_test_summary_dict, run_ghost_test
+
+                best_params = dict(self._results[0].params)
+                full_params = {**self.config.fixed, **best_params}
+                trades_df, _equity_series = self._backtest_fn(
+                    full_params,
+                    self.config.data.train_start,
+                    self.config.data.train_end,
+                )
+
+                ghost = run_ghost_test(
+                    trades_df,
+                    sims=self.config.stress_test.ghost_test.sims,
+                    seed=self.config.search.seed + self.config.stress_test.ghost_test.seed_offset,
+                )
+                ghost_summary = ghost_test_summary_dict(ghost)
+
+                logger.info(
+                    "Ghost Test: Sharpe(full)=%.3f, baseline=%.3f±%.3f, Δ=%.3f, p=%.4f (sims=%d)",
+                    ghost.sharpe_full,
+                    ghost.sharpe_baseline_mean,
+                    ghost.sharpe_baseline_std,
+                    ghost.sharpe_delta,
+                    ghost.p_value,
+                    ghost.sims,
+                )
+            except Exception:
+                logger.exception("Ghost test failed; continuing without ghost results")
+
         if self.config.output.handoff_enabled:
-            handoff_path = reporter.generate_handoff(self._results, "ORACLE", study_stats)
+            handoff_path = reporter.generate_handoff(self._results, "ORACLE", study_stats, ghost_summary=ghost_summary)
             logger.info(f"Handoff generated: {handoff_path}")
 
         duration = time.time() - start_time
@@ -220,7 +264,10 @@ class ApexOptimizer:
     ) -> TrialResult:
         assert self._backtest_fn is not None
 
-        full_params = {**self.config.fixed, **params}
+        # Merge fixed + trial params, then expand dotpaths into nested structure
+        # e.g., {"execution.mean_revert_bb_period": 20} -> {"execution": {"mean_revert_bb_period": 20}}
+        flat_params = {**self.config.fixed, **params}
+        full_params = _expand_dotpaths(flat_params)
 
         trades_df, equity_series = self._backtest_fn(
             full_params,
@@ -283,32 +330,37 @@ class ApexOptimizer:
         # Normalize base metrics to [0, 1]
         # Formula: sqn_norm = min(sqn / sqn_max, 1.0)
         # Example: sqn=3.5, max=5.0 → 3.5/5.0 = 0.70
-        sqn_norm = min(wfa_result.sqn / obj.sqn_weight.normalize, 1.0)
+        sqn_norm = min(wfa_result.sqn / float(obj.sqn_weight.normalize), 1.0)
         sqn_norm = max(0.0, sqn_norm)
 
         wfe_norm = max(0.0, min(1.0, wfa_result.wfe))
         consistency_norm = max(0.0, min(1.0, wfa_result.positive_days_ratio))
 
         base_score = (
-            obj.sqn_weight.weight * sqn_norm
-            + obj.wfe_weight.weight * wfe_norm
-            + obj.consistency_weight.weight * consistency_norm
+            float(obj.sqn_weight.weight) * float(sqn_norm)
+            + float(obj.wfe_weight.weight) * float(wfe_norm)
+            + float(obj.consistency_weight.weight) * float(consistency_norm)
         )
 
-        dd_threshold = obj.trailing_dd_penalty.threshold
-        dd_decay = obj.trailing_dd_penalty.decay_rate
+        dd_threshold = float(obj.trailing_dd_penalty.threshold)
+        dd_decay = float(obj.trailing_dd_penalty.decay_rate)
         if wfa_result.trailing_dd <= dd_threshold:
             dd_penalty = 1.0
         else:
             dd_penalty = max(0.0, 1.0 - (wfa_result.trailing_dd - dd_threshold) * dd_decay)
 
-        trades_min = obj.trades_penalty.min_required
-        trades_penalty_value = obj.trades_penalty.penalty_below
+        trades_min = int(obj.trades_penalty.min_required)
+        trades_penalty_value = float(obj.trades_penalty.penalty_below)
         trades_penalty = 1.0 if wfa_result.total_trades >= trades_min else trades_penalty_value
 
-        final_score = base_score * dd_penalty * trades_penalty * apex_penalty
-        final_score = max(0.0, min(1.0, final_score))
-        return final_score
+        final_score = (
+            float(base_score)
+            * float(dd_penalty)
+            * float(trades_penalty)
+            * float(apex_penalty)
+        )
+        final_score = max(0.0, min(1.0, float(final_score)))
+        return float(final_score)
 
     def _wfa_to_trial_result(self, wfa: WFAResult, params: dict[str, Any]) -> TrialResult:
         return TrialResult(

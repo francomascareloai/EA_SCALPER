@@ -91,6 +91,12 @@ def estimate_grid_size(parameters: list[ParameterSpec]) -> int:
 
 
 def estimate_param_cardinality(spec: ParameterSpec) -> int:
+    # If choices is specified, use it directly (works for any type)
+    if spec.choices is not None:
+        if len(spec.choices) == 0:
+            raise ValueError(f"Parameter {spec.name}: choices cannot be empty")
+        return len(spec.choices)
+
     if spec.param_type in ("float", "int"):
         assert spec.range is not None
         if spec.step is None or spec.step <= 0:
@@ -106,15 +112,20 @@ def estimate_param_cardinality(spec: ParameterSpec) -> int:
         return n
 
     if spec.param_type == "categorical":
-        assert spec.choices is not None
-        if len(spec.choices) == 0:
-            raise ValueError(f"Parameter {spec.name}: choices cannot be empty")
-        return len(spec.choices)
+        # Already handled above if choices is not None
+        raise ValueError(f"Parameter {spec.name}: choices required for categorical")
 
     raise ValueError(f"Unsupported param_type: {spec.param_type}")
 
 
 def iter_grid_values(spec: ParameterSpec) -> Iterator[Any]:
+    # If choices is specified, use it directly (works for any type: int, float, categorical)
+    if spec.choices is not None:
+        for v in spec.choices:
+            yield v
+        return
+
+    # Range-based iteration for float/int
     if spec.param_type == "float":
         assert spec.range is not None
         assert spec.step is not None
@@ -135,10 +146,8 @@ def iter_grid_values(spec: ParameterSpec) -> Iterator[Any]:
         return
 
     if spec.param_type == "categorical":
-        assert spec.choices is not None
-        for v in spec.choices:
-            yield v
-        return
+        # Already handled above if choices is not None
+        raise ValueError(f"Parameter {spec.name}: choices required for categorical")
 
     raise ValueError(f"Unsupported param_type: {spec.param_type}")
 

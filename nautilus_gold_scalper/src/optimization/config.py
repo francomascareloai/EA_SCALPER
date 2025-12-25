@@ -31,8 +31,12 @@ class ParameterSpec:
     description: str = ""
 
     def __post_init__(self) -> None:
-        if self.param_type in ("float", "int") and self.range is None:
-            raise ValueError(f"Parameter {self.name}: range required for {self.param_type}")
+        # For int/float: require EITHER range OR choices (discrete set)
+        if self.param_type in ("float", "int"):
+            if self.range is None and not self.choices:
+                raise ValueError(
+                    f"Parameter {self.name}: range or choices required for {self.param_type}"
+                )
         if self.param_type == "categorical" and not self.choices:
             raise ValueError(f"Parameter {self.name}: choices required for categorical")
 
@@ -216,6 +220,24 @@ class DegradationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class GhostTestConfig:
+    """Ghost test configuration (signal vs baseline falsification).
+
+    Fast disproof test: compare system metrics vs a null baseline generated from
+    the same trade series.
+
+    NOTE: This does not replace a true "random signal" backtest baseline, but it
+    is a useful first gate to catch placebo edges cheaply.
+    """
+
+    enabled: bool = False
+    sims: int = 200
+    seed_offset: int = 0
+    sharpe_delta_min: float = 0.5
+    p_value_max: float = 0.05
+
+
+@dataclass(frozen=True, slots=True)
 class OverfittingDetectionConfig:
     """Overfitting detection configuration."""
 
@@ -232,6 +254,7 @@ class StressTestConfig:
     top_n: int = 5
     monte_carlo: MonteCarloConfig = field(default_factory=MonteCarloConfig)
     degradation: DegradationConfig = field(default_factory=DegradationConfig)
+    ghost_test: GhostTestConfig = field(default_factory=GhostTestConfig)
     overfitting_detection: OverfittingDetectionConfig = field(
         default_factory=OverfittingDetectionConfig
     )
@@ -446,6 +469,7 @@ class OptimizationConfig:
         # Parse stress test
         mc_raw = stress_raw.get("monte_carlo", {})
         deg_raw = stress_raw.get("degradation", {})
+        ghost_raw = stress_raw.get("ghost_test", {})
         overfit_raw = stress_raw.get("overfitting_detection", {})
 
         stress_test = StressTestConfig(
@@ -462,6 +486,13 @@ class OptimizationConfig:
                 enabled=deg_raw.get("enabled", True),
                 rates=deg_raw.get("rates", [0.10, 0.20, 0.30]),
                 must_survive=deg_raw.get("must_survive", 0.20),
+            ),
+            ghost_test=GhostTestConfig(
+                enabled=ghost_raw.get("enabled", False),
+                sims=ghost_raw.get("sims", 200),
+                seed_offset=ghost_raw.get("seed_offset", 0),
+                sharpe_delta_min=ghost_raw.get("sharpe_delta_min", 0.5),
+                p_value_max=ghost_raw.get("p_value_max", 0.05),
             ),
             overfitting_detection=OverfittingDetectionConfig(
                 cliff_check=overfit_raw.get("cliff_check", True),

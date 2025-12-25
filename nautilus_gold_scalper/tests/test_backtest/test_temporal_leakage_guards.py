@@ -44,3 +44,79 @@ def test_footprint_floor_index_is_shifted_to_bar_close() -> None:
         "2025-01-01 10:05:00",
         "2025-01-01 10:10:00",
     ]).tolist()
+
+
+def test_build_strategy_config_maps_new_execution_fields() -> None:
+    """Ensure runner maps new execution config keys into GoldScalperConfig."""
+
+    from nautilus_trader.model.data import BarSpecification, BarType
+    from nautilus_trader.model.enums import AggregationSource, BarAggregation, PriceType
+    from nautilus_trader.model.identifiers import InstrumentId
+
+    from nautilus_gold_scalper.scripts.backtest.run_backtest import build_strategy_config
+
+    bar_type = BarType(
+        instrument_id=InstrumentId.from_str("XAU/USD.SIM"),
+        bar_spec=BarSpecification(step=5, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+        aggregation_source=AggregationSource.INTERNAL,
+    )
+
+    cfg = {
+        "execution": {
+            "trade_partial_tp_r": 1.25,
+            "trade_partial_tp_percent": 0.33,
+            "trade_trailing_start_r": 1.70,
+            "trend_target_rr_ratio": 3.30,
+            "mean_revert_target_rr_ratio": 1.40,
+            "trend_breakout_lookback": 35,
+            "trend_min_atr_percentile_breakout": 72.0,
+            "trend_er_enabled": True,
+            "trend_er_period": 55,
+            "trend_er_smoothing": 4,
+            "trend_er_min": 0.42,
+            "mean_revert_er_enabled": True,
+            "mean_revert_er_period": 50,
+            "mean_revert_er_smoothing": 3,
+            "mean_revert_er_max": 0.20,
+            "force_mean_revert": True,
+            "require_htf_align": False,
+        }
+    }
+
+    sc = build_strategy_config(cfg, bar_type, InstrumentId.from_str("XAU/USD.SIM"), ltf_minutes=5)
+
+    assert sc.trade_partial_tp_r == 1.25
+    assert sc.trade_partial_tp_percent == 0.33
+    assert sc.trade_trailing_start_r == 1.70
+    assert sc.trend_target_rr_ratio == 3.30
+    assert sc.mean_revert_target_rr_ratio == 1.40
+    assert sc.trend_breakout_lookback == 35
+    assert sc.trend_min_atr_percentile_breakout == 72.0
+    assert sc.trend_er_enabled is True
+    assert sc.trend_er_period == 55
+    assert sc.trend_er_smoothing == 4
+    assert sc.trend_er_min == 0.42
+    assert sc.mean_revert_er_enabled is True
+    assert sc.mean_revert_er_period == 50
+    assert sc.mean_revert_er_smoothing == 3
+    assert sc.mean_revert_er_max == 0.20
+    assert sc.force_mean_revert is True
+
+
+def test_bar_spec_from_minutes_maps_60_to_hour() -> None:
+    from nautilus_trader.model.enums import BarAggregation
+
+    from nautilus_gold_scalper.scripts.backtest.run_backtest import _bar_spec_from_minutes
+
+    spec = _bar_spec_from_minutes(minutes=60)
+    assert spec.step == 1
+    assert spec.aggregation == BarAggregation.HOUR
+
+
+def test_bar_spec_from_minutes_rejects_non_divisor_minute_step() -> None:
+    import pytest
+
+    from nautilus_gold_scalper.scripts.backtest.run_backtest import _bar_spec_from_minutes
+
+    with pytest.raises(ValueError):
+        _bar_spec_from_minutes(minutes=7)

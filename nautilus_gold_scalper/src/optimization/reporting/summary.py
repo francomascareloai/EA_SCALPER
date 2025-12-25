@@ -215,6 +215,9 @@ class SummaryReporter:
         results: list["TrialResult"],
         target: str = "ORACLE",
         study_stats: dict[str, Any] | None = None,
+        *,
+        ghost_summary: dict[str, Any] | None = None,
+        stratification_summary: dict[str, Any] | None = None,
     ) -> Path:
         """
         Generate structured handoff document for target agent.
@@ -250,6 +253,8 @@ class SummaryReporter:
             rejections=rejections,
             study_stats=study_stats or {},
             target=target,
+            ghost_summary=ghost_summary,
+            stratification_summary=stratification_summary,
         )
 
         with open(path, "w", encoding="utf-8") as f:
@@ -265,6 +270,8 @@ class SummaryReporter:
         rejections: dict[str, int],
         study_stats: dict[str, Any],
         target: str,
+        ghost_summary: dict[str, Any] | None,
+        stratification_summary: dict[str, Any] | None,
     ) -> str:
         """Format handoff document content."""
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -292,6 +299,30 @@ class SummaryReporter:
         for reason, count in rejections.items():
             reject_table += f"| {reason} | {count} |\n"
 
+        ghost_block = ""
+        if ghost_summary is not None:
+            delta = float(ghost_summary.get("sharpe_delta", 0.0))
+            p_value = float(ghost_summary.get("p_value", 1.0))
+            sims = int(ghost_summary.get("sims", 0))
+            thr = float(self.config.stress_test.ghost_test.sharpe_delta_min)
+            pmax = float(self.config.stress_test.ghost_test.p_value_max)
+            verdict = "PASS" if (delta >= thr and p_value <= pmax) else "FAIL"
+
+            ghost_block = (
+                "\n### Ghost Test (Signal vs Baseline)\n"
+                f"- Sharpe(full): {ghost_summary.get('sharpe_full')}\n"
+                f"- Sharpe(baseline mean±std): {ghost_summary.get('sharpe_baseline_mean')} ± {ghost_summary.get('sharpe_baseline_std')}\n"
+                f"- ΔSharpe(full-baseline): {delta:.3f} (threshold {thr:.3f})\n"
+                f"- p-value(one-sided): {p_value:.4f} (max {pmax:.4f})\n"
+                f"- sims: {sims}\n"
+                f"- verdict: **{verdict}**\n"
+            )
+
+        strat_block = ""
+        if stratification_summary is not None:
+            strat_json = json.dumps(stratification_summary, indent=2, default=str)
+            strat_block = "\n### Stratification Summary\n```json\n" + strat_json + "\n```\n"
+
         content = f"""## HANDOFF: APEX_OPTIMIZER → {target}
 
 ### Run Metadata
@@ -310,7 +341,7 @@ class SummaryReporter:
 
 ### Apex Rejection Summary
 {reject_table}
-
+{ghost_block}{strat_block}
 ### Recommendations for {target}
 1. **Validate top candidates** with full CPCV
 2. **Run Monte Carlo stress test** on top 3

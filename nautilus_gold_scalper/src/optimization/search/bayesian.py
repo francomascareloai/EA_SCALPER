@@ -327,14 +327,14 @@ class BayesianSearch(SearchStrategy):
 
         return params
 
-    def _create_early_stop_callback(self) -> Callable[[optuna.Study, optuna.FrozenTrial], None]:
+    def _create_early_stop_callback(self) -> Callable[[optuna.Study, optuna.trial.FrozenTrial], None]:
         """Create early stopping callback."""
         patience = self.config.search.early_stop.patience
         min_delta = self.config.search.early_stop.min_delta
         best_value: float | None = None
         trials_without_improvement = 0
 
-        def callback(study: optuna.Study, trial: optuna.FrozenTrial) -> None:
+        def callback(study: optuna.Study, trial: optuna.trial.FrozenTrial) -> None:
             nonlocal best_value, trials_without_improvement
 
             if trial.state != optuna.trial.TrialState.COMPLETE:
