@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
+from ..signals.news_calendar import NewsWindow
+from .exposure_caps import ExposureCaps
+from .news_guard import NewsGuard
+from .volatility_spacing import VolatilitySpacing
 
 def _clamp01(value: float) -> float:
     if value <= 0.0:
@@ -35,10 +40,22 @@ class RiskDecision:
 class UnifiedRiskPolicy:
     """Single policy surface consumed by strategies (entry-only gates).
 
-    This module is intentionally dependency-light: it only encodes precedence and
-    sizing semantics. Concrete gates (ExposureCaps, NewsGuard, VolatilitySpacing,
-    VirtualGate) will be integrated as inputs here in later plans.
+    Semantics:
+    - `must_flatten` wins globally (but this policy does not execute flattening).
+    - Entry-only gates compose with “most restrictive wins”.
+    - `size_factor` is an entry sizing multiplier in [0, 1].
     """
+
+    def __init__(
+        self,
+        *,
+        exposure_caps: ExposureCaps | None = None,
+        news_guard: NewsGuard | None = None,
+        volatility_spacing: VolatilitySpacing | None = None,
+    ) -> None:
+        self._exposure_caps = exposure_caps
+        self._news_guard = news_guard
+        self._volatility_spacing = volatility_spacing
 
     def evaluate_entry(
         self,
@@ -47,8 +64,16 @@ class UnifiedRiskPolicy:
         blocked_today: bool = False,
         prop_firm_ok: bool = True,
         circuit_ok: bool = True,
-        size_factor: float = 1.0,
         must_flatten: bool = False,
+        # Gate inputs (optional, deterministic)
+        open_positions_count: int | None = None,
+        open_instruments_count: int | None = None,
+        news_window: NewsWindow | None = None,
+        now_utc: datetime | None = None,
+        last_entry_ts_ns: int | None = None,
+        now_ts_ns: int | None = None,
+        volatility: float | None = None,
+        base_size_factor: float = 1.0,
     ) -> RiskDecision:
         reasons: list[str] = []
 
@@ -67,7 +92,47 @@ class UnifiedRiskPolicy:
         if not circuit_ok:
             reasons.append("circuit_breaker")
 
+        # Exposure caps (entry-only)
+        if self._exposure_caps is not None and open_positions_count is not None and open_instruments_count is not None:
+            cap = self._exposure_caps.evaluate(
+                open_positions_count=int(open_positions_count),
+                open_instruments_count=int(open_instruments_count),
+            )
+            if not cap.allow_entry and cap.reason:
+                reasons.append(cap.reason)
+
+        # News guard (entry-only)
+        if self._news_guard is not None and news_window is not None:
+            ng = self._news_guard.evaluate_from_window(news_window)
+            if not ng.allow_entry:
+                reasons.append(ng.reason or "news_blackout")
+
+        # Volatility spacing (entry-only)
+        if (
+            self._volatility_spacing is not None
+            and last_entry_ts_ns is not None
+            and now_ts_ns is not None
+            and volatility is not None
+            and last_entry_ts_ns > 0
+        ):
+            sp = self._volatility_spacing.evaluate(
+                now_ts_ns=int(now_ts_ns),
+                last_entry_ts_ns=int(last_entry_ts_ns),
+                volatility=float(volatility),
+            )
+            if not sp.allow_entry:
+                reasons.append(sp.reason or "volatility_spacing")
+
+        _ = now_utc
+
+        # If entry is blocked, size_factor is irrelevant but keep it deterministic.
         can_open_new = not reasons and not must_flatten
+        size_factor = base_size_factor
+
+        if news_window is not None:
+            # Preserve existing NewsCalendar sizing semantics.
+            size_factor *= float(getattr(news_window, "size_multiplier", 1.0))
+
         return RiskDecision(
             can_open_new=can_open_new,
             size_factor=size_factor,

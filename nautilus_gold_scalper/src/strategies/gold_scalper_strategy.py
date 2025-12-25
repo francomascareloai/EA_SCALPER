@@ -68,8 +68,10 @@ from ..risk.drawdown_tracker import DrawdownTracker
 from ..risk.position_sizer import PositionSizer
 from ..risk.prop_firm_manager import PropFirmManager
 from ..risk.spread_monitor import SpreadMonitor
+from ..risk.exposure_caps import ExposureCaps
 from ..risk.time_constraint_manager import TimeConstraintManager
 from ..risk.unified_risk_policy import UnifiedRiskPolicy
+from ..risk.volatility_spacing import VolatilitySpacing
 from ..signals.confluence_scorer import ConfluenceScorer
 from ..signals.trend_follow import (
     TrendDirection,
@@ -83,7 +85,7 @@ from ..signals.mean_revert import MeanRevertCandidate, generate_mean_revert_cand
 from ..signals.mtf_manager import MTFManager
 from nautilus_trader.model.data import DataType
 
-from ..signals.news_calendar import NewsCalendar, NewsTradeAction
+from ..signals.news_calendar import NewsCalendar, NewsTradeAction, NewsWindow
 from ..signals.news_data import NewsWindowData
 from ..utils.metrics import MetricsCalculator, PerformanceMetrics
 from ..utils.telemetry import TelemetrySink
@@ -162,6 +164,25 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     # Optional per-arm TP RR overrides (if 0.0 => use BaseStrategyConfig.target_rr_ratio)
     trend_target_rr_ratio: float = 0.0
     mean_revert_target_rr_ratio: float = 0.0
+
+    def resolve_tp_rr(self, *, arm: RouterArm) -> float:
+        tp_rr = float(self.target_rr_ratio)
+        if arm in (RouterArm.TREND_PULLBACK, RouterArm.TREND_BREAKOUT):
+            override = float(self.trend_target_rr_ratio)
+            if override > 0.0:
+                tp_rr = override
+        elif arm == RouterArm.MEAN_REVERT:
+            override = float(self.mean_revert_target_rr_ratio)
+            if override > 0.0:
+                tp_rr = override
+        return tp_rr
+
+    # Phase 11 safety layer (entry-only)
+    max_concurrent_positions: int = 1
+    max_concurrent_instruments: int = 1
+    vol_spacing_min_seconds: float = 0.0
+    vol_spacing_max_seconds: float = 300.0
+    vol_spacing_reference_atr: float = 1.0
 
     # Adaptive EV router (enabled by default for strategy arm selection)
     router_adaptive_ev: bool = True
@@ -389,6 +410,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._position_sizer: PositionSizer | None = None
         self._drawdown_tracker: DrawdownTracker | None = None
         self._news_calendar: NewsCalendar | None = None
+
+        # Phase 11 safety layer components (entry-only)
+        self._last_entry_ts_ns: int | None = None
         self._news_size_mult: float = 1.0
         self._dow_size_mult: float = 1.0  # Day-of-week size adjustment (FORGE-NAUTILUS Wave 2)
         self._spread_monitor: SpreadMonitor | None = None
@@ -406,7 +430,20 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._execution_failsafe_triggered: bool = False
 
         # Unified entry gating surface (Phase 11 Safety Layer)
-        self._unified_risk_policy = UnifiedRiskPolicy()
+        self._exposure_caps = ExposureCaps(
+            max_concurrent_positions=int(getattr(self.config, "max_concurrent_positions", 1)),
+            max_concurrent_instruments=int(getattr(self.config, "max_concurrent_instruments", 1)),
+        )
+        self._volatility_spacing = VolatilitySpacing(
+            min_cooldown_seconds=float(getattr(self.config, "vol_spacing_min_seconds", 0.0)),
+            max_cooldown_seconds=float(getattr(self.config, "vol_spacing_max_seconds", 300.0)),
+            reference_volatility=float(getattr(self.config, "vol_spacing_reference_atr", 1.0)),
+        )
+        self._unified_risk_policy = UnifiedRiskPolicy(
+            exposure_caps=self._exposure_caps,
+            news_guard=None,
+            volatility_spacing=self._volatility_spacing,
+        )
 
         # Adaptive router attribution (optional)
         self._router: AdaptiveEVRouter | None = None
@@ -1277,6 +1314,53 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     )
                 return
 
+        # News filter (uses bar timestamp for backtest realism)
+        news_window: NewsWindow | None = None
+        if self.config.use_news_filter and self._news_calendar:
+            bar_time = datetime.fromtimestamp(bar.ts_event / 1e9, tz=timezone.utc)
+            news_window = self._news_calendar.check_news_window(now=bar_time)
+
+            # Publish deterministic, ts_event-aligned news state for downstream consumers (catalog/ML/analysis).
+            try:
+                ev = news_window.event
+                self.publish_data(
+                    DataType(NewsWindowData),
+                    NewsWindowData(
+                        instrument_id=self.config.instrument_id,
+                        in_window=bool(news_window.in_window),
+                        action=int(news_window.action),
+                        minutes_to_event=int(news_window.minutes_to_event),
+                        is_before_event=bool(news_window.is_before_event),
+                        score_adjustment=int(news_window.score_adjustment),
+                        size_multiplier=float(news_window.size_multiplier),
+                        event_name=str(ev.event_name) if ev is not None else "",
+                        currency=str(ev.currency) if ev is not None else "",
+                        impact=int(ev.impact) if ev is not None else 0,
+                        reason=str(news_window.reason),
+                        ts_event=int(bar.ts_event),
+                        ts_init=int(bar.ts_init),
+                    ),
+                )
+            except Exception:
+                if should_log:
+                    self.log.debug("[NEWS] publish_data failed", exc_info=True)
+
+            if news_window.action == NewsTradeAction.BLOCK:
+                if should_log:
+                    self.log.info(f"[SIGNAL_CHECK] News filter BLOCKED: {news_window.reason}")
+                if self._telemetry:
+                    self._telemetry.emit(
+                        "signal_reject",
+                        {
+                            "reason": "news_filter",
+                            "news_reason": news_window.reason,
+                            "bar": len(self._ltf_bars),
+                        },
+                    )
+                return
+            # apply conservative size/score adjustments
+            self._news_size_mult = max(news_window.size_multiplier, 0.0)
+
         # Unified safety policy surface (Phase 11)
         # NOTE: This is entry-only gating; forced close / flatten must bypass it.
         time_gate_ok = True
@@ -1293,13 +1377,34 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 super()._trigger_execution_failsafe(reason=f"prop_firm_signal_gate_exception:{type(exc).__name__}")
                 return
 
+        cb_guard_ok = True
+        if self._circuit_breaker:
+            try:
+                cb_guard_ok = bool(self._circuit_breaker.can_trade(now=bar_time))
+            except Exception as exc:
+                super()._trigger_execution_failsafe(reason=f"circuit_breaker_signal_gate_exception:{type(exc).__name__}")
+                return
+
+        open_positions_count = 1 if self._position is not None else 0
+        open_instruments_count = 1 if self._position is not None else 0
+
+        # Volatility proxy for spacing: use ATR (already computed deterministically from bars).
+        atr = float(self._get_current_atr())
+
         decision = self._unified_risk_policy.evaluate_entry(
             time_gate_ok=time_gate_ok,
             blocked_today=blocked_today,
             prop_firm_ok=prop_firm_ok,
-            circuit_ok=True,
-            size_factor=1.0,
+            circuit_ok=cb_guard_ok,
             must_flatten=False,
+            open_positions_count=open_positions_count,
+            open_instruments_count=open_instruments_count,
+            news_window=news_window,
+            now_utc=bar_time,
+            last_entry_ts_ns=self._last_entry_ts_ns,
+            now_ts_ns=int(bar.ts_event),
+            volatility=atr,
+            base_size_factor=float(getattr(self, "_news_size_mult", 1.0)),
         )
 
         if not decision.can_open_new:
@@ -1418,65 +1523,6 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 self.log.warning("[BLOCKED] _is_trading_allowed = False (consistency_tracker 30% daily cap)")
                 return
 
-        # Circuit breaker guard
-        if self._circuit_breaker:
-            try:
-                cb_guard_ok = self._circuit_breaker.can_trade(now=bar_time)
-            except Exception as exc:
-                super()._trigger_execution_failsafe(reason=f"circuit_breaker_signal_gate_exception:{type(exc).__name__}")
-                return
-            if not cb_guard_ok:
-                if should_log:
-                    self.log.info("[SIGNAL_CHECK] Circuit breaker guard BLOCKED")
-                if self._telemetry:
-                    self._telemetry.emit("signal_reject", {"reason": "circuit_breaker_guard", "bar": len(self._ltf_bars)})
-                self._is_trading_allowed = False
-                self.log.warning("[BLOCKED] _is_trading_allowed = False (circuit_breaker.can_trade() returned False)")
-                return
-
-        # News filter (uses bar timestamp for backtest realism)
-        news_window = None
-        if self.config.use_news_filter and self._news_calendar:
-            bar_time = datetime.fromtimestamp(bar.ts_event / 1e9, tz=timezone.utc)
-            news_window = self._news_calendar.check_news_window(now=bar_time)
-
-            # Publish deterministic, ts_event-aligned news state for downstream consumers (catalog/ML/analysis).
-            try:
-                ev = news_window.event
-                self.publish_data(
-                    DataType(NewsWindowData),
-                    NewsWindowData(
-                        instrument_id=self.config.instrument_id,
-                        in_window=bool(news_window.in_window),
-                        action=int(news_window.action),
-                        minutes_to_event=int(news_window.minutes_to_event),
-                        is_before_event=bool(news_window.is_before_event),
-                        score_adjustment=int(news_window.score_adjustment),
-                        size_multiplier=float(news_window.size_multiplier),
-                        event_name=str(ev.event_name) if ev is not None else "",
-                        currency=str(ev.currency) if ev is not None else "",
-                        impact=int(ev.impact) if ev is not None else 0,
-                        reason=str(news_window.reason),
-                        ts_event=int(bar.ts_event),
-                        ts_init=int(bar.ts_init),
-                    ),
-                )
-            except Exception:
-                if should_log:
-                    self.log.debug("[NEWS] publish_data failed", exc_info=True)
-
-            if news_window.action == NewsTradeAction.BLOCK:
-                if should_log:
-                    self.log.info(f"[SIGNAL_CHECK] News filter BLOCKED: {news_window.reason}")
-                if self._telemetry:
-                    self._telemetry.emit("signal_reject", {
-                        "reason": "news_filter",
-                        "news_reason": news_window.reason,
-                        "bar": len(self._ltf_bars)
-                    })
-                return
-            # apply conservative size/score adjustments
-            self._news_size_mult = max(news_window.size_multiplier, 0.0)
 
         # Check spread (fail-closed: block entries if spread is unknown or unhealthy)
         spread_score_adj = 0
@@ -1921,6 +1967,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         if sl_distance <= 0:
             return
 
+        # Phase 11 safety sizing: UnifiedRiskPolicy.size_factor is applied via _news_size_mult.
+        # (Existing sizing pipeline multiplies _news_size_mult into risk_amount / risk_pct.)
+        self._news_size_mult = float(decision.size_factor)
+
         # NEW-C-03 FIX: Apply HBS size_multiplier to position sizing
         hbs_size_mult = hbs_decision.size_multiplier if hbs_decision else 1.0
         quantity = self._calculate_position_size(sl_distance, hbs_size_mult)
@@ -1953,13 +2003,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         current_price = bar.close.as_double()
         mode_label = selected_arm.value
 
-        tp_rr = float(self.config.target_rr_ratio)
-        if selected_arm in (RouterArm.TREND_PULLBACK, RouterArm.TREND_BREAKOUT):
-            if float(self.config.trend_target_rr_ratio) > 0.0:
-                tp_rr = float(self.config.trend_target_rr_ratio)
-        elif selected_arm == RouterArm.MEAN_REVERT:
-            if float(self.config.mean_revert_target_rr_ratio) > 0.0:
-                tp_rr = float(self.config.mean_revert_target_rr_ratio)
+        tp_rr = float(self.config.resolve_tp_rr(arm=selected_arm))
 
         if signal == SignalType.SIGNAL_BUY:
             # Use Decimal for precise price calculations
@@ -1996,6 +2040,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     "variant": selected_trend.variant.value if selected_trend else ("bb_rsi" if selected_mean else None),
                 }
             self._enter_long(quantity, sl_price, tp_price)
+            self._last_entry_ts_ns = int(bar.ts_event)
 
             # CRUCIBLE FIX: Create trade in TradeManager for active management
             if self._trade_manager:
@@ -2050,6 +2095,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     "variant": selected_trend.variant.value if selected_trend else ("bb_rsi" if selected_mean else None),
                 }
             self._enter_short(quantity, sl_price, tp_price)
+            self._last_entry_ts_ns = int(bar.ts_event)
 
             # CRUCIBLE FIX: Create trade in TradeManager for active management
             if self._trade_manager:

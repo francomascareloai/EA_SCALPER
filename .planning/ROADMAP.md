@@ -18,7 +18,7 @@
 - **11-04**: Integration backtest + falsification checks (ablation + hostile execution smoke).
 
 ## Plan count tracking
-- Phase 11: 1/4 executed
+- Phase 11: 2/4 executed
 
 ## Plans (paths)
 - `/.planning/phases/11-virtual-gate-safety-layer/11-01-PLAN.md`
