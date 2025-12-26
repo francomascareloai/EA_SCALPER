@@ -813,7 +813,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 # Example: daily_pnl=-1000, balance=50000 -> 2.0%
                 daily_loss = max(0.0, -float(self._daily_pnl))
                 daily_dd_pct = daily_loss / account_balance * 100.0
-                assert 0.0 <= daily_dd_pct <= 100.0, f"Invalid daily DD%: {daily_dd_pct}"
+                if not (0.0 <= daily_dd_pct <= 100.0):
+                    raise ValueError(f"Invalid daily DD%: {daily_dd_pct}")
                 if daily_dd_pct >= daily_limit_pct:
                     self._is_trading_allowed = False
                     self.log.error(
