@@ -29,6 +29,8 @@
 
 ## Documentation (root level)
 - `INDEX.md` – This file: structural overview + current state
+- `docs/INDEX.md` – Operational documentation (canonical)
+- `docs/configuration/CONFIGURATION_GUIDE.md` – Detailed configuration reference (YAML + backtest CLI + optimizer dotpaths)
 - `CHANGELOG.md` – Detailed log of COMPLETED work units (features, bugfixes, improvements)
 - `BUGFIX_LOG.md` – Quick reference for bugs discovered + fixes (debugging focus)
 - `FUTURE_IMPROVEMENTS.md` – Brainstorming repository for optimization ideas (WHY/WHAT/IMPACT/EFFORT/PRIORITY). Includes **CRUCIBLE (2025-12-24) Portfolio Strategy Review** section.

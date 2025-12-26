@@ -95,14 +95,13 @@ nautilus_gold_scalper/
         │   ├── __init__.py
         │   ├── base.py               # SearchStrategy ABC
         │   ├── grid.py               # Cartesian grid search
-        │   ├── random.py             # Latin Hypercube sampling
+        │   ├── random.py             # Latin Hypercube sampling (LHS-like)
         │   ├── bayesian.py           # Optuna TPE/CMA-ES
-        │   └── coarse_fine.py        # Adaptive zoom search
+        │   └── successive_halving.py # Multi-fidelity (uses LHS-like generator)
         │
         ├── validation/
         │   ├── __init__.py
         │   ├── wfa_inline.py         # Inline WFA during search
-        │   ├── wfo.py                # Walk-forward optimization
         │   └── cpcv.py               # Combinatorial Purged CV
         │
         ├── stress/
@@ -141,7 +140,7 @@ metadata:
 # SEARCH CONFIGURATION
 # ─────────────────────────────────────────────────────────────
 search:
-  mode: bayesian          # grid | random | bayesian | wfo | coarse_fine
+  mode: bayesian          # grid | random | lhs | bayesian | successive_halving
 
   # Bayesian-specific
   trials: 200             # Number of Optuna trials
@@ -630,13 +629,12 @@ python -m nautilus_gold_scalper.optimize \
     --dry-run  # Just show grid size, don't execute
 
 # ─────────────────────────────────────────────────────────────
-# Walk-forward optimization (most rigorous)
+# Successive halving (multi-fidelity)
 # ─────────────────────────────────────────────────────────────
 python -m nautilus_gold_scalper.optimize \
     --config configs/grids/smc_optimization.yaml \
-    --mode wfo \
-    --windows 10 \
-    --top 20
+    --mode successive_halving \
+    --trials 200
 
 # ─────────────────────────────────────────────────────────────
 # Stress test existing results

@@ -63,6 +63,76 @@
 
 ## Log Entries
 
+## 2025-12-26 17:40 [FORGE] - BUG-RUN-014: MTF/HTF timeframe inference could collide or select unsupported minutes
+
+**Module:** `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+**Severity:** HIGH (MTF confluence correctness + runtime stability)
+
+**Bug:** Runner could infer `mtf_minutes` and `htf_minutes` such that `mtf_minutes == htf_minutes` (bar-type collision) and also infer minutes not supported by `MTFManager.Timeframe`.
+
+**Impact:**
+- If `mtf_bar_type == htf_bar_type`, bar routing can starve MTF updates (HTF branch wins first), silently degrading confluence logic.
+- Unsupported inferred minutes could crash at strategy start when constructing `MTFManager` from config.
+
+**Root Cause:** Runner’s inference buckets included minute values outside the strategy’s supported Timeframe enum set, and HTF defaulting logic didn’t enforce `ltf < mtf < htf` or distinct bar types.
+
+**Fix:**
+- Restricted inferred/allowed minutes to `SUPPORTED_TIMEFRAME_MINUTES=(1,5,15,30,60,240,1440)`
+- Derived `need_htf_data = use_mtf or require_htf_align` and ensure HTF bars are configured when `use_mtf=True`
+- Enforced invariant `ltf < mtf < htf` (and fail fast with clear error)
+
+**Files:**
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+
+**Validation:** mypy --strict PASS; pytest PASS
+**Commit:** Pending
+
+---
+
+## 2025-12-26 17:45 [FORGE] - BUG-RISK-012: Close-order tracking assumed ordered cache; retry detection unreliable
+
+**Module:** `nautilus_gold_scalper/src/risk/time_constraint_manager.py`
+**Severity:** CRITICAL (Apex time gate / overnight violation risk)
+
+**Bug:** Close-order tracking used list slicing (`orders_before` / `all_orders[orders_before:]`) assuming `cache.orders()` returns a stable order, but Nautilus explicitly does not guarantee ordering.
+
+**Impact:** Rejection detection and retry logic could miss newly submitted close orders or attribute the wrong orders, increasing risk that positions remain open into the 16:59 ET cutoff (Apex termination scenario).
+
+**Root Cause:** Used sequence-diff logic on an unordered collection API.
+
+**Fix:** Collect `client_order_id`s as sets before/after `close_all_positions()` and compute `after_ids - before_ids` to track new close orders deterministically.
+
+**Files:**
+- `nautilus_gold_scalper/src/risk/time_constraint_manager.py`
+- `nautilus_gold_scalper/tests/test_risk/test_time_constraint_manager.py`
+
+**Validation:** mypy --strict PASS; pytest PASS
+**Commit:** Pending
+
+---
+
+## 2025-12-26 17:50 [FORGE] - BUG-OPT-033: Optimizer could run prop-firm mode on bar feed (invalid MTM/HWM)
+
+**Module:** `nautilus_gold_scalper/scripts/optimize.py`
+**Severity:** CRITICAL (Apex trailing DD / HWM under-enforced)
+
+**Bug:** Optimization trials could run with `prop_firm_enabled=True` while `feed="bars"` (quick mode), but MTM equity + HWM tracking relies on QuoteTicks (bid/ask) in `BaseStrategy.on_quote_tick()`.
+
+**Impact:** Bar-only optimization can understate trailing DD and miss intrabar HWM trap behavior, producing unsafe parameter selections that may pass validation incorrectly.
+
+**Root Cause:** No hard gate preventing prop-firm runs without ticks.
+
+**Fix:** Fail closed: if `prop_firm_enabled=True` and `feed != "ticks"`, refuse trial and return empty equity series so Apex compliance fails.
+
+**Files:**
+- `nautilus_gold_scalper/scripts/optimize.py`
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+
+**Validation:** mypy --strict PASS; pytest PASS
+**Commit:** Pending
+
+---
+
 ## 2025-12-26 00:00 [FORGE-NAUTILUS] - BUG-OPT-029: PBO configured but never computed
 
 **Module:** `nautilus_gold_scalper/src/optimization/optimizer.py`

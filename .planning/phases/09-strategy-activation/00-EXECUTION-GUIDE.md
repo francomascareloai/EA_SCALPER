@@ -58,15 +58,6 @@ Phase 00-B → CRITIC (opus) → loop ate GO → Next
 Phase 00-C → CRITIC (opus) → loop ate GO → Next
       ↓
 Phase 01 → CRITIC (opus) → loop ate GO → Next
-```
-
-**Retrofit Note (when phases were already executed):**
-- If you already ran Phase 03/04 before Phase 00-C existed, **do not re-run** earlier phases.
-- Treat Phase 00-C as a **retroactive gate** to be executed **before Phase 05/06**.
-- Required artifacts:
-  - `orchestration/PHASE_00C_PORTFOLIO_REVIEW.md`
-  - `orchestration/PHASE_04_DECISION.md` (must include the Phase 00-C retrofit addendum if Phase 04 already ran)
-
       ↓
 Phase 02 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
       ↓
@@ -76,7 +67,9 @@ Phase 04 → USER DECISION REQUIRED (unico ponto de parada obrigatorio)
       ↓
 Phase 05 → CRITIC (opus) → loop ate GO → Next
       ↓
-Phase 06 → CRITIC (opus) → loop ate GO → Next (CRITICAL)
+Phase 11 → CRITIC (opus) → VirtualGate validation (pode rodar paralelo ao 06)
+      ↓
+Phase 06 → CRITIC (opus) → loop ate GO → Next (CRITICAL - inclui VG config)
       ↓
 Phase 07 → CRITIC (opus) → loop ate GO → Next
       ↓
@@ -416,6 +409,38 @@ Nota: se você quiser marcar como aprovado, faça isso na mensagem após o `/run
 Spawn CRITIC (opus) to review:
 1. Risk code correct? Edge cases handled? Tests exist?
 2. Verify PHASE_04_DECISION.md exists (user decision documented).
+```
+
+---
+
+### Phase 11: VIRTUALGATE IMPLEMENTATION (NEW)
+
+**Executar:**
+```
+/run-plan .planning/phases/09-strategy-activation/13-PHASE-11-PLAN.md
+```
+
+**Status:** IN PROGRESS (runs parallel to Phase 06)
+
+**Verificar antes de GO:**
+- [ ] VirtualGate implementation complete (show code)
+- [ ] Config integration complete (show GoldScalperConfig fields)
+- [ ] Extended validation across 10+ news days
+- [ ] Optimal parameters identified (`lookback`, `multipliers`)
+- [ ] Arquivo `PHASE_11_VIRTUALGATE.md` criado
+
+**Validacao empirica:**
+- [ ] CPI days tested (expect VG to help)
+- [ ] NFP days tested
+- [ ] FOMC days tested
+- [ ] WFA with best VG config
+
+**CRITIC review (opus):**
+```
+Spawn CRITIC (opus) to review:
+1. VG logic correct? Edge cases handled?
+2. No false blocking during normal volatility?
+3. Parameters make sense for XAUUSD/MGC?
 ```
 
 ---

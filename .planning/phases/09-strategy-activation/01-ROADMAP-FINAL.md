@@ -106,11 +106,12 @@ This is the **definitive** Phase 09 planning document, incorporating:
 | **03** | TREND_FOLLOW Activation | 1 week | Strategy enabled with edge verified |
 | **04** | MEAN_REVERT Decision | 3 days | User decision: implement/remove/defer |
 | **05** | Framework Integration | 1 week | **+30% limit, 5:1 R:R, execution modes** |
-| **06** | Multi-Strategy Backtest | 1 week | **+PBO/DSR, failure mode matrix** |
+| **11** | **VirtualGate Implementation (NEW)** | 3 days | **Turbulence filter validated on news days** |
+| **06** | Multi-Strategy Backtest | 1 week | **+PBO/DSR, failure mode matrix, VG config** |
 | **07** | Paper Trading | 2 weeks | **+AUTO and SIGNAL_ONLY testing** |
 | **08** | Production Readiness | 1 week | SENTINEL sign-off |
 
-**Total Timeline:** 10-11 weeks (unchanged)
+**Total Timeline:** 10-12 weeks (added Phase 11)
 
 ---
 
@@ -512,6 +513,53 @@ def calculate_scale_out_levels(
 - SMC_SCALPER deep audit (factor contribution)
 - TREND_FOLLOW validation
 - MEAN_REVERT research and decision
+
+---
+
+## Phase 11: VirtualGate Implementation (NEW - From Titan X Analysis)
+
+*Detailed plan in `13-PHASE-11-PLAN.md`*
+
+### Objective
+Implement a bar-level turbulence filter that blocks entries during abnormal volatility conditions, protecting against whipsaw entries on high-impact news days (CPI, NFP, FOMC).
+
+### 11-01: VirtualGate Core Implementation (COMPLETE)
+
+**Multi-Signal Bar-Only Gate:**
+- Range spike detection: `current_range > median_range * multiplier`
+- Cluster spike detection: fraction of high-range bars in lookback
+- Configurable lookback, multipliers, and fail-open behavior
+
+### 11-02: Config Integration (COMPLETE)
+
+**New GoldScalperConfig fields:**
+- `virtual_gate_enabled: bool = True`
+- `virtual_gate_lookback_bars: int = 20`
+- `virtual_gate_range_spike_multiplier: float = 3.0`
+- `virtual_gate_cluster_spike_multiplier: float = 2.5`
+- `virtual_gate_cluster_max_fraction: float = 0.25`
+
+### 11-03: Empirical Validation (IN PROGRESS)
+
+**Initial Results:**
+| Day Type | Finding |
+|----------|---------|
+| Normal | No VG differentiation |
+| CPI | VG with `lookback=10` → +$24 better entry |
+| FOMC | VG hurt this time (-$22) |
+
+**Conclusion:** VG is condition-dependent. Helps on CPI-style volatility.
+
+### Phase 11 GO/NO-GO Gate
+
+**Criteria:**
+- [x] Implementation complete
+- [x] Config integration complete
+- [ ] Extended validation (10+ news days)
+- [ ] Optimal parameters identified
+- [ ] WFA validation with best VG config
+
+**Status:** PARTIAL GO - Runs parallel to Phase 06.
 
 ---
 

@@ -1,7 +1,5 @@
-# Legacy backtest scripts
+# Legacy backtest scripts – Documentation moved
 
-Esta pasta é reservada para scripts antigos/experimentais que não fazem parte do fluxo oficial.
+This legacy README was moved to:
 
-Fluxo oficial:
-- `python -m nautilus_gold_scalper.scripts.run_backtest ...`
-
+- `nautilus_gold_scalper/docs/scripts/backtest/_legacy/README.md`

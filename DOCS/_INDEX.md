@@ -11,6 +11,7 @@
 | Preciso de... | Vá para |
 |---------------|---------|
 | **🐙 NAUTILUS MIGRATION** | `02_IMPLEMENTATION/NAUTILUS_MIGRATION_MASTER_PLAN.md` |
+| Documentação operacional (Nautilus) | `../nautilus_gold_scalper/docs/INDEX.md` |
 | Código Nautilus Python | `nautilus_gold_scalper/src/` |
 | Plano de implementação MQL5 | `02_IMPLEMENTATION/PLAN_v1.md` |
 | Progresso atual | `02_IMPLEMENTATION/PROGRESS.md` |

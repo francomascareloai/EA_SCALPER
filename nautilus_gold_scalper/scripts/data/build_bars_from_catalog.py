@@ -29,14 +29,26 @@ def _instrument_folder_name(instrument: str) -> str:
 
 
 def _parse_date_utc(date_str: str, *, end_inclusive: bool) -> datetime:
-    # Accept YYYY-MM-DD (treated as UTC midnight) or full ISO datetime.
-    # If tz-aware input is provided (e.g. includes an offset), preserve the actual
-    # instant in time by converting to UTC (do NOT overwrite tzinfo via replace()).
-    d = datetime.fromisoformat(str(date_str))
+    """Parse a date/datetime string into a tz-aware UTC datetime.
+
+    Accepts either:
+    - YYYY-MM-DD (treated as UTC midnight)
+    - Full ISO datetime, optionally with an explicit offset (including a trailing 'Z')
+
+    NOTE: If tz-aware input is provided, preserve the actual instant in time by
+    converting to UTC (do NOT overwrite tzinfo via replace()).
+    """
+
+    s = str(date_str)
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+
+    d = datetime.fromisoformat(s)
     if d.tzinfo is None:
         d = d.replace(tzinfo=timezone.utc)
     else:
         d = d.astimezone(timezone.utc)
+
     return d + (timedelta(days=1) if end_inclusive else timedelta(0))
 
 
@@ -79,7 +91,16 @@ def _scan_catalog_ticks(*, catalog_dir: Path, instrument: str) -> pl.LazyFrame:
     ticks_glob = catalog_dir / "data" / "quote_tick" / inst_dir / "*.parquet"
     if not ticks_glob.parent.exists():
         raise FileNotFoundError(f"Catalog instrument path not found: {ticks_glob.parent}")
-    return pl.scan_parquet(str(ticks_glob)).select(["ts_event", "bid_price", "ask_price"])
+
+    # Fail fast on empty directories to avoid a confusing late failure inside Polars.
+    if not any(ticks_glob.parent.glob("*.parquet")):
+        raise FileNotFoundError(f"No parquet files found under: {ticks_glob.parent}")
+
+    try:
+        return pl.scan_parquet(str(ticks_glob)).select(["ts_event", "bid_price", "ask_price"])
+    except Exception as exc:
+        # Surface a clearer error for corrupted/parsing failures.
+        raise RuntimeError(f"Failed to scan parquet ticks at: {ticks_glob}") from exc
 
 
 def _build_bars(
