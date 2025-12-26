@@ -76,7 +76,7 @@ class ApexConstraintChecker:
         self.overnight_positions_max = overnight_positions_max
         self.time_gate_violations_max = time_gate_violations_max
 
-    def check(self, result: "TrialResult") -> ApexComplianceResult:
+    def check(self, result: TrialResult) -> ApexComplianceResult:
         """
         Check if trial result is Apex-compliant.
 
@@ -150,7 +150,7 @@ class ApexConstraintChecker:
 
     def _calculate_penalty(
         self,
-        result: "TrialResult",
+        result: TrialResult,
         violations: list[ApexViolation],
     ) -> float:
         """
@@ -170,22 +170,28 @@ class ApexConstraintChecker:
         #          penalty = 1 - (4.0 - 3.0) / (4.5 - 3.0) = 1 - 1.0/1.5 = 0.33
         buffer_start = 3.0  # Start penalizing above 3%
         if result.trailing_dd > buffer_start:
-            dd_penalty = 1.0 - (result.trailing_dd - buffer_start) / (
-                self.trailing_dd_max - buffer_start
-            )
+            denom = self.trailing_dd_max - buffer_start
+            if denom <= 0:
+                # Guard against config mistakes which would cause division by zero.
+                # Conservative behavior: apply maximum penalty to avoid false compliance.
+                dd_penalty = 0.0
+            else:
+                dd_penalty = 1.0 - (result.trailing_dd - buffer_start) / denom
             penalty *= max(0.0, dd_penalty)
 
         # Soft penalty for daily profit approaching limit
         daily_buffer_start = 20.0  # Start penalizing above 20%
         if result.daily_profit_max > daily_buffer_start:
-            daily_penalty = 1.0 - (result.daily_profit_max - daily_buffer_start) / (
-                self.daily_profit_max - daily_buffer_start
-            )
+            denom = self.daily_profit_max - daily_buffer_start
+            if denom <= 0:
+                daily_penalty = 0.0
+            else:
+                daily_penalty = 1.0 - (result.daily_profit_max - daily_buffer_start) / denom
             penalty *= max(0.0, daily_penalty)
 
         return penalty
 
-    def get_constraint_values(self, result: "TrialResult") -> list[float]:
+    def get_constraint_values(self, result: TrialResult) -> list[float]:
         """
         Get constraint violation values for Optuna constraint function.
 

@@ -775,7 +775,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Execution realism (per-fill slippage + commission) - requires instrument.
         try:
-            assert self.instrument is not None
+            # R11-FIX: Replace assert with explicit check (assert disabled with -O).
+            if self.instrument is None:
+                raise RuntimeError("Instrument not initialized - cannot set up execution model")
             tick_size = float(self.instrument.price_increment.as_double())
             slippage_ticks = int(max(0, getattr(self.config, "slippage_ticks", 2)))
             base_cents = int(round(slippage_ticks * tick_size * 100))
@@ -954,6 +956,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             telemetry=self._telemetry
             if getattr(self.config, "telemetry_capture_cutoff", True)
             else None,
+            # R9-FIX: Pass prop_firm_enabled so TimeConstraintManager can
+            # override allow_overnight=True when prop_firm_enabled=True.
+            prop_firm_enabled=bool(getattr(self.config, "prop_firm_enabled", True)),
             clock=self.clock,
             use_clock_timer=(
                 bool(getattr(self.config, "prop_firm_enabled", True))
@@ -3317,10 +3322,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         else:
             clamped_sl = float(max(MIN_SL_DISTANCE, min(raw_sl, MAX_SL_DISTANCE)))
 
-        # Sanity check assertion
-        assert MIN_SL_DISTANCE <= clamped_sl <= MAX_SL_DISTANCE, (
-            f"SL clamping failed: {clamped_sl} not in [{MIN_SL_DISTANCE}, {MAX_SL_DISTANCE}]"
-        )
+        # R11-FIX: Replace assert with explicit check (assert disabled with -O).
+        # This is an APEX-CRITICAL safety invariant that must never be bypassed.
+        if not (MIN_SL_DISTANCE <= clamped_sl <= MAX_SL_DISTANCE):
+            raise ValueError(
+                f"SL clamping failed: {clamped_sl} not in [{MIN_SL_DISTANCE}, {MAX_SL_DISTANCE}]"
+            )
 
         return clamped_sl
 

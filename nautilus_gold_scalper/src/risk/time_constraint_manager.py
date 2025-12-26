@@ -33,6 +33,7 @@ class TimeConstraintManager:
         allow_overnight: bool = False,
         telemetry: TimeManagedStrategy.Telemetry | None = None,
         *,
+        prop_firm_enabled: bool = False,
         clock: Clock | None = None,
         use_clock_timer: bool = False,
         timer_interval_ns: int = 10_000_000_000,
@@ -47,7 +48,21 @@ class TimeConstraintManager:
             "urgent": urgent,
             "emergency": emergency,
         }
+
+        # R9-CRITICAL-FIX: Force allow_overnight=False when prop_firm_enabled=True
+        # to prevent bypassing Apex time gates even if config specifies allow_overnight=True.
+        # Apex requires ALL positions closed by 4:59 PM ET - overnight positions are prohibited.
+        if prop_firm_enabled and allow_overnight:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "APEX SAFETY: allow_overnight=True ignored because prop_firm_enabled=True. "
+                "Prop firm mode requires all positions closed by 4:59 PM ET."
+            )
+            allow_overnight = False
+
         self.allow_overnight = allow_overnight
+        self._prop_firm_enabled = prop_firm_enabled
         self._issued: set[str] = set()
         self.telemetry = telemetry
 

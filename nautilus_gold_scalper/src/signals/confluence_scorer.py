@@ -835,8 +835,10 @@ class ConfluenceScorer:
             if not sweep.is_confirmed:
                 continue
 
-            # Sweep in opposite direction = reversal signal
-            if sweep.direction != direction and sweep.direction != SignalType.SIGNAL_NONE:
+            # BUG-SIG-001: LiquiditySweepDetector encodes sweep.direction as the
+            # expected post-sweep move (e.g., BSL sweep -> SELL, SSL sweep -> BUY).
+            # Therefore, sweeps should reinforce the current signal direction, not oppose it.
+            if sweep.direction == direction and sweep.direction != SignalType.SIGNAL_NONE:
                 score += self.SWEEP_BASE_SCORE
                 if sweep.is_institutional:
                     score += self.SWEEP_INSTITUTIONAL_BONUS

@@ -8,12 +8,16 @@ of configs that show poor out-of-sample performance.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
+_WARNED_WFA_TIME_FALLBACK: bool = False
 
 if TYPE_CHECKING:
     pass
@@ -107,45 +111,104 @@ class InlineWFA:
         start_date: str,
         end_date: str,
     ) -> list[tuple[datetime, datetime, datetime, datetime]]:
-        """
-        Compute IS/OOS date splits for each window.
+        """Compute IS/OOS date splits for each window.
 
         Returns:
-            List of (is_start, is_end, oos_start, oos_end) tuples
+            List of (is_start, is_end, oos_start, oos_end) tuples.
+
+        Notes:
+            - Treats `end_date` as inclusive when it's a date-only timestamp.
+            - Ensures each window has at least 1 OOS day when possible by shrinking
+              the IS portion (never by shrinking purge/embargo).
         """
         start = pd.Timestamp(start_date)
         end = pd.Timestamp(end_date)
-        total_days = (end - start).days
 
-        # Each window covers total_days / windows
-        window_days = total_days // self.windows
+        # Ensure timezone awareness matches trades_df timestamps (UTC-aware).
+        if start.tz is None:
+            start = start.tz_localize("UTC")
+        else:
+            start = start.tz_convert("UTC")
+
+        if end.tz is None:
+            end = end.tz_localize("UTC")
+        else:
+            end = end.tz_convert("UTC")
+
+        if end < start:
+            raise ValueError(f"Invalid date range: end_date {end_date} < start_date {start_date}")
+
+        # Most configs use date-only strings; treat end as inclusive.
+        end_exclusive = end
+        if end.time() == datetime.min.time():
+            end_exclusive = end + timedelta(days=1)
+
+        total_days = int((end_exclusive - start).days)
+        if total_days <= 0:
+            return []
+
+        # Reduce windows when the span is short (prevents window_days=0).
+        windows = max(1, min(int(self.windows), total_days))
+
+        base = total_days // windows
+        extra = total_days % windows
 
         splits: list[tuple[datetime, datetime, datetime, datetime]] = []
 
-        for i in range(self.windows):
-            window_start = start + timedelta(days=i * window_days)
-            window_end = window_start + timedelta(days=window_days)
+        cursor = start
+        purge_days = int(self.purge_days)
+        embargo_days = int(self.embargo_days)
 
-            # IS period
-            is_days = int(window_days * self.is_ratio)
+        for i in range(windows):
+            window_len = base + (1 if i < extra else 0)
+            window_start = cursor
+            window_end = window_start + timedelta(days=window_len)
+            cursor = window_end
+
+            # Ensure at least 1 OOS day if possible.
+            # OOS days available = window_len - is_days - purge_days - embargo_days
+            is_target = int(window_len * float(self.is_ratio))
+            max_is_days = window_len - (purge_days + embargo_days + 1)
+            if max_is_days < 1:
+                continue
+
+            is_days = max(1, min(is_target, max_is_days))
+            if is_days != is_target:
+                logger.debug(
+                    "InlineWFA adjusted IS days in window %d from %d to %d to fit purge/embargo constraints",
+                    i,
+                    is_target,
+                    is_days,
+                )
+
             is_start = window_start
             is_end = window_start + timedelta(days=is_days)
 
-            # Purge gap
-            oos_start = is_end + timedelta(days=self.purge_days)
+            oos_start = is_end + timedelta(days=purge_days)
+            oos_end = window_end - timedelta(days=embargo_days)
 
-            # OOS period (remaining minus embargo)
-            oos_end = window_end - timedelta(days=self.embargo_days)
+            if oos_end <= oos_start:
+                continue
 
-            if oos_end > oos_start:
-                splits.append(
-                    (
-                        is_start.to_pydatetime(),
-                        is_end.to_pydatetime(),
-                        oos_start.to_pydatetime(),
-                        oos_end.to_pydatetime(),
-                    )
+            splits.append(
+                (
+                    is_start.to_pydatetime(),
+                    is_end.to_pydatetime(),
+                    oos_start.to_pydatetime(),
+                    oos_end.to_pydatetime(),
                 )
+            )
+
+        if not splits:
+            logger.warning(
+                "InlineWFA produced no valid splits for %s..%s (windows=%d, is_ratio=%.3f, purge=%d, embargo=%d)",
+                start_date,
+                end_date,
+                windows,
+                float(self.is_ratio),
+                purge_days,
+                embargo_days,
+            )
 
         return splits
 
@@ -169,19 +232,31 @@ class InlineWFA:
         if trades_df.empty or "timestamp" not in trades_df.columns:
             return windows
 
-        # Ensure timestamp is datetime
         trades_df = trades_df.copy()
-        if not pd.api.types.is_datetime64_any_dtype(trades_df["timestamp"]):
-            trades_df["timestamp"] = pd.to_datetime(trades_df["timestamp"], utc=True)
+
+        # CRITICAL: Assign trades to WFA windows based on ENTRY time, not exit time.
+        # The entry decision reflects what was known at decision time.
+        # Using exit time creates look-ahead bias (trade opened in IS but counted as OOS
+        # because it exited later), inflating WFE.
+        use_entry_time = "entry_time" in trades_df.columns and trades_df["entry_time"].notna().any()
+        time_col = "entry_time" if use_entry_time else "timestamp"
+        if not use_entry_time:
+            global _WARNED_WFA_TIME_FALLBACK
+            if not _WARNED_WFA_TIME_FALLBACK:
+                logger.warning(
+                    "WFA trade assignment falling back to 'timestamp' because 'entry_time' is missing or empty. "
+                    "This may introduce look-ahead bias if 'timestamp' is derived from exit_time."
+                )
+                _WARNED_WFA_TIME_FALLBACK = True
+
+        # Ensure chosen time column is datetime (UTC-aware)
+        if not pd.api.types.is_datetime64_any_dtype(trades_df[time_col]):
+            trades_df[time_col] = pd.to_datetime(trades_df[time_col], utc=True)
 
         for i, (is_start, is_end, oos_start, oos_end) in enumerate(splits):
             # Filter trades for IS and OOS periods
-            is_mask = (trades_df["timestamp"] >= is_start) & (
-                trades_df["timestamp"] < is_end
-            )
-            oos_mask = (trades_df["timestamp"] >= oos_start) & (
-                trades_df["timestamp"] < oos_end
-            )
+            is_mask = (trades_df[time_col] >= is_start) & (trades_df[time_col] < is_end)
+            oos_mask = (trades_df[time_col] >= oos_start) & (trades_df[time_col] < oos_end)
 
             is_trades = trades_df[is_mask]
             oos_trades = trades_df[oos_mask]
@@ -253,11 +328,7 @@ class InlineWFA:
 
         # Total trades and PnL
         total_trades = len(full_trades_df) if not full_trades_df.empty else 0
-        total_pnl = (
-            float(full_trades_df["pnl"].sum())
-            if not full_trades_df.empty
-            else 0.0
-        )
+        total_pnl = float(full_trades_df["pnl"].sum()) if not full_trades_df.empty else 0.0
 
         # Performance metrics
         pnl_series = full_trades_df["pnl"] if not full_trades_df.empty else pd.Series([])
@@ -268,13 +339,21 @@ class InlineWFA:
         win_rate = self._compute_win_rate(pnl_series)
 
         # Drawdown
-        max_dd = self._compute_max_drawdown(equity_series) if equity_series is not None else 0.0
+        # CRITICAL: If equity_series is None/empty, use worst-case DD (100%)
+        # to ensure apex_compliant=False. DD=0% would falsely indicate compliance.
+        if equity_series is None or len(equity_series) < 2:
+            max_dd = 100.0  # Worst-case: cannot compute, assume total loss
+        else:
+            max_dd = self._compute_max_drawdown(equity_series)
 
         # Apex metrics
         trailing_dd = max_dd  # Approximation
         daily_pnl = self._compute_daily_pnl(full_trades_df)
         daily_profit_max = self._compute_daily_profit_max(daily_pnl, total_pnl)
         positive_days_ratio = self._compute_positive_days_ratio(daily_pnl)
+
+        time_gate_violations = self._compute_time_gate_violations(full_trades_df)
+        overnight_positions = self._compute_overnight_positions(full_trades_df)
 
         return WFAResult(
             windows=windows,
@@ -291,13 +370,20 @@ class InlineWFA:
             trailing_dd=trailing_dd,
             daily_profit_max=daily_profit_max,
             positive_days_ratio=positive_days_ratio,
-            time_gate_violations=0,  # Computed separately
-            overnight_positions=0,  # Computed separately
+            time_gate_violations=time_gate_violations,
+            overnight_positions=overnight_positions,
             regime_scores={},  # Computed in Layer 3 if needed
         )
 
     def _empty_result(self) -> WFAResult:
-        """Return empty WFA result."""
+        """Return empty/invalid WFA result with WORST-CASE values.
+
+        CRITICAL: Empty results must fail Apex compliance checks.
+        Setting trailing_dd=100.0 (100%) guarantees apex_compliant=False
+        since Apex limit is 5%.
+
+        Formula: trailing_dd=100.0 → 100% > 5% threshold → NOT compliant
+        """
         return WFAResult(
             windows=[],
             wfe=0.0,
@@ -309,8 +395,8 @@ class InlineWFA:
             sortino=0.0,
             profit_factor=0.0,
             win_rate=0.0,
-            max_drawdown_pct=0.0,
-            trailing_dd=0.0,
+            max_drawdown_pct=100.0,  # Worst-case: 100% DD
+            trailing_dd=100.0,  # Worst-case: ensures apex_compliant=False
             daily_profit_max=0.0,
             positive_days_ratio=0.0,
             time_gate_violations=0,
@@ -322,7 +408,7 @@ class InlineWFA:
         """
         Compute System Quality Number.
 
-        Formula: SQN = mean(pnl) / std(pnl) * sqrt(n)
+        Formula: SQN = mean(pnl) / std(pnl) * sqrt(min(n, 100))
         Example: mean=100, std=200, n=100 → 100/200 * 10 = 5.0
         """
         if len(pnl_series) < 2:
@@ -331,39 +417,80 @@ class InlineWFA:
         std_pnl = float(pnl_series.std())
         if std_pnl == 0:
             return 0.0
-        sqn = mean_pnl / std_pnl * np.sqrt(len(pnl_series))
+        sqn = mean_pnl / std_pnl * np.sqrt(min(len(pnl_series), 100))
         return float(sqn)
 
-    def _compute_sharpe(self, pnl_series: pd.Series, periods_per_year: int = 252) -> float:
-        """
-        Compute annualized Sharpe ratio.
+    def _compute_sharpe(
+        self,
+        pnl_series: pd.Series,
+        initial_capital: float = 100_000.0,
+        risk_free_rate: float = 0.05,
+        periods_per_year: int = 252,
+    ) -> float:
+        """Compute annualized Sharpe ratio from returns.
 
-        Formula: Sharpe = mean(returns) / std(returns) * sqrt(periods_per_year)
+        We convert per-period PnL into simple returns by dividing by `initial_capital`.
+        `risk_free_rate` is annualized (e.g., 0.05 = 5%/yr) and converted to a per-period
+        rate via `risk_free_rate / periods_per_year`.
         """
-        if len(pnl_series) < 2:
+        if len(pnl_series) < 2 or initial_capital <= 0 or periods_per_year <= 0:
             return 0.0
-        mean_ret = float(pnl_series.mean())
-        std_ret = float(pnl_series.std())
-        if std_ret == 0:
-            return 0.0
-        return float(mean_ret / std_ret * np.sqrt(periods_per_year))
 
-    def _compute_sortino(self, pnl_series: pd.Series, periods_per_year: int = 252) -> float:
-        """
-        Compute annualized Sortino ratio (downside deviation only).
+        # Formula: sharpe = mean(excess_returns) / std(excess_returns) * sqrt(periods_per_year)
+        # Example: initial=100000, pnl=[100,-50], rf=0.05, ppy=252
+        #   returns=[0.001,-0.0005], rf_per=0.05/252≈0.0001984
+        #   excess≈[0.0008016,-0.0006984]
+        returns = pnl_series.astype(float) / float(initial_capital)
+        rf_per_period = float(risk_free_rate) / float(periods_per_year)
+        excess = returns - rf_per_period
 
-        Formula: Sortino = mean(returns) / downside_std * sqrt(periods_per_year)
-        """
-        if len(pnl_series) < 2:
+        mean_excess = float(excess.mean())
+        std_excess = float(excess.std())
+        if std_excess < 1e-10:
+            return float("inf") if mean_excess > 0 else 0.0
+
+        sharpe = mean_excess / std_excess * float(np.sqrt(periods_per_year))
+        if not np.isfinite(sharpe):
             return 0.0
-        mean_ret = float(pnl_series.mean())
-        downside = pnl_series[pnl_series < 0]
+        return float(sharpe)
+
+    def _compute_sortino(
+        self,
+        pnl_series: pd.Series,
+        initial_capital: float = 100_000.0,
+        risk_free_rate: float = 0.05,
+        periods_per_year: int = 252,
+    ) -> float:
+        """Compute annualized Sortino ratio from returns (downside deviation only).
+
+        We convert per-period PnL into simple returns by dividing by `initial_capital`.
+        `risk_free_rate` is annualized and converted to a per-period minimum acceptable
+        return (MAR) via `risk_free_rate / periods_per_year`.
+        """
+        if len(pnl_series) < 2 or initial_capital <= 0 or periods_per_year <= 0:
+            return 0.0
+
+        # Formula: sortino = mean(excess_returns) / std(excess_returns[<0]) * sqrt(periods_per_year)
+        # Example: initial=100000, pnl=[100,-50], rf=0.05, ppy=252
+        #   returns=[0.001,-0.0005], rf_per≈0.0001984
+        #   excess≈[0.0008016,-0.0006984] → downside≈[-0.0006984]
+        returns = pnl_series.astype(float) / float(initial_capital)
+        rf_per_period = float(risk_free_rate) / float(periods_per_year)
+        excess = returns - rf_per_period
+
+        mean_excess = float(excess.mean())
+        downside = excess[excess < 0]
         if len(downside) == 0:
-            return 10.0  # No downside = very good
+            return float("inf") if mean_excess > 0 else 0.0
+
         downside_std = float(downside.std())
-        if downside_std == 0:
-            return 10.0
-        return float(mean_ret / downside_std * np.sqrt(periods_per_year))
+        if downside_std < 1e-10:
+            return float("inf") if mean_excess > 0 else 0.0
+
+        sortino = mean_excess / downside_std * float(np.sqrt(periods_per_year))
+        if not np.isfinite(sortino):
+            return 0.0
+        return float(sortino)
 
     def _compute_profit_factor(self, pnl_series: pd.Series) -> float:
         """
@@ -390,24 +517,51 @@ class InlineWFA:
         return float(wins / len(pnl_series))
 
     def _compute_max_drawdown(self, equity_series: pd.Series) -> float:
-        """
-        Compute maximum drawdown percentage.
+        """Compute maximum drawdown percentage.
 
         Formula: DD% = (peak - trough) / peak * 100
+        Example: equity=[100, 90] → DD%=(100-90)/100*100 = 10
+
+        Note: Protect against division by zero when the running max is 0.
         """
         if equity_series is None or len(equity_series) < 2:
             return 0.0
+
         running_max = equity_series.cummax()
-        drawdown = (running_max - equity_series) / running_max * 100
-        return float(drawdown.max())
+        with np.errstate(divide="ignore", invalid="ignore"):
+            drawdown = ((running_max - equity_series) / running_max).where(
+                running_max > 0, 0.0
+            ) * 100
+
+        max_dd = float(drawdown.max())
+        if not np.isfinite(max_dd):
+            return 0.0
+        return max_dd
 
     def _compute_daily_pnl(self, trades_df: pd.DataFrame) -> pd.Series:
-        """Aggregate PnL by day."""
+        """Aggregate PnL by ET day.
+
+        Apex day boundaries are defined in America/New_York.
+        If timezone conversion isn't available, fall back to UTC days.
+        """
         if trades_df.empty or "timestamp" not in trades_df.columns:
             return pd.Series([], dtype=float)
 
         df = trades_df.copy()
-        df["date"] = pd.to_datetime(df["timestamp"]).dt.date
+
+        times_utc = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+        if times_utc.isna().all():
+            return pd.Series([], dtype=float)
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            et_tz = ZoneInfo("America/New_York")
+            times_local = times_utc.dt.tz_convert(et_tz)
+        except Exception:
+            times_local = times_utc
+
+        df["date"] = times_local.dt.date
         return df.groupby("date")["pnl"].sum()
 
     def _compute_daily_profit_max(self, daily_pnl: pd.Series, total_pnl: float) -> float:
@@ -434,6 +588,96 @@ class InlineWFA:
             return 0.0
         positive_days = (daily_pnl > 0).sum()
         return float(positive_days / len(daily_pnl))
+
+    def _compute_time_gate_violations(self, trades_df: pd.DataFrame) -> int:
+        """Count trades opened after 16:30 ET (Apex entry time gate).
+
+        The optimization pipeline extracts trades from `generate_positions_report()` and
+        normalizes to a DataFrame with `entry_time`, `exit_time`, and `timestamp`.
+
+        We use `entry_time` when available, otherwise fall back to `timestamp`.
+        If ET timezone cannot be loaded, return a conservative non-zero count to
+        avoid false Apex compliance.
+        """
+        if trades_df.empty:
+            return 0
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            et_tz = ZoneInfo("America/New_York")
+        except Exception:
+            return int(len(trades_df))
+
+        df = trades_df
+        ts_col = "entry_time" if "entry_time" in df.columns else "timestamp"
+        times_utc = pd.to_datetime(df[ts_col], utc=True, errors="coerce")
+        nat_count = int(times_utc.isna().sum())
+        if nat_count > 0:
+            logger.warning(
+                "%s trades have invalid %s timestamps - treating as time-gate violations",
+                nat_count,
+                ts_col,
+            )
+        times_et = times_utc.dt.tz_convert(et_tz)
+
+        cutoff = datetime.min.replace(hour=16, minute=30, second=0, microsecond=0).time()
+        violations = int((times_et.dt.time >= cutoff).sum()) + nat_count
+        return violations
+
+    def _compute_overnight_positions(self, trades_df: pd.DataFrame) -> int:
+        """Count positions held past 16:59 ET close deadline.
+
+        We approximate "overnight" violations as any position which:
+        - has `exit_time` (or `timestamp`) after 16:59 ET, OR
+        - spans an ET date boundary (exit_date_et > entry_date_et)
+
+        This is intentionally conservative for optimization gating.
+        If ET timezone cannot be loaded, return a conservative non-zero count.
+        """
+        if trades_df.empty:
+            return 0
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            et_tz = ZoneInfo("America/New_York")
+        except Exception:
+            return int(len(trades_df))
+
+        df = trades_df
+
+        exit_col = "exit_time" if "exit_time" in df.columns else "timestamp"
+        exit_utc = pd.to_datetime(df[exit_col], utc=True, errors="coerce")
+        exit_nat = int(exit_utc.isna().sum())
+        if exit_nat > 0:
+            logger.warning(
+                "%s trades have invalid %s timestamps - treating as overnight violations",
+                exit_nat,
+                exit_col,
+            )
+        exit_et = exit_utc.dt.tz_convert(et_tz)
+
+        cutoff = datetime.min.replace(hour=16, minute=59, second=0, microsecond=0).time()
+        after_cutoff = exit_et.dt.time > cutoff
+
+        nat_union = exit_nat
+        if "entry_time" in df.columns:
+            entry_utc = pd.to_datetime(df["entry_time"], utc=True, errors="coerce")
+            entry_nat = int(entry_utc.isna().sum())
+            if entry_nat > 0:
+                logger.warning(
+                    "%s trades have invalid entry_time timestamps - treating as overnight violations",
+                    entry_nat,
+                )
+            entry_et = entry_utc.dt.tz_convert(et_tz)
+            cross_day = exit_et.dt.date > entry_et.dt.date
+            nat_union = int((exit_utc.isna() | entry_utc.isna()).sum())
+        else:
+            cross_day = pd.Series([False] * len(df), index=df.index)
+
+        violations = int((after_cutoff | cross_day).sum()) + nat_union
+        return violations
 
 
 def quick_wfa_check(

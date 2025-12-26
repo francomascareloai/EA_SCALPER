@@ -12,6 +12,7 @@ This module provides trade lifecycle management:
 3. update_price() - Update stops/partials based on price movement
 4. close_trade() - Close position and finalize trade
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -24,6 +25,7 @@ from ..core.definitions import Direction, TradeState
 # TRADE INFO DATACLASS
 # =============================================================================
 
+
 @dataclass
 class TradeInfo:
     """
@@ -31,6 +33,7 @@ class TradeInfo:
 
     Tracks entry, stop loss, take profit, partial fills, and state transitions.
     """
+
     # Identity
     trade_id: str = field(default_factory=lambda: str(uuid4()))
     symbol: str = "XAUUSD"
@@ -62,7 +65,9 @@ class TradeInfo:
     lowest_price: float = 0.0
 
     # Timestamps
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # R9-FIX: created_at defaults to None to avoid datetime.now() in backtest mode.
+    # Callers should provide timestamp explicitly for backtest determinism.
+    created_at: datetime | None = None
     filled_at: datetime | None = None
     closed_at: datetime | None = None
 
@@ -79,6 +84,7 @@ class TradeInfo:
 # =============================================================================
 # TRADE MANAGER CLASS
 # =============================================================================
+
 
 class TradeManager:
     """
@@ -114,8 +120,12 @@ class TradeManager:
         manager.close_trade(trade.trade_id, close_price=2008.0, reason="Manual exit")
     """
 
-    def __init__(self, partial_tp_r: float = 1.0, partial_tp_percent: float = 0.5,
-                 trailing_start_r: float = 1.0):
+    def __init__(
+        self,
+        partial_tp_r: float = 1.0,
+        partial_tp_percent: float = 0.5,
+        trailing_start_r: float = 1.0,
+    ):
         """
         Initialize Trade Manager.
 
@@ -146,7 +156,7 @@ class TradeManager:
         take_profit_3: float | None = None,
         symbol: str = "XAUUSD",
         reason: str = "",
-        tags: dict[str, Any] | None = None
+        tags: dict[str, Any] | None = None,
     ) -> TradeInfo:
         """
         Create a new trade.
@@ -214,15 +224,21 @@ class TradeManager:
             highest_price=entry_price,
             lowest_price=entry_price,
             entry_reason=reason,
-            tags=tags or {}
+            tags=tags or {},
         )
 
         self._trades[trade.trade_id] = trade
 
         return trade
 
-    def fill_entry(self, trade_id: str, actual_entry_price: float,
-                   actual_quantity: float) -> TradeInfo:
+    def fill_entry(
+        self,
+        trade_id: str,
+        actual_entry_price: float,
+        actual_quantity: float,
+        *,
+        current_time: datetime | None = None,
+    ) -> TradeInfo:
         """
         Mark trade as filled with actual execution details.
 
@@ -230,6 +246,8 @@ class TradeManager:
             trade_id: Trade identifier
             actual_entry_price: Actual fill price from broker
             actual_quantity: Actual filled quantity
+            current_time: Timestamp for the fill (for backtest determinism).
+                          If None, filled_at remains None (callers should provide).
 
         Returns:
             Updated TradeInfo with OPEN state
@@ -250,7 +268,8 @@ class TradeManager:
         trade.entry_price = actual_entry_price
         trade.current_quantity = Decimal(str(actual_quantity))
         trade.state = TradeState.OPEN
-        trade.filled_at = datetime.now(timezone.utc)
+        # If no timestamp provided, use wall-clock UTC.
+        trade.filled_at = current_time or datetime.now(timezone.utc)
 
         # Reset extremes to actual entry
         trade.highest_price = actual_entry_price
@@ -291,10 +310,14 @@ class TradeManager:
         """
         trade = self._get_trade(trade_id)
 
-        if trade.state not in [TradeState.OPEN, TradeState.PARTIAL_CLOSE,
-                                TradeState.BREAKEVEN, TradeState.TRAILING]:
+        if trade.state not in [
+            TradeState.OPEN,
+            TradeState.PARTIAL_CLOSE,
+            TradeState.BREAKEVEN,
+            TradeState.TRAILING,
+        ]:
             # Not active, no actions needed
-            return {'current_r': 0.0, 'state_changed': False}
+            return {"current_r": 0.0, "state_changed": False}
 
         # Update price extremes
         if current_price > trade.highest_price:
@@ -305,10 +328,7 @@ class TradeManager:
         # Calculate current R multiple
         r_multiple = self._calculate_r_multiple(trade, current_price)
 
-        actions: dict[str, Any] = {
-            'current_r': r_multiple,
-            'state_changed': False
-        }
+        actions: dict[str, Any] = {"current_r": r_multiple, "state_changed": False}
 
         old_state = trade.state
 
@@ -317,9 +337,9 @@ class TradeManager:
             # Check for partial TP at 1R
             if r_multiple >= self.partial_tp_r and trade.partial_count == 0:
                 partial_qty = trade.current_quantity * Decimal(str(self.partial_tp_percent))
-                actions['take_partial'] = {
-                    'quantity': partial_qty,
-                    'reason': f'Partial TP @ {r_multiple:.2f}R'
+                actions["take_partial"] = {
+                    "quantity": partial_qty,
+                    "reason": f"Partial TP @ {r_multiple:.2f}R",
                 }
                 # Don't update state here - will be updated in execute_partial()
 
@@ -328,44 +348,44 @@ class TradeManager:
                 # Move to breakeven first
                 be_sl = self._calculate_breakeven_sl(trade)
                 if self._should_move_sl(trade, be_sl):
-                    actions['adjust_sl'] = {
-                        'new_sl': be_sl,
-                        'reason': f'Move to breakeven @ {r_multiple:.2f}R'
+                    actions["adjust_sl"] = {
+                        "new_sl": be_sl,
+                        "reason": f"Move to breakeven @ {r_multiple:.2f}R",
                     }
                     trade.state = TradeState.BREAKEVEN
-                    actions['state_changed'] = True
+                    actions["state_changed"] = True
 
         elif trade.state == TradeState.BREAKEVEN:
             # Activate trailing after breakeven
             if r_multiple >= self.trailing_start_r:
                 trade.state = TradeState.TRAILING
-                actions['state_changed'] = True
+                actions["state_changed"] = True
 
                 # Calculate trailing stop
                 trail_sl = self._calculate_trailing_sl(trade, current_price)
                 if self._should_move_sl(trade, trail_sl):
-                    actions['adjust_sl'] = {
-                        'new_sl': trail_sl,
-                        'reason': f'Trailing stop @ {r_multiple:.2f}R'
+                    actions["adjust_sl"] = {
+                        "new_sl": trail_sl,
+                        "reason": f"Trailing stop @ {r_multiple:.2f}R",
                     }
 
         elif trade.state in [TradeState.PARTIAL_CLOSE, TradeState.TRAILING]:
             # Continue trailing
             trail_sl = self._calculate_trailing_sl(trade, current_price)
             if self._should_move_sl(trade, trail_sl):
-                actions['adjust_sl'] = {
-                    'new_sl': trail_sl,
-                    'reason': f'Trailing stop @ {r_multiple:.2f}R'
+                actions["adjust_sl"] = {
+                    "new_sl": trail_sl,
+                    "reason": f"Trailing stop @ {r_multiple:.2f}R",
                 }
 
                 if trade.state != TradeState.TRAILING:
                     trade.state = TradeState.TRAILING
-                    actions['state_changed'] = True
+                    actions["state_changed"] = True
 
         if old_state != trade.state:
-            actions['state_changed'] = True
-            actions['old_state'] = old_state.name
-            actions['new_state'] = trade.state.name
+            actions["state_changed"] = True
+            actions["old_state"] = old_state.name
+            actions["new_state"] = trade.state.name
 
         return actions
 
@@ -375,6 +395,8 @@ class TradeManager:
         closed_quantity: Decimal,
         close_price: float,
         pnl: float | None,
+        *,
+        current_time: datetime | None = None,
     ) -> TradeInfo:
         """
         Record execution of partial profit take.
@@ -384,6 +406,8 @@ class TradeManager:
             closed_quantity: Quantity that was closed
             close_price: Price at which partial was closed
             pnl: Realized P&L from the partial
+            current_time: Timestamp for the close (for backtest determinism).
+                          If None and trade fully closed, closed_at remains None.
 
         Returns:
             Updated TradeInfo
@@ -398,9 +422,7 @@ class TradeManager:
             raise ValueError(f"Closed quantity must be positive: {closed_quantity}")
 
         if closed_quantity > trade.current_quantity:
-            raise ValueError(
-                f"Cannot close {closed_quantity} (current: {trade.current_quantity})"
-            )
+            raise ValueError(f"Cannot close {closed_quantity} (current: {trade.current_quantity})")
 
         # Update trade
         trade.current_quantity -= closed_quantity
@@ -413,7 +435,7 @@ class TradeManager:
         else:
             # Fully closed
             trade.state = TradeState.CLOSED
-            trade.closed_at = datetime.now(timezone.utc)
+            trade.closed_at = current_time or datetime.now(timezone.utc)
             trade.close_reason = f"Full close via partial @ {close_price}"
 
         return trade
@@ -446,25 +468,28 @@ class TradeManager:
                 pass
             # Ensure SL is moving in protective direction
             if new_sl < trade.current_sl:
-                raise ValueError(
-                    f"LONG: Cannot lower SL from {trade.current_sl} to {new_sl}"
-                )
+                raise ValueError(f"LONG: Cannot lower SL from {trade.current_sl} to {new_sl}")
         else:  # SHORT
             if new_sl <= trade.entry_price:
                 # Allow SL below entry (breakeven/trailing)
                 pass
             # Ensure SL is moving in protective direction
             if new_sl > trade.current_sl:
-                raise ValueError(
-                    f"SHORT: Cannot raise SL from {trade.current_sl} to {new_sl}"
-                )
+                raise ValueError(f"SHORT: Cannot raise SL from {trade.current_sl} to {new_sl}")
 
         trade.current_sl = new_sl
 
         return trade
 
-    def close_trade(self, trade_id: str, close_price: float,
-                   reason: str = "", pnl: float | None = None) -> TradeInfo:
+    def close_trade(
+        self,
+        trade_id: str,
+        close_price: float,
+        reason: str = "",
+        pnl: float | None = None,
+        *,
+        current_time: datetime | None = None,
+    ) -> TradeInfo:
         """
         Close trade and finalize P&L.
 
@@ -473,6 +498,8 @@ class TradeManager:
             close_price: Final close price
             reason: Close reason (e.g., "Hit SL", "Manual exit")
             pnl: Realized P&L (if not provided, calculated from remaining quantity)
+            current_time: Timestamp for the close (for backtest determinism).
+                          If None, closed_at remains None (callers should provide).
 
         Returns:
             Updated TradeInfo with CLOSED state
@@ -488,15 +515,18 @@ class TradeManager:
 
         # Calculate P&L if not provided
         if pnl is None and trade.current_quantity > 0:
-            price_diff = (close_price - trade.entry_price) if trade.direction == Direction.LONG \
-                         else (trade.entry_price - close_price)
+            price_diff = (
+                (close_price - trade.entry_price)
+                if trade.direction == Direction.LONG
+                else (trade.entry_price - close_price)
+            )
             pnl = float(trade.current_quantity) * price_diff
 
         if pnl is not None:
             trade.realized_pnl += pnl
 
         trade.state = TradeState.CLOSED
-        trade.closed_at = datetime.now(timezone.utc)
+        trade.closed_at = current_time or datetime.now(timezone.utc)
         trade.close_reason = reason or "Closed"
         trade.current_quantity = Decimal("0")
 
@@ -522,7 +552,8 @@ class TradeManager:
             List of TradeInfo for active trades
         """
         return [
-            t for t in self._trades.values()
+            t
+            for t in self._trades.values()
             if t.state not in [TradeState.CLOSED, TradeState.CANCELLED]
         ]
 

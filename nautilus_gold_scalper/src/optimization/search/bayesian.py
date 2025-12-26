@@ -11,23 +11,22 @@ from __future__ import annotations
 
 import logging
 import time
-from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import optuna
-from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
 from optuna.pruners import MedianPruner
+from optuna.samplers import CmaEsSampler, RandomSampler, TPESampler
 
 from src.optimization.config import (
     OptimizationConfig,
-    ParameterSpec,
 )
 from src.optimization.search.base import (
+    ConstraintFn,
+    ObjectiveFn,
     SearchStrategy,
     TrialResult,
-    ObjectiveFn,
-    ConstraintFn,
 )
 
 if TYPE_CHECKING:
@@ -78,6 +77,12 @@ class BayesianSearch(SearchStrategy):
         self._results: list[TrialResult] = []
         self._objective_fn = objective_fn
         self._start_time: float = 0.0
+
+        # Optuna can run trials concurrently (threads) when n_jobs > 1.
+        # Protect shared mutable state.
+        import threading
+
+        self._results_lock = threading.Lock()
 
     def search(
         self,
@@ -186,6 +191,7 @@ class BayesianSearch(SearchStrategy):
         """
         start_time = time.time()
 
+        params: dict[str, Any] | None = None
         try:
             # Sample parameters
             params = self._sample_params(trial)
@@ -220,7 +226,8 @@ class BayesianSearch(SearchStrategy):
                 pruned=False,
             )
 
-            self._results.append(result_with_meta)
+            with self._results_lock:
+                self._results.append(result_with_meta)
 
             # Store user attributes for constraints/analysis
             trial.set_user_attr("trailing_dd", result.trailing_dd)
@@ -247,9 +254,10 @@ class BayesianSearch(SearchStrategy):
 
         except optuna.TrialPruned:
             # Record pruned trial
+            pruned_params = params if params is not None else self._sample_params(trial)
             pruned_result = TrialResult(
                 trial_id=trial.number,
-                params=self._sample_params(trial),
+                params=pruned_params,
                 sqn=0.0,
                 sharpe=0.0,
                 sortino=0.0,
@@ -271,7 +279,8 @@ class BayesianSearch(SearchStrategy):
                 duration_seconds=time.time() - start_time,
                 pruned=True,
             )
-            self._results.append(pruned_result)
+            with self._results_lock:
+                self._results.append(pruned_result)
             raise
 
         except Exception as e:
@@ -327,7 +336,9 @@ class BayesianSearch(SearchStrategy):
 
         return params
 
-    def _create_early_stop_callback(self) -> Callable[[optuna.Study, optuna.trial.FrozenTrial], None]:
+    def _create_early_stop_callback(
+        self,
+    ) -> Callable[[optuna.Study, optuna.trial.FrozenTrial], None]:
         """Create early stopping callback."""
         patience = self.config.search.early_stop.patience
         min_delta = self.config.search.early_stop.min_delta
@@ -352,8 +363,7 @@ class BayesianSearch(SearchStrategy):
 
             if trials_without_improvement >= patience:
                 logger.info(
-                    f"Early stopping: no improvement in {patience} trials "
-                    f"(best: {best_value:.4f})"
+                    f"Early stopping: no improvement in {patience} trials (best: {best_value:.4f})"
                 )
                 study.stop()
 

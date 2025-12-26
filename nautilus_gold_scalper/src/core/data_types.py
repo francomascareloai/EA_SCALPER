@@ -2,6 +2,7 @@
 Data types and structures for Nautilus Gold Scalper.
 Migrated from MQL5 structs in Definitions.mqh
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -35,6 +36,7 @@ from .definitions import (
 @dataclass
 class RegimeAnalysis:
     """Result of market regime analysis."""
+
     regime: MarketRegime = MarketRegime.REGIME_UNKNOWN
 
     # Core metrics
@@ -43,9 +45,9 @@ class RegimeAnalysis:
     variance_ratio: float = 1.0
 
     # Multi-scale Hurst
-    hurst_short: float = 0.5     # 50-bar
-    hurst_medium: float = 0.5    # 100-bar
-    hurst_long: float = 0.5      # 200-bar
+    hurst_short: float = 0.5  # 50-bar
+    hurst_medium: float = 0.5  # 100-bar
+    hurst_long: float = 0.5  # 200-bar
     multiscale_agreement: float = 0.0  # 0-100
 
     # Transition detection
@@ -69,6 +71,7 @@ class RegimeAnalysis:
 @dataclass
 class SessionInfo:
     """Information about current trading session."""
+
     session: TradingSession = TradingSession.SESSION_UNKNOWN
     quality: SessionQuality = SessionQuality.SESSION_QUALITY_BLOCKED
 
@@ -83,6 +86,7 @@ class SessionInfo:
 @dataclass
 class FootprintBar:
     """Footprint/order flow data for a single bar."""
+
     timestamp: datetime | None = None
 
     # Volume profile
@@ -108,6 +112,7 @@ class FootprintBar:
 @dataclass
 class StructurePoint:
     """Market structure point (HH, HL, LH, LL, BOS, CHoCH)."""
+
     timestamp: datetime | None = None
     price: float = 0.0
     structure_type: StructureType = StructureType.STRUCTURE_UNKNOWN
@@ -120,6 +125,7 @@ class StructurePoint:
 @dataclass
 class OrderBlock:
     """Detected order block (SMC)."""
+
     timestamp: datetime | None = None
 
     high_price: float = 0.0
@@ -147,10 +153,14 @@ class OrderBlock:
     has_structure_confluence: bool = False
     confluence_score: float = 0.0
 
+    # Timing
+    age_in_bars: int = 0
+
 
 @dataclass
 class FairValueGap:
     """Detected Fair Value Gap (SMC)."""
+
     timestamp: datetime | None = None
 
     upper_level: float = 0.0
@@ -187,6 +197,7 @@ class FairValueGap:
 @dataclass
 class LiquidityPool:
     """Institutional liquidity pool."""
+
     timestamp: datetime | None = None
 
     price_level: float = 0.0
@@ -219,6 +230,7 @@ class LiquidityPool:
 @dataclass
 class LiquiditySweep:
     """Detected liquidity sweep."""
+
     timestamp: datetime | None = None
 
     swept_level: float = 0.0
@@ -236,6 +248,7 @@ class LiquiditySweep:
 @dataclass
 class AMDCycle:
     """AMD (Accumulation-Manipulation-Distribution) cycle state."""
+
     current_phase: AMDPhase = AMDPhase.AMD_UNKNOWN
     phase_start_time: datetime | None = None
     phase_duration_bars: int = 0
@@ -259,6 +272,7 @@ class AMDCycle:
 @dataclass
 class ConfluenceResult:
     """Result of confluence scoring."""
+
     # Direction
     direction: SignalType = SignalType.SIGNAL_NONE
     quality: SignalQuality = SignalQuality.QUALITY_INVALID
@@ -291,7 +305,9 @@ class ConfluenceResult:
 
     # GENIUS v4.0+ enhancements
     sequence_steps: int = 0  # ICT 7-step sequence completion
-    multiplier_adjustments: dict[str, float] = field(default_factory=dict)  # alignment, freshness, divergence
+    multiplier_adjustments: dict[str, float] = field(
+        default_factory=dict
+    )  # alignment, freshness, divergence
 
     # Trade setup
     entry_price: float = 0.0
@@ -311,6 +327,7 @@ class ConfluenceResult:
 @dataclass
 class RiskState:
     """Current risk state."""
+
     # Limits
     risk_per_trade: float = DEFAULT_RISK_PER_TRADE
     max_daily_loss: float = DEFAULT_MAX_DAILY_LOSS
@@ -350,6 +367,7 @@ class RiskState:
 @dataclass
 class TradeSignal:
     """Trade signal to be executed."""
+
     timestamp: datetime | None = None
     symbol: str = "XAUUSD"
 
@@ -375,6 +393,7 @@ class TradeSignal:
 @dataclass
 class PositionData:
     """Open position tracking data."""
+
     ticket: int = 0
     symbol: str = "XAUUSD"
     direction: SignalType = SignalType.SIGNAL_NONE
@@ -415,6 +434,7 @@ class PositionData:
 @dataclass
 class PerformanceMetrics:
     """Trading performance metrics."""
+
     total_profit: float = 0.0
     total_trades: int = 0
     winning_trades: int = 0

@@ -12,6 +12,7 @@ Holiday Impact on Gold:
 - US + UK Holiday: Severe impact (25% position size)
 - Day before/after major holiday: Reduced liquidity (75% position size)
 """
+
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -22,11 +23,12 @@ logger = logging.getLogger(__name__)
 
 class HolidayType(IntEnum):
     """Type of market holiday."""
+
     HOLIDAY_NONE = 0
-    HOLIDAY_US = 1           # US Market Holiday
-    HOLIDAY_UK = 2           # UK Market Holiday
-    HOLIDAY_US_UK = 3        # Both US and UK
-    HOLIDAY_PARTIAL = 4      # Partial/Early Close or Adjacent
+    HOLIDAY_US = 1  # US Market Holiday
+    HOLIDAY_UK = 2  # UK Market Holiday
+    HOLIDAY_US_UK = 3  # Both US and UK
+    HOLIDAY_PARTIAL = 4  # Partial/Early Close or Adjacent
     # Short aliases used in tests
     US = HOLIDAY_US
     UK = HOLIDAY_UK
@@ -38,6 +40,7 @@ class HolidayType(IntEnum):
 @dataclass
 class HolidayInfo:
     """Holiday information for a specific date."""
+
     is_holiday: bool = False
     holiday_type: HolidayType = HolidayType.HOLIDAY_NONE
     name: str = ""
@@ -71,9 +74,9 @@ class HolidayDetector:
     """
 
     # Position size multipliers
-    HOLIDAY_SIZE_MULT = 0.5      # 50% size on full holiday
-    PARTIAL_SIZE_MULT = 0.75    # 75% size on partial
-    BOTH_HOLIDAY_MULT = 0.25    # 25% size when both US + UK
+    HOLIDAY_SIZE_MULT = 0.5  # 50% size on full holiday
+    PARTIAL_SIZE_MULT = 0.75  # 75% size on partial
+    BOTH_HOLIDAY_MULT = 0.25  # 25% size when both US + UK
 
     def __init__(
         self,
@@ -103,8 +106,10 @@ class HolidayDetector:
         for year in years_to_load:
             self._load_year(year)
 
-        logger.info(f"HolidayDetector initialized: {len(self._us_holidays)} US, "
-                   f"{len(self._uk_holidays)} UK holidays loaded")
+        logger.info(
+            f"HolidayDetector initialized: {len(self._us_holidays)} US, "
+            f"{len(self._uk_holidays)} UK holidays loaded"
+        )
 
     def init(self, year: int) -> None:
         """Reset and load a specific year (plus following year for rollover)."""
@@ -306,7 +311,9 @@ class HolidayDetector:
             boxing = boxing + timedelta(days=2)  # Tuesday (Christmas takes Monday)
         self._uk_holidays.append((boxing, "Boxing Day (UK)"))
 
-    def _is_date_in_holidays(self, check_date: date, holidays: list[tuple[date, str]]) -> tuple[bool, str]:
+    def _is_date_in_holidays(
+        self, check_date: date, holidays: list[tuple[date, str]]
+    ) -> tuple[bool, str]:
         """Check if date is in holiday list."""
         for holiday_date, name in holidays:
             if check_date == holiday_date:
@@ -362,6 +369,9 @@ class HolidayDetector:
             info.size_multiplier = self.PARTIAL_SIZE_MULT
             info.name = uk_name
         else:
+            # Check for adjacent holiday (day before/after major holiday)
+            # NOTE: Adjacent days have is_holiday=False but reduced_liquidity=True
+            # This is intentional - adjacent days aren't holidays, but have reduced liquidity
             yesterday = check_date - timedelta(days=1)
             tomorrow = check_date + timedelta(days=1)
             adj = (
@@ -446,6 +456,6 @@ class HolidayDetector:
             type_str = {
                 HolidayType.HOLIDAY_US: "US",
                 HolidayType.HOLIDAY_UK: "UK",
-                HolidayType.HOLIDAY_US_UK: "US+UK"
+                HolidayType.HOLIDAY_US_UK: "US+UK",
             }.get(h_type, "?")
             logger.info(f"{d.strftime('%Y-%m-%d')} [{type_str}] {name}")

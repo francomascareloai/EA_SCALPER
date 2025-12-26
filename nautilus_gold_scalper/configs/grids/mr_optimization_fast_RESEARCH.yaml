@@ -1,3 +1,11 @@
+# ============================================================================
+# RESEARCH-ONLY (RELAXED VALIDATION GATES) - NOT COMPLIANT WITH CLAUDE.md
+#
+# This file intentionally relaxes optimizer validation gates.
+# Use the compliant config instead:
+#   /home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/configs/grids/mr_optimization_fast.yaml
+# ============================================================================
+
 # Mean Reversion FAST Parameter Optimization
 # Quick exploratory sweep with reduced parameter space
 #
@@ -5,11 +13,12 @@
 # Estimated combinations: ~200-500 (fast completion)
 
 metadata:
-  name: "Mean Reversion Quick Sweep"
+  name: "Mean Reversion Quick Sweep (RESEARCH - relaxed gates)"
   version: "1.0"
   description: "Fast MR parameter exploration for hypothesis testing"
   author: "Franco"
-  status: "experimental"
+  status: "research"
+  warning: "RELAXED validation gates - NOT COMPLIANT with CLAUDE.md"
 
 search:
   mode: grid
@@ -52,34 +61,37 @@ parameters:
     choices: [70.0, 75.0, 80.0]
     description: "RSI overbought (3 values)"
 
-  execution.mean_revert_max_atr_percentile:
+  execution.mean_revert_sl_atr_multiplier:
     type: float
-    choices: [50.0, 70.0, 90.0]
-    description: "ATR percentile filter (3 values)"
+    choices: [6.0, 8.0, 10.0, 12.0]
+    description: "SL ATR mult (4 values)"
 
-  # NOTE: Removed dead params (not implemented in GoldScalperConfig):
-  # - execution.mean_revert_sl_atr_multiplier
-  # - execution.mean_revert_tp_atr_multiplier
-  # - execution.mean_revert_max_adx
+  execution.mean_revert_tp_atr_multiplier:
+    type: float
+    choices: [4.0, 6.0, 8.0, 10.0]
+    description: "TP ATR mult (4 values)"
+
+  execution.mean_revert_max_adx:
+    type: float
+    choices: [25.0, 30.0, 35.0, 40.0]
+    description: "Max ADX (4 values)"
 
 fixed:
   execution.enable_mean_revert: true
   execution.force_mean_revert: true
   execution.enable_trend_pullback: false
   execution.enable_trend_breakout: false
-  execution.enable_smc: false
+  execution.mean_revert_use_atr_exits: true
+  execution.mean_revert_use_adx_filter: true
   execution.mean_revert_rsi_period: 14
-
-  # Time gates (Apex compliance) - correct dotpaths
-  time.cutoff_et: "16:55"
-  time.warning_et: "16:00"
-  time.urgent_et: "16:30"
-  time.emergency_et: "16:55"
-  execution.allow_overnight: false
-
-  # Risk limits - correct dotpaths
-  execution.max_concurrent_positions: 1
-  risk.max_risk_per_trade: 0.01
+  execution.mean_revert_adx_period: 14
+  execution.mean_revert_max_atr_percentile: 70.0
+  session.start: "08:00"
+  session.end: "16:30"
+  time_gate.block_new: "16:30"
+  time_gate.force_close: "16:55"
+  risk.max_positions: 1
+  risk.max_risk_pct: 1.0
 
 constraints:
   apex:
@@ -89,16 +101,15 @@ constraints:
     time_gate_violations: 0
 
   validation:
-    # Compliant with CLAUDE.md validation gates
-    wfe_min: 0.6
-    sqn_min: 2.0
-    psr_min: 0.85
-    min_trades: 200
-    min_years: 5
+    wfe_min: 0.3
+    sqn_min: 1.0
+    psr_min: 0.65
+    min_trades: 20
+    min_years: 2
 
   anti_overfit:
-    pbo_max: 0.25
-    mc95_dd_max: 4.0
+    pbo_max: 0.40
+    mc95_dd_max: 5.5
 
 objective:
   direction: maximize
@@ -121,7 +132,7 @@ objective:
       threshold: 3.5
       decay_rate: 0.4
     trades:
-      min_required: 200
+      min_required: 20
       penalty_below: 0.4
 
 validation:

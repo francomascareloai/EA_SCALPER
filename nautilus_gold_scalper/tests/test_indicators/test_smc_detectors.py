@@ -9,7 +9,9 @@ from src.indicators.order_block_detector import OrderBlockDetector
 
 class TestOrderBlockDetector:
     def test_bullish_ob_detected_and_scored(self):
-        detector = OrderBlockDetector(lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0)
+        detector = OrderBlockDetector(
+            lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0
+        )
         n = 80
         base = 1900.0
 
@@ -33,14 +35,18 @@ class TestOrderBlockDetector:
         highs[61] = closes[61] + 0.2
         lows[61] = opens[61] - 0.3
 
-        obs = detector.detect(opens, highs, lows, closes, volumes, timestamps, current_price=base + 8.0)
+        obs = detector.detect(
+            opens, highs, lows, closes, volumes, timestamps, current_price=base + 8.0
+        )
 
         assert obs, "Deve detectar ao menos um OB"
         assert any(o.direction == SignalType.SIGNAL_BUY for o in obs)
         assert detector.get_ob_score(base + 8.0, SignalType.SIGNAL_BUY) > 0
 
     def test_ob_is_not_detected_without_displacement_confirmation(self):
-        detector = OrderBlockDetector(lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0)
+        detector = OrderBlockDetector(
+            lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0
+        )
         n = 80
         base = 1900.0
 
@@ -86,6 +92,28 @@ class TestFVGDetector:
         bullish_fvgs = [f for f in fvgs if f.direction == SignalType.SIGNAL_BUY]
         assert bullish_fvgs, "Gap bullish deve ser detectado"
         assert bullish_fvgs[0].size_atr_ratio > 0
+        assert bullish_fvgs[0].age_in_bars == 0
+
+    def test_fvg_age_in_bars_increments_over_time(self):
+        fvgd = FVGDetector(max_gap_size=200.0, min_displacement=1.0)
+
+        # Build a dataset where a bullish FVG is confirmed at index=2.
+        # Then extend the series; the same FVG should have age_in_bars == (n-1) - 2.
+        opens = np.array([1899.0, 1902.0, 1912.0, 1910.0, 1911.0])
+        highs = np.array([1900.0, 1905.0, 1920.0, 1915.0, 1916.0])
+        lows = np.array([1895.0, 1900.0, 1910.0, 1909.0, 1910.5])
+        closes = np.array([1898.0, 1903.0, 1918.0, 1912.0, 1914.0])
+        timestamps = np.arange(len(opens)).astype("datetime64[s]")
+
+        fvgs = fvgd.detect(
+            opens, highs, lows, closes, None, timestamps, current_price=float(closes[-1])
+        )
+        bullish_fvgs = [f for f in fvgs if f.direction == SignalType.SIGNAL_BUY]
+        assert bullish_fvgs, "Gap bullish deve ser detectado"
+
+        # Confirming index=2, current bar index=n-1 => expected_age=(n-1)-2
+        expected_age = (len(opens) - 1) - 2
+        assert bullish_fvgs[0].age_in_bars == expected_age
 
     def test_fvg_requires_three_bars(self):
         fvgd = FVGDetector()

@@ -110,14 +110,16 @@ class TestPropFirmManager:
         # - "blocked" trading
         # - "Single trade loss X% exceeds 1.5% cap" (flash crash protection)
         # Accept any risk-related rejection message
-        assert ("daily" in reason.lower() or
-                "dd" in reason.lower() or
-                "limit" in reason.lower() or
-                "breach" in reason.lower() or
-                "blocked" in reason.lower() or
-                "exceeds" in reason.lower() or
-                "cap" in reason.lower() or
-                "loss" in reason.lower())
+        assert (
+            "daily" in reason.lower()
+            or "dd" in reason.lower()
+            or "limit" in reason.lower()
+            or "breach" in reason.lower()
+            or "blocked" in reason.lower()
+            or "exceeds" in reason.lower()
+            or "cap" in reason.lower()
+            or "loss" in reason.lower()
+        )
 
     def test_consecutive_streaks_updated(self):
         """Win/loss streaks should be updated on trade close."""
@@ -138,6 +140,26 @@ class TestPropFirmManager:
         state = pfm.get_state()
         assert state.consecutive_wins == 0
         assert state.consecutive_losses == 1
+
+    def test_register_trade_close_does_not_double_count_equity(self):
+        pfm = PropFirmManager()
+        pfm.initialize(100_000)
+
+        # Simulate intrabar MTM update with unrealized PnL included.
+        pfm.update_equity(100_500)
+        assert pfm._equity == 100_500
+        assert pfm._high_water == 100_500
+
+        # Closing the trade should NOT add `profit` again.
+        pfm.register_trade_close(contracts=1, profit=500)
+        assert pfm._equity == 100_500
+        assert pfm._high_water == 100_500
+
+        # If caller provides a post-close snapshot (e.g., slippage/fees impact), apply it.
+        pfm.register_trade_close(contracts=1, profit=-20, equity=100_480)
+        assert pfm._equity == 100_480
+        # HWM must not decrease.
+        assert pfm._high_water == 100_500
 
     def test_max_risk_available(self):
         """Should correctly calculate available risk."""
@@ -180,21 +202,21 @@ class TestPropFirmManager:
         pfm = PropFirmManager(limits=limits)
         pfm.initialize(100_000)
 
-        # < 1.5% DD = NORMAL
+        # < 2.0% DD = NORMAL (per CLAUDE.md: ELEVATED starts at 2.0% daily or 3.0% trailing)
         pfm.update_equity(99_000)  # 1% DD
         assert pfm.get_state().risk_level == RiskLevel.NORMAL
 
-        # 1.5% - 2.0% = ELEVATED (daily_dd_pct triggers WARNING at 1.5%)
+        # 1.75% DD is still NORMAL per CLAUDE.md (ELEVATED is 2.0%+ daily or 3.0%+ trailing)
         pfm.update_equity(98_250)  # 1.75% DD
+        assert pfm.get_state().risk_level == RiskLevel.NORMAL
+
+        # 2.0% - 2.5% DD = ELEVATED (CAUTION daily per CLAUDE.md)
+        pfm.update_equity(97_800)  # 2.2% DD
         assert pfm.get_state().risk_level == RiskLevel.ELEVATED
 
-        # 2.0% - 2.5% DD = HIGH (daily_dd_pct triggers REDUCE at 2.0%)
-        pfm.update_equity(97_800)  # 2.2% DD
-        assert pfm.get_state().risk_level == RiskLevel.HIGH
-
-        # 2.5% - 3.0% = CRITICAL (daily_dd_pct triggers STOP_NEW at 2.5%)
+        # 2.5% - 3.0% DD = HIGH (REDUCE daily per CLAUDE.md)
         pfm.update_equity(97_400)  # 2.6% DD
-        assert pfm.get_state().risk_level == RiskLevel.CRITICAL
+        assert pfm.get_state().risk_level == RiskLevel.HIGH
 
         # >= 4.0% trailing DD = BREACHED (triggers halt)
         pfm.update_equity(95_500)  # 4.5% DD

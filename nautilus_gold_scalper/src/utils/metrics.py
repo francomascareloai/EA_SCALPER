@@ -2,6 +2,7 @@
 Performance Metrics Calculator
 Calculates Sharpe, Sortino, Calmar, SQN for backtest validation and GO/NO-GO decisions.
 """
+
 from __future__ import annotations
 
 import math
@@ -39,20 +40,20 @@ class PerformanceMetrics:
     def to_dict(self) -> dict[str, float | int]:
         """Convert to dictionary for telemetry."""
         return {
-            'sharpe_ratio': round(self.sharpe_ratio, 3),
-            'sortino_ratio': round(self.sortino_ratio, 3),
-            'calmar_ratio': round(self.calmar_ratio, 3),
-            'sqn': round(self.sqn, 3),
-            'total_pnl': round(self.total_pnl, 2),
-            'win_rate': round(self.win_rate, 2),
-            'profit_factor': round(self.profit_factor, 3),
-            'max_drawdown_pct': round(self.max_drawdown_pct, 2),
-            'expectancy': round(self.expectancy, 2),
-            'avg_win': round(self.avg_win, 2),
-            'avg_loss': round(self.avg_loss, 2),
-            'num_trades': self.num_trades,
-            'num_wins': self.num_wins,
-            'num_losses': self.num_losses,
+            "sharpe_ratio": round(self.sharpe_ratio, 3),
+            "sortino_ratio": round(self.sortino_ratio, 3),
+            "calmar_ratio": round(self.calmar_ratio, 3),
+            "sqn": round(self.sqn, 3),
+            "total_pnl": round(self.total_pnl, 2),
+            "win_rate": round(self.win_rate, 2),
+            "profit_factor": round(self.profit_factor, 3),
+            "max_drawdown_pct": round(self.max_drawdown_pct, 2),
+            "expectancy": round(self.expectancy, 2),
+            "avg_win": round(self.avg_win, 2),
+            "avg_loss": round(self.avg_loss, 2),
+            "num_trades": self.num_trades,
+            "num_wins": self.num_wins,
+            "num_losses": self.num_losses,
         }
 
 
@@ -86,6 +87,13 @@ class MetricsCalculator:
 
         Returns:
             PerformanceMetrics object with all calculated metrics
+
+        Note:
+            Sharpe/Sortino annualization assumes 1 trade = 1 trading period.
+            For intraday strategies with multiple trades/day, these ratios
+            will UNDERESTIMATE the true annualized values by sqrt(trades_per_day).
+            Consider aggregating daily returns before calling this method
+            for more accurate intraday Sharpe/Sortino calculations.
         """
         if not pnl_series or len(pnl_series) == 0:
             return self._empty_metrics()
@@ -105,7 +113,7 @@ class MetricsCalculator:
         # Profit factor
         gross_profit = sum(wins) if wins else 0.0
         gross_loss = abs(sum(losses)) if losses else 0.0
-        profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else float('inf')
+        profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else float("inf")
 
         # Expectancy
         expectancy = (win_rate / 100.0 * avg_win) + ((1 - win_rate / 100.0) * avg_loss)
@@ -122,12 +130,19 @@ class MetricsCalculator:
             std_dev = 0.0
 
         # Downside deviation (for Sortino)
+        # BUG FIX: Handle 0 and 1 negative return edge cases properly
         negative_returns = [r for r in returns if r < 0]
         if len(negative_returns) > 1:
-            downside_variance = sum(r ** 2 for r in negative_returns) / len(negative_returns)
+            # Standard downside deviation: sqrt(sum(r^2) / n)
+            downside_variance = sum(r**2 for r in negative_returns) / len(negative_returns)
             downside_std_dev = math.sqrt(downside_variance)
+        elif len(negative_returns) == 1:
+            # Single negative return: downside std = absolute value of that return
+            downside_std_dev = abs(negative_returns[0])
         else:
-            downside_std_dev = std_dev if std_dev > 0 else 1e-10
+            # No negative returns (all wins!): minimal downside risk
+            # Use small epsilon to avoid division by zero in Sortino
+            downside_std_dev = 1e-10
 
         # Calculate max drawdown
         equity_curve = [initial_balance]
@@ -137,16 +152,27 @@ class MetricsCalculator:
         max_dd_pct = self._calculate_max_drawdown_pct(equity_curve)
 
         # CAGR (Compound Annual Growth Rate)
+        # BUG FIX: Add minimum years threshold and bounds checking for extreme cases
+        min_years = 0.1  # ~36 days minimum for meaningful CAGR
         if period_days and period_days > 0:
-            years = period_days / 365.25
+            years = max(period_days / 365.25, min_years)
             final_balance = equity_curve[-1]
-            cagr = ((final_balance / initial_balance) ** (1 / years) - 1) * 100
+            if final_balance > 0 and initial_balance > 0:
+                cagr = ((final_balance / initial_balance) ** (1 / years) - 1) * 100
+                # Clamp to reasonable bounds to avoid numerical issues
+                cagr = max(-100.0, min(1000.0, cagr))
+            else:
+                cagr = -100.0 if final_balance <= 0 else 0.0
         else:
             # Fallback: assume each trade is 1 day
-            years = num_trades / self.trading_days_per_year
+            years = max(num_trades / self.trading_days_per_year, min_years)
             if years > 0:
                 final_balance = equity_curve[-1]
-                cagr = ((final_balance / initial_balance) ** (1 / years) - 1) * 100
+                if final_balance > 0 and initial_balance > 0:
+                    cagr = ((final_balance / initial_balance) ** (1 / years) - 1) * 100
+                    cagr = max(-100.0, min(1000.0, cagr))
+                else:
+                    cagr = -100.0 if final_balance <= 0 else 0.0
             else:
                 cagr = 0.0
 
@@ -157,31 +183,44 @@ class MetricsCalculator:
             sharpe = math.sqrt(self.trading_days_per_year) * (avg_return - daily_rf) / std_dev
         else:
             # Perfect consistency (all trades identical)
-            sharpe = float('inf') if avg_return > daily_rf else 0.0
+            sharpe = float("inf") if avg_return > daily_rf else 0.0
 
         # Sortino Ratio
         # Annualized: Sortino = sqrt(252) * (avg_return - rf) / downside_std_dev
         if downside_std_dev > 0:
-            sortino = math.sqrt(self.trading_days_per_year) * (avg_return - daily_rf) / downside_std_dev
+            sortino = (
+                math.sqrt(self.trading_days_per_year) * (avg_return - daily_rf) / downside_std_dev
+            )
         else:
             sortino = 0.0
 
         # Calmar Ratio
         # Calmar = CAGR / MaxDD (both in %)
+        # BUG FIX: Return capped high value when max_dd=0 and cagr>0 (perfect performance)
         if max_dd_pct > 0:
             calmar = cagr / max_dd_pct
+        elif cagr > 0:
+            # No drawdown with positive returns = excellent performance
+            # Cap at 100.0 to avoid inf in downstream calculations
+            calmar = 100.0
         else:
             calmar = 0.0
 
         # System Quality Number (SQN)
         # SQN = sqrt(N) * Expectancy / StdDev(PnL)
+        # BUG FIX: Cap N at 100 per Van Tharp methodology (SQN becomes unreliable beyond 100 trades)
+        # Van Tharp thresholds: 1.7 = below average, 2.0 = average, 3.0 = good, 5.0 = excellent
         if len(pnl_series) > 1:
-            pnl_std = math.sqrt(sum((p - (total_pnl / num_trades)) ** 2 for p in pnl_series) / (num_trades - 1))
+            pnl_std = math.sqrt(
+                sum((p - (total_pnl / num_trades)) ** 2 for p in pnl_series) / (num_trades - 1)
+            )
             if pnl_std > 1e-10:  # Avoid division by zero
-                sqn = math.sqrt(num_trades) * expectancy / pnl_std
+                # Cap at 100 trades for SQN calculation per Van Tharp
+                n_capped = min(num_trades, 100)
+                sqn = math.sqrt(n_capped) * expectancy / pnl_std
             else:
                 # Perfect consistency (all trades identical)
-                sqn = float('inf') if expectancy > 0 else 0.0
+                sqn = float("inf") if expectancy > 0 else 0.0
         else:
             sqn = 0.0
 

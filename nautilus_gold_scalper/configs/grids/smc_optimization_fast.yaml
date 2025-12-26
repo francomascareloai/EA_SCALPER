@@ -76,22 +76,25 @@ parameters:
   # We'll set it equal in fixed to avoid conflicting optimization
   # (optimizing both independently can create unreachable configurations)
 
-  # === EXECUTION PARAMETERS (2 params) ===
+  # === EXECUTION PARAMETERS (3 params) ===
   # Path: execution.X (via exec_cfg)
   execution.atr_multiplier:
     type: float
-    range: [1.5, 2.5]
+    range: [1.0, 2.5]
     step: 0.5
-    description: "ATR multiplier for SL distance (3 values: 1.5, 2.0, 2.5)"
+    description: "ATR multiplier for SL distance (3 values: 1.0, 1.5, 2.0, 2.5)"
 
-  execution.tp_ratio:
+  execution.target_rr_ratio:
     type: float
     range: [1.5, 2.5]
     step: 0.25
-    description: "Risk:Reward ratio for TP (5 values: 1.5, 1.75, 2.0, 2.25, 2.5)"
+    description: "Target risk:reward ratio for TP (5 values: 1.5, 1.75, 2.0, 2.25, 2.5)"
 
-  # NOTE: min_rr_ratio is in BaseStrategyConfig, not exposed in build_strategy_config
-  # Removed to prevent runtime errors
+  execution.min_rr_ratio:
+    type: float
+    range: [1.0, 1.75]
+    step: 0.25
+    description: "Minimum acceptable R:R to take a trade (4 values)"
 
   # === RISK PARAMETERS (1 param) ===
   # Path: risk.max_risk_per_trade

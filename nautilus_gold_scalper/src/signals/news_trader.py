@@ -16,6 +16,7 @@ Critical news events for XAUUSD:
 - GDP: Strong growth = USD up = Gold down
 - Jobless Claims: High unemployment = USD down = Gold up
 """
+
 import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -29,13 +30,17 @@ def _ensure_tz_aware(dt: datetime | None) -> datetime:
     """Return timezone-aware UTC datetime, warn if naive input provided.
 
     Args:
-        dt: Input datetime (can be None, naive, or tz-aware)
+        dt: Input datetime (must not be None). Can be naive or tz-aware.
 
     Returns:
-        Timezone-aware UTC datetime. If dt is None, returns current UTC time.
+        Timezone-aware UTC datetime.
+
+    Raises:
+        TypeError: If dt is None. Callers must pass an explicit event timestamp
+            to keep backtests deterministic.
     """
     if dt is None:
-        return datetime.now(timezone.utc)
+        raise TypeError("timestamp cannot be None - pass event time explicitly")
 
     if dt.tzinfo is None:
         # Issue P04-B-001: Naive timestamps silently assumed UTC
@@ -53,18 +58,20 @@ def _ensure_tz_aware(dt: datetime | None) -> datetime:
 
 class NewsTradingMode(IntEnum):
     """News trading mode selection."""
+
     NONE = 0
     PRE_POSITION = 1  # Enter before release with bias
-    PULLBACK = 2      # Enter after initial spike on retracement
-    STRADDLE = 3      # OCO orders in both directions
+    PULLBACK = 2  # Enter after initial spike on retracement
+    STRADDLE = 3  # OCO orders in both directions
 
 
 class NewsDirection(IntEnum):
     """Expected direction for news event."""
+
     NONE = 0
-    BULLISH = 1      # Expect Gold UP (dovish/weak USD)
-    BEARISH = 2      # Expect Gold DOWN (hawkish/strong USD)
-    UNCERTAIN = 3    # Unknown direction, use straddle
+    BULLISH = 1  # Expect Gold UP (dovish/weak USD)
+    BEARISH = 2  # Expect Gold DOWN (hawkish/strong USD)
+    UNCERTAIN = 3  # Unknown direction, use straddle
 
 
 @dataclass
@@ -86,6 +93,7 @@ class NewsTradeSetup:
         straddle_sell_price: Sell stop price for straddle
         straddle_distance: Distance from price for straddle orders
     """
+
     mode: NewsTradingMode
     direction: NewsDirection
     event: NewsEvent
@@ -111,9 +119,10 @@ class SpikeTracking:
         spike_low: Lowest price during spike
         spike_start_time: When spike tracking started
     """
+
     spike_detected: bool = False
     spike_high: float = 0.0
-    spike_low: float = float('inf')
+    spike_low: float = float("inf")
     spike_start_time: datetime | None = None
 
 
@@ -199,15 +208,15 @@ class NewsTrader:
         for event in events:
             self.events_by_time[event.time_utc] = event
 
-    def get_next_event(self, now: datetime | None = None) -> NewsEvent | None:
-        """
-        Get next upcoming high-impact event.
+    def get_next_event(self, now: datetime) -> NewsEvent | None:
+        """Get next upcoming high-impact event.
 
         Args:
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
+            now: Current time for evaluation (must be tz-aware UTC or will be
+                treated as UTC if naive).
 
         Returns:
-            Next event or None if no events scheduled
+            Next event or None if no events scheduled.
         """
         now = _ensure_tz_aware(now)
 
@@ -216,15 +225,14 @@ class NewsTrader:
                 return event
         return None
 
-    def is_news_window(self, now: datetime | None = None) -> bool:
-        """
-        Check if currently in a news window (before/after high-impact news).
+    def is_news_window(self, now: datetime) -> bool:
+        """Check if currently in a news window (before/after high-impact news).
 
         Args:
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
+            now: Current time for evaluation (must not be None).
 
         Returns:
-            True if in news window
+            True if in news window.
         """
         now = _ensure_tz_aware(now)
 
@@ -242,11 +250,10 @@ class NewsTrader:
 
     def should_block_trading(
         self,
-        now: datetime | None = None,
+        now: datetime,
         block_medium: bool = False,
     ) -> bool:
-        """
-        Check if trading should be blocked due to news.
+        """Check if trading should be blocked due to news.
 
         For conservative risk management, block trading around high-impact news:
         - Spreads widen 10-50x during major releases
@@ -255,11 +262,11 @@ class NewsTrader:
         - Stop hunting becomes extreme
 
         Args:
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
-            block_medium: Whether to also block medium-impact news
+            now: Current time for evaluation (must not be None).
+            block_medium: Whether to also block medium-impact news.
 
         Returns:
-            True if trading should be blocked
+            True if trading should be blocked.
         """
         now = _ensure_tz_aware(now)
 
@@ -283,10 +290,9 @@ class NewsTrader:
         actual: float,
         forecast: float,
         previous: float,
-        now: datetime | None = None,
+        now: datetime,
     ) -> SignalType | None:
-        """
-        Generate signal based on news release actual vs forecast.
+        """Generate signal based on news release actual vs forecast.
 
         Logic:
         - NFP: Actual > Forecast = Strong jobs = USD up = Gold DOWN
@@ -296,14 +302,14 @@ class NewsTrader:
         - Unemployment: Actual > Forecast = Weak jobs = USD down = Gold UP
 
         Args:
-            event: News event
-            actual: Actual released value
-            forecast: Forecast value
-            previous: Previous value
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
+            event: News event.
+            actual: Actual released value.
+            forecast: Forecast value.
+            previous: Previous value.
+            now: Current time for evaluation (must not be None).
 
         Returns:
-            SignalType or None
+            SignalType or None.
         """
         now = _ensure_tz_aware(now)
 
@@ -324,19 +330,18 @@ class NewsTrader:
 
     def get_news_bias(
         self,
-        now: datetime | None = None,
+        now: datetime,
     ) -> tuple[SignalType, float]:
-        """
-        Get directional bias and confidence based on upcoming news.
+        """Get directional bias and confidence based on upcoming news.
 
         Returns bias for positioning BEFORE news release.
         Useful for pre-positioning or adjusting existing positions.
 
         Args:
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
+            now: Current time for evaluation (must not be None).
 
         Returns:
-            Tuple of (signal, confidence) where confidence is 0-1
+            Tuple of (signal, confidence) where confidence is 0-1.
         """
         now = _ensure_tz_aware(now)
 
@@ -377,19 +382,18 @@ class NewsTrader:
         event: NewsEvent,
         current_price: float,
         atr_value: float,
-        now: datetime | None = None,
+        now: datetime,
     ) -> NewsTradeSetup:
-        """
-        Analyze news event and create trading setup.
+        """Analyze news event and create trading setup.
 
         Args:
-            event: News event to analyze
-            current_price: Current market price
-            atr_value: Current ATR value for volatility
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
+            event: News event to analyze.
+            current_price: Current market price.
+            atr_value: Current ATR value for volatility.
+            now: Current time for evaluation (must not be None).
 
         Returns:
-            NewsTradeSetup with all details
+            NewsTradeSetup with all details.
         """
         now = _ensure_tz_aware(now)
 
@@ -455,13 +459,12 @@ class NewsTrader:
 
         return setup
 
-    def track_spike(self, price: float, now: datetime | None = None) -> None:
-        """
-        Track price spike for pullback mode.
+    def track_spike(self, price: float, now: datetime) -> None:
+        """Track price spike for pullback mode.
 
         Args:
-            price: Current price
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
+            price: Current price.
+            now: Current time for evaluation (must not be None).
         """
         now = _ensure_tz_aware(now)
 
@@ -502,7 +505,9 @@ class NewsTrader:
         spike_range = self.spike_tracking.spike_high - self.spike_tracking.spike_low
 
         # Bullish spike pullback (price retracing down)
-        retrace_level_bull = self.spike_tracking.spike_high - spike_range * self.pullback_retrace_pct
+        retrace_level_bull = (
+            self.spike_tracking.spike_high - spike_range * self.pullback_retrace_pct
+        )
         if current_price <= retrace_level_bull and current_price > self.spike_tracking.spike_low:
             return True
 
@@ -671,15 +676,14 @@ class NewsTrader:
 
         return NewsTradingMode.NONE
 
-    def get_status(self, now: datetime | None = None) -> str:
-        """
-        Get current status string for logging/display.
+    def get_status(self, now: datetime) -> str:
+        """Get current status string for logging/display.
 
         Args:
-            now: Current time (UTC), defaults to datetime.now(timezone.utc)
+            now: Current time for evaluation (must not be None).
 
         Returns:
-            Status string
+            Status string.
         """
         now = _ensure_tz_aware(now)
 

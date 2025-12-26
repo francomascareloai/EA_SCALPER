@@ -6,6 +6,7 @@ This module ensures:
 - consistent feature order
 - scaler parameters persisted and reused
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ class FeaturePipeline:
         pipeline = FeaturePipeline.load("data/models/feature_pipeline.json")
         X_live = pipeline.transform(live_df)
     """
+
     config: FeatureConfig = field(default_factory=FeatureConfig)
     scaler_method: str | None = None
     feature_names: list[str] = field(default_factory=list)
@@ -90,7 +92,7 @@ class FeaturePipeline:
     @classmethod
     def load(cls, path: str) -> FeaturePipeline:
         """Load pipeline config, feature order, and scaler state from JSON."""
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             state = json.load(f)
 
         config = FeatureConfig(**state["feature_config"])
@@ -119,9 +121,7 @@ class FeaturePipeline:
             raise ValueError("Feature order mismatch. Column order must match training.")
 
         raise ValueError(
-            "Feature mismatch. "
-            f"Missing: {missing or 'none'}, "
-            f"Extra: {extra or 'none'}."
+            f"Feature mismatch. Missing: {missing or 'none'}, Extra: {extra or 'none'}."
         )
 
 
@@ -166,7 +166,8 @@ def _deserialize_scaler(state: dict[str, Any]) -> StandardScaler | RobustScaler:
         scaler.scale_ = np.asarray(state["scale"], dtype=float)
         scaler.var_ = np.asarray(state["var"], dtype=float)
         scaler.n_features_in_ = int(state["n_features_in"])
-        scaler.n_samples_seen_ = int(state.get("n_samples_seen", scaler.n_features_in_))
+        # Fallback to 1 (not n_features) since n_samples_seen_ is a sample count, not feature count
+        scaler.n_samples_seen_ = int(state.get("n_samples_seen", 1))
         return scaler
 
     if scaler_type == "robust":
@@ -179,7 +180,8 @@ def _deserialize_scaler(state: dict[str, Any]) -> StandardScaler | RobustScaler:
         scaler.center_ = np.asarray(state["center"], dtype=float)
         scaler.scale_ = np.asarray(state["scale"], dtype=float)
         scaler.n_features_in_ = int(state["n_features_in"])
-        scaler.n_samples_seen_ = int(state.get("n_samples_seen", scaler.n_features_in_))
+        # Fallback to 1 (not n_features) since n_samples_seen_ is a sample count, not feature count
+        scaler.n_samples_seen_ = int(state.get("n_samples_seen", 1))
         return scaler
 
     raise ValueError(f"Unsupported scaler type in state: {scaler_type}")

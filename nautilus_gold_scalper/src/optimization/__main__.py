@@ -17,7 +17,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from src.optimization.config import OptimizationConfig
-from src.optimization.optimizer import ApexOptimizer
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -57,7 +56,7 @@ Examples:
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["grid", "random", "bayesian", "wfo", "successive_halving"],
+        choices=["grid", "random", "lhs", "bayesian", "successive_halving"],
         default=None,
         help="Search mode (overrides config)",
     )
@@ -137,11 +136,13 @@ def main() -> int:
         print(f"\nConfiguration: {config_path}")
         print(f"Name: {config.name}")
         print(f"Version: {config.version}")
-        print(f"\nSearch:")
+        print("\nSearch:")
         print(f"  Mode: {args.mode or config.search.mode}")
         if (args.mode or config.search.mode) == "successive_halving":
             sh = config.search.successive_halving
-            print(f"  SuccessiveHalving: eta={sh.eta} window_days={list(sh.window_days)} wfa_windows={list(sh.wfa_windows)}")
+            print(
+                f"  SuccessiveHalving: eta={sh.eta} window_days={list(sh.window_days)} wfa_windows={list(sh.wfa_windows)}"
+            )
         print(f"  Trials: {args.trials or config.search.trials}")
         print(f"  Parallelism: {args.parallelism or config.search.parallelism}")
         print(f"  Seed: {args.seed or config.search.seed}")
@@ -165,14 +166,14 @@ def main() -> int:
             if size > config.search.max_grid_size:
                 print(f"WARNING: Exceeds max_grid_size={config.search.max_grid_size}")
 
-        print(f"\nConstraints:")
+        print("\nConstraints:")
         print(f"  Apex trailing DD max: {config.constraints.apex.trailing_dd_max}%")
         print(f"  Apex daily profit max: {config.constraints.apex.daily_profit_max}%")
         print(f"  WFE min: {config.constraints.validation.wfe_min}")
         print(f"  SQN min: {config.constraints.validation.sqn_min}")
         print(f"  Min trades: {config.constraints.validation.min_trades}")
 
-        print(f"\nOutput:")
+        print("\nOutput:")
         print(f"  Directory: {args.output or config.output.dir}")
         print(f"  Reports: {', '.join(config.output.reports)}")
 

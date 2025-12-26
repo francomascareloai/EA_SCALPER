@@ -1,3 +1,11 @@
+# ============================================================================
+# RESEARCH-ONLY (RELAXED VALIDATION GATES) - NOT COMPLIANT WITH CLAUDE.md
+#
+# This file intentionally relaxes optimizer validation gates.
+# Use the compliant config instead:
+#   /home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/configs/grids/mr_optimization_full.yaml
+# ============================================================================
+
 # Mean Reversion FULL Parameter Optimization
 # Maximum parameter granularity for exhaustive research
 #
@@ -6,12 +14,12 @@
 # Use successive_halving to prune efficiently.
 
 metadata:
-  name: "Mean Reversion Full Sweep"
+  name: "Mean Reversion Full Sweep (RESEARCH - relaxed gates)"
   version: "1.0"
   description: "Exhaustive MR parameter exploration with fine granularity"
   author: "Franco"
   status: "research"
-  warning: "MR falsified for M1 - use for structural research only"
+  warning: "RELAXED validation gates - NOT COMPLIANT with CLAUDE.md"
 
 search:
   mode: bayesian  # Bayesian more efficient for large spaces
@@ -72,6 +80,36 @@ parameters:
     description: "RSI overbought: 60-85 (step 2.5)"
 
   # =====================================================
+  # ATR EXITS - FINE GRANULARITY
+  # =====================================================
+  execution.mean_revert_sl_atr_multiplier:
+    type: float
+    range: [4.0, 16.0]
+    step: 1.0
+    description: "SL ATR mult: 4-16 (step 1)"
+
+  execution.mean_revert_tp_atr_multiplier:
+    type: float
+    range: [3.0, 14.0]
+    step: 1.0
+    description: "TP ATR mult: 3-14 (step 1)"
+
+  # =====================================================
+  # ADX FILTER - FINE GRANULARITY
+  # =====================================================
+  execution.mean_revert_adx_period:
+    type: int
+    range: [7, 28]
+    step: 7
+    description: "ADX period: 7, 14, 21, 28"
+
+  execution.mean_revert_max_adx:
+    type: float
+    range: [15.0, 50.0]
+    step: 2.5
+    description: "Max ADX: 15-50 (step 2.5)"
+
+  # =====================================================
   # VOLATILITY FILTER - FINE GRANULARITY
   # =====================================================
   execution.mean_revert_max_atr_percentile:
@@ -80,32 +118,19 @@ parameters:
     step: 5.0
     description: "Max ATR percentile: 40-95 (step 5)"
 
-  # =====================================================
-  # NOTE: Removed dead params (not implemented in GoldScalperConfig):
-  # - execution.mean_revert_sl_atr_multiplier (ATR-based SL)
-  # - execution.mean_revert_tp_atr_multiplier (ATR-based TP)
-  # - execution.mean_revert_adx_period (ADX filter)
-  # - execution.mean_revert_max_adx (ADX threshold)
-  # These are FUTURE ENHANCEMENTS - add to GoldScalperConfig when ready
-  # =====================================================
-
 fixed:
   execution.enable_mean_revert: true
   execution.force_mean_revert: true
   execution.enable_trend_pullback: false
   execution.enable_trend_breakout: false
-  execution.enable_smc: false
-
-  # Time gates (Apex compliance) - correct dotpaths
-  time.cutoff_et: "16:55"
-  time.warning_et: "16:00"
-  time.urgent_et: "16:30"
-  time.emergency_et: "16:55"
-  execution.allow_overnight: false
-
-  # Risk limits - correct dotpaths
-  execution.max_concurrent_positions: 1
-  risk.max_risk_per_trade: 0.01
+  execution.mean_revert_use_atr_exits: true
+  execution.mean_revert_use_adx_filter: true
+  session.start: "08:00"
+  session.end: "16:30"
+  time_gate.block_new: "16:30"
+  time_gate.force_close: "16:55"
+  risk.max_positions: 1
+  risk.max_risk_pct: 1.0
 
 constraints:
   apex:
@@ -115,16 +140,15 @@ constraints:
     time_gate_violations: 0
 
   validation:
-    # Compliant with CLAUDE.md validation gates
-    wfe_min: 0.6
-    sqn_min: 2.0
-    psr_min: 0.85
-    min_trades: 200
-    min_years: 5
+    wfe_min: 0.35
+    sqn_min: 1.0
+    psr_min: 0.70
+    min_trades: 30
+    min_years: 2
 
   anti_overfit:
-    pbo_max: 0.25
-    mc95_dd_max: 4.0
+    pbo_max: 0.35
+    mc95_dd_max: 5.0
 
 objective:
   direction: maximize
@@ -151,7 +175,7 @@ objective:
       threshold: 3.0
       decay_rate: 0.5
     trades:
-      min_required: 200
+      min_required: 30
       penalty_below: 0.3
     rr_ratio:
       min_required: 0.7

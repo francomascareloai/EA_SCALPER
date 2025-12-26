@@ -9,6 +9,7 @@ Detects:
 - Time decay factor
 - Quality scoring (LOW, MEDIUM, HIGH, ELITE)
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -52,6 +53,11 @@ class FVGDetector:
             point: Instrument point size
             expiry_hours: Hours until FVG expires if not filled
         """
+        # R11-FIX: Validate point > 0 to prevent division by zero
+        if point <= 0:
+            raise ValueError(f"point must be positive, got {point}")
+        if expiry_hours <= 0:
+            raise ValueError(f"expiry_hours must be positive, got {expiry_hours}")
         # Convert pips to price. Default pip_factor=10 preserves legacy XAUUSD convention (1 pip = 0.1 when point=0.01).
         self.min_gap_size = min_gap_size * point * pip_factor
         self.max_gap_size = max_gap_size * point * pip_factor
@@ -120,6 +126,8 @@ class FVGDetector:
                     highs, lows, closes, volumes, timestamps, i, avg_volume
                 )
                 if fvg and self._validate_fvg(fvg):
+                    # Age in bars since the FVG was confirmed (index=i) up to the current bar (n-1).
+                    fvg.age_in_bars = max(0, (n - 1) - i)
                     self._fvgs.append(fvg)
                     if len(self._fvgs) >= self.max_fvgs:
                         break
@@ -130,6 +138,8 @@ class FVGDetector:
                     highs, lows, closes, volumes, timestamps, i, avg_volume
                 )
                 if fvg and self._validate_fvg(fvg):
+                    # Age in bars since the FVG was confirmed (index=i) up to the current bar (n-1).
+                    fvg.age_in_bars = max(0, (n - 1) - i)
                     self._fvgs.append(fvg)
                     if len(self._fvgs) >= self.max_fvgs:
                         break
@@ -137,7 +147,9 @@ class FVGDetector:
         # Update states and fill percentages
         current_time_dt = None
         if timestamps is not None and len(timestamps) > 0:
-            current_time_dt = datetime.fromtimestamp(timestamps[-1].astype("datetime64[s]").astype(int))
+            current_time_dt = datetime.fromtimestamp(
+                timestamps[-1].astype("datetime64[s]").astype(int)
+            )
         self._update_fvg_states(current_price, current_time_dt)
 
         # Sort by quality score
@@ -216,13 +228,17 @@ class FVGDetector:
         fvg = FairValueGap()
 
         # Timestamp
-        fvg.timestamp = datetime.fromtimestamp(timestamps[index].astype("datetime64[s]").astype(int))
+        fvg.timestamp = datetime.fromtimestamp(
+            timestamps[index].astype("datetime64[s]").astype(int)
+        )
 
         # Gap boundaries (candles: index-2 is first, index is third)
         fvg.lower_level = float(highs[index - 2])
         fvg.upper_level = float(lows[index])
         fvg.mid_level = float((fvg.upper_level + fvg.lower_level) / 2)
-        fvg.optimal_entry = float(fvg.lower_level + (fvg.upper_level - fvg.lower_level) * 0.618)  # 61.8% Fib
+        fvg.optimal_entry = float(
+            fvg.lower_level + (fvg.upper_level - fvg.lower_level) * 0.618
+        )  # 61.8% Fib
 
         # Type and state
         fvg.fvg_type = FVGType.FVG_BULLISH
@@ -273,13 +289,17 @@ class FVGDetector:
         fvg = FairValueGap()
 
         # Timestamp
-        fvg.timestamp = datetime.fromtimestamp(timestamps[index].astype("datetime64[s]").astype(int))
+        fvg.timestamp = datetime.fromtimestamp(
+            timestamps[index].astype("datetime64[s]").astype(int)
+        )
 
         # Gap boundaries (candles: index-2 is first, index is third)
         fvg.upper_level = float(lows[index - 2])
         fvg.lower_level = float(highs[index])
         fvg.mid_level = float((fvg.upper_level + fvg.lower_level) / 2)
-        fvg.optimal_entry = float(fvg.upper_level - (fvg.upper_level - fvg.lower_level) * 0.618)  # 61.8% Fib
+        fvg.optimal_entry = float(
+            fvg.upper_level - (fvg.upper_level - fvg.lower_level) * 0.618
+        )  # 61.8% Fib
 
         # Type and state
         fvg.fvg_type = FVGType.FVG_BEARISH
@@ -464,8 +484,11 @@ class FVGDetector:
 
     def get_active_fvgs(self) -> list[FairValueGap]:
         """Get all active (open or partially filled) FVGs."""
-        return [fvg for fvg in self._fvgs
-                if fvg.state in [FVGState.FVG_STATE_OPEN, FVGState.FVG_STATE_PARTIAL]]
+        return [
+            fvg
+            for fvg in self._fvgs
+            if fvg.state in [FVGState.FVG_STATE_OPEN, FVGState.FVG_STATE_PARTIAL]
+        ]
 
     def get_nearest_fvg(
         self,
@@ -473,9 +496,12 @@ class FVGDetector:
         current_price: float,
     ) -> FairValueGap | None:
         """Get nearest active FVG of specified type."""
-        active = [fvg for fvg in self._fvgs
-                  if fvg.fvg_type == fvg_type
-                  and fvg.state in [FVGState.FVG_STATE_OPEN, FVGState.FVG_STATE_PARTIAL]]
+        active = [
+            fvg
+            for fvg in self._fvgs
+            if fvg.fvg_type == fvg_type
+            and fvg.state in [FVGState.FVG_STATE_OPEN, FVGState.FVG_STATE_PARTIAL]
+        ]
 
         if not active:
             return None
@@ -521,7 +547,7 @@ class FVGDetector:
             score = 0.0
 
         # Adjust by quality and freshness
-        score *= (fvg.confluence_score / 100.0)
+        score *= fvg.confluence_score / 100.0
         if fvg.is_fresh:
             score *= 1.15
 

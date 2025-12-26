@@ -10,6 +10,8 @@ Tests cover:
 - Trade closure
 - Edge cases and error conditions
 """
+
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -31,7 +33,7 @@ class TestTradeManagerInitialize:
             stop_loss=1995.0,
             take_profit=2010.0,
             quantity=Decimal("1.0"),
-            reason="Test LONG entry"
+            reason="Test LONG entry",
         )
 
         assert trade.direction == Direction.LONG
@@ -54,7 +56,7 @@ class TestTradeManagerInitialize:
             stop_loss=2005.0,
             take_profit=1990.0,
             quantity=Decimal("0.5"),
-            reason="Test SHORT entry"
+            reason="Test SHORT entry",
         )
 
         assert trade.direction == Direction.SHORT
@@ -73,19 +75,21 @@ class TestTradeManagerInitialize:
             entry_price=2000.0,
             stop_loss=1995.0,
             take_profit=2010.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
 
-        # Simulate fill with slippage
+        # Simulate fill with slippage and explicit timestamp for backtest mode
+        fill_time = datetime(2025, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
         filled_trade = manager.fill_entry(
             trade.trade_id,
             actual_entry_price=2000.1,
-            actual_quantity=1.0
+            actual_quantity=1.0,
+            current_time=fill_time,
         )
 
         assert filled_trade.state == TradeState.OPEN
         assert filled_trade.entry_price == 2000.1
-        assert filled_trade.filled_at is not None
+        assert filled_trade.filled_at == fill_time
         assert filled_trade.highest_price == 2000.1
         assert filled_trade.lowest_price == 2000.1
 
@@ -103,7 +107,7 @@ class TestTradeManagerEdgeCases:
                 entry_price=2000.0,
                 stop_loss=1995.0,
                 take_profit=2010.0,
-                quantity=Decimal("1.0")
+                quantity=Decimal("1.0"),
             )
 
     def test_create_trade_zero_quantity(self):
@@ -116,7 +120,7 @@ class TestTradeManagerEdgeCases:
                 entry_price=2000.0,
                 stop_loss=1995.0,
                 take_profit=2010.0,
-                quantity=Decimal("0")
+                quantity=Decimal("0"),
             )
 
     def test_create_trade_negative_quantity(self):
@@ -129,7 +133,7 @@ class TestTradeManagerEdgeCases:
                 entry_price=2000.0,
                 stop_loss=1995.0,
                 take_profit=2010.0,
-                quantity=Decimal("-1.0")
+                quantity=Decimal("-1.0"),
             )
 
     def test_create_long_invalid_sl_placement(self):
@@ -142,7 +146,7 @@ class TestTradeManagerEdgeCases:
                 entry_price=2000.0,
                 stop_loss=2005.0,  # Invalid: above entry
                 take_profit=2010.0,
-                quantity=Decimal("1.0")
+                quantity=Decimal("1.0"),
             )
 
     def test_create_long_invalid_tp_placement(self):
@@ -155,7 +159,7 @@ class TestTradeManagerEdgeCases:
                 entry_price=2000.0,
                 stop_loss=1995.0,
                 take_profit=1990.0,  # Invalid: below entry
-                quantity=Decimal("1.0")
+                quantity=Decimal("1.0"),
             )
 
     def test_create_short_invalid_sl_placement(self):
@@ -168,7 +172,7 @@ class TestTradeManagerEdgeCases:
                 entry_price=2000.0,
                 stop_loss=1995.0,  # Invalid: below entry
                 take_profit=1990.0,
-                quantity=Decimal("1.0")
+                quantity=Decimal("1.0"),
             )
 
     def test_fill_nonexistent_trade(self):
@@ -187,7 +191,7 @@ class TestTradeManagerEdgeCases:
             entry_price=2000.0,
             stop_loss=1995.0,
             take_profit=2010.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
 
         manager.fill_entry(trade.trade_id, 2000.0, 1.0)
@@ -204,7 +208,7 @@ class TestTradeManagerEdgeCases:
             entry_price=2000.0,
             stop_loss=1995.0,
             take_profit=2010.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
         manager.fill_entry(trade.trade_id, 2000.0, 1.0)
 
@@ -213,7 +217,7 @@ class TestTradeManagerEdgeCases:
                 trade.trade_id,
                 closed_quantity=Decimal("2.0"),  # Exceeds 1.0
                 close_price=2005.0,
-                pnl=10.0
+                pnl=10.0,
             )
 
 
@@ -222,11 +226,7 @@ class TestTradeManagerHappyPath:
 
     def test_long_trade_full_cycle_with_partial(self):
         """Test LONG trade: entry -> partial @ 1R -> trailing -> close."""
-        manager = TradeManager(
-            partial_tp_r=1.0,
-            partial_tp_percent=0.5,
-            trailing_start_r=1.0
-        )
+        manager = TradeManager(partial_tp_r=1.0, partial_tp_percent=0.5, trailing_start_r=1.0)
 
         # 1. Create trade
         trade = manager.create_trade(
@@ -235,7 +235,7 @@ class TestTradeManagerHappyPath:
             stop_loss=1995.0,
             take_profit=2010.0,
             quantity=Decimal("1.0"),
-            reason="SMC confluence"
+            reason="SMC confluence",
         )
         assert trade.state == TradeState.PENDING
 
@@ -246,8 +246,8 @@ class TestTradeManagerHappyPath:
 
         # 3. Price moves to 1R (2005.0)
         actions = manager.update_price(trade.trade_id, 2005.0)
-        assert 'take_partial' in actions
-        assert actions['current_r'] == pytest.approx(1.0, abs=0.01)
+        assert "take_partial" in actions
+        assert actions["current_r"] == pytest.approx(1.0, abs=0.01)
 
         # Execute partial
         partial_qty = Decimal("0.5")
@@ -255,7 +255,7 @@ class TestTradeManagerHappyPath:
             trade.trade_id,
             closed_quantity=partial_qty,
             close_price=2005.0,
-            pnl=2.5  # 0.5 * (2005 - 2000)
+            pnl=2.5,  # 0.5 * (2005 - 2000)
         )
         trade = manager.get_trade(trade.trade_id)
         assert trade.state == TradeState.PARTIAL_CLOSE
@@ -265,21 +265,22 @@ class TestTradeManagerHappyPath:
 
         # 4. Price continues to 2R (2010.0)
         actions = manager.update_price(trade.trade_id, 2010.0)
-        assert 'adjust_sl' in actions
-        assert actions['current_r'] == pytest.approx(2.0, abs=0.01)
+        assert "adjust_sl" in actions
+        assert actions["current_r"] == pytest.approx(2.0, abs=0.01)
 
         # Execute SL adjustment
-        new_sl = actions['adjust_sl']['new_sl']
+        new_sl = actions["adjust_sl"]["new_sl"]
         manager.adjust_stop_loss(trade.trade_id, new_sl, "Trailing")
         trade = manager.get_trade(trade.trade_id)
         assert trade.state == TradeState.TRAILING
         assert trade.current_sl > trade.initial_sl  # Trailing up
 
-        # 5. Close remaining position
-        manager.close_trade(trade.trade_id, 2012.0, "Manual exit")
+        # 5. Close remaining position with explicit timestamp for backtest mode
+        close_time = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
+        manager.close_trade(trade.trade_id, 2012.0, "Manual exit", current_time=close_time)
         trade = manager.get_trade(trade.trade_id)
         assert trade.state == TradeState.CLOSED
-        assert trade.closed_at is not None
+        assert trade.closed_at == close_time
         assert trade.close_reason == "Manual exit"
 
     def test_short_trade_full_cycle(self):
@@ -292,7 +293,7 @@ class TestTradeManagerHappyPath:
             entry_price=2000.0,
             stop_loss=2005.0,
             take_profit=1990.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
 
         # 2. Fill
@@ -300,20 +301,17 @@ class TestTradeManagerHappyPath:
 
         # 3. Price moves to 1R (1995.0)
         actions = manager.update_price(trade.trade_id, 1995.0)
-        assert actions['current_r'] == pytest.approx(1.0, abs=0.01)
-        assert 'take_partial' in actions
+        assert actions["current_r"] == pytest.approx(1.0, abs=0.01)
+        assert "take_partial" in actions
 
         # Execute partial
         manager.execute_partial(
-            trade.trade_id,
-            closed_quantity=Decimal("0.5"),
-            close_price=1995.0,
-            pnl=2.5
+            trade.trade_id, closed_quantity=Decimal("0.5"), close_price=1995.0, pnl=2.5
         )
 
         # 4. Price continues to 1.5R (1992.5)
         actions = manager.update_price(trade.trade_id, 1992.5)
-        assert 'adjust_sl' in actions
+        assert "adjust_sl" in actions
 
         # 5. Close
         manager.close_trade(trade.trade_id, 1990.0, "Hit TP")
@@ -333,17 +331,17 @@ class TestTradeManagerErrorConditions:
             entry_price=2000.0,
             stop_loss=1995.0,
             take_profit=2010.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
         manager.fill_entry(trade.trade_id, 2000.0, 1.0)
         manager.close_trade(trade.trade_id, 2005.0, "Test close")
 
         # Update price on closed trade should return empty actions
         actions = manager.update_price(trade.trade_id, 2010.0)
-        assert actions['current_r'] == 0.0
-        assert actions['state_changed'] is False
-        assert 'take_partial' not in actions
-        assert 'adjust_sl' not in actions
+        assert actions["current_r"] == 0.0
+        assert actions["state_changed"] is False
+        assert "take_partial" not in actions
+        assert "adjust_sl" not in actions
 
     def test_adjust_sl_invalid_direction_long(self):
         """Test lowering SL on LONG trade (invalid)."""
@@ -354,7 +352,7 @@ class TestTradeManagerErrorConditions:
             entry_price=2000.0,
             stop_loss=1995.0,
             take_profit=2010.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
         manager.fill_entry(trade.trade_id, 2000.0, 1.0)
         manager.adjust_stop_loss(trade.trade_id, 1996.0, "Move up")
@@ -372,7 +370,7 @@ class TestTradeManagerErrorConditions:
             entry_price=2000.0,
             stop_loss=2005.0,
             take_profit=1990.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
         manager.fill_entry(trade.trade_id, 2000.0, 1.0)
         manager.adjust_stop_loss(trade.trade_id, 2004.0, "Move down")
@@ -393,15 +391,9 @@ class TestTradeManagerErrorConditions:
         manager = TradeManager()
 
         # Create 3 trades
-        trade1 = manager.create_trade(
-            Direction.LONG, 2000.0, 1995.0, 2010.0, Decimal("1.0")
-        )
-        trade2 = manager.create_trade(
-            Direction.SHORT, 2000.0, 2005.0, 1990.0, Decimal("1.0")
-        )
-        trade3 = manager.create_trade(
-            Direction.LONG, 2000.0, 1995.0, 2010.0, Decimal("1.0")
-        )
+        trade1 = manager.create_trade(Direction.LONG, 2000.0, 1995.0, 2010.0, Decimal("1.0"))
+        trade2 = manager.create_trade(Direction.SHORT, 2000.0, 2005.0, 1990.0, Decimal("1.0"))
+        trade3 = manager.create_trade(Direction.LONG, 2000.0, 1995.0, 2010.0, Decimal("1.0"))
 
         # Fill and close trade1
         manager.fill_entry(trade1.trade_id, 2000.0, 1.0)
@@ -430,18 +422,20 @@ class TestTradeManagerTrailingLogic:
             entry_price=2000.0,
             stop_loss=1995.0,
             take_profit=2010.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
         manager.fill_entry(trade.trade_id, 2000.0, 1.0)
 
         # Price at 0.5R - no trailing
         actions = manager.update_price(trade.trade_id, 2002.5)
-        assert 'adjust_sl' not in actions or 'breakeven' not in actions['adjust_sl']['reason'].lower()
+        assert (
+            "adjust_sl" not in actions or "breakeven" not in actions["adjust_sl"]["reason"].lower()
+        )
 
         # Price at 1R - should activate trailing
         actions = manager.update_price(trade.trade_id, 2005.0)
-        assert 'adjust_sl' in actions
-        assert 'breakeven' in actions['adjust_sl']['reason'].lower()
+        assert "adjust_sl" in actions
+        assert "breakeven" in actions["adjust_sl"]["reason"].lower()
 
     def test_trailing_follows_highest_price_long(self):
         """Test that trailing follows highest price for LONG."""
@@ -452,17 +446,17 @@ class TestTradeManagerTrailingLogic:
             entry_price=2000.0,
             stop_loss=1995.0,
             take_profit=2020.0,
-            quantity=Decimal("1.0")
+            quantity=Decimal("1.0"),
         )
         manager.fill_entry(trade.trade_id, 2000.0, 1.0)
 
         # Move to 2R
         actions = manager.update_price(trade.trade_id, 2010.0)
-        sl_at_2r = actions.get('adjust_sl', {}).get('new_sl', 0)
+        sl_at_2r = actions.get("adjust_sl", {}).get("new_sl", 0)
 
         # Move to 3R
         actions = manager.update_price(trade.trade_id, 2015.0)
-        sl_at_3r = actions.get('adjust_sl', {}).get('new_sl', 0)
+        sl_at_3r = actions.get("adjust_sl", {}).get("new_sl", 0)
 
         # SL should have moved up
         if sl_at_2r > 0 and sl_at_3r > 0:

@@ -9,6 +9,7 @@ AGENTS.md v3.7.0 Integration:
 - Dynamic daily limit: MIN(3%, Remaining Buffer × 0.6)
 - SENTINEL enforcement of both daily and total DD limits
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from .dd_protection import DDProtectionCalculator, DDProtectionState
 
 class AccountTerminatedException(Exception):
     """Raised when Apex Trading limits are breached (DD > 5% or consistency rule violated)."""
+
     pass
 
 
@@ -40,10 +42,17 @@ class PropFirmLimits:
     # These are kept for backward compatibility but should NOT be used.
     # Use DDProtectionCalculator (percentage-based) instead.
     # The percentage system (4% halt, 5% Apex limit) is authoritative.
-    daily_loss_limit: float = 3_000.0          # DEPRECATED: use DDProtectionCalculator
-    trailing_drawdown: float = 3_000.0         # DEPRECATED: use DDProtectionCalculator
-    buffer_pct: float = 0.1                    # 10% buffer for prudence
-    max_contracts: int = 1000  # Raised for XAUUSD CFD (no real contract limit); override for MGC futures
+    daily_loss_limit: float = 3_000.0  # DEPRECATED: use DDProtectionCalculator
+    trailing_drawdown: float = 3_000.0  # DEPRECATED: use DDProtectionCalculator
+    buffer_pct: float = 0.1  # 10% buffer for prudence
+    max_contracts: int = (
+        1000  # Raised for XAUUSD CFD (no real contract limit); override for MGC futures
+    )
+
+    def __post_init__(self) -> None:
+        """R10-FIX: Validate account_size to prevent div/0 in DD calculations."""
+        if self.account_size <= 0:
+            raise ValueError(f"account_size must be positive, got {self.account_size}")
 
 
 @dataclass
@@ -134,16 +143,43 @@ class PropFirmManager:
             self._high_water = equity
         self._last_update = self._resolve_now(now)
 
-    def register_trade_close(self, contracts: float, profit: float, now: datetime | None = None) -> None:
+    def register_trade_close(
+        self,
+        contracts: float,
+        profit: float,
+        now: datetime | None = None,
+        *,
+        equity: float | None = None,
+    ) -> None:
+        """Register a realized trade result.
+
+        IMPORTANT: Do NOT add `profit` on top of `self._equity`.
+
+        `update_equity()` is called intrabar with mark-to-market equity
+        (balance + unrealized PnL). When the position closes, that unrealized PnL
+        becomes realized PnL, but the account equity should remain the same.
+
+        If callers have an explicit post-close equity snapshot (e.g., realized
+        balance after fees/slippage), pass it via `equity=`.
+        """
+        _ = contracts  # kept for compatibility / future sizing hooks
         now_dt = self._resolve_now(now)
         now_et = now_dt.astimezone(self._consistency.et_tz)
+
         if profit > 0:
             self._consecutive_wins += 1
             self._consecutive_losses = 0
         elif profit < 0:
             self._consecutive_losses += 1
             self._consecutive_wins = 0
-        self.update_equity(self._equity + profit, now=now_dt)
+
+        if equity is not None:
+            self.update_equity(equity, now=now_dt)
+        else:
+            # Equity already includes unrealized PnL from MTM updates.
+            # Avoid double-counting profit on close.
+            self._last_update = now_dt
+
         self._consistency.update_profit(profit, now_et)
 
     def on_new_day(self, current_equity: float | None = None, now: datetime | None = None) -> None:
@@ -184,7 +220,10 @@ class PropFirmManager:
         """
         now_dt = self._resolve_now(now)
         state = self.get_state()
-        if (state.is_hard_breached or (state.dd_protection is not None and not state.dd_protection.can_trade)) and not self._terminated:
+        if (
+            state.is_hard_breached
+            or (state.dd_protection is not None and not state.dd_protection.can_trade)
+        ) and not self._terminated:
             self._terminated = True
             if self._raise_on_breach:
                 self._hard_stop(state)
@@ -211,9 +250,15 @@ class PropFirmManager:
         SINGLE_TRADE_LOSS_CAP = 0.015  # 1.5% max per trade
         if self._equity > 0:
             potential_loss_pct = risk_amount / self._equity
-            assert 0 <= potential_loss_pct <= 1, f"Invalid loss pct: {potential_loss_pct}"
+            # R10-FIX: Replace assert with explicit validation.
+            # Assert is disabled with python -O, bypassing this safety check.
+            if not (0 <= potential_loss_pct <= 1):
+                raise ValueError(f"Invalid loss pct: {potential_loss_pct}")
             if potential_loss_pct > SINGLE_TRADE_LOSS_CAP:
-                return False, f"Single trade loss {potential_loss_pct*100:.2f}% exceeds {SINGLE_TRADE_LOSS_CAP*100}% cap"
+                return (
+                    False,
+                    f"Single trade loss {potential_loss_pct * 100:.2f}% exceeds {SINGLE_TRADE_LOSS_CAP * 100}% cap",
+                )
 
         # Legacy daily limit check (keep for backward compatibility)
         available = self.get_max_risk_available()
@@ -239,7 +284,7 @@ class PropFirmManager:
         return DDProtectionCalculator.calculate_state(
             hwm=self._high_water,
             day_start_balance=self._daily_start_equity,
-            current_equity=self._equity
+            current_equity=self._equity,
         )
 
     # -------------------- metrics
@@ -253,6 +298,9 @@ class PropFirmManager:
         dd_protection = self.get_dd_protection_state()
 
         # Map DDProtectionState to RiskLevel for backward compatibility
+        # Per CLAUDE.md dd_limits:
+        # Trailing: WARN 3.0%, CAUTION 3.5%, CRITICAL 4.0%, HALT 4.5%, TERMINATED 5.0%
+        # Daily: WARN 1.5%, CAUTION 2.0%, REDUCE 2.5%, HALT 3.0%
         risk_level = RiskLevel.NORMAL
         is_hard_breached = False
 
@@ -260,14 +308,14 @@ class PropFirmManager:
             # DDProtectionCalculator halted trading (trailing >= 4% or daily >= 3%)
             risk_level = RiskLevel.BREACHED
             is_hard_breached = True
-        elif dd_protection.total_dd_pct >= 3.5 or dd_protection.daily_dd_pct >= 2.5:
-            # CRITICAL zone: close to halt thresholds
+        elif dd_protection.total_dd_pct >= 4.0 or dd_protection.daily_dd_pct >= 3.0:
+            # CRITICAL zone: at halt thresholds (4.0% trailing, 3.0% daily)
             risk_level = RiskLevel.CRITICAL
-        elif dd_protection.total_dd_pct >= 3.0 or dd_protection.daily_dd_pct >= 2.0:
-            # HIGH risk zone
+        elif dd_protection.total_dd_pct >= 3.5 or dd_protection.daily_dd_pct >= 2.5:
+            # HIGH risk zone (CAUTION trailing, REDUCE daily)
             risk_level = RiskLevel.HIGH
-        elif dd_protection.total_dd_pct >= 1.5 or dd_protection.daily_dd_pct >= 1.5:
-            # ELEVATED risk zone
+        elif dd_protection.total_dd_pct >= 3.0 or dd_protection.daily_dd_pct >= 2.0:
+            # ELEVATED risk zone (WARN trailing, CAUTION daily)
             risk_level = RiskLevel.ELEVATED
         else:
             risk_level = RiskLevel.NORMAL

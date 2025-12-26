@@ -2,7 +2,6 @@
 
 from typing import Any
 
-import numpy as np
 import pytest
 
 from src.optimization.config import OptimizationConfig, ParameterSpec, SearchConfig
@@ -45,7 +44,7 @@ def test_random_search_samples_count(mock_objective_fn):
         search=SearchConfig(mode="random", n_samples=n_samples, seed=42),
         parameters=[
             ParameterSpec(name="x", param_type="float", range=(0.0, 1.0)),
-        ]
+        ],
     )
 
     searcher = RandomSearch(config)
@@ -66,7 +65,7 @@ def test_stratified_sampling_property(mock_objective_fn):
         search=SearchConfig(mode="random", n_samples=n_samples, seed=42),
         parameters=[
             ParameterSpec(name="x", param_type="float", range=(0.0, 10.0)),
-        ]
+        ],
     )
 
     searcher = RandomSearch(config)
@@ -83,26 +82,19 @@ def test_stratified_sampling_property(mock_objective_fn):
     assert len(set(values)) == n_samples  # all unique (highly likely for floats)
 
 
-def test_reproducibility(mock_objective_fn):
+def test_random_search_reproducibility():
     config = OptimizationConfig(
-        search=SearchConfig(mode="random", n_samples=10, seed=123),
+        search=SearchConfig(mode="random", n_samples=10, seed=42),
         parameters=[
             ParameterSpec(name="x", param_type="float", range=(0.0, 1.0)),
             ParameterSpec(name="cat", param_type="categorical", choices=["A", "B", "C"]),
-        ]
+        ],
     )
 
-    # Run 1
-    searcher1 = RandomSearch(config)
-    results1 = searcher1.search(mock_objective_fn)
+    params1 = list(RandomSearch(config).iter_params())[:10]
+    params2 = list(RandomSearch(config).iter_params())[:10]
 
-    # Run 2
-    searcher2 = RandomSearch(config)
-    results2 = searcher2.search(mock_objective_fn)
-
-    # Compare
-    for r1, r2 in zip(results1, results2):
-        assert r1.params == r2.params
+    assert params1 == params2
 
 
 def test_categorical_balancing(mock_objective_fn):
@@ -111,7 +103,7 @@ def test_categorical_balancing(mock_objective_fn):
         search=SearchConfig(mode="random", n_samples=30, seed=42),
         parameters=[
             ParameterSpec(name="cat", param_type="categorical", choices=["A", "B", "C"]),
-        ]
+        ],
     )
 
     searcher = RandomSearch(config)

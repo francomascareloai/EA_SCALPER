@@ -9,6 +9,7 @@ Calculates optimal position size based on:
 
 Integrates with PropFirmManager for limit compliance.
 """
+
 import math
 from enum import IntEnum
 
@@ -18,7 +19,6 @@ from ..core.definitions import (
     DEFAULT_RISK_PER_TRADE,
     MAX_KELLY_FRACTION,
     MAX_RISK_PER_TRADE,
-    MIN_KELLY_FRACTION,
     XAUUSD_LOT_STEP,
     XAUUSD_MAX_LOT,
     XAUUSD_MIN_LOT,
@@ -28,11 +28,12 @@ from ..core.definitions import (
 
 class LotSizeMethod(IntEnum):
     """Position sizing method."""
-    FIXED = 0           # Fixed lot size
-    PERCENT_RISK = 1    # Fixed % of account
-    KELLY = 2           # Kelly Criterion
-    ATR = 3             # ATR-based
-    ADAPTIVE = 4        # Performance-based adaptive
+
+    FIXED = 0  # Fixed lot size
+    PERCENT_RISK = 1  # Fixed % of account
+    KELLY = 2  # Kelly Criterion
+    ATR = 3  # ATR-based
+    ADAPTIVE = 4  # Performance-based adaptive
 
 
 class PositionSizer:
@@ -223,7 +224,10 @@ class PositionSizer:
                 # Scale down lot to respect max_risk
                 # max_lot = (balance * max_risk) / (SL_pips * pip_value)
                 max_lot = (balance * self._max_risk_per_trade) / (stop_loss_pips * pip_value)
-                lot = self._normalize_lot(max_lot)
+                # BUG-1 FIX: Use _normalize_lot_no_min to avoid min_lot enforcement
+                # that would exceed risk cap. If lot ends up < min_lot, return 0.0
+                # (account too small to trade this position safely).
+                lot = self._normalize_lot_no_min(max_lot)
 
         return lot
 
@@ -314,6 +318,10 @@ class PositionSizer:
             R = avg_win / avg_loss
 
         Returns fraction of Kelly (default 0.25 = quarter Kelly).
+
+        BUG-2/3 FIX: If Kelly is negative or win_loss_ratio is too small,
+        return conservative fallback instead of clamping to MIN_KELLY_FRACTION.
+        A negative Kelly means "don't bet" - we should NOT trade at 10% risk!
         """
         total_trades = self._win_count + self._loss_count
 
@@ -329,16 +337,37 @@ class PositionSizer:
         loss_rate = 1.0 - win_rate
         win_loss_ratio = self._avg_win / self._avg_loss
 
+        # BUG-3 FIX: Guard against very small win_loss_ratio
+        # If avg_win is much smaller than avg_loss (ratio < 0.1), the formula
+        # produces extreme negative values. Fall back to conservative risk.
+        # Example: avg_win=$1, avg_loss=$100 -> ratio=0.01 -> kelly=-39.6
+        if win_loss_ratio < 0.1:
+            return self._risk_per_trade * 0.5  # Very conservative: half default risk
+
         # Kelly formula
+        # Formula: kelly = (W*R - L) / R = W - L/R
+        # Example: W=0.6, L=0.4, R=1.5 -> kelly = (0.6*1.5 - 0.4) / 1.5 = 0.333
         kelly = (win_rate * win_loss_ratio - loss_rate) / win_loss_ratio
+
+        # BUG-2 FIX: If raw Kelly is negative or zero, this is a losing system
+        # Do NOT trade at MIN_KELLY_FRACTION (10%) - that would be suicidal
+        # Return conservative fallback or zero
+        if kelly <= 0:
+            # Losing edge detected - return very conservative or no risk
+            # Using half of default risk as a "reduced confidence" approach
+            return self._risk_per_trade * 0.25
 
         # Apply fraction (quarter Kelly for safety)
         kelly *= self._kelly_fraction
 
-        # Clamp to safe range
-        kelly = max(MIN_KELLY_FRACTION, min(MAX_KELLY_FRACTION, kelly))
+        # Clamp to safe range (only upper bound matters now since kelly > 0)
+        # Lower bound: use minimum of default risk and calculated kelly
+        # Upper bound: MAX_KELLY_FRACTION (50%)
+        lower_bound: float = self._risk_per_trade * 0.5
+        upper_bound: float = MAX_KELLY_FRACTION
+        kelly = max(lower_bound, min(upper_bound, kelly))
 
-        return kelly
+        return float(kelly)
 
     def _calculate_adaptive_risk(self) -> float:
         """
@@ -400,6 +429,39 @@ class PositionSizer:
         # Enforce minimum
         if lot < self._min_lot:
             lot = self._min_lot
+
+        # Enforce maximum
+        if lot > self._max_lot:
+            lot = self._max_lot
+
+        return lot
+
+    def _normalize_lot_no_min(self, lot: float) -> float:
+        """
+        Normalize lot to max/step WITHOUT enforcing minimum.
+
+        BUG-1 FIX: This variant is used in the final safety check to avoid
+        the infinite loop where min_lot enforcement causes risk cap violation.
+        If the resulting lot < min_lot, we return 0.0 (no trade) because the
+        account is too small to trade this position at the allowed risk level.
+
+        Args:
+            lot: Raw lot size
+
+        Returns:
+            Normalized lot size (may be 0.0 if below min_lot)
+        """
+        if lot <= 0:
+            return 0.0
+
+        # Floor to lot_step (same as _normalize_lot)
+        if self._lot_step > 0:
+            lot = math.floor(lot / self._lot_step) * self._lot_step
+
+        # DO NOT enforce minimum - return 0.0 if below min_lot
+        # This prevents trading when account is too small for safe position sizing
+        if lot < self._min_lot:
+            return 0.0
 
         # Enforce maximum
         if lot > self._max_lot:

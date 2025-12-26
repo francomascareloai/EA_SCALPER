@@ -16,25 +16,20 @@ class TestDDCalculations:
     def test_daily_dd_pct_fresh_account(self):
         """Test daily DD% on fresh account (no loss)"""
         dd_pct = DDProtectionCalculator.calculate_daily_dd_pct(
-            day_start_balance=50000.0,
-            current_equity=50000.0
+            day_start_balance=50000.0, current_equity=50000.0
         )
         assert dd_pct == 0.0
 
     def test_daily_dd_pct_with_loss(self):
         """Test daily DD% with $750 loss (1.5%)"""
         dd_pct = DDProtectionCalculator.calculate_daily_dd_pct(
-            day_start_balance=50000.0,
-            current_equity=49250.0
+            day_start_balance=50000.0, current_equity=49250.0
         )
         assert dd_pct == pytest.approx(1.5, abs=0.01)
 
     def test_total_dd_pct_from_hwm(self):
         """Test total DD% from HWM"""
-        dd_pct = DDProtectionCalculator.calculate_total_dd_pct(
-            hwm=50000.0,
-            current_equity=48500.0
-        )
+        dd_pct = DDProtectionCalculator.calculate_total_dd_pct(hwm=50000.0, current_equity=48500.0)
         assert dd_pct == pytest.approx(3.0, abs=0.01)
 
     def test_remaining_buffer(self):
@@ -44,9 +39,7 @@ class TestDDCalculations:
 
     def test_dynamic_daily_limit_fresh_account(self):
         """Test dynamic daily limit on fresh account"""
-        max_daily = DDProtectionCalculator.calculate_max_daily_dd_pct(
-            remaining_buffer_pct=5.0
-        )
+        max_daily = DDProtectionCalculator.calculate_max_daily_dd_pct(remaining_buffer_pct=5.0)
         assert max_daily == pytest.approx(3.0, abs=0.01)  # MIN(3%, 5% × 0.6) = 3%
 
     def test_dynamic_daily_limit_warning_level(self):
@@ -65,7 +58,9 @@ class TestDDCalculations:
 
 
 class TestDailyDDTiers:
-    """Test daily DD tier classification"""
+    """Test daily DD tier classification per CLAUDE.md dd_limits:
+    WARN 1.5%, CAUTION 2.0%, REDUCE 2.5%, HALT 3.0%
+    """
 
     def test_below_warning_threshold(self):
         """Test DD below 1.5% warning threshold"""
@@ -74,28 +69,28 @@ class TestDailyDDTiers:
         assert tier.action == DDAction.NONE
 
     def test_warning_tier(self):
-        """Test 1.5% WARNING tier"""
+        """Test 1.5% WARNING tier (WARN level per CLAUDE.md)"""
         tier, idx = DDProtectionCalculator.get_daily_dd_tier(1.5)
         assert idx == 0
         assert tier.action == DDAction.WARNING
         assert tier.threshold_pct == 1.5
 
-    def test_reduce_tier(self):
-        """Test 2.0% REDUCE tier"""
+    def test_caution_tier(self):
+        """Test 2.0% CAUTION tier - WARNING action, no size reduction yet"""
         tier, idx = DDProtectionCalculator.get_daily_dd_tier(2.0)
         assert idx == 1
-        assert tier.action == DDAction.REDUCE
+        assert tier.action == DDAction.WARNING  # CAUTION = WARNING (proceed carefully)
         assert tier.threshold_pct == 2.0
 
-    def test_stop_new_tier(self):
-        """Test 2.5% STOP_NEW tier"""
+    def test_reduce_tier(self):
+        """Test 2.5% REDUCE tier - 50% position size cut per CLAUDE.md"""
         tier, idx = DDProtectionCalculator.get_daily_dd_tier(2.5)
         assert idx == 2
-        assert tier.action == DDAction.STOP_NEW
+        assert tier.action == DDAction.REDUCE  # Size cut at 2.5%, not 2.0%
         assert tier.threshold_pct == 2.5
 
     def test_emergency_halt_tier(self):
-        """Test 3.0% EMERGENCY_HALT tier"""
+        """Test 3.0% EMERGENCY_HALT tier (HALT level per CLAUDE.md)"""
         tier, idx = DDProtectionCalculator.get_daily_dd_tier(3.0)
         assert idx == 3
         assert tier.action == DDAction.EMERGENCY_HALT
@@ -103,7 +98,9 @@ class TestDailyDDTiers:
 
 
 class TestTotalDDTiers:
-    """Test total DD tier classification"""
+    """Test total DD tier classification per CLAUDE.md dd_limits:
+    WARN 3.0%, CAUTION 3.5%, CRITICAL 4.0%, HALT 4.5%, TERMINATED 5.0%
+    """
 
     def test_below_warning(self):
         """Test total DD below 3.0% warning"""
@@ -112,27 +109,33 @@ class TestTotalDDTiers:
         assert tier.action == DDAction.NONE
 
     def test_warning_tier(self):
-        """Test 3.0% WARNING tier"""
+        """Test 3.0% WARNING tier (WARN level per CLAUDE.md)"""
         tier, idx = DDProtectionCalculator.get_total_dd_tier(3.0)
         assert idx == 0
         assert tier.action == DDAction.WARNING
 
-    def test_conservative_tier(self):
-        """Test 3.5% CONSERVATIVE tier"""
+    def test_caution_tier(self):
+        """Test 3.5% CAUTION tier - WARNING action per CLAUDE.md"""
         tier, idx = DDProtectionCalculator.get_total_dd_tier(3.5)
         assert idx == 1
-        assert tier.action == DDAction.REDUCE
+        assert tier.action == DDAction.WARNING  # CAUTION = WARNING (no size cut for trailing)
 
-    def test_halt_tier_at_safety_buffer(self):
-        """Test 4.0% hard-block tier (HALT_ALL)"""
+    def test_critical_halt_tier(self):
+        """Test 4.0% CRITICAL tier (HALT_ALL safety buffer per CLAUDE.md)"""
         tier, idx = DDProtectionCalculator.get_total_dd_tier(4.0)
         assert idx == 2
         assert tier.action == DDAction.HALT_ALL
 
-    def test_terminated_tier(self):
-        """Test 5.0% TERMINATED tier"""
-        tier, idx = DDProtectionCalculator.get_total_dd_tier(5.0)
+    def test_halt_tier(self):
+        """Test 4.5% HALT tier per CLAUDE.md"""
+        tier, idx = DDProtectionCalculator.get_total_dd_tier(4.5)
         assert idx == 3
+        assert tier.action == DDAction.HALT_ALL
+
+    def test_terminated_tier(self):
+        """Test 5.0% TERMINATED tier (Apex limit)"""
+        tier, idx = DDProtectionCalculator.get_total_dd_tier(5.0)
+        assert idx == 4  # 5 tiers now: 3.0, 3.5, 4.0, 4.5, 5.0
         assert tier.action == DDAction.TERMINATED
 
 
@@ -142,9 +145,7 @@ class TestDDProtectionState:
     def test_fresh_account_state(self):
         """Test DD state on fresh $50k account"""
         state = DDProtectionCalculator.calculate_state(
-            hwm=50000.0,
-            day_start_balance=50000.0,
-            current_equity=50000.0
+            hwm=50000.0, day_start_balance=50000.0, current_equity=50000.0
         )
 
         assert state.daily_dd_pct == 0.0
@@ -162,7 +163,7 @@ class TestDDProtectionState:
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=50000.0,
-            current_equity=49250.0  # -$750 = 1.5% DD
+            current_equity=49250.0,  # -$750 = 1.5% DD
         )
 
         assert state.daily_dd_pct == pytest.approx(1.5, abs=0.01)
@@ -171,40 +172,40 @@ class TestDDProtectionState:
         assert state.can_open_new is True
         assert state.position_size_factor == 1.0  # Normal sizing at WARNING
 
-    def test_reduce_level_state(self):
-        """Test DD state at 2.0% daily DD (REDUCE)"""
+    def test_caution_level_state(self):
+        """Test DD state at 2.0% daily DD (CAUTION per CLAUDE.md)"""
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=50000.0,
-            current_equity=49000.0  # -$1,000 = 2.0% DD
+            current_equity=49000.0,  # -$1,000 = 2.0% DD
         )
 
         assert state.daily_dd_pct == pytest.approx(2.0, abs=0.01)
-        assert state.daily_action == DDAction.REDUCE
+        assert state.daily_action == DDAction.WARNING  # CAUTION = WARNING, no size cut yet
         assert state.can_trade is True
         assert state.can_open_new is True
-        assert state.position_size_factor == 0.5  # 50% size reduction
+        assert state.position_size_factor == 1.0  # Normal sizing at CAUTION
 
-    def test_stop_new_level_state(self):
-        """Test DD state at 2.5% daily DD (STOP_NEW)"""
+    def test_reduce_level_state(self):
+        """Test DD state at 2.5% daily DD (REDUCE per CLAUDE.md)"""
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=50000.0,
-            current_equity=48750.0  # -$1,250 = 2.5% DD
+            current_equity=48750.0,  # -$1,250 = 2.5% DD
         )
 
         assert state.daily_dd_pct == pytest.approx(2.5, abs=0.01)
-        assert state.daily_action == DDAction.STOP_NEW
+        assert state.daily_action == DDAction.REDUCE  # REDUCE at 2.5%, not 2.0%
         assert state.can_trade is True
-        assert state.can_open_new is False  # New positions blocked
-        assert state.position_size_factor == 0.0
+        assert state.can_open_new is True
+        assert state.position_size_factor == 0.5  # 50% size reduction
 
     def test_emergency_halt_state(self):
         """Test DD state at 3.0% daily DD (EMERGENCY_HALT)"""
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=50000.0,
-            current_equity=48500.0  # -$1,500 = 3.0% DD
+            current_equity=48500.0,  # -$1,500 = 3.0% DD
         )
 
         assert state.daily_dd_pct == pytest.approx(3.0, abs=0.01)
@@ -213,13 +214,12 @@ class TestDDProtectionState:
         assert state.can_open_new is False  # New positions blocked
         assert state.position_size_factor == 0.0
 
-
     def test_trailing_dd_halt_buffer_state(self):
         """Test DD state at 4.0% total DD (HALT_ALL safety buffer)."""
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=50000.0,
-            current_equity=48000.0  # -$2,000 = 4.0% total DD
+            current_equity=48000.0,  # -$2,000 = 4.0% total DD
         )
 
         assert state.total_dd_pct == pytest.approx(4.0, abs=0.01)
@@ -232,7 +232,7 @@ class TestDDProtectionState:
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=47500.0,
-            current_equity=47500.0  # -$2,500 = 5.0% DD from HWM
+            current_equity=47500.0,  # -$2,500 = 5.0% DD from HWM
         )
 
         assert state.total_dd_pct == pytest.approx(5.0, abs=0.01)
@@ -246,7 +246,7 @@ class TestDDProtectionState:
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,  # Original HWM
             day_start_balance=48750.0,  # Day 2 start
-            current_equity=48750.0  # No new loss today
+            current_equity=48750.0,  # No new loss today
         )
 
         assert state.daily_dd_pct == 0.0  # Fresh daily DD
@@ -263,26 +263,30 @@ class TestTradeValidation:
     def test_trade_approved_fresh_account(self):
         """Test trade approval on fresh account"""
         state = DDProtectionCalculator.calculate_state(
-            hwm=50000.0,
-            day_start_balance=50000.0,
-            current_equity=50000.0
+            hwm=50000.0, day_start_balance=50000.0, current_equity=50000.0
         )
 
         allowed, reason = DDProtectionCalculator.validate_trade(state, proposed_risk_pct=0.5)
         assert allowed is True
         assert "approved" in reason.lower()
 
-    def test_trade_blocked_at_stop_new(self):
-        """Test trade blocked at STOP_NEW tier"""
+    def test_trade_blocked_at_reduce_level(self):
+        """Test trade blocked when dynamic limit exceeded at 2.5% DD.
+
+        At 2.5% DD with 2.5% total DD buffer remaining:
+        - max_daily = MIN(3%, 2.5% * 0.6) = 1.5%
+        - Current 2.5% daily > 1.5% max, so trade blocked by dynamic limit
+        """
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=50000.0,
-            current_equity=48750.0  # 2.5% DD = STOP_NEW
+            current_equity=48750.0,  # 2.5% DD = REDUCE
         )
 
+        assert state.daily_action == DDAction.REDUCE
         allowed, reason = DDProtectionCalculator.validate_trade(state, proposed_risk_pct=0.5)
         assert allowed is False
-        assert "blocked" in reason.lower()
+        assert "dynamic daily limit" in reason.lower() or "4.0%" in reason
 
     def test_trade_blocked_exceeds_dynamic_limit(self):
         """Test trade blocked when exceeds dynamic daily limit"""
@@ -290,7 +294,7 @@ class TestTradeValidation:
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=48250.0,
-            current_equity=48250.0  # 3.5% total DD
+            current_equity=48250.0,  # 3.5% total DD
         )
 
         assert state.max_daily_dd_pct == pytest.approx(0.9, abs=0.01)
@@ -306,7 +310,7 @@ class TestTradeValidation:
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=48050.0,
-            current_equity=48050.0  # 3.9% total DD
+            current_equity=48050.0,  # 3.9% total DD
         )
 
         # Propose 0.2% risk (would hit 4.1% >= 4.0% safety buffer)
@@ -314,21 +318,24 @@ class TestTradeValidation:
         assert allowed is False
         assert "4.0%" in reason
 
-    def test_trade_approved_with_reduced_sizing(self):
-        """Test trade approved at REDUCE tier (sizing handled externally)"""
-        # Account at 2.0% DD from fresh start (max daily = 3.0%)
+    def test_caution_level_allows_trading(self):
+        """Test that at CAUTION (2.0%), trading is still allowed.
+
+        Per CLAUDE.md: 2.0% = CAUTION (WARNING action), no size cut yet.
+        """
         state = DDProtectionCalculator.calculate_state(
             hwm=50000.0,
             day_start_balance=50000.0,
-            current_equity=49000.0  # 2.0% DD = REDUCE
+            current_equity=49000.0,  # 2.0% DD = CAUTION
         )
 
-        assert state.daily_action == DDAction.REDUCE
-        assert state.position_size_factor == 0.5  # 50% reduction signaled
-        assert state.max_daily_dd_pct == pytest.approx(1.8, abs=0.01)  # With 2% total DD, dynamic limit = MIN(3%, 3% × 0.6) = 1.8%
+        assert state.daily_action == DDAction.WARNING  # CAUTION uses WARNING action
+        assert state.position_size_factor == 1.0  # No size reduction at CAUTION
+        assert state.max_daily_dd_pct == pytest.approx(
+            1.8, abs=0.01
+        )  # With 2% total DD, dynamic limit = MIN(3%, 3% * 0.6) = 1.8%
 
-        # Since current 2.0% already exceeds dynamic limit 1.8%, any additional trade is blocked
-        # This is CORRECT behavior - dynamic limit prevents further losses when total DD buffer is stressed
+        # Current 2.0% exceeds dynamic limit 1.8%, so new trades blocked by dynamic limit
         allowed, reason = DDProtectionCalculator.validate_trade(state, proposed_risk_pct=0.1)
-        assert allowed is False  # Changed: should be blocked because 2.0% > 1.8% dynamic limit
+        assert allowed is False
         assert "exceed dynamic daily limit" in reason.lower()

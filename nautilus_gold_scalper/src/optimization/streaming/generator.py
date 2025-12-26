@@ -56,6 +56,10 @@ class StreamingLHSGenerator:
                 u = self._rng.uniform(strata[:-1], strata[1:])
 
                 if spec.log_scale:
+                    if low <= 0 or high <= 0:
+                        raise ValueError(
+                            f"Parameter {spec.name}: log_scale requires positive range, got ({low}, {high})"
+                        )
                     log_low = np.log10(low)
                     log_high = np.log10(high)
                     values = np.power(10, log_low + (log_high - log_low) * u)

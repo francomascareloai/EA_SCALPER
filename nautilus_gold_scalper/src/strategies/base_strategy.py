@@ -722,7 +722,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                     else:
                         prop_event_dt = None
                     self._prop_firm.register_trade_close(
-                        contracts=qty, profit=net_pnl, now=prop_event_dt
+                        contracts=qty,
+                        profit=net_pnl,
+                        now=prop_event_dt,
+                        equity=float(self._equity_base),
                     )
                 except Exception as exc:
                     self.log.debug(f"Prop firm update failed on close: {exc}")

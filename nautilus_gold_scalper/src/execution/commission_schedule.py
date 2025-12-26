@@ -27,16 +27,24 @@ def commission_per_side_usd(*, profile: PropProfile, product: Product, gateway: 
     """
 
     if profile == "apex":
+        # Costs as of 2024-2025 for MGC (Micro Gold)
+        # Breakdown is per-side (per fill) USD; round turn ~= 2x.
         if product != "mgc":
             raise ValueError(f"Unsupported Apex commission lookup for product={product!r}")
         if gateway == "rithmic":
-            return 0.76
+            return 1.14  # Exchange $0.52 + NFA $0.02 + Routing $0.10 + Commission $0.50
         if gateway == "tradovate":
-            return 0.67
+            return 1.04  # Exchange $0.52 + NFA $0.02 + Commission $0.50
         raise ValueError(f"Unsupported gateway={gateway!r}")
 
-    # FTMO is FX/CFD, not futures. Keep explicit until we define a schedule.
+    # FTMO is FX/CFD, not futures. For CFDs we approximate the spread cost as a
+    # per-side proxy: half-spread in USD (entry/exit).
     if profile == "ftmo":
-        raise NotImplementedError("FTMO commission schedule not implemented; use manual commission_per_contract")
+        if product == "xauusd":
+            # Typical XAUUSD CFD spread assumption: ~$0.30 → half-spread ~$0.15 per side.
+            return 0.15
+        raise NotImplementedError(
+            "FTMO commission schedule not implemented for this product; use manual commission_per_contract"
+        )
 
     raise ValueError(f"Unsupported profile={profile!r}")

@@ -7,14 +7,24 @@ objective function settings, and validation configuration.
 
 from __future__ import annotations
 
+import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Any, Literal, cast
 
 import yaml
 
+SearchMode = Literal["grid", "random", "bayesian", "successive_halving", "lhs"]
 
-SearchMode = Literal["grid", "random", "bayesian", "wfo", "coarse_fine", "successive_halving"]
+# Runtime validation constants for search modes
+_VALID_SEARCH_MODES: frozenset[str] = frozenset(
+    {"grid", "random", "bayesian", "successive_halving", "lhs"}
+)
+_REMOVED_SEARCH_MODES: dict[str, str] = {
+    "wfo": "Removed: declared but never implemented",
+    "coarse_fine": "Removed: declared but never implemented",
+}
 ParamType = Literal["float", "int", "categorical"]
 
 
@@ -31,14 +41,58 @@ class ParameterSpec:
     description: str = ""
 
     def __post_init__(self) -> None:
+        allowed_types: set[str] = {"float", "int", "categorical"}
+        if self.param_type not in allowed_types:
+            raise ValueError(f"Parameter {self.name}: invalid type {self.param_type!r}")
+
+        if self.choices is not None and len(self.choices) == 0:
+            raise ValueError(f"Parameter {self.name}: choices cannot be empty")
+
         # For int/float: require EITHER range OR choices (discrete set)
         if self.param_type in ("float", "int"):
-            if self.range is None and not self.choices:
+            if self.range is None and self.choices is None:
                 raise ValueError(
                     f"Parameter {self.name}: range or choices required for {self.param_type}"
                 )
-        if self.param_type == "categorical" and not self.choices:
+
+            if self.log_scale and self.param_type != "float":
+                raise ValueError(
+                    f"Parameter {self.name}: log_scale only supported for float, got {self.param_type}"
+                )
+
+            if self.range is not None:
+                if len(self.range) != 2:
+                    raise ValueError(
+                        f"Parameter {self.name}: range must be a 2-tuple, got {self.range}"
+                    )
+
+                low, high = self.range
+                if not (math.isfinite(low) and math.isfinite(high)):
+                    raise ValueError(
+                        f"Parameter {self.name}: range values must be finite, got ({low}, {high})"
+                    )
+                if high < low:
+                    raise ValueError(f"Parameter {self.name}: invalid range ({low}, {high})")
+
+                if self.log_scale and (low <= 0 or high <= 0):
+                    raise ValueError(
+                        f"Parameter {self.name}: log_scale requires positive range, got ({low}, {high})"
+                    )
+
+            if self.log_scale and self.range is None:
+                raise ValueError(f"Parameter {self.name}: log_scale requires range")
+
+            if self.step is not None:
+                step = float(self.step)
+                if not math.isfinite(step) or step <= 0:
+                    raise ValueError(f"Parameter {self.name}: step must be > 0, got {self.step}")
+
+        # Categorical: require choices
+        if self.param_type == "categorical" and self.choices is None:
             raise ValueError(f"Parameter {self.name}: choices required for categorical")
+
+        if self.param_type == "categorical" and self.log_scale:
+            raise ValueError(f"Parameter {self.name}: log_scale not supported for categorical")
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +124,19 @@ class SuccessiveHalvingConfig:
     wfa_windows: Sequence[int] = (1, 3, 5)
     promotion_metric: str = "score"  # score | wfe | sqn
 
+    def __post_init__(self) -> None:
+        if self.eta < 1:
+            raise ValueError(f"eta must be >= 1, got {self.eta}")
+        if len(self.window_days) != len(self.wfa_windows):
+            raise ValueError(
+                f"window_days and wfa_windows must have same length: "
+                f"{len(self.window_days)} != {len(self.wfa_windows)}"
+            )
+        if any(d < 0 for d in self.window_days):
+            raise ValueError(f"window_days must be >= 0, got {list(self.window_days)}")
+        if any(w < 1 for w in self.wfa_windows):
+            raise ValueError(f"wfa_windows must be >= 1, got {list(self.wfa_windows)}")
+
 
 @dataclass(frozen=True, slots=True)
 class SearchConfig:
@@ -95,6 +162,16 @@ class ApexConstraints:
     daily_profit_max: float = 29.0  # Buffer before 30% consistency rule
     overnight_positions: int = 0
     time_gate_violations: int = 0
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(float(self.trailing_dd_max)) or float(self.trailing_dd_max) <= 0:
+            raise ValueError(f"trailing_dd_max must be > 0, got {self.trailing_dd_max}")
+        if not math.isfinite(float(self.daily_profit_max)) or float(self.daily_profit_max) <= 0:
+            raise ValueError(f"daily_profit_max must be > 0, got {self.daily_profit_max}")
+        if self.overnight_positions < 0:
+            raise ValueError(f"overnight_positions must be >= 0, got {self.overnight_positions}")
+        if self.time_gate_violations < 0:
+            raise ValueError(f"time_gate_violations must be >= 0, got {self.time_gate_violations}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +209,12 @@ class CompositeWeight:
     weight: float
     normalize: float = 1.0
     source: str | None = None  # For derived metrics like "positive_days_ratio"
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(float(self.weight)):
+            raise ValueError(f"weight must be finite, got {self.weight}")
+        if not math.isfinite(float(self.normalize)) or float(self.normalize) <= 0:
+            raise ValueError(f"normalize must be > 0, got {self.normalize}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +262,10 @@ class InlineWFAConfig:
     purge_days: int = 5
     embargo_days: int = 2
     early_prune_wfe: float = 0.5
+
+    def __post_init__(self) -> None:
+        if self.windows < 1:
+            raise ValueError(f"windows must be >= 1, got {self.windows}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,7 +394,7 @@ class OptimizationConfig:
     output: OutputConfig = field(default_factory=OutputConfig)
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> "OptimizationConfig":
+    def from_yaml(cls, path: str | Path) -> OptimizationConfig:
         """Load configuration from YAML file."""
         path = Path(path)
         if not path.exists():
@@ -319,7 +406,7 @@ class OptimizationConfig:
         return cls._from_dict(raw)
 
     @classmethod
-    def _from_dict(cls, raw: dict[str, Any]) -> "OptimizationConfig":
+    def _from_dict(cls, raw: dict[str, Any]) -> OptimizationConfig:
         """Parse raw dict into typed config."""
         metadata = raw.get("metadata", {})
         search_raw = raw.get("search", {})
@@ -337,13 +424,21 @@ class OptimizationConfig:
         for name, spec in params_raw.items():
             if not isinstance(spec, dict):
                 continue
+
             param_type = spec.get("type", "float")
             range_val = spec.get("range")
+
+            range_tuple: tuple[float, float] | None = None
+            if range_val is not None:
+                if not isinstance(range_val, Sequence) or len(range_val) != 2:
+                    raise ValueError(f"Parameter {name}: range must be a 2-item sequence")
+                range_tuple = (float(range_val[0]), float(range_val[1]))
+
             parameters.append(
                 ParameterSpec(
                     name=name,
                     param_type=param_type,
-                    range=tuple(range_val) if range_val else None,
+                    range=range_tuple,
                     step=spec.get("step"),
                     choices=spec.get("choices"),
                     log_scale=spec.get("log_scale", False),
@@ -370,9 +465,27 @@ class OptimizationConfig:
             promotion_metric=sh_raw.get("promotion_metric", "score"),
         )
 
+        # Parse and validate search mode
+        raw_mode = search_raw.get("mode", "bayesian")
+        if raw_mode in _REMOVED_SEARCH_MODES:
+            raise ValueError(
+                f"search.mode='{raw_mode}' is not supported. "
+                f"{_REMOVED_SEARCH_MODES[raw_mode]}. "
+                f"Valid modes: {sorted(_VALID_SEARCH_MODES)}"
+            )
+        if raw_mode not in _VALID_SEARCH_MODES:
+            raise ValueError(
+                f"search.mode='{raw_mode}' is not valid. Valid modes: {sorted(_VALID_SEARCH_MODES)}"
+            )
+        # Treat 'lhs' as alias for 'random' (both use LHS sampling)
+        if raw_mode == "lhs":
+            validated_mode: SearchMode = "random"
+        else:
+            validated_mode = cast(SearchMode, raw_mode)
+
         # Parse search config
         search = SearchConfig(
-            mode=search_raw.get("mode", "bayesian"),
+            mode=validated_mode,
             trials=search_raw.get("trials", 200),
             sampler=search_raw.get("sampler", "tpe"),
             max_grid_size=search_raw.get("max_grid_size", 1000),
@@ -506,7 +619,9 @@ class OptimizationConfig:
         test_range = data_raw.get("test_range", {})
 
         data_config = DataConfig(
-            path=data_raw.get("path", "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"),
+            path=data_raw.get(
+                "path", "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
+            ),
             train_start=train_range.get("start", "2010-01-01"),
             train_end=train_range.get("end", "2022-12-31"),
             test_start=test_range.get("start", "2023-01-01"),
@@ -546,8 +661,4 @@ class OptimizationConfig:
 
     def get_param_ranges(self) -> dict[str, tuple[float, float]]:
         """Get parameter name to range mapping for overfitting detection."""
-        return {
-            p.name: p.range
-            for p in self.parameters
-            if p.range is not None
-        }
+        return {p.name: p.range for p in self.parameters if p.range is not None}

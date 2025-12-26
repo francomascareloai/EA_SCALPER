@@ -29,7 +29,14 @@ def _instrument_folder_name(instrument: str) -> str:
 
 
 def _parse_date_utc(date_str: str, *, end_inclusive: bool) -> datetime:
-    d = datetime.fromisoformat(str(date_str)).replace(tzinfo=timezone.utc)
+    # Accept YYYY-MM-DD (treated as UTC midnight) or full ISO datetime.
+    # If tz-aware input is provided (e.g. includes an offset), preserve the actual
+    # instant in time by converting to UTC (do NOT overwrite tzinfo via replace()).
+    d = datetime.fromisoformat(str(date_str))
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+    else:
+        d = d.astimezone(timezone.utc)
     return d + (timedelta(days=1) if end_inclusive else timedelta(0))
 
 
@@ -83,15 +90,24 @@ def _build_bars(
     every: str,
 ) -> pl.LazyFrame:
     lf = lf_ticks.with_columns(
-        pl.col("ts_event").cast(pl.Datetime(time_unit="ns", time_zone="UTC"), strict=False).alias("timestamp"),
+        pl.col("ts_event")
+        .cast(pl.Datetime(time_unit="ns", time_zone="UTC"), strict=False)
+        .alias("timestamp"),
         (_decode_price_raw_u64_expr("bid_price").cast(pl.Float64) / 1e16).alias("bid"),
         (_decode_price_raw_u64_expr("ask_price").cast(pl.Float64) / 1e16).alias("ask"),
     )
-    lf = lf.filter((pl.col("timestamp") >= pl.lit(start_dt)) & (pl.col("timestamp") < pl.lit(end_dt_exclusive)))
-    lf = lf.with_columns(((pl.col("bid") + pl.col("ask")) / 2.0).alias("mid")).select(["timestamp", "mid"])
+    lf = lf.filter(
+        (pl.col("timestamp") >= pl.lit(start_dt)) & (pl.col("timestamp") < pl.lit(end_dt_exclusive))
+    )
+    lf = lf.with_columns(((pl.col("bid") + pl.col("ask")) / 2.0).alias("mid")).select(
+        ["timestamp", "mid"]
+    )
     lf = lf.sort("timestamp")
+    # IMPORTANT (temporal correctness): label bars at the RIGHT edge of the interval.
+    # If we label on the left edge, a bar timestamp (t0) would summarize data from (t0..t1),
+    # which can create look-ahead when consuming bars by timestamp.
     return (
-        lf.group_by_dynamic(index_column="timestamp", every=every, closed="left", label="left")
+        lf.group_by_dynamic(index_column="timestamp", every=every, closed="left", label="right")
         .agg(
             pl.col("mid").first().alias("open"),
             pl.col("mid").max().alias("high"),
@@ -142,17 +158,29 @@ def _extract_session_name(catalog_dir_name: str) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Build OHLCV bars from Nautilus native session catalogs (quote_tick parquet).")
+    p = argparse.ArgumentParser(
+        description="Build OHLCV bars from Nautilus native session catalogs (quote_tick parquet)."
+    )
     p.add_argument("--start", required=True, help="Start date (YYYY-MM-DD, UTC).")
     p.add_argument("--end", required=True, help="End date (YYYY-MM-DD, UTC, inclusive).")
-    p.add_argument("--instrument", default=None, help="Instrument folder name inside catalog (default: from data/config.yaml).")
+    p.add_argument(
+        "--instrument",
+        default=None,
+        help="Instrument folder name inside catalog (default: from data/config.yaml).",
+    )
     p.add_argument(
         "--sessions-root",
         default="data/catalog_native_sessions",
         help="Root folder containing session-sliced catalogs (repo-relative by default).",
     )
-    p.add_argument("--sessions", default=None, help="Comma-separated session names (e.g. EVENING,LATE_NY).")
-    p.add_argument("--all-sessions", action="store_true", help="Build bars for all sessions under sessions-root.")
+    p.add_argument(
+        "--sessions", default=None, help="Comma-separated session names (e.g. EVENING,LATE_NY)."
+    )
+    p.add_argument(
+        "--all-sessions",
+        action="store_true",
+        help="Build bars for all sessions under sessions-root.",
+    )
     p.add_argument(
         "--timeframes",
         default="M5",
@@ -172,7 +200,11 @@ def main() -> int:
     repo_root = _repo_root()
 
     sessions_root = Path(args.sessions_root)
-    sessions_root = sessions_root.resolve() if sessions_root.is_absolute() else (repo_root / sessions_root).resolve()
+    sessions_root = (
+        sessions_root.resolve()
+        if sessions_root.is_absolute()
+        else (repo_root / sessions_root).resolve()
+    )
 
     out_dir = Path(args.out_dir)
     out_dir = out_dir.resolve() if out_dir.is_absolute() else (repo_root / out_dir).resolve()
@@ -186,23 +218,31 @@ def main() -> int:
     sessions = [s.upper() for s in _split_csv(args.sessions)]
     tf_list = _timeframes(str(args.timeframes))
 
-    catalogs = _resolve_sessions(sessions_root=sessions_root, sessions=sessions, all_sessions=bool(args.all_sessions))
+    catalogs = _resolve_sessions(
+        sessions_root=sessions_root, sessions=sessions, all_sessions=bool(args.all_sessions)
+    )
 
     for catalog_dir in catalogs:
         session_name = _extract_session_name(catalog_dir.name)
         lf_ticks = _scan_catalog_ticks(catalog_dir=catalog_dir, instrument=instrument)
         for tf in tf_list:
             every = _tf_to_every(tf)
-            bars_lf = _build_bars(lf_ticks=lf_ticks, start_dt=start_dt, end_dt_exclusive=end_dt_excl, every=every)
+            bars_lf = _build_bars(
+                lf_ticks=lf_ticks, start_dt=start_dt, end_dt_exclusive=end_dt_excl, every=every
+            )
             try:
                 bars = bars_lf.collect(engine="streaming")
             except TypeError:  # pragma: no cover
                 bars = bars_lf.collect()
             if bars.is_empty():
-                raise ValueError(f"No bars produced for session={session_name} tf={tf} in {args.start}..{args.end}")
+                raise ValueError(
+                    f"No bars produced for session={session_name} tf={tf} in {args.start}..{args.end}"
+                )
 
             safe_inst = _instrument_folder_name(instrument).replace(".", "_")
-            out_path = out_dir / session_name / tf / f"{safe_inst}_{tf}_{args.start}_{args.end}.parquet"
+            out_path = (
+                out_dir / session_name / tf / f"{safe_inst}_{tf}_{args.start}_{args.end}.parquet"
+            )
             out_path.parent.mkdir(parents=True, exist_ok=True)
             if out_path.exists() and not args.overwrite:
                 print(f"Skip (exists): {out_path}")
@@ -215,4 +255,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

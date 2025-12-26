@@ -9,6 +9,7 @@ Detects:
 - Quality scoring (LOW, MEDIUM, HIGH, ELITE)
 - Mitigation levels (50-70% of OB zone)
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -97,7 +98,9 @@ class OrderBlockDetector:
         """
         n = len(closes)
         if n < self.lookback_bars:
-            raise InsufficientDataError(f"Need at least {self.lookback_bars} bars for order block detection")
+            raise InsufficientDataError(
+                f"Need at least {self.lookback_bars} bars for order block detection"
+            )
 
         if timestamps is None:
             timestamps = np.arange(n).astype("datetime64[ns]")
@@ -128,6 +131,8 @@ class OrderBlockDetector:
                     opens, highs, lows, closes, volumes, timestamps, ob_index, i, avg_volume
                 )
                 if ob and self._validate_ob(ob):
+                    # Age in bars since the OB was confirmed (confirmation_index=i) up to the current bar (n-1).
+                    ob.age_in_bars = max(0, (n - 1) - i)
                     self._order_blocks.append(ob)
                     if len(self._order_blocks) >= self.max_order_blocks:
                         break
@@ -138,6 +143,8 @@ class OrderBlockDetector:
                     opens, highs, lows, closes, volumes, timestamps, ob_index, i, avg_volume
                 )
                 if ob and self._validate_ob(ob):
+                    # Age in bars since the OB was confirmed (confirmation_index=i) up to the current bar (n-1).
+                    ob.age_in_bars = max(0, (n - 1) - i)
                     self._order_blocks.append(ob)
                     if len(self._order_blocks) >= self.max_order_blocks:
                         break
@@ -272,7 +279,9 @@ class OrderBlockDetector:
             confirmation_index=confirmation_index,
             bullish=True,
         )
-        ob.volume_ratio = self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
+        ob.volume_ratio = (
+            self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
+        )
 
         # Quality assessment
         ob.strength = self._calculate_ob_strength(ob)
@@ -314,7 +323,9 @@ class OrderBlockDetector:
         # Price levels
         ob.high_price = float(highs[index])
         ob.low_price = float(lows[index])
-        ob.refined_entry = float(highs[index] - (highs[index] - lows[index]) * 0.5)  # 50% mitigation
+        ob.refined_entry = float(
+            highs[index] - (highs[index] - lows[index]) * 0.5
+        )  # 50% mitigation
 
         # Type and state
         ob.ob_type = OrderBlockType.OB_BEARISH
@@ -330,7 +341,9 @@ class OrderBlockDetector:
             confirmation_index=confirmation_index,
             bullish=False,
         )
-        ob.volume_ratio = self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
+        ob.volume_ratio = (
+            self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
+        )
 
         # Quality assessment
         ob.strength = self._calculate_ob_strength(ob)
@@ -551,9 +564,12 @@ class OrderBlockDetector:
         current_price: float,
     ) -> OrderBlock | None:
         """Get nearest active order block of specified type."""
-        active = [ob for ob in self._order_blocks
-                  if ob.ob_type == ob_type
-                  and ob.state in [OrderBlockState.OB_STATE_ACTIVE, OrderBlockState.OB_STATE_TESTED]]
+        active = [
+            ob
+            for ob in self._order_blocks
+            if ob.ob_type == ob_type
+            and ob.state in [OrderBlockState.OB_STATE_ACTIVE, OrderBlockState.OB_STATE_TESTED]
+        ]
 
         if not active:
             return None
@@ -600,7 +616,7 @@ class OrderBlockDetector:
             score = 0.0
 
         # Adjust by OB quality
-        score *= (ob.probability_score / 100.0)
+        score *= ob.probability_score / 100.0
 
         # Bonus if price is approaching OB
         if ob_type == OrderBlockType.OB_BULLISH and current_price > ob.high_price:

@@ -4,6 +4,7 @@ Drawdown Tracker for Nautilus Gold Scalper.
 Tracks daily and total drawdowns, streaks, and recovery metrics
 for prop-firm style risk controls and analytics.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,17 +19,19 @@ from ..core.definitions import (
 
 class DrawdownSeverity(IntEnum):
     """Severity buckets for current drawdown."""
+
     NONE = 0
-    MINOR = 1       # < 2%
-    MODERATE = 2    # 2-5%
-    SIGNIFICANT = 3 # 5-8%
-    SEVERE = 4      # 8-10%
-    CRITICAL = 5    # >10%
+    MINOR = 1  # < 2%
+    MODERATE = 2  # 2-5%
+    SIGNIFICANT = 3  # 5-8%
+    SEVERE = 4  # 8-10%
+    CRITICAL = 5  # >10%
 
 
 @dataclass
 class DrawdownSnapshot:
     """Snapshot of drawdown state at a point in time."""
+
     timestamp: datetime
     equity: float
     peak_equity: float
@@ -45,6 +48,7 @@ class DrawdownSnapshot:
 @dataclass
 class DrawdownAnalysis:
     """Aggregated analysis returned by update()."""
+
     is_in_drawdown: bool
     current_drawdown_abs: float
     current_drawdown_pct: float
@@ -117,8 +121,16 @@ class DrawdownTracker:
         self._last_day_check = self._last_update
 
     # ------------------------------------------------------------------ API
-    def update(self, current_equity: float, pnl: float | None = None, now: datetime | None = None) -> DrawdownAnalysis:
+    def update(
+        self, current_equity: float, pnl: float | None = None, now: datetime | None = None
+    ) -> DrawdownAnalysis:
         """Update tracker with current equity and optional trade PnL."""
+        # Always prefer explicit timestamp for backtest accuracy.
+        # Use datetime.now() only as fallback for live trading.
+        # Resolve `now` BEFORE any day-boundary logic to keep backtests deterministic.
+        if now is None:
+            now = datetime.now(timezone.utc)
+
         if current_equity <= 0:
             return self.get_analysis()
 
@@ -137,10 +149,6 @@ class DrawdownTracker:
             self._max_losses = max(self._max_losses, self._current_losses)
 
         self._current_equity = current_equity
-        # Always prefer explicit timestamp for backtest accuracy
-        # Use datetime.now() only as fallback for live trading
-        if now is None:
-            now = datetime.now(timezone.utc)
         self._last_update = now
 
         # Peak/high-water updates
@@ -163,7 +171,9 @@ class DrawdownTracker:
         self._is_in_drawdown = current_equity < self._peak_equity
         if self._is_in_drawdown:
             current_dd_abs = self._peak_equity - current_equity
-            current_dd_pct = (current_dd_abs / self._peak_equity) * 100.0 if self._peak_equity else 0.0
+            current_dd_pct = (
+                (current_dd_abs / self._peak_equity) * 100.0 if self._peak_equity else 0.0
+            )
             if current_dd_pct > self._max_drawdown_pct:
                 self._max_drawdown_pct = current_dd_pct
                 self._max_drawdown_abs = current_dd_abs
@@ -315,7 +325,11 @@ class DrawdownTracker:
         """Profit recovered vs max historical drawdown."""
         if self._max_drawdown_abs <= 0:
             return 0.0
-        return max(0.0, (self._current_equity - (self._peak_at_max_dd - self._max_drawdown_abs)) / self._max_drawdown_abs)
+        return max(
+            0.0,
+            (self._current_equity - (self._peak_at_max_dd - self._max_drawdown_abs))
+            / self._max_drawdown_abs,
+        )
 
     def _check_new_day(self, now: datetime | None = None) -> None:
         """Check if new trading day and reset if needed. Uses backtest timestamp if provided."""
@@ -327,8 +341,12 @@ class DrawdownTracker:
         self._last_day_check = now
 
     def _check_alerts(self) -> None:
-        daily_pct = self._daily_drawdown_pct / (self._max_daily * 100) * 100 if self._max_daily else 0
-        total_pct = self._total_drawdown_pct / (self._max_total * 100) * 100 if self._max_total else 0
+        daily_pct = (
+            self._daily_drawdown_pct / (self._max_daily * 100) * 100 if self._max_daily else 0
+        )
+        total_pct = (
+            self._total_drawdown_pct / (self._max_total * 100) * 100 if self._max_total else 0
+        )
         max_pct = max(daily_pct, total_pct)
         for thr in self._alert_thresholds:
             thr_pct = thr * 100
@@ -354,4 +372,4 @@ class DrawdownTracker:
         )
         self._history.append(snap)
         if len(self._history) > self._max_history_size:
-            self._history = self._history[-self._max_history_size:]
+            self._history = self._history[-self._max_history_size :]

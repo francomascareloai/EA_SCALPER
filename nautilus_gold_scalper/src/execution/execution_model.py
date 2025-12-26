@@ -36,10 +36,11 @@ The actual fill simulation logic may reside in the backtest engine (e.g.,
 NautilusTrader's FillModel). These parameters are exposed for configuration
 and can be passed to the fill model during backtest setup.
 """
+
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -82,9 +83,7 @@ class ExecutionRealism:
         if self.latency_ms < 0:
             raise ValueError(f"latency_ms must be >= 0, got {self.latency_ms}")
         if not 0 <= self.reject_probability <= 1:
-            raise ValueError(
-                f"reject_probability must be in [0, 1], got {self.reject_probability}"
-            )
+            raise ValueError(f"reject_probability must be in [0, 1], got {self.reject_probability}")
         if not 0 <= self.partial_fill_probability <= 1:
             raise ValueError(
                 f"partial_fill_probability must be in [0, 1], got {self.partial_fill_probability}"
@@ -102,7 +101,7 @@ class ExecutionRealism:
         }
 
     @classmethod
-    def conservative(cls) -> "ExecutionRealism":
+    def conservative(cls) -> ExecutionRealism:
         """Factory for conservative (realistic but not pessimistic) settings."""
         return cls(
             latency_ms=50.0,
@@ -112,7 +111,7 @@ class ExecutionRealism:
         )
 
     @classmethod
-    def aggressive(cls) -> "ExecutionRealism":
+    def aggressive(cls) -> ExecutionRealism:
         """Factory for aggressive (stress-test) settings."""
         return cls(
             latency_ms=150.0,
@@ -122,7 +121,7 @@ class ExecutionRealism:
         )
 
     @classmethod
-    def ideal(cls) -> "ExecutionRealism":
+    def ideal(cls) -> ExecutionRealism:
         """Factory for ideal (no imperfections) settings - for baseline comparison."""
         return cls(
             latency_ms=0.0,
@@ -138,12 +137,18 @@ class ExecutionModel:
 
     Combines ExecutionCosts (slippage, commission) with ExecutionRealism
     (latency, rejects, partial fills) for comprehensive fill simulation.
+
+    Notes:
+        This model includes randomized behavior (rejects, partial fills, slippage jitter).
+        Pass a fixed `seed` to make backtests reproducible. If `seed=None`, the RNG is
+        seeded from system entropy and results will be non-deterministic.
     """
 
     def __init__(
         self,
         costs: ExecutionCosts,
         realism: ExecutionRealism | None = None,
+        seed: int | None = None,
     ) -> None:
         """
         Initialize ExecutionModel.
@@ -152,7 +157,10 @@ class ExecutionModel:
             costs: Cost parameters (slippage, commission)
             realism: Realism parameters (latency, rejects, partials).
                      Defaults to ExecutionRealism() if not provided.
+            seed: Optional RNG seed for deterministic backtests. If None, uses a
+                  non-deterministic seed.
         """
+        self._rng: random.Random = random.Random(seed)
         self.costs = costs
         self.realism = realism if realism is not None else ExecutionRealism()
 
@@ -193,7 +201,7 @@ class ExecutionModel:
         """
         if self.realism.reject_probability <= 0:
             return False
-        return random.random() < self.realism.reject_probability
+        return self._rng.random() < self.realism.reject_probability
 
     def get_fill_ratio(self) -> float:
         """
@@ -205,9 +213,9 @@ class ExecutionModel:
         """
         if self.realism.partial_fill_probability <= 0:
             return 1.0
-        if random.random() < self.realism.partial_fill_probability:
+        if self._rng.random() < self.realism.partial_fill_probability:
             # Partial fill: between 50% and 90%
-            return random.uniform(0.5, 0.9)
+            return self._rng.uniform(0.5, 0.9)
         return 1.0
 
     def apply_slippage(
@@ -234,12 +242,10 @@ class ExecutionModel:
         if volatility is not None and volatility > 0:
             vol_factor = min(volatility / Decimal("0.5"), Decimal("3.0"))
 
-        slip_cents = (
-            self.costs.base_slippage_cents * self.costs.slippage_multiplier * vol_factor
-        )
+        slip_cents = self.costs.base_slippage_cents * self.costs.slippage_multiplier * vol_factor
         slip = slip_cents / Decimal("100")  # convert cents to dollars
 
-        jitter = Decimal(str(random.uniform(0.5, 1.5)))
+        jitter = Decimal(str(self._rng.uniform(0.5, 1.5)))
         slip *= jitter
 
         # Add fixed tick slippage if tick_size provided
@@ -277,16 +283,16 @@ class ExecutionModel:
         }
 
     @classmethod
-    def with_conservative_realism(cls, costs: ExecutionCosts) -> "ExecutionModel":
+    def with_conservative_realism(cls, costs: ExecutionCosts) -> ExecutionModel:
         """Factory for conservative realism settings."""
         return cls(costs=costs, realism=ExecutionRealism.conservative())
 
     @classmethod
-    def with_aggressive_realism(cls, costs: ExecutionCosts) -> "ExecutionModel":
+    def with_aggressive_realism(cls, costs: ExecutionCosts) -> ExecutionModel:
         """Factory for aggressive (stress-test) realism settings."""
         return cls(costs=costs, realism=ExecutionRealism.aggressive())
 
     @classmethod
-    def with_ideal_realism(cls, costs: ExecutionCosts) -> "ExecutionModel":
+    def with_ideal_realism(cls, costs: ExecutionCosts) -> ExecutionModel:
         """Factory for ideal (no imperfections) settings."""
         return cls(costs=costs, realism=ExecutionRealism.ideal())

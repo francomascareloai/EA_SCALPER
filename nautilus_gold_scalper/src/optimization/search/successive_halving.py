@@ -13,9 +13,9 @@ This keeps RAM bounded and prunes poor configs early.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import timedelta
-from typing import Any, Callable
+from typing import Any
 
 import pandas as pd
 
@@ -38,13 +38,22 @@ class SuccessiveHalvingSearch(SearchStrategy):
         *,
         on_result: Callable[[TrialResult], None] | None = None,
         max_results_in_ram: int | None = None,
-        objective_fn_with_fidelity: Callable[
-            [dict[str, Any], str, str, int], TrialResult
-        ]
+        objective_fn_with_fidelity: Callable[[dict[str, Any], str, str, int], TrialResult]
         | None = None,
+        start_trial_id: int = 0,
+        seed_results: list[TrialResult] | None = None,
         batch_size: int = 128,
     ) -> None:
         super().__init__(config, on_result=on_result, max_results_in_ram=max_results_in_ram)
+        if start_trial_id < 0:
+            raise ValueError("start_trial_id must be >= 0")
+        self._start_trial_id = int(start_trial_id)
+        if seed_results:
+            self._results = list(seed_results)
+
+        # `start_trial_id` represents already-completed evaluations across rungs.
+        self._evaluated_total = int(self._start_trial_id)
+
         self._batch_size = batch_size
         self._objective_fidelity = objective_fn_with_fidelity
 
@@ -59,7 +68,9 @@ class SuccessiveHalvingSearch(SearchStrategy):
         if self._objective_fidelity is None:
             raise ValueError("objective_fn_with_fidelity must be provided")
 
-        self._results = []
+        # Preserve any seeded results (resume). If none, start empty.
+        if self._start_trial_id == 0:
+            self._results = []
 
         sh = self.config.search.successive_halving
         if not sh.enabled:
@@ -87,11 +98,19 @@ class SuccessiveHalvingSearch(SearchStrategy):
         trial_id = 0
         last_rung_trial_ids: set[int] = set()
 
+        # If resuming, we skip evaluations until trial_id reaches start_trial_id.
+        # This works because candidate generation + rung iteration are deterministic
+        # given (seed, trials, successive_halving config).
+
         for rung_idx, (days, wfa_n) in enumerate(zip(window_days, wfa_windows)):
             start_date, end_date = self._resolve_rung_dates(days)
 
             rung_results: list[TrialResult] = []
             for params in candidates:
+                if trial_id < self._start_trial_id:
+                    trial_id += 1
+                    continue
+
                 result = self._objective_fidelity(params, start_date, end_date, int(wfa_n))
                 result.trial_id = trial_id
 
@@ -167,7 +186,7 @@ class SuccessiveHalvingSearch(SearchStrategy):
 
     def get_study_summary(self) -> dict[str, Any]:
         return {
-            "n_trials": len(self._results),
+            "n_trials": int(self._evaluated_total),
             "n_complete": len([r for r in self._results if not r.pruned]),
             "n_pruned": len([r for r in self._results if r.pruned]),
             "n_failed": 0,
@@ -175,4 +194,5 @@ class SuccessiveHalvingSearch(SearchStrategy):
             "best_params": self.get_best_params(),
             "mode": "successive_halving",
             "rungs": len(self.config.search.successive_halving.window_days),
+            "results_retained_in_ram": len(self._results),
         }

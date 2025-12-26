@@ -7,6 +7,7 @@ Timeframe Hierarchy:
 - MTF (M15): Structure and key levels
 - LTF (M5): Entry timing and execution
 """
+
 import logging
 from dataclasses import dataclass
 from enum import IntEnum
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 class Timeframe(IntEnum):
     """Timeframe enum for MTF analysis."""
+
     M1 = 1
     M5 = 5
     M15 = 15
@@ -36,6 +38,7 @@ class Timeframe(IntEnum):
 @dataclass
 class TimeframeAnalysis:
     """Analysis result for a single timeframe."""
+
     timeframe: Timeframe
     bias: MarketBias = MarketBias.RANGING
     regime: MarketRegime = MarketRegime.REGIME_UNKNOWN
@@ -52,6 +55,7 @@ class TimeframeAnalysis:
 @dataclass
 class MTFState:
     """Complete multi-timeframe state."""
+
     # Individual timeframe analyses
     htf_analysis: TimeframeAnalysis | None = None  # H1
     mtf_analysis: TimeframeAnalysis | None = None  # M15
@@ -119,9 +123,21 @@ class MTFManager:
 
         # Analyzers for each timeframe
         self._structure_analyzers: dict[Timeframe, StructureAnalyzer] = {
-            htf: StructureAnalyzer(swing_strength=htf_swing_strength, lookback_bars=htf_lookback_bars, point=structure_point),
-            mtf: StructureAnalyzer(swing_strength=mtf_swing_strength, lookback_bars=mtf_lookback_bars, point=structure_point),
-            ltf: StructureAnalyzer(swing_strength=ltf_swing_strength, lookback_bars=ltf_lookback_bars, point=structure_point),
+            htf: StructureAnalyzer(
+                swing_strength=htf_swing_strength,
+                lookback_bars=htf_lookback_bars,
+                point=structure_point,
+            ),
+            mtf: StructureAnalyzer(
+                swing_strength=mtf_swing_strength,
+                lookback_bars=mtf_lookback_bars,
+                point=structure_point,
+            ),
+            ltf: StructureAnalyzer(
+                swing_strength=ltf_swing_strength,
+                lookback_bars=ltf_lookback_bars,
+                point=structure_point,
+            ),
         }
 
         self._regime_detector = RegimeDetector(
@@ -179,15 +195,9 @@ class MTFManager:
                 return self._state
 
             # Analyze each timeframe
-            self._state.htf_analysis = self._analyze_timeframe(
-                self.htf, htf_data, current_price
-            )
-            self._state.mtf_analysis = self._analyze_timeframe(
-                self.mtf, mtf_data, current_price
-            )
-            self._state.ltf_analysis = self._analyze_timeframe(
-                self.ltf, ltf_data, current_price
-            )
+            self._state.htf_analysis = self._analyze_timeframe(self.htf, htf_data, current_price)
+            self._state.mtf_analysis = self._analyze_timeframe(self.mtf, mtf_data, current_price)
+            self._state.ltf_analysis = self._analyze_timeframe(self.ltf, ltf_data, current_price)
 
             # Check alignment
             self._check_alignment()
@@ -215,7 +225,10 @@ class MTFManager:
         if not data:
             return False
 
-        required_keys = ['highs', 'lows', 'closes']
+        # BUG-IND-002: Ensure OHLC arrays are present and aligned (same length).
+        required_keys = ["highs", "lows", "closes"]
+        arrays: dict[str, NDArray[np.floating[Any]]] = {}
+
         for key in required_keys:
             if key not in data:
                 logger.warning(f"{name} data missing key: {key}")
@@ -225,9 +238,23 @@ class MTFManager:
                 logger.warning(f"{name} {key} is not a numpy array")
                 return False
 
+            if data[key].ndim != 1:
+                logger.warning(f"{name} {key} must be 1D, got ndim={data[key].ndim}")
+                return False
+
             if len(data[key]) == 0:
                 logger.warning(f"{name} {key} is empty")
                 return False
+
+            arrays[key] = data[key]
+
+        n = len(arrays["closes"])
+        if len(arrays["highs"]) != n or len(arrays["lows"]) != n:
+            logger.warning(
+                f"{name} OHLC arrays length mismatch: "
+                f"highs={len(arrays['highs'])} lows={len(arrays['lows'])} closes={n}"
+            )
+            return False
 
         return True
 
@@ -241,9 +268,9 @@ class MTFManager:
         analysis = TimeframeAnalysis(timeframe=timeframe)
 
         try:
-            highs = data.get('highs', np.array([], dtype=float))
-            lows = data.get('lows', np.array([], dtype=float))
-            closes = data.get('closes', np.array([], dtype=float))
+            highs = data.get("highs", np.array([], dtype=float))
+            lows = data.get("lows", np.array([], dtype=float))
+            closes = data.get("closes", np.array([], dtype=float))
 
             if len(closes) < 20:
                 return analysis
@@ -310,8 +337,9 @@ class MTFManager:
             return
 
         # Block if HTF and MTF are in direct opposition
-        if (htf.bias == MarketBias.BULLISH and mtf.bias == MarketBias.BEARISH) or \
-           (htf.bias == MarketBias.BEARISH and mtf.bias == MarketBias.BULLISH):
+        if (htf.bias == MarketBias.BULLISH and mtf.bias == MarketBias.BEARISH) or (
+            htf.bias == MarketBias.BEARISH and mtf.bias == MarketBias.BULLISH
+        ):
             self._state.is_aligned = False
             self._state.alignment_direction = SignalType.SIGNAL_NONE
             self._state.alignment_strength = 0.0
@@ -320,22 +348,24 @@ class MTFManager:
 
         # Check bullish alignment
         bullish_aligned = (
-            htf.bias == MarketBias.BULLISH and
-            mtf.bias in [MarketBias.BULLISH, MarketBias.TRANSITION] and
-            ltf.bias in [MarketBias.BULLISH, MarketBias.TRANSITION]
+            htf.bias == MarketBias.BULLISH
+            and mtf.bias in [MarketBias.BULLISH, MarketBias.TRANSITION]
+            and ltf.bias in [MarketBias.BULLISH, MarketBias.TRANSITION]
         )
 
         # Check bearish alignment
         bearish_aligned = (
-            htf.bias == MarketBias.BEARISH and
-            mtf.bias in [MarketBias.BEARISH, MarketBias.TRANSITION] and
-            ltf.bias in [MarketBias.BEARISH, MarketBias.TRANSITION]
+            htf.bias == MarketBias.BEARISH
+            and mtf.bias in [MarketBias.BEARISH, MarketBias.TRANSITION]
+            and ltf.bias in [MarketBias.BEARISH, MarketBias.TRANSITION]
         )
 
         if bullish_aligned:
             self._state.is_aligned = True
             self._state.alignment_direction = SignalType.SIGNAL_BUY
-            mtf_weight = 0.35 if mtf.bias == MarketBias.BULLISH else 0.25  # Penalize transitional M15
+            mtf_weight = (
+                0.35 if mtf.bias == MarketBias.BULLISH else 0.25
+            )  # Penalize transitional M15
             self._state.alignment_strength = (
                 htf.strength * 0.35 + mtf.strength * mtf_weight + ltf.strength * 0.30
             )
@@ -400,7 +430,9 @@ class MTFManager:
         self._state.recommended_direction = self._state.alignment_direction
         self._state.entry_timeframe = self.ltf
 
-        direction_str = "BUY" if self._state.alignment_direction == SignalType.SIGNAL_BUY else "SELL"
+        direction_str = (
+            "BUY" if self._state.alignment_direction == SignalType.SIGNAL_BUY else "SELL"
+        )
         self._state.diagnosis = f"MTF aligned {direction_str} | Score: {self._state.mtf_score:.0f}"
 
     def is_aligned(self) -> bool:

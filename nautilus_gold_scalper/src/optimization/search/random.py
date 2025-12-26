@@ -13,11 +13,8 @@ This implementation uses a batch-streaming LHS-like generator to keep RAM bounde
 
 from __future__ import annotations
 
-import random
-from collections.abc import Iterator
-from typing import Any, Callable
-
-import numpy as np
+from collections.abc import Callable, Iterator
+from typing import Any
 
 from src.optimization.config import OptimizationConfig
 from src.optimization.search.base import (
@@ -38,22 +35,36 @@ class RandomSearch(SearchStrategy):
         *,
         on_result: Callable[[TrialResult], None] | None = None,
         max_results_in_ram: int | None = None,
+        start_trial_id: int = 0,
+        seed_results: list[TrialResult] | None = None,
         batch_size: int = 128,
     ) -> None:
         super().__init__(config, on_result=on_result, max_results_in_ram=max_results_in_ram)
-        self._rng = np.random.RandomState(config.search.seed)
+        if start_trial_id < 0:
+            raise ValueError("start_trial_id must be >= 0")
+        self._start_trial_id = int(start_trial_id)
+        if seed_results:
+            self._results = list(seed_results)
+
+        # `start_trial_id` represents already-completed trials (even if results are capped).
+        self._evaluated_total = int(self._start_trial_id)
         self._batch_size = batch_size
-        random.seed(config.search.seed)
 
     def search(
         self,
         objective_fn: ObjectiveFn,
         constraint_fn: ConstraintFn | None = None,
     ) -> list[TrialResult]:
-        self._results = []
+        # Preserve any seeded results (resume). If none, start empty.
+        if self._start_trial_id == 0:
+            self._results = []
+
         n_samples = self.config.search.n_samples
 
         for trial_id, params in enumerate(self._iter_samples(n_samples)):
+            if trial_id < self._start_trial_id:
+                continue
+
             result = objective_fn(params)
             result.trial_id = trial_id
 
@@ -77,6 +88,13 @@ class RandomSearch(SearchStrategy):
         )
         yield from generator
 
+    def iter_params(self, n_samples: int | None = None) -> Iterator[dict[str, Any]]:
+        """Iterate parameter samples without evaluating an objective."""
+
+        if n_samples is None:
+            n_samples = self.config.search.n_samples
+        yield from self._iter_samples(int(n_samples))
+
     def get_best_params(self) -> dict[str, Any]:
         if not self._results:
             return {}
@@ -84,12 +102,13 @@ class RandomSearch(SearchStrategy):
 
     def get_study_summary(self) -> dict[str, Any]:
         return {
-            "n_trials": len(self._results),
+            "n_trials": int(self._evaluated_total),
             "n_complete": len([r for r in self._results if not r.pruned]),
             "n_pruned": len([r for r in self._results if r.pruned]),
             "n_failed": 0,
             "best_value": self._results[0].score if self._results else None,
             "best_params": self.get_best_params(),
             "mode": "random",
-            "samples": len(self._results),
+            "samples": int(self.config.search.n_samples),
+            "results_retained_in_ram": len(self._results),
         }

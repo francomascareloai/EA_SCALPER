@@ -7,6 +7,7 @@ ledger. This keeps backtests and dry-runs deterministic while allowing
 runtime replacement with real connectors (MT5/NinjaTrader) when credentials
 and transports are available.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -28,6 +29,7 @@ except Exception:  # pragma: no cover
 @dataclass
 class TickEvent:
     """Minimal tick representation."""
+
     symbol: str
     timestamp: pd.Timestamp
     bid: float
@@ -91,6 +93,22 @@ class BaseExecutionAdapter:
         ask_col = cols.get("ask") or cols.get("askprice") or cols.get("ask_price")
         last_col = cols.get("last") or cols.get("lastprice") or cols.get("price") or ask_col
         vol_col = cols.get("volume") or cols.get("vol")
+
+        # BUG-LIVE-001: Explicitly validate required columns.
+        # Without this, missing columns can lead to confusing KeyError/TypeError at runtime.
+        missing: list[str] = []
+        if ts_col is None:
+            missing.append("time/timestamp/datetime")
+        if bid_col is None:
+            missing.append("bid")
+        if ask_col is None:
+            missing.append("ask")
+        if last_col is None:
+            missing.append("last/price")
+        if missing:
+            raise ValueError(
+                f"Missing required tick columns: {missing} (available={list(df.columns)})"
+            )
 
         for _, row in df.iterrows():
             yield TickEvent(
@@ -181,4 +199,3 @@ class BaseExecutionAdapter:
 
     def list_orders(self) -> list[dict[str, object]]:
         return [{**{"id": oid}, **info} for oid, info in self._orders.items()]
-

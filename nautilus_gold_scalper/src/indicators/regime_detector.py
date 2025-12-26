@@ -85,18 +85,36 @@ class RegimeDetector:
         volumes: NDArray[np.floating[Any]] | None = None,
     ) -> RegimeAnalysis:
         """Analisa o regime de mercado atual e retorna RegimeAnalysis."""
-        min_bars = max(self.hurst_period, self.entropy_period, max(self.multiscale_periods))
+        # BUG-IND-001: VR requires >= (2*q + 1) prices because returns = diff(log(prices)).
+        # Also guard against non-finite / non-positive prices which break log().
+        min_bars = max(
+            self.hurst_period,
+            self.entropy_period,
+            max(self.multiscale_periods),
+            (self.vr_period * 2) + 1,
+        )
         if len(prices) < min_bars:
             raise InsufficientDataError(f"Precisa de pelo menos {min_bars} barras")
 
-        hurst = self._calculate_hurst(prices[-self.hurst_period :])
-        hurst = max(0.0, min(1.0, hurst))
-        entropy = self._calculate_entropy(prices[-self.entropy_period :])
-        vr = self._calculate_variance_ratio(prices[-self.vr_period * 2 :])
+        # Sanitize prices for log-based metrics.
+        prices_f = np.asarray(prices, dtype=float)
+        finite_pos = np.isfinite(prices_f) & (prices_f > 0.0)
+        if not np.all(finite_pos):
+            prices_f = prices_f[finite_pos]
+            if len(prices_f) < min_bars:
+                raise InsufficientDataError(
+                    f"Precisa de pelo menos {min_bars} barras (apos filtrar NaN/<=0)"
+                )
 
-        hurst_short = self._calculate_hurst(prices[-self.multiscale_periods[0] :])
-        hurst_medium = self._calculate_hurst(prices[-self.multiscale_periods[1] :])
-        hurst_long = self._calculate_hurst(prices[-self.multiscale_periods[2] :])
+        hurst = self._calculate_hurst(prices_f[-self.hurst_period :])
+        hurst = max(0.0, min(1.0, hurst))
+        entropy = self._calculate_entropy(prices_f[-self.entropy_period :])
+        vr = self._calculate_variance_ratio(prices_f[-((self.vr_period * 2) + 1) :])
+
+        # BUG-IND-001: use the same sanitized price series for all log-based metrics.
+        hurst_short = self._calculate_hurst(prices_f[-self.multiscale_periods[0] :])
+        hurst_medium = self._calculate_hurst(prices_f[-self.multiscale_periods[1] :])
+        hurst_long = self._calculate_hurst(prices_f[-self.multiscale_periods[2] :])
         multiscale_agreement = self._calculate_multiscale_agreement(
             hurst_short, hurst_medium, hurst_long
         )

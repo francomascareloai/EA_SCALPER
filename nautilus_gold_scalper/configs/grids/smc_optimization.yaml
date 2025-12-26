@@ -32,50 +32,61 @@ search:
 
 parameters:
   # Confluence scoring weights
-  confluence.scoring.weights.structure:
-    type: float
-    range: [0.15, 0.40]
-    step: 0.05
-    description: "Weight for structure/BOS signals"
+  # Confluence weights (integer 0-100 scale, maps to confluence_weight_X fields)
+  confluence.weights.structure:
+    type: int
+    range: [10, 25]
+    step: 3
+    description: "Weight for structure/BOS signals (0-100 scale)"
 
-  confluence.scoring.weights.liquidity:
-    type: float
-    range: [0.10, 0.35]
-    step: 0.05
-    description: "Weight for liquidity sweep signals"
+  confluence.weights.liquidity_sweep:
+    type: int
+    range: [8, 18]
+    step: 2
+    description: "Weight for liquidity sweep signals (0-100 scale)"
 
-  confluence.min_threshold:
-    type: float
-    range: [0.45, 0.75]
-    step: 0.05
-    description: "Minimum confluence score to trigger entry"
+  confluence.min_score_to_trade:
+    type: int
+    range: [30, 55]
+    step: 5
+    description: "Minimum confluence score to trigger entry (0-100 scale)"
 
   # Execution parameters
   execution.atr_multiplier:
     type: float
-    range: [1.5, 3.5]
+    range: [1.0, 2.5]
     step: 0.25
-    description: "ATR multiplier for SL distance"
+    description: "ATR multiplier for SL distance (sl_pips = atr * atr_multiplier)"
 
-  execution.tp_ratio:
+  execution.target_rr_ratio:
     type: float
     range: [1.5, 3.0]
     step: 0.25
-    description: "Risk:Reward ratio for TP"
+    description: "Target risk:reward ratio for TP placement"
+
+  execution.min_rr_ratio:
+    type: float
+    range: [1.0, 2.0]
+    step: 0.25
+    description: "Minimum acceptable R:R to take a trade"
 
   # Risk parameters
-  risk.max_risk_pct:
+  risk.max_risk_per_trade:
     type: float
-    range: [0.5, 2.0]
-    step: 0.25
-    description: "Max risk per trade as % of equity"
+    range: [0.003, 0.010]
+    step: 0.001
+    description: "Max risk per trade as decimal (e.g., 0.005 = 0.5%)"
 
 fixed:
-  session.start: "08:00"
-  session.end: "16:30"
-  time_gate.block_new: "16:30"
-  time_gate.force_close: "16:55"
-  risk.max_positions: 1
+  # Time gates (Apex compliance) - correct dotpaths
+  time.cutoff_et: "16:55"
+  time.warning_et: "16:00"
+  time.urgent_et: "16:30"
+  time.emergency_et: "16:55"
+  execution.allow_overnight: false
+
+  # Risk limits - correct dotpaths
+  execution.max_concurrent_positions: 1
 
 constraints:
   apex:

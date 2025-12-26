@@ -26,6 +26,7 @@ from typing import NamedTuple
 
 class DDAction(Enum):
     """DD Protection Actions"""
+
     NONE = "Continue Normal"
     WARNING = "Log Alert"
     REDUCE = "Cut Sizes 50%"
@@ -38,6 +39,7 @@ class DDAction(Enum):
 @dataclass
 class DDTier:
     """DD Threshold Tier"""
+
     threshold_pct: float
     action: DDAction
     severity: str
@@ -46,41 +48,83 @@ class DDTier:
 
 
 # Daily DD Tiers (from day start balance)
+# Per CLAUDE.md dd_limits: WARN 1.5%, CAUTION 2.0%, REDUCE 2.5%, HALT 3.0%
 DAILY_DD_TIERS = [
-    DDTier(1.5, DDAction.WARNING, "[!]",
-           "Log alert, continue trading cautelosamente",
-           "Primeiro sinal - revisar estratégia intraday"),
-    DDTier(2.0, DDAction.REDUCE, "[!]",
-           "Cortar position sizes para 50%, apenas setups A/B rating",
-           "Volatilidade excessiva - reduzir exposição imediatamente"),
-    DDTier(2.5, DDAction.STOP_NEW, "[!!]",
-           "NO new trades, fechar posições existentes em BE/small profit",
-           "Limite conservador atingido - proteger capital restante"),
-    DDTier(3.0, DDAction.EMERGENCY_HALT, "[!!!]",
-           "FORCE CLOSE ALL positions, END trading for day, LOG incident",
-           "Limite máximo diário - recuperar amanhã com mente fresca"),
+    DDTier(
+        1.5,
+        DDAction.WARNING,
+        "[!]",
+        "Log alert, continue trading cautelosamente",
+        "Primeiro sinal (WARN) - revisar estratégia intraday",
+    ),
+    DDTier(
+        2.0,
+        DDAction.WARNING,
+        "[!]",
+        "CAUTION: Proceed carefully, apenas setups A/B rating",
+        "CAUTION level - vigilância aumentada, sem corte de tamanho ainda",
+    ),
+    DDTier(
+        2.5,
+        DDAction.REDUCE,
+        "[!!]",
+        "REDUCE: Cortar position sizes para 50%",
+        "REDUCE level - reduzir exposição imediatamente",
+    ),
+    DDTier(
+        3.0,
+        DDAction.EMERGENCY_HALT,
+        "[!!!]",
+        "HALT: FORCE CLOSE ALL positions, END trading for day, LOG incident",
+        "HALT level - limite máximo diário atingido",
+    ),
 ]
 
 # Total DD Tiers (from high-water mark)
-# NOTE: Project non-negotiable: hard block at trailing DD >= 4.0%.
+# Per CLAUDE.md dd_limits: WARN 3.0%, CAUTION 3.5%, CRITICAL 4.0%, HALT 4.5%, TERMINATED 5.0%
+# NOTE: Project non-negotiable: hard block at trailing DD >= 4.0% (safety buffer before Apex 5%).
 TOTAL_DD_TIERS = [
-    DDTier(3.0, DDAction.WARNING, "[!]",
-           "Revisar estratégia geral, reduzir daily DD limit para 2.5%",
-           "40% do buffer consumido - ajustar conservadorismo"),
-    DDTier(3.5, DDAction.REDUCE, "[!]",
-           "Daily DD limit reduzido para 2.0%, apenas A+ setups",
-           "30% de buffer restante - trading altamente seletivo"),
-    DDTier(4.0, DDAction.HALT_ALL, "[!!]",
-           "HALT all trading immediately (safety buffer before Apex limit)",
-           "Hard-block at 4.0% to avoid Apex termination risk"),
-    DDTier(5.0, DDAction.TERMINATED, "[X]",
-           "ACCOUNT TERMINATED by Apex Trading - sem apelação",
-           "Limite Apex atingido - falha total de risk management"),
+    DDTier(
+        3.0,
+        DDAction.WARNING,
+        "[!]",
+        "WARN: Revisar estratégia geral, reduzir daily DD limit para 2.5%",
+        "WARN level (40% buffer consumed) - ajustar conservadorismo",
+    ),
+    DDTier(
+        3.5,
+        DDAction.WARNING,
+        "[!]",
+        "CAUTION: Daily DD limit reduzido para 2.0%, apenas A+ setups",
+        "CAUTION level (30% buffer remaining) - trading altamente seletivo",
+    ),
+    DDTier(
+        4.0,
+        DDAction.HALT_ALL,
+        "[!!]",
+        "CRITICAL: HALT all trading immediately (safety buffer before Apex limit)",
+        "CRITICAL level - Hard-block at 4.0% to avoid Apex termination risk",
+    ),
+    DDTier(
+        4.5,
+        DDAction.HALT_ALL,
+        "[!!!]",
+        "HALT: Trading suspended - extremely close to Apex 5% limit",
+        "HALT level - apenas 0.5% de buffer restante, emergency mode",
+    ),
+    DDTier(
+        5.0,
+        DDAction.TERMINATED,
+        "[X]",
+        "TERMINATED: ACCOUNT TERMINATED by Apex Trading - sem apelação",
+        "TERMINATED level - Limite Apex atingido, falha total de risk management",
+    ),
 ]
 
 
 class DDProtectionState(NamedTuple):
     """Complete DD protection state"""
+
     # DD measurements
     daily_dd_pct: float
     total_dd_pct: float
@@ -160,7 +204,7 @@ class DDProtectionCalculator:
                 continue
             # Found tier we're below
             if i > 0:
-                return DAILY_DD_TIERS[i-1], i-1
+                return DAILY_DD_TIERS[i - 1], i - 1
             else:
                 # Below first tier = no action
                 return DDTier(0.0, DDAction.NONE, "", "", ""), -1
@@ -179,7 +223,7 @@ class DDProtectionCalculator:
                 continue
             # Found tier we're below
             if i > 0:
-                return TOTAL_DD_TIERS[i-1], i-1
+                return TOTAL_DD_TIERS[i - 1], i - 1
             else:
                 # Below first tier = no action
                 return DDTier(0.0, DDAction.NONE, "", "", ""), -1
@@ -188,10 +232,9 @@ class DDProtectionCalculator:
         return TOTAL_DD_TIERS[-1], len(TOTAL_DD_TIERS) - 1
 
     @classmethod
-    def calculate_state(cls,
-                       hwm: float,
-                       day_start_balance: float,
-                       current_equity: float) -> DDProtectionState:
+    def calculate_state(
+        cls, hwm: float, day_start_balance: float, current_equity: float
+    ) -> DDProtectionState:
         """
         Calculate complete DD protection state.
 
@@ -217,7 +260,11 @@ class DDProtectionCalculator:
         total_action = total_tier_obj.action if total_tier_idx >= 0 else DDAction.NONE
 
         # Determine trading permissions (fail-safe)
-        can_trade = daily_action not in (DDAction.EMERGENCY_HALT, DDAction.HALT_ALL, DDAction.TERMINATED) and total_action not in (
+        can_trade = daily_action not in (
+            DDAction.EMERGENCY_HALT,
+            DDAction.HALT_ALL,
+            DDAction.TERMINATED,
+        ) and total_action not in (
             DDAction.HALT_ALL,
             DDAction.TERMINATED,
         )
@@ -243,8 +290,16 @@ class DDProtectionCalculator:
         total_dd_usd = hwm * (total_dd_pct / 100)
 
         # Tier descriptions
-        daily_tier_desc = f"Tier {daily_tier_idx+1}: {daily_dd_pct:.2f}% {daily_action.value}" if daily_tier_idx >= 0 else "Below 1.5%"
-        total_tier_desc = f"Tier {total_tier_idx+1}: {total_dd_pct:.2f}% {total_action.value}" if total_tier_idx >= 0 else "Below 3.0%"
+        daily_tier_desc = (
+            f"Tier {daily_tier_idx + 1}: {daily_dd_pct:.2f}% {daily_action.value}"
+            if daily_tier_idx >= 0
+            else "Below 1.5%"
+        )
+        total_tier_desc = (
+            f"Tier {total_tier_idx + 1}: {total_dd_pct:.2f}% {total_action.value}"
+            if total_tier_idx >= 0
+            else "Below 3.0%"
+        )
 
         return DDProtectionState(
             daily_dd_pct=daily_dd_pct,
@@ -263,9 +318,9 @@ class DDProtectionCalculator:
         )
 
     @classmethod
-    def validate_trade(cls,
-                      dd_state: DDProtectionState,
-                      proposed_risk_pct: float) -> tuple[bool, str]:
+    def validate_trade(
+        cls, dd_state: DDProtectionState, proposed_risk_pct: float
+    ) -> tuple[bool, str]:
         """
         Validate if a trade is allowed based on DD state and proposed risk.
 
@@ -278,11 +333,17 @@ class DDProtectionCalculator:
         """
         # Check if trading is completely halted
         if not dd_state.can_trade:
-            return False, f"Trading halted: {dd_state.daily_action.value} OR {dd_state.total_action.value}"
+            return (
+                False,
+                f"Trading halted: {dd_state.daily_action.value} OR {dd_state.total_action.value}",
+            )
 
         # Check if new positions allowed
         if not dd_state.can_open_new:
-            return False, f"New positions blocked: Daily DD {dd_state.daily_dd_pct:.2f}%, Total DD {dd_state.total_dd_pct:.2f}%"
+            return (
+                False,
+                f"New positions blocked: Daily DD {dd_state.daily_dd_pct:.2f}%, Total DD {dd_state.total_dd_pct:.2f}%",
+            )
 
         # PRIORITY 1: Hard-block before Apex trailing DD limit (project buffer at 4.0%).
         potential_total_dd = dd_state.total_dd_pct + proposed_risk_pct
@@ -296,9 +357,11 @@ class DDProtectionCalculator:
         # PRIORITY 2: Check if proposed risk would exceed dynamic daily limit
         potential_daily_dd = dd_state.daily_dd_pct + proposed_risk_pct
         if potential_daily_dd > dd_state.max_daily_dd_pct:
-            return False, (f"Trade would exceed dynamic daily limit: "
-                          f"Current {dd_state.daily_dd_pct:.2f}% + Risk {proposed_risk_pct:.2f}% = {potential_daily_dd:.2f}% "
-                          f"> Limit {dd_state.max_daily_dd_pct:.2f}%")
+            return False, (
+                f"Trade would exceed dynamic daily limit: "
+                f"Current {dd_state.daily_dd_pct:.2f}% + Risk {proposed_risk_pct:.2f}% = {potential_daily_dd:.2f}% "
+                f"> Limit {dd_state.max_daily_dd_pct:.2f}%"
+            )
 
         # Trade allowed
         return True, "Trade approved"

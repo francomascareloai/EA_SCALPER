@@ -16,18 +16,27 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pandas as pd
 
+from src.optimization.checkpointing import (
+    DEFAULT_CHECKPOINT_FILENAME,
+    CheckpointError,
+    CheckpointManager,
+    compute_config_fingerprint,
+    load_checkpoint,
+    quarantine_corrupt_checkpoint,
+    trial_result_from_dict,
+)
 from src.optimization.config import OptimizationConfig
 from src.optimization.constraints.apex import ApexConstraintChecker
 from src.optimization.reporting.summary import SummaryReporter
 from src.optimization.search.base import SearchStrategy, TrialResult
 from src.optimization.validation.wfa_inline import InlineWFA, WFAResult
-
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +74,8 @@ class ApexOptimizer:
     def __init__(
         self,
         config: OptimizationConfig,
-        backtest_fn: Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]] | None = None,
+        backtest_fn: Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]]
+        | None = None,
     ) -> None:
         self.config = config
         self._backtest_fn = backtest_fn
@@ -90,8 +100,9 @@ class ApexOptimizer:
     def from_yaml(
         cls,
         path: str | Path,
-        backtest_fn: Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]] | None = None,
-    ) -> "ApexOptimizer":
+        backtest_fn: Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]]
+        | None = None,
+    ) -> ApexOptimizer:
         config = OptimizationConfig.from_yaml(path)
         return cls(config, backtest_fn)
 
@@ -101,7 +112,7 @@ class ApexOptimizer:
     ) -> None:
         self._backtest_fn = fn
 
-    def run(self) -> list[TrialResult]:
+    def run(self, *, resume_from: str | Path | None = None) -> list[TrialResult]:
         if self._backtest_fn is None:
             raise ValueError("backtest_fn not set. Use set_backtest_fn() or pass to constructor.")
 
@@ -113,7 +124,62 @@ class ApexOptimizer:
 
         assert self._output_dir is not None
 
-        # Optional streaming result persistence
+        start_time = time.time()
+
+        mode = self.config.search.mode
+
+        config_fp = compute_config_fingerprint(self.config)
+
+        # ---------------------------------------------------------------------
+        # Checkpoint loading (resume)
+        # ---------------------------------------------------------------------
+        resume_trial_id = 0
+        resume_seed_results: list[TrialResult] = []
+
+        resume_path: Path | None = None
+        if resume_from is not None:
+            resume_path = Path(resume_from)
+        elif self.config.output.checkpoint_enabled:
+            # Default checkpoint path inside output dir for this session.
+            resume_path = self._output_dir / DEFAULT_CHECKPOINT_FILENAME
+
+        if resume_from is not None:
+            if resume_path is None:
+                raise ValueError("resume_from provided but resolve failed")
+            if resume_path.exists():
+                try:
+                    ckpt = load_checkpoint(resume_path)
+                except CheckpointError:
+                    # Quarantine and start fresh.
+                    corrupt_path = quarantine_corrupt_checkpoint(resume_path)
+                    logger.warning(
+                        "Checkpoint corrupted; moved to %s and starting fresh", corrupt_path
+                    )
+                else:
+                    if ckpt.config_fingerprint != config_fp:
+                        raise ValueError(
+                            "Checkpoint config fingerprint mismatch; refusing to resume with different config"
+                        )
+                    if ckpt.mode and ckpt.mode != mode:
+                        raise ValueError(
+                            f"Checkpoint mode mismatch: {ckpt.mode} vs current {mode}; refusing to resume"
+                        )
+                    resume_trial_id = int(ckpt.resume_from_trial_id)
+                    # Resume seeds only the (bounded) top-N results from the checkpoint.
+                    # Deterministic trial skipping avoids re-running already completed trials.
+                    resume_seed_results = [trial_result_from_dict(r) for r in ckpt.top_results]
+
+                    logger.info(
+                        "Resuming from checkpoint %s at trial_id=%d",
+                        resume_path,
+                        resume_trial_id,
+                    )
+            else:
+                raise FileNotFoundError(f"Checkpoint not found: {resume_path}")
+
+        # ---------------------------------------------------------------------
+        # Result persistence / streaming
+        # ---------------------------------------------------------------------
         on_result = None
         streamer = None
         if self.config.output.results_parquet:
@@ -133,15 +199,48 @@ class ApexOptimizer:
             streamer = ResultStreamer(sink)
             on_result = streamer
 
-        start_time = time.time()
-
-        mode = self.config.search.mode
-
         searcher: SearchStrategy
         study_stats: dict[str, Any]
 
+        # ---------------------------------------------------------------------
+        # Checkpoint save hook (as on_result wrapper)
+        # ---------------------------------------------------------------------
+        checkpoint_mgr: CheckpointManager | None = None
+        if self.config.output.checkpoint_enabled:
+            # Keep top-N in checkpoint to avoid huge JSON.
+            keep_top_n = self.config.output.max_results_in_ram or 500
+            keep_top_n = max(1, int(keep_top_n))
+
+            ckpt_path = self._output_dir / DEFAULT_CHECKPOINT_FILENAME
+            checkpoint_mgr = CheckpointManager(
+                ckpt_path,
+                mode=mode,
+                config_fingerprint=config_fp,
+                interval=int(self.config.output.checkpoint_interval),
+                keep_top_n=keep_top_n,
+                ignore_trial_id_lt=resume_trial_id,
+            )
+
+            if resume_seed_results:
+                checkpoint_mgr.seed_top_results(resume_seed_results)
+
+        def combined_on_result(result: TrialResult) -> None:
+            if on_result is not None:
+                on_result(result)
+            if checkpoint_mgr is not None:
+                checkpoint_mgr(result)
+
+        on_result_effective = (
+            combined_on_result if (on_result is not None or checkpoint_mgr is not None) else None
+        )
+
         if mode == "bayesian":
             from src.optimization.search.bayesian import BayesianSearch
+
+            if resume_trial_id:
+                raise ValueError(
+                    "Resume not supported for bayesian mode (Optuna storage not configured)"
+                )
 
             searcher = BayesianSearch(self.config)
         elif mode == "grid":
@@ -149,25 +248,31 @@ class ApexOptimizer:
 
             searcher = GridSearch(
                 self.config,
-                on_result=on_result,
+                on_result=on_result_effective,
                 max_results_in_ram=self.config.output.max_results_in_ram,
+                start_trial_id=resume_trial_id,
+                seed_results=resume_seed_results,
             )
         elif mode == "random":
             from src.optimization.search.random import RandomSearch
 
             searcher = RandomSearch(
                 self.config,
-                on_result=on_result,
+                on_result=on_result_effective,
                 max_results_in_ram=self.config.output.max_results_in_ram,
+                start_trial_id=resume_trial_id,
+                seed_results=resume_seed_results,
             )
         elif mode == "successive_halving":
             from src.optimization.search.successive_halving import SuccessiveHalvingSearch
 
             searcher = SuccessiveHalvingSearch(
                 self.config,
-                on_result=on_result,
+                on_result=on_result_effective,
                 max_results_in_ram=self.config.output.max_results_in_ram,
                 objective_fn_with_fidelity=self._objective_fn_with_fidelity,
+                start_trial_id=resume_trial_id,
+                seed_results=resume_seed_results,
             )
         else:
             raise NotImplementedError(f"Search mode {mode} not yet implemented")
@@ -178,6 +283,10 @@ class ApexOptimizer:
         )
         study_stats = searcher.get_study_summary()
 
+        # Force a final checkpoint save (especially useful if interval > remaining trials).
+        if checkpoint_mgr is not None:
+            checkpoint_mgr.force_save(progress=int(study_stats.get("n_trials", 0)))
+
         self._results.sort(key=lambda r: r.score, reverse=True)
 
         reporter = SummaryReporter(self._output_dir, self.config)
@@ -187,7 +296,10 @@ class ApexOptimizer:
         ghost_summary: dict[str, Any] | None = None
         if self.config.stress_test.ghost_test.enabled and self._results:
             try:
-                from src.optimization.stress.ghost_test import ghost_test_summary_dict, run_ghost_test
+                from src.optimization.stress.ghost_test import (
+                    ghost_test_summary_dict,
+                    run_ghost_test,
+                )
 
                 best_params = dict(self._results[0].params)
                 full_params = {**self.config.fixed, **best_params}
@@ -217,7 +329,9 @@ class ApexOptimizer:
                 logger.exception("Ghost test failed; continuing without ghost results")
 
         if self.config.output.handoff_enabled:
-            handoff_path = reporter.generate_handoff(self._results, "ORACLE", study_stats, ghost_summary=ghost_summary)
+            handoff_path = reporter.generate_handoff(
+                self._results, "ORACLE", study_stats, ghost_summary=ghost_summary
+            )
             logger.info(f"Handoff generated: {handoff_path}")
 
         duration = time.time() - start_time
@@ -231,7 +345,9 @@ class ApexOptimizer:
 
         if streamer is not None:
             streamer.close()
-            logger.info(f"Streamed results parquet dataset at: {self.config.output.results_parquet}")
+            logger.info(
+                f"Streamed results parquet dataset at: {self.config.output.results_parquet}"
+            )
             _ = report_paths
 
         return self._results
@@ -286,7 +402,15 @@ class ApexOptimizer:
         )
 
         splits = wfa.compute_window_splits(train_start, train_end)
+        if not splits:
+            # If we cannot compute any valid WFA split (e.g., too short range vs purge/embargo),
+            # treat the trial as invalid to avoid false robustness/compliance.
+            return self._empty_result(params)
+
         windows = wfa.analyze_trade_series(trades_df, splits)
+        if not windows:
+            return self._empty_result(params)
+
         wfa_result = wfa.compute_wfa_metrics(windows, trades_df, equity_series)
 
         apex_result = self._apex_checker.check(self._wfa_to_trial_result(wfa_result, params))
@@ -354,10 +478,7 @@ class ApexOptimizer:
         trades_penalty = 1.0 if wfa_result.total_trades >= trades_min else trades_penalty_value
 
         final_score = (
-            float(base_score)
-            * float(dd_penalty)
-            * float(trades_penalty)
-            * float(apex_penalty)
+            float(base_score) * float(dd_penalty) * float(trades_penalty) * float(apex_penalty)
         )
         final_score = max(0.0, min(1.0, float(final_score)))
         return float(final_score)

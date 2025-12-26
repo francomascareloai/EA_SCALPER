@@ -59,14 +59,20 @@ parameters:
     range: [30, 55]
     step: 5
 
+  # NOTE: execution.atr_multiplier now supported in GoldScalperConfig
   execution.atr_multiplier:
     type: float
-    range: [1.25, 2.75]
+    range: [1.0, 3.0]
     step: 0.25
 
-  execution.tp_ratio:
+  execution.target_rr_ratio:
     type: float
     range: [1.5, 3.0]
+    step: 0.25
+
+  execution.min_rr_ratio:
+    type: float
+    range: [1.0, 2.0]
     step: 0.25
 
   risk.max_risk_per_trade:

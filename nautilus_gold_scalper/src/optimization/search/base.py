@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from src.optimization.config import OptimizationConfig
 
@@ -73,10 +74,13 @@ class SearchStrategy(ABC):
         self._on_result = on_result
         self._max_results_in_ram = max_results_in_ram
         self._results: list[TrialResult] = []
+        self._evaluated_total: int = 0
 
     def _record_result(self, result: TrialResult) -> None:
         if self._on_result is not None:
             self._on_result(result)
+
+        self._evaluated_total += 1
 
         self._results.append(result)
 

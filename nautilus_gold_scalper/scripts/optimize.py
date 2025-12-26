@@ -34,13 +34,13 @@ import signal
 import sys
 import tempfile
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 import pandas as pd
@@ -62,6 +62,7 @@ def _normalize_jsonable(v: Any) -> Any:
     if isinstance(v, (np.floating,)):
         return float(v)
     return v
+
 
 # Type checking imports for lazy-loaded modules
 if TYPE_CHECKING:
@@ -202,6 +203,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OptimizationResult:
     """Summary of optimization run."""
+
     config_path: str
     mode: str
     total_trials: int
@@ -256,6 +258,7 @@ Examples:
 Modes:
   grid              - Exhaustive grid search (all combinations)
   random            - Latin hypercube sampling (stratified random)
+  lhs               - Alias for random (explicit LHS naming)
   bayesian          - Bayesian optimization with Gaussian processes
   successive_halving - Multi-fidelity with early pruning (recommended)
 """,
@@ -273,7 +276,7 @@ Modes:
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["grid", "random", "bayesian", "successive_halving"],
+        choices=["grid", "random", "lhs", "bayesian", "successive_halving"],
         default=None,
         help="Search mode (overrides config)",
     )
@@ -390,12 +393,16 @@ Modes:
         help="Path to M5 bars file (CSV/Parquet). Requires feed=bars (or --quick).",
     )
 
-    # NOTE: --resume flag removed in Round 2 (H2 fix) - was dead code (defined but never used).
-    # Checkpoint resumption requires proper implementation with:
-    # 1. Periodic checkpoint saving during optimization
-    # 2. Trial deduplication to avoid re-running completed trials
-    # 3. Result merging for resumed runs
-    # See: .planning/phases/09-strategy-activation/orchestration/optimization-review/round-2-SYNTHESIS.md
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help=(
+            "Path to optimizer checkpoint.json to resume from. "
+            "Supported for modes: grid, random, successive_halving. "
+            "Not supported for bayesian."
+        ),
+    )
 
     return parser.parse_args()
 
@@ -453,13 +460,205 @@ def create_backtest_fn(
             seed=args.seed or config.search.seed or 42,
         )
 
+        # NOTE: `params` may be either:
+        # - nested dicts (ApexOptimizer expanded dotpaths), OR
+        # - flat dotpath keys (e.g., {"execution.use_mtf": true}).
+        # We must NOT override YAML `fixed` values with hardcoded defaults.
+        _missing = object()
+
+        def _get_value(mapping: dict[str, Any], dotted_key: str) -> object:
+            """Get a config value from either nested dicts or dotpath keys.
+
+            Precedence:
+            1) Exact key match in mapping (supports flat dotpaths)
+            2) Nested lookup by splitting on '.'
+            """
+            if dotted_key in mapping:
+                v = mapping[dotted_key]
+                return v if v is not None else _missing
+
+            cur: object = mapping
+            for part in dotted_key.split("."):
+                if not isinstance(cur, dict) or part not in cur:
+                    return _missing
+                cur = cur[part]
+            return cur if cur is not None else _missing
+
+        def _get_from_section(section: object, key: str) -> object:
+            if isinstance(section, dict) and key in section:
+                v = section[key]
+                return v if v is not None else _missing
+            return _missing
+
+        def _as_bool(v: object, default: bool) -> bool:
+            if isinstance(v, (bool, np.bool_)):
+                return bool(v)
+            if isinstance(v, (int, np.integer)):
+                return bool(int(v))
+            if isinstance(v, str):
+                s = v.strip().lower()
+                if s in ("true", "1", "yes", "y", "on"):
+                    return True
+                if s in ("false", "0", "no", "n", "off"):
+                    return False
+            return default
+
+        def _as_int(v: object, default: int) -> int:
+            if isinstance(v, (int, np.integer)):
+                return int(v)
+            if isinstance(v, float):
+                if v.is_integer():
+                    return int(v)
+                return default
+            if isinstance(v, str):
+                try:
+                    return int(v)
+                except ValueError:
+                    return default
+            # Strict typing: avoid calling int(...) on unknown objects.
+            return default
+
+        def _as_float(v: object) -> float | None:
+            if isinstance(v, (int, float, np.integer, np.floating)):
+                return float(v)
+            if isinstance(v, str):
+                try:
+                    return float(v)
+                except ValueError:
+                    return None
+            # Strict typing: avoid calling float(...) on unknown objects.
+            return None
+
+        # Hardcoded fallbacks (used ONLY when value is absent from params)
+        execution_threshold_default = 70
+        use_session_filter_default = True
+        use_regime_filter_default = True
+        use_mtf_default = False
+        use_footprint_default = True
+        prop_firm_enabled_default = True
+        use_news_filter_default = True
+
+        exec_over = params.get("execution") if isinstance(params, dict) else None
+        confluence_over = params.get("confluence") if isinstance(params, dict) else None
+        news_over = params.get("news") if isinstance(params, dict) else None
+        risk_over = params.get("risk") if isinstance(params, dict) else None
+        run_over = params.get("run") if isinstance(params, dict) else None
+
+        # execution_threshold
+        # - Prefer explicit runtime override (execution.* / run.*)
+        # - Otherwise, fall back to confluence thresholds
+        thresh_raw = _get_from_section(exec_over, "execution_threshold")
+        if thresh_raw is _missing:
+            thresh_raw = _get_from_section(run_over, "execution_threshold")
+        if thresh_raw is _missing:
+            thresh_raw = _get_value(params, "run.execution_threshold")
+        if thresh_raw is _missing:
+            thresh_raw = _get_from_section(confluence_over, "execution_threshold")
+        if thresh_raw is _missing:
+            thresh_raw = _get_from_section(confluence_over, "min_score_to_trade")
+        if thresh_raw is _missing:
+            thresh_raw = _get_value(params, "execution.execution_threshold")
+        if thresh_raw is _missing:
+            thresh_raw = _get_value(params, "confluence.execution_threshold")
+        if thresh_raw is _missing:
+            thresh_raw = _get_value(params, "confluence.min_score_to_trade")
+        execution_threshold = _as_int(thresh_raw, execution_threshold_default)
+
+        # Execution booleans
+        use_session_raw = _get_from_section(exec_over, "use_session_filter")
+        if use_session_raw is _missing:
+            use_session_raw = _get_from_section(run_over, "use_session_filter")
+        if use_session_raw is _missing:
+            use_session_raw = _get_value(params, "run.use_session_filter")
+        if use_session_raw is _missing:
+            use_session_raw = _get_value(params, "execution.use_session_filter")
+        use_session_filter = _as_bool(use_session_raw, use_session_filter_default)
+
+        use_regime_raw = _get_from_section(exec_over, "use_regime_filter")
+        if use_regime_raw is _missing:
+            use_regime_raw = _get_from_section(run_over, "use_regime_filter")
+        if use_regime_raw is _missing:
+            use_regime_raw = _get_value(params, "run.use_regime_filter")
+        if use_regime_raw is _missing:
+            use_regime_raw = _get_value(params, "execution.use_regime_filter")
+        use_regime_filter = _as_bool(use_regime_raw, use_regime_filter_default)
+
+        use_mtf_raw = _get_from_section(exec_over, "use_mtf")
+        if use_mtf_raw is _missing:
+            use_mtf_raw = _get_from_section(run_over, "use_mtf")
+        if use_mtf_raw is _missing:
+            use_mtf_raw = _get_value(params, "run.use_mtf")
+        if use_mtf_raw is _missing:
+            use_mtf_raw = _get_value(params, "execution.use_mtf")
+        use_mtf = _as_bool(use_mtf_raw, use_mtf_default)
+
+        use_footprint_raw = _get_from_section(exec_over, "use_footprint")
+        if use_footprint_raw is _missing:
+            use_footprint_raw = _get_from_section(run_over, "use_footprint")
+        if use_footprint_raw is _missing:
+            use_footprint_raw = _get_value(params, "run.use_footprint")
+        if use_footprint_raw is _missing:
+            use_footprint_raw = _get_value(params, "execution.use_footprint")
+        use_footprint = _as_bool(use_footprint_raw, use_footprint_default)
+
+        prop_firm_raw = _get_from_section(exec_over, "prop_firm_enabled")
+        if prop_firm_raw is _missing:
+            prop_firm_raw = _get_from_section(run_over, "prop_firm_enabled")
+        if prop_firm_raw is _missing:
+            prop_firm_raw = _get_value(params, "run.prop_firm_enabled")
+        if prop_firm_raw is _missing:
+            prop_firm_raw = _get_value(params, "execution.prop_firm_enabled")
+        prop_firm_enabled = _as_bool(prop_firm_raw, prop_firm_enabled_default)
+
+        # use_news_filter
+        # Prefer explicit runtime override (execution.* / run.*), otherwise use YAML `news.enabled`.
+        news_enabled_raw = _get_from_section(exec_over, "use_news_filter")
+        if news_enabled_raw is _missing:
+            news_enabled_raw = _get_from_section(run_over, "use_news_filter")
+        if news_enabled_raw is _missing:
+            news_enabled_raw = _get_value(params, "run.use_news_filter")
+        if news_enabled_raw is _missing:
+            news_enabled_raw = _get_from_section(news_over, "enabled")
+        if news_enabled_raw is _missing:
+            news_enabled_raw = _get_value(params, "news.enabled")
+        if news_enabled_raw is _missing:
+            news_enabled_raw = _get_value(params, "use_news_filter")
+        use_news_filter = _as_bool(news_enabled_raw, use_news_filter_default)
+
+        # Default ltf_minutes from CLI args, allow YAML override.
+        ltf_minutes = args.ltf_minutes
+        ltf_bar_raw = _get_from_section(exec_over, "ltf_bar_minutes")
+        if ltf_bar_raw is _missing:
+            ltf_bar_raw = _get_value(params, "execution.ltf_bar_minutes")
+        if ltf_bar_raw is not _missing:
+            ltf_minutes_candidate = _as_int(ltf_bar_raw, ltf_minutes)
+            if ltf_minutes_candidate > 0:
+                ltf_minutes = ltf_minutes_candidate
+
+        # risk_per_trade (YAML uses `risk.max_risk_per_trade`)
+        risk_per_trade: float | None = None
+        risk_val = _get_from_section(risk_over, "max_risk_per_trade")
+        if risk_val is _missing:
+            risk_val = _get_value(params, "risk.max_risk_per_trade")
+        if risk_val is not _missing:
+            risk_per_trade = _as_float(risk_val)
+
         summary = runner.run(
             start_date=start_date,
             end_date=end_date,
-            ltf_minutes=args.ltf_minutes,
+            ltf_minutes=ltf_minutes,
             sample_rate=args.sample_rate,
+            use_session_filter=use_session_filter,
+            use_regime_filter=use_regime_filter,
+            use_mtf=use_mtf,
+            use_footprint=use_footprint,
+            prop_firm_enabled=prop_firm_enabled,
+            use_news_filter=use_news_filter,
+            execution_threshold=execution_threshold,
+            risk_per_trade=risk_per_trade,
             feed=feed,
             bars_file=bars_file,
+            reports="none",
             return_summary=True,
             quiet=True,
             config_overrides=params,
@@ -485,7 +684,9 @@ def _extract_trades_df(runner: Any) -> pd.DataFrame:
     which already contains realized PnL and open/close timestamps.
 
     Returns a DataFrame which MUST include:
-    - `timestamp` (UTC datetime-like): used for WFA window assignment
+    - `entry_time` (UTC datetime-like): used for WFA window assignment (decision time)
+    - `exit_time` (UTC datetime-like): used for overnight checks and realized timing
+    - `timestamp` (UTC datetime-like): legacy field (may be derived from exit_time)
     - `pnl` (float): used for SQN/Sharpe and daily PnL aggregation
     """
     if runner.engine is None:
@@ -515,28 +716,31 @@ def _extract_trades_df(runner: Any) -> pd.DataFrame:
         # Realized PnL is recorded as strings like "339.57 USD".
         # Keep it net-of-fees as reported by the engine.
         if "realized_pnl" in df.columns:
-            pnl = (
-                df["realized_pnl"]
-                .astype(str)
-                .str.replace("USD", "", regex=False)
-                .str.strip()
-            )
+            pnl = df["realized_pnl"].astype(str).str.replace("USD", "", regex=False).str.strip()
             pnl = pd.to_numeric(pnl, errors="coerce")
         else:
             pnl = pd.Series([np.nan] * len(df), dtype=float)
 
         instrument_id = df["instrument_id"].astype(str) if "instrument_id" in df.columns else None
 
+        # CRITICAL: Use entry_time for timestamp, NOT exit_time.
+        # Using exit_time causes look-ahead bias in WFA: trades opened in
+        # in-sample but closed in out-of-sample would be incorrectly attributed
+        # to OOS, inflating WFE metrics.
+        # Formula: timestamp = entry_time (decision time, not realization time)
         trades = pd.DataFrame(
             {
                 "instrument_id": instrument_id if instrument_id is not None else "",
                 "entry_time": entry_time,
                 "exit_time": exit_time,
-                "timestamp": exit_time if exit_time is not None else entry_time,
+                "timestamp": entry_time,  # Always use entry_time (no look-ahead)
                 "pnl": pnl.astype(float),
             }
         )
 
+        # Drop rows where required fields are missing.
+        # Keep legacy `timestamp` requirement for backwards compatibility, but ensure
+        # WFA can still use `entry_time` when present.
         trades = trades.dropna(subset=["timestamp", "pnl"]).reset_index(drop=True)
         return trades
 
@@ -592,9 +796,7 @@ def _extract_equity_series(runner: Any, initial_balance: float) -> pd.Series:
                 cumulative = (1 + returns).cumprod()
                 equity_series = initial_balance * cumulative
                 equity_series.name = "equity"
-                logger.debug(
-                    f"Extracted equity from returns: {len(equity_series)} points"
-                )
+                logger.debug(f"Extracted equity from returns: {len(equity_series)} points")
                 return equity_series
 
         # CRITICAL: Cannot extract equity - FAIL the trial (C1 fix from Round 2 CRITIC)
@@ -639,7 +841,7 @@ def print_dry_run(args: argparse.Namespace, config: OptimizationConfig) -> None:
 
     if mode == "successive_halving":
         sh = config.search.successive_halving
-        print(f"\n  Successive Halving:")
+        print("\n  Successive Halving:")
         print(f"    eta:          {sh.eta}")
         print(f"    window_days:  {list(sh.window_days)}")
         print(f"    wfa_windows:  {list(sh.wfa_windows)}")
@@ -669,8 +871,10 @@ def print_dry_run(args: argparse.Namespace, config: OptimizationConfig) -> None:
         n_rungs = len(sh.window_days)
         total_evals = trials
         for i in range(1, n_rungs):
-            total_evals += trials // (sh.eta ** i)
-        print(f"  Successive halving: {trials} trials × {n_rungs} rungs ≈ {total_evals} evaluations")
+            total_evals += trials // (sh.eta**i)
+        print(
+            f"  Successive halving: {trials} trials × {n_rungs} rungs ≈ {total_evals} evaluations"
+        )
 
     # Constraints
     print(f"\n{'─' * 40}")
@@ -722,16 +926,10 @@ def apply_cli_overrides(config: OptimizationConfig, args: argparse.Namespace) ->
     """
     from dataclasses import replace as dc_replace
 
-    from src.optimization.config import (
-        DataConfig,
-        OutputConfig,
-        SearchConfig,
-    )
-
     # Build modified search config using replace
     new_search = dc_replace(
         config.search,
-        mode=args.mode or config.search.mode,
+        mode=("random" if args.mode == "lhs" else (args.mode or config.search.mode)),
         trials=args.trials or config.search.trials,
         n_samples=args.trials or config.search.n_samples,
         parallelism=args.parallelism or config.search.parallelism,
@@ -786,6 +984,18 @@ def run_optimization(args: argparse.Namespace) -> int:
     # Apply CLI overrides
     config = apply_cli_overrides(config, args)
 
+    # Validate bars_file mode early (fail fast)
+    if args.bars_file:
+        resolved_feed = args.feed or ("bars" if args.quick else "ticks")
+        if resolved_feed != "bars":
+            logger.error(
+                "--bars-file requires feed=bars (or --quick). Current feed=%s", resolved_feed
+            )
+            return 1
+        if not Path(str(args.bars_file)).exists():
+            logger.error("--bars-file not found: %s", args.bars_file)
+            return 1
+
     # Create output directory
     output_dir = Path(config.output.dir)
     if config.output.session_subfolder:
@@ -835,6 +1045,7 @@ def run_optimization(args: argparse.Namespace) -> int:
             "quick": args.quick,
             "sample_rate": args.sample_rate,
             "feed": args.feed,
+            "bars_file": args.bars_file,
             "initial_balance": args.initial_balance,
         },
     }
@@ -845,7 +1056,7 @@ def run_optimization(args: argparse.Namespace) -> int:
     interrupted = False
     try:
         with graceful_shutdown():
-            results = optimizer.run()
+            results = optimizer.run(resume_from=args.resume)
     except KeyboardInterrupt:
         # This catches any interrupt not handled by the context manager
         logger.warning("Optimization interrupted by user")
@@ -854,6 +1065,7 @@ def run_optimization(args: argparse.Namespace) -> int:
     except Exception as e:
         logger.error(f"Optimization failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -869,8 +1081,15 @@ def run_optimization(args: argparse.Namespace) -> int:
         logger.warning("No results from optimization")
         return 1
 
-    # Sort by score
-    sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
+    # Sort by score - BUT preserve SH ordering for successive_halving mode.
+    # Successive halving returns results sorted by (last_rung_first, score),
+    # ensuring top result is from final rung (highest fidelity).
+    # Re-sorting purely by score would defeat multi-fidelity selection.
+    if config.search.mode == "successive_halving":
+        # Preserve optimizer ordering: last-rung results already at top
+        sorted_results = results
+    else:
+        sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
     best = sorted_results[0]
 
     # Count Apex compliant
@@ -900,15 +1119,15 @@ def run_optimization(args: argparse.Namespace) -> int:
     print("OPTIMIZATION COMPLETE")
     print("=" * 70)
     print(f"\nCompleted: {len(results)}/{config.search.trials} trials")
-    print(f"Duration: {duration:.1f}s ({duration/60:.1f} min)")
+    print(f"Duration: {duration:.1f}s ({duration / 60:.1f} min)")
     print(f"Apex compliant: {apex_compliant}/{len(results)}")
-    print(f"\nBest trial:")
+    print("\nBest trial:")
     print(f"  Score:  {best.score:.4f}")
     print(f"  SQN:    {best.sqn:.2f}")
     print(f"  WFE:    {best.wfe:.2%}")
     print(f"  Sharpe: {best.sharpe:.2f}")
     print(f"  Trades: {best.trades}")
-    print(f"\nBest parameters:")
+    print("\nBest parameters:")
     for k, v in best.params.items():
         print(f"  {k}: {v}")
     print(f"\nResults saved to: {output_dir}")
@@ -930,21 +1149,23 @@ def _save_results(
     # Build results data once
     results_data = []
     for r in results:
-        results_data.append({
-            "trial_id": int(r.trial_id),
-            "params": {k: _normalize_jsonable(v) for k, v in dict(r.params).items()},
-            "score": float(r.score),
-            "sqn": float(r.sqn),
-            "sharpe": float(r.sharpe),
-            "sortino": float(r.sortino),
-            "wfe": float(r.wfe),
-            "trades": int(r.trades),
-            "win_rate": float(r.win_rate),
-            "max_drawdown_pct": float(r.max_drawdown_pct),
-            "trailing_dd": float(r.trailing_dd),
-            "apex_compliant": bool(r.apex_compliant),
-            "total_pnl": float(r.total_pnl),
-        })
+        results_data.append(
+            {
+                "trial_id": int(r.trial_id),
+                "params": {k: _normalize_jsonable(v) for k, v in dict(r.params).items()},
+                "score": float(r.score),
+                "sqn": float(r.sqn),
+                "sharpe": float(r.sharpe),
+                "sortino": float(r.sortino),
+                "wfe": float(r.wfe),
+                "trades": int(r.trades),
+                "win_rate": float(r.win_rate),
+                "max_drawdown_pct": float(r.max_drawdown_pct),
+                "trailing_dd": float(r.trailing_dd),
+                "apex_compliant": bool(r.apex_compliant),
+                "total_pnl": float(r.total_pnl),
+            }
+        )
 
     # Save summary JSON (most critical - save first)
     summary_path = output_dir / "summary.json"
