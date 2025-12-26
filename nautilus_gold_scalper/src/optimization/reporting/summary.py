@@ -7,16 +7,15 @@ Generates JSON, CSV, and Parquet reports from optimization runs.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 if TYPE_CHECKING:
-    from src.optimization.search.base import TrialResult
     from src.optimization.config import OptimizationConfig
+    from src.optimization.search.base import TrialResult
 
 
 class SummaryReporter:
@@ -32,7 +31,7 @@ class SummaryReporter:
     def __init__(
         self,
         output_dir: str | Path,
-        config: "OptimizationConfig",
+        config: OptimizationConfig,
     ) -> None:
         """
         Initialize reporter.
@@ -47,7 +46,7 @@ class SummaryReporter:
 
     def generate_reports(
         self,
-        results: list["TrialResult"],
+        results: list[TrialResult],
         study_stats: dict[str, Any] | None = None,
     ) -> dict[str, Path]:
         """
@@ -62,8 +61,13 @@ class SummaryReporter:
         """
         paths: dict[str, Path] = {}
 
-        # Sort by score
-        sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
+        # Sort by score for most modes.
+        # For Successive Halving, preserve the incoming ordering which is already
+        # arranged to prioritize last-rung (highest-fidelity) evaluations.
+        if self.config.search.mode == "successive_halving":
+            sorted_results = list(results)
+        else:
+            sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
 
         # Generate configured reports
         if "json" in self.config.output.reports:
@@ -83,7 +87,7 @@ class SummaryReporter:
 
     def _write_json(
         self,
-        results: list["TrialResult"],
+        results: list[TrialResult],
         study_stats: dict[str, Any] | None,
     ) -> Path:
         """Write full JSON report."""
@@ -106,7 +110,7 @@ class SummaryReporter:
 
         return path
 
-    def _write_csv(self, results: list["TrialResult"]) -> Path:
+    def _write_csv(self, results: list[TrialResult]) -> Path:
         """Write CSV summary."""
         path = self.output_dir / "summary.csv"
 
@@ -123,6 +127,7 @@ class SummaryReporter:
                 "trailing_dd": r.trailing_dd,
                 "daily_profit_max": r.daily_profit_max,
                 "positive_days_ratio": r.positive_days_ratio,
+                "pbo": r.pbo,
                 "apex_compliant": r.apex_compliant,
                 "pruned": r.pruned,
                 "duration_seconds": r.duration_seconds,
@@ -137,7 +142,7 @@ class SummaryReporter:
 
         return path
 
-    def _write_parquet(self, results: list["TrialResult"]) -> Path:
+    def _write_parquet(self, results: list[TrialResult]) -> Path:
         """Write Parquet file for further analysis."""
         path = self.output_dir / "summary.parquet"
 
@@ -147,7 +152,7 @@ class SummaryReporter:
 
         return path
 
-    def _write_top_n(self, top_results: list["TrialResult"]) -> Path:
+    def _write_top_n(self, top_results: list[TrialResult]) -> Path:
         """Write detailed top N candidates."""
         path = self.output_dir / "top_candidates.json"
 
@@ -168,7 +173,7 @@ class SummaryReporter:
 
         return path
 
-    def _result_to_dict(self, result: "TrialResult") -> dict[str, Any]:
+    def _result_to_dict(self, result: TrialResult) -> dict[str, Any]:
         """Convert TrialResult to dictionary."""
         return {
             "trial_id": result.trial_id,
@@ -212,7 +217,7 @@ class SummaryReporter:
 
     def generate_handoff(
         self,
-        results: list["TrialResult"],
+        results: list[TrialResult],
         target: str = "ORACLE",
         study_stats: dict[str, Any] | None = None,
         *,
@@ -232,7 +237,10 @@ class SummaryReporter:
         """
         path = self.output_dir / f"HANDOFF_{target}.md"
 
-        sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
+        if self.config.search.mode == "successive_halving":
+            sorted_results = list(results)
+        else:
+            sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
         top_n = sorted_results[: self.config.stress_test.top_n]
         compliant = [r for r in sorted_results if r.apex_compliant]
 
@@ -264,7 +272,7 @@ class SummaryReporter:
 
     def _format_handoff(
         self,
-        top_n: list["TrialResult"],
+        top_n: list[TrialResult],
         compliant_count: int,
         total_count: int,
         rejections: dict[str, int],
@@ -283,14 +291,16 @@ class SummaryReporter:
             for spec in self.config.parameters:
                 if spec.range:
                     value = best.params.get(spec.name, "N/A")
-                    params_table += f"| {spec.name} | [{spec.range[0]}, {spec.range[1]}] | {value} |\n"
+                    params_table += (
+                        f"| {spec.name} | [{spec.range[0]}, {spec.range[1]}] | {value} |\n"
+                    )
 
         # Build top candidates table
         top_table = "| Rank | Score | SQN | WFE | DD% | Trades | Consistency |\n"
         top_table += "|------|-------|-----|-----|-----|--------|-------------|\n"
         for i, r in enumerate(top_n):
             top_table += (
-                f"| {i+1} | {r.score:.3f} | {r.sqn:.1f} | {r.wfe:.2f} | "
+                f"| {i + 1} | {r.score:.3f} | {r.sqn:.1f} | {r.wfe:.2f} | "
                 f"{r.trailing_dd:.1f} | {r.trades} | {r.positive_days_ratio:.2f} |\n"
             )
 
@@ -329,9 +339,9 @@ class SummaryReporter:
 - **Run ID**: opt_{timestamp}
 - **Config**: {self.config.name}
 - **Mode**: {self.config.search.mode.upper()}
-- **Trials**: {study_stats.get('n_complete', 0)} completed, {study_stats.get('n_pruned', 0)} pruned
-- **Duration**: {study_stats.get('duration_seconds', 0):.1f}s
-- **Apex Compliant**: {compliant_count}/{total_count} ({100*compliant_count/max(1,total_count):.1f}%)
+- **Trials**: {study_stats.get("n_complete", 0)} completed, {study_stats.get("n_pruned", 0)} pruned
+- **Duration**: {study_stats.get("duration_seconds", 0):.1f}s
+- **Apex Compliant**: {compliant_count}/{total_count} ({100 * compliant_count / max(1, total_count):.1f}%)
 
 ### Search Space Summary
 {params_table}

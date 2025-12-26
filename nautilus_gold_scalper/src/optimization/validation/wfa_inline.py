@@ -60,6 +60,7 @@ class WFAResult:
     # Apex-relevant metrics
     trailing_dd: float
     daily_profit_max: float
+    daily_dd: float
     positive_days_ratio: float
     time_gate_violations: int
     overnight_positions: int
@@ -232,6 +233,10 @@ class InlineWFA:
         if trades_df.empty or "timestamp" not in trades_df.columns:
             return windows
 
+        if "pnl" not in trades_df.columns:
+            logger.warning("InlineWFA: trades_df missing required 'pnl' column; treating as empty")
+            return windows
+
         trades_df = trades_df.copy()
 
         # CRITICAL: Assign trades to WFA windows based on ENTRY time, not exit time.
@@ -251,7 +256,17 @@ class InlineWFA:
 
         # Ensure chosen time column is datetime (UTC-aware)
         if not pd.api.types.is_datetime64_any_dtype(trades_df[time_col]):
-            trades_df[time_col] = pd.to_datetime(trades_df[time_col], utc=True)
+            trades_df[time_col] = pd.to_datetime(trades_df[time_col], utc=True, errors="coerce")
+
+        # Fail closed on invalid timestamps to avoid biased window assignment.
+        nat_count = int(pd.to_datetime(trades_df[time_col], utc=True, errors="coerce").isna().sum())
+        if nat_count > 0:
+            logger.warning(
+                "InlineWFA: %d trades have invalid %s timestamps; failing closed for this trial",
+                nat_count,
+                time_col,
+            )
+            return []
 
         for i, (is_start, is_end, oos_start, oos_end) in enumerate(splits):
             # Filter trades for IS and OOS periods
@@ -327,11 +342,20 @@ class InlineWFA:
         wfe_std = float(np.std(wfes)) if len(wfes) > 1 else 0.0
 
         # Total trades and PnL
-        total_trades = len(full_trades_df) if not full_trades_df.empty else 0
-        total_pnl = float(full_trades_df["pnl"].sum()) if not full_trades_df.empty else 0.0
+        if full_trades_df.empty or "pnl" not in full_trades_df.columns:
+            if not full_trades_df.empty:
+                logger.warning(
+                    "InlineWFA: full_trades_df missing required 'pnl' column; treating as empty"
+                )
+            total_trades = 0
+            total_pnl = 0.0
+            pnl_series = pd.Series([], dtype=float)
+        else:
+            total_trades = len(full_trades_df)
+            total_pnl = float(full_trades_df["pnl"].sum())
+            pnl_series = full_trades_df["pnl"].astype(float)
 
         # Performance metrics
-        pnl_series = full_trades_df["pnl"] if not full_trades_df.empty else pd.Series([])
         sqn = self._compute_sqn(pnl_series)
         sharpe = self._compute_sharpe(pnl_series)
         sortino = self._compute_sortino(pnl_series)
@@ -352,6 +376,8 @@ class InlineWFA:
         daily_profit_max = self._compute_daily_profit_max(daily_pnl, total_pnl)
         positive_days_ratio = self._compute_positive_days_ratio(daily_pnl)
 
+        daily_dd = self._compute_daily_dd_max(equity_series)
+
         time_gate_violations = self._compute_time_gate_violations(full_trades_df)
         overnight_positions = self._compute_overnight_positions(full_trades_df)
 
@@ -369,6 +395,7 @@ class InlineWFA:
             max_drawdown_pct=max_dd,
             trailing_dd=trailing_dd,
             daily_profit_max=daily_profit_max,
+            daily_dd=daily_dd,
             positive_days_ratio=positive_days_ratio,
             time_gate_violations=time_gate_violations,
             overnight_positions=overnight_positions,
@@ -398,6 +425,7 @@ class InlineWFA:
             max_drawdown_pct=100.0,  # Worst-case: 100% DD
             trailing_dd=100.0,  # Worst-case: ensures apex_compliant=False
             daily_profit_max=0.0,
+            daily_dd=100.0,
             positive_days_ratio=0.0,
             time_gate_violations=0,
             overnight_positions=0,
@@ -525,32 +553,50 @@ class InlineWFA:
         Note: Protect against division by zero when the running max is 0.
         """
         if equity_series is None or len(equity_series) < 2:
-            return 0.0
+            return 100.0
+
+        equity_series = equity_series.astype(float)
+        equity_series = equity_series.replace([np.inf, -np.inf], np.nan).dropna()
+        if len(equity_series) < 2:
+            return 100.0
 
         running_max = equity_series.cummax()
         with np.errstate(divide="ignore", invalid="ignore"):
             drawdown = ((running_max - equity_series) / running_max).where(
-                running_max > 0, 0.0
+                running_max > 0, np.nan
             ) * 100
 
         max_dd = float(drawdown.max())
         if not np.isfinite(max_dd):
-            return 0.0
-        return max_dd
+            # Fail closed: if drawdown cannot be computed reliably, treat as blown.
+            return 100.0
+        # Sanity: drawdown cannot be negative, cap at 100%.
+        return float(max(0.0, min(100.0, max_dd)))
 
     def _compute_daily_pnl(self, trades_df: pd.DataFrame) -> pd.Series:
-        """Aggregate PnL by ET day.
+        """Aggregate PnL by Apex session-day (17:00 ET boundary).
 
-        Apex day boundaries are defined in America/New_York.
-        If timezone conversion isn't available, fall back to UTC days.
+        - Uses realized timing when available (`exit_time`), otherwise falls back to `timestamp`.
+        - Apex session-day boundary is approximated as 17:00 ET (5 PM ET).
+
+        If timestamps are invalid, return empty so caller can fail closed.
         """
-        if trades_df.empty or "timestamp" not in trades_df.columns:
+        if trades_df.empty:
             return pd.Series([], dtype=float)
 
         df = trades_df.copy()
 
-        times_utc = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
-        if times_utc.isna().all():
+        time_col = (
+            "exit_time"
+            if "exit_time" in df.columns and df["exit_time"].notna().any()
+            else "timestamp"
+        )
+        if time_col not in df.columns:
+            return pd.Series([], dtype=float)
+
+        times_utc = pd.to_datetime(df[time_col], utc=True, errors="coerce")
+        # Fail closed on any invalid times: dropping them can understate daily concentration.
+        if times_utc.isna().any():
             return pd.Series([], dtype=float)
 
         try:
@@ -561,8 +607,9 @@ class InlineWFA:
         except Exception:
             times_local = times_utc
 
-        df["date"] = times_local.dt.date
-        return df.groupby("date")["pnl"].sum()
+        # Session-day key: subtract 17h so [17:00..23:59] maps to next calendar date.
+        df["session_date"] = (times_local - pd.Timedelta(hours=17)).dt.date
+        return df.groupby("session_date")["pnl"].sum()
 
     def _compute_daily_profit_max(self, daily_pnl: pd.Series, total_pnl: float) -> float:
         """
@@ -571,12 +618,73 @@ class InlineWFA:
         Formula: daily_max_pct = max(daily_pnl) / total_pnl * 100
         Example: max_day=1000, total=5000 → 1000/5000 * 100 = 20%
         """
-        if daily_pnl.empty or total_pnl <= 0:
+        if total_pnl <= 0:
             return 0.0
+
+        # Fail closed: if we cannot compute daily PnL but total PnL is positive,
+        # the timestamp series is unreliable and daily profit concentration is unknown.
+        if daily_pnl.empty:
+            return 100.0
         max_daily = daily_pnl.max()
         if max_daily <= 0:
             return 0.0
         return float(max_daily / total_pnl * 100)
+
+    def _compute_daily_dd_max(self, equity_series: pd.Series | None) -> float:
+        """Compute max daily drawdown percentage (Apex-style) from an equity curve.
+
+        We define daily drawdown as the worst peak-to-trough drop within an ET session-day.
+
+        NOTE: This uses a 17:00 ET boundary approximation (Apex session-day).
+
+        Formula per day d:
+            dd_d_pct = (max_equity_d - min_equity_d) / max_equity_d * 100
+        Example:
+            equity_d = [100000, 101000, 99500]
+            dd_d_pct = (101000-99500)/101000*100 = 1.485%
+
+        If equity_series is missing/too short/unreliable, fail closed with 100.0.
+        """
+        if equity_series is None or len(equity_series) < 2:
+            return 100.0
+
+        equity = equity_series.astype(float).replace([np.inf, -np.inf], np.nan).dropna()
+        if len(equity) < 2:
+            return 100.0
+
+        if not isinstance(equity.index, pd.DatetimeIndex):
+            # Cannot safely bucket by day.
+            return 100.0
+
+        if equity.index.tz is None:
+            equity.index = equity.index.tz_localize("UTC")
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            et_tz = ZoneInfo("America/New_York")
+            idx_local = equity.index.tz_convert(et_tz)
+        except Exception:
+            idx_local = equity.index
+
+        df = pd.DataFrame({"equity": equity.values}, index=idx_local)
+        # Session-day key: subtract 17h so [17:00..23:59] maps to next calendar date.
+        df["session_date"] = (pd.Series(df.index) - pd.Timedelta(hours=17)).dt.date.values
+
+        grouped = df.groupby("session_date")["equity"]
+        daily_max = grouped.max()
+        daily_min = grouped.min()
+
+        # dd_pct = (max-min)/max*100, guarding max<=0.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            daily_dd = (daily_max - daily_min) / daily_max * 100.0
+            daily_dd = daily_dd.where(daily_max > 0, np.nan)
+
+        max_daily_dd = float(daily_dd.max())
+        if not np.isfinite(max_daily_dd):
+            return 100.0
+
+        return float(max(0.0, min(100.0, max_daily_dd)))
 
     def _compute_positive_days_ratio(self, daily_pnl: pd.Series) -> float:
         """
