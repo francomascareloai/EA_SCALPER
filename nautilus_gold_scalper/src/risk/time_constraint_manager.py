@@ -415,24 +415,42 @@ class TimeConstraintManager:
             self._close_positions_individually(positions)
             return
 
+        def _collect_order_ids() -> set[ClientOrderId]:
+            ids: set[ClientOrderId] = set()
+            try:
+                orders = list(self.strategy.cache.orders(instrument_id))
+            except Exception:
+                return ids
+            for order in orders:
+                oid = getattr(order, "client_order_id", None)
+                if oid is None:
+                    continue
+                # Most Nautilus objects expose `client_order_id` as ClientOrderId.
+                if isinstance(oid, ClientOrderId):
+                    ids.add(oid)
+                    continue
+                # Best-effort coercion.
+                try:
+                    ids.add(ClientOrderId(str(oid)))
+                except Exception:
+                    continue
+            return ids
+
         try:
             # Standard approach: use close_all_positions (batched)
-            # Note: close_all_positions doesn't return order IDs directly,
-            # but we can track orders submitted after this call
-            orders_before = len(list(self.strategy.cache.orders(instrument_id)))
+            # Note: close_all_positions doesn't return order IDs directly.
+            # Cache order iteration is explicitly unordered, so we must use set-diff
+            # instead of list slicing.
+            before_ids = _collect_order_ids()
 
             self.strategy.close_all_positions(
                 instrument_id,
                 reduce_only=False,  # Force close
             )
 
-            # Capture newly submitted order IDs
-            all_orders = list(self.strategy.cache.orders(instrument_id))
-            # New orders are those added after our call
-            if len(all_orders) > orders_before:
-                for order in all_orders[orders_before:]:
-                    if hasattr(order, "client_order_id"):
-                        self._close_order_ids.append(order.client_order_id)
+            after_ids = _collect_order_ids()
+            new_ids = sorted(after_ids.difference(before_ids), key=str)
+            self._close_order_ids.extend(list(new_ids))
 
         except Exception:
             # Fallback: try closing positions individually

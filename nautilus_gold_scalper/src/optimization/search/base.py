@@ -36,6 +36,7 @@ class TrialResult:
     # Apex compliance
     trailing_dd: float
     daily_profit_max: float
+    daily_dd: float
     time_gate_violations: int
     overnight_positions: int
     apex_compliant: bool

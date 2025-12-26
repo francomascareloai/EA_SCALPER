@@ -32,6 +32,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 
 import numpy as np
+from scipy.stats import kurtosis, skew
+
 from src.validation.core.config import ValidationConfig
 from src.validation.core.engine import (
     DuckDBConnection,
@@ -41,7 +43,6 @@ from src.validation.core.results import (
     PhaseResult,
     ValidationStatus,
 )
-from scipy.stats import kurtosis, skew
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -71,9 +72,7 @@ try:
     _sm_acf_func = _acf
     _STATSMODELS_AVAILABLE = True
 except ImportError:
-    logger.warning(
-        "statsmodels not available - using numpy fallback for ACF calculation"
-    )
+    logger.warning("statsmodels not available - using numpy fallback for ACF calculation")
 
 
 # -----------------------------------------------------------------------------
@@ -221,9 +220,7 @@ def compute_acf(data: NDArray[np.floating[Any]], nlags: int = 20) -> NDArray[np.
         if lag == 0:
             acf_values.append(1.0)
         else:
-            acf_val = float(
-                np.sum(data_centered[: n - lag] * data_centered[lag:]) / (n * var)
-            )
+            acf_val = float(np.sum(data_centered[: n - lag] * data_centered[lag:]) / (n * var))
             acf_values.append(acf_val)
 
     return np.array(acf_values)
@@ -245,8 +242,8 @@ def scan_file_for_lookahead(
 
     try:
         content = file_path.read_text(encoding="utf-8", errors="ignore")
-    except OSError as e:
-        logger.warning("Could not read file %s: %s", file_path, e)
+    except OSError:
+        logger.warning("Could not read file %s", file_path, exc_info=True)
         return issues
 
     lines = content.splitlines()
@@ -312,7 +309,7 @@ def scan_directory_for_lookahead(
 # -----------------------------------------------------------------------------
 
 
-class Phase5Validator(PhaseValidator):
+class Phase5Validator(PhaseValidator):  # type: ignore[misc]
     """Phase 5: Advanced Statistical Authenticity and Look-Ahead Bias Detection.
 
     Validates that market data is genuine (not synthetic) using statistical
@@ -524,8 +521,15 @@ class Phase5Validator(PhaseValidator):
                 )
 
             # Compute percentage returns
-            close_prices = df["close_price"].to_numpy()
-            returns = np.diff(close_prices) / close_prices[:-1] * 100
+            close_prices_any = df["close_price"].to_numpy()
+            close_prices = np.asarray(close_prices_any, dtype=np.float64)
+            prev = close_prices[:-1]
+            diff = np.diff(close_prices)
+            returns = np.divide(
+                diff, prev, out=np.zeros_like(diff, dtype=np.float64), where=(prev != 0.0)
+            )
+            returns *= 100.0
+            # R13-FIX: avoid division by zero when previous close is 0
 
             # Remove NaN and infinite values
             returns = returns[np.isfinite(returns)]
@@ -622,8 +626,15 @@ class Phase5Validator(PhaseValidator):
             if df.is_empty() or len(df) < 100:
                 return self._empty_stylized_result("Insufficient data")
 
-            close_prices = df["close_price"].to_numpy()
-            returns = np.diff(close_prices) / close_prices[:-1] * 100
+            close_prices_any = df["close_price"].to_numpy()
+            close_prices = np.asarray(close_prices_any, dtype=np.float64)
+            prev = close_prices[:-1]
+            diff = np.diff(close_prices)
+            returns = np.divide(
+                diff, prev, out=np.zeros_like(diff, dtype=np.float64), where=(prev != 0.0)
+            )
+            returns *= 100.0
+            # R13-FIX: avoid division by zero when previous close is 0
             returns = returns[np.isfinite(returns)]
 
             if len(returns) < 100:
@@ -641,15 +652,11 @@ class Phase5Validator(PhaseValidator):
             acf_5 = float(acf_values[5]) if len(acf_values) > 5 else 0.0
             acf_20 = float(acf_values[20]) if len(acf_values) > 20 else 0.0
 
-            vol_clustering_passed = (
-                acf_1 > self.ACF_1_THRESHOLD and acf_5 > self.ACF_5_THRESHOLD
-            )
+            vol_clustering_passed = acf_1 > self.ACF_1_THRESHOLD and acf_5 > self.ACF_5_THRESHOLD
 
             # c) Leverage Effect: Correlation(r_t, |r_{t+1}|) should be negative
             if len(returns) > 1:
-                leverage_corr = float(
-                    np.corrcoef(returns[:-1], np.abs(returns[1:]))[0, 1]
-                )
+                leverage_corr = float(np.corrcoef(returns[:-1], np.abs(returns[1:]))[0, 1])
             else:
                 leverage_corr = 0.0
             leverage_corr = 0.0 if not np.isfinite(leverage_corr) else leverage_corr
@@ -660,10 +667,7 @@ class Phase5Validator(PhaseValidator):
 
             # All must pass for overall pass
             all_passed = (
-                fat_tails_passed
-                and vol_clustering_passed
-                and leverage_passed
-                and slow_decay_passed
+                fat_tails_passed and vol_clustering_passed and leverage_passed and slow_decay_passed
             )
 
             return StylizedFactsResult(
@@ -788,7 +792,9 @@ class Phase5Validator(PhaseValidator):
 
             # Compute London/NY overlap average (hours 12-15)
             london_ny_mask = np.isin(hours, self.LONDON_NY_HOURS)
-            london_ny_avg = float(np.mean(volatility[london_ny_mask])) if london_ny_mask.any() else 0.0
+            london_ny_avg = (
+                float(np.mean(volatility[london_ny_mask])) if london_ny_mask.any() else 0.0
+            )
 
             # Compute Asian session average (hours 0-6)
             asian_mask = np.isin(hours, self.ASIAN_HOURS)
@@ -864,9 +870,7 @@ class Phase5Validator(PhaseValidator):
 
             for scan_dir in scan_dirs:
                 if scan_dir.exists():
-                    scripts, issues = scan_directory_for_lookahead(
-                        scan_dir, LOOKAHEAD_PATTERNS
-                    )
+                    scripts, issues = scan_directory_for_lookahead(scan_dir, LOOKAHEAD_PATTERNS)
                     total_scripts += scripts
                     all_issues.extend(issues)
 
@@ -963,9 +967,7 @@ class Phase5Validator(PhaseValidator):
                 passed=False,
             )
 
-    def _compute_authenticity_score(
-        self, component_results: dict[str, bool]
-    ) -> float:
+    def _compute_authenticity_score(self, component_results: dict[str, bool]) -> float:
         """Compute overall authenticity score from component results.
 
         Weighting:

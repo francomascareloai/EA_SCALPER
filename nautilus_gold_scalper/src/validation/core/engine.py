@@ -51,6 +51,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 import duckdb
 import polars as pl
 import pyarrow as pa
+
 from src.validation.core.config import ValidationConfig
 from src.validation.core.results import (
     CheckResult,
@@ -586,6 +587,7 @@ class ValidationEngine:
         if progress:
             try:
                 from tqdm import tqdm
+
                 phase_iter: Iterator[str] = tqdm(
                     self._phase_order,
                     desc="Validating",
@@ -734,11 +736,9 @@ class ValidationEngine:
 
         try:
             result = self.db.query(sql).fetchone()
-        except duckdb.Error as e:
+        except duckdb.Error:
             # Try alternative pattern if standard pattern fails
-            logger.warning(
-                "Standard pattern failed, trying alternative: %s", e
-            )
+            logger.warning("Standard pattern failed, trying alternative", exc_info=True)
             parquet_pattern_alt = f"{catalog_path}/**/*.parquet"
             sql_alt = f"""
             SELECT
@@ -756,16 +756,8 @@ class ValidationEngine:
         total_ticks, min_ts, max_ts, trading_days = result
 
         # Convert nanosecond timestamps to datetime strings
-        min_datetime = (
-            datetime.fromtimestamp(min_ts / 1_000_000_000).isoformat()
-            if min_ts
-            else ""
-        )
-        max_datetime = (
-            datetime.fromtimestamp(max_ts / 1_000_000_000).isoformat()
-            if max_ts
-            else ""
-        )
+        min_datetime = datetime.fromtimestamp(min_ts / 1_000_000_000).isoformat() if min_ts else ""
+        max_datetime = datetime.fromtimestamp(max_ts / 1_000_000_000).isoformat() if max_ts else ""
 
         # Calculate average ticks per day
         ticks_per_day = float(total_ticks) / trading_days if trading_days > 0 else 0.0

@@ -1022,7 +1022,6 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             clock=self.clock,
             use_clock_timer=(
                 bool(getattr(self.config, "prop_firm_enabled", True))
-                and (not bool(self.config.allow_overnight))
                 and bool(getattr(self.config, "time_gate_use_clock_timer", True))
             ),
             timer_interval_ns=int(

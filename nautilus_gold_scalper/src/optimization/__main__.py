@@ -121,8 +121,8 @@ def main() -> int:
 
     try:
         config = OptimizationConfig.from_yaml(config_path)
-    except Exception as e:
-        logger.error(f"Failed to load config: {e}")
+    except Exception:
+        logger.error("Failed to load config", exc_info=True)
         return 1
 
     # Apply CLI overrides
@@ -137,15 +137,22 @@ def main() -> int:
         print(f"Name: {config.name}")
         print(f"Version: {config.version}")
         print("\nSearch:")
-        print(f"  Mode: {args.mode or config.search.mode}")
-        if (args.mode or config.search.mode) == "successive_halving":
+        mode = args.mode if args.mode is not None else config.search.mode
+        print(f"  Mode: {mode}")
+        if mode == "successive_halving":
             sh = config.search.successive_halving
             print(
                 f"  SuccessiveHalving: eta={sh.eta} window_days={list(sh.window_days)} wfa_windows={list(sh.wfa_windows)}"
             )
-        print(f"  Trials: {args.trials or config.search.trials}")
-        print(f"  Parallelism: {args.parallelism or config.search.parallelism}")
-        print(f"  Seed: {args.seed or config.search.seed}")
+        trials = args.trials if args.trials is not None else config.search.trials
+        parallelism = (
+            args.parallelism if args.parallelism is not None else config.search.parallelism
+        )
+        print(f"  Trials: {trials}")
+        print(f"  Parallelism: {parallelism}")
+        seed_val = args.seed if args.seed is not None else config.search.seed
+        seed = 42 if seed_val is None else int(seed_val)
+        print(f"  Seed: {seed}")
         print(f"\nParameters ({len(config.parameters)}):")
         for p in config.parameters:
             if p.range:
@@ -154,7 +161,7 @@ def main() -> int:
                 print(f"  {p.name}: {p.choices}")
 
         # Estimate grid size
-        if config.search.mode == "grid":
+        if mode == "grid":
             size = 1
             for p in config.parameters:
                 if p.range and p.step:
@@ -185,8 +192,8 @@ def main() -> int:
     # Create optimizer
     logger.info("Initializing ApexOptimizer...")
 
-    # TODO: Create actual backtest function integration
-    # For now, we'll show a message about needing the backtest function
+    # NOTE: This CLI is intentionally "dry-run" oriented for now.
+    # Running the full optimization requires integrating a backtest function.
     print("\n" + "=" * 60)
     print("APEX OPTIMIZER")
     print("=" * 60)

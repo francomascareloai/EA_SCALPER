@@ -857,7 +857,7 @@ def build_strategy_config(
         use_footprint=exec_cfg.get("use_footprint", True),
         use_footprint_boost=_parse_bool(exec_cfg.get("use_footprint_boost"), default=True),
         use_bandit_context=_parse_bool(exec_cfg.get("use_bandit_context"), default=False),
-        prop_firm_enabled=True,
+        prop_firm_enabled=_parse_bool(exec_cfg.get("prop_firm_enabled"), default=True),
         account_balance=exec_cfg.get("initial_balance", 100000.0),
         # DD limits: config uses fractions (0.03 = 3%), but GoldScalperConfig expects percent-points (3.0)
         # Safe conversion: if value < 1, treat as fraction and multiply by 100
@@ -1302,6 +1302,15 @@ class BacktestRunner:
         _p(f"Sample: {sample_rate} (float fraction or N-step)")
         _p(f"Feed: {feed} | Source: {data_source}")
         _p(f"LTF minutes: {ltf_minutes}")
+
+        # CRITICAL: Apex trailing DD / HWM semantics require QuoteTicks (bid/ask) for
+        # mark-to-market equity updates. Bar-only mode is a fast screener but is NOT
+        # valid for prop-firm compliance decisions.
+        if prop_firm_enabled and feed != "ticks":
+            raise ValueError(
+                "prop_firm_enabled=True requires feed='ticks' for MTM equity/HWM enforcement. "
+                "Use feed='ticks' or disable prop-firm rules via --no-prop / prop_firm_enabled=False."
+            )
         # Note: Filters/defaults are loaded from the selected strategy YAML.
         _p(f"Initial Balance: ${self.initial_balance:,.2f}")
 

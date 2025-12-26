@@ -84,12 +84,12 @@ parameters:
   # === TrendFollow core ===
   execution.ltf_bar_minutes:
     type: int
-    choices: [5, 15, 30, 60]
-    description: "LTF bar aggregation timeframe in minutes (M5/M15/M30/H1)"
+    choices: [3, 5, 15, 30, 60]
+    description: "LTF bar aggregation timeframe in minutes (M3/M5/M15/M30/H1)"
 
   execution.trend_ma_type:
     type: categorical
-    choices: ["EMA", "SMA"]
+    choices: ["EMA", "SMA", "WMA", "HMA"]
     description: "Trend MA type"
 
   execution.trend_sep_ticks_min:
@@ -216,6 +216,10 @@ fixed:
   execution.use_session_filter: true
   execution.use_regime_filter: true
   execution.use_mtf: true
+  # Auto-derive MTF/HTF timeframes from LTF during optimization.
+  # This avoids invalid hierarchy when sweeping `execution.ltf_bar_minutes`.
+  execution.mtf_bar_minutes: null
+  execution.htf_bar_minutes: null
   execution.use_footprint: false
 
   # Baseline RR management (can be expanded later)

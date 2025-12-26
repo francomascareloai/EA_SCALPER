@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, ClassVar, TypedDict
 
 import numpy as np
+
 from src.validation.core.config import ValidationConfig
 from src.validation.core.engine import (
     DuckDBConnection,
@@ -59,14 +60,16 @@ logger = logging.getLogger(__name__)
 EPOCH_2003_05_05_NS: int = 1_052_092_800_000_000_000
 
 # Required schema columns for quote ticks
-REQUIRED_COLUMNS: frozenset[str] = frozenset({
-    "bid_price",
-    "ask_price",
-    "bid_size",
-    "ask_size",
-    "ts_event",
-    "ts_init",
-})
+REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "bid_price",
+        "ask_price",
+        "bid_size",
+        "ask_size",
+        "ts_event",
+        "ts_init",
+    }
+)
 
 # Session hour ranges (UTC hours, inclusive start, exclusive end)
 # ASIAN: 00:00-06:59, LONDON: 07:00-11:59, OVERLAP: 12:00-14:59
@@ -278,7 +281,7 @@ def classify_regime(hurst: float) -> str:
 # -----------------------------------------------------------------------------
 
 
-class Phase2Validator(PhaseValidator):
+class Phase2Validator(PhaseValidator):  # type: ignore[misc]
     """Main Catalog Validation - comprehensive validation of 654M tick catalog.
 
     Performs the following validations:
@@ -306,9 +309,7 @@ class Phase2Validator(PhaseValidator):
             db: DuckDB connection for executing queries.
         """
         super().__init__(config, db)
-        self._parquet_pattern = (
-            f"{config.catalog_path}/data/quote_tick/**/*.parquet"
-        )
+        self._parquet_pattern = f"{config.catalog_path}/data/quote_tick/**/*.parquet"
         self._total_ticks: int = 0
         self._months_coverage: int = 0
         self._clean_data_pct: float = 100.0
@@ -493,9 +494,7 @@ class Phase2Validator(PhaseValidator):
             # Calculate coverage months
             min_dt = datetime.fromtimestamp(min_ts / 1e9, tz=timezone.utc)
             max_dt = datetime.fromtimestamp(max_ts / 1e9, tz=timezone.utc)
-            months_diff = (max_dt.year - min_dt.year) * 12 + (
-                max_dt.month - min_dt.month
-            )
+            months_diff = (max_dt.year - min_dt.year) * 12 + (max_dt.month - min_dt.month)
             self._months_coverage = months_diff
 
             # Check: No timestamps before 2003-05-05
@@ -679,9 +678,7 @@ class Phase2Validator(PhaseValidator):
 
             # Calculate clean data percentage
             bad_count = crossed + null_count + nan_count
-            self._clean_data_pct = (
-                ((total - bad_count) / total * 100) if total > 0 else 0.0
-            )
+            self._clean_data_pct = ((total - bad_count) / total * 100) if total > 0 else 0.0
 
             # Check: No crossed quotes
             if crossed > 0:
@@ -823,8 +820,7 @@ class Phase2Validator(PhaseValidator):
                         name="Average Spread",
                         status=ValidationStatus.PASS,
                         message=(
-                            f"Average spread {avg_spread_cents:.2f} cents "
-                            f"<= {max_avg_spread} cents"
+                            f"Average spread {avg_spread_cents:.2f} cents <= {max_avg_spread} cents"
                         ),
                         value=avg_spread_cents,
                         threshold=max_avg_spread,
@@ -836,8 +832,7 @@ class Phase2Validator(PhaseValidator):
                         name="Average Spread",
                         status=ValidationStatus.WARNING,
                         message=(
-                            f"Average spread {avg_spread_cents:.2f} cents "
-                            f"> {max_avg_spread} cents"
+                            f"Average spread {avg_spread_cents:.2f} cents > {max_avg_spread} cents"
                         ),
                         value=avg_spread_cents,
                         threshold=max_avg_spread,
@@ -893,7 +888,10 @@ class Phase2Validator(PhaseValidator):
                 return checks
 
             # Extract close prices and compute log returns
-            closes = df["close"].to_numpy()
+            closes_any = df["close"].to_numpy()
+            closes = np.asarray(closes_any, dtype=np.float64)
+            if np.any(~np.isfinite(closes)) or np.any(closes <= 0.0):
+                raise ValueError("Close prices must be finite and positive for log()")  # R13-FIX
             log_returns = np.diff(np.log(closes))
 
             # Calculate overall Hurst exponent
@@ -939,10 +937,7 @@ class Phase2Validator(PhaseValidator):
                 CheckResult(
                     name="Overall Hurst Exponent",
                     status=ValidationStatus.PASS,
-                    message=(
-                        f"H = {overall_hurst:.3f} "
-                        f"({classify_regime(overall_hurst)})"
-                    ),
+                    message=(f"H = {overall_hurst:.3f} ({classify_regime(overall_hurst)})"),
                     value=overall_hurst,
                     details={
                         "trading_days": len(df),
@@ -1065,18 +1060,14 @@ class Phase2Validator(PhaseValidator):
 
             if all_sessions_ok:
                 coverage_str = ", ".join(
-                    f"{s}={session_data[s][1]:.1f}%"
-                    for s in sorted(session_data.keys())
+                    f"{s}={session_data[s][1]:.1f}%" for s in sorted(session_data.keys())
                 )
                 checks.append(
                     CheckResult(
                         name="Session Coverage",
                         status=ValidationStatus.PASS,
                         message=f"All sessions > {MIN_SESSION_PERCENTAGE}%: {coverage_str}",
-                        details={
-                            s: {"ticks": d[0], "pct": d[1]}
-                            for s, d in session_data.items()
-                        },
+                        details={s: {"ticks": d[0], "pct": d[1]} for s, d in session_data.items()},
                     )
                 )
             else:
@@ -1091,10 +1082,7 @@ class Phase2Validator(PhaseValidator):
                         name="Session Coverage",
                         status=ValidationStatus.WARNING,
                         message=f"Session coverage issues: {'; '.join(issues)}",
-                        details={
-                            s: {"ticks": d[0], "pct": d[1]}
-                            for s, d in session_data.items()
-                        },
+                        details={s: {"ticks": d[0], "pct": d[1]} for s, d in session_data.items()},
                     )
                 )
 

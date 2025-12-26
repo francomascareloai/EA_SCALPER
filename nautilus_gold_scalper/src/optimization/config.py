@@ -15,9 +15,10 @@ from typing import Any, Literal, cast
 
 import yaml
 
-SearchMode = Literal["grid", "random", "bayesian", "successive_halving", "lhs"]
+SearchMode = Literal["grid", "random", "bayesian", "successive_halving"]
 
-# Runtime validation constants for search modes
+# Runtime validation constants for search modes.
+# NOTE: "lhs" is accepted as a CLI-only alias and is normalized to "random" in _from_dict().
 _VALID_SEARCH_MODES: frozenset[str] = frozenset(
     {"grid", "random", "bayesian", "successive_halving", "lhs"}
 )
@@ -158,16 +159,29 @@ class SearchConfig:
 class ApexConstraints:
     """Apex prop firm compliance constraints."""
 
-    trailing_dd_max: float = 4.5  # Buffer before 5% limit
+    trailing_dd_max: float = 4.5  # Buffer before 5% Apex limit
+    daily_dd_max: float = 3.0  # Buffer per CLAUDE.md hard blocks
     daily_profit_max: float = 29.0  # Buffer before 30% consistency rule
     overnight_positions: int = 0
     time_gate_violations: int = 0
 
     def __post_init__(self) -> None:
-        if not math.isfinite(float(self.trailing_dd_max)) or float(self.trailing_dd_max) <= 0:
-            raise ValueError(f"trailing_dd_max must be > 0, got {self.trailing_dd_max}")
-        if not math.isfinite(float(self.daily_profit_max)) or float(self.daily_profit_max) <= 0:
+        trailing_dd_max = float(self.trailing_dd_max)
+        if not (math.isfinite(trailing_dd_max) and 0 < trailing_dd_max <= 4.5):
+            raise ValueError(
+                f"trailing_dd_max must be in (0, 4.5] for Apex safety buffer, got {self.trailing_dd_max}"
+            )
+
+        daily_dd_max = float(self.daily_dd_max)
+        if not (math.isfinite(daily_dd_max) and 0 < daily_dd_max <= 3.0):
+            raise ValueError(
+                f"daily_dd_max must be in (0, 3.0] per CLAUDE.md Apex DD hard blocks, got {self.daily_dd_max}"
+            )
+
+        daily_profit_max = float(self.daily_profit_max)
+        if not (math.isfinite(daily_profit_max) and daily_profit_max > 0):
             raise ValueError(f"daily_profit_max must be > 0, got {self.daily_profit_max}")
+
         if self.overnight_positions < 0:
             raise ValueError(f"overnight_positions must be >= 0, got {self.overnight_positions}")
         if self.time_gate_violations < 0:
@@ -401,23 +415,38 @@ class OptimizationConfig:
             raise FileNotFoundError(f"Config file not found: {path}")
 
         with open(path, encoding="utf-8") as f:
-            raw = yaml.safe_load(f) or {}
+            raw = yaml.safe_load(f)
 
         return cls._from_dict(raw)
 
     @classmethod
-    def _from_dict(cls, raw: dict[str, Any]) -> OptimizationConfig:
-        """Parse raw dict into typed config."""
-        metadata = raw.get("metadata", {})
-        search_raw = raw.get("search", {})
-        params_raw = raw.get("parameters", {})
-        fixed = raw.get("fixed", {})
-        constraints_raw = raw.get("constraints", {})
-        objective_raw = raw.get("objective", {})
-        validation_raw = raw.get("validation", {})
-        stress_raw = raw.get("stress_test", {})
-        data_raw = raw.get("data", {})
-        output_raw = raw.get("output", {})
+    def _from_dict(cls, raw: Any) -> OptimizationConfig:
+        """Parse raw YAML object into typed config."""
+        if raw is None:
+            raise ValueError("Optimization YAML is empty")
+        if not isinstance(raw, dict):
+            raise ValueError(f"Optimization YAML root must be a mapping, got {type(raw).__name__}")
+
+        def _require_mapping(section_name: str) -> dict[str, Any]:
+            v = raw.get(section_name)
+            if v is None:
+                return {}
+            if not isinstance(v, dict):
+                raise ValueError(
+                    f"Optimization YAML section '{section_name}' must be a mapping, got {type(v).__name__}"
+                )
+            return cast(dict[str, Any], v)
+
+        metadata = _require_mapping("metadata")
+        search_raw = _require_mapping("search")
+        params_raw = _require_mapping("parameters")
+        fixed = _require_mapping("fixed")
+        constraints_raw = _require_mapping("constraints")
+        objective_raw = _require_mapping("objective")
+        validation_raw = _require_mapping("validation")
+        stress_raw = _require_mapping("stress_test")
+        data_raw = _require_mapping("data")
+        output_raw = _require_mapping("output")
 
         # Parse parameters
         parameters: list[ParameterSpec] = []
@@ -434,12 +463,22 @@ class OptimizationConfig:
                     raise ValueError(f"Parameter {name}: range must be a 2-item sequence")
                 range_tuple = (float(range_val[0]), float(range_val[1]))
 
+            step_raw = spec.get("step")
+            step_val: float | None = None
+            if step_raw is not None:
+                try:
+                    step_val = float(step_raw)
+                except Exception as exc:
+                    raise ValueError(
+                        f"Parameter {name}: step must be numeric (or null), got {step_raw!r}"
+                    ) from exc
+
             parameters.append(
                 ParameterSpec(
                     name=name,
                     param_type=param_type,
                     range=range_tuple,
-                    step=spec.get("step"),
+                    step=step_val,
                     choices=spec.get("choices"),
                     log_scale=spec.get("log_scale", False),
                     description=spec.get("description", ""),
@@ -477,22 +516,77 @@ class OptimizationConfig:
             raise ValueError(
                 f"search.mode='{raw_mode}' is not valid. Valid modes: {sorted(_VALID_SEARCH_MODES)}"
             )
-        # Treat 'lhs' as alias for 'random' (both use LHS sampling)
+        # Treat 'lhs' as CLI-only alias for 'random' (both use LHS sampling).
         if raw_mode == "lhs":
             validated_mode: SearchMode = "random"
         else:
             validated_mode = cast(SearchMode, raw_mode)
 
         # Parse search config
+        trials_raw = search_raw.get("trials", 200)
+        n_samples_raw = search_raw.get("n_samples", 200)
+        seed_raw = search_raw.get("seed", 42)
+        parallelism_raw = search_raw.get("parallelism", 4)
+        timeout_raw = search_raw.get("timeout_per_trial", 300)
+        max_grid_size_raw = search_raw.get("max_grid_size", 1000)
+
+        if seed_raw is None:
+            raise ValueError("search.seed cannot be null")
+        if isinstance(seed_raw, bool):
+            raise ValueError(f"search.seed must be an int, got bool {seed_raw!r}")
+        try:
+            seed = int(seed_raw)
+        except Exception as exc:
+            raise ValueError(f"search.seed must be an int, got {seed_raw!r}") from exc
+
+        try:
+            trials = int(trials_raw)
+        except Exception as exc:
+            raise ValueError(f"search.trials must be an int, got {trials_raw!r}") from exc
+        if trials < 1:
+            raise ValueError(f"search.trials must be >= 1, got {trials}")
+
+        try:
+            n_samples = int(n_samples_raw)
+        except Exception as exc:
+            raise ValueError(f"search.n_samples must be an int, got {n_samples_raw!r}") from exc
+        if n_samples < 1:
+            raise ValueError(f"search.n_samples must be >= 1, got {n_samples}")
+
+        try:
+            parallelism = int(parallelism_raw)
+        except Exception as exc:
+            raise ValueError(f"search.parallelism must be an int, got {parallelism_raw!r}") from exc
+        if parallelism < 1:
+            raise ValueError(f"search.parallelism must be >= 1, got {parallelism}")
+
+        try:
+            timeout_per_trial = int(timeout_raw)
+        except Exception as exc:
+            raise ValueError(
+                f"search.timeout_per_trial must be an int, got {timeout_raw!r}"
+            ) from exc
+        if timeout_per_trial < 1:
+            raise ValueError(f"search.timeout_per_trial must be >= 1, got {timeout_per_trial}")
+
+        try:
+            max_grid_size = int(max_grid_size_raw)
+        except Exception as exc:
+            raise ValueError(
+                f"search.max_grid_size must be an int, got {max_grid_size_raw!r}"
+            ) from exc
+        if max_grid_size < 1:
+            raise ValueError(f"search.max_grid_size must be >= 1, got {max_grid_size}")
+
         search = SearchConfig(
             mode=validated_mode,
-            trials=search_raw.get("trials", 200),
+            trials=trials,
             sampler=search_raw.get("sampler", "tpe"),
-            max_grid_size=search_raw.get("max_grid_size", 1000),
-            n_samples=search_raw.get("n_samples", 200),
-            seed=search_raw.get("seed", 42),
-            parallelism=search_raw.get("parallelism", 4),
-            timeout_per_trial=search_raw.get("timeout_per_trial", 300),
+            max_grid_size=max_grid_size,
+            n_samples=n_samples,
+            seed=seed,
+            parallelism=parallelism,
+            timeout_per_trial=timeout_per_trial,
             early_stop=early_stop,
             successive_halving=successive_halving,
         )
@@ -505,6 +599,7 @@ class OptimizationConfig:
         constraints = ConstraintsConfig(
             apex=ApexConstraints(
                 trailing_dd_max=apex_raw.get("trailing_dd_max", 4.5),
+                daily_dd_max=apex_raw.get("daily_dd_max", 3.0),
                 daily_profit_max=apex_raw.get("daily_profit_max", 29.0),
                 overnight_positions=apex_raw.get("overnight_positions", 0),
                 time_gate_violations=apex_raw.get("time_gate_violations", 0),
@@ -524,13 +619,43 @@ class OptimizationConfig:
 
         # Parse objective
         composite_raw = objective_raw.get("composite", {})
+        if composite_raw is None:
+            composite_raw = {}
+        if not isinstance(composite_raw, dict):
+            raise ValueError(
+                f"objective.composite must be a mapping, got {type(composite_raw).__name__}"
+            )
+
         penalties_raw = objective_raw.get("penalties", {})
+        if penalties_raw is None:
+            penalties_raw = {}
+        if not isinstance(penalties_raw, dict):
+            raise ValueError(
+                f"objective.penalties must be a mapping, got {type(penalties_raw).__name__}"
+            )
+
         dd_penalty_raw = penalties_raw.get("trailing_dd", {})
         trades_penalty_raw = penalties_raw.get("trades", {})
 
         sqn_raw = composite_raw.get("sqn", {})
         wfe_raw = composite_raw.get("wfe", {})
-        cons_raw = composite_raw.get("consistency", {})
+
+        cons_raw: dict[str, Any]
+        raw_consistency = composite_raw.get("consistency")
+        # Backward-compatible aliases seen in existing grid configs.
+        if raw_consistency is None:
+            raw_consistency = composite_raw.get("positive_days")
+        if raw_consistency is None:
+            raw_consistency = composite_raw.get("win_rate")
+
+        if raw_consistency is None:
+            cons_raw = {}
+        elif not isinstance(raw_consistency, dict):
+            raise ValueError(
+                f"objective.composite.consistency must be a mapping, got {type(raw_consistency).__name__}"
+            )
+        else:
+            cons_raw = raw_consistency
 
         objective = ObjectiveConfig(
             direction=objective_raw.get("direction", "maximize"),
@@ -560,7 +685,20 @@ class OptimizationConfig:
 
         # Parse inline WFA
         inline_wfa_raw = validation_raw.get("inline_wfa", {})
+        if inline_wfa_raw is None:
+            inline_wfa_raw = {}
+        if not isinstance(inline_wfa_raw, dict):
+            raise ValueError(
+                f"validation.inline_wfa must be a mapping, got {type(inline_wfa_raw).__name__}"
+            )
+
         regime_check_raw = validation_raw.get("regime_check", {})
+        if regime_check_raw is None:
+            regime_check_raw = {}
+        if not isinstance(regime_check_raw, dict):
+            raise ValueError(
+                f"validation.regime_check must be a mapping, got {type(regime_check_raw).__name__}"
+            )
 
         validation_config = ValidationConfig(
             inline_wfa=InlineWFAConfig(
@@ -581,9 +719,36 @@ class OptimizationConfig:
 
         # Parse stress test
         mc_raw = stress_raw.get("monte_carlo", {})
+        if mc_raw is None:
+            mc_raw = {}
+        if not isinstance(mc_raw, dict):
+            raise ValueError(
+                f"stress_test.monte_carlo must be a mapping, got {type(mc_raw).__name__}"
+            )
+
         deg_raw = stress_raw.get("degradation", {})
+        if deg_raw is None:
+            deg_raw = {}
+        if not isinstance(deg_raw, dict):
+            raise ValueError(
+                f"stress_test.degradation must be a mapping, got {type(deg_raw).__name__}"
+            )
+
         ghost_raw = stress_raw.get("ghost_test", {})
+        if ghost_raw is None:
+            ghost_raw = {}
+        if not isinstance(ghost_raw, dict):
+            raise ValueError(
+                f"stress_test.ghost_test must be a mapping, got {type(ghost_raw).__name__}"
+            )
+
         overfit_raw = stress_raw.get("overfitting_detection", {})
+        if overfit_raw is None:
+            overfit_raw = {}
+        if not isinstance(overfit_raw, dict):
+            raise ValueError(
+                f"stress_test.overfitting_detection must be a mapping, got {type(overfit_raw).__name__}"
+            )
 
         stress_test = StressTestConfig(
             enabled=stress_raw.get("enabled", True),
@@ -616,7 +781,18 @@ class OptimizationConfig:
 
         # Parse data config
         train_range = data_raw.get("train_range", {})
+        if train_range is None:
+            train_range = {}
+        if not isinstance(train_range, dict):
+            raise ValueError(
+                f"data.train_range must be a mapping, got {type(train_range).__name__}"
+            )
+
         test_range = data_raw.get("test_range", {})
+        if test_range is None:
+            test_range = {}
+        if not isinstance(test_range, dict):
+            raise ValueError(f"data.test_range must be a mapping, got {type(test_range).__name__}")
 
         data_config = DataConfig(
             path=data_raw.get(
@@ -630,7 +806,20 @@ class OptimizationConfig:
 
         # Parse output config
         checkpoint_raw = output_raw.get("checkpointing", {})
+        if checkpoint_raw is None:
+            checkpoint_raw = {}
+        if not isinstance(checkpoint_raw, dict):
+            raise ValueError(
+                f"output.checkpointing must be a mapping, got {type(checkpoint_raw).__name__}"
+            )
+
         streaming_raw = output_raw.get("streaming", {})
+        if streaming_raw is None:
+            streaming_raw = {}
+        if not isinstance(streaming_raw, dict):
+            raise ValueError(
+                f"output.streaming must be a mapping, got {type(streaming_raw).__name__}"
+            )
 
         output_config = OutputConfig(
             dir=output_raw.get("dir", "logs/optimization"),

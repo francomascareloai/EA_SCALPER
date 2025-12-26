@@ -152,9 +152,7 @@ class Phase3Validator(PhaseValidator):
         super().__init__(config, db)
 
         self._main_catalog = (
-            main_catalog_path
-            if main_catalog_path is not None
-            else Path(config.catalog_path)
+            main_catalog_path if main_catalog_path is not None else Path(config.catalog_path)
         )
 
         if session_catalogs_base is not None:
@@ -278,12 +276,10 @@ class Phase3Validator(PhaseValidator):
             parquet_pattern = f"{session_path}/data/quote_tick/**/*.parquet"
 
             try:
-                result = self.db.query(
-                    f"SELECT COUNT(*) FROM '{parquet_pattern}'"
-                ).fetchone()
+                result = self.db.query(f"SELECT COUNT(*) FROM '{parquet_pattern}'").fetchone()
                 count = int(result[0]) if result else 0
-            except Exception as e:
-                logger.warning("Failed to count ticks for %s: %s", session, e)
+            except Exception:
+                logger.warning("Failed to count ticks for %s", session, exc_info=True)
                 count = 0
                 issues.append(f"{session}: query failed")
 
@@ -360,17 +356,9 @@ class Phase3Validator(PhaseValidator):
                         out_of_bounds_ticks += count
 
                 if out_of_bounds:
-                    pct_bad = (
-                        (out_of_bounds_ticks / total_ticks * 100)
-                        if total_ticks > 0
-                        else 0
-                    )
+                    pct_bad = (out_of_bounds_ticks / total_ticks * 100) if total_ticks > 0 else 0
                     # More than 0.1% out of bounds is a failure
-                    status = (
-                        ValidationStatus.FAIL
-                        if pct_bad > 0.1
-                        else ValidationStatus.WARNING
-                    )
+                    status = ValidationStatus.FAIL if pct_bad > 0.1 else ValidationStatus.WARNING
                     checks.append(
                         CheckResult(
                             name=f"Session Boundary ({session})",
@@ -447,8 +435,7 @@ class Phase3Validator(PhaseValidator):
 
             if ticks_march_11_2007 > 0:
                 notes.append(
-                    f"Data exists for March 11, 2007 (first new DST): "
-                    f"{ticks_march_11_2007:,} ticks"
+                    f"Data exists for March 11, 2007 (first new DST): {ticks_march_11_2007:,} ticks"
                 )
             else:
                 notes.append("No data for March 11, 2007 (first new DST)")
@@ -465,8 +452,7 @@ class Phase3Validator(PhaseValidator):
 
             if ticks_april_2_2006 > 0:
                 notes.append(
-                    f"Data exists for April 2, 2006 (old DST): "
-                    f"{ticks_april_2_2006:,} ticks"
+                    f"Data exists for April 2, 2006 (old DST): {ticks_april_2_2006:,} ticks"
                 )
 
             return CheckResult(
@@ -485,7 +471,7 @@ class Phase3Validator(PhaseValidator):
             )
 
         except Exception as e:
-            logger.warning("Failed to check DST handling: %s", e)
+            logger.warning("Failed to check DST handling", exc_info=True)
             return CheckResult(
                 name="DST Handling Awareness",
                 status=ValidationStatus.WARNING,
@@ -510,9 +496,7 @@ class Phase3Validator(PhaseValidator):
             parquet_pattern = f"{session_path}/data/quote_tick/**/*.parquet"
 
             try:
-                result = self.db.query(
-                    f"SELECT COUNT(*) FROM '{parquet_pattern}'"
-                ).fetchone()
+                result = self.db.query(f"SELECT COUNT(*) FROM '{parquet_pattern}'").fetchone()
                 count = int(result[0]) if result else 0
             except Exception:
                 count = 0
@@ -523,12 +507,10 @@ class Phase3Validator(PhaseValidator):
         # Get main catalog count
         main_parquet = f"{self._main_catalog}/data/quote_tick/**/*.parquet"
         try:
-            main_result = self.db.query(
-                f"SELECT COUNT(*) FROM '{main_parquet}'"
-            ).fetchone()
+            main_result = self.db.query(f"SELECT COUNT(*) FROM '{main_parquet}'").fetchone()
             main_count = int(main_result[0]) if main_result else 0
         except Exception as e:
-            logger.warning("Failed to get main catalog count: %s", e)
+            logger.warning("Failed to get main catalog count", exc_info=True)
             return CheckResult(
                 name="No Session Overlap",
                 status=ValidationStatus.WARNING,
@@ -568,9 +550,7 @@ class Phase3Validator(PhaseValidator):
         return CheckResult(
             name="No Session Overlap",
             status=ValidationStatus.PASS,
-            message=(
-                f"No overlap: sessions total {session_total:,} = main {main_count:,}"
-            ),
+            message=(f"No overlap: sessions total {session_total:,} = main {main_count:,}"),
             value=0,
             threshold=0,
             details={"session_counts": session_counts, "main_count": main_count},
@@ -612,8 +592,8 @@ class Phase3Validator(PhaseValidator):
                 elif schema != reference_schema:
                     mismatches.append(session)
 
-            except Exception as e:
-                logger.warning("Failed to get schema for %s: %s", session, e)
+            except Exception:
+                logger.warning("Failed to get schema for %s", session, exc_info=True)
                 mismatches.append(f"{session} (query failed)")
 
         if mismatches:
@@ -688,9 +668,7 @@ class Phase4Validator(PhaseValidator):
         super().__init__(config, db)
 
         self._main_catalog = (
-            main_catalog_path
-            if main_catalog_path is not None
-            else Path(config.catalog_path)
+            main_catalog_path if main_catalog_path is not None else Path(config.catalog_path)
         )
 
         if session_catalogs_base is not None:
@@ -757,9 +735,7 @@ class Phase4Validator(PhaseValidator):
         # Get main catalog count
         main_parquet = f"{self._main_catalog}/data/quote_tick/**/*.parquet"
         try:
-            main_result = self.db.query(
-                f"SELECT COUNT(*) FROM '{main_parquet}'"
-            ).fetchone()
+            main_result = self.db.query(f"SELECT COUNT(*) FROM '{main_parquet}'").fetchone()
             main_count = int(main_result[0]) if main_result else 0
         except Exception as e:
             return CheckResult(
@@ -777,12 +753,10 @@ class Phase4Validator(PhaseValidator):
             parquet_pattern = f"{session_path}/data/quote_tick/**/*.parquet"
 
             try:
-                result = self.db.query(
-                    f"SELECT COUNT(*) FROM '{parquet_pattern}'"
-                ).fetchone()
+                result = self.db.query(f"SELECT COUNT(*) FROM '{parquet_pattern}'").fetchone()
                 count = int(result[0]) if result else 0
-            except Exception as e:
-                logger.warning("Failed to count session %s: %s", session, e)
+            except Exception:
+                logger.warning("Failed to count session %s", session, exc_info=True)
                 count = 0
 
             session_counts[session] = count
@@ -877,9 +851,7 @@ class Phase4Validator(PhaseValidator):
 
         if issues:
             status = (
-                ValidationStatus.WARNING
-                if len(valid_checkpoints) > 0
-                else ValidationStatus.FAIL
+                ValidationStatus.WARNING if len(valid_checkpoints) > 0 else ValidationStatus.FAIL
             )
             return CheckResult(
                 name="Metadata Audit",
@@ -955,8 +927,8 @@ class Phase4Validator(PhaseValidator):
                     if session_max_ts is None or session_range[1] > session_max_ts:
                         session_max_ts = session_range[1]
 
-            except Exception as e:
-                logger.warning("Failed to get date range for %s: %s", session, e)
+            except Exception:
+                logger.warning("Failed to get date range for %s", session, exc_info=True)
 
         if session_min_ts is None or session_max_ts is None:
             return CheckResult(
@@ -1078,9 +1050,7 @@ class Phase4Validator(PhaseValidator):
             return CheckResult(
                 name="Data Lineage",
                 status=ValidationStatus.WARNING,
-                message=(
-                    f"Partial lineage documentation: {', '.join(lineage_found)}"
-                ),
+                message=(f"Partial lineage documentation: {', '.join(lineage_found)}"),
                 value=len(lineage_found),
                 details={"found": lineage_found, "issues": issues},
             )
@@ -1088,9 +1058,7 @@ class Phase4Validator(PhaseValidator):
         return CheckResult(
             name="Data Lineage",
             status=ValidationStatus.PASS,
-            message=(
-                f"Data lineage documented: {', '.join(lineage_found)}"
-            ),
+            message=(f"Data lineage documented: {', '.join(lineage_found)}"),
             value=len(lineage_found),
             details={"found": lineage_found},
         )

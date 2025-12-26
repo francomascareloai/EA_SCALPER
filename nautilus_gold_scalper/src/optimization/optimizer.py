@@ -91,6 +91,7 @@ class ApexOptimizer:
 
         self._apex_checker = ApexConstraintChecker(
             trailing_dd_max=config.constraints.apex.trailing_dd_max,
+            daily_dd_max=config.constraints.apex.daily_dd_max,
             daily_profit_max=config.constraints.apex.daily_profit_max,
             overnight_positions_max=config.constraints.apex.overnight_positions,
             time_gate_violations_max=config.constraints.apex.time_gate_violations,
@@ -122,7 +123,9 @@ class ApexOptimizer:
         logger.info(f"Mode: {self.config.search.mode}, Trials: {self.config.search.trials}")
         logger.info(f"Output: {self._output_dir}")
 
-        assert self._output_dir is not None
+        # R12-FIX: Replace assert with explicit validation (assert disabled with -O).
+        if self._output_dir is None:
+            raise RuntimeError("_output_dir is None - cannot proceed with optimization")
 
         start_time = time.time()
 
@@ -266,6 +269,11 @@ class ApexOptimizer:
         elif mode == "successive_halving":
             from src.optimization.search.successive_halving import SuccessiveHalvingSearch
 
+            if resume_trial_id:
+                raise ValueError(
+                    "Resume not supported for successive_halving: deterministic promotion requires full rung state"
+                )
+
             searcher = SuccessiveHalvingSearch(
                 self.config,
                 on_result=on_result_effective,
@@ -287,7 +295,145 @@ class ApexOptimizer:
         if checkpoint_mgr is not None:
             checkpoint_mgr.force_save(progress=int(study_stats.get("n_trials", 0)))
 
-        self._results.sort(key=lambda r: r.score, reverse=True)
+        # IMPORTANT: Successive Halving already returns results ordered to prioritize
+        # last-rung (highest fidelity) evaluations. Do not destroy that ordering.
+        if mode != "successive_halving":
+            self._results.sort(key=lambda r: r.score, reverse=True)
+
+        # Layer 3a: Stress (MC DD percentiles + degradation) for top candidates.
+        # NOTE: This is executed before report generation so artifacts include stress metrics.
+        if self.config.stress_test.enabled and self._results:
+            try:
+                from src.optimization.stress.degradation import compute_degradation_survived
+                from src.optimization.stress.monte_carlo_dd import (
+                    compute_mc_drawdown_percentiles_from_trades,
+                )
+
+                top_n = max(1, int(self.config.stress_test.top_n))
+                apex_compliant = [x for x in self._results if x.apex_compliant]
+                candidates = list((apex_compliant or self._results)[:top_n])
+
+                dd_limit_pct = min(
+                    float(self.config.constraints.apex.trailing_dd_max),
+                    float(self.config.constraints.anti_overfit.mc95_dd_max),
+                )
+
+                # Keep candidate trade artifacts in-memory for any downstream stress metrics.
+                # Keyed by trial_id for deterministic association.
+                candidate_trades: dict[int, Any] = {}
+
+                for r in candidates:
+                    # Merge fixed + trial params, then expand dotpaths into nested structure.
+                    flat_params = {**self.config.fixed, **dict(r.params)}
+                    full_params = _expand_dotpaths(flat_params)
+
+                    trades_df, equity_series = self._backtest_fn(
+                        full_params,
+                        self.config.data.train_start,
+                        self.config.data.train_end,
+                    )
+
+                    candidate_trades[int(r.trial_id)] = trades_df
+
+                    if self.config.stress_test.monte_carlo.enabled:
+                        start_equity = (
+                            float(equity_series.iloc[0])
+                            if equity_series is not None and len(equity_series) > 0
+                            else float("nan")
+                        )
+                        seed = int(self.config.search.seed) + int(r.trial_id) + 10_000
+                        mc = compute_mc_drawdown_percentiles_from_trades(
+                            trades_df,
+                            start_equity=start_equity,
+                            simulations=int(self.config.stress_test.monte_carlo.simulations),
+                            seed=seed,
+                            block_bootstrap=bool(
+                                self.config.stress_test.monte_carlo.block_bootstrap
+                            ),
+                            block_size=str(self.config.stress_test.monte_carlo.block_size),
+                        )
+                        r.mc_95_dd = float(mc.mc_95_dd)
+                        r.mc_99_dd = float(mc.mc_99_dd)
+
+                    if self.config.stress_test.degradation.enabled:
+                        start_equity = (
+                            float(equity_series.iloc[0])
+                            if equity_series is not None and len(equity_series) > 0
+                            else float("nan")
+                        )
+                        r.degradation_survived = compute_degradation_survived(
+                            trades_df,
+                            start_equity=start_equity,
+                            rates=list(self.config.stress_test.degradation.rates),
+                            dd_limit_pct=dd_limit_pct,
+                        )
+
+                # Layer 3a.1: Candidate-set PBO (CSCV-like rank-based proxy)
+                # This computes a single PBO value for the *candidate set* (top_n cohort).
+                # It is derived from inline WFA windows on the already-generated trades_df.
+                try:
+                    from src.optimization.stress.pbo_cscv import (
+                        CandidateWindowMetrics,
+                        compute_candidate_set_pbo_rank_based,
+                    )
+                    from src.optimization.validation.wfa_inline import InlineWFA
+
+                    # study_stats is expected to be a dict from SearchStrategy.get_study_summary().
+                    # Guard anyway to avoid crashing stress metrics when a search implementation
+                    # returns None unexpectedly.
+                    if study_stats is None:
+                        study_stats = {}
+
+                    wfa_cfg = self.config.validation.inline_wfa
+                    wfa = InlineWFA(
+                        windows=int(wfa_cfg.windows),
+                        is_ratio=float(wfa_cfg.is_ratio),
+                        purge_days=int(wfa_cfg.purge_days),
+                        embargo_days=int(wfa_cfg.embargo_days),
+                    )
+                    splits = wfa.compute_window_splits(
+                        self.config.data.train_start,
+                        self.config.data.train_end,
+                    )
+
+                    window_metrics: list[CandidateWindowMetrics] = []
+                    expected_windows = len(splits)
+                    if expected_windows <= 0:
+                        raise ValueError("PBO: no valid WFA splits available")
+                    for r in candidates:
+                        trades_df = candidate_trades.get(int(r.trial_id))
+                        if trades_df is None:
+                            continue
+                        windows = wfa.analyze_trade_series(trades_df, splits)
+                        # If a candidate cannot be windowed consistently, drop it from the cohort
+                        # (fail-closed behavior occurs downstream if <2 candidates remain).
+                        if len(windows) != expected_windows:
+                            continue
+
+                        # Use SQN as the ranking signal (dimensionless, robust vs PnL scale).
+                        is_scores = [float(w.is_sqn) for w in windows]
+                        oos_scores = [float(w.oos_sqn) for w in windows]
+                        window_metrics.append(
+                            CandidateWindowMetrics(
+                                candidate_id=int(r.trial_id),
+                                is_scores=is_scores,
+                                oos_scores=oos_scores,
+                            )
+                        )
+
+                    pbo_value = compute_candidate_set_pbo_rank_based(window_metrics)
+                    for r in candidates:
+                        r.pbo = float(pbo_value)
+
+                    study_stats["pbo_candidate_set"] = float(pbo_value)
+                    study_stats["pbo_max"] = float(self.config.constraints.anti_overfit.pbo_max)
+                    study_stats["pbo_pass"] = bool(
+                        float(pbo_value) <= float(self.config.constraints.anti_overfit.pbo_max)
+                    )
+                except Exception:
+                    logger.exception("Candidate-set PBO computation failed; continuing without PBO")
+            except Exception:
+                logger.exception("Layer 3 stress failed; continuing without stress metrics")
 
         reporter = SummaryReporter(self._output_dir, self.config)
         report_paths = reporter.generate_reports(self._results, study_stats)
@@ -302,7 +448,9 @@ class ApexOptimizer:
                 )
 
                 best_params = dict(self._results[0].params)
-                full_params = {**self.config.fixed, **best_params}
+                flat_params = {**self.config.fixed, **best_params}
+                full_params = _expand_dotpaths(flat_params)
+
                 trades_df, _equity_series = self._backtest_fn(
                     full_params,
                     self.config.data.train_start,
@@ -378,18 +526,29 @@ class ApexOptimizer:
         train_end: str,
         wfa_windows: int,
     ) -> TrialResult:
-        assert self._backtest_fn is not None
+        # R12-FIX: Replace assert with explicit validation (assert disabled with -O).
+        if self._backtest_fn is None:
+            raise RuntimeError("_backtest_fn is None - cannot run objective function")
 
         # Merge fixed + trial params, then expand dotpaths into nested structure
         # e.g., {"execution.mean_revert_bb_period": 20} -> {"execution": {"mean_revert_bb_period": 20}}
         flat_params = {**self.config.fixed, **params}
         full_params = _expand_dotpaths(flat_params)
 
-        trades_df, equity_series = self._backtest_fn(
-            full_params,
-            train_start,
-            train_end,
-        )
+        try:
+            trades_df, equity_series = self._backtest_fn(
+                full_params,
+                train_start,
+                train_end,
+            )
+        except Exception as exc:
+            # Treat invalid/unrunnable parameter combinations as failed trials (fail-closed).
+            logger.error(
+                "Backtest failed for trial params (%s): %s",
+                type(exc).__name__,
+                exc,
+            )
+            return self._empty_result(params)
 
         if trades_df.empty:
             return self._empty_result(params)
@@ -434,6 +593,7 @@ class ApexOptimizer:
             regime_scores=wfa_result.regime_scores,
             trailing_dd=wfa_result.trailing_dd,
             daily_profit_max=wfa_result.daily_profit_max,
+            daily_dd=wfa_result.daily_dd,
             time_gate_violations=wfa_result.time_gate_violations,
             overnight_positions=wfa_result.overnight_positions,
             apex_compliant=apex_result.compliant,
@@ -449,7 +609,24 @@ class ApexOptimizer:
         wfa_result: WFAResult,
         apex_penalty: float,
     ) -> float:
+        import math  # Local import to ensure availability
+
         obj = self.config.objective
+
+        # CRITICAL: Guard against NaN/Inf in metrics before normalization.
+        # Python min(1.0, NaN) returns 1.0 which would treat corrupt metrics as best-case.
+        # If any core metric is non-finite, return worst-case score.
+        if not (
+            math.isfinite(wfa_result.sqn)
+            and math.isfinite(wfa_result.wfe)
+            and math.isfinite(wfa_result.positive_days_ratio)
+            and math.isfinite(wfa_result.win_rate)
+            and math.isfinite(wfa_result.trailing_dd)
+        ):
+            logger.warning(
+                "Non-finite WFA metrics detected (NaN/Inf) - returning worst-case score 0.0"
+            )
+            return 0.0
 
         # Normalize base metrics to [0, 1]
         # Formula: sqn_norm = min(sqn / sqn_max, 1.0)
@@ -457,8 +634,33 @@ class ApexOptimizer:
         sqn_norm = min(wfa_result.sqn / float(obj.sqn_weight.normalize), 1.0)
         sqn_norm = max(0.0, sqn_norm)
 
-        wfe_norm = max(0.0, min(1.0, wfa_result.wfe))
-        consistency_norm = max(0.0, min(1.0, wfa_result.positive_days_ratio))
+        # Use WFE normalization from config (like SQN) for consistency.
+        # Formula: wfe_norm = clamp(wfe / wfe_max, 0, 1)
+        # Example: wfe=1.2, normalize=2.0 → 1.2/2.0 = 0.60
+        wfe_max = float(obj.wfe_weight.normalize) if obj.wfe_weight.normalize > 0 else 1.0
+        wfe_norm = max(0.0, min(1.0, wfa_result.wfe / wfe_max))
+
+        # Configurable consistency source (schema supports win-rate variants too).
+        source = (obj.consistency_weight.source or "positive_days_ratio").strip().lower()
+        if source in ("positive_days_ratio", "positive_days"):
+            consistency_raw = float(wfa_result.positive_days_ratio)
+        elif source in ("win_rate", "winrate"):
+            consistency_raw = float(wfa_result.win_rate)
+        elif source in ("win_rate_pct", "winrate_pct"):
+            consistency_raw = float(wfa_result.win_rate) * 100.0
+        else:
+            raise ValueError(
+                f"Unknown objective.composite.consistency source: {obj.consistency_weight.source!r}"
+            )
+
+        # Normalize into [0, 1] for stable scoring. If provided as percent, scale by normalize.
+        # Formula: consistency_norm = clamp(consistency_raw / normalize, 0, 1)
+        # Example: win_rate_pct=55, normalize=100 -> 0.55
+        denom = float(obj.consistency_weight.normalize)
+        if denom <= 0:
+            raise ValueError(f"consistency_weight.normalize must be > 0, got {denom}")
+        consistency_norm = consistency_raw / denom
+        consistency_norm = max(0.0, min(1.0, float(consistency_norm)))
 
         base_score = (
             float(obj.sqn_weight.weight) * float(sqn_norm)
@@ -466,20 +668,20 @@ class ApexOptimizer:
             + float(obj.consistency_weight.weight) * float(consistency_norm)
         )
 
-        dd_threshold = float(obj.trailing_dd_penalty.threshold)
-        dd_decay = float(obj.trailing_dd_penalty.decay_rate)
-        if wfa_result.trailing_dd <= dd_threshold:
-            dd_penalty = 1.0
-        else:
-            dd_penalty = max(0.0, 1.0 - (wfa_result.trailing_dd - dd_threshold) * dd_decay)
+        # NOTE: DD penalty is now handled ONLY by apex_penalty (from ApexConstraintChecker).
+        # Previously, we had a separate dd_penalty here which caused double-counting:
+        # - objective.trailing_dd_penalty started at configured threshold
+        # - apex_penalty also penalized DD starting at 3% buffer
+        # This double-penalization distorted the objective, over-selecting low-DD configs.
+        # Now we skip the objective dd_penalty; Apex penalty is the single source of DD pressure.
+        # Config fields trailing_dd_penalty.threshold/decay_rate are now deprecated (ignored).
 
         trades_min = int(obj.trades_penalty.min_required)
         trades_penalty_value = float(obj.trades_penalty.penalty_below)
         trades_penalty = 1.0 if wfa_result.total_trades >= trades_min else trades_penalty_value
 
-        final_score = (
-            float(base_score) * float(dd_penalty) * float(trades_penalty) * float(apex_penalty)
-        )
+        # Final score: base * trades_penalty * apex_penalty (no separate dd_penalty)
+        final_score = float(base_score) * float(trades_penalty) * float(apex_penalty)
         final_score = max(0.0, min(1.0, float(final_score)))
         return float(final_score)
 
@@ -501,6 +703,7 @@ class ApexOptimizer:
             regime_scores=wfa.regime_scores,
             trailing_dd=wfa.trailing_dd,
             daily_profit_max=wfa.daily_profit_max,
+            daily_dd=wfa.daily_dd,
             time_gate_violations=wfa.time_gate_violations,
             overnight_positions=wfa.overnight_positions,
             apex_compliant=True,
@@ -525,6 +728,7 @@ class ApexOptimizer:
             regime_scores={},
             trailing_dd=100.0,
             daily_profit_max=100.0,
+            daily_dd=100.0,
             time_gate_violations=0,
             overnight_positions=0,
             apex_compliant=False,

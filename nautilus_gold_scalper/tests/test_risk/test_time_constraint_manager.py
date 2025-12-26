@@ -1,44 +1,68 @@
+from __future__ import annotations
+
 import datetime
+from dataclasses import dataclass
+from typing import Any
 
 from nautilus_gold_scalper.src.risk.time_constraint_manager import TimeConstraintManager
 
 
+@dataclass(frozen=True)
+class _Order:
+    client_order_id: str
+
+
+class DummyCache:
+    def __init__(self) -> None:
+        self._orders: list[object] = []
+        self._positions: list[object] = []
+
+    def positions_open(self) -> list[object]:
+        return list(self._positions)
+
+    def orders(self, _instrument_id: object) -> list[object]:
+        return list(self._orders)
+
+    def order(self, _order_id: object) -> object | None:
+        return None
+
+
 class DummyStrategy:
-    def __init__(self):
+    def __init__(self) -> None:
         self.closed = False
         self.canceled = False
         self.log = self
         self._is_trading_allowed = True
         self.config = type("Cfg", (), {"instrument_id": None})
         self._trading_blocked_today = False
+        self._close_calls = 0
+        self._cache = DummyCache()
 
-    def close_position(self, *_args, **_kwargs):  # pragma: no cover - unused in this test
+    def close_position(self, *_args: object, **_kwargs: object) -> None:  # pragma: no cover
         return None
 
     # Logging proxies
-    def critical(self, msg):  # pragma: no cover - trivial
-        pass
+    def critical(self, _msg: str) -> None:  # pragma: no cover
+        return None
 
-    def error(self, msg):  # pragma: no cover - trivial
-        pass
+    def error(self, _msg: str) -> None:  # pragma: no cover
+        return None
 
-    def warning(self, msg):  # pragma: no cover - trivial
-        pass
+    def warning(self, _msg: str) -> None:  # pragma: no cover
+        return None
 
     # Position management stubs
-    def cancel_all_orders(self, *_args, **_kwargs):
+    def cancel_all_orders(self, *_args: object, **_kwargs: object) -> None:
         self.canceled = True
 
-    def close_all_positions(self, *_args, **_kwargs):
+    def close_all_positions(self, *_args: object, **_kwargs: object) -> None:
         self.closed = True
+        self._close_calls += 1
+        self._cache._orders.append(_Order(client_order_id=f"CLOSE-{self._close_calls}"))
 
     @property
-    def cache(self):  # pragma: no cover - unused in this test
-        class Cache:
-            @staticmethod
-            def positions_open():
-                return []
-        return Cache()
+    def cache(self) -> DummyCache:
+        return self._cache
 
 
 def ts_at(hour: int, minute: int) -> int:
@@ -55,7 +79,7 @@ def ts_at(hour: int, minute: int) -> int:
     return int(dt.timestamp() * 1e9)
 
 
-def test_time_manager_allows_before_urgent_block():
+def test_time_manager_allows_before_urgent_block() -> None:
     s = DummyStrategy()
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
     assert mgr.check(ts_at(15, 0)) is True
@@ -63,7 +87,7 @@ def test_time_manager_allows_before_urgent_block():
     assert s._trading_blocked_today is False
 
 
-def test_time_manager_blocks_new_trades_after_urgent():
+def test_time_manager_blocks_new_trades_after_urgent() -> None:
     s = DummyStrategy()
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
     assert mgr.can_open_new(ts_at(16, 30)) is False
@@ -72,23 +96,31 @@ def test_time_manager_blocks_new_trades_after_urgent():
     assert s._trading_blocked_today is False
 
 
-def test_time_manager_flattens_in_emergency_window():
+def test_time_manager_flattens_in_emergency_window() -> None:
     s = DummyStrategy()
+    # Simulate an open position so the manager submits close orders.
+    s.cache._positions = [object()]
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
     assert mgr.check(ts_at(16, 55)) is False
     assert s.canceled is True
     assert s.closed is True
     assert s._is_trading_allowed is False
     assert s._trading_blocked_today is True
+    assert mgr._close_order_ids
 
 
-def test_time_manager_cutoff_clamps_emergency_gate():
+def test_time_manager_cutoff_clamps_emergency_gate() -> None:
     s = DummyStrategy()
-    mgr = TimeConstraintManager(strategy=s, allow_overnight=False, cutoff=datetime.time(16, 59), emergency=datetime.time(17, 5))
+    mgr = TimeConstraintManager(
+        strategy=s,
+        allow_overnight=False,
+        cutoff=datetime.time(16, 59),
+        emergency=datetime.time(17, 5),
+    )
     assert mgr.warnings["emergency"] == datetime.time(16, 59)
 
 
-def test_time_manager_blocks_and_flattens_at_cutoff():
+def test_time_manager_blocks_and_flattens_at_cutoff() -> None:
     s = DummyStrategy()
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
     assert mgr.check(ts_at(16, 59)) is False
@@ -99,7 +131,7 @@ def test_time_manager_blocks_and_flattens_at_cutoff():
     assert s._trading_blocked_today is True
 
 
-def test_time_manager_resets_daily():
+def test_time_manager_resets_daily() -> None:
     s = DummyStrategy()
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
     mgr._issued.update({"warning", "urgent", "emergency"})
@@ -107,7 +139,7 @@ def test_time_manager_resets_daily():
     assert mgr._issued == set()
 
 
-def test_time_manager_wall_clock_check_uses_clock_timestamp(monkeypatch):
+def test_time_manager_wall_clock_check_uses_clock_timestamp() -> None:
     s = DummyStrategy()
 
     class DummyClock:
@@ -121,7 +153,7 @@ def test_time_manager_wall_clock_check_uses_clock_timestamp(monkeypatch):
         def cancel_timer(self, _name: str) -> None:
             return None
 
-        def set_timer_ns(self, *args, **kwargs) -> None:
+        def set_timer_ns(self, *args: object, **kwargs: object) -> None:
             return None
 
     clk = DummyClock()
@@ -134,7 +166,7 @@ def test_time_manager_wall_clock_check_uses_clock_timestamp(monkeypatch):
     assert s._trading_blocked_today is True
 
 
-def test_time_manager_clock_timer_triggers_enforcement_path():
+def test_time_manager_clock_timer_triggers_enforcement_path() -> None:
     s = DummyStrategy()
 
     class DummyClock:
@@ -151,7 +183,7 @@ def test_time_manager_clock_timer_triggers_enforcement_path():
         def cancel_timer(self, _name: str) -> None:
             return None
 
-        def set_timer_ns(self, **kwargs) -> None:
+        def set_timer_ns(self, **kwargs: object) -> None:
             self.set_timer_calls.append(dict(kwargs))
 
     clk = DummyClock()
@@ -175,11 +207,11 @@ def test_time_manager_clock_timer_triggers_enforcement_path():
     callback = call["callback"]
     assert callable(callback)
 
-    callback(type("Evt", (), {"name": "not_apex_time_gates"}))
+    callback(type("Evt", (), {"name": "not_apex_time_gates"})())
     assert s.canceled is False
     assert s.closed is False
 
-    callback(type("Evt", (), {"name": "apex_time_gates"}))
+    callback(type("Evt", (), {"name": "apex_time_gates"})())
 
     assert s.canceled is True
     assert s.closed is True
@@ -187,7 +219,7 @@ def test_time_manager_clock_timer_triggers_enforcement_path():
     assert s._trading_blocked_today is True
 
 
-def test_time_manager_fail_safe_when_et_unavailable(monkeypatch):
+def test_time_manager_fail_safe_when_et_unavailable(monkeypatch: Any) -> None:
     s = DummyStrategy()
     mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
 

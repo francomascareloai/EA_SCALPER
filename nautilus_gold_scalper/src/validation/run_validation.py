@@ -133,9 +133,8 @@ def run_validation_pipeline(
                 check_emoji = status_emoji.get(check.status, "❓")
                 logger.info(f"     {check_emoji} {check.name}: {check.message}")
 
-        except Exception as e:
-            logger.exception(f"Phase {phase_num} failed with error")
-            logger.error(f"Error: {e}")
+        except Exception:
+            logger.exception("Phase %s failed with error", phase_num)
 
     pipeline.pipeline_end = datetime.now()
 

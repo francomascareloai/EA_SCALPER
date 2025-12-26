@@ -45,7 +45,9 @@ def test_successive_halving_promotes_top_fraction() -> None:
     seen: list[tuple[str, str, int]] = []
 
     # Fidelity-aware objective: score is just x (bigger is better).
-    def objective_fidelity(params: dict[str, Any], start: str, end: str, windows: int) -> TrialResult:
+    def objective_fidelity(
+        params: dict[str, Any], start: str, end: str, windows: int
+    ) -> TrialResult:
         seen.append((start, end, windows))
         x = int(params["x"])
         return TrialResult(
@@ -65,6 +67,7 @@ def test_successive_halving_promotes_top_fraction() -> None:
             regime_scores={},
             trailing_dd=0.0,
             daily_profit_max=0.0,
+            daily_dd=0.0,
             time_gate_violations=0,
             overnight_positions=0,
             apex_compliant=True,
@@ -96,7 +99,9 @@ def test_successive_halving_promotes_top_fraction() -> None:
 def test_invalid_eta_rejected() -> None:
     cfg = _make_config(trials=10, eta=1)
 
-    def objective_fidelity(params: dict[str, Any], start: str, end: str, windows: int) -> TrialResult:
+    def objective_fidelity(
+        params: dict[str, Any], start: str, end: str, windows: int
+    ) -> TrialResult:
         _ = (params, start, end, windows)
         return TrialResult(
             trial_id=0,
@@ -115,6 +120,7 @@ def test_invalid_eta_rejected() -> None:
             regime_scores={},
             trailing_dd=0.0,
             daily_profit_max=0.0,
+            daily_dd=0.0,
             time_gate_violations=0,
             overnight_positions=0,
             apex_compliant=True,

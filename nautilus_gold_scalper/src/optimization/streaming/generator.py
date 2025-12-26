@@ -50,47 +50,98 @@ class StreamingLHSGenerator:
 
         for spec in self._parameters:
             if spec.param_type == "float":
-                assert spec.range is not None
-                low, high = spec.range
-                strata = np.linspace(0.0, 1.0, n + 1)
-                u = self._rng.uniform(strata[:-1], strata[1:])
+                if spec.range is not None:
+                    low, high = spec.range
+                    strata = np.linspace(0.0, 1.0, n + 1)
+                    u = self._rng.uniform(strata[:-1], strata[1:])
 
-                if spec.log_scale:
-                    if low <= 0 or high <= 0:
-                        raise ValueError(
-                            f"Parameter {spec.name}: log_scale requires positive range, got ({low}, {high})"
-                        )
-                    log_low = np.log10(low)
-                    log_high = np.log10(high)
-                    values = np.power(10, log_low + (log_high - log_low) * u)
+                    if spec.log_scale:
+                        if low <= 0 or high <= 0:
+                            raise ValueError(
+                                f"Parameter {spec.name}: log_scale requires positive range, got ({low}, {high})"
+                            )
+                        log_low = np.log10(low)
+                        log_high = np.log10(high)
+                        values = np.power(10, log_low + (log_high - log_low) * u)
+                    else:
+                        values = low + (high - low) * u
+
+                    if spec.step:
+                        steps = np.round((values - low) / spec.step)
+                        values = low + steps * spec.step
+                        values = np.clip(values, low, high)
+
+                    self._rng.shuffle(values)
+                    param_values[spec.name] = values
                 else:
-                    values = low + (high - low) * u
+                    # Discrete float domain (choices) - balance within batch.
+                    if spec.choices is None:
+                        raise ValueError(
+                            f"spec.range or spec.choices is required for {spec.param_type} parameter '{spec.name}'"
+                        )
+                    if len(spec.choices) == 0:
+                        raise ValueError(f"Parameter {spec.name}: empty float choices")
 
-                if spec.step:
-                    steps = np.round((values - low) / spec.step)
-                    values = low + steps * spec.step
-                    values = np.clip(values, low, high)
+                    n_choices = len(spec.choices)
+                    base = n // n_choices
+                    rem = n % n_choices
+                    idx = np.repeat(np.arange(n_choices), base)
+                    if rem:
+                        extra = self._rng.choice(np.arange(n_choices), size=rem, replace=False)
+                        idx = np.concatenate([idx, extra])
+                    self._rng.shuffle(idx)
 
-                self._rng.shuffle(values)
-                param_values[spec.name] = values
+                    values = np.array([float(spec.choices[i]) for i in idx], dtype=float)
+                    param_values[spec.name] = values
 
             elif spec.param_type == "int":
-                assert spec.range is not None
-                low_f, high_f = spec.range
-                low, high = int(low_f), int(high_f)
-                step = int(spec.step) if spec.step else 1
+                if spec.range is not None:
+                    low_f, high_f = spec.range
+                    low, high = int(low_f), int(high_f)
+                    step = int(spec.step) if spec.step else 1
 
-                choices = np.arange(low, high + 1, step)
-                if len(choices) == 0:
-                    raise ValueError(f"Parameter {spec.name}: empty int domain")
+                    choices = np.arange(low, high + 1, step)
+                    if len(choices) == 0:
+                        raise ValueError(f"Parameter {spec.name}: empty int domain")
 
-                replace = len(choices) < n
-                values = self._rng.choice(choices, size=n, replace=replace)
-                self._rng.shuffle(values)
-                param_values[spec.name] = values.astype(int)
+                    replace = len(choices) < n
+                    values = self._rng.choice(choices, size=n, replace=replace)
+                    self._rng.shuffle(values)
+                    param_values[spec.name] = values.astype(int)
+                else:
+                    # Discrete int domain (choices) - balance within batch.
+                    if spec.choices is None:
+                        raise ValueError(
+                            f"spec.range or spec.choices is required for {spec.param_type} parameter '{spec.name}'"
+                        )
+                    if len(spec.choices) == 0:
+                        raise ValueError(f"Parameter {spec.name}: empty int choices")
+
+                    try:
+                        int_choices = [int(v) for v in spec.choices]
+                    except Exception as exc:
+                        raise ValueError(
+                            f"Parameter {spec.name}: invalid int choices {spec.choices!r}"
+                        ) from exc
+
+                    n_choices = len(int_choices)
+                    base = n // n_choices
+                    rem = n % n_choices
+                    idx = np.repeat(np.arange(n_choices), base)
+                    if rem:
+                        extra = self._rng.choice(np.arange(n_choices), size=rem, replace=False)
+                        idx = np.concatenate([idx, extra])
+                    self._rng.shuffle(idx)
+
+                    values = np.array([int_choices[i] for i in idx], dtype=int)
+                    param_values[spec.name] = values
 
             elif spec.param_type == "categorical":
-                assert spec.choices is not None
+                # R13-FIX: Replace assert with explicit validation
+                if spec.choices is None:
+                    raise ValueError(
+                        f"spec.choices is required for {spec.param_type} parameter '{spec.name}'"
+                    )
                 n_choices = len(spec.choices)
                 if n_choices == 0:
                     raise ValueError(f"Parameter {spec.name}: empty choices")

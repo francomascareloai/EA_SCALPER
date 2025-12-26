@@ -58,6 +58,7 @@ class ApexConstraintChecker:
     def __init__(
         self,
         trailing_dd_max: float = 4.5,
+        daily_dd_max: float = 3.0,
         daily_profit_max: float = 29.0,
         overnight_positions_max: int = 0,
         time_gate_violations_max: int = 0,
@@ -72,6 +73,7 @@ class ApexConstraintChecker:
             time_gate_violations_max: Maximum time gate violations (must be 0)
         """
         self.trailing_dd_max = trailing_dd_max
+        self.daily_dd_max = daily_dd_max
         self.daily_profit_max = daily_profit_max
         self.overnight_positions_max = overnight_positions_max
         self.time_gate_violations_max = time_gate_violations_max
@@ -98,6 +100,17 @@ class ApexConstraintChecker:
                     threshold=self.trailing_dd_max,
                     actual=result.trailing_dd,
                     message=f"Trailing DD {result.trailing_dd:.2f}% >= {self.trailing_dd_max}% limit",
+                )
+            )
+
+        # Daily drawdown check (per CLAUDE.md hard blocks)
+        if result.daily_dd >= self.daily_dd_max:
+            violations.append(
+                ApexViolation(
+                    rule="DAILY_DD",
+                    threshold=self.daily_dd_max,
+                    actual=result.daily_dd,
+                    message=f"Daily DD {result.daily_dd:.2f}% >= {self.daily_dd_max}% limit",
                 )
             )
 
@@ -202,6 +215,7 @@ class ApexConstraintChecker:
         """
         return [
             result.trailing_dd - self.trailing_dd_max,
+            result.daily_dd - self.daily_dd_max,
             result.daily_profit_max - self.daily_profit_max,
             float(result.time_gate_violations - self.time_gate_violations_max),
             float(result.overnight_positions - self.overnight_positions_max),
@@ -211,9 +225,11 @@ class ApexConstraintChecker:
 def check_apex_compliance(
     trailing_dd: float,
     daily_profit_max: float,
+    daily_dd: float,
     time_gate_violations: int = 0,
     overnight_positions: int = 0,
     trailing_dd_limit: float = 4.5,
+    daily_dd_limit: float = 3.0,
     daily_profit_limit: float = 29.0,
 ) -> tuple[bool, list[str]]:
     """
@@ -222,9 +238,11 @@ def check_apex_compliance(
     Args:
         trailing_dd: Trailing DD percentage from HWM
         daily_profit_max: Maximum daily profit percentage
+        daily_dd: Max daily drawdown percentage
         time_gate_violations: Number of trades after time gate
         overnight_positions: Number of overnight positions
         trailing_dd_limit: Limit for trailing DD (default 4.5%)
+        daily_dd_limit: Limit for daily drawdown (default 3.0%)
         daily_profit_limit: Limit for daily profit (default 29%)
 
     Returns:
@@ -234,6 +252,9 @@ def check_apex_compliance(
 
     if trailing_dd >= trailing_dd_limit:
         violations.append(f"TRAILING_DD: {trailing_dd:.2f}% >= {trailing_dd_limit}%")
+
+    if daily_dd >= daily_dd_limit:
+        violations.append(f"DAILY_DD: {daily_dd:.2f}% >= {daily_dd_limit}%")
 
     if daily_profit_max >= daily_profit_limit:
         violations.append(f"DAILY_PROFIT: {daily_profit_max:.1f}% >= {daily_profit_limit}%")

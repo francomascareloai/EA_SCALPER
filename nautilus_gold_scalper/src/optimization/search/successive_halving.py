@@ -136,11 +136,15 @@ class SuccessiveHalvingSearch(SearchStrategy):
                 promoted = rung_results[:k]
                 candidates = [r.params for r in promoted]
 
-        # Ensure best params come from the last rung, not low-fidelity evaluations.
+        # Ensure best params come from the last rung AND are Apex-compliant.
+        # CRITICAL: apex_compliant must be part of sort key to prevent returning
+        # a non-compliant config as "best" (would terminate live account).
+        # Sort priority: (1) apex_compliant, (2) last_rung, (3) score
         self._results.sort(
             key=lambda r: (
-                r.trial_id in last_rung_trial_ids,
-                r.score,
+                r.apex_compliant,  # Compliant first
+                r.trial_id in last_rung_trial_ids,  # Last rung second
+                r.score,  # Highest score third
             ),
             reverse=True,
         )

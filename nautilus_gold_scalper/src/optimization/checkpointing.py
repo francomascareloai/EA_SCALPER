@@ -79,6 +79,7 @@ def trial_result_from_dict(data: dict[str, Any]) -> TrialResult:
         "regime_scores",
         "trailing_dd",
         "daily_profit_max",
+        "daily_dd",
         "time_gate_violations",
         "overnight_positions",
         "apex_compliant",
@@ -105,6 +106,7 @@ def trial_result_from_dict(data: dict[str, Any]) -> TrialResult:
         regime_scores=dict(data["regime_scores"]),
         trailing_dd=float(data["trailing_dd"]),
         daily_profit_max=float(data["daily_profit_max"]),
+        daily_dd=float(data["daily_dd"]),
         time_gate_violations=int(data["time_gate_violations"]),
         overnight_positions=int(data["overnight_positions"]),
         apex_compliant=bool(data["apex_compliant"]),
@@ -126,7 +128,14 @@ def atomic_write_text(path: Path, content: str) -> None:
     fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), prefix=path.name, suffix=".tmp")
     tmp = Path(tmp_path)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except Exception:
+            # If fdopen fails, we must close the raw fd to avoid a leak.
+            os.close(fd)
+            raise
+
+        with f:
             f.write(content)
             f.flush()
             os.fsync(f.fileno())

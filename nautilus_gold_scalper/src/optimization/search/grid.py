@@ -115,7 +115,11 @@ def estimate_param_cardinality(spec: ParameterSpec) -> int:
         return len(spec.choices)
 
     if spec.param_type in ("float", "int"):
-        assert spec.range is not None
+        # R13-FIX: Replace assert with explicit validation
+        if spec.range is None:
+            raise ValueError(
+                f"spec.range is required for {spec.param_type} parameter '{spec.name}'"
+            )
         if spec.step is None or spec.step <= 0:
             raise ValueError(f"Parameter {spec.name}: step must be set for grid search")
 
@@ -123,7 +127,13 @@ def estimate_param_cardinality(spec: ParameterSpec) -> int:
         if high < low:
             raise ValueError(f"Parameter {spec.name}: invalid range ({low}, {high})")
 
-        n = int((high - low) / spec.step) + 1
+        # CRITICAL: Use round() to avoid float precision issues.
+        # Problem: int((0.3 - 0.0) / 0.1) = int(2.999...) = 2, but should be 3.
+        # Solution: round to nearest integer, which handles small float errors.
+        # Formula: n = round((high - low) / step) + 1
+        # Example: (0.3 - 0.0) / 0.1 = 2.999... → round → 3 → n = 4 ✓
+        step = float(spec.step)
+        n = int(round((high - low) / step)) + 1
         if n <= 0:
             raise ValueError(f"Parameter {spec.name}: empty grid (check range/step)")
         return n
@@ -144,8 +154,13 @@ def iter_grid_values(spec: ParameterSpec) -> Iterator[Any]:
 
     # Range-based iteration for float/int
     if spec.param_type == "float":
-        assert spec.range is not None
-        assert spec.step is not None
+        # R13-FIX: Replace assert with explicit validation
+        if spec.range is None:
+            raise ValueError(
+                f"spec.range is required for {spec.param_type} parameter '{spec.name}'"
+            )
+        if spec.step is None:
+            raise ValueError(f"spec.step is required for {spec.param_type} parameter '{spec.name}'")
         low, high = spec.range
         n = estimate_param_cardinality(spec)
         # CRITICAL: Float precision fix
@@ -163,8 +178,13 @@ def iter_grid_values(spec: ParameterSpec) -> Iterator[Any]:
         return
 
     if spec.param_type == "int":
-        assert spec.range is not None
-        assert spec.step is not None
+        # R13-FIX: Replace assert with explicit validation
+        if spec.range is None:
+            raise ValueError(
+                f"spec.range is required for {spec.param_type} parameter '{spec.name}'"
+            )
+        if spec.step is None:
+            raise ValueError(f"spec.step is required for {spec.param_type} parameter '{spec.name}'")
         low, high = spec.range
         step_int = int(spec.step)
         low_int, high_int = int(low), int(high)

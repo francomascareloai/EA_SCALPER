@@ -40,10 +40,15 @@ def test_footprint_floor_index_is_shifted_to_bar_close() -> None:
     aligned = fp_df.copy()
     aligned.index = pd.to_datetime(aligned.index) + pd.Timedelta("5min")
 
-    assert aligned.index.tolist() == pd.to_datetime([
-        "2025-01-01 10:05:00",
-        "2025-01-01 10:10:00",
-    ]).tolist()
+    assert (
+        aligned.index.tolist()
+        == pd.to_datetime(
+            [
+                "2025-01-01 10:05:00",
+                "2025-01-01 10:10:00",
+            ]
+        ).tolist()
+    )
 
 
 def test_bars_resample_is_labeled_at_bar_close() -> None:
@@ -77,15 +82,16 @@ def test_bars_resample_is_labeled_at_bar_close() -> None:
 def test_build_strategy_config_maps_new_execution_fields() -> None:
     """Ensure runner maps new execution config keys into GoldScalperConfig."""
 
+    from nautilus_gold_scalper.scripts.backtest.run_backtest import build_strategy_config
     from nautilus_trader.model.data import BarSpecification, BarType
     from nautilus_trader.model.enums import AggregationSource, BarAggregation, PriceType
     from nautilus_trader.model.identifiers import InstrumentId
 
-    from nautilus_gold_scalper.scripts.backtest.run_backtest import build_strategy_config
-
     bar_type = BarType(
         instrument_id=InstrumentId.from_str("XAU/USD.SIM"),
-        bar_spec=BarSpecification(step=5, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID),
+        bar_spec=BarSpecification(
+            step=5, aggregation=BarAggregation.MINUTE, price_type=PriceType.MID
+        ),
         aggregation_source=AggregationSource.INTERNAL,
     )
 
@@ -119,6 +125,11 @@ def test_build_strategy_config_maps_new_execution_fields() -> None:
             "virtual_gate_cluster_spike_multiplier": 3.5,
             "virtual_gate_cluster_max_fraction": 0.45,
             "virtual_gate_fail_open_on_insufficient_history": False,
+            # New timeframe execution keys
+            "ltf_bar_minutes": 5,
+            "mtf_bar_minutes": 15,
+            "htf_bar_minutes": 60,
+            "management_bar_minutes": 60,
         }
     }
 
@@ -156,9 +167,8 @@ def test_build_strategy_config_maps_new_execution_fields() -> None:
 
 
 def test_bar_spec_from_minutes_maps_60_to_hour() -> None:
-    from nautilus_trader.model.enums import BarAggregation
-
     from nautilus_gold_scalper.scripts.backtest.run_backtest import _bar_spec_from_minutes
+    from nautilus_trader.model.enums import BarAggregation
 
     spec = _bar_spec_from_minutes(minutes=60)
     assert spec.step == 1
@@ -167,7 +177,6 @@ def test_bar_spec_from_minutes_maps_60_to_hour() -> None:
 
 def test_bar_spec_from_minutes_rejects_non_divisor_minute_step() -> None:
     import pytest
-
     from nautilus_gold_scalper.scripts.backtest.run_backtest import _bar_spec_from_minutes
 
     with pytest.raises(ValueError):

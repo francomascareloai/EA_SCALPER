@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import polars as pl
+
 from src.validation.core.config import ValidationConfig
 from src.validation.core.engine import (
     DuckDBConnection,
@@ -73,14 +74,16 @@ class Phase1AValidator(PhaseValidator):
     phase_name: ClassVar[str] = "Deep Data Validation"
 
     # Expected schema columns for NautilusTrader quote tick data
-    EXPECTED_COLUMNS: ClassVar[frozenset[str]] = frozenset({
-        "bid_price",
-        "ask_price",
-        "bid_size",
-        "ask_size",
-        "ts_event",
-        "ts_init",
-    })
+    EXPECTED_COLUMNS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "bid_price",
+            "ask_price",
+            "bid_size",
+            "ask_size",
+            "ts_event",
+            "ts_init",
+        }
+    )
 
     # Time constants
     ONE_HOUR_NS: ClassVar[int] = 3_600_000_000_000  # 1 hour in nanoseconds
@@ -185,11 +188,8 @@ class Phase1AValidator(PhaseValidator):
                 data.get("rows_kept"),
             )
             return data
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning(
-                "Failed to load checkpoint: %s",
-                e,
-            )
+        except (json.JSONDecodeError, OSError):
+            logger.warning("Failed to load checkpoint", exc_info=True)
             return None
 
     def _check_tick_count(self) -> CheckResult:
@@ -431,10 +431,7 @@ class Phase1AValidator(PhaseValidator):
             return self.check(
                 name="Gap Detection",
                 condition=True,
-                message=(
-                    f"All {total_gaps_found} gaps > 1 hour are weekend gaps "
-                    "(expected)"
-                ),
+                message=(f"All {total_gaps_found} gaps > 1 hour are weekend gaps (expected)"),
                 value=0,
                 threshold=0,
                 details={
@@ -538,13 +535,15 @@ class Phase1AValidator(PhaseValidator):
 
         for row in gaps_df.iter_rows(named=True):
             gap_hours = row["gap_ns"] / 3_600_000_000_000
-            details.append({
-                "prev_time": str(row["prev_time"]),
-                "curr_time": str(row["curr_time"]),
-                "gap_hours": round(gap_hours, 2),
-                "prev_dow": int(row["prev_dow"]),
-                "curr_dow": int(row["curr_dow"]),
-            })
+            details.append(
+                {
+                    "prev_time": str(row["prev_time"]),
+                    "curr_time": str(row["curr_time"]),
+                    "gap_hours": round(gap_hours, 2),
+                    "prev_dow": int(row["prev_dow"]),
+                    "curr_dow": int(row["curr_dow"]),
+                }
+            )
 
         return details
 

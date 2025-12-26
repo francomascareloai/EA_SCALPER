@@ -47,13 +47,9 @@ class MemoryConfig:
         if self.max_memory_gb <= 0:
             raise ValueError(f"max_memory_gb must be positive, got {self.max_memory_gb}")
         if self.max_memory_gb > 12.0:
-            raise ValueError(
-                f"max_memory_gb exceeds system limit (12GB), got {self.max_memory_gb}"
-            )
+            raise ValueError(f"max_memory_gb exceeds system limit (12GB), got {self.max_memory_gb}")
         if self.chunk_size_ticks <= 0:
-            raise ValueError(
-                f"chunk_size_ticks must be positive, got {self.chunk_size_ticks}"
-            )
+            raise ValueError(f"chunk_size_ticks must be positive, got {self.chunk_size_ticks}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,21 +74,15 @@ class DataQualityConfig:
     def __post_init__(self) -> None:
         """Validate data quality thresholds."""
         if not 1 <= self.min_coverage_months <= 360:
-            raise ValueError(
-                f"min_coverage_months must be 1-360, got {self.min_coverage_months}"
-            )
+            raise ValueError(f"min_coverage_months must be 1-360, got {self.min_coverage_months}")
         if not 0.0 <= self.min_clean_data_pct <= 100.0:
-            raise ValueError(
-                f"min_clean_data_pct must be 0-100, got {self.min_clean_data_pct}"
-            )
+            raise ValueError(f"min_clean_data_pct must be 0-100, got {self.min_clean_data_pct}")
         if self.max_critical_gaps < 0:
             raise ValueError(
                 f"max_critical_gaps must be non-negative, got {self.max_critical_gaps}"
             )
         if not 0.0 <= self.min_quality_score <= 100.0:
-            raise ValueError(
-                f"min_quality_score must be 0-100, got {self.min_quality_score}"
-            )
+            raise ValueError(f"min_quality_score must be 0-100, got {self.min_quality_score}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,18 +108,14 @@ class PriceValidationConfig:
     def __post_init__(self) -> None:
         """Validate price thresholds."""
         if self.price_range_min <= 0:
-            raise ValueError(
-                f"price_range_min must be positive, got {self.price_range_min}"
-            )
+            raise ValueError(f"price_range_min must be positive, got {self.price_range_min}")
         if self.price_range_max <= self.price_range_min:
             raise ValueError(
                 f"price_range_max ({self.price_range_max}) must exceed "
                 f"price_range_min ({self.price_range_min})"
             )
         if self.max_spread_cents <= 0:
-            raise ValueError(
-                f"max_spread_cents must be positive, got {self.max_spread_cents}"
-            )
+            raise ValueError(f"max_spread_cents must be positive, got {self.max_spread_cents}")
         if self.max_avg_spread_cents <= 0:
             raise ValueError(
                 f"max_avg_spread_cents must be positive, got {self.max_avg_spread_cents}"
@@ -177,17 +163,13 @@ class BacktestThresholdConfig:
         if self.min_sqn <= 0:
             raise ValueError(f"min_sqn must be positive, got {self.min_sqn}")
         if self.max_sqn <= self.min_sqn:
-            raise ValueError(
-                f"max_sqn ({self.max_sqn}) must exceed min_sqn ({self.min_sqn})"
-            )
+            raise ValueError(f"max_sqn ({self.max_sqn}) must exceed min_sqn ({self.min_sqn})")
         if not 0.0 <= self.min_psr <= 1.0:
             raise ValueError(f"min_psr must be 0-1, got {self.min_psr}")
         if not 0.0 <= self.max_pbo <= 1.0:
             raise ValueError(f"max_pbo must be 0-1, got {self.max_pbo}")
         if not 0.0 < self.max_mc_dd_95 < 1.0:
-            raise ValueError(
-                f"max_mc_dd_95 must be 0-1 (exclusive), got {self.max_mc_dd_95}"
-            )
+            raise ValueError(f"max_mc_dd_95 must be 0-1 (exclusive), got {self.max_mc_dd_95}")
         if self.min_trades < 30:
             raise ValueError(
                 f"min_trades must be at least 30 for significance, got {self.min_trades}"
@@ -238,17 +220,11 @@ class ApexConfig:
                 f"max_trailing_dd must be 0-5% (Apex limit), got {self.max_trailing_dd}"
             )
         if not 0.0 < self.max_total_dd <= 0.05:
-            raise ValueError(
-                f"max_total_dd must be 0-5% (Apex limit), got {self.max_total_dd}"
-            )
+            raise ValueError(f"max_total_dd must be 0-5% (Apex limit), got {self.max_total_dd}")
         if not 0.0 < self.max_daily_profit <= 1.0:
-            raise ValueError(
-                f"max_daily_profit must be 0-100%, got {self.max_daily_profit}"
-            )
+            raise ValueError(f"max_daily_profit must be 0-100%, got {self.max_daily_profit}")
         if not 0 <= self.trade_block_hour_et <= 23:
-            raise ValueError(
-                f"trade_block_hour_et must be 0-23, got {self.trade_block_hour_et}"
-            )
+            raise ValueError(f"trade_block_hour_et must be 0-23, got {self.trade_block_hour_et}")
         if not 0 <= self.trade_block_minute_et <= 59:
             raise ValueError(
                 f"trade_block_minute_et must be 0-59, got {self.trade_block_minute_et}"
@@ -288,9 +264,7 @@ class SessionConfig:
         """Validate session definitions."""
         for name, (start, end) in self.sessions.items():
             if not 0 <= start <= 23:
-                raise ValueError(
-                    f"Session '{name}' start hour must be 0-23, got {start}"
-                )
+                raise ValueError(f"Session '{name}' start hour must be 0-23, got {start}")
             if not 0 <= end <= 23:
                 raise ValueError(f"Session '{name}' end hour must be 0-23, got {end}")
 
@@ -437,35 +411,32 @@ class ValidationConfig:
         sessions_dict: dict[str, tuple[int, int]] | None = None
         if sessions_data and "sessions" in sessions_data:
             raw_sessions = sessions_data["sessions"]
-            sessions_dict = {
-                name: (int(hours[0]), int(hours[1]))
-                for name, hours in raw_sessions.items()
-            }
+            if not isinstance(raw_sessions, dict):
+                raise ValueError(
+                    f"sessions.sessions must be a mapping of name -> [start,end], got {type(raw_sessions).__name__}"
+                )
+            sessions_dict = {}
+            for name, hours in raw_sessions.items():
+                if not isinstance(hours, (list, tuple)) or len(hours) != 2:
+                    raise ValueError(
+                        f"sessions.sessions.{name} must be a 2-item sequence [start,end], got {hours!r}"
+                    )
+                sessions_dict[str(name)] = (int(hours[0]), int(hours[1]))
 
         return cls(
             catalog_path=str(catalog_path),
             memory=MemoryConfig(**memory_data) if memory_data else MemoryConfig(),
             data_quality=(
-                DataQualityConfig(**data_quality_data)
-                if data_quality_data
-                else DataQualityConfig()
+                DataQualityConfig(**data_quality_data) if data_quality_data else DataQualityConfig()
             ),
-            price=(
-                PriceValidationConfig(**price_data)
-                if price_data
-                else PriceValidationConfig()
-            ),
+            price=(PriceValidationConfig(**price_data) if price_data else PriceValidationConfig()),
             backtest=(
                 BacktestThresholdConfig(**backtest_data)
                 if backtest_data
                 else BacktestThresholdConfig()
             ),
             apex=ApexConfig(**apex_data) if apex_data else ApexConfig(),
-            sessions=(
-                SessionConfig(sessions=sessions_dict)
-                if sessions_dict
-                else SessionConfig()
-            ),
+            sessions=(SessionConfig(sessions=sessions_dict) if sessions_dict else SessionConfig()),
         )
 
     def to_yaml(self, path: str | Path) -> None:
@@ -479,9 +450,7 @@ class ValidationConfig:
         path.parent.mkdir(parents=True, exist_ok=True)
 
         # Convert sessions tuples to lists for YAML
-        sessions_for_yaml = {
-            name: list(hours) for name, hours in self.sessions.sessions.items()
-        }
+        sessions_for_yaml = {name: list(hours) for name, hours in self.sessions.sessions.items()}
 
         data = {
             "catalog_path": self.catalog_path,

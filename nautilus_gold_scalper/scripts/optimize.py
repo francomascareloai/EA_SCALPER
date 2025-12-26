@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import os
 import random
 import shutil
@@ -64,6 +65,25 @@ def _normalize_jsonable(v: Any) -> Any:
     return v
 
 
+def _sanitize_for_json(obj: Any) -> Any:
+    """Recursively sanitize values so JSON is strict-safe.
+
+    Replaces NaN/Inf/-Inf with None so downstream strict JSON parsers don't fail.
+    """
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+
+    if isinstance(obj, list):
+        return [_sanitize_for_json(v) for v in obj]
+
+    # Normalize numpy floating to builtin float before isfinite.
+    if isinstance(obj, (float, np.floating)):
+        v = float(obj)
+        return v if math.isfinite(v) else None
+
+    return obj
+
+
 # Type checking imports for lazy-loaded modules
 if TYPE_CHECKING:
     from scripts.backtest.run_backtest import BacktestRunner as BacktestRunnerType
@@ -75,11 +95,39 @@ BacktestRunnerT: TypeAlias = type["BacktestRunnerType"]
 # CONSTANTS
 # =============================================================================
 DEFAULT_INITIAL_BALANCE: float = 100_000.0
-DEFAULT_LTF_MINUTES: int = 5
+DEFAULT_LTF_MINUTES: int = 15
 DEFAULT_SEED: int = 42
 DEFAULT_SAMPLE_RATE: float = 1.0
 LOG_FORMAT: str = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S"
+
+
+def _resolve_seed(
+    cli_seed: int | None, config_seed: int | None, *, default: int = DEFAULT_SEED
+) -> int:
+    """Resolve a deterministic RNG seed.
+
+    IMPORTANT: do NOT use `a or b` here because `0` is a valid seed.
+
+    Args:
+        cli_seed: Seed passed via CLI (may be None)
+        config_seed: Seed from config (may be None)
+        default: Fallback seed when both are None
+
+    Returns:
+        An `int` seed (0 is preserved).
+    """
+    seed_val: int | None
+    if cli_seed is not None:
+        seed_val = cli_seed
+    elif config_seed is not None:
+        seed_val = config_seed
+    else:
+        seed_val = default
+
+    # Ensure we always propagate a builtin int (yaml/np can sneak in other numerics).
+    return int(seed_val)
+
 
 # Atomic write constants
 ATOMIC_WRITE_SUFFIX: str = ".tmp"
@@ -103,10 +151,18 @@ def _atomic_write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=ATOMIC_WRITE_SUFFIX)
     try:
-        with os.fdopen(fd, "w") as f:
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except Exception:
+            # If fdopen fails, we must close the raw fd to avoid a leak.
+            os.close(fd)
+            raise
+
+        with f:
             f.write(content)
             f.flush()
             os.fsync(f.fileno())
+
         shutil.move(tmp_path, path)
     except Exception:
         # Clean up temp file on failure
@@ -125,8 +181,15 @@ def _atomic_write_csv(path: Path, df: pd.DataFrame) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=ATOMIC_WRITE_SUFFIX)
     try:
-        # Close the fd since to_csv opens its own handle
-        os.close(fd)
+        try:
+            # Close the fd since to_csv opens its own handle
+            os.close(fd)
+        except Exception:
+            # If close fails, abort before writing so we don't leak fds across loops.
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
         df.to_csv(tmp_path, index=False)
         shutil.move(tmp_path, path)
     except Exception:
@@ -374,7 +437,7 @@ Modes:
     parser.add_argument(
         "--ltf-minutes",
         type=int,
-        default=5,
+        default=15,
         help="Low timeframe bar period in minutes",
     )
 
@@ -408,11 +471,16 @@ Modes:
 
 
 def estimate_grid_size(parameters: list[ParameterSpec]) -> int:
-    """Estimate total grid size from parameters."""
+    """Estimate total grid size from parameters.
+
+    Uses round() instead of int() to match real grid search cardinality
+    (avoids float precision off-by-one errors).
+    """
     size = 1
     for p in parameters:
         if p.range and p.step:
-            n = int((p.range[1] - p.range[0]) / p.step) + 1
+            # Use round() to match grid.py implementation (endpoint-correct)
+            n = round((p.range[1] - p.range[0]) / p.step) + 1
             size *= n
         elif p.choices:
             size *= len(p.choices)
@@ -454,10 +522,11 @@ def create_backtest_fn(
             trades_df: DataFrame with columns [entry_time, exit_time, pnl, ...]
             equity_series: Series indexed by time with cumulative equity
         """
+        seed = _resolve_seed(args.seed, getattr(config.search, "seed", None), default=DEFAULT_SEED)
         runner = BR(
             initial_balance=args.initial_balance,
             log_level="ERROR",  # Quiet logging during optimization
-            seed=args.seed or config.search.seed or 42,
+            seed=seed,
         )
 
         # NOTE: `params` may be either:
@@ -643,6 +712,17 @@ def create_backtest_fn(
         if risk_val is not _missing:
             risk_per_trade = _as_float(risk_val)
 
+        # CRITICAL: When prop_firm_enabled is True, Apex trailing DD / HWM semantics
+        # require QuoteTicks (bid/ask) to compute mark-to-market equity intrabar.
+        # Bar-only mode is a fast screener but is NOT valid for Apex compliance.
+        if prop_firm_enabled and feed != "ticks":
+            logger.error(
+                "CRITICAL: prop_firm_enabled=True requires feed=ticks for MTM equity/HWM enforcement. "
+                "Refusing to run optimization trial in feed=%s.",
+                feed,
+            )
+            return pd.DataFrame(), pd.Series(dtype=float, name="equity")
+
         summary = runner.run(
             start_date=start_date,
             end_date=end_date,
@@ -667,6 +747,9 @@ def create_backtest_fn(
         # Extract trades and equity from the run
         # The BacktestRunner stores results internally
         trades_df = _extract_trades_df(runner)
+
+        # Ensure we can extract MTM equity: BacktestRunner always stores the last
+        # strategy instance as `runner.strategy`.
         equity_series = _extract_equity_series(runner, args.initial_balance)
 
         return trades_df, equity_series
@@ -752,8 +835,20 @@ def _extract_trades_df(runner: Any) -> pd.DataFrame:
 def _extract_equity_series(runner: Any, initial_balance: float) -> pd.Series:
     """Extract equity curve from BacktestRunner.
 
-    Uses engine.trader.generate_account_report() which provides full balance
-    history with timestamps. Falls back to computing from fills if unavailable.
+    CRITICAL: `engine.trader.generate_account_report()['total']` is *balance*, not
+    mark-to-market equity. It does not reliably include unrealized PnL and can
+    severely underestimate Apex trailing DD.
+
+    Primary source for Apex trailing DD must be mark-to-market equity using
+    conservative pricing (LONG uses BID, SHORT uses ASK). The strategy already
+    enforces this in `BaseStrategy.on_quote_tick()` by updating `DrawdownTracker`
+    with equity computed from tick prices.
+
+    Extraction:
+    1) Strategy DrawdownTracker equity curve (MTM, conservative)
+
+    If MTM equity cannot be extracted, this function returns an empty series so
+    the optimization validation can fail closed (DD=100% → apex_compliant=False).
 
     Formula for trailing DD at any point t:
         HWM(t) = max(equity[0:t])
@@ -769,49 +864,61 @@ def _extract_equity_series(runner: Any, initial_balance: float) -> pd.Series:
         return pd.Series(dtype=float)
 
     try:
-        # Primary method: use account report which has full history with timestamps
-        account_df = runner.engine.trader.generate_account_report(runner.venue)
+        # Preferred: extract mark-to-market equity from strategy DrawdownTracker history.
+        strategy = getattr(runner, "strategy", None)
+        drawdown_tracker = getattr(strategy, "_drawdown_tracker", None) if strategy else None
+        if drawdown_tracker is not None and hasattr(drawdown_tracker, "get_history"):
+            history = drawdown_tracker.get_history()
+            if history:
+                # History items are DrawdownSnapshot dataclasses.
+                # Use `timestamp` as index and `equity` as value.
+                times = [getattr(h, "timestamp", None) for h in history]
+                equities = [float(getattr(h, "equity", float("nan"))) for h in history]
+                dt_index = pd.to_datetime(times, utc=True, errors="coerce")
 
-        if account_df is not None and len(account_df) > 0:
-            # account_df has 'total' column with balance and ts_event as index
-            equity_series = account_df["total"].astype(float)
-            equity_series.name = "equity"
+                # Fail closed on any timestamp/equity corruption: dropping bad rows can
+                # understate DD by cherry-picking a subset of the curve.
+                invalid_ts = int(pd.isna(dt_index).sum())
+                finite_equity = bool(np.isfinite(np.asarray(equities, dtype=float)).all())
+                if invalid_ts > 0 or not finite_equity:
+                    logger.error(
+                        "CRITICAL: MTM equity history contains invalid timestamps or non-finite equity; "
+                        "failing closed (DD=100%). invalid_ts=%d finite_equity=%s total=%d",
+                        invalid_ts,
+                        str(finite_equity),
+                        int(len(equities)),
+                    )
+                    return pd.Series(dtype=float, name="equity")
 
-            # Ensure index is timezone-aware datetime
-            if not isinstance(equity_series.index, pd.DatetimeIndex):
-                equity_series.index = pd.to_datetime(equity_series.index, utc=True)
-            elif equity_series.index.tz is None:
-                equity_series.index = equity_series.index.tz_localize("UTC")
+                equity_series = pd.Series(equities, index=dt_index, name="equity")
 
-            logger.debug(
-                f"Extracted equity curve: {len(equity_series)} points, "
-                f"range [{equity_series.min():.2f}, {equity_series.max():.2f}]"
-            )
-            return equity_series
+                # Keep duplicate timestamps: dropping duplicates can understate drawdown by
+                # removing peaks/troughs. Use a stable sort to preserve original ordering
+                # for equal timestamps.
+                equity_series = (
+                    equity_series.replace([np.inf, -np.inf], np.nan)
+                    .dropna()
+                    .sort_index(kind="mergesort")
+                )
 
-        # Fallback: try portfolio analyzer returns
-        if hasattr(runner.engine, "portfolio") and runner.engine.portfolio is not None:
-            returns = runner.engine.portfolio.analyzer.returns()
-            if len(returns) > 0:
-                cumulative = (1 + returns).cumprod()
-                equity_series = initial_balance * cumulative
-                equity_series.name = "equity"
-                logger.debug(f"Extracted equity from returns: {len(equity_series)} points")
-                return equity_series
+                if len(equity_series) >= 2:
+                    logger.info(
+                        f"EQUITY_SOURCE=drawdown_tracker points={len(equity_series)} "
+                        f"range=[{equity_series.min():.2f},{equity_series.max():.2f}]"
+                    )
+                    return equity_series
 
-        # CRITICAL: Cannot extract equity - FAIL the trial (C1 fix from Round 2 CRITIC)
-        # The 2-point fallback was removed because it masks true DD violations.
-        # A 2-point series [initial, final] computes ~0% trailing DD even when
-        # the true intra-trial DD exceeded Apex limits. This caused FALSE APEX COMPLIANT
-        # verdicts, leading to account termination in production.
+        # For Apex trailing DD validation we MUST use MTM equity.
+        # Balance-only series (account report) or reconstructed equity-from-returns can materially
+        # understate trailing DD and let unsafe candidates pass.
         logger.error(
-            "CRITICAL: Cannot extract equity curve from account report or returns. "
-            "Trial will be marked FAILED - DD metrics would be unreliable."
+            "CRITICAL: Cannot extract MTM equity curve from strategy DrawdownTracker. "
+            "Returning empty series to fail closed (DD=100%)."
         )
-        return pd.Series(dtype=float, name="equity")  # Empty = trial fails
+        return pd.Series(dtype=float, name="equity")
 
     except Exception as e:
-        logger.error(f"Failed to extract equity: {e}", exc_info=True)
+        logger.error(f"Failed to extract equity: {type(e).__name__}: {e}")
         return pd.Series(dtype=float, name="equity")
 
 
@@ -826,10 +933,10 @@ def print_dry_run(args: argparse.Namespace, config: OptimizationConfig) -> None:
     print(f"Version: {config.version}")
 
     # Search configuration
-    mode = args.mode or config.search.mode
-    trials = args.trials or config.search.trials
-    parallelism = args.parallelism or config.search.parallelism
-    seed = args.seed or config.search.seed
+    mode = args.mode if args.mode is not None else config.search.mode
+    trials = args.trials if args.trials is not None else config.search.trials
+    parallelism = args.parallelism if args.parallelism is not None else config.search.parallelism
+    seed = _resolve_seed(args.seed, getattr(config.search, "seed", None), default=DEFAULT_SEED)
 
     print(f"\n{'─' * 40}")
     print("SEARCH CONFIGURATION")
@@ -923,31 +1030,39 @@ def apply_cli_overrides(config: OptimizationConfig, args: argparse.Namespace) ->
 
     Since OptimizationConfig uses frozen dataclasses, we need to recreate
     with modified values using dataclasses.replace().
+
+    CRITICAL: Use explicit `is not None` checks, NOT falsy `or` pattern.
+    Reason: `0 or default` returns `default` in Python, ignoring valid 0 values.
+    Example: `--seed 0` would be ignored with `args.seed or config.search.seed`.
     """
     from dataclasses import replace as dc_replace
+
+    # Helper to apply override only if explicitly provided (not None)
+    def _override(cli_val: Any, default: Any) -> Any:
+        return cli_val if cli_val is not None else default
 
     # Build modified search config using replace
     new_search = dc_replace(
         config.search,
-        mode=("random" if args.mode == "lhs" else (args.mode or config.search.mode)),
-        trials=args.trials or config.search.trials,
-        n_samples=args.trials or config.search.n_samples,
-        parallelism=args.parallelism or config.search.parallelism,
-        seed=args.seed or config.search.seed,
+        mode=("random" if args.mode == "lhs" else _override(args.mode, config.search.mode)),
+        trials=_override(args.trials, config.search.trials),
+        n_samples=_override(args.trials, config.search.n_samples),
+        parallelism=_override(args.parallelism, config.search.parallelism),
+        seed=_override(args.seed, config.search.seed),
     )
 
     # Build modified data config (flat fields)
     new_data = dc_replace(
         config.data,
         path=config.data.path,
-        train_start=args.start_date or config.data.train_start,
-        train_end=args.end_date or config.data.train_end,
+        train_start=_override(args.start_date, config.data.train_start),
+        train_end=_override(args.end_date, config.data.train_end),
     )
 
     # Build modified output config (flat fields)
     new_output = dc_replace(
         config.output,
-        dir=args.output or config.output.dir,
+        dir=_override(args.output, config.output.dir),
     )
 
     # Create new config with overrides
@@ -969,10 +1084,34 @@ def apply_cli_overrides(config: OptimizationConfig, args: argparse.Namespace) ->
 
 def run_optimization(args: argparse.Namespace) -> int:
     """Run the optimization pipeline."""
+    import math
+
     config_path = Path(args.config)
     if not config_path.exists():
         logger.error(f"Config file not found: {config_path}")
         return 1
+
+    # Validate CLI numeric args for NaN/Inf/negative early (fail fast)
+    # These values can propagate and cause silent misbehavior in backtests.
+    numeric_validations = [
+        ("initial_balance", args.initial_balance, 1000.0, None),  # min, max (None=no max)
+        ("sample_rate", args.sample_rate, 0.01, 1.0) if args.sample_rate is not None else None,
+        ("trials", args.trials, 1, None) if args.trials is not None else None,
+        ("parallelism", args.parallelism, 1, None) if args.parallelism is not None else None,
+    ]
+    for check in numeric_validations:
+        if check is None:
+            continue
+        name, val, min_val, max_val = check
+        if not math.isfinite(val):
+            logger.error(f"CLI arg --{name.replace('_', '-')} must be finite, got {val}")
+            return 1
+        if val < min_val:
+            logger.error(f"CLI arg --{name.replace('_', '-')} must be >= {min_val}, got {val}")
+            return 1
+        if max_val is not None and val > max_val:
+            logger.error(f"CLI arg --{name.replace('_', '-')} must be <= {max_val}, got {val}")
+            return 1
 
     # Load config
     try:
@@ -1017,7 +1156,7 @@ def run_optimization(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     # Set random seeds for reproducibility
-    seed = config.search.seed or 42
+    seed = _resolve_seed(args.seed, getattr(config.search, "seed", None), default=DEFAULT_SEED)
     random.seed(seed)
     np.random.seed(seed)
 
@@ -1167,15 +1306,19 @@ def _save_results(
             }
         )
 
+    # Sanitize for strict JSON compliance: replace NaN/Inf/-Inf with None.
+    summary_jsonable = _sanitize_for_json(asdict(summary))
+    results_jsonable = _sanitize_for_json(results_data)
+
     # Save summary JSON (most critical - save first)
     summary_path = output_dir / "summary.json"
-    _atomic_write(summary_path, json.dumps(asdict(summary), indent=2, default=str))
+    _atomic_write(summary_path, json.dumps(summary_jsonable, indent=2, default=str))
 
     # Save all results as JSON
     # NOTE: results_data can contain numpy scalars (np.int64/np.float64) depending on upstream.
     # Use `default=str` to guarantee serialization without crashing after long runs.
     results_path = output_dir / "all_results.json"
-    _atomic_write(results_path, json.dumps(results_data, indent=2, default=str))
+    _atomic_write(results_path, json.dumps(results_jsonable, indent=2, default=str))
 
     # Save as CSV for easy analysis
     csv_path = output_dir / "results.csv"
@@ -1184,7 +1327,7 @@ def _save_results(
 
     # Save top 10
     top_path = output_dir / "top10.json"
-    _atomic_write(top_path, json.dumps(results_data[:10], indent=2, default=str))
+    _atomic_write(top_path, json.dumps(results_jsonable[:10], indent=2, default=str))
 
     logger.info(f"Saved results atomically to {output_dir}")
 
