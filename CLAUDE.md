@@ -2,7 +2,7 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.23</version>
+  <version>3.10.24</version>
   <last_updated>2025-12-24</last_updated>
   <changelog>v3.10.23: Add git_safety rule forbidding git checkout/reset without explicit Franco approval.</changelog>
   <previous_changes>v3.10.20: Add ARGUS research gate to increase evidence-based decisions. | v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule</previous_changes>
@@ -577,6 +577,7 @@
 
 <references>
   <doc>DOCS/_INDEX.md (navigation)</doc>
+  <doc>nautilus_gold_scalper/docs/INDEX.md (Nautilus operational docs)</doc>
   <doc>DOCS/06_REFERENCE/CLAUDE_REFERENCE.md (deep technical reference; not CORE)</doc>
   <doc>DOCS/02_IMPLEMENTATION/ (plans/progress)</doc>
   <doc>.claude/commands/ (short, on-demand workflows)</doc>
