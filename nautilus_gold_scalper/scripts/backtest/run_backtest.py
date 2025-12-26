@@ -488,11 +488,17 @@ def build_ticks_with_wrangler(
     return cast(list[QuoteTick], ticks)
 
 
-def load_m5_bars_csv(filepath: Path, start_date: str, end_date: str) -> pd.DataFrame:
-    """Load M5 bars file (CSV or Parquet) into an OHLCV DataFrame indexed by UTC timestamp.
+def load_bars_csv(
+    filepath: Path,
+    start_date: str,
+    end_date: str,
+    *,
+    ltf_minutes: int,
+) -> pd.DataFrame:
+    """Load bars file (CSV or Parquet) into an OHLCV DataFrame indexed by UTC timestamp.
 
     Temporal correctness:
-    - If the input timestamp represents bar *start*, shift the index forward by 5 minutes
+    - If the input timestamp represents bar *start*, shift the index forward by the bar duration
       so downstream logic treats OHLC as known only at bar close.
 
     Supported inputs:
@@ -553,9 +559,26 @@ def load_m5_bars_csv(filepath: Path, start_date: str, end_date: str) -> pd.DataF
         if not df.index.is_monotonic_increasing:
             raise ValueError("Bar data timestamps not monotonic even after sort")
 
-    # Assume bars are timestamped by bar *start* and shift to bar close (M5) to
+    if ltf_minutes <= 0:
+        raise ValueError(f"ltf_minutes must be positive, got {ltf_minutes}")
+
+    # Assume bars are timestamped by bar *start* and shift to bar close to
     # avoid look-ahead when consuming OHLC in the strategy.
-    df.index = pd.to_datetime(df.index, utc=True) + pd.Timedelta(minutes=5)
+    df.index = pd.to_datetime(df.index, utc=True) + pd.Timedelta(minutes=int(ltf_minutes))
+
+    # Sanity check: for contiguous intraday data, the most common step should match the bar duration.
+    # (Allow gaps for weekends/holidays by only checking short deltas.)
+    if len(df.index) >= 3:
+        deltas = df.index.to_series().diff().dropna()
+        expected = pd.Timedelta(minutes=int(ltf_minutes))
+        short = deltas[deltas <= expected * 2]
+        if not short.empty:
+            most_common = short.value_counts().index[0]
+            if most_common != expected:
+                raise ValueError(
+                    f"Bars timestamps step mismatch: expected {expected}, most_common={most_common}. "
+                    "If your bars are already close-timestamped, disable shifting or adjust loader assumptions."
+                )
 
     start_ts = pd.Timestamp(start_date, tz="UTC")
     end_ts = pd.Timestamp(end_date, tz="UTC") + pd.Timedelta(days=1)
@@ -571,7 +594,12 @@ def load_yaml_config(config_path: Path) -> dict[str, Any]:
         return {}
     try:
         with open(config_path, encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+            data = yaml.safe_load(f)
+        if data is None:
+            return {}
+        if not isinstance(data, dict):
+            raise ValueError(f"YAML root must be a mapping, got {type(data).__name__}")
+        return data
     except Exception as exc:
         print(f"WARNING: Could not load config {config_path}: {exc}")
         return {}
@@ -592,6 +620,15 @@ def build_strategy_config(
         v = execution_cfg.get("fill_model", "")
         s = str(v).strip().lower()
         return s not in ("", "none", "off")
+
+    def _infer_fees_in_account(execution_cfg: dict[str, Any]) -> bool:
+        # If the runner will attach an engine FeeModel, then the account equity already
+        # reflects commissions (and strategy-side commission cash adjustment must be disabled).
+        commission = execution_cfg.get("commission_per_contract", 0.0)
+        try:
+            return float(commission) != 0.0
+        except Exception:
+            return False
 
     confluence_cfg = cfg.get("confluence", {}) if isinstance(cfg, dict) else {}
     risk_cfg = cfg.get("risk", {}) if isinstance(cfg, dict) else {}
@@ -694,48 +731,81 @@ def build_strategy_config(
 
     # Keep timeframes consistent across LTF experiments.
     # Default hierarchy: LTF < MTF < HTF.
+    # We intentionally restrict timeframes to the `MTFManager.Timeframe` enum set.
+    # This keeps runner inference consistent with strategy + prevents bar-type collisions.
     ltf_minutes_int = max(1, int(ltf_minutes))
 
-    def _pick_mtf_minutes(ltf_min: int) -> int:
-        """Pick a valid MTF timeframe in minutes strictly greater than LTF."""
+    SUPPORTED_TIMEFRAME_MINUTES = (1, 5, 15, 30, 60, 240, 1440)
 
-        # Default behavior for the project.
-        if ltf_min == 5:
-            return 15
-
-        for candidate in (ltf_min * 2, ltf_min * 3):
-            if candidate <= ltf_min:
-                continue
-            try:
-                _bar_spec_from_minutes(minutes=candidate)
-            except ValueError:
-                pass
-            else:
+    def _next_supported_minutes(*, gt_minutes: int) -> int:
+        for candidate in SUPPORTED_TIMEFRAME_MINUTES:
+            if candidate > gt_minutes:
                 return candidate
+        raise ValueError(
+            f"No supported timeframe minutes greater than {gt_minutes}. "
+            f"Supported: {SUPPORTED_TIMEFRAME_MINUTES}"
+        )
 
-        # Standard buckets; includes 60+ which will map to hour bars.
-        buckets = (5, 10, 12, 15, 20, 30, 60, 120, 240, 360, 720, 1440)
-        for candidate in buckets:
-            if candidate <= ltf_min:
-                continue
-            try:
-                _bar_spec_from_minutes(minutes=candidate)
-            except ValueError:
-                continue
-            else:
-                return candidate
+    if ltf_minutes_int not in SUPPORTED_TIMEFRAME_MINUTES:
+        raise ValueError(
+            f"Unsupported LTF minutes: {ltf_minutes_int}. Supported: {SUPPORTED_TIMEFRAME_MINUTES}"
+        )
 
-        # Fall back to 2x if possible (hour bars), else fail fast.
-        candidate = ltf_min * 2
-        if candidate > ltf_min:
-            _bar_spec_from_minutes(minutes=candidate)
-            return candidate
-        raise ValueError(f"Could not choose MTF minutes for ltf_min={ltf_min}")
+    need_htf_data = bool(use_mtf) or bool(require_htf_align)
 
-    mtf_minutes = _pick_mtf_minutes(ltf_minutes_int)
+    # Resolve MTF minutes.
+    mtf_minutes = _next_supported_minutes(gt_minutes=ltf_minutes_int)
+    if use_mtf and exec_cfg.get("mtf_bar_minutes") is not None:
+        mtf_candidate = int(exec_cfg.get("mtf_bar_minutes"))
+        if mtf_candidate <= ltf_minutes_int:
+            raise ValueError(
+                f"execution.mtf_bar_minutes must be > LTF ({ltf_minutes_int}), got {mtf_candidate}"
+            )
+        if mtf_candidate not in SUPPORTED_TIMEFRAME_MINUTES:
+            raise ValueError(
+                f"Unsupported execution.mtf_bar_minutes: {mtf_candidate}. "
+                f"Supported: {SUPPORTED_TIMEFRAME_MINUTES}"
+            )
+        _bar_spec_from_minutes(minutes=mtf_candidate)
+        mtf_minutes = mtf_candidate
 
-    # Default: HTF stays at 60m for sub-hour LTF; otherwise, promote to 4x LTF.
-    htf_minutes = 60 if ltf_minutes_int < 60 else ltf_minutes_int * 4
+    # Resolve HTF minutes.
+    # Default: pick the next supported bucket strictly greater than max(LTF,MTF).
+    htf_minutes = _next_supported_minutes(gt_minutes=max(ltf_minutes_int, mtf_minutes))
+    if need_htf_data and exec_cfg.get("htf_bar_minutes") is not None:
+        htf_candidate = int(exec_cfg.get("htf_bar_minutes"))
+        if htf_candidate <= max(ltf_minutes_int, mtf_minutes):
+            raise ValueError(
+                f"execution.htf_bar_minutes must be > max(LTF,MTF) ({max(ltf_minutes_int, mtf_minutes)}), got {htf_candidate}"
+            )
+        if htf_candidate not in SUPPORTED_TIMEFRAME_MINUTES:
+            raise ValueError(
+                f"Unsupported execution.htf_bar_minutes: {htf_candidate}. "
+                f"Supported: {SUPPORTED_TIMEFRAME_MINUTES}"
+            )
+        _bar_spec_from_minutes(minutes=htf_candidate)
+        htf_minutes = htf_candidate
+
+    # Safety: prevent bar-type collisions (BaseStrategy routes HTF before MTF).
+    if need_htf_data and htf_minutes <= mtf_minutes:
+        raise ValueError(
+            f"Invalid timeframe hierarchy: ltf={ltf_minutes_int}, mtf={mtf_minutes}, htf={htf_minutes} "
+            "(must satisfy ltf < mtf < htf)"
+        )
+
+    management_bar_minutes = int(exec_cfg.get("management_bar_minutes", 60) or 0)
+
+    ltf_bar_minutes = int(exec_cfg.get("ltf_bar_minutes", ltf_minutes_int) or ltf_minutes_int)
+    if ltf_bar_minutes != ltf_minutes_int:
+        # ltf_minutes is controlled by the runner (engine bar aggregation). YAML must not diverge.
+        raise ValueError(
+            f"execution.ltf_bar_minutes ({ltf_bar_minutes}) must match runner ltf_minutes ({ltf_minutes_int}). "
+            "Use --ltf-minutes or optimize execution.ltf_bar_minutes to drive LTF."
+        )
+    if management_bar_minutes < 0:
+        raise ValueError(
+            f"execution.management_bar_minutes must be >= 0, got {management_bar_minutes}"
+        )
 
     mtf_bar_type = (
         _bar_type_from_minutes(
@@ -752,7 +822,7 @@ def build_strategy_config(
             minutes=htf_minutes,
             aggregation_source=agg_source,
         )
-        if require_htf_align
+        if need_htf_data
         else None
     )
 
@@ -762,8 +832,13 @@ def build_strategy_config(
         htf_bar_type=htf_bar_type,
         mtf_bar_type=mtf_bar_type,
         ltf_bar_type=bar_type,
+        ltf_bar_minutes=ltf_minutes_int,
+        mtf_bar_minutes=int(mtf_minutes),
+        htf_bar_minutes=int(htf_minutes),
+        management_bar_minutes=int(management_bar_minutes),
         execution_threshold=int(execution_threshold),
         slippage_in_fills=_infer_slippage_in_fills(exec_cfg),
+        fees_in_account=_infer_fees_in_account(exec_cfg),
         min_mtf_confluence=float(confluence_cfg.get("min_score_to_trade", 50)),
         min_rr_ratio=float(exec_cfg.get("min_rr_ratio", 1.5)),
         target_rr_ratio=float(exec_cfg.get("target_rr_ratio", 2.5)),
@@ -951,16 +1026,17 @@ def build_strategy_config(
         cb_cooldown_4=int((cb_cfg.get("cooldown_minutes") or {}).get("level_4", 1440)),
         cb_size_mult_2=float((cb_cfg.get("size_multipliers") or {}).get("level_2", 0.75)),
         cb_size_mult_3=float((cb_cfg.get("size_multipliers") or {}).get("level_3", 0.5)),
-        cb_auto_recovery=bool(cb_cfg.get("auto_recovery", True)),
+        cb_auto_recovery=_parse_bool(cb_cfg.get("auto_recovery"), default=True),
         consistency_cap_pct=float(consistency_cfg.get("daily_profit_cap_pct", 30.0)),
-        telemetry_enabled=bool(telemetry_cfg.get("enabled", True)),
+        telemetry_enabled=_parse_bool(telemetry_cfg.get("enabled"), default=True),
         telemetry_path=str(telemetry_cfg.get("path", "logs/telemetry.jsonl")),
-        telemetry_capture_spread=bool(telemetry_capture.get("spread", True)),
-        telemetry_capture_circuit=bool(telemetry_capture.get("circuit", True)),
-        telemetry_capture_cutoff=bool(telemetry_capture.get("cutoff", True)),
-        ml_filter_enabled=bool(ml_cfg.get("filter_enabled", False))
-        if isinstance(ml_cfg, dict)
-        else False,
+        telemetry_capture_spread=_parse_bool(telemetry_capture.get("spread"), default=True),
+        telemetry_capture_circuit=_parse_bool(telemetry_capture.get("circuit"), default=True),
+        telemetry_capture_cutoff=_parse_bool(telemetry_capture.get("cutoff"), default=True),
+        ml_filter_enabled=_parse_bool(
+            ml_cfg.get("filter_enabled") if isinstance(ml_cfg, dict) else None,
+            default=False,
+        ),
         ml_filter_mode=str(ml_cfg.get("filter_mode", "log_only"))
         if isinstance(ml_cfg, dict)
         else "log_only",
@@ -970,12 +1046,13 @@ def build_strategy_config(
         ml_filter_model_path=(
             ml_cfg.get("filter_model_path") if isinstance(ml_cfg, dict) else None
         ),
-        ml_capture_enabled=bool(ml_cfg.get("capture_enabled", False))
-        if isinstance(ml_cfg, dict)
-        else False,
+        ml_capture_enabled=_parse_bool(
+            ml_cfg.get("capture_enabled") if isinstance(ml_cfg, dict) else None,
+            default=False,
+        ),
         session_broker_gmt_offset=int(session_cfg.get("broker_gmt_offset", 0)),
-        session_allow_asian=bool(session_cfg.get("allow_asian", False)),
-        session_allow_late_ny=bool(session_cfg.get("allow_late_ny", False)),
+        session_allow_asian=_parse_bool(session_cfg.get("allow_asian"), default=False),
+        session_allow_late_ny=_parse_bool(session_cfg.get("allow_late_ny"), default=False),
         session_friday_close_hour=int(session_cfg.get("friday_close_hour", 14)),
         structure_swing_strength=int(structure_cfg.get("swing_strength", 3)),
         structure_equal_tolerance_pips=float(structure_cfg.get("equal_tolerance_pips", 5.0)),
@@ -985,7 +1062,7 @@ def build_strategy_config(
         structure_point=float(structure_cfg.get("point", 0.0)),
         ob_displacement_threshold_pips=float(ob_cfg.get("displacement_threshold_pips", 20.0)),
         ob_volume_threshold=float(ob_cfg.get("volume_threshold", 1.5)),
-        ob_require_structure_break=bool(ob_cfg.get("require_structure_break", True)),
+        ob_require_structure_break=_parse_bool(ob_cfg.get("require_structure_break"), default=True),
         ob_max_order_blocks=int(ob_cfg.get("max_order_blocks", 50)),
         ob_lookback_bars=int(ob_cfg.get("lookback_bars", 50)),
         ob_point=float(ob_cfg.get("point", 0.0)),
@@ -1084,9 +1161,13 @@ def build_strategy_config(
         regime_multiscale_periods=tuple(
             int(x) for x in regime_cfg.get("multiscale_periods", [50, 100, 200])
         ),
-        selector_ftmo_safe_mode=bool(selector_cfg.get("ftmo_safe_mode", False)),
-        selector_allow_news_trading=bool(selector_cfg.get("allow_news_trading", True)),
-        selector_allow_asian_session=bool(selector_cfg.get("allow_asian_session", False)),
+        selector_ftmo_safe_mode=_parse_bool(selector_cfg.get("ftmo_safe_mode"), default=False),
+        selector_allow_news_trading=_parse_bool(
+            selector_cfg.get("allow_news_trading"), default=True
+        ),
+        selector_allow_asian_session=_parse_bool(
+            selector_cfg.get("allow_asian_session"), default=False
+        ),
         selector_hurst_trend_threshold=float(selector_cfg.get("hurst_trend_threshold", 0.55)),
         selector_hurst_revert_threshold=float(selector_cfg.get("hurst_revert_threshold", 0.40)),
         selector_entropy_low_threshold=float(selector_cfg.get("entropy_low_threshold", 1.5)),
@@ -1162,12 +1243,16 @@ class BacktestRunner:
         self.fill_model = str(fill_model)
         self.seed = int(seed)
         self.metrics_jsonl: str | None = None
+        # Keep a reference to the strategy instance used in the last run.
+        # This allows downstream tools (optimizer) to extract mark-to-market equity
+        # from the strategy's DrawdownTracker history.
+        self.strategy: Any | None = None
 
     def run(
         self,
         start_date: str = "2024-10-01",
         end_date: str = "2024-12-31",
-        ltf_minutes: int = 5,
+        ltf_minutes: int = 15,
         sample_rate: Sample = 1,
         use_session_filter: bool = True,
         use_regime_filter: bool = True,
@@ -1481,7 +1566,12 @@ class BacktestRunner:
             bars_path = Path(bars_file)
             if not bars_path.exists():
                 raise FileNotFoundError(f"bars_file not found: {bars_path}")
-            bars_df = load_m5_bars_csv(bars_path, start_date=start_date, end_date=end_date)
+            bars_df = load_bars_csv(
+                bars_path,
+                start_date=start_date,
+                end_date=end_date,
+                ltf_minutes=ltf_minutes_int,
+            )
             if resolved_product == "mgc":
                 tick = float(instrument.price_increment.as_double())
                 bars_df = bars_df.copy()
@@ -1611,6 +1701,7 @@ class BacktestRunner:
 
         strategy = GoldScalperStrategy(config=strategy_config)
         engine.add_strategy(strategy)
+        self.strategy = strategy
 
         _p(f"Strategy: {strategy_config.strategy_id}")
 
@@ -2012,7 +2103,7 @@ def main() -> None:
         "--sample", type=float, default=1.0, help="Sampling: float fraction (0-1) or N-step (>=1)"
     )
     parser.add_argument(
-        "--ltf-minutes", type=int, default=5, help="LTF bar interval in minutes (default: 5)"
+        "--ltf-minutes", type=int, default=15, help="LTF bar interval in minutes (default: 15)"
     )
     parser.add_argument("--feed", choices=["ticks", "bars"], default="ticks", help="Data feed mode")
     parser.add_argument(
@@ -2202,7 +2293,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--trend-ma-type",
-        choices=["EMA", "SMA"],
+        choices=["EMA", "SMA", "WMA", "HMA"],
         default=None,
         help="Moving average type for TrendFollow (default: EMA)",
     )

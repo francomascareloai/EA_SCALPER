@@ -17,6 +17,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from enum import IntEnum
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -320,6 +321,36 @@ class HolidayDetector:
                 return True, name
         return False, ""
 
+    def _date_for_holiday_lookup(self, check_time: datetime) -> date:
+        """Return a conservative local date for holiday lookup.
+
+        For timezone-aware datetimes, compute US (ET) and UK (London) local dates.
+        For naive datetimes, treat the input as a calendar date (no timezone shift).
+
+        Rationale: callers may pass naive datetimes that are intended to represent a
+        local/trading date, not a UTC instant at midnight (which would shift to the
+        previous date in ET).
+        """
+        if check_time.tzinfo is None:
+            return check_time.date()
+
+        try:
+            et = ZoneInfo("America/New_York")
+        except Exception:
+            et = None
+        try:
+            london = ZoneInfo("Europe/London")
+        except Exception:
+            london = None
+
+        et_date = check_time.astimezone(et).date() if et is not None else check_time.date()
+        uk_date = check_time.astimezone(london).date() if london is not None else check_time.date()
+
+        # Use the earlier year to avoid missing year rollover at the very start of Jan.
+        if et_date.year != uk_date.year:
+            return et_date if et_date.year < uk_date.year else uk_date
+        return et_date
+
     def check_holiday(self, check_time: datetime | None = None) -> HolidayInfo:
         """
         Check if a date is a market holiday.
@@ -335,7 +366,8 @@ class HolidayDetector:
         if check_time is None:
             check_time = datetime.now(timezone.utc)
 
-        check_date = check_time.date()
+        # Use local market dates (US/UK) rather than raw UTC date.
+        check_date = self._date_for_holiday_lookup(check_time)
 
         # Ensure we have holidays loaded for this year
         year = check_date.year
@@ -344,10 +376,29 @@ class HolidayDetector:
             self._load_uk_holidays(year)
             self._loaded_years.append(year)
 
-        is_us, us_name = self._is_date_in_holidays(check_date, self._us_holidays)
-        is_uk, uk_name = self._is_date_in_holidays(check_date, self._uk_holidays)
-        # New Year's Day: treat as US-only for tests
-        if "New Year" in us_name and "New Year" in uk_name:
+        # Conservative: evaluate BOTH US (ET) and UK (London) local dates.
+        # If `check_time` is naive, treat it as a calendar date (no timezone shift).
+        if check_time.tzinfo is None:
+            et_date = check_date
+            uk_date = check_date
+        else:
+            try:
+                et = ZoneInfo("America/New_York")
+            except Exception:
+                et = None
+            try:
+                london = ZoneInfo("Europe/London")
+            except Exception:
+                london = None
+
+            et_date = check_time.astimezone(et).date() if et is not None else check_date
+            uk_date = check_time.astimezone(london).date() if london is not None else check_date
+
+        is_us, us_name = self._is_date_in_holidays(et_date, self._us_holidays)
+        is_uk, uk_name = self._is_date_in_holidays(uk_date, self._uk_holidays)
+
+        # Preserve legacy semantics used in tests: treat New Year's Day as US-only.
+        if is_us and is_uk and "New Year" in us_name and "New Year" in uk_name:
             is_uk = False
 
         if is_us and is_uk:
@@ -372,13 +423,16 @@ class HolidayDetector:
             # Check for adjacent holiday (day before/after major holiday)
             # NOTE: Adjacent days have is_holiday=False but reduced_liquidity=True
             # This is intentional - adjacent days aren't holidays, but have reduced liquidity
-            yesterday = check_date - timedelta(days=1)
-            tomorrow = check_date + timedelta(days=1)
+            yesterday_et = et_date - timedelta(days=1)
+            tomorrow_et = et_date + timedelta(days=1)
+            yesterday_uk = uk_date - timedelta(days=1)
+            tomorrow_uk = uk_date + timedelta(days=1)
+
             adj = (
-                self._is_date_in_holidays(yesterday, self._us_holidays)[0]
-                or self._is_date_in_holidays(tomorrow, self._us_holidays)[0]
-                or self._is_date_in_holidays(yesterday, self._uk_holidays)[0]
-                or self._is_date_in_holidays(tomorrow, self._uk_holidays)[0]
+                self._is_date_in_holidays(yesterday_et, self._us_holidays)[0]
+                or self._is_date_in_holidays(tomorrow_et, self._us_holidays)[0]
+                or self._is_date_in_holidays(yesterday_uk, self._uk_holidays)[0]
+                or self._is_date_in_holidays(tomorrow_uk, self._uk_holidays)[0]
             )
             if adj:
                 info.holiday_type = HolidayType.HOLIDAY_PARTIAL

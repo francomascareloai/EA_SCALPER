@@ -132,7 +132,11 @@ class BayesianSearch(SearchStrategy):
             callbacks.append(self._create_early_stop_callback())
 
         # Run optimization
-        n_jobs = self.config.search.parallelism
+        # CRITICAL: Optuna parallel trial execution uses threads by default. If the
+        # objective/backtest touches any global RNG (random / np.random), results can
+        # become scheduling-dependent (non-deterministic) even with a fixed seed.
+        # Force single-threaded execution to preserve reproducibility.
+        n_jobs = 1
         timeout = self.config.search.timeout_per_trial * self.config.search.trials
 
         try:
@@ -169,7 +173,7 @@ class BayesianSearch(SearchStrategy):
         elif sampler_type == "random":
             return RandomSampler(seed=seed)
         else:
-            logger.warning(f"Unknown sampler {sampler_type}, using TPE")
+            logger.warning("Unknown sampler %s, using TPE", sampler_type)
             return TPESampler(seed=seed)
 
     def _run_trial(
@@ -217,6 +221,7 @@ class BayesianSearch(SearchStrategy):
                 regime_scores=result.regime_scores,
                 trailing_dd=result.trailing_dd,
                 daily_profit_max=result.daily_profit_max,
+                daily_dd=result.daily_dd,
                 time_gate_violations=result.time_gate_violations,
                 overnight_positions=result.overnight_positions,
                 apex_compliant=result.apex_compliant,
@@ -226,21 +231,32 @@ class BayesianSearch(SearchStrategy):
                 pruned=False,
             )
 
-            with self._results_lock:
-                self._results.append(result_with_meta)
-
             # Store user attributes for constraints/analysis
             trial.set_user_attr("trailing_dd", result.trailing_dd)
             trial.set_user_attr("wfe", result.wfe)
             trial.set_user_attr("trades", result.trades)
             trial.set_user_attr("apex_compliant", result.apex_compliant)
 
-            # Check constraints
+            # Check constraints BEFORE storing result
+            # CRITICAL: Must mutate result if constraints violated, otherwise
+            # stored result retains good score/apex_compliant even though
+            # Optuna sees -999.0
             if constraint_fn is not None:
                 constraints = constraint_fn(result)
                 trial.set_user_attr("constraints", constraints)
 
-                # If any constraint violated, return very negative score
+                # If any constraint violated, mark result as non-compliant
+                if any(c > 0 for c in constraints):
+                    result_with_meta.apex_compliant = False
+                    result_with_meta.score = -999.0
+
+            # NOW store result (after potential constraint mutation)
+            with self._results_lock:
+                self._results.append(result_with_meta)
+
+            # Return -999.0 if constraints violated (for Optuna)
+            if constraint_fn is not None:
+                constraints = constraint_fn(result)
                 if any(c > 0 for c in constraints):
                     return -999.0
 
@@ -272,6 +288,7 @@ class BayesianSearch(SearchStrategy):
                 regime_scores={},
                 trailing_dd=0.0,
                 daily_profit_max=0.0,
+                daily_dd=0.0,
                 time_gate_violations=0,
                 overnight_positions=0,
                 apex_compliant=False,
@@ -283,8 +300,8 @@ class BayesianSearch(SearchStrategy):
                 self._results.append(pruned_result)
             raise
 
-        except Exception as e:
-            logger.error(f"Trial {trial.number} failed: {e}")
+        except Exception:
+            logger.error("Trial %s failed", trial.number, exc_info=True)
             return -999.0
 
     def _sample_params(self, trial: optuna.Trial) -> dict[str, Any]:
@@ -301,7 +318,11 @@ class BayesianSearch(SearchStrategy):
 
         for spec in self.config.parameters:
             if spec.param_type == "float":
-                assert spec.range is not None
+                # R13-FIX: Replace assert with explicit validation
+                if spec.range is None:
+                    raise ValueError(
+                        f"spec.range is required for {spec.param_type} parameter '{spec.name}'"
+                    )
                 low, high = spec.range
                 if spec.step:
                     # Discrete float with step
@@ -323,14 +344,22 @@ class BayesianSearch(SearchStrategy):
                 params[spec.name] = value
 
             elif spec.param_type == "int":
-                assert spec.range is not None
+                # R13-FIX: Replace assert with explicit validation
+                if spec.range is None:
+                    raise ValueError(
+                        f"spec.range is required for {spec.param_type} parameter '{spec.name}'"
+                    )
                 low, high = int(spec.range[0]), int(spec.range[1])
                 step = int(spec.step) if spec.step else 1
                 value = trial.suggest_int(spec.name, low, high, step=step)
                 params[spec.name] = value
 
             elif spec.param_type == "categorical":
-                assert spec.choices is not None
+                # R13-FIX: Replace assert with explicit validation
+                if spec.choices is None:
+                    raise ValueError(
+                        f"spec.choices is required for {spec.param_type} parameter '{spec.name}'"
+                    )
                 value = trial.suggest_categorical(spec.name, spec.choices)
                 params[spec.name] = value
 

@@ -63,6 +63,34 @@
 
 ## Log Entries
 
+## 2025-12-26 00:00 [FORGE-NAUTILUS] - BUG-OPT-029: PBO configured but never computed
+
+**Module:** `nautilus_gold_scalper/src/optimization/optimizer.py`
+**Severity:** MEDIUM (Validation metric missing; potential false confidence)
+
+**Bug:** `TrialResult.pbo` existed and `constraints.anti_overfit.pbo_max` was configurable, but the optimization pipeline never computed a PBO value. Reports always emitted `pbo: null`.
+
+**Impact:** Downstream validation (ORACLE/SENTINEL) could assume PBO was being monitored (per CLAUDE.md approval gate), but the metric was absent, increasing risk of selecting overfit parameterizations.
+
+**Root Cause:** PBO requires cross-sectional ranking across a candidate set over multiple IS/OOS splits, and the pipeline only computed per-trial aggregates. No candidate-set PBO computation step existed in Layer 3 stress.
+
+**Fix:** Implemented a lightweight CSCV-like, rank-based candidate-set PBO proxy in Layer 3 (top-N cohort):
+- For each WFA window: pick the IS winner (by window SQN)
+- Measure its OOS rank percentile among candidates
+- Count failure if OOS rank is in the bottom half
+- PBO = mean failure rate across windows (fail-closed to 1.0 when not computable)
+
+**Files:**
+- `nautilus_gold_scalper/src/optimization/optimizer.py` (compute and attach PBO; add to study_stats)
+- `nautilus_gold_scalper/src/optimization/stress/pbo_cscv.py` (new PBO implementation)
+- `nautilus_gold_scalper/src/optimization/reporting/summary.py` (include `pbo` in CSV)
+- `nautilus_gold_scalper/tests/test_optimization/test_pbo_cscv.py` (new unit tests)
+
+**Validation:** Not executed in this turn (per instruction: no commands). Suggested: `pytest -q` and `mypy --strict .`.
+**Commit:** Pending
+
+---
+
 ## 2025-12-26 15:30 [FORGE] - BUG-SMC-003: min_swing_distance not applied to swing lows
 
 **Module:** `nautilus_gold_scalper/src/indicators/structure_analyzer.py`
@@ -87,6 +115,34 @@
 - mypy --strict: PASS
 - pytest TestStructureAnalyzer: 3/3 PASS (including new test for swing lows)
 
+**Commit:** Pending
+
+---
+
+## 2025-12-26 16:10 [FORGE] - BUG-IND-004: Enforce deterministic timestamps contract in MTFManager/StructureAnalyzer
+
+**Module:** `nautilus_gold_scalper/src/signals/mtf_manager.py`
+**Severity:** HIGH (Backtest determinism + temporal correctness)
+
+**Bug:** `MTFManager` passed OHLC arrays to `StructureAnalyzer.analyze(...)` without `timestamps`, relying on implicit/optional time semantics.
+
+**Impact:** Risk of silent temporal mismatch (bar-index/epoch interpretation) and nondeterministic structure state attribution in MTF paths, weakening auditability of backtests and WFA.
+
+**Root Cause:** Missing data contract between MTF layer and structure analyzer (timestamps were not included/validated in MTF data dictionaries).
+
+**Fix:**
+- Added `OHLCData` TypedDict including `timestamps: np.datetime64[]`
+- Validated that timestamps exist, are `np.datetime64`, and match OHLC length
+- Passed timestamps through to `StructureAnalyzer.analyze(...)` for all timeframes
+- Updated strategy callsite to provide timestamps derived from `Bar.ts_event`
+- Updated MTFManager unit tests to include deterministic `datetime64` timestamps
+
+**Files:**
+- `nautilus_gold_scalper/src/signals/mtf_manager.py`
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+- `nautilus_gold_scalper/tests/test_signals/test_mtf_manager_signals.py`
+
+**Validation:** mypy --strict: PASS; pytest: PASS
 **Commit:** Pending
 
 ---

@@ -29,6 +29,7 @@ def mock_objective_fn():
             regime_scores={},
             trailing_dd=1.0,
             daily_profit_max=10.0,
+            daily_dd=1.0,
             time_gate_violations=0,
             overnight_positions=0,
             apex_compliant=True,
@@ -42,7 +43,9 @@ def test_grid_size_estimation():
     # Setup parameters
     params = [
         ParameterSpec(name="p1", param_type="int", range=(1, 3), step=1),  # 3 values: 1, 2, 3
-        ParameterSpec(name="p2", param_type="float", range=(0.0, 1.0), step=0.5),  # 3 values: 0.0, 0.5, 1.0
+        ParameterSpec(
+            name="p2", param_type="float", range=(0.0, 1.0), step=0.5
+        ),  # 3 values: 0.0, 0.5, 1.0
         ParameterSpec(name="p3", param_type="categorical", choices=["a", "b"]),  # 2 values
     ]
 
@@ -57,7 +60,7 @@ def test_grid_search_execution(mock_objective_fn):
         parameters=[
             ParameterSpec(name="x", param_type="int", range=(1, 2), step=1),  # 2
             ParameterSpec(name="y", param_type="categorical", choices=["A", "B"]),  # 2
-        ]
+        ],
     )
 
     searcher = GridSearch(config)
@@ -81,7 +84,7 @@ def test_max_grid_size_limit(mock_objective_fn):
         search=SearchConfig(mode="grid", max_grid_size=5),
         parameters=[
             ParameterSpec(name="x", param_type="int", range=(1, 10), step=1),  # 10 values
-        ]
+        ],
     )
 
     searcher = GridSearch(config)

@@ -28,9 +28,42 @@
 
 ---
 
+## Execution Timeframes (Entry vs Management) - 2025-12-26 (FORGE)
+
+### ⚙️ CONFIG + ✨ FEATURE: Configurable LTF/MTF/HTF minutes + management rate-limit
+
+**What:** Added YAML-driven timeframe minutes for entry (LTF), multi-timeframe analysis (MTF/HTF), and a management timeframe that rate-limits trade management updates on quote ticks.
+
+**Why:** Enable fast backtesting across TFs (M5/M15/M30/H1/H4) while keeping execution semantics deterministic and avoiding extra bar-series wiring / look-ahead risk for management logic.
+
+**Impact:**
+- New YAML keys under `execution:`: `ltf_bar_minutes`, `mtf_bar_minutes`, `htf_bar_minutes`, `management_bar_minutes` (defaults: 15/30/60/60)
+- `run_backtest.py` enforces `execution.ltf_bar_minutes` == runner `--ltf-minutes` to prevent silent mismatches
+- `MTFManager` now uses explicit timeframe enums derived from config minutes
+- `GoldScalperStrategy` rate-limits `_process_trade_management(...)` by `management_bar_minutes` using `QuoteTick.ts_event`
+- CLI defaults aligned to Entry=M15 to match YAML defaults (runner + optimizer)
+
+**Files:**
+- `nautilus_gold_scalper/configs/strategy_config.yaml`
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+- `nautilus_gold_scalper/src/signals/mtf_manager.py`
+- `nautilus_gold_scalper/tests/test_backtest/test_temporal_leakage_guards.py`
+
+**Validation:** mypy --strict PASS; pytest PASS
+**Commit:** Pending
+
+---
+
 ## [MULTI-AGENT AUDIT] - 2025-12-26 (FORGE + CRUCIBLE + CRITIC)
 
 ### 🐛 BUGFIX: Comprehensive codebase audit - 6 bugs fixed
+
+**Follow-up hardening (determinism + time semantics):**
+- Enforced `timestamps: np.datetime64[]` contract end-to-end for MTF structure analysis (MTFManager → StructureAnalyzer) to prevent silent epoch/bar-index misinterpretation.
+- Made footprint tick simulation fail-closed on `seed=None` to prevent nondeterministic backtest drift (default remains deterministic).
+
+**Validation:** mypy --strict PASS; pytest PASS
 
 **What:** Multi-agent comprehensive audit of entire nautilus_gold_scalper codebase with 4 rodadas de análise + correções automáticas.
 

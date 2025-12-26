@@ -65,6 +65,15 @@ news:
   events_path: nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_top_movers_validated.csv
 execution:
   execution_threshold: 35  # FORGE recommended: matches confluence threshold
+
+  # Timeframe controls (minutes)
+  # - LTF is the bar interval used for entries (runner uses --ltf-minutes; keep consistent)
+  # - MTF/HTF feed the multi-timeframe analysis component (structure/direction)
+  # - management_bar_minutes rate-limits trade management (0 = every tick)
+  ltf_bar_minutes: 15
+  mtf_bar_minutes: 30
+  htf_bar_minutes: 60
+  management_bar_minutes: 60
   slippage_ticks: 2
   slippage_multiplier: 1.5
   latency_ms: 50
@@ -111,7 +120,7 @@ spread_monitor:
   update_interval: 1
   pip_factor: 10.0
 time:
-  cutoff_et: '16:55'
+  cutoff_et: '16:59'
   warning_et: '16:00'
   urgent_et: '16:30'
   emergency_et: '16:55'

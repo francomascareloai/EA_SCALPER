@@ -14,6 +14,7 @@ Project: EA_SCALPER_XAUUSD
 """
 
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum
@@ -25,12 +26,12 @@ logger = logging.getLogger(__name__)
 class CircuitBreakerLevel(IntEnum):
     """Circuit breaker protection levels."""
 
-    LEVEL_0_NORMAL = 0      # Trading normal
-    LEVEL_1_CAUTION = 1     # 3 consecutive losses
-    LEVEL_2_WARNING = 2     # 5 consecutive losses
-    LEVEL_3_ELEVATED = 3    # DD > 3%
-    LEVEL_4_CRITICAL = 4    # DD > 4%
-    LEVEL_5_LOCKDOWN = 5    # DD > 4.5% - Manual reset required
+    LEVEL_0_NORMAL = 0  # Trading normal
+    LEVEL_1_CAUTION = 1  # 3 consecutive losses
+    LEVEL_2_WARNING = 2  # 5 consecutive losses
+    LEVEL_3_ELEVATED = 3  # DD > 3%
+    LEVEL_4_CRITICAL = 4  # DD > 4%
+    LEVEL_5_LOCKDOWN = 5  # DD > 4.5% - Manual reset required
 
 
 @dataclass
@@ -46,7 +47,8 @@ class CircuitBreakerState:
     current_equity: float = 0.0
     daily_start_equity: float = 0.0
     peak_equity: float = 0.0
-    initial_balance: float = 0.0
+    # Sentinel uses None (avoid float-equality init checks)
+    initial_balance: float | None = None
 
     # Drawdown metrics
     daily_dd_percent: float = 0.0
@@ -104,11 +106,11 @@ class CircuitBreaker:
     """
 
     # Level thresholds
-    LEVEL_1_LOSSES = 3      # Consecutive losses for Level 1
-    LEVEL_2_LOSSES = 5      # Consecutive losses for Level 2
-    LEVEL_3_DD = 3.0        # Daily DD % for Level 3
-    LEVEL_4_DD = 4.0        # Total (trailing) DD % for Level 4
-    LEVEL_5_DD = 4.5        # Total (trailing) DD % for Level 5
+    LEVEL_1_LOSSES = 3  # Consecutive losses for Level 1
+    LEVEL_2_LOSSES = 5  # Consecutive losses for Level 2
+    LEVEL_3_DD = 3.0  # Daily DD % for Level 3
+    LEVEL_4_DD = 4.0  # Total (trailing) DD % for Level 4
+    LEVEL_5_DD = 4.5  # Total (trailing) DD % for Level 5
 
     # Cooldown durations (minutes)
     LEVEL_1_COOLDOWN = 5
@@ -142,8 +144,8 @@ class CircuitBreaker:
 
         logger.info(
             f"CircuitBreaker initialized: "
-            f"daily_limit={daily_loss_limit*100:.1f}%, "
-            f"total_limit={total_loss_limit*100:.1f}%, "
+            f"daily_limit={daily_loss_limit * 100:.1f}%, "
+            f"total_limit={total_loss_limit * 100:.1f}%, "
             f"auto_recovery={enable_auto_recovery}"
         )
 
@@ -202,10 +204,22 @@ class CircuitBreaker:
         """
         with self._lock:
             now_dt = self._resolve_now(now)
-            self._state.current_equity = current_equity
+
+            if not math.isfinite(float(current_equity)):
+                # Fail closed: invalid equity makes DD comparisons unreliable.
+                self._state.current_equity = float("nan")
+                self._state.daily_dd_percent = float("inf")
+                self._state.total_dd_percent = float("inf")
+                self._state.last_update = now_dt
+                self._state.level = CircuitBreakerLevel.LEVEL_5_LOCKDOWN
+                self._state.can_trade = False
+                self._state.alert_message = "Non-finite equity detected"
+                return
+
+            self._state.current_equity = float(current_equity)
 
             # Initialize tracking values on first update
-            if self._state.initial_balance == 0.0:
+            if self._state.initial_balance is None:
                 self._state.initial_balance = current_equity
                 self._state.daily_start_equity = current_equity
                 self._state.peak_equity = current_equity
@@ -225,9 +239,7 @@ class CircuitBreaker:
 
             if self._state.peak_equity > 0:
                 self._state.total_dd_percent = (
-                    (self._state.peak_equity - current_equity)
-                    / self._state.peak_equity
-                    * 100
+                    (self._state.peak_equity - current_equity) / self._state.peak_equity * 100
                 )
 
             self._state.last_update = now_dt
@@ -252,7 +264,10 @@ class CircuitBreaker:
                     return False
 
                 # Cooldown expired
-                if self._enable_auto_recovery and self._state.level < CircuitBreakerLevel.LEVEL_5_LOCKDOWN:
+                if (
+                    self._enable_auto_recovery
+                    and self._state.level < CircuitBreakerLevel.LEVEL_5_LOCKDOWN
+                ):
                     self._recover_from_cooldown()
 
             return self._state.can_trade
@@ -288,7 +303,9 @@ class CircuitBreaker:
                 current_equity=self._state.current_equity,
                 daily_start_equity=self._state.daily_start_equity,
                 peak_equity=self._state.peak_equity,
-                initial_balance=self._state.initial_balance,
+                initial_balance=(
+                    0.0 if self._state.initial_balance is None else self._state.initial_balance
+                ),
                 daily_dd_percent=self._state.daily_dd_percent,
                 total_dd_percent=self._state.total_dd_percent,
                 consecutive_losses=self._state.consecutive_losses,
@@ -456,10 +473,7 @@ class CircuitBreaker:
             self._state.size_multiplier = 1.0
             self._state.cooldown_until = now + timedelta(minutes=self.LEVEL_1_COOLDOWN)
             self._state.cooldown_reason = reason
-            logger.warning(
-                f"⚠️ LEVEL 1 CAUTION: {reason} | "
-                f"Cooldown: {self.LEVEL_1_COOLDOWN} min"
-            )
+            logger.warning(f"LEVEL 1 CAUTION: {reason} | Cooldown: {self.LEVEL_1_COOLDOWN} min")
 
         elif level == CircuitBreakerLevel.LEVEL_2_WARNING:
             self._state.can_trade = False
@@ -467,9 +481,9 @@ class CircuitBreaker:
             self._state.cooldown_until = now + timedelta(minutes=self.LEVEL_2_COOLDOWN)
             self._state.cooldown_reason = reason
             logger.warning(
-                f"⚠️⚠️ LEVEL 2 WARNING: {reason} | "
+                f"LEVEL 2 WARNING: {reason} | "
                 f"Cooldown: {self.LEVEL_2_COOLDOWN} min | "
-                f"Size: -{(1-self.LEVEL_2_SIZE_MULT)*100:.0f}%"
+                f"Size: -{(1 - self.LEVEL_2_SIZE_MULT) * 100:.0f}%"
             )
 
         elif level == CircuitBreakerLevel.LEVEL_3_ELEVATED:
@@ -478,9 +492,9 @@ class CircuitBreaker:
             self._state.cooldown_until = now + timedelta(minutes=self.LEVEL_3_COOLDOWN)
             self._state.cooldown_reason = reason
             logger.error(
-                f"🔶 LEVEL 3 ELEVATED: {reason} | "
+                f"LEVEL 3 ELEVATED: {reason} | "
                 f"Cooldown: {self.LEVEL_3_COOLDOWN} min | "
-                f"Size: -{(1-self.LEVEL_3_SIZE_MULT)*100:.0f}%"
+                f"Size: -{(1 - self.LEVEL_3_SIZE_MULT) * 100:.0f}%"
             )
 
         elif level == CircuitBreakerLevel.LEVEL_4_CRITICAL:
@@ -490,26 +504,18 @@ class CircuitBreaker:
             next_day = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
             self._state.cooldown_until = next_day
             self._state.cooldown_reason = reason
-            logger.critical(
-                f"🛑 LEVEL 4 CRITICAL: {reason} | "
-                f"Trading suspended until next day"
-            )
+            logger.critical(f"LEVEL 4 CRITICAL: {reason} | Trading suspended until next day")
 
         elif level == CircuitBreakerLevel.LEVEL_5_LOCKDOWN:
             self._state.can_trade = False
             self._state.size_multiplier = 0.0
             self._state.cooldown_until = None  # Indefinite - manual reset required
             self._state.cooldown_reason = reason
-            logger.critical(
-                f"🚨🚨 LEVEL 5 LOCKDOWN: {reason} | "
-                f"MANUAL RESET REQUIRED"
-            )
+            logger.critical(f"LEVEL 5 LOCKDOWN: {reason} | MANUAL RESET REQUIRED")
 
         # Log transition
         if old_level != level:
-            logger.warning(
-                f"Circuit breaker escalation: {old_level.name} → {level.name}"
-            )
+            logger.warning(f"Circuit breaker escalation: {old_level.name} → {level.name}")
 
     def _recover_from_cooldown(self) -> None:
         """Recover from cooldown period (must hold lock)."""

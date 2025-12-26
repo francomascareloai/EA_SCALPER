@@ -40,7 +40,6 @@ from ..core.definitions import (
     XAUUSD_LOT_SIZE,
     XAUUSD_POINT,
     Direction,
-    MarketRegime,
     SignalType,
     TradingSession,
 )
@@ -97,13 +96,23 @@ from ..utils.telemetry import TelemetrySink
 from .adaptive_router import AdaptiveEVRouter, RouterArm, RouterContext
 from .adaptive_router import Candidate as RouterCandidate
 from .base_strategy import BaseGoldStrategy, BaseStrategyConfig
-from .strategy_selector import MarketContext, StrategySelector, StrategyType
+from .strategy_selector import NewsImpact, StrategySelector, StrategyType
 
 logger = logging.getLogger(__name__)
 
 
 class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore]
     """Configuration for Gold Scalper Strategy."""
+
+    # Timeframe configuration (minutes). Used for:
+    # - Consistency checks and telemetry
+    # - MTFManager semantic correctness (htf/mtf/ltf must be distinct)
+    # - Management rate-limiting (management_bar_minutes)
+    # Defaults follow CRUCIBLE recommendation: Entry=M15, Management=H1.
+    ltf_bar_minutes: int = 15
+    mtf_bar_minutes: int = 30
+    htf_bar_minutes: int = 60
+    management_bar_minutes: int = 60
 
     # Scoring thresholds
     execution_threshold: int = 70  # TIER_B_MIN - match MQL5 (Bug #2 fix)
@@ -621,6 +630,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
     def _on_strategy_start(self) -> None:
         """Initialize all analyzers and managers."""
+        self._last_mgmt_update_ts_ns: int | None = None
         # Session filter (GMT sessions; configurable)
         self._session_filter = SessionFilter(
             broker_gmt_offset=int(getattr(self.config, "session_broker_gmt_offset", 0)),
@@ -732,24 +742,48 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # MTF Manager - configurable
         mtf_point = float(getattr(self.config, "mtf_structure_point", 0.0)) or tick_size
-        self._mtf_manager = MTFManager(
-            htf_swing_strength=int(getattr(self.config, "mtf_htf_swing_strength", 5)),
-            mtf_swing_strength=int(getattr(self.config, "mtf_mtf_swing_strength", 3)),
-            ltf_swing_strength=int(getattr(self.config, "mtf_ltf_swing_strength", 2)),
-            htf_lookback_bars=int(getattr(self.config, "mtf_htf_lookback_bars", 100)),
-            mtf_lookback_bars=int(getattr(self.config, "mtf_mtf_lookback_bars", 100)),
-            ltf_lookback_bars=int(getattr(self.config, "mtf_ltf_lookback_bars", 50)),
-            structure_point=float(mtf_point),
-            regime_hurst_period=int(getattr(self.config, "regime_hurst_period", 100)),
-            regime_entropy_period=int(getattr(self.config, "regime_entropy_period", 50)),
-            regime_vr_period=int(getattr(self.config, "regime_vr_period", 20)),
-            regime_kalman_q=float(getattr(self.config, "regime_kalman_q", 0.01)),
-            regime_kalman_r=float(getattr(self.config, "regime_kalman_r", 0.1)),
-            regime_multiscale_periods=cast(
-                tuple[int, int, int],
-                getattr(self.config, "regime_multiscale_periods", (50, 100, 200)),
-            ),
-        )
+
+        if bool(getattr(self.config, "use_mtf", True)):
+            ltf_minutes = int(getattr(self.config, "ltf_bar_minutes", 15))
+            mtf_minutes = int(getattr(self.config, "mtf_bar_minutes", 30))
+            htf_minutes = int(getattr(self.config, "htf_bar_minutes", 60))
+
+            if not (0 < ltf_minutes < mtf_minutes < htf_minutes):
+                raise ValueError(
+                    f"Invalid timeframe hierarchy: ltf={ltf_minutes}, mtf={mtf_minutes}, htf={htf_minutes} "
+                    "(must satisfy ltf < mtf < htf)"
+                )
+
+            from ..signals.mtf_manager import Timeframe as MTFTimeframe
+
+            ltf_tf = MTFTimeframe(ltf_minutes)
+            mtf_tf = MTFTimeframe(mtf_minutes)
+            htf_tf = MTFTimeframe(htf_minutes)
+
+            self._mtf_manager = MTFManager(
+                htf=htf_tf,
+                mtf=mtf_tf,
+                ltf=ltf_tf,
+                htf_swing_strength=int(getattr(self.config, "mtf_htf_swing_strength", 5)),
+                mtf_swing_strength=int(getattr(self.config, "mtf_mtf_swing_strength", 3)),
+                ltf_swing_strength=int(getattr(self.config, "mtf_ltf_swing_strength", 2)),
+                htf_lookback_bars=int(getattr(self.config, "mtf_htf_lookback_bars", 100)),
+                mtf_lookback_bars=int(getattr(self.config, "mtf_mtf_lookback_bars", 100)),
+                ltf_lookback_bars=int(getattr(self.config, "mtf_ltf_lookback_bars", 50)),
+                structure_point=float(mtf_point),
+                regime_hurst_period=int(getattr(self.config, "regime_hurst_period", 100)),
+                regime_entropy_period=int(getattr(self.config, "regime_entropy_period", 50)),
+                regime_vr_period=int(getattr(self.config, "regime_vr_period", 20)),
+                regime_kalman_q=float(getattr(self.config, "regime_kalman_q", 0.01)),
+                regime_kalman_r=float(getattr(self.config, "regime_kalman_r", 0.1)),
+                regime_multiscale_periods=cast(
+                    tuple[int, int, int],
+                    getattr(self.config, "regime_multiscale_periods", (50, 100, 200)),
+                ),
+            )
+
+        if self._mtf_manager is None:
+            self.log.info("MTFManager disabled")
 
         # Confluence scorer (weights + filters configurable)
         self._confluence_scorer = ConfluenceScorer(
@@ -793,6 +827,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             base_cents = int(round(slippage_ticks * tick_size * 100))
 
             comm_source = str(getattr(self.config, "commission_source", "manual")).strip().lower()
+            commission_per_lot: float | None
+
             if comm_source == "schedule":
                 from nautilus_gold_scalper.src.execution.commission_schedule import (
                     commission_per_side_usd,
@@ -803,15 +839,26 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     str(getattr(self.config, "commission_gateway", "tradovate")).strip().lower()
                 )
 
-                # Infer product from instrument raw symbol.
                 raw_symbol = str(getattr(self.instrument, "raw_symbol", "")).strip().lower()
-                product = "mgc" if raw_symbol == "mgc" else "xauusd"
+                if raw_symbol.startswith("mgc"):
+                    product = "mgc"
+                else:
+                    product = "xauusd"
 
-                commission_per_lot = commission_per_side_usd(
-                    profile=profile,
-                    product=product,
-                    gateway=gateway,
-                )
+                try:
+                    commission_per_lot = float(
+                        commission_per_side_usd(
+                            profile=profile,
+                            product=product,
+                            gateway=gateway,
+                        )
+                    )
+                except Exception as exc:
+                    commission_per_lot = float(getattr(self.config, "commission_per_contract", 2.5))
+                    self.log.warning(
+                        f"[EXEC_COSTS] commission schedule lookup failed (profile={profile}, gateway={gateway}, product={product}, raw_symbol={raw_symbol}); "
+                        f"fallback commission_per_contract={commission_per_lot:.4f}. Error={type(exc).__name__}: {exc}"
+                    )
             else:
                 commission_per_lot = float(getattr(self.config, "commission_per_contract", 2.5))
 
@@ -1111,16 +1158,19 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         Returns:
             True if all required analyzers are functional, False otherwise
         """
-        required = [
+        required: list[tuple[str, object]] = [
             ("structure_analyzer", self._structure_analyzer),
             ("regime_detector", self._regime_detector),
             ("confluence_scorer", self._confluence_scorer),
-            ("mtf_manager", self._mtf_manager),
             ("ob_detector", self._ob_detector),
             ("fvg_detector", self._fvg_detector),
             ("sweep_detector", self._sweep_detector),
             ("session_filter", self._session_filter),
         ]
+
+        # MTF is optional depending on config.
+        if bool(getattr(self.config, "use_mtf", True)):
+            required.append(("mtf_manager", self._mtf_manager))
 
         for name, analyzer in required:
             if analyzer is None:
@@ -1841,31 +1891,14 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     bool(self._spread_snapshot.can_trade) if self._spread_snapshot else False
                 )
 
-            context = MarketContext(
+            self._strategy_selector.set_regime(
                 hurst=self._current_regime.hurst_exponent if self._current_regime else 0.5,
                 entropy=self._current_regime.shannon_entropy if self._current_regime else 2.0,
-                is_trending=self._current_regime.regime == MarketRegime.REGIME_PRIME_TRENDING
-                if self._current_regime
-                else False,
-                is_reverting=self._current_regime.regime
-                in [MarketRegime.REGIME_PRIME_REVERTING, MarketRegime.REGIME_NOISY_REVERTING]
-                if self._current_regime
-                else False,
-                is_random=self._current_regime.regime == MarketRegime.REGIME_RANDOM_WALK
-                if self._current_regime
-                else True,
-                is_london=self._current_session.session == TradingSession.SESSION_LONDON
-                if self._current_session
-                else False,
-                is_newyork=self._current_session.session == TradingSession.SESSION_NY
-                if self._current_session
-                else False,
-                is_overlap=self._current_session.session == TradingSession.SESSION_LONDON_NY_OVERLAP
-                if self._current_session
-                else False,
-                is_asian=self._current_session.session == TradingSession.SESSION_ASIAN
-                if self._current_session
-                else False,
+            )
+
+            # IMPORTANT: Use selector's internal context update so session/weekend/holiday
+            # detection (including HolidayDetector) is not bypassed.
+            self._strategy_selector.update_context(
                 circuit_ok=circuit_ok,
                 spread_ok=spread_ok,
                 spread_ratio=self._spread_snapshot.spread_ratio
@@ -1877,8 +1910,35 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 total_dd_percent=self._drawdown_tracker.get_total_drawdown_pct()
                 if self._drawdown_tracker
                 else 0.0,
+                in_news_window=bool(getattr(self, "_news_size_mult", 1.0) < 1.0),
+                minutes_to_news=(
+                    int(getattr(news_window, "minutes_to_event", 999))
+                    if news_window is not None
+                    else 999
+                ),
+                news_impact=(
+                    NewsImpact.IMPACT_HIGH
+                    if (
+                        news_window is not None
+                        and getattr(getattr(news_window, "event", None), "impact", None) is not None
+                        and int(getattr(getattr(news_window, "event", None), "impact", 0)) >= 3
+                    )
+                    else (
+                        NewsImpact.IMPACT_MEDIUM
+                        if (
+                            news_window is not None
+                            and getattr(getattr(news_window, "event", None), "impact", None)
+                            is not None
+                            and int(getattr(getattr(news_window, "event", None), "impact", 0)) == 2
+                        )
+                        else NewsImpact.IMPACT_LOW
+                    )
+                ),
+                atr=float(self._get_current_atr()),
+                bar_time=bar_time,
             )
-            selection = self._strategy_selector.select_strategy(context)
+
+            selection = self._strategy_selector.select_strategy()
             selected_strategy = selection.strategy
 
             # Evaluation mode: force MeanRevert even when selector would block (e.g. RANDOM_WALK).
@@ -3199,12 +3259,13 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     current_price=float(bar.close.as_double()),
                     current_session=current_session_enum,
                 )
-            except Exception:
-                # BUG-3 FIX: Log with bar number for debugging + return empty result instead of None
+            except Exception as exc:
+                # BUG-3 FIX: Nautilus `Logger.warning` does not accept `exc_info=`; include error inline.
                 self.log.warning(
-                    "[CONFLUENCE] Bar %s: calculate_score error",
+                    "[CONFLUENCE] Bar %s: calculate_score error: %s: %s",
                     bar_num,
-                    exc_info=True,
+                    type(exc).__name__,
+                    exc,
                 )
                 return None
 
@@ -3240,22 +3301,22 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         except InsufficientDataError as e:
             # Expected early in a run until enough bars accumulate; avoid log spam.
             if self.config.debug_mode:
-                # BUG-3 FIX: Add bar context for debugging
+                # BUG-3 FIX: Nautilus Logger does not accept exc_info; include error inline.
                 _bar_ctx: int | str = len(self._ltf_bars) if hasattr(self, "_ltf_bars") else "?"
                 self.log.debug(
                     "[CONFLUENCE] Bar %s: Insufficient data: %s",
                     _bar_ctx,
                     e,
-                    exc_info=True,
                 )
             return None
-        except Exception:
-            # BUG-3 FIX: Add bar context for debugging
+        except Exception as exc:
+            # BUG-3 FIX: Nautilus Logger does not accept exc_info; include error inline.
             _bar_ctx_ex: int | str = len(self._ltf_bars) if hasattr(self, "_ltf_bars") else "?"
-            self.log.exception(
-                "[CONFLUENCE] Bar %s: Exception",
+            self.log.error(
+                "[CONFLUENCE] Bar %s: Exception: %s: %s",
                 _bar_ctx_ex,
-                exc_info=True,
+                type(exc).__name__,
+                exc,
             )
             return None
 
@@ -3357,36 +3418,56 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         if len(self._htf_bars) < 50 or len(self._mtf_bars) < 50 or len(self._ltf_bars) < 50:
             return 0.0, False
 
-        try:
-            # BUG-IND-003: Prevent accidental look-ahead from HTF/MTF bars which may arrive
-            # interleaved but with ts_event > current LTF bar ts_event.
-            current_ltf_ts = int(self._ltf_bars[-1].ts_event)
-            htf_bars = [b for b in self._htf_bars if int(b.ts_event) <= current_ltf_ts]
-            mtf_bars = [b for b in self._mtf_bars if int(b.ts_event) <= current_ltf_ts]
+        # BUG-IND-003: Prevent accidental look-ahead from HTF/MTF bars which may arrive
+        # interleaved but with ts_event > current LTF bar ts_event.
+        current_ltf_ts = int(self._ltf_bars[-1].ts_event)
+        htf_bars = [b for b in self._htf_bars if int(b.ts_event) <= current_ltf_ts]
+        mtf_bars = [b for b in self._mtf_bars if int(b.ts_event) <= current_ltf_ts]
 
-            htf_highs = self._bars_to_np(htf_bars, max_bars=200, field="high")
-            htf_lows = self._bars_to_np(htf_bars, max_bars=200, field="low")
-            htf_closes = self._bars_to_np(htf_bars, max_bars=200, field="close")
-            mtf_highs = self._bars_to_np(mtf_bars, max_bars=200, field="high")
-            mtf_lows = self._bars_to_np(mtf_bars, max_bars=200, field="low")
-            mtf_closes = self._bars_to_np(mtf_bars, max_bars=200, field="close")
-            ltf_highs = self._bars_to_np(self._ltf_bars, max_bars=200, field="high")
-            ltf_lows = self._bars_to_np(self._ltf_bars, max_bars=200, field="low")
-            ltf_closes = self._bars_to_np(self._ltf_bars, max_bars=200, field="close")
+        htf_highs = self._bars_to_np(htf_bars, max_bars=200, field="high")
+        htf_lows = self._bars_to_np(htf_bars, max_bars=200, field="low")
+        htf_closes = self._bars_to_np(htf_bars, max_bars=200, field="close")
+        mtf_highs = self._bars_to_np(mtf_bars, max_bars=200, field="high")
+        mtf_lows = self._bars_to_np(mtf_bars, max_bars=200, field="low")
+        mtf_closes = self._bars_to_np(mtf_bars, max_bars=200, field="close")
+        ltf_highs = self._bars_to_np(self._ltf_bars, max_bars=200, field="high")
+        ltf_lows = self._bars_to_np(self._ltf_bars, max_bars=200, field="low")
+        ltf_closes = self._bars_to_np(self._ltf_bars, max_bars=200, field="close")
 
-            mtf_result = self._mtf_manager.analyze(
-                htf_data={"highs": htf_highs, "lows": htf_lows, "closes": htf_closes},
-                mtf_data={"highs": mtf_highs, "lows": mtf_lows, "closes": mtf_closes},
-                ltf_data={"highs": ltf_highs, "lows": ltf_lows, "closes": ltf_closes},
-                current_price=self._ltf_bars[-1].close.as_double(),
-                session_ok=self._current_session.is_trading_allowed
-                if self._current_session
-                else True,
-            )
-            return mtf_result.mtf_score, mtf_result.is_aligned
-        except Exception:
-            logger.error("MTF analysis failed", exc_info=True)
-            return 0.0, False
+        htf_ts = np.fromiter((int(b.ts_event) for b in htf_bars[-200:]), dtype=np.int64).astype(
+            "datetime64[ns]"
+        )
+        mtf_ts = np.fromiter((int(b.ts_event) for b in mtf_bars[-200:]), dtype=np.int64).astype(
+            "datetime64[ns]"
+        )
+        ltf_ts = np.fromiter(
+            (int(b.ts_event) for b in self._ltf_bars[-200:]),
+            dtype=np.int64,
+        ).astype("datetime64[ns]")
+
+        mtf_result = self._mtf_manager.analyze(
+            htf_data={
+                "highs": htf_highs,
+                "lows": htf_lows,
+                "closes": htf_closes,
+                "timestamps": htf_ts,
+            },
+            mtf_data={
+                "highs": mtf_highs,
+                "lows": mtf_lows,
+                "closes": mtf_closes,
+                "timestamps": mtf_ts,
+            },
+            ltf_data={
+                "highs": ltf_highs,
+                "lows": ltf_lows,
+                "closes": ltf_closes,
+                "timestamps": ltf_ts,
+            },
+            current_price=self._ltf_bars[-1].close.as_double(),
+            session_ok=self._current_session.is_trading_allowed if self._current_session else True,
+        )
+        return mtf_result.mtf_score, mtf_result.is_aligned
 
     def _calculate_sl_distance(self, bar: Bar, signal: SignalType) -> float:
         """Calculate stop loss distance based on structure, clamped to limits.
@@ -3619,9 +3700,18 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Prop-firm + circuit-breaker enforcement runs in BaseStrategy.on_quote_tick.
 
-        # CRUCIBLE FIX: Process trade management (trailing/breakeven/partial) on every tick
+        # Trade management: optionally rate-limited by management timeframe.
         if self._position and self._trade_manager and self._active_trade_id:
-            self._process_trade_management(tick)
+            mgmt_min = int(getattr(self.config, "management_bar_minutes", 0) or 0)
+            if mgmt_min <= 0:
+                self._process_trade_management(tick)
+            else:
+                interval_ns = mgmt_min * 60 * 1_000_000_000
+                last_ns = int(getattr(self, "_last_mgmt_update_ts_ns", 0) or 0)
+                now_ns = int(tick.ts_event)
+                if last_ns == 0 or now_ns - last_ns >= interval_ns:
+                    self._last_mgmt_update_ts_ns = now_ns
+                    self._process_trade_management(tick)
 
         # TimeConstraintManager handles cutoff/flatten logic
 
@@ -3767,10 +3857,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # For simplicity, clear after submit (works for IOC orders in backtest)
             self._partial_close_in_progress = False
 
-        except Exception:
+        except Exception as exc:
+            # Nautilus Logger does not accept exc_info; include error inline.
             self.log.warning(
-                "[TRADE_MANAGER] _handle_partial_action failed",
-                exc_info=True,
+                "[TRADE_MANAGER] _handle_partial_action failed: %s: %s",
+                type(exc).__name__,
+                exc,
             )
             self._partial_close_in_progress = False
 
@@ -3851,10 +3943,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
             try:
                 self.submit_order(sl_order)
-            except Exception:
+            except Exception as exc:
+                # Nautilus Logger does not accept exc_info; include error inline.
                 self.log.error(
-                    "[TRADE_MANAGER] CRITICAL: submit_order failed after canceling old SL",
-                    exc_info=True,
+                    "[TRADE_MANAGER] CRITICAL: submit_order failed after canceling old SL: %s: %s",
+                    type(exc).__name__,
+                    exc,
                 )
                 self._sl_modification_in_progress = False
                 self._trigger_execution_failsafe(reason="sl_submit_failed_after_cancel")
@@ -3872,10 +3966,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # Clear modification flag (SL is now pending confirmation)
             self._sl_modification_in_progress = False
 
-        except Exception:
+        except Exception as exc:
+            # Nautilus Logger does not accept exc_info; include error inline.
             self.log.warning(
-                "[TRADE_MANAGER] _handle_sl_adjust_action failed",
-                exc_info=True,
+                "[TRADE_MANAGER] _handle_sl_adjust_action failed: %s: %s",
+                type(exc).__name__,
+                exc,
             )
             self._sl_modification_in_progress = False
 
@@ -3892,10 +3988,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             reason = action_data.get("reason", "trade_manager_close")
             self.log.info(f"[TRADE_MANAGER] Closing position: {reason}")
             self._close_position()
-        except Exception:
+        except Exception as exc:
+            # Nautilus Logger does not accept exc_info; include error inline.
             self.log.warning(
-                "[TRADE_MANAGER] _handle_close_action failed",
-                exc_info=True,
+                "[TRADE_MANAGER] _handle_close_action failed: %s: %s",
+                type(exc).__name__,
+                exc,
             )
 
     # ========== Operational helpers ==========
@@ -3951,6 +4049,6 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             )
 
             return metrics
-        except Exception:
-            self.log.error("Failed to calculate metrics", exc_info=True)
+        except Exception as exc:
+            self.log.error(f"Failed to calculate metrics: {type(exc).__name__}: {exc}")
             return None

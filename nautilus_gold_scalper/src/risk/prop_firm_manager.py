@@ -12,6 +12,7 @@ AGENTS.md v3.7.0 Integration:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
@@ -136,11 +137,15 @@ class PropFirmManager:
                     conservative (BID for longs, ASK for shorts) prices.
             now: Optional timestamp for the update.
         """
+        if not math.isfinite(float(equity)):
+            # Fail closed: invalid equity means DD/HWM semantics are undefined.
+            raise ValueError(f"Non-finite equity: {equity}")
+
         if not self._initialized:
-            self.initialize(equity)
-        self._equity = equity
-        if equity > self._high_water:
-            self._high_water = equity
+            self.initialize(float(equity))
+        self._equity = float(equity)
+        if self._equity > self._high_water:
+            self._high_water = self._equity
         self._last_update = self._resolve_now(now)
 
     def register_trade_close(
@@ -245,16 +250,16 @@ class PropFirmManager:
             return False, "Max contracts exceeded"
 
         # CRUCIBLE FIX: Single trade loss cap (flash crash protection)
-        # Formula: potential_loss_pct = risk_amount / equity * 100
-        # Example: risk=1500, equity=100000 -> 1500/100000*100 = 1.5%
+        # Formula: potential_loss_pct = risk_amount / equity
+        # Example: risk=1500, equity=100000 -> potential_loss_pct = 1500/100000 = 0.015 (1.5%)
         SINGLE_TRADE_LOSS_CAP = 0.015  # 1.5% max per trade
         if self._equity > 0:
             potential_loss_pct = risk_amount / self._equity
             # R10-FIX: Replace assert with explicit validation.
             # Assert is disabled with python -O, bypassing this safety check.
-            if not (0 <= potential_loss_pct <= 1):
+            if not (0.0 <= potential_loss_pct <= 1.0):
                 raise ValueError(f"Invalid loss pct: {potential_loss_pct}")
-            if potential_loss_pct > SINGLE_TRADE_LOSS_CAP:
+            if potential_loss_pct >= SINGLE_TRADE_LOSS_CAP:
                 return (
                     False,
                     f"Single trade loss {potential_loss_pct * 100:.2f}% exceeds {SINGLE_TRADE_LOSS_CAP * 100}% cap",

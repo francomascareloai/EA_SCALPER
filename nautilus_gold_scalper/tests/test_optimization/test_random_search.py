@@ -29,6 +29,7 @@ def mock_objective_fn():
             regime_scores={},
             trailing_dd=1.0,
             daily_profit_max=10.0,
+            daily_dd=1.0,
             time_gate_violations=0,
             overnight_positions=0,
             apex_compliant=True,
