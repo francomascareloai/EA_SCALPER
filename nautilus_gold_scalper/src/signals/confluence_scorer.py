@@ -29,11 +29,11 @@ from ..core.data_types import (
 )
 from ..core.definitions import (
     BONUS_HIGH_CONFLUENCE,
+    MIN_VALID_SCORE,
     PENALTY_RANDOM_WALK,
     TIER_A_MIN,
     TIER_B_MIN,
     TIER_C_MIN,
-    TIER_INVALID,
     TIER_S_MIN,
     WEIGHT_AMD_CYCLE,
     WEIGHT_FIB,
@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ScoringComponents:
     """Individual scoring components for transparency."""
+
     structure_score: float = 0.0
     regime_score: float = 0.0
     session_score: float = 0.0
@@ -114,74 +115,75 @@ class SessionWeightProfile:
     Session-specific factor weights (GENIUS v4.2).
     Different sessions favor different confluence factors.
     """
+
     # Asian session: Range-bound, OB/FVG are key
     ASIAN = {
-        'structure': 0.11,
-        'regime': 0.16,
-        'sweep': 0.08,
-        'ob': 0.17,
-        'fvg': 0.14,
-        'zone': 0.04,
-        'amd': 0.03,
-        'mtf': 0.10,
-        'footprint': 0.08,
-        'fib': 0.09,
+        "structure": 0.11,
+        "regime": 0.16,
+        "sweep": 0.08,
+        "ob": 0.17,
+        "fvg": 0.14,
+        "zone": 0.04,
+        "amd": 0.03,
+        "mtf": 0.10,
+        "footprint": 0.08,
+        "fib": 0.09,
     }
 
     # London session: Breakouts, structure/sweep dominant
     LONDON = {
-        'structure': 0.20,
-        'regime': 0.11,
-        'sweep': 0.17,
-        'ob': 0.12,
-        'fvg': 0.10,
-        'zone': 0.07,
-        'mtf': 0.10,
-        'footprint': 0.08,
-        'fib': 0.05,
-        'amd': 0.0,
+        "structure": 0.19,  # Reduced from 0.20 to accommodate AMD
+        "regime": 0.11,
+        "sweep": 0.16,  # Reduced from 0.17 to accommodate AMD
+        "ob": 0.12,
+        "fvg": 0.10,
+        "zone": 0.07,
+        "mtf": 0.10,
+        "footprint": 0.08,
+        "fib": 0.01,  # Reduced from 0.05 (less important in breakout session)
+        "amd": 0.06,  # FIX: AMD now contributes to London score
     }
 
     # NY Overlap: BEST - all factors balanced
     NY_OVERLAP = {
-        'structure': 0.13,  # Reduced from 0.14 to fix sum=1.01 bug
-        'regime': 0.14,
-        'sweep': 0.14,
-        'ob': 0.12,
-        'fvg': 0.12,
-        'zone': 0.07,
-        'mtf': 0.12,
-        'footprint': 0.11,
-        'fib': 0.05,
-        'amd': 0.0,
+        "structure": 0.11,  # Reduced to accommodate AMD
+        "regime": 0.12,  # Reduced to accommodate AMD
+        "sweep": 0.12,  # Reduced to accommodate AMD
+        "ob": 0.11,  # Reduced to accommodate AMD
+        "fvg": 0.11,  # Reduced to accommodate AMD
+        "zone": 0.06,  # Reduced to accommodate AMD
+        "mtf": 0.11,  # Reduced to accommodate AMD
+        "footprint": 0.11,
+        "fib": 0.05,
+        "amd": 0.10,  # FIX: AMD highly important during NY Overlap
     }
 
     # NY session: Momentum, footprint is king
     NY = {
-        'structure': 0.11,
-        'regime': 0.11,
-        'sweep': 0.11,
-        'ob': 0.10,
-        'fvg': 0.10,
-        'zone': 0.07,
-        'mtf': 0.12,
-        'footprint': 0.22,
-        'fib': 0.06,
-        'amd': 0.0,
+        "structure": 0.10,  # Reduced to accommodate AMD
+        "regime": 0.10,  # Reduced to accommodate AMD
+        "sweep": 0.10,  # Reduced to accommodate AMD
+        "ob": 0.09,  # Reduced to accommodate AMD
+        "fvg": 0.09,  # Reduced to accommodate AMD
+        "zone": 0.06,  # Reduced to accommodate AMD
+        "mtf": 0.11,  # Reduced to accommodate AMD
+        "footprint": 0.21,  # Reduced slightly, still dominant
+        "fib": 0.06,
+        "amd": 0.08,  # FIX: AMD important in NY session
     }
 
     # Default (unknown/late sessions): Balanced
     DEFAULT = {
-        'structure': 0.14,
-        'regime': 0.14,
-        'sweep': 0.11,
-        'ob': 0.12,
-        'fvg': 0.12,
-        'zone': 0.07,
-        'mtf': 0.12,
-        'footprint': 0.12,
-        'fib': 0.06,
-        'amd': 0.0,
+        "structure": 0.14,
+        "regime": 0.14,
+        "sweep": 0.11,
+        "ob": 0.12,
+        "fvg": 0.12,
+        "zone": 0.07,
+        "mtf": 0.12,
+        "footprint": 0.12,
+        "fib": 0.06,
+        "amd": 0.0,
     }
 
     @classmethod
@@ -221,7 +223,7 @@ class SequenceValidator:
         has_sweep: bool,
         at_poi: bool,
         mtf_aligned: bool,
-        footprint_aligned: bool
+        footprint_aligned: bool,
     ) -> tuple[int, int]:
         """
         Validate ICT 7-step sequence.
@@ -289,9 +291,9 @@ class SequenceValidator:
         elif steps == 5:
             bonus = 10  # Strong sequence
         elif steps == 4:
-            bonus = 5   # Good sequence
+            bonus = 5  # Good sequence
         elif steps == 3:
-            bonus = 0   # Minimal sequence
+            bonus = 0  # Minimal sequence
         else:
             bonus = 0  # Removed -10 penalty: too punitive for common market conditions
 
@@ -335,7 +337,7 @@ class ConfluenceScorer:
 
     def __init__(
         self,
-        min_score_to_trade: float = TIER_INVALID,
+        min_score_to_trade: float = MIN_VALID_SCORE,
         use_session_filter: bool = True,
         use_regime_filter: bool = True,
         weight_structure: float = WEIGHT_STRUCTURE,
@@ -384,15 +386,15 @@ class ConfluenceScorer:
         """
         # Get individual component scores (normalized 0-100)
         components = {
-            'structure': self._components.structure_score,
-            'regime': self._components.regime_score,
-            'sweep': self._components.sweep_score,
-            'ob': self._components.ob_score,
-            'fvg': self._components.fvg_score,
-            'fib': self._components.fib_score,
-            'amd': self._components.amd_score,
-            'mtf': self._components.mtf_score,
-            'footprint': self._components.footprint_score,
+            "structure": self._components.structure_score,
+            "regime": self._components.regime_score,
+            "sweep": self._components.sweep_score,
+            "ob": self._components.ob_score,
+            "fvg": self._components.fvg_score,
+            "fib": self._components.fib_score,
+            "amd": self._components.amd_score,
+            "mtf": self._components.mtf_score,
+            "footprint": self._components.footprint_score,
         }
 
         # CRUCIBLE FIX: Raised threshold from 10 to 12 for "strong" factor.
@@ -405,11 +407,15 @@ class ConfluenceScorer:
 
         if strong_aligned >= 6 and (bullish == 0 or bearish == 0):
             # Elite alignment: all factors point same direction
-            logger.debug(f"ELITE alignment detected: {strong_aligned} strong factors, multiplier=1.35")
+            logger.debug(
+                f"ELITE alignment detected: {strong_aligned} strong factors, multiplier=1.35"
+            )
             return 1.35
         elif bullish >= 2 and bearish >= 2:
             # Conflict: factors disagree
-            logger.debug(f"CONFLICT detected: {bullish} bullish, {bearish} bearish, multiplier=0.60")
+            logger.debug(
+                f"CONFLICT detected: {bullish} bullish, {bearish} bearish, multiplier=0.60"
+            )
             return 0.60
         else:
             return 1.0
@@ -418,7 +424,7 @@ class ConfluenceScorer:
         self,
         order_blocks: list[OrderBlock] | None,
         fvgs: list[FairValueGap] | None,
-        optimal_bars: int = 5
+        optimal_bars: int = 5,
     ) -> float:
         """
         Calculate freshness multiplier (GENIUS v4.1).
@@ -436,7 +442,7 @@ class ConfluenceScorer:
             for ob in order_blocks:
                 if ob.is_valid and ob.is_fresh:
                     # Use actual age_in_bars if available, else neutral (skip this OB for age calc)
-                    if hasattr(ob, 'age_in_bars') and ob.age_in_bars is not None:
+                    if hasattr(ob, "age_in_bars") and ob.age_in_bars is not None:
                         age = ob.age_in_bars
                         min_age = min(min_age, age)
 
@@ -459,7 +465,9 @@ class ConfluenceScorer:
             decay = 0.02 * bars_past_optimal
             multiplier = max(0.85, 1.05 - decay)
 
-        logger.debug(f"Freshness multiplier: {multiplier:.2f} (age={min_age}, optimal={optimal_bars})")
+        logger.debug(
+            f"Freshness multiplier: {multiplier:.2f} (age={min_age}, optimal={optimal_bars})"
+        )
         return multiplier
 
     def _calculate_divergence_multiplier(self) -> float:
@@ -490,7 +498,9 @@ class ConfluenceScorer:
             # Moderate divergence, scaled penalty
             # Linear interpolation: 85% → 1.0, 55% → 0.50
             multiplier = 0.50 + (agreement_pct - 55) * (0.50 / 30)
-            logger.debug(f"Moderate divergence: {agreement_pct:.0f}% agreement, multiplier={multiplier:.2f}")
+            logger.debug(
+                f"Moderate divergence: {agreement_pct:.0f}% agreement, multiplier={multiplier:.2f}"
+            )
             return multiplier
 
     def calculate_score(
@@ -569,7 +579,10 @@ class ConfluenceScorer:
         self._components.footprint_score = footprint_score
         if self._components.footprint_score > 0:
             self._factor_counters.footprint_fired += 1
-        if footprint_direction == primary_direction and footprint_direction != SignalType.SIGNAL_NONE:
+        if (
+            footprint_direction == primary_direction
+            and footprint_direction != SignalType.SIGNAL_NONE
+        ):
             self._components.confluence_bonus += 5
         result.footprint_score = self._components.footprint_score
         result.footprint_direction = footprint_direction
@@ -635,6 +648,7 @@ class ConfluenceScorer:
         # BOS/CHoCH contribution
         if state.last_break:
             from ..indicators.structure_analyzer import BreakType
+
             if state.last_break.break_type == BreakType.BOS:
                 score += self.BOS_SCORE
             elif state.last_break.break_type == BreakType.CHOCH:
@@ -722,7 +736,7 @@ class ConfluenceScorer:
         obs: list[OrderBlock],
         direction: SignalType,
         current_price: float,
-        result: ConfluenceResult
+        result: ConfluenceResult,
     ) -> None:
         """Score order blocks."""
         if not obs:
@@ -767,7 +781,7 @@ class ConfluenceScorer:
         fvgs: list[FairValueGap],
         direction: SignalType,
         current_price: float,
-        result: ConfluenceResult
+        result: ConfluenceResult,
     ) -> None:
         """Score fair value gaps."""
         if not fvgs:
@@ -808,10 +822,7 @@ class ConfluenceScorer:
             self._factor_counters.fvgs_fired += 1
 
     def _score_sweeps(
-        self,
-        sweeps: list[LiquiditySweep],
-        direction: SignalType,
-        result: ConfluenceResult
+        self, sweeps: list[LiquiditySweep], direction: SignalType, result: ConfluenceResult
     ) -> None:
         """Score liquidity sweeps."""
         if not sweeps:
@@ -836,7 +847,9 @@ class ConfluenceScorer:
                 else:
                     self._components.bearish_factors += 1
 
-                logger.debug(f"Liquidity sweep scored: {score:.1f}, institutional={sweep.is_institutional}")
+                logger.debug(
+                    f"Liquidity sweep scored: {score:.1f}, institutional={sweep.is_institutional}"
+                )
                 break
 
         self._components.sweep_score = min(self.weight_liquidity_sweep, score)
@@ -844,12 +857,7 @@ class ConfluenceScorer:
         if self._components.sweep_score > 0:
             self._factor_counters.liquidity_sweep_fired += 1
 
-    def _score_amd(
-        self,
-        amd: AMDCycle,
-        direction: SignalType,
-        result: ConfluenceResult
-    ) -> None:
+    def _score_amd(self, amd: AMDCycle, direction: SignalType, result: ConfluenceResult) -> None:
         """Score AMD cycle."""
         if not amd:
             logger.debug("No AMD cycle provided")
@@ -887,7 +895,7 @@ class ConfluenceScorer:
         current_price: float,
         order_blocks: list[OrderBlock] | None,
         fvgs: list[FairValueGap] | None,
-        result: ConfluenceResult
+        result: ConfluenceResult,
     ) -> None:
         """Score Fibonacci confluence (golden pocket + POI overlap)."""
         if not structure_state or not structure_state.fibonacci:
@@ -949,28 +957,26 @@ class ConfluenceScorer:
         # Apply session-specific weights to base scores
         # NOTE: Removed * 100 multiplier - was causing score inflation (BUG FIX)
         weighted_scores = {
-            'structure': self._components.structure_score * session_weights['structure'],
-            'regime': self._components.regime_score * session_weights['regime'],
-            'sweep': self._components.sweep_score * session_weights['sweep'],
-            'ob': self._components.ob_score * session_weights['ob'],
-            'fvg': self._components.fvg_score * session_weights['fvg'],
-            'fib': self._components.fib_score * session_weights.get('fib', 0.0),
-            'zone': self._components.premium_discount_score * session_weights['zone'],
+            "structure": self._components.structure_score * session_weights["structure"],
+            "regime": self._components.regime_score * session_weights["regime"],
+            "sweep": self._components.sweep_score * session_weights["sweep"],
+            "ob": self._components.ob_score * session_weights["ob"],
+            "fvg": self._components.fvg_score * session_weights["fvg"],
+            "fib": self._components.fib_score * session_weights.get("fib", 0.0),
+            "zone": self._components.premium_discount_score * session_weights["zone"],
             # AMD is a confluence factor and must contribute to the base score.
-            'amd': self._components.amd_score * session_weights.get('amd', 0.0),
+            "amd": self._components.amd_score * session_weights.get("amd", 0.0),
             # CRUCIBLE FIX: Cap MTF contribution at 15 to prevent score ceiling hits
-            'mtf': min(self._components.mtf_score * session_weights['mtf'], 15),
-            'footprint': self._components.footprint_score * session_weights['footprint'],
+            "mtf": min(self._components.mtf_score * session_weights["mtf"], 15),
+            "footprint": self._components.footprint_score * session_weights["footprint"],
         }
 
-        # Sum weighted base scores
-        base_score = sum(weighted_scores.values()) + self._components.session_score
+        # Sum weighted base scores (session score now weighted properly)
+        session_weighted = self._components.session_score * session_weights.get("session", 0.10)
+        base_score = sum(weighted_scores.values()) + session_weighted
 
         # Apply adjustments
-        adjustments = (
-            self._components.regime_adjustment +
-            self._components.session_adjustment
-        )
+        adjustments = self._components.regime_adjustment + self._components.session_adjustment
 
         # Confluence bonus for multiple factors
         total_factors = self._components.bullish_factors + self._components.bearish_factors
@@ -995,15 +1001,19 @@ class ConfluenceScorer:
         # CRUCIBLE FIX: at_poi must check if price is ACTUALLY AT the OB/FVG zone,
         # not just whether any valid OB/FVG exists. Without price proximity check,
         # this was always True when any OB/FVG existed, defeating the purpose.
-        at_poi = (
-            any(ob.is_valid and ob.state.value < 2 and
-                ob.low_price <= current_price <= ob.high_price
-                for ob in (order_blocks or [])) or
-            any(fvg.is_valid and fvg.state.value < 2 and
-                fvg.lower_level <= current_price <= fvg.upper_level
-                for fvg in (fvgs or []))
+        at_poi = any(
+            ob.is_valid and ob.state.value < 2 and ob.low_price <= current_price <= ob.high_price
+            for ob in (order_blocks or [])
+        ) or any(
+            fvg.is_valid
+            and fvg.state.value < 2
+            and fvg.lower_level <= current_price <= fvg.upper_level
+            for fvg in (fvgs or [])
         )
-        footprint_aligned = (footprint_direction == result.direction and footprint_direction != SignalType.SIGNAL_NONE)
+        footprint_aligned = (
+            footprint_direction == result.direction
+            and footprint_direction != SignalType.SIGNAL_NONE
+        )
 
         sequence_steps, sequence_bonus = SequenceValidator.validate_sequence(
             result=result,
@@ -1012,7 +1022,7 @@ class ConfluenceScorer:
             has_sweep=has_sweep,
             at_poi=at_poi,
             mtf_aligned=mtf_aligned,
-            footprint_aligned=footprint_aligned
+            footprint_aligned=footprint_aligned,
         )
 
         # Apply sequence bonus
@@ -1036,11 +1046,11 @@ class ConfluenceScorer:
         # Store GENIUS enhancements in result
         result.sequence_steps = sequence_steps
         result.multiplier_adjustments = {
-            'alignment': alignment_mult,
-            'freshness': freshness_mult,
-            'divergence': divergence_mult,
-            'total': total_multiplier,
-            'sequence_bonus': sequence_bonus
+            "alignment": alignment_mult,
+            "freshness": freshness_mult,
+            "divergence": divergence_mult,
+            "total": total_multiplier,
+            "sequence_bonus": sequence_bonus,
         }
 
         logger.debug(
@@ -1069,10 +1079,7 @@ class ConfluenceScorer:
             result.quality = SignalQuality.QUALITY_INVALID
 
     def _validate_result(
-        self,
-        result: ConfluenceResult,
-        session: SessionInfo | None,
-        regime: RegimeAnalysis | None
+        self, result: ConfluenceResult, session: SessionInfo | None, regime: RegimeAnalysis | None
     ) -> None:
         """Final validation of the result."""
         # Session filter
@@ -1096,8 +1103,10 @@ class ConfluenceScorer:
 
     def _generate_diagnosis(self, result: ConfluenceResult) -> str:
         """Generate human-readable diagnosis with GENIUS v4.0+ info."""
-        direction = "BUY" if result.direction == SignalType.SIGNAL_BUY else (
-            "SELL" if result.direction == SignalType.SIGNAL_SELL else "NONE"
+        direction = (
+            "BUY"
+            if result.direction == SignalType.SIGNAL_BUY
+            else ("SELL" if result.direction == SignalType.SIGNAL_SELL else "NONE")
         )
 
         quality_names = {
@@ -1120,7 +1129,7 @@ class ConfluenceScorer:
             diagnosis += f" | ICT: {result.sequence_steps}/7"
 
         if result.multiplier_adjustments:
-            total_mult = result.multiplier_adjustments.get('total', 1.0)
+            total_mult = result.multiplier_adjustments.get("total", 1.0)
             if total_mult != 1.0:
                 diagnosis += f" | Mult: {total_mult:.2f}x"
 

@@ -11,6 +11,7 @@ Decision Hierarchy (6 Gates):
 5. HOLIDAY CHECK - Reduced liquidity days
 6. REGIME SELECTION - Trend/Revert/Random based on Hurst/Entropy
 """
+
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,16 +22,18 @@ logger = logging.getLogger(__name__)
 
 class StrategyType(IntEnum):
     """Available trading strategies."""
-    STRATEGY_NONE = 0           # No trading
-    STRATEGY_NEWS_TRADER = 1    # News event trading
-    STRATEGY_TREND_FOLLOW = 2   # Trending market (Hurst > 0.55)
-    STRATEGY_MEAN_REVERT = 3    # Mean-reverting (Hurst < 0.45)
-    STRATEGY_SMC_SCALPER = 4    # Default SMC scalping
-    STRATEGY_SAFE_MODE = 5      # Reduced risk mode
+
+    STRATEGY_NONE = 0  # No trading
+    STRATEGY_NEWS_TRADER = 1  # News event trading
+    STRATEGY_TREND_FOLLOW = 2  # Trending market (Hurst > 0.55)
+    STRATEGY_MEAN_REVERT = 3  # Mean-reverting (Hurst < 0.45)
+    STRATEGY_SMC_SCALPER = 4  # Default SMC scalping
+    STRATEGY_SAFE_MODE = 5  # Reduced risk mode
 
 
 class NewsImpact(IntEnum):
     """News event impact level."""
+
     IMPACT_LOW = 0
     IMPACT_MEDIUM = 1
     IMPACT_HIGH = 2
@@ -42,6 +45,7 @@ class MarketContext:
     Complete market context for strategy selection.
     Aggregates all environmental factors.
     """
+
     # Regime
     hurst: float = 0.5
     entropy: float = 2.0
@@ -119,9 +123,10 @@ class MarketContext:
 @dataclass
 class StrategySelection:
     """Result of strategy selection."""
+
     strategy: StrategyType = StrategyType.STRATEGY_NONE
     size_multiplier: float = 0.0  # 0.0 - 1.0
-    score_adjustment: int = 0     # Bonus/penalty for confluence
+    score_adjustment: int = 0  # Bonus/penalty for confluence
     reason: str = "Not analyzed"
     can_trade: bool = False
 
@@ -202,8 +207,10 @@ class StrategySelector:
         self._current_hurst = 0.5
         self._current_entropy = 2.0
 
-        logger.info(f"StrategySelector initialized: ftmo_safe={ftmo_safe_mode}, "
-                   f"news={allow_news_trading}, asian={allow_asian_session}")
+        logger.info(
+            f"StrategySelector initialized: ftmo_safe={ftmo_safe_mode}, "
+            f"news={allow_news_trading}, asian={allow_asian_session}"
+        )
 
     def set_regime(self, hurst: float, entropy: float) -> None:
         """Update regime from external source."""
@@ -225,6 +232,8 @@ class StrategySelector:
         news_impact: NewsImpact = NewsImpact.IMPACT_LOW,
         # Technical
         atr: float = 0.0,
+        # Time (for backtest correctness)
+        bar_time: datetime | None = None,
     ) -> None:
         """
         Update market context from external sources.
@@ -239,6 +248,7 @@ class StrategySelector:
             minutes_to_news: Minutes to next news event
             news_impact: Impact level of upcoming news
             atr: Current ATR value
+            bar_time: Bar timestamp for backtest correctness (uses system time if None)
         """
         self._context.circuit_ok = circuit_ok
         self._context.spread_ok = spread_ok
@@ -255,17 +265,18 @@ class StrategySelector:
 
         self._context.atr = atr
 
-        # Update session info
-        self._update_session_info()
+        # Update session info (use bar_time for backtest correctness)
+        self._update_session_info(bar_time)
 
         # Update regime info
         self._update_regime_info()
 
-        self._last_update = datetime.now(timezone.utc)
+        self._last_update = bar_time if bar_time else datetime.now(timezone.utc)
 
-    def _update_session_info(self) -> None:
-        """Update session detection based on current time."""
-        now = datetime.now(timezone.utc)
+    def _update_session_info(self, bar_time: datetime | None = None) -> None:
+        """Update session detection based on bar time (or system time as fallback)."""
+        # BUG FIX: Use bar_time for backtest correctness, not system time
+        now = bar_time if bar_time else datetime.now(timezone.utc)
         hour = now.hour
         day = now.weekday()  # 0=Monday, 6=Sunday
 
@@ -423,14 +434,18 @@ class StrategySelector:
             result.timing_confidence = 0.8
         else:
             result.timing_confidence = 0.5
-            result.size_multiplier = min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
+            result.size_multiplier = (
+                min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
+            )
 
         # ================================================================
         # GATE 5: HOLIDAY CHECK
         # ================================================================
 
         if self._context.is_holiday:
-            result.size_multiplier = min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
+            result.size_multiplier = (
+                min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
+            )
             result.score_adjustment -= 10
             result.reason = "Holiday - reduced liquidity"
 
@@ -447,7 +462,9 @@ class StrategySelector:
 
         # High noise - reduce confidence
         if self._context.high_volatility:
-            result.size_multiplier = min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
+            result.size_multiplier = (
+                min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
+            )
             result.score_adjustment -= 15
 
         # Trending market
@@ -501,9 +518,11 @@ class StrategySelector:
         timing_score = result.timing_confidence
         safety_score = 1.0 if (self._context.circuit_ok and self._context.spread_ok) else 0.0
 
-        return (regime_score * regime_weight +
-                timing_score * timing_weight +
-                safety_score * safety_weight)
+        return (
+            regime_score * regime_weight
+            + timing_score * timing_weight
+            + safety_score * safety_weight
+        )
 
     @property
     def context(self) -> MarketContext:
@@ -547,8 +566,12 @@ class StrategySelector:
         logger.info(f"Reason: {self._selection.reason}")
         logger.info("--- Context ---")
         logger.info(f"Hurst: {self._context.hurst:.3f} Entropy: {self._context.entropy:.3f}")
-        logger.info(f"Trending: {self._context.is_trending} Reverting: {self._context.is_reverting}")
+        logger.info(
+            f"Trending: {self._context.is_trending} Reverting: {self._context.is_reverting}"
+        )
         logger.info(f"Session: London={self._context.is_london} NY={self._context.is_newyork}")
         logger.info(f"News Window: {self._context.in_news_window}")
-        logger.info(f"DD: Daily={self._context.daily_dd_percent:.2f}% Total={self._context.total_dd_percent:.2f}%")
+        logger.info(
+            f"DD: Daily={self._context.daily_dd_percent:.2f}% Total={self._context.total_dd_percent:.2f}%"
+        )
         logger.info("==========================")

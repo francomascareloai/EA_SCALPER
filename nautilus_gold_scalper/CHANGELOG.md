@@ -22,9 +22,42 @@
 - path/to/file1.py
 - path/to/file2.py
 
-**Validation:** Tests passed, compilation status, quality gates  
+**Validation:** Tests passed, compilation status, quality gates
 **Commit:** [hash if committed]
 ```
+
+---
+
+## [MULTI-AGENT AUDIT] - 2025-12-26 (FORGE + CRUCIBLE + CRITIC)
+
+### 🐛 BUGFIX: Comprehensive codebase audit - 6 bugs fixed
+
+**What:** Multi-agent comprehensive audit of entire nautilus_gold_scalper codebase with 4 rodadas de análise + correções automáticas.
+
+**Why:** Validação completa do código antes de go-live para Apex compliance e robustez.
+
+**Impact:**
+- **BUG-20 CRITICAL:** SL Cancel/Submit gap fixed - posições agora sempre protegidas durante trailing/breakeven
+- **BUG-19 CRITICAL:** Session score agora passa pelos pesos de sessão - evita TIER-B sem SMC
+- **BUG-18 HIGH:** AMD weights adicionados em London/NY/Overlap - ICT AMD cycle agora contribui
+- **BUG-17 CRITICAL:** Emergency close retry mechanism - posições serão fechadas mesmo com rejeições
+- **BUG-16 MEDIUM:** Shannon entropy calculation corrigido - regime detection mais preciso
+- **BUG-16b HIGH:** StrategySelector agora usa bar_time - backtest temporal correctness
+
+**Files:**
+- `nautilus_gold_scalper/src/strategies/base_strategy.py` (SL failsafe)
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py` (SL failsafe)
+- `nautilus_gold_scalper/src/signals/confluence_scorer.py` (session + AMD weights)
+- `nautilus_gold_scalper/src/risk/time_constraint_manager.py` (emergency close retry)
+- `nautilus_gold_scalper/src/indicators/regime_detector.py` (entropy fix)
+- `nautilus_gold_scalper/src/strategies/strategy_selector.py` (bar_time)
+
+**Validation:**
+- mypy --strict: PASS
+- pytest: 432 tests PASS
+- All weight sums verified = 1.00
+
+**Commit:** pending
 
 ---
 

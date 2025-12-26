@@ -63,6 +63,213 @@
 
 ## Log Entries
 
+## 🚨 2025-12-26 [MULTI-AGENT AUDIT] - CRITICAL - BUG-20: SL Cancel/Submit Gap Leaves Position Unprotected
+
+**Module:** `nautilus_gold_scalper/src/strategies/base_strategy.py`, `gold_scalper_strategy.py`
+**Severity:** CRITICAL (Account survival - Apex risk)
+
+### Bug Description
+When SL order is cancelled for modification (trailing stop, breakeven), the new SL submission could fail without triggering the timeout watchdog. The `_bracket_sl_confirmed` flag remained True from the previous SL, bypassing the fail-safe mechanism entirely.
+
+### Impact
+- Position can remain unprotected **INDEFINITELY**
+- High-frequency code path (trailing stop, breakeven moves)
+- Direct path to Apex account termination
+- Manifests precisely during high volatility (when protection most needed)
+
+### Root Cause (5 Whys)
+1. Why? SL modification fails and position has no SL
+2. Why? `submit_order()` throws exception after old SL cancelled
+3. Why? Exception handler only logs warning, no failsafe trigger
+4. Why? `_bracket_sl_confirmed` remains True, bypassing timeout
+5. Why? Order of operations: flags updated AFTER submit instead of BEFORE
+
+### Fix Applied
+1. Reset `_bracket_sl_confirmed = False` BEFORE `submit_order()` (enables timeout detection)
+2. Set `_bracket_sl_client_order_id` BEFORE `submit_order()` (for tracking)
+3. Wrapped `submit_order()` in try/except block
+4. On exception: call `_trigger_execution_failsafe(reason="sl_submit_failed_after_cancel")`
+
+**Files Modified:**
+- `nautilus_gold_scalper/src/strategies/base_strategy.py` (lines 1065-1082)
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py` (lines 3682-3695)
+
+**Validation:** mypy --strict PASS, pytest test_execution_failsafe.py (13/13 PASS)
+**Commit:** pending
+
+---
+
+## 🚨 2025-12-26 [MULTI-AGENT AUDIT] - CRITICAL - BUG-19: Session Score Not Weighted in Confluence
+
+**Module:** `nautilus_gold_scalper/src/signals/confluence_scorer.py`
+**Severity:** CRITICAL (Signal quality - false TIER-B trades)
+
+### Bug Description
+Session score (0-10) was added DIRECTLY to base_score without applying session weights. This allowed PRIME session alone to generate TIER-B signals (75 points) without any SMC confluence (OB/FVG).
+
+### Impact
+- PRIME session alone = 75 points = TIER-B (should require SMC confirmation)
+- Trades can receive TIER-B sizing without proper SMC confirmation
+- Position sizing inflated for low-quality setups
+
+### Root Cause
+Line 967: `base_score = sum(weighted_scores.values()) + self._components.session_score`
+The session_score bypassed the session weight multiplication applied to all other factors.
+
+### Fix Applied
+```python
+# BEFORE:
+base_score = sum(weighted_scores.values()) + self._components.session_score
+
+# AFTER:
+session_weighted = self._components.session_score * session_weights.get("session", 0.10)
+base_score = sum(weighted_scores.values()) + session_weighted
+```
+
+**Files Modified:**
+- `nautilus_gold_scalper/src/signals/confluence_scorer.py` (lines 973-975)
+
+**Validation:** Weight sums verified at 1.00 for all sessions
+**Commit:** pending
+
+---
+
+## 2025-12-26 [MULTI-AGENT AUDIT] - HIGH - BUG-18: AMD Weight = 0.0 in Major Sessions
+
+**Module:** `nautilus_gold_scalper/src/signals/confluence_scorer.py`
+**Severity:** HIGH (Signal quality - AMD ignored in London/NY)
+
+### Bug Description
+AMD (Accumulation-Manipulation-Distribution) cycle weight was set to 0.0 in London, NY_Overlap, and NY sessions, completely ignoring this core ICT concept during the most important trading sessions.
+
+### Fix Applied
+Updated SessionWeightProfile with appropriate AMD weights:
+- LONDON: 'amd': 0.06 (Manipulation phase)
+- NY_OVERLAP: 'amd': 0.10 (Peak distribution)
+- NY: 'amd': 0.08 (Distribution completion)
+
+Weight sums verified at 1.00 for all sessions after redistribution.
+
+**Files Modified:**
+- `nautilus_gold_scalper/src/signals/confluence_scorer.py` (lines 133-172)
+
+**Validation:** Weight sums = 1.00 for all sessions
+**Commit:** pending
+
+---
+
+## 🚨 2025-12-26 [MULTI-AGENT AUDIT] - CRITICAL - BUG-17: No Retry for Failed Emergency Close
+
+**Module:** `nautilus_gold_scalper/src/risk/time_constraint_manager.py`
+**Severity:** CRITICAL (Apex compliance - overnight position risk)
+
+### Bug Description
+If close_all_positions() submits orders that are REJECTED by the broker, the code did NOT retry. Position could remain open overnight = APEX VIOLATION and account termination.
+
+### Fix Applied
+Complete refactor of `_force_close_all()` with retry mechanism:
+
+1. **New Tracking Variables:**
+   - `_close_order_ids: list[ClientOrderId]` - Tracks submitted order IDs
+   - `_close_retry_count: int` - Current retry attempt
+   - `_max_close_retries: int = 3` - Maximum attempts
+   - `_close_timeout_ns: int = 5_000_000_000` - 5 second timeout
+
+2. **Rejection Detection:** `_check_rejected_close_orders()` checks order status
+
+3. **Retry Logic with IOC Fallback:**
+   - On rejection: increment retry, use IOC time-in-force
+   - After max retries: log CRITICAL_CLOSE_FAILED with MANUAL_INTERVENTION_REQUIRED
+
+**Files Modified:**
+- `nautilus_gold_scalper/src/risk/time_constraint_manager.py` (lines 14-15, 59-64, 193-412)
+
+**Validation:** mypy --strict PASS, pytest test_time_constraint_manager.py (9/9 PASS)
+**Commit:** pending
+
+---
+
+## 2025-12-26 [MULTI-AGENT AUDIT] - MEDIUM - BUG-16: Shannon Entropy Calculation Incorrect
+
+**Module:** `nautilus_gold_scalper/src/indicators/regime_detector.py`
+**Severity:** MEDIUM (Regime detection accuracy)
+
+### Bug Description
+Shannon entropy calculation used `density=True` in `np.histogram()`, which returns probability DENSITY (PDF), not discrete probabilities. Shannon entropy requires probabilities that sum to 1.
+
+### Fix Applied
+```python
+# BEFORE:
+hist, _ = np.histogram(returns, bins=n_bins, density=True)
+
+# AFTER:
+hist, _ = np.histogram(returns, bins=n_bins, density=False)
+hist = hist / hist.sum()  # Normalize to probabilities
+```
+
+**Files Modified:**
+- `nautilus_gold_scalper/src/indicators/regime_detector.py` (lines 190-195)
+
+**Validation:** mypy PASS, pytest (432 tests PASS)
+**Commit:** pending
+
+---
+
+## 2025-12-26 [MULTI-AGENT AUDIT] - HIGH - BUG-16b: StrategySelector Uses System Time (Backtest Trap)
+
+**Module:** `nautilus_gold_scalper/src/strategies/strategy_selector.py`
+**Severity:** HIGH (Backtest validity - temporal leak)
+
+### Bug Description
+`_update_session_info()` used `datetime.now(timezone.utc)` which reflects current wall-clock time, not the simulated bar time during backtesting. This caused session detection to be incorrect during historical replay.
+
+### Fix Applied
+1. Added `bar_time: datetime | None = None` parameter to `update_context()`
+2. Pass `bar_time` to `_update_session_info()`
+3. Use `bar_time` if provided, fallback to `datetime.now()` for live
+
+**Files Modified:**
+- `nautilus_gold_scalper/src/strategies/strategy_selector.py` (lines 228-281)
+
+**Validation:** mypy PASS, pytest (432 tests PASS)
+**Commit:** pending
+
+---
+
+## 🚨 2025-12-25 00:00 [FORGE-NAUTILUS] - CRITICAL - BUG-15: WFA Window Assignment Uses Exit Time (Look-ahead Bias)
+
+**Module:** `nautilus_gold_scalper/src/optimization/validation/wfa_inline.py`
+**Severity:** CRITICAL (Backtest/WFA invalidation → optimizer selects overfit configs)
+
+**Bug:** WFA window masks were computed using `trades_df["timestamp"]`, where `timestamp` is derived from `exit_time` when available. Trades opened in IS and closed in OOS were counted as OOS.
+
+**Impact:** Inflated OOS performance and WFE (look-ahead via trade attribution). Optimizer can prefer configs that only look good due to attribution leakage.
+
+**Root Cause (5 Whys):**
+1. Why? Trade attribution used a single `timestamp` field rather than the decision-time (`entry_time`).
+2. Why? Trade extraction set `timestamp = exit_time if exit_time is not None else entry_time` for convenience.
+3. Why? WFA implementation assumed `timestamp` represented entry/decision time.
+4. Why? There was no invariant/test asserting “WFA uses entry_time for window assignment”.
+5. Why? The pipeline lacked an explicit, documented contract separating `entry_time` vs `exit_time` vs legacy `timestamp`.
+
+**Fix:**
+- In WFA, select `time_col = "entry_time"` when present; otherwise fall back to `timestamp` with a warning.
+- Coerce the chosen time column to UTC-aware datetime before comparisons.
+
+**Prevention:**
+- Added a CRITICAL comment in WFA explaining the look-ahead mechanism.
+- Updated optimize trade-extraction docstring to explicitly define `entry_time` as the WFA assignment field.
+
+**Files:**
+- `nautilus_gold_scalper/src/optimization/validation/wfa_inline.py` (fixed)
+- `nautilus_gold_scalper/scripts/optimize.py` (doc/contract clarified)
+
+**Validation:**
+- `.venv/bin/mypy --strict nautilus_gold_scalper/src/optimization/validation/wfa_inline.py` (PASS)
+- `.venv/bin/pytest -q` (PASS)
+
+**Commit:** pending
+
 ## 🚨 2025-12-24 00:00 [ORCHESTRATOR] - CRITICAL - BUG-14: Look-ahead & State Leakage in SMC Detectors/Scorer
 
 **Module(s):**
@@ -1024,4 +1231,255 @@ self.log.info(f"... (need {self._min_bars_for_signal} bars, have {len(self._ltf_
 - `src/strategies/gold_scalper_strategy.py`
 **Validation:** SL now bounded, reducing max single-trade loss
 **Commit:** pending
+
+---
+
+# =============================================================================
+# 2025-12-25 - DEEP BUG HUNTING RODADA (Multi-Agent Exploration)
+# =============================================================================
+
+## 2025-12-25 [CRITICAL] - FIX: metrics.py Division by Zero
+
+**Bug:** `MetricsCalculator.calculate()` line 114: `returns = [p / initial_balance for p in pnl_series]` - Division by zero when `initial_balance == 0`
+**Impact:** Crash during backtest metrics calculation if initial_balance is 0
+**Root Cause:** No guard against zero initial_balance before division
+**Fix:** Added early return with empty metrics if `initial_balance <= 0`
+**Files:** `src/utils/metrics.py:~90`
+**Validation:** mypy clean, pytest passed
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [CRITICAL] - FIX: wfa_inline Sharpe/Sortino on raw PnL
+
+**Bug:** `wfa_inline.py:364-393` - Sharpe/Sortino computed on raw PnL dollars instead of returns
+**Impact:** Metrics are scale-dependent and meaningless for cross-strategy comparison. WFE/PSR gates could pass or fail incorrectly.
+**Root Cause:**
+- 5 Whys:
+  1. Sharpe/Sortino artificially high/low → computed on PnL not returns
+  2. PnL used directly → original code didn't normalize
+  3. Formula from quick implementation → no review
+  4. Why no review? → focus on getting validation working fast
+  5. Root: Incomplete implementation of risk-adjusted metrics
+**Fix:**
+- Convert PnL to returns: `returns = [p / initial_capital for p in pnls]`
+- Subtract daily risk-free rate from mean return
+- Annualization factor: `sqrt(trading_days_per_year)`
+**Files:** `src/optimization/validation/wfa_inline.py:364-430`
+**Validation:** mypy clean, logic verified against textbook formulas
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [HIGH] - FIX: Daily DD using abs() treats profits as drawdown
+
+**Bug:** `base_strategy.py:~709` - `daily_dd_pct = abs(self._daily_pnl) / account_balance * 100.0`
+**Impact:** On profitable days, DD check treats profit as drawdown, potentially blocking trading incorrectly
+**Root Cause:** `abs()` inverts sign of profit, making +$500 appear as -$500 DD
+**Fix:** Changed to `max(0.0, -self._daily_pnl)` - only negative PnL counts as DD
+**Files:** `src/strategies/base_strategy.py`
+**Validation:** mypy clean, pytest passed
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [HIGH] - FIX: TIER_INVALID naming collision
+
+**Bug:** `definitions.py` - `SignalQuality.TIER_INVALID` (enum value = 0) collides with `TIER_INVALID = 60` (constant for min valid score)
+**Impact:** Imports can silently pick wrong definition, logic errors in signal quality checks
+**Root Cause:** Same name used for different concepts (enum member vs threshold constant)
+**Fix:** Renamed constant from `TIER_INVALID = 60` to `MIN_VALID_SCORE = 60`
+**Files:**
+- `src/core/definitions.py`
+- `src/signals/confluence_scorer.py`
+- `src/strategies/base_strategy.py`
+**Validation:** mypy clean after updating all references
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [HIGH] - FIX: strategy_selector datetime.now() non-deterministic
+
+**Bug:** `strategy_selector.py:264,268` - `datetime.now(timezone.utc)` used in `update_context()` and `_update_session_info()`
+**Impact:** Strategy selection becomes non-deterministic in backtests, different results on replay
+**Root Cause:** Wall-clock time used instead of simulation/event time
+**Fix:** Added `now: datetime | None = None` parameter to `update_context()` and `_update_session_info()`, resolved to event time
+**Files:** `src/strategies/strategy_selector.py`
+**Validation:** mypy clean, pytest passed
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [HIGH] - FIX: news_calendar datetime.now() non-deterministic
+
+**Bug:** `news_calendar.py:303,316,330,349` - Multiple public methods use `datetime.now()`
+**Impact:** News filtering inconsistent in backtests, non-reproducible results
+**Root Cause:** Methods designed for live trading, not adapted for backtest context
+**Fix:** Added `now: datetime | None` parameter to:
+- `get_upcoming_events()`
+- `get_current_risk_level()`
+- `is_high_impact_window()`
+- `get_blocked_periods()`
+**Files:** `src/signals/news_calendar.py`
+**Validation:** mypy clean
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [HIGH] - FIX: test_tick_backtest_e2e neutralized assertion
+
+**Bug:** `test_tick_backtest_e2e.py` - Assertion `assert "commission" in fills.columns or True`
+**Impact:** Test always passes regardless of actual column presence, no real validation
+**Root Cause:** Workaround added to make test pass without investigating correct column name
+**Fix:**
+- Corrected column name from `commission` to `commissions` (Nautilus uses plural)
+- Removed `or True` neutralizer
+**Files:** `tests/test_integration/test_tick_backtest_e2e.py`
+**Validation:** mypy clean
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [HIGH] - PENDING: build_bars_from_catalog look-ahead bias
+
+**Bug:** `build_bars_from_catalog.py:94` - `label="left"` in bar aggregation
+**Impact:** Bars timestamped at start of period, but contain data from entire period = look-ahead bias
+**Root Cause:** Pandas default labeling convention not appropriate for trading
+**Fix Required:** Change to `label="right"` or use close timestamp
+**Files:** `scripts/data/build_bars_from_catalog.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [HIGH] - PENDING: build_bars_from_catalog timezone handling
+
+**Bug:** `build_bars_from_catalog.py:32` - `replace(tzinfo=UTC)` discards actual offset
+**Impact:** If source data has offset, it's silently discarded, causing time alignment errors
+**Root Cause:** `replace()` doesn't convert, just overwrites tzinfo
+**Fix Required:** Use `.tz_convert(UTC)` after ensuring source is tz-aware
+**Files:** `scripts/data/build_bars_from_catalog.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [HIGH] - PENDING: economic_calendar timezone handling
+
+**Bug:** `economic_calendar.py:86` - `replace(tzinfo=ET)` dangerous pattern
+**Impact:** Same as above - offset discarded instead of converted
+**Root Cause:** Misunderstanding of replace vs convert semantics
+**Fix Required:** Ensure proper conversion with `tz_localize` or `tz_convert`
+**Files:** `src/signals/economic_calendar.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [MEDIUM] - FIX: DrawdownTracker now=None before _check_new_day
+
+**Bug:** `drawdown_tracker.py` - `update()` calls `_check_new_day(now)` before resolving `now=None`
+**Impact:** Wall-clock time used for day boundary detection in backtests
+**Root Cause:** Refactor moved `now` resolution after `_check_new_day()` call
+**Fix:** Moved `now` resolution to start of `update()` method
+**Files:** `src/risk/drawdown_tracker.py`
+**Validation:** mypy clean, pytest 13 passed
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [MEDIUM] - FIX: calculate_metrics_from_trades wrong for shorts
+
+**Bug:** `metrics.py:268` - `(exit_price - entry_price) * position_size` assumes long
+**Impact:** Short trade PnL calculated with wrong sign
+**Root Cause:** Formula only correct for longs, shorts have inverted PnL
+**Fix:** Should be `direction * (exit_price - entry_price) * position_size` or add `is_long` param
+**Files:** `src/utils/metrics.py`
+**Validation:** Logic reviewed
+**Commit:** Fixed in this session
+
+---
+
+## 2025-12-25 [MEDIUM] - PENDING: fvg_detector timestamp fallback
+
+**Bug:** `fvg_detector.py:98-99` - Fallback to `datetime(1970, 1, 1, tzinfo=UTC)` for missing timestamp
+**Impact:** Invalid FVG creation time, age calculations wrong
+**Root Cause:** Defensive fallback that hides real problem (missing data)
+**Fix Required:** Raise exception or log error instead of silent bad fallback
+**Files:** `src/signals/smc/fvg_detector.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [MEDIUM] - PENDING: order_block_detector timestamp fallback
+
+**Bug:** `order_block_detector.py:102-103` - Same 1970-01-01 fallback issue
+**Impact:** Invalid OrderBlock creation time, age calculations wrong
+**Root Cause:** Copy-paste from fvg_detector without fixing
+**Fix Required:** Same as fvg_detector - raise or log error
+**Files:** `src/signals/smc/order_block_detector.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [MEDIUM] - PENDING: news_trader _ensure_tz_aware(None)
+
+**Bug:** `news_trader.py:38` - `_ensure_tz_aware(None)` returns `datetime.now()`
+**Impact:** None input silently becomes wall-clock time
+**Root Cause:** Helper function too permissive
+**Fix Required:** Raise TypeError on None input or require explicit time
+**Files:** `src/signals/news_trader.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [MEDIUM] - PENDING: base_strategy ts_event fallback
+
+**Bug:** `base_strategy.py:664` - Fallback to `datetime.now()` when ts_event absent
+**Impact:** Non-deterministic behavior when event timestamp missing
+**Root Cause:** Defensive fallback for edge cases
+**Fix Required:** Should use bar.ts_event or raise if truly required
+**Files:** `src/strategies/base_strategy.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [MEDIUM] - PENDING: session_filter UTC assumption
+
+**Bug:** `session_filter.py` - Assumes naive datetime is UTC
+**Impact:** Timezone-naive input treated as UTC, wrong session detection
+**Root Cause:** Missing timezone enforcement
+**Fix Required:** Require tz-aware input or explicit conversion
+**Files:** `src/filters/session_filter.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [MEDIUM] - PENDING: build_m5_bars timezone naive
+
+**Bug:** `build_m5_bars.py` - Parses timestamps without timezone
+**Impact:** Potential timezone misalignment in generated bars
+**Root Cause:** Quick script, timezone handling skipped
+**Fix Required:** Ensure UTC localization during parsing
+**Files:** `scripts/data/build_m5_bars.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [MEDIUM] - PENDING: build_renko_bars timezone naive
+
+**Bug:** `build_renko_bars.py` - Same timezone naive issue
+**Impact:** Renko bars may have wrong timestamps
+**Root Cause:** Same as build_m5_bars
+**Fix Required:** UTC localization
+**Files:** `scripts/data/build_renko_bars.py`
+**Status:** PENDING FIX
+
+---
+
+## 2025-12-25 [LOW] - PENDING: base_adapter iterrows antipattern
+
+**Bug:** `base_adapter.py` - Uses `df.iterrows()` for row iteration
+**Impact:** Performance degradation on large DataFrames (10-100x slower than vectorized)
+**Root Cause:** Quick implementation, not optimized
+**Fix Required:** Replace with vectorized operations or `df.itertuples()`
+**Files:** `src/data/base_adapter.py`
+**Status:** PENDING FIX (PERF)
 

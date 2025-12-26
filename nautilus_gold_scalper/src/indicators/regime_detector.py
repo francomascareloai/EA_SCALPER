@@ -10,6 +10,7 @@ v4.0 Features:
 - Regime Transition Detection (predictive)
 - Kalman Filter trend
 """
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -187,9 +188,12 @@ class RegimeDetector:
         if n_bins < 3:
             return 2.0
 
-        hist, _ = np.histogram(returns, bins=n_bins, density=True)
+        # BUG FIX: density=True returns PDF, not probabilities.
+        # Must use density=False and normalize to get P(x) that sums to 1.
+        hist, _ = np.histogram(returns, bins=n_bins, density=False)
+        hist = hist / hist.sum()  # Normalize to probabilities
         hist = hist[hist > 0]
-        entropy = -np.sum(hist * np.log2(hist + 1e-10)) / np.log2(n_bins)
+        entropy = -np.sum(hist * np.log2(hist)) / np.log2(n_bins)
         return float(entropy)
 
     def _calculate_variance_ratio(self, prices: NDArray[np.floating[Any]]) -> float:
@@ -226,7 +230,9 @@ class RegimeDetector:
 
         return MarketRegime.REGIME_UNKNOWN
 
-    def _calculate_multiscale_agreement(self, h_short: float, h_medium: float, h_long: float) -> float:
+    def _calculate_multiscale_agreement(
+        self, h_short: float, h_medium: float, h_long: float
+    ) -> float:
         values = [h_short, h_medium, h_long]
         all_trending = all(h > 0.5 for h in values)
         all_reverting = all(h < 0.5 for h in values)
@@ -325,7 +331,9 @@ class RegimeDetector:
         total = hurst_clarity + entropy_factor + vr_factor + agreement_factor + stability_factor
         return float(min(100, max(0, total)))
 
-    def _generate_diagnosis(self, regime: MarketRegime, hurst: float, entropy: float, vr: float) -> str:
+    def _generate_diagnosis(
+        self, regime: MarketRegime, hurst: float, entropy: float, vr: float
+    ) -> str:
         names = {
             MarketRegime.REGIME_PRIME_TRENDING: "PRIME TRENDING",
             MarketRegime.REGIME_NOISY_TRENDING: "NOISY TRENDING",
@@ -366,7 +374,9 @@ class RegimeDetector:
         """
         min_bars = max(self.hurst_period, self.entropy_period)
         if len(prices) < min_bars:
-            raise InsufficientDataError(f"Precisa de pelo menos {min_bars} barras, fornecido {len(prices)}")
+            raise InsufficientDataError(
+                f"Precisa de pelo menos {min_bars} barras, fornecido {len(prices)}"
+            )
 
         # Calculate core metrics
         hurst = self._calculate_hurst(prices[-self.hurst_period :])
@@ -415,7 +425,12 @@ class RegimeDetector:
             transition_prob = self._calculate_transition_probability(current_hurst)
 
             if transition_prob > max_transition_prob:
-                return False, f"High transition probability ({transition_prob:.1%} > {max_transition_prob:.0%})"
+                return (
+                    False,
+                    f"High transition probability ({transition_prob:.1%} > {max_transition_prob:.0%})",
+                )
 
         return True, "Regime stable"
+
+
 # FORGE v4.0: 7/7 checks

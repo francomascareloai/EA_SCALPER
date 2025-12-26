@@ -8,6 +8,7 @@ Provides abstract base class for all trading strategies with common functionalit
 - Position tracking
 - Signal generation interface
 """
+
 import math
 import random
 from abc import abstractmethod
@@ -18,8 +19,11 @@ from typing import Any, Literal
 try:
     from nautilus_trader.config import StrategyConfig as NautilusStrategyConfig
 except ImportError:  # mypy/CI environments may not have NautilusTrader stubs
+
     class NautilusStrategyConfig:  # type: ignore[no-redef]
         pass
+
+
 from nautilus_trader.core.message import Event
 from nautilus_trader.model import (
     Bar,
@@ -44,15 +48,17 @@ from nautilus_trader.model.objects import Price, Quantity
 try:
     from nautilus_trader.trading.strategy import Strategy as NautilusStrategy
 except ImportError:  # mypy/CI environments may not have NautilusTrader stubs
+
     class NautilusStrategy:  # type: ignore[no-redef]
         pass
 
+
 from ..core.data_types import ConfluenceResult, RegimeAnalysis, SessionInfo
 from ..core.definitions import (
+    MIN_VALID_SCORE,
     TIER_A_MIN,
     TIER_B_MIN,
     TIER_C_MIN,
-    TIER_INVALID,
     TIER_S_MIN,
     XAUUSD_LOT_SIZE,
     SignalQuality,
@@ -61,6 +67,7 @@ from ..core.definitions import (
 
 class BaseStrategyConfig(NautilusStrategyConfig):  # type: ignore[misc]
     """Base configuration for gold scalping strategies."""
+
     instrument_id: InstrumentId
 
     # Multi-timeframe bar types
@@ -75,7 +82,7 @@ class BaseStrategyConfig(NautilusStrategyConfig):  # type: ignore[misc]
     max_trades_per_day: int = 15
 
     # Execution parameters
-    min_score_to_trade: float = TIER_INVALID
+    min_score_to_trade: float = MIN_VALID_SCORE
     min_rr_ratio: float = 1.5
     target_rr_ratio: float = 2.5
     max_spread_points: int = 80
@@ -149,7 +156,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._bracket_tp_confirmed: bool = False
         self._bracket_tp_expected: bool = False
         self._bracket_submitted_ts_ns: int | None = None
-        self._bracket_confirm_timeout_ns: int = int(getattr(config, "bracket_confirm_timeout_ns", 60_000_000_000))
+        self._bracket_confirm_timeout_ns: int = int(
+            getattr(config, "bracket_confirm_timeout_ns", 60_000_000_000)
+        )
         self._active_position_id: str | None = None
         self._execution_failsafe_triggered: bool = False
         self._trading_blocked_today: bool = False
@@ -224,7 +233,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Strategy-specific cleanup
         self._on_strategy_stop()
 
-        self.log.info(f"Strategy stopped. Daily trades: {self._daily_trades}, PnL: {self._daily_pnl:.2f}")
+        self.log.info(
+            f"Strategy stopped. Daily trades: {self._daily_trades}, PnL: {self._daily_pnl:.2f}"
+        )
 
     def on_reset(self) -> None:
         """Reset strategy state.
@@ -292,22 +303,28 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._is_trading_allowed = True
         self._trading_blocked_today = False
         self._clear_pending_orders_and_brackets(reason="new_day")
-        self.log.info(f"[DAILY_RESET] _is_trading_allowed = {self._is_trading_allowed} (daily reset)")
+        self.log.info(
+            f"[DAILY_RESET] _is_trading_allowed = {self._is_trading_allowed} (daily reset)"
+        )
 
         # Reset PropFirmManager daily counters (if exists)
         if getattr(self, "_prop_firm", None):
             try:
-                tick_dt = datetime.fromtimestamp(int(getattr(event, "ts_event", 0) or 0) / 1e9, tz=timezone.utc)
+                tick_dt = datetime.fromtimestamp(
+                    int(getattr(event, "ts_event", 0) or 0) / 1e9, tz=timezone.utc
+                )
             except Exception:
                 tick_dt = None
             try:
-                self._prop_firm.on_new_day(current_equity=float(getattr(self, "_equity_base", 0.0)), now=tick_dt)
+                self._prop_firm.on_new_day(
+                    current_equity=float(getattr(self, "_equity_base", 0.0)), now=tick_dt
+                )
                 self.log.info("PropFirmManager daily counters reset")
             except Exception as e:
                 self.log.error(f"Failed to reset PropFirmManager: {e}")
 
         # Reset ConsistencyTracker (if exists)
-        if hasattr(self, 'consistency_tracker') and self.consistency_tracker is not None:
+        if hasattr(self, "consistency_tracker") and self.consistency_tracker is not None:
             try:
                 self.consistency_tracker.reset_daily()
                 self.log.info("ConsistencyTracker daily counters reset")
@@ -315,7 +332,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 self.log.error(f"Failed to reset ConsistencyTracker: {e}")
 
         # Reset TimeConstraintManager warnings (if exists)
-        if hasattr(self, 'time_manager') and self.time_manager is not None:
+        if hasattr(self, "time_manager") and self.time_manager is not None:
             try:
                 self.time_manager.reset_daily()
                 self.log.info("TimeConstraintManager warnings reset")
@@ -358,7 +375,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 )
 
         # Check for daily reset
-        if hasattr(self, '_check_daily_reset'):
+        if hasattr(self, "_check_daily_reset"):
             self._check_daily_reset(bar.ts_event)
 
         # WP0: bracket watchdog also runs on bars (covers quote-tick stalls).
@@ -398,12 +415,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
             # Debug: Print every 100 bars (more frequent for debugging)
             if len(self._ltf_bars) % 100 == 0:
-                self.log.info(f"[LTF_BAR] #{len(self._ltf_bars)}: trading_allowed={self._is_trading_allowed}, has_data={has_data}, will_check_signal={self._is_trading_allowed and has_data}")
+                self.log.info(
+                    f"[LTF_BAR] #{len(self._ltf_bars)}: trading_allowed={self._is_trading_allowed}, has_data={has_data}, will_check_signal={self._is_trading_allowed and has_data}"
+                )
 
             if self._is_trading_allowed and has_data:
                 self._check_for_signal(bar)
             elif not has_data and len(self._ltf_bars) % 100 == 0:
-                self.log.info(f"[LTF_BAR] Skipping signal check: insufficient data (need {self._min_bars_for_signal} bars, have {len(self._ltf_bars)})")
+                self.log.info(
+                    f"[LTF_BAR] Skipping signal check: insufficient data (need {self._min_bars_for_signal} bars, have {len(self._ltf_bars)})"
+                )
 
     def on_quote_tick(self, tick: QuoteTick) -> None:
         """Process quote tick for spread monitoring."""
@@ -478,7 +499,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                     return
             except Exception as exc:
                 # Fail closed: if compliance check explodes, do not keep trading.
-                self._trigger_execution_failsafe(reason=f"prop_firm_intrabar_exception: {type(exc).__name__}")
+                self._trigger_execution_failsafe(
+                    reason=f"prop_firm_intrabar_exception: {type(exc).__name__}"
+                )
                 return
 
         # Circuit breaker intrabar enforcement (uses conservative MTM equity)
@@ -494,10 +517,14 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 cb_state = self._circuit_breaker.get_state()
 
                 if cb_state.level >= CircuitBreakerLevel.LEVEL_4_CRITICAL:
-                    self._trigger_execution_failsafe(reason=f"circuit_breaker_lockdown:{cb_state.level.name}")
+                    self._trigger_execution_failsafe(
+                        reason=f"circuit_breaker_lockdown:{cb_state.level.name}"
+                    )
                     return
             except Exception as exc:
-                self._trigger_execution_failsafe(reason=f"circuit_breaker_intrabar_exception: {type(exc).__name__}")
+                self._trigger_execution_failsafe(
+                    reason=f"circuit_breaker_intrabar_exception: {type(exc).__name__}"
+                )
                 return
 
     # ========== Position Event Handlers ==========
@@ -548,8 +575,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # (We treat engine models as source of truth for account reports.)
         if self._execution_model and not bool(getattr(self.config, "slippage_in_fills", False)):
             # Handle avg_px_open being Price or float
-            avg_price = self._position.avg_px_open.as_double() if hasattr(self._position.avg_px_open, "as_double") else float(self._position.avg_px_open)
-            qty = self._position.quantity.as_double() if hasattr(self._position.quantity, "as_double") else float(self._position.quantity)
+            avg_price = (
+                self._position.avg_px_open.as_double()
+                if hasattr(self._position.avg_px_open, "as_double")
+                else float(self._position.avg_px_open)
+            )
+            qty = (
+                self._position.quantity.as_double()
+                if hasattr(self._position.quantity, "as_double")
+                else float(self._position.quantity)
+            )
 
             open_cost = self._calculate_execution_cost(
                 side="buy" if self._position.side == PositionSide.LONG else "sell",
@@ -566,7 +601,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Check if max daily trades reached
         if self._daily_trades >= self.config.max_trades_per_day:
             self._is_trading_allowed = False
-            self.log.warning(f"[BLOCKED] _is_trading_allowed = False (max daily trades: {self._daily_trades})")
+            self.log.warning(
+                f"[BLOCKED] _is_trading_allowed = False (max daily trades: {self._daily_trades})"
+            )
 
     def on_position_changed(self, event: PositionChanged) -> None:
         """Handle position changed event.
@@ -614,11 +651,21 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             pnl = float(self._position.realized_pnl)
             # Handle quantity being Quantity or float
             position_qty = self._position.quantity
-            qty = position_qty.as_double() if hasattr(position_qty, 'as_double') else float(position_qty)
+            qty = (
+                position_qty.as_double()
+                if hasattr(position_qty, "as_double")
+                else float(position_qty)
+            )
 
             # Handle avg_px_close/avg_px_open being Price or float
-            close_px = getattr(self._position, "avg_px_close", self._position.avg_px_open) if hasattr(self._position, "avg_px_close") else self._position.avg_px_open
-            close_price = close_px.as_double() if hasattr(close_px, 'as_double') else float(close_px)
+            close_px = (
+                getattr(self._position, "avg_px_close", self._position.avg_px_open)
+                if hasattr(self._position, "avg_px_close")
+                else self._position.avg_px_open
+            )
+            close_price = (
+                close_px.as_double() if hasattr(close_px, "as_double") else float(close_px)
+            )
 
             # If engine fill/fee models are enabled, realized_pnl already includes fees.
             close_cost = 0.0
@@ -674,7 +721,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                         prop_event_dt = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
                     else:
                         prop_event_dt = None
-                    self._prop_firm.register_trade_close(contracts=qty, profit=net_pnl, now=prop_event_dt)
+                    self._prop_firm.register_trade_close(
+                        contracts=qty, profit=net_pnl, now=prop_event_dt
+                    )
                 except Exception as exc:
                     self.log.debug(f"Prop firm update failed on close: {exc}")
 
@@ -687,7 +736,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                         cb_event_dt = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
                     else:
                         cb_event_dt = None
-                    self._circuit_breaker.register_trade_result(pnl=net_pnl, is_win=net_pnl > 0, now=cb_event_dt)
+                    self._circuit_breaker.register_trade_result(
+                        pnl=net_pnl, is_win=net_pnl > 0, now=cb_event_dt
+                    )
                 except Exception as exc:
                     self.log.debug(f"Circuit breaker trade update failed: {exc}")
 
@@ -699,8 +750,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                     self.log.debug(f"HBS trade result update failed: {exc}")
 
             # Check daily loss limit as % of balance
-            account_balance = float(getattr(self.config, "account_balance", self._equity_base or 100000.0))
-            daily_limit_pct = float(getattr(self.config, "daily_loss_limit_pct", getattr(self.config, "max_daily_loss_pct", 5.0)))
+            account_balance = float(
+                getattr(self.config, "account_balance", self._equity_base or 100000.0)
+            )
+            daily_limit_pct = float(
+                getattr(
+                    self.config,
+                    "daily_loss_limit_pct",
+                    getattr(self.config, "max_daily_loss_pct", 5.0),
+                )
+            )
             if 0 < daily_limit_pct <= 1.0:
                 daily_limit_pct *= 100.0
             daily_limit_pct = min(daily_limit_pct, 3.0)
@@ -717,7 +776,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
     # ========== Trading Methods ==========
 
-    def _enter_long(self, quantity: Quantity, sl_price: Price | None = None, tp_price: Price | None = None) -> None:
+    def _enter_long(
+        self, quantity: Quantity, sl_price: Price | None = None, tp_price: Price | None = None
+    ) -> None:
         """Enter a long position."""
         if self._position is not None:
             self.log.warning("Cannot enter long - position already exists")
@@ -750,7 +811,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         self.log.info(f"Entering LONG with qty={quantity} (entry_id={self._entry_client_order_id})")
 
-    def _enter_short(self, quantity: Quantity, sl_price: Price | None = None, tp_price: Price | None = None) -> None:
+    def _enter_short(
+        self, quantity: Quantity, sl_price: Price | None = None, tp_price: Price | None = None
+    ) -> None:
         """Enter a short position."""
         if self._position is not None:
             self.log.warning("Cannot enter short - position already exists")
@@ -779,7 +842,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._pending_sl = sl_price
         self._pending_tp = tp_price
 
-        self.log.info(f"Entering SHORT with qty={quantity} (entry_id={self._entry_client_order_id})")
+        self.log.info(
+            f"Entering SHORT with qty={quantity} (entry_id={self._entry_client_order_id})"
+        )
 
     def _close_position(self) -> None:
         """Close current position."""
@@ -846,12 +911,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         try:
             self.close_all_positions(self.config.instrument_id, reduce_only=True)
         except Exception:
-            self.log.debug("[FAILSAFE] close_all_positions (reduce_only=True) failed", exc_info=True)
+            self.log.debug(
+                "[FAILSAFE] close_all_positions (reduce_only=True) failed", exc_info=True
+            )
             try:
                 # Fallback: force close without reduce_only restriction
                 self.close_all_positions(self.config.instrument_id, reduce_only=False)
             except Exception:
-                self.log.debug("[FAILSAFE] close_all_positions (reduce_only=False) failed", exc_info=True)
+                self.log.debug(
+                    "[FAILSAFE] close_all_positions (reduce_only=False) failed", exc_info=True
+                )
 
         self._is_trading_allowed = False
         self._trading_blocked_today = True
@@ -863,8 +932,13 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # NOTE: Some venues may emit cancel/reject before `PositionOpened` on partial/fast fills.
         # Clearing staged protection here can cause a false-positive fail-safe in `on_position_opened`.
         # We therefore only clear staged protection after a grace window.
-        if self._entry_client_order_id and str(event.client_order_id) == self._entry_client_order_id:
-            self._entry_terminal_ts_ns = int(getattr(event, "ts_event", 0) or 0) or self._entry_terminal_ts_ns
+        if (
+            self._entry_client_order_id
+            and str(event.client_order_id) == self._entry_client_order_id
+        ):
+            self._entry_terminal_ts_ns = (
+                int(getattr(event, "ts_event", 0) or 0) or self._entry_terminal_ts_ns
+            )
             self._entry_terminal_reason = "entry_rejected"
             self._entry_client_order_id = None
             return
@@ -872,7 +946,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Bracket rejected while position open:
         # - SL reject is critical -> fail-safe
         # - TP reject is non-fatal (keep SL protection), clear TP tracking
-        if self._position is not None and str(event.client_order_id) == self._bracket_sl_client_order_id:
+        if (
+            self._position is not None
+            and str(event.client_order_id) == self._bracket_sl_client_order_id
+        ):
             # If we're intentionally flattening (time gate / forced close), SL rejects can be expected.
             if bool(getattr(self, "_forcing_flatten", False)):
                 self.log.warning("[WP0] SL rejected during forced flatten; ignoring")
@@ -880,7 +957,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self._trigger_execution_failsafe(reason="bracket_sl_rejected")
             return
 
-        if self._position is not None and str(event.client_order_id) == self._bracket_tp_client_order_id:
+        if (
+            self._position is not None
+            and str(event.client_order_id) == self._bracket_tp_client_order_id
+        ):
             self._bracket_tp_client_order_id = None
             self._bracket_tp_confirmed = False
             if self._bracket_tp_expected:
@@ -893,8 +973,13 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Entry canceled: clear pending brackets if no position was opened.
         # NOTE: Some venues may emit cancel before `PositionOpened` on partial/fast fills.
         # Avoid clearing staged protection too early to prevent false-positive fail-safe.
-        if self._entry_client_order_id and str(event.client_order_id) == self._entry_client_order_id:
-            self._entry_terminal_ts_ns = int(getattr(event, "ts_event", 0) or 0) or self._entry_terminal_ts_ns
+        if (
+            self._entry_client_order_id
+            and str(event.client_order_id) == self._entry_client_order_id
+        ):
+            self._entry_terminal_ts_ns = (
+                int(getattr(event, "ts_event", 0) or 0) or self._entry_terminal_ts_ns
+            )
             self._entry_terminal_reason = "entry_canceled"
             self._entry_client_order_id = None
             return
@@ -902,7 +987,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Bracket canceled while position open:
         # - SL cancel is critical -> fail-safe
         # - TP cancel is non-fatal (keep SL protection), clear TP tracking
-        if self._position is not None and str(event.client_order_id) == self._bracket_sl_client_order_id:
+        if (
+            self._position is not None
+            and str(event.client_order_id) == self._bracket_sl_client_order_id
+        ):
             # If we're intentionally flattening (time gate / forced close), SL cancels are expected.
             if bool(getattr(self, "_forcing_flatten", False)):
                 self.log.warning("[WP0] SL canceled during forced flatten; ignoring")
@@ -910,7 +998,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self._trigger_execution_failsafe(reason="bracket_sl_canceled")
             return
 
-        if self._position is not None and str(event.client_order_id) == self._bracket_tp_client_order_id:
+        if (
+            self._position is not None
+            and str(event.client_order_id) == self._bracket_tp_client_order_id
+        ):
             # TP cancellation is not a safety hazard (SL is the protection). It can happen
             # naturally when a position is closed by SL/market and the broker cancels the TP.
             self._bracket_tp_client_order_id = None
@@ -962,7 +1053,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             )
             self.submit_order(sl_order)
             self._bracket_sl_client_order_id = str(sl_order.client_order_id)
-            self.log.info(f"SL order submitted @ {self._pending_sl} (id={self._bracket_sl_client_order_id})")
+            self.log.info(
+                f"SL order submitted @ {self._pending_sl} (id={self._bracket_sl_client_order_id})"
+            )
 
         # Submit Take Profit
         if self._pending_tp:
@@ -976,12 +1069,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             )
             self.submit_order(tp_order)
             self._bracket_tp_client_order_id = str(tp_order.client_order_id)
-            self.log.info(f"TP order submitted @ {self._pending_tp} (id={self._bracket_tp_client_order_id})")
+            self.log.info(
+                f"TP order submitted @ {self._pending_tp} (id={self._bracket_tp_client_order_id})"
+            )
 
         # Start confirmation watchdog (timestamp driven, deterministic)
         # We use the latest market timestamp (set in on_quote_tick) when available.
         now_ns = int(getattr(self, "_last_market_ts_ns", 0) or 0)
-        self._bracket_submitted_ts_ns = now_ns if now_ns > 0 else int(getattr(self._position, "ts_opened", 0) or 0) or None
+        self._bracket_submitted_ts_ns = (
+            now_ns if now_ns > 0 else int(getattr(self._position, "ts_opened", 0) or 0) or None
+        )
 
         # Clear pending prices (order events confirm protection)
         self._pending_sl = None
@@ -1061,11 +1158,20 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             time_in_force=TimeInForce.GTC,
             reduce_only=True,
         )
-        self.submit_order(new_sl_order)
 
-        # Update tracking
+        # CRITICAL: Reset confirmation BEFORE submit so timeout can detect failures
+        # BUG-FIX: If submit_order fails, position would be left without SL protection
+        self._bracket_sl_confirmed = False
         self._bracket_sl_client_order_id = str(new_sl_order.client_order_id)
-        self._bracket_sl_confirmed = False  # Reset confirmation status
+
+        try:
+            self.submit_order(new_sl_order)
+        except Exception as submit_exc:
+            self.log.error(
+                f"[BUG-5] CRITICAL: submit_order failed after canceling old SL: {submit_exc}"
+            )
+            self._trigger_execution_failsafe(reason="sl_submit_failed_after_cancel")
+            return
 
         self.log.info(
             f"[BUG-5] Submitted new SL order @ {sl_trigger_price} with qty={new_sl_qty} "
@@ -1158,9 +1264,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         min_htf = 10 if self.config.use_mtf else 0
 
         return (
-            len(self._ltf_bars) >= min_ltf and
-            (not self.config.mtf_bar_type or len(self._mtf_bars) >= min_mtf) and
-            (not self.config.htf_bar_type or len(self._htf_bars) >= min_htf)
+            len(self._ltf_bars) >= min_ltf
+            and (not self.config.mtf_bar_type or len(self._mtf_bars) >= min_mtf)
+            and (not self.config.htf_bar_type or len(self._htf_bars) >= min_htf)
         )
 
     def _compute_equity_from_tick(self, tick: QuoteTick) -> float | None:
@@ -1287,7 +1393,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         px = steps * tick
         return Price(px, precision=precision)
 
-    def _quantity_from_float(self, value: float, *, rounding: Literal["floor", "round"] = "floor") -> Quantity:
+    def _quantity_from_float(
+        self, value: float, *, rounding: Literal["floor", "round"] = "floor"
+    ) -> Quantity:
         """Quantize a float to the instrument's size increment/precision (safe default: floor)."""
         if value <= 0:
             return Quantity.from_str("0")
@@ -1336,8 +1444,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Safety buffers (project non-negotiables):
         # - Daily DD HALT at 3.0%
         # - Trailing (total) DD HALT at 4.0%
-        daily_limit_pct_cfg = float(getattr(self.config, "daily_loss_limit_pct", getattr(self.config, "max_daily_loss_pct", 5.0)))
-        total_limit_pct_cfg = float(getattr(self.config, "total_loss_limit_pct", getattr(self.config, "max_total_loss_pct", 10.0)))
+        daily_limit_pct_cfg = float(
+            getattr(
+                self.config, "daily_loss_limit_pct", getattr(self.config, "max_daily_loss_pct", 5.0)
+            )
+        )
+        total_limit_pct_cfg = float(
+            getattr(
+                self.config,
+                "total_loss_limit_pct",
+                getattr(self.config, "max_total_loss_pct", 10.0),
+            )
+        )
 
         # Config is expected to be percent-points (e.g., 5.0 for 5%). Normalize a common footgun:
         # some callers may provide fractions (e.g., 0.05). Treat <= 1.0 as fraction and convert.
