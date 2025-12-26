@@ -62,7 +62,7 @@ class OnnxEntryFilter:
         except Exception as exc:
             self._models = {}
             self._init_error = f"load_failed:{type(exc).__name__}"
-            logger.warning("[ML_FILTER] init failed: %s", exc)
+            logger.warning("[ML_FILTER] init failed", exc_info=True)
             return
 
         self._input_names = {}
@@ -94,14 +94,44 @@ class OnnxEntryFilter:
                 x = np.zeros((1, int(info.n_features)), dtype=np.float32)
                 _ = session.run(None, {input_name: x})
                 logger.info("[ML_FILTER] warmed model=%s n_features=%s", key, info.n_features)
-            except Exception as exc:
-                logger.warning("[ML_FILTER] warm-up failed model=%s: %s", key, exc)
+            except Exception:
+                logger.warning("[ML_FILTER] warm-up failed model=%s", key, exc_info=True)
+
+    @staticmethod
+    def _direction_to_key(direction: str | int | float) -> str | None:
+        """Normalize direction input to model key.
+
+        Accepts:
+        - Strings: "long"/"short" (also "buy"/"sell", "1"/"-1")
+        - Numerics: positive -> long, negative -> short
+
+        Returns None when direction cannot be determined.
+        """
+        if isinstance(direction, str):
+            d = direction.strip().lower()
+            if d in ("short", "sell", "-1"):
+                return "short"
+            if d in ("long", "buy", "1"):
+                return "long"
+            return None
+
+        # IntEnum/SignalType/Direction values behave like numbers.
+        try:
+            x = float(direction)
+        except Exception:
+            return None
+
+        if x < 0.0:
+            return "short"
+        if x > 0.0:
+            return "long"
+        return None
 
     def predict(
         self,
         features: dict[str, object],
         *,
-        direction: str,
+        direction: str | int | float,
         min_p_edge: float,
         mode: str,
     ) -> EntryFilterDecision:
@@ -120,10 +150,15 @@ class OnnxEntryFilter:
                 reason="model_unavailable",
             )
 
-        key = "short" if str(direction).lower() == "short" else "long"
-        if key not in self._models:
-            # Fallback to any available model.
+        dir_key = self._direction_to_key(direction)
+        if dir_key is None:
+            # Invalid/unrecognized direction -> remain fail-open and pick any model.
             key = next(iter(self._models.keys()))
+        else:
+            key = dir_key
+            if key not in self._models:
+                # Fallback to any available model.
+                key = next(iter(self._models.keys()))
 
         session, info = self._models[key]
 
@@ -142,7 +177,8 @@ class OnnxEntryFilter:
         t0 = time.perf_counter_ns()
         try:
             x = self._vectorize(features, info.feature_cols)
-            if bool(np.isnan(x).any()):
+            # Treat any non-finite value (NaN/Inf) as a missing feature and fail-open.
+            if not bool(np.isfinite(x).all()):
                 latency_ms = (time.perf_counter_ns() - t0) / 1e6
                 return EntryFilterDecision(
                     should_trade=True,
@@ -186,7 +222,8 @@ class OnnxEntryFilter:
 
         p_edge_f = float(max(0.0, min(1.0, p_edge)))
 
-        if str(mode) == "gate" and p_edge_f < float(min_p_edge):
+        # BUG-ENUM-001: Avoid brittle comparisons (`str(mode) == "gate"`).
+        if str(mode).strip().lower() == "gate" and p_edge_f < float(min_p_edge):
             return EntryFilterDecision(
                 should_trade=False,
                 p_edge=p_edge_f,
@@ -295,16 +332,24 @@ class OnnxEntryFilter:
             models: dict[str, tuple[Any, EntryFilterModelInfo]] = {}
             long_path = model_path / "filter_y_good_long.onnx"
             short_path = model_path / "filter_y_good_short.onnx"
-            if long_path.exists() and long_path.with_name(f"{long_path.stem}_metadata.json").exists():
+            if (
+                long_path.exists()
+                and long_path.with_name(f"{long_path.stem}_metadata.json").exists()
+            ):
                 models["long"] = load_one("long", long_path)
-            if short_path.exists() and short_path.with_name(f"{short_path.stem}_metadata.json").exists():
+            if (
+                short_path.exists()
+                and short_path.with_name(f"{short_path.stem}_metadata.json").exists()
+            ):
                 models["short"] = load_one("short", short_path)
             if models:
                 return models
             raise FileNotFoundError(f"No filter models found in dir: {model_path}")
 
         if model_path.suffix != ".onnx":
-            raise ValueError(f"Unsupported model format: {model_path.suffix} (expected .onnx or dir)")
+            raise ValueError(
+                f"Unsupported model format: {model_path.suffix} (expected .onnx or dir)"
+            )
         if not model_path.exists():
             raise FileNotFoundError(f"Model not found: {model_path}")
         meta_path = model_path.with_name(f"{model_path.stem}_metadata.json")

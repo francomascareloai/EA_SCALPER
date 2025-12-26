@@ -9,6 +9,7 @@ Provides training infrastructure for trading ML models:
 - Training metrics tracking
 - Early stopping with patience
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 
 try:
@@ -36,18 +37,21 @@ try:
         recall_score,
         roc_auc_score,
     )
+
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
 
 try:
     import lightgbm as lgb
+
     HAS_LIGHTGBM = True
 except ImportError:
     HAS_LIGHTGBM = False
 
 try:
     import xgboost as xgb
+
     HAS_XGBOOST = True
 except ImportError:
     HAS_XGBOOST = False
@@ -58,23 +62,27 @@ try:
     import onnxruntime as ort
     from skl2onnx import convert_sklearn
     from skl2onnx.common.data_types import FloatTensorType
+
     HAS_ONNX = True
 except ImportError:
     HAS_ONNX = False
-    logger.warning("ONNX libraries not available. Install with: pip install onnx onnxruntime onnxmltools skl2onnx")
+    logger.warning(
+        "ONNX libraries not available. Install with: pip install onnx onnxruntime onnxmltools skl2onnx"
+    )
 
 
 @dataclass
 class TrainingConfig:
     """Configuration for model training."""
+
     # Cross-validation
     n_splits: int = 5
     gap: int = 10  # Gap between train/test to prevent leakage
 
     # Walk-forward
     wf_train_size: int = 5000  # Bars for training
-    wf_test_size: int = 500    # Bars for testing
-    wf_step_size: int = 250    # Step between folds
+    wf_test_size: int = 500  # Bars for testing
+    wf_step_size: int = 250  # Step between folds
 
     # Training
     early_stopping_rounds: int = 50
@@ -89,6 +97,7 @@ class TrainingConfig:
 @dataclass
 class TrainingResult:
     """Results from model training."""
+
     model_name: str
     accuracy: float
     precision: float
@@ -126,7 +135,9 @@ class PurgedTimeSeriesSplit:
         self.n_splits = n_splits
         self.gap = gap
 
-    def split(self, X: np.ndarray[Any, Any]) -> list[tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]]:
+    def split(
+        self, X: np.ndarray[Any, Any]
+    ) -> list[tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]]:
         """Generate train/test indices with purging."""
         n = len(X)
         test_size = n // (self.n_splits + 1)
@@ -173,7 +184,9 @@ class WalkForwardValidator:
         self.step_size = step_size
         self.gap = gap
 
-    def split(self, X: np.ndarray[Any, Any]) -> list[tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]]:
+    def split(
+        self, X: np.ndarray[Any, Any]
+    ) -> list[tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]]:
         """Generate walk-forward train/test indices."""
         n = len(X)
         splits = []
@@ -239,6 +252,7 @@ class ModelTrainer:
             TrainingResult with metrics and model path
         """
         import time
+
         start_time = time.time()
 
         # Get model
@@ -310,9 +324,12 @@ class ModelTrainer:
                     test_proba = model.predict_proba(X_test)[:, 1]
                     fold_result["test_auc"] = roc_auc_score(y_test, test_proba)
                     fold_result["test_logloss"] = log_loss(y_test, test_proba)
-                except Exception as e:
-                    logger.warning(f"Metrics calculation failed for fold {fold_idx + 1}: {e}")
-                    pass
+                except Exception:
+                    logger.warning(
+                        "Metrics calculation failed for fold %s",
+                        fold_idx + 1,
+                        exc_info=True,
+                    )
 
             fold_results.append(fold_result)
 
@@ -329,16 +346,12 @@ class ModelTrainer:
         if model_type == "lightgbm" and HAS_LIGHTGBM:
             val_size = int(len(X) * self.config.validation_fraction)
             final_model = self._train_lightgbm(
-                X[:-val_size], y[:-val_size],
-                X[-val_size:], y[-val_size:],
-                **kwargs
+                X[:-val_size], y[:-val_size], X[-val_size:], y[-val_size:], **kwargs
             )
         elif model_type == "xgboost" and HAS_XGBOOST:
             val_size = int(len(X) * self.config.validation_fraction)
             final_model = self._train_xgboost(
-                X[:-val_size], y[:-val_size],
-                X[-val_size:], y[-val_size:],
-                **kwargs
+                X[:-val_size], y[:-val_size], X[-val_size:], y[-val_size:], **kwargs
             )
         else:
             final_model.fit(X, y)
@@ -448,7 +461,8 @@ class ModelTrainer:
         model = self._create_model("lightgbm", **kwargs)
 
         model.fit(
-            X_train, y_train,
+            X_train,
+            y_train,
             eval_set=[(X_val, y_val)],
             callbacks=[
                 lgb.early_stopping(stopping_rounds=self.config.early_stopping_rounds),
@@ -473,7 +487,8 @@ class ModelTrainer:
         model = self._create_model("xgboost", **kwargs)
 
         model.fit(
-            X_train, y_train,
+            X_train,
+            y_train,
             eval_set=[(X_val, y_val)],
             early_stopping_rounds=self.config.early_stopping_rounds,
             verbose=False,
@@ -556,37 +571,29 @@ class ModelTrainer:
             raise ImportError("ONNX libraries not installed")
 
         # Get number of features from model
-        if hasattr(model, 'n_features_in_'):
+        if hasattr(model, "n_features_in_"):
             n_features = model.n_features_in_
-        elif hasattr(model, '_n_features'):
+        elif hasattr(model, "_n_features"):
             n_features = model._n_features
         else:
             raise ValueError("Cannot determine number of features from model")
 
         # Define initial type for ONNX conversion
-        initial_type = [('float_input', FloatTensorType([None, n_features]))]
+        initial_type = [("float_input", FloatTensorType([None, n_features]))]
 
         if model_type == "lightgbm" and HAS_LIGHTGBM:
             # Convert LightGBM to ONNX
             onnx_model = onnxmltools.convert_lightgbm(
-                model,
-                initial_types=initial_type,
-                target_opset=12
+                model, initial_types=initial_type, target_opset=12
             )
         elif model_type == "xgboost" and HAS_XGBOOST:
             # Convert XGBoost to ONNX
             onnx_model = onnxmltools.convert_xgboost(
-                model,
-                initial_types=initial_type,
-                target_opset=12
+                model, initial_types=initial_type, target_opset=12
             )
         elif model_type in ["random_forest", "logistic"] and HAS_SKLEARN:
             # Convert sklearn model to ONNX
-            onnx_model = convert_sklearn(
-                model,
-                initial_types=initial_type,
-                target_opset=12
-            )
+            onnx_model = convert_sklearn(model, initial_types=initial_type, target_opset=12)
         else:
             raise ValueError(f"Unsupported model type for ONNX: {model_type}")
 
@@ -601,8 +608,8 @@ class ModelTrainer:
             "onnx_version": onnx.__version__,
         }
 
-        metadata_path = filepath.replace('.onnx', '_metadata.json')
-        with open(metadata_path, 'w') as f:
+        metadata_path = filepath.replace(".onnx", "_metadata.json")
+        with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
 
     def load_model(self, model_path: str) -> Any:
@@ -631,7 +638,7 @@ class ModelTrainer:
             raise ImportError("ONNX libraries not installed")
 
         # Load metadata
-        metadata_path = filepath.replace('.onnx', '_metadata.json')
+        metadata_path = filepath.replace(".onnx", "_metadata.json")
         metadata = {}
         if Path(metadata_path).exists():
             with open(metadata_path) as f:
@@ -642,13 +649,12 @@ class ModelTrainer:
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
         session = ort.InferenceSession(
-            filepath,
-            sess_options=sess_options,
-            providers=['CPUExecutionProvider']
+            filepath, sess_options=sess_options, providers=["CPUExecutionProvider"]
         )
 
-        # Store metadata in session for reference
-        session.metadata = metadata
+        # NOTE: onnxruntime.InferenceSession is implemented in C and doesn't support
+        # attaching arbitrary attributes reliably across versions.
+        # Return both session and metadata via a separate lookup if needed.
 
         return session
 
@@ -667,15 +673,17 @@ class ModelTrainer:
 
         data = []
         for name, result in self._results.items():
-            data.append({
-                "model": name,
-                "accuracy": result.accuracy,
-                "precision": result.precision,
-                "recall": result.recall,
-                "f1": result.f1,
-                "auc": result.auc,
-                "wf_efficiency": result.wf_efficiency,
-                "training_time": result.training_time_seconds,
-            })
+            data.append(
+                {
+                    "model": name,
+                    "accuracy": result.accuracy,
+                    "precision": result.precision,
+                    "recall": result.recall,
+                    "f1": result.f1,
+                    "auc": result.auc,
+                    "wf_efficiency": result.wf_efficiency,
+                    "training_time": result.training_time_seconds,
+                }
+            )
 
         return pd.DataFrame(data).sort_values("f1", ascending=False)

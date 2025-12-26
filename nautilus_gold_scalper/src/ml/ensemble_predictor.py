@@ -8,18 +8,19 @@ Combines multiple ML models for robust predictions:
 - Regime-conditional model selection
 - Confidence calibration
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from dataclasses import asdict, dataclass, field
+
+# NOTE: Avoid datetime.now() usage here to keep backtests deterministic.
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..core.definitions import MarketRegime, SignalType
@@ -36,18 +37,22 @@ try:
     import onnxruntime as ort
     from skl2onnx import convert_sklearn
     from skl2onnx.common.data_types import FloatTensorType
+
     HAS_ONNX = True
 except ImportError:
     HAS_ONNX = False
-    logger.warning("ONNX libraries not available. Install with: pip install onnx onnxruntime onnxmltools skl2onnx")
+    logger.warning(
+        "ONNX libraries not available. Install with: pip install onnx onnxruntime onnxmltools skl2onnx"
+    )
 
 
 @dataclass
 class EnsemblePrediction:
     """Result from ensemble prediction."""
+
     signal: SignalType
     probability: float  # 0-1, probability of predicted direction
-    confidence: float   # 0-1, model confidence
+    confidence: float  # 0-1, model confidence
 
     # Individual model predictions
     model_predictions: dict[str, float] = field(default_factory=dict)
@@ -66,24 +71,29 @@ class EnsemblePrediction:
 @dataclass
 class EnsembleConfig:
     """Configuration for ensemble predictor."""
+
     # Model weights (must sum to 1.0)
-    model_weights: dict[str, float] = field(default_factory=lambda: {
-        "lightgbm": 0.4,
-        "xgboost": 0.35,
-        "random_forest": 0.25,
-    })
+    model_weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "lightgbm": 0.4,
+            "xgboost": 0.35,
+            "random_forest": 0.25,
+        }
+    )
 
     # Thresholds
     min_probability: float = 0.55  # Min probability to generate signal
-    min_confidence: float = 0.60   # Min confidence to act on signal
+    min_confidence: float = 0.60  # Min confidence to act on signal
 
     # Regime-specific adjustments
-    regime_weights: dict[str, dict[str, float]] = field(default_factory=lambda: {
-        "REGIME_PRIME_TRENDING": {"lightgbm": 0.5, "xgboost": 0.35, "random_forest": 0.15},
-        "REGIME_NOISY_TRENDING": {"lightgbm": 0.4, "xgboost": 0.4, "random_forest": 0.2},
-        "REGIME_PRIME_REVERTING": {"lightgbm": 0.35, "xgboost": 0.35, "random_forest": 0.3},
-        "REGIME_NOISY_REVERTING": {"lightgbm": 0.4, "xgboost": 0.35, "random_forest": 0.25},
-    })
+    regime_weights: dict[str, dict[str, float]] = field(
+        default_factory=lambda: {
+            "REGIME_PRIME_TRENDING": {"lightgbm": 0.5, "xgboost": 0.35, "random_forest": 0.15},
+            "REGIME_NOISY_TRENDING": {"lightgbm": 0.4, "xgboost": 0.4, "random_forest": 0.2},
+            "REGIME_PRIME_REVERTING": {"lightgbm": 0.35, "xgboost": 0.35, "random_forest": 0.3},
+            "REGIME_NOISY_REVERTING": {"lightgbm": 0.4, "xgboost": 0.35, "random_forest": 0.25},
+        }
+    )
 
     # Confidence calibration
     use_calibration: bool = True
@@ -136,7 +146,10 @@ class EnsemblePredictor:
         elif name not in self.config.model_weights:
             # Default equal weight
             n_models = len(self._models)
-            default_weight = 1.0 / n_models
+            if n_models == 0:
+                default_weight = 1.0  # R13-FIX: avoid division by zero (defensive)
+            else:
+                default_weight = 1.0 / n_models
             self.config.model_weights[name] = default_weight
 
         # Normalize weights
@@ -154,7 +167,7 @@ class EnsemblePredictor:
     def _infer_n_features(self, model: Any) -> int | None:
         if hasattr(model, "n_features_in_"):
             try:
-                return int(getattr(model, "n_features_in_"))
+                return int(model.n_features_in_)
             except Exception:
                 return None
 
@@ -217,16 +230,34 @@ class EnsemblePredictor:
                 if HAS_ONNX and isinstance(model, ort.InferenceSession):
                     # ONNX inference
                     input_name = model.get_inputs()[0].name
-                    output_name = model.get_outputs()[0].name
 
-                    # Run inference
-                    onnx_output = model.run(
-                        [output_name],
-                        {input_name: features.astype(np.float32)}
-                    )[0]
+                    # Run inference (request all outputs; different converters name outputs differently)
+                    outputs = model.run(
+                        None,
+                        {input_name: features.astype(np.float32)},
+                    )
 
-                    # Extract probability (assuming binary classification)
-                    if len(onnx_output.shape) == 2 and onnx_output.shape[1] >= 2:
+                    # Extract probability from a (N,2) tensor output when available.
+                    onnx_output = None
+                    for out in outputs:
+                        try:
+                            if (
+                                hasattr(out, "shape")
+                                and len(out.shape) == 2
+                                and int(out.shape[1]) == 2
+                            ):
+                                onnx_output = out
+                                break
+                        except Exception:
+                            continue
+                    if onnx_output is None:
+                        onnx_output = outputs[0]
+
+                    if (
+                        hasattr(onnx_output, "shape")
+                        and len(onnx_output.shape) == 2
+                        and int(onnx_output.shape[1]) >= 2
+                    ):
                         prob = float(onnx_output[0, 1])  # Probability of class 1
                     else:
                         prob = float(onnx_output[0, 0])
@@ -258,9 +289,9 @@ class EnsemblePredictor:
                     pred = model.predict(features)
                     model_preds[name] = int(pred[0])
                     model_probs[name] = float(pred[0])
-            except Exception as e:
+            except Exception:
                 # Skip failed models
-                logger.debug(f"Model {name} prediction failed: {e}")
+                logger.debug("Model %s prediction failed", name, exc_info=True)
                 continue
 
         if not model_probs:
@@ -305,7 +336,7 @@ class EnsemblePredictor:
             model_predictions=model_probs,
             regime=regime,
             ensemble_type="weighted_voting",
-            timestamp=datetime.now(),
+            timestamp=None,
         )
 
     def _get_regime_weights(self, regime: MarketRegime | None) -> dict[str, float]:
@@ -363,10 +394,14 @@ class EnsemblePredictor:
         calibrator = self._calibrators[model_name]
 
         try:
-            calibrated = calibrator.predict_proba([[probability]])[0, 1]
-            return float(calibrated)
-        except Exception as e:
-            logger.warning(f"Calibration failed: {e}")
+            # IsotonicRegression exposes predict(), LogisticRegression exposes predict_proba().
+            if hasattr(calibrator, "predict_proba"):
+                calibrated = calibrator.predict_proba([[probability]])[0, 1]
+                return float(calibrated)
+            calibrated_any = calibrator.predict([probability])
+            return float(calibrated_any[0])
+        except Exception:
+            logger.warning("Calibration failed", exc_info=True)
             return probability
 
     def fit_calibration(
@@ -384,10 +419,14 @@ class EnsemblePredictor:
         try:
             if self.config.calibration_method == "isotonic":
                 from sklearn.isotonic import IsotonicRegression
-                CalibratorClass = IsotonicRegression
+
+                calibrator_kind = "isotonic"
+                IsotonicClass = IsotonicRegression
             else:
                 from sklearn.linear_model import LogisticRegression
-                CalibratorClass = LogisticRegression
+
+                calibrator_kind = "platt"
+                PlattClass = LogisticRegression
         except ImportError:
             return
 
@@ -398,16 +437,16 @@ class EnsemblePredictor:
             try:
                 probs = model.predict_proba(X)[:, 1]
 
-                if self.config.calibration_method == "isotonic":
-                    calibrator = CalibratorClass(out_of_bounds="clip")
+                if calibrator_kind == "isotonic":
+                    calibrator = IsotonicClass(out_of_bounds="clip")
                     calibrator.fit(probs, y)
                 else:
-                    calibrator = CalibratorClass()
+                    calibrator = PlattClass()
                     calibrator.fit(probs.reshape(-1, 1), y)
 
                 self._calibrators[name] = calibrator
-            except Exception as e:
-                logger.warning(f"Calibrator training failed for {name}: {e}")
+            except Exception:
+                logger.warning("Calibrator training failed for %s", name, exc_info=True)
                 continue
 
     def predict_with_uncertainty(
@@ -438,8 +477,16 @@ class EnsemblePredictor:
 
             # Normalize
             total = sum(perturbed_weights.values())
-            for name in perturbed_weights:
-                perturbed_weights[name] /= total
+            if total == 0.0:
+                # R13-FIX: avoid division by zero if all weights are zero
+                n_models = len(perturbed_weights)
+                if n_models == 0:
+                    perturbed_weights = {}
+                else:
+                    perturbed_weights = dict.fromkeys(perturbed_weights, 1.0 / n_models)
+            else:
+                for name in perturbed_weights:
+                    perturbed_weights[name] /= total
 
             # Predict with perturbed weights
             weighted_prob = 0.0
@@ -483,8 +530,7 @@ class EnsemblePredictor:
             "std": np.std(probs),
             "unanimous": unanimous,
             "model_directions": {
-                name: "BUY" if p >= 0.5 else "SELL"
-                for name, p in pred.model_predictions.items()
+                name: "BUY" if p >= 0.5 else "SELL" for name, p in pred.model_predictions.items()
             },
         }
 
@@ -509,7 +555,7 @@ class EnsemblePredictor:
         # Save config as JSON
         config_path = ensemble_dir / "config.json"
         config_dict = asdict(self.config)
-        with open(config_path, 'w') as f:
+        with open(config_path, "w") as f:
             json.dump(config_dict, f, indent=2)
 
         # Save each model as ONNX
@@ -523,9 +569,7 @@ class EnsemblePredictor:
                     self._save_model_onnx(model, str(onnx_path), model_name)
                     logger.info(f"Saved {model_name} to ONNX: {onnx_path}")
                 except Exception as e:
-                    raise RuntimeError(
-                        f"Failed to save {model_name} to ONNX: {e}"
-                    ) from e
+                    raise RuntimeError(f"Failed to save {model_name} to ONNX: {e}") from e
         else:
             raise RuntimeError("ONNX not available; cannot save models safely")
 
@@ -540,27 +584,26 @@ class EnsemblePredictor:
             raise ImportError("ONNX libraries not installed")
 
         # Get number of features
-        if hasattr(model, 'n_features_in_'):
+        if hasattr(model, "n_features_in_"):
             n_features = model.n_features_in_
-        elif hasattr(model, '_n_features'):
+        elif hasattr(model, "_n_features"):
             n_features = model._n_features
         else:
             # Try to infer from first prediction attempt
             raise ValueError(f"Cannot determine number of features for {model_name}")
 
         # Define initial type
-        initial_type = [('float_input', FloatTensorType([None, n_features]))]
+        initial_type = [("float_input", FloatTensorType([None, n_features]))]
 
         # Detect model type and convert
         model_type = type(model).__name__
 
         try:
             import lightgbm as lgb
+
             if isinstance(model, lgb.LGBMClassifier) or isinstance(model, lgb.Booster):
                 onnx_model = onnxmltools.convert_lightgbm(
-                    model,
-                    initial_types=initial_type,
-                    target_opset=12
+                    model, initial_types=initial_type, target_opset=12
                 )
                 onnxmltools.utils.save_model(onnx_model, filepath)
                 return
@@ -569,11 +612,10 @@ class EnsemblePredictor:
 
         try:
             import xgboost as xgb
+
             if isinstance(model, xgb.XGBClassifier) or isinstance(model, xgb.Booster):
                 onnx_model = onnxmltools.convert_xgboost(
-                    model,
-                    initial_types=initial_type,
-                    target_opset=12
+                    model, initial_types=initial_type, target_opset=12
                 )
                 onnxmltools.utils.save_model(onnx_model, filepath)
                 return
@@ -583,12 +625,9 @@ class EnsemblePredictor:
         # Try sklearn conversion
         try:
             from sklearn.base import BaseEstimator
+
             if isinstance(model, BaseEstimator):
-                onnx_model = convert_sklearn(
-                    model,
-                    initial_types=initial_type,
-                    target_opset=12
-                )
+                onnx_model = convert_sklearn(model, initial_types=initial_type, target_opset=12)
                 onnxmltools.utils.save_model(onnx_model, filepath)
                 return
         except ImportError:
@@ -634,8 +673,8 @@ class EnsemblePredictor:
                     session = cls._load_model_onnx(str(model_file))
                     predictor._models[model_name] = session
                     logger.info(f"Loaded {model_name} from ONNX")
-                except Exception as e:
-                    logger.warning(f"Failed to load {model_name} from ONNX: {e}")
+                except Exception:
+                    logger.warning("Failed to load %s from ONNX", model_name, exc_info=True)
         else:
             raise RuntimeError("ONNX not available; cannot load models")
 
@@ -661,9 +700,7 @@ class EnsemblePredictor:
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
         session = ort.InferenceSession(
-            filepath,
-            sess_options=sess_options,
-            providers=['CPUExecutionProvider']
+            filepath, sess_options=sess_options, providers=["CPUExecutionProvider"]
         )
 
         return session
@@ -769,6 +806,7 @@ class StackingEnsemble:
         if self.meta_model is None:
             try:
                 from sklearn.linear_model import LogisticRegression
+
                 self.meta_model = LogisticRegression(max_iter=1000)
             except ImportError as err:
                 raise ImportError("sklearn required for stacking") from err

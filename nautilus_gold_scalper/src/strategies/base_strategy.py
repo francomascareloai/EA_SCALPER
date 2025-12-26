@@ -75,6 +75,13 @@ class BaseStrategyConfig(NautilusStrategyConfig):  # type: ignore[misc]
     mtf_bar_type: BarType | None = None  # M15 - Structure
     ltf_bar_type: BarType | None = None  # M5 - Execution
 
+    # Bar sizing (minutes)
+    # Used by backtest/optimization harnesses for consistent time hierarchy.
+    ltf_bar_minutes: int = 5
+    mtf_bar_minutes: int = 15
+    htf_bar_minutes: int = 60
+    management_bar_minutes: int = 60
+
     # Risk parameters
     risk_per_trade: Decimal = Decimal("0.01")
     max_daily_loss_pct: Decimal = Decimal("5.0")
@@ -765,9 +772,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             if getattr(self, "_hbs", None):
                 try:
                     # In backtest mode, HBS requires a deterministic current_time.
-                    # Use exchange-simulated event timestamps (ns) to preserve temporal correctness.
+                    # Prefer event timestamps from the exchange-simulated clock.
                     ts_ns = (
-                        getattr(event, "ts_closed", None)
+                        getattr(event, "ts_event", None)
+                        or getattr(event, "ts_closed", None)
                         or getattr(event, "ts_last", None)
                         or getattr(event, "ts_opened", None)
                     )
@@ -801,7 +809,11 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             daily_limit_pct = min(daily_limit_pct, 3.0)
 
             if account_balance > 0:
-                daily_dd_pct = abs(self._daily_pnl) / account_balance * 100.0
+                # Formula: daily_dd_pct = max(0, -daily_pnl) / account_balance * 100
+                # Example: daily_pnl=-1000, balance=50000 -> 2.0%
+                daily_loss = max(0.0, -float(self._daily_pnl))
+                daily_dd_pct = daily_loss / account_balance * 100.0
+                assert 0.0 <= daily_dd_pct <= 100.0, f"Invalid daily DD%: {daily_dd_pct}"
                 if daily_dd_pct >= daily_limit_pct:
                     self._is_trading_allowed = False
                     self.log.error(
@@ -946,16 +958,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # BUG-13 FIX: Try with reduce_only=True first, then False as fallback
         try:
             self.close_all_positions(self.config.instrument_id, reduce_only=True)
-        except Exception:
+        except Exception as exc:
             self.log.debug(
-                "[FAILSAFE] close_all_positions (reduce_only=True) failed", exc_info=True
+                f"[FAILSAFE] close_all_positions (reduce_only=True) failed: {type(exc).__name__}: {exc}"
             )
             try:
                 # Fallback: force close without reduce_only restriction
                 self.close_all_positions(self.config.instrument_id, reduce_only=False)
-            except Exception:
+            except Exception as exc2:
                 self.log.debug(
-                    "[FAILSAFE] close_all_positions (reduce_only=False) failed", exc_info=True
+                    f"[FAILSAFE] close_all_positions (reduce_only=False) failed: {type(exc2).__name__}: {exc2}"
                 )
 
         self._is_trading_allowed = False
@@ -1176,8 +1188,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                     f"[BUG-5] Cancelled old SL order (id={self._bracket_sl_client_order_id}) "
                     f"due to position quantity increase"
                 )
-        except Exception:
-            self.log.warning("[BUG-5] Failed to cancel old SL order", exc_info=True)
+        except Exception as exc:
+            self.log.warning(f"[BUG-5] Failed to cancel old SL order: {type(exc).__name__}: {exc}")
 
         # Submit new SL order with updated quantity
         if self._position.side == PositionSide.LONG:
@@ -1202,10 +1214,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         try:
             self.submit_order(new_sl_order)
-        except Exception:
+        except Exception as exc:
             self.log.error(
-                "[BUG-5] CRITICAL: submit_order failed after canceling old SL",
-                exc_info=True,
+                f"[BUG-5] CRITICAL: submit_order failed after canceling old SL: {type(exc).__name__}: {exc}"
             )
             self._trigger_execution_failsafe(reason="sl_submit_failed_after_cancel")
             return
@@ -1336,9 +1347,26 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             unrealized = (entry - exit_px) * qty * point_value
 
         equity = float(self._equity_base + unrealized)
+
         # R13-FIX: Replace assert with explicit validation (safe under -O)
         if qty < 0.0:
-            raise ValueError(f"Invalid negative quantity: {qty}")
+            self._trigger_execution_failsafe(reason=f"invalid_negative_quantity:{qty}")
+            return None
+
+        # Fail closed: non-finite equity corrupts DD/HWM semantics.
+        if not math.isfinite(equity):
+            self._trigger_execution_failsafe(reason=f"non_finite_equity:{equity}")
+            return None
+        if not math.isfinite(exit_px) or exit_px <= 0.0:
+            self._trigger_execution_failsafe(reason=f"invalid_exit_price:{exit_px}")
+            return None
+        if not math.isfinite(entry) or entry <= 0.0:
+            self._trigger_execution_failsafe(reason=f"invalid_entry_price:{entry}")
+            return None
+        if not math.isfinite(qty) or qty == 0.0:
+            self._trigger_execution_failsafe(reason=f"invalid_quantity:{qty}")
+            return None
+
         return equity
 
     def _calculate_execution_cost(
@@ -1389,8 +1417,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 slip_cost = abs(float(slip_price) - float(price)) * float(quantity) * point_value
 
             return slip_cost + commission_cost
-        except Exception:  # pragma: no cover
-            self.log.debug("Execution cost calc failed", exc_info=True)
+        except Exception as exc:  # pragma: no cover
+            self.log.debug(f"Execution cost calc failed: {type(exc).__name__}: {exc}")
             return 0.0
 
     def _instrument_point_value_per_unit(self) -> float:

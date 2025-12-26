@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import polars as pl
-
 from nautilus_gold_scalper.scripts.ml.train_filter import train_filter_model
 
 
@@ -60,6 +59,7 @@ def test_train_export_onnx_infer(tmp_path: Path) -> None:
         out_path=out_dir / "filter_y_good_long.onnx",
         opset=12,
         verify=True,
+        allow_unsafe_pickle=True,
     )
 
     assert onnx_res.onnx_path.exists()

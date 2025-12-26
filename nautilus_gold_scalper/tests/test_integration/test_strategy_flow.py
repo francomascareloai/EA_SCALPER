@@ -2,6 +2,7 @@
 Integration test for the complete strategy flow.
 Tests all modules working together with simulated XAUUSD data.
 """
+
 from datetime import datetime
 
 import numpy as np
@@ -47,10 +48,14 @@ def generate_trending_data(n_bars: int = 200, direction: str = "bull") -> dict:
     highs = closes + np.random.uniform(0.5, 2.0, n_bars)
     lows = closes - np.random.uniform(0.5, 2.0, n_bars)
 
+    # Deterministic synthetic timestamps for StructureAnalyzer
+    timestamps = np.arange(n_bars, dtype=np.int64).astype("datetime64[s]")
+
     return {
-        'high': highs,
-        'low': lows,
-        'close': closes,
+        "high": highs,
+        "low": lows,
+        "close": closes,
+        "timestamps": timestamps,
     }
 
 
@@ -90,7 +95,7 @@ class TestRegimeDetector:
         rd = RegimeDetector()
         data = generate_trending_data(200, "bull")
 
-        analysis = rd.analyze(data['close'])
+        analysis = rd.analyze(data["close"])
 
         assert analysis.is_valid
         assert analysis.hurst_exponent > 0.5
@@ -100,7 +105,7 @@ class TestRegimeDetector:
         rd = RegimeDetector()
         data = generate_trending_data(200, "bull")
 
-        analysis = rd.analyze(data['close'])
+        analysis = rd.analyze(data["close"])
         assert analysis.size_multiplier > 0
         print(f"OK: Size mult={analysis.size_multiplier:.2f}")
 
@@ -112,7 +117,7 @@ class TestStructureAnalyzer:
         sa = StructureAnalyzer()
         data = generate_trending_data(100, "bull")
 
-        sa.analyze(data['high'], data['low'], data['close'])
+        sa.analyze(data["high"], data["low"], data["close"], data["timestamps"])
         bias = sa.get_market_bias()
 
         assert bias in [MarketBias.BULLISH, MarketBias.TRANSITION, MarketBias.RANGING]
@@ -169,7 +174,7 @@ class TestEntryOptimizer:
             fvg_low=2647.0,
             fvg_high=2649.0,
             ob_low=2644.0,
-            ob_high=2646.0
+            ob_high=2646.0,
         )
 
         assert entry is not None
@@ -186,7 +191,7 @@ class TestEntryOptimizer:
             fvg_low=2651.0,
             fvg_high=2653.0,
             ob_low=2654.0,
-            ob_high=2656.0
+            ob_high=2656.0,
         )
 
         assert entry is not None
@@ -207,7 +212,7 @@ class TestStrategySelector:
             is_random=False,
             is_london=True,
             circuit_ok=True,
-            spread_ok=True
+            spread_ok=True,
         )
 
         selection = ss.select_strategy(context)
@@ -218,12 +223,7 @@ class TestStrategySelector:
         ss = StrategySelector()
 
         context = MarketContext(
-            hurst=0.50,
-            entropy=2.5,
-            is_random=True,
-            is_london=True,
-            circuit_ok=True,
-            spread_ok=True
+            hurst=0.50, entropy=2.5, is_random=True, is_london=True, circuit_ok=True, spread_ok=True
         )
 
         selection = ss.select_strategy(context)
@@ -254,13 +254,13 @@ class TestFullFlow:
     """Test complete strategy flow."""
 
     def test_full_flow(self):
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("FULL STRATEGY FLOW")
-        print("="*50)
+        print("=" * 50)
 
         # 1. Data
         data = generate_trending_data(200, "bull")
-        price = data['close'][-1]
+        price = data["close"][-1]
         print(f"1. Price: {price:.2f}")
 
         # 2. Session
@@ -271,7 +271,7 @@ class TestFullFlow:
 
         # 3. Regime
         rd = RegimeDetector()
-        regime = rd.analyze(data['close'])
+        regime = rd.analyze(data["close"])
         print(f"3. Regime: {regime.regime.name}, H={regime.hurst_exponent:.3f}")
 
         # 4. Spread
@@ -300,30 +300,30 @@ class TestFullFlow:
             is_random=0.45 <= regime.hurst_exponent <= 0.55,
             is_overlap=True,
             circuit_ok=True,
-            spread_ok=True
+            spread_ok=True,
         )
         selection = ss.select_strategy(context)
         print(f"7. Strategy: {selection.strategy.name}")
 
         # 8. Structure
         sa = StructureAnalyzer()
-        sa.analyze(data['high'], data['low'], data['close'])
+        sa.analyze(data["high"], data["low"], data["close"], data["timestamps"])
         bias = sa.get_market_bias()
         print(f"8. Bias: {bias.name}")
 
         # 9. Entry
         eo = EntryOptimizer()
-        direction = SignalDirection.SIGNAL_BUY if bias == MarketBias.BULLISH else SignalDirection.SIGNAL_SELL
-        entry = eo.calculate_optimal_entry(
-            direction=direction,
-            current_price=price,
-            atr=5.0
+        direction = (
+            SignalDirection.SIGNAL_BUY
+            if bias == MarketBias.BULLISH
+            else SignalDirection.SIGNAL_SELL
         )
+        entry = eo.calculate_optimal_entry(direction=direction, current_price=price, atr=5.0)
         print(f"9. Entry: {entry.optimal_price:.2f}, SL: {entry.stop_loss:.2f}")
 
-        print("="*50)
+        print("=" * 50)
         print("FLOW COMPLETE!")
-        print("="*50)
+        print("=" * 50)
 
 
 if __name__ == "__main__":

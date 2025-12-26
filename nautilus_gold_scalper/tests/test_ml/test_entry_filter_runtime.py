@@ -8,7 +8,6 @@ import numpy as np
 
 def _train_and_export(tmp_path: Path) -> Path:
     import polars as pl
-
     from nautilus_gold_scalper.scripts.ml.export_onnx import export_filter_onnx
     from nautilus_gold_scalper.scripts.ml.train_filter import train_filter_model
 
@@ -33,9 +32,9 @@ def _train_and_export(tmp_path: Path) -> Path:
                 "low": float(99 + i),
                 "atr": float(abs(x0[i])),
                 "atr_percentile": float(abs(x1[i]) * 10.0),
-                "spread_points": float(1.0),
-                "selected_score": float(70.0),
-                "execution_threshold": float(60.0),
+                "spread_points": 1.0,
+                "selected_score": 70.0,
+                "execution_threshold": 60.0,
                 "f0": float(x0[i]),
                 "f1": float(x1[i]),
             }
@@ -56,7 +55,14 @@ def _train_and_export(tmp_path: Path) -> Path:
     )
 
     onnx_out = out_dir / "filter_y_good_long.onnx"
-    export_filter_onnx(train_res.model_path, features_path=train_res.features_path, out_path=onnx_out, opset=12, verify=True)
+    export_filter_onnx(
+        train_res.model_path,
+        features_path=train_res.features_path,
+        out_path=onnx_out,
+        opset=12,
+        verify=True,
+        allow_unsafe_pickle=True,
+    )
 
     return out_dir
 
@@ -84,7 +90,7 @@ def test_entry_filter_predict_and_gate(tmp_path: Path) -> None:
     f = OnnxEntryFilter(model_dir)
     f.initialize()
 
-    features = {c: 0.0 for c in cols}
+    features = dict.fromkeys(cols, 0.0)
 
     d_log = f.predict(features, direction="long", min_p_edge=0.99, mode="log_only")
     assert d_log.should_trade is True

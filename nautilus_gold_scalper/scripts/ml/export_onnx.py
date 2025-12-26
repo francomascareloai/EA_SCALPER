@@ -17,7 +17,18 @@ class ExportResult:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Export trained sklearn entry filter to ONNX.")
-    p.add_argument("--model", required=True, help="Path to trained .joblib model (from train_filter.py).")
+    p.add_argument(
+        "--model", required=True, help="Path to trained .joblib model (from train_filter.py)."
+    )
+    p.add_argument(
+        "--allow-unsafe-pickle",
+        action="store_true",
+        help=(
+            "Allow loading a pickle/joblib model from disk. "
+            "DANGER: loading untrusted .joblib/.pkl can execute arbitrary code. "
+            "Prefer exporting from a trusted training run only."
+        ),
+    )
     p.add_argument(
         "--features",
         default=None,
@@ -62,6 +73,7 @@ def export_filter_onnx(
     out_path: Path | None,
     opset: int,
     verify: bool,
+    allow_unsafe_pickle: bool = False,
 ) -> ExportResult:
     from skl2onnx import convert_sklearn
     from skl2onnx.common.data_types import FloatTensorType
@@ -79,7 +91,17 @@ def export_filter_onnx(
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # NOTE: joblib uses pickle; only load from trusted local paths.
+    # NOTE: joblib uses pickle; loading untrusted data can execute arbitrary code.
+    # Require explicit opt-in to avoid accidental RCE.
+    if not allow_unsafe_pickle:
+        raise RuntimeError(
+            "Refusing to load model via joblib/pickle without explicit opt-in. "
+            "Pass allow_unsafe_pickle=True (library) or --allow-unsafe-pickle (CLI)."
+        )
+
+    if model_path.suffix.lower() not in {".joblib", ".pkl"}:
+        raise ValueError(f"Unexpected model suffix for pickle load: {model_path}")
+
     model = joblib.load(model_path)
 
     n_features = len(feature_cols)
@@ -148,6 +170,7 @@ def main() -> int:
         out_path=Path(args.out) if args.out else None,
         opset=int(args.opset),
         verify=bool(args.verify),
+        allow_unsafe_pickle=bool(args.allow_unsafe_pickle),
     )
     print(f"Wrote ONNX: {res.onnx_path}")
     print(f"Wrote metadata: {res.metadata_path}")

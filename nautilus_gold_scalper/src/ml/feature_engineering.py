@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import RobustScaler, StandardScaler
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FeatureConfig:
     """Configuration for feature engineering."""
+
     # RSI periods
     rsi_periods: list[int] | None = None
 
@@ -116,7 +117,7 @@ class FeatureEngineer:
             ValueError: If required columns are missing or index is not time-sorted.
         """
         # Validate input
-        required_cols = ['open', 'high', 'low', 'close', 'volume']
+        required_cols = ["open", "high", "low", "close", "volume"]
         missing = [col for col in required_cols if col not in df.columns]
         if missing:
             raise ValueError(f"Missing required columns: {missing}")
@@ -165,8 +166,9 @@ class FeatureEngineer:
         # Store feature names
         self.feature_names = features.columns.tolist()
 
-        # Drop NaN rows (from rolling calculations)
-        features = features.dropna()
+        # Drop rows with non-finite values (from rolling calculations / div-by-zero guards).
+        # NOTE: Prefer dropping over imputation here to avoid train/test leakage.
+        features = features.replace([np.inf, -np.inf], np.nan).dropna()
 
         return features
 
@@ -185,30 +187,30 @@ class FeatureEngineer:
         """
         feats = pd.DataFrame(index=df.index)
 
-        close = df['close']
-        open_ = df['open']
-        high = df['high']
-        low = df['low']
+        close = df["close"]
+        open_ = df["open"]
+        high = df["high"]
+        low = df["low"]
 
         # Returns
-        feats['returns'] = close.pct_change()
-        feats['log_returns'] = np.log(close / close.shift(1))
+        feats["returns"] = close.pct_change()
+        feats["log_returns"] = np.log(close / close.shift(1))
 
         # Intrabar metrics
         range_hl = high - low
-        feats['range_pct'] = range_hl / close
-        feats['body_pct'] = np.abs(close - open_) / (range_hl + 1e-10)
+        feats["range_pct"] = range_hl / close
+        feats["body_pct"] = np.abs(close - open_) / (range_hl + 1e-10)
 
         # Gap
-        feats['gap'] = (open_ - close.shift(1)) / close.shift(1)
+        feats["gap"] = (open_ - close.shift(1)) / close.shift(1)
 
         # Shadows (normalized)
-        feats['upper_shadow'] = (high - np.maximum(open_, close)) / (range_hl + 1e-10)
-        feats['lower_shadow'] = (np.minimum(open_, close) - low) / (range_hl + 1e-10)
+        feats["upper_shadow"] = (high - np.maximum(open_, close)) / (range_hl + 1e-10)
+        feats["lower_shadow"] = (np.minimum(open_, close) - low) / (range_hl + 1e-10)
 
         # Momentum (ROC - Rate of Change)
-        feats['roc_5'] = (close - close.shift(5)) / close.shift(5)
-        feats['roc_10'] = (close - close.shift(10)) / close.shift(10)
+        feats["roc_5"] = (close - close.shift(5)) / close.shift(5)
+        feats["roc_10"] = (close - close.shift(10)) / close.shift(10)
 
         return feats
 
@@ -224,28 +226,28 @@ class FeatureEngineer:
         """
         feats = pd.DataFrame(index=df.index)
 
-        volume = df['volume']
-        close = df['close']
-        open_ = df['open']
-        high = df['high']
-        low = df['low']
+        volume = df["volume"]
+        close = df["close"]
+        open_ = df["open"]
+        high = df["high"]
+        low = df["low"]
 
         # Volume ratio
         volume_ma = volume.rolling(self.config.volume_ma_period).mean()
-        feats['volume_ratio'] = volume / (volume_ma + 1e-10)
+        feats["volume_ratio"] = volume / (volume_ma + 1e-10)
 
         # Volume delta (approximation: positive if close > open, negative otherwise)
         price_direction = np.sign(close - open_)
-        feats['volume_delta'] = volume * price_direction
-        feats['volume_delta_ma'] = feats['volume_delta'].rolling(20).mean()
+        feats["volume_delta"] = volume * price_direction
+        feats["volume_delta_ma"] = feats["volume_delta"].rolling(20).mean()
 
         # VWAP (Volume Weighted Average Price)
         typical_price = (high + low + close) / 3
         vwap = (typical_price * volume).rolling(20).sum() / volume.rolling(20).sum()
-        feats['vwap_distance'] = (close - vwap) / close
+        feats["vwap_distance"] = (close - vwap) / close
 
         # Volume volatility
-        feats['volume_volatility'] = volume.rolling(20).std() / (volume.rolling(20).mean() + 1e-10)
+        feats["volume_volatility"] = volume.rolling(20).std() / (volume.rolling(20).mean() + 1e-10)
 
         return feats
 
@@ -264,52 +266,55 @@ class FeatureEngineer:
         """
         feats = pd.DataFrame(index=df.index)
 
-        close = df['close']
-        high = df['high']
-        low = df['low']
+        close = df["close"]
+        high = df["high"]
+        low = df["low"]
 
         # RSI (Relative Strength Index)
-        assert self.config.rsi_periods is not None
+        # R13-FIX: Replace assert with explicit validation (safe under -O)
+        if self.config.rsi_periods is None:
+            raise ValueError("FeatureEngineering: rsi_periods config is required")
         for period in self.config.rsi_periods:
-            feats[f'rsi_{period}'] = self._calculate_rsi(close, period)
+            feats[f"rsi_{period}"] = self._calculate_rsi(close, period)
 
         # MACD
         macd, signal, hist = self._calculate_macd(
-            close,
-            self.config.macd_fast,
-            self.config.macd_slow,
-            self.config.macd_signal
+            close, self.config.macd_fast, self.config.macd_slow, self.config.macd_signal
         )
-        feats['macd'] = macd
-        feats['macd_signal'] = signal
-        feats['macd_histogram'] = hist
+        feats["macd"] = macd
+        feats["macd_signal"] = signal
+        feats["macd_histogram"] = hist
 
         # ATR (Average True Range)
         atr = self._calculate_atr(high, low, close, self.config.atr_period)
-        feats['atr_normalized'] = atr / close
+        feats["atr_normalized"] = atr / close
 
         # Bollinger Bands
         bb_mid, bb_upper, bb_lower = self._calculate_bollinger_bands(
             close, self.config.bb_period, self.config.bb_std
         )
         bb_width = bb_upper - bb_lower
-        feats['bb_position'] = (close - bb_mid) / (bb_width + 1e-10)
-        feats['bb_width_pct'] = bb_width / bb_mid
+        feats["bb_position"] = (close - bb_mid) / (bb_width + 1e-10)
+        feats["bb_width_pct"] = bb_width / bb_mid
 
         # EMAs and distances
-        assert self.config.ema_periods is not None
+        # R13-FIX: Replace assert with explicit validation (safe under -O)
+        if self.config.ema_periods is None:
+            raise ValueError("FeatureEngineering: ema_periods config is required")
         for period in self.config.ema_periods:
             ema = close.ewm(span=period, adjust=False).mean()
-            feats[f'ema_{period}_dist'] = (close - ema) / close
+            feats[f"ema_{period}_dist"] = (close - ema) / close
 
         # SMAs and distances
-        assert self.config.sma_periods is not None
+        # R13-FIX: Replace assert with explicit validation (safe under -O)
+        if self.config.sma_periods is None:
+            raise ValueError("FeatureEngineering: sma_periods config is required")
         for period in self.config.sma_periods:
             sma = close.rolling(period).mean()
-            feats[f'sma_{period}_dist'] = (close - sma) / close
+            feats[f"sma_{period}_dist"] = (close - sma) / close
 
         # ADX (Average Directional Index)
-        feats['adx'] = self._calculate_adx(high, low, close, self.config.adx_period)
+        feats["adx"] = self._calculate_adx(high, low, close, self.config.adx_period)
 
         return feats
 
@@ -326,9 +331,9 @@ class FeatureEngineer:
         """
         feats = pd.DataFrame(index=df.index)
 
-        close = df['close']
-        high = df['high']
-        low = df['low']
+        close = df["close"]
+        high = df["high"]
+        low = df["low"]
 
         # Swing points (simplified - local maxima/minima, NO look-ahead)
         # CRITICAL FIX: Removed center=True which caused look-ahead bias
@@ -336,22 +341,17 @@ class FeatureEngineer:
         swing_high = high.rolling(window * 2 + 1).max()
         swing_low = low.rolling(window * 2 + 1).min()
 
-        feats['swing_high_distance'] = (swing_high - close) / close
-        feats['swing_low_distance'] = (close - swing_low) / close
+        feats["swing_high_distance"] = (swing_high - close) / close
+        feats["swing_low_distance"] = (close - swing_low) / close
 
         # Trend strength (linear regression slope over 20 bars)
-        feats['trend_strength'] = close.rolling(20).apply(
-            lambda x: np.polyfit(np.arange(len(x)), x, 1)[0] if len(x) == 20 else np.nan,
-            raw=True
+        feats["trend_strength"] = close.rolling(20).apply(
+            lambda x: np.polyfit(np.arange(len(x)), x, 1)[0] if len(x) == 20 else np.nan, raw=True
         )
 
         # Higher highs / Lower lows (structure analysis)
-        feats['higher_highs'] = high.rolling(10).apply(
-            lambda x: np.sum(np.diff(x) > 0), raw=True
-        )
-        feats['lower_lows'] = low.rolling(10).apply(
-            lambda x: np.sum(np.diff(x) < 0), raw=True
-        )
+        feats["higher_highs"] = high.rolling(10).apply(lambda x: np.sum(np.diff(x) > 0), raw=True)
+        feats["lower_lows"] = low.rolling(10).apply(lambda x: np.sum(np.diff(x) < 0), raw=True)
 
         return feats
 
@@ -366,24 +366,35 @@ class FeatureEngineer:
         """
         feats = pd.DataFrame(index=df.index)
 
-        close = df['close']
+        close = df["close"]
 
         # Hurst Exponent (simplified R/S method)
-        feats['hurst_exponent'] = close.rolling(self.config.hurst_period).apply(
-            lambda x: self._calculate_hurst_simple(x) if len(x) == self.config.hurst_period else np.nan,
-            raw=True
+        feats["hurst_exponent"] = close.rolling(self.config.hurst_period).apply(
+            lambda x: self._calculate_hurst_simple(x)
+            if len(x) == self.config.hurst_period
+            else np.nan,
+            raw=True,
         )
 
         # Shannon Entropy
-        feats['shannon_entropy'] = close.pct_change().rolling(self.config.entropy_period).apply(
-            lambda x: self._calculate_entropy(x) if len(x) == self.config.entropy_period else np.nan,
-            raw=True
+        feats["shannon_entropy"] = (
+            close.pct_change()
+            .rolling(self.config.entropy_period)
+            .apply(
+                lambda x: self._calculate_entropy(x)
+                if len(x) == self.config.entropy_period
+                else np.nan,
+                raw=True,
+            )
         )
 
         # Variance Ratio (simplified)
-        feats['variance_ratio'] = close.pct_change().rolling(40).apply(
-            lambda x: self._calculate_variance_ratio(x) if len(x) == 40 else np.nan,
-            raw=True
+        feats["variance_ratio"] = (
+            close.pct_change()
+            .rolling(40)
+            .apply(
+                lambda x: self._calculate_variance_ratio(x) if len(x) == 40 else np.nan, raw=True
+            )
         )
 
         return feats
@@ -400,24 +411,23 @@ class FeatureEngineer:
         """
         feats = pd.DataFrame(index=df.index)
 
-        close = df['close']
+        close = df["close"]
         returns = close.pct_change()
 
         # Z-score
         rolling_mean = close.rolling(self.config.zscore_period).mean()
         rolling_std = close.rolling(self.config.zscore_period).std()
-        feats['zscore'] = (close - rolling_mean) / (rolling_std + 1e-10)
+        feats["zscore"] = (close - rolling_mean) / (rolling_std + 1e-10)
 
         # Skewness (asymmetry of returns distribution)
-        feats['skewness'] = returns.rolling(self.config.skew_period).skew()
+        feats["skewness"] = returns.rolling(self.config.skew_period).skew()
 
         # Kurtosis (tail heaviness)
-        feats['kurtosis'] = returns.rolling(self.config.kurt_period).kurt()
+        feats["kurtosis"] = returns.rolling(self.config.kurt_period).kurt()
 
         # Autocorrelation (persistence)
-        feats['autocorr_1'] = returns.rolling(20).apply(
-            lambda x: x.autocorr(lag=1) if len(x) == 20 else np.nan,
-            raw=False
+        feats["autocorr_1"] = returns.rolling(20).apply(
+            lambda x: x.autocorr(lag=1) if len(x) == 20 else np.nan, raw=False
         )
 
         return feats
@@ -438,15 +448,15 @@ class FeatureEngineer:
         day_of_week = df.index.dayofweek
 
         # Cyclical encoding (preserves circular nature)
-        feats['hour_sin'] = np.sin(2 * np.pi * hour / 24)
-        feats['hour_cos'] = np.cos(2 * np.pi * hour / 24)
+        feats["hour_sin"] = np.sin(2 * np.pi * hour / 24)
+        feats["hour_cos"] = np.cos(2 * np.pi * hour / 24)
 
-        feats['day_sin'] = np.sin(2 * np.pi * day_of_week / 7)
-        feats['day_cos'] = np.cos(2 * np.pi * day_of_week / 7)
+        feats["day_sin"] = np.sin(2 * np.pi * day_of_week / 7)
+        feats["day_cos"] = np.cos(2 * np.pi * day_of_week / 7)
 
         # Special day flags
-        feats['is_monday'] = (day_of_week == 0).astype(int)
-        feats['is_friday'] = (day_of_week == 4).astype(int)
+        feats["is_monday"] = (day_of_week == 0).astype(int)
+        feats["is_friday"] = (day_of_week == 4).astype(int)
 
         return feats
 
@@ -464,11 +474,7 @@ class FeatureEngineer:
         return rsi
 
     def _calculate_macd(
-        self,
-        series: pd.Series,
-        fast: int,
-        slow: int,
-        signal: int
+        self, series: pd.Series, fast: int, slow: int, signal: int
     ) -> tuple[pd.Series, pd.Series, pd.Series]:
         """Calculate MACD, Signal, and Histogram."""
         ema_fast = series.ewm(span=fast, adjust=False).mean()
@@ -479,11 +485,7 @@ class FeatureEngineer:
         return macd, signal_line, histogram
 
     def _calculate_atr(
-        self,
-        high: pd.Series,
-        low: pd.Series,
-        close: pd.Series,
-        period: int
+        self, high: pd.Series, low: pd.Series, close: pd.Series, period: int
     ) -> pd.Series:
         """Calculate Average True Range."""
         tr1 = high - low
@@ -494,10 +496,7 @@ class FeatureEngineer:
         return atr
 
     def _calculate_bollinger_bands(
-        self,
-        series: pd.Series,
-        period: int,
-        std_dev: float
+        self, series: pd.Series, period: int, std_dev: float
     ) -> tuple[pd.Series, pd.Series, pd.Series]:
         """Calculate Bollinger Bands."""
         mid = series.rolling(period).mean()
@@ -507,11 +506,7 @@ class FeatureEngineer:
         return mid, upper, lower
 
     def _calculate_adx(
-        self,
-        high: pd.Series,
-        low: pd.Series,
-        close: pd.Series,
-        period: int
+        self, high: pd.Series, low: pd.Series, close: pd.Series, period: int
     ) -> pd.Series:
         """Calculate Average Directional Index."""
         # +DM and -DM
@@ -566,7 +561,10 @@ class FeatureEngineer:
             # Standard deviation
             s_value: float = float(np.std(log_returns))
 
-            if s_value == 0.0 or r_value == 0.0:
+            # Treat very small values as zero to avoid numerical blowups.
+            # (np.std / max-min can underflow to tiny non-zero floats)
+            eps = 1e-12
+            if s_value <= eps or r_value <= eps:
                 return 0.5
 
             # R/S ratio
@@ -579,8 +577,8 @@ class FeatureEngineer:
             # Clip to reasonable range
             return float(np.clip(hurst, 0.0, 1.0))
 
-        except Exception as e:
-            logger.warning(f"Hurst calculation failed: {e}")
+        except Exception:
+            logger.warning("Hurst calculation failed", exc_info=True)
             return 0.5
 
     def _calculate_entropy(self, series: np.ndarray[Any, Any]) -> float:
@@ -617,8 +615,8 @@ class FeatureEngineer:
 
             return entropy_value
 
-        except Exception as e:
-            logger.warning(f"Entropy calculation failed: {e}")
+        except Exception:
+            logger.warning("Entropy calculation failed", exc_info=True)
             return 0.0
 
     def _calculate_variance_ratio(self, series: np.ndarray[Any, Any]) -> float:
@@ -654,8 +652,8 @@ class FeatureEngineer:
 
             return float(np.clip(vr, 0.1, 3.0))
 
-        except Exception as e:
-            logger.warning(f"Variance ratio calculation failed: {e}")
+        except Exception:
+            logger.warning("Variance ratio calculation failed", exc_info=True)
             return 1.0
 
     # =========================================================================
@@ -663,10 +661,7 @@ class FeatureEngineer:
     # =========================================================================
 
     def scale_features(
-        self,
-        features: pd.DataFrame,
-        method: str = 'standard',
-        fit: bool = True
+        self, features: pd.DataFrame, method: str = "standard", fit: bool = True
     ) -> pd.DataFrame:
         """
         Scale features for ML model input.
@@ -695,9 +690,9 @@ class FeatureEngineer:
             ValueError: If fit=False but scaler not fitted yet.
         """
         if fit:
-            if method == 'standard':
+            if method == "standard":
                 self.scaler = StandardScaler()
-            elif method == 'robust':
+            elif method == "robust":
                 self.scaler = RobustScaler()
             else:
                 raise ValueError(f"Unknown scaling method: {method}")
@@ -709,19 +704,12 @@ class FeatureEngineer:
             scaled_array = self.scaler.transform(features)
 
         # Return as DataFrame with same index and columns
-        scaled_df = pd.DataFrame(
-            scaled_array,
-            index=features.index,
-            columns=features.columns
-        )
+        scaled_df = pd.DataFrame(scaled_array, index=features.index, columns=features.columns)
 
         return scaled_df
 
     def scale_train_test(
-        self,
-        train_features: pd.DataFrame,
-        test_features: pd.DataFrame,
-        method: str = 'standard'
+        self, train_features: pd.DataFrame, test_features: pd.DataFrame, method: str = "standard"
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Scale train and test features without data leakage.
@@ -766,30 +754,30 @@ class FeatureEngineer:
             Dictionary mapping category name to list of feature names.
         """
         groups: dict[str, list[str]] = {
-            'price': [],
-            'volume': [],
-            'technical': [],
-            'structure': [],
-            'regime': [],
-            'statistical': [],
-            'temporal': [],
+            "price": [],
+            "volume": [],
+            "technical": [],
+            "structure": [],
+            "regime": [],
+            "statistical": [],
+            "temporal": [],
         }
 
         for feat in self.feature_names:
-            if any(x in feat for x in ['returns', 'gap', 'shadow', 'body', 'range', 'roc']):
-                groups['price'].append(feat)
-            elif any(x in feat for x in ['volume', 'vwap', 'delta']):
-                groups['volume'].append(feat)
-            elif any(x in feat for x in ['rsi', 'macd', 'atr', 'bb', 'ema', 'sma', 'adx']):
-                groups['technical'].append(feat)
-            elif any(x in feat for x in ['swing', 'trend', 'higher', 'lower']):
-                groups['structure'].append(feat)
-            elif any(x in feat for x in ['hurst', 'entropy', 'variance_ratio']):
-                groups['regime'].append(feat)
-            elif any(x in feat for x in ['zscore', 'skewness', 'kurtosis', 'autocorr']):
-                groups['statistical'].append(feat)
-            elif any(x in feat for x in ['hour', 'day', 'monday', 'friday']):
-                groups['temporal'].append(feat)
+            if any(x in feat for x in ["returns", "gap", "shadow", "body", "range", "roc"]):
+                groups["price"].append(feat)
+            elif any(x in feat for x in ["volume", "vwap", "delta"]):
+                groups["volume"].append(feat)
+            elif any(x in feat for x in ["rsi", "macd", "atr", "bb", "ema", "sma", "adx"]):
+                groups["technical"].append(feat)
+            elif any(x in feat for x in ["swing", "trend", "higher", "lower"]):
+                groups["structure"].append(feat)
+            elif any(x in feat for x in ["hurst", "entropy", "variance_ratio"]):
+                groups["regime"].append(feat)
+            elif any(x in feat for x in ["zscore", "skewness", "kurtosis", "autocorr"]):
+                groups["statistical"].append(feat)
+            elif any(x in feat for x in ["hour", "day", "monday", "friday"]):
+                groups["temporal"].append(feat)
 
         return groups
 
@@ -800,33 +788,36 @@ def main() -> None:
     np.random.seed(42)
     n = 1000
 
-    dates = pd.date_range(start='2024-01-01', periods=n, freq='5min')
+    dates = pd.date_range(start="2024-01-01", periods=n, freq="5min")
 
     # Generate realistic price data (gold around 2000)
     base_price = 2000
     returns = np.random.normal(0.0001, 0.003, n)
     prices = base_price * np.exp(np.cumsum(returns))
 
-    df = pd.DataFrame({
-        'open': prices + np.random.normal(0, 0.5, n),
-        'high': prices + np.abs(np.random.normal(2, 1, n)),
-        'low': prices - np.abs(np.random.normal(2, 1, n)),
-        'close': prices,
-        'volume': np.random.randint(100, 1000, n),
-    }, index=dates)
+    df = pd.DataFrame(
+        {
+            "open": prices + np.random.normal(0, 0.5, n),
+            "high": prices + np.abs(np.random.normal(2, 1, n)),
+            "low": prices - np.abs(np.random.normal(2, 1, n)),
+            "close": prices,
+            "volume": np.random.randint(100, 1000, n),
+        },
+        index=dates,
+    )
 
     # Ensure high >= close >= low
-    df['high'] = df[['high', 'close', 'open']].max(axis=1)
-    df['low'] = df[['low', 'close', 'open']].min(axis=1)
+    df["high"] = df[["high", "close", "open"]].max(axis=1)
+    df["low"] = df[["low", "close", "open"]].min(axis=1)
 
     print("Sample OHLCV data:")
     print(df.head())
     print(f"\nShape: {df.shape}")
 
     # Create feature engineer
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("FEATURE ENGINEERING")
-    print("="*60)
+    print("=" * 60)
 
     config = FeatureConfig()
     engineer = FeatureEngineer(config)
@@ -850,7 +841,7 @@ def main() -> None:
 
     # Scale features
     print("\nScaling features...")
-    scaled = engineer.scale_features(features, method='standard')
+    scaled = engineer.scale_features(features, method="standard")
 
     print(f"\nScaled features: {scaled.shape}")
     print("\nScaled sample (first 5 rows, first 10 cols):")
@@ -858,12 +849,12 @@ def main() -> None:
 
     # Show summary statistics
     print("\nFeature statistics (after scaling):")
-    print(scaled.describe().loc[['mean', 'std', 'min', 'max']])
+    print(scaled.describe().loc[["mean", "std", "min", "max"]])
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("FEATURE ENGINEERING COMPLETE")
-    print("="*60)
+    print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

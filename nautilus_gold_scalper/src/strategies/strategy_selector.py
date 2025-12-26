@@ -466,12 +466,14 @@ class StrategySelector:
         # GATE 5: HOLIDAY CHECK
         # ================================================================
 
-        if self._context.is_holiday:
+        if self._context.is_holiday or self._context.reduced_liquidity:
             result.size_multiplier = (
                 min(result.size_multiplier + 0.5, 0.5) if result.size_multiplier > 0 else 0.5
             )
             result.score_adjustment -= 10
-            result.reason = "Holiday - reduced liquidity"
+            result.reason = (
+                "Holiday - reduced liquidity" if self._context.is_holiday else "Reduced liquidity"
+            )
 
         # ================================================================
         # GATE 6: REGIME SELECTION
