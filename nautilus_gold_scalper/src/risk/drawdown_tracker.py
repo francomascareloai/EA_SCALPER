@@ -8,8 +8,13 @@ for prop-firm style risk controls and analytics.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import IntEnum
+
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover
+    ZoneInfo = None  # type: ignore[misc,assignment]
 
 from ..core.definitions import (
     DEFAULT_MAX_DAILY_LOSS,
@@ -76,6 +81,8 @@ class DrawdownTracker:
         max_daily: float = DEFAULT_MAX_DAILY_LOSS,
         max_total: float = DEFAULT_MAX_TOTAL_LOSS,
         alert_thresholds: list[float] | None = None,
+        *,
+        day_boundary_tz: str = "UTC",
     ):
         if initial_equity <= 0:
             raise ValueError(f"Invalid initial_equity: {initial_equity}")
@@ -87,6 +94,12 @@ class DrawdownTracker:
         self._max_daily = max_daily
         self._max_total = max_total
         self._alert_thresholds = alert_thresholds or [0.5, 0.75, 0.9]
+
+        # Day boundary timezone for daily drawdown resets.
+        # Apex semantics are ET calendar days; default remains UTC for backward compatibility.
+        self._day_boundary_tz = str(day_boundary_tz)
+        if self._day_boundary_tz.upper() == "ET":
+            self._day_boundary_tz = "America/New_York"
 
         self._current_equity = initial_equity
         self._daily_start_equity = initial_equity
@@ -169,6 +182,12 @@ class DrawdownTracker:
         if current_equity <= 0:
             return self.get_analysis()
 
+        # Set equity and timestamp BEFORE any day-boundary logic.
+        # This ensures that when a new day is detected, reset_daily() can
+        # use the correct "first tick" equity as the daily start.
+        self._current_equity = current_equity
+        self._last_update = now
+
         self._check_new_day(now)
 
         # Streak handling
@@ -182,9 +201,6 @@ class DrawdownTracker:
             # zero pnl leaves streaks unchanged
             self._max_wins = max(self._max_wins, self._current_wins)
             self._max_losses = max(self._max_losses, self._current_losses)
-
-        self._current_equity = current_equity
-        self._last_update = now
 
         # Peak/high-water updates
         if current_equity > self._peak_equity:
@@ -366,12 +382,36 @@ class DrawdownTracker:
             / self._max_drawdown_abs,
         )
 
+    def _date_in_boundary_tz(self, dt: datetime) -> date:
+        tz_name = self._day_boundary_tz
+        if tz_name.upper() == "UTC":
+            return dt.astimezone(timezone.utc).date()
+        if ZoneInfo is None:
+            # Degraded mode: cannot convert; be conservative and treat as UTC.
+            return dt.astimezone(timezone.utc).date()
+        try:
+            return dt.astimezone(ZoneInfo(tz_name)).date()
+        except Exception:
+            return dt.astimezone(timezone.utc).date()
+
     def _check_new_day(self, now: datetime | None = None) -> None:
-        """Check if new trading day and reset if needed. Uses backtest timestamp if provided."""
+        """Check if new trading day and reset if needed.
+
+        The "day" boundary is defined by `day_boundary_tz`.
+        """
         if now is None:
             now = datetime.now(timezone.utc)
-        if now.date() != self._last_day_check.date():
+
+        # Backtest determinism: the tracker may be constructed at wall-clock time
+        # but updated with historical timestamps. We therefore "anchor" the first
+        # observed timestamp instead of comparing it to the constructor time.
+        if not self._history:
+            self._last_day_check = now
+            return
+
+        if self._date_in_boundary_tz(now) != self._date_in_boundary_tz(self._last_day_check):
             self.reset_daily()
+
         # Update check timestamp to provided time for backtest accuracy
         self._last_day_check = now
 

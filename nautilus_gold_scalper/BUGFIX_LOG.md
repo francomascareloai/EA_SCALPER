@@ -55,7 +55,7 @@
 - path/to/file2.py (test)
 - AGENTS.md (protocol update)
 
-**Validation:** [proof fix works]  
+**Validation:** [proof fix works]
 **Commit:** hash
 ```
 
@@ -63,7 +63,35 @@
 
 ## Log Entries
 
-## 🚨 2025-12-26 [FORGE] - CRITICAL: IOC Retry Escalation Not Applied (BUG-21)
+## 2025-12-26 15:30 [FORGE] - BUG-SMC-003: min_swing_distance not applied to swing lows
+
+**Module:** `nautilus_gold_scalper/src/indicators/structure_analyzer.py`
+**Severity:** MEDIUM (Signal quality issue)
+
+**Bug:** `min_swing_distance` was applied to swing highs but NOT to swing lows, causing asymmetric swing detection behavior.
+
+**Impact:** Swing lows could cluster too closely together (within min_swing_distance bars), creating noisy structure analysis. This affects structure break detection, bias determination, and Premium/Discount zone calculations.
+
+**Root Cause:** The swing high logic (lines 289-319) included distance checking with replacement of less extreme swings, but the swing low logic (lines 328-340) was a simple append without any distance check. Incomplete implementation during original development.
+
+**Fix:** Applied equivalent distance logic to swing lows:
+- Check if previous swing low exists AND distance < min_swing_distance
+- If new low is MORE extreme (lower price), replace the previous swing
+- Otherwise, keep the previous swing (no append)
+
+**Files:**
+- `nautilus_gold_scalper/src/indicators/structure_analyzer.py` (lines 328-359)
+- `nautilus_gold_scalper/tests/test_indicators/test_smc_detectors.py` (new test added)
+
+**Validation:**
+- mypy --strict: PASS
+- pytest TestStructureAnalyzer: 3/3 PASS (including new test for swing lows)
+
+**Commit:** Pending
+
+---
+
+## 2025-12-26 [FORGE] - CRITICAL: IOC Retry Escalation Not Applied (BUG-21)
 
 **Module:** `nautilus_gold_scalper/src/risk/time_constraint_manager.py`
 **Severity:** CRITICAL (Account survival - Apex compliance)
@@ -97,6 +125,92 @@
 
 ---
 
+## 2025-12-26 [FORGE] - Round 24 Critical Scoring Fixes (BUG-23-27)
+
+**Module:** `optimizer.py`, `optimize.py`
+**Severity:** CRITICAL (optimizer selection, Apex compliance)
+
+### BUG-23: NaN treated as best-case score (CRITICAL)
+
+**Bug:** Python `min(1.0, NaN)` returns 1.0. If WFA metrics (SQN/WFE/etc) became NaN due to corrupt data, the normalization would return 1.0 (best-case), ranking garbage configs as top.
+
+**Root Cause:** No finite-check guard before metric normalization in `_compute_composite_score`.
+
+**Fix:** Added explicit `math.isfinite()` guard for all core WFA metrics at function entry. Returns 0.0 (worst-case) if any metric is non-finite.
+
+**Files:** `nautilus_gold_scalper/src/optimization/optimizer.py:468-481`
+
+### BUG-24: WFE normalize config ignored (HIGH)
+
+**Bug:** `objective.composite.wfe.normalize` config field was defined but scoring always clamped raw WFE to [0,1] instead of using the configured normalization value (like SQN does).
+
+**Root Cause:** Inconsistent implementation between SQN and WFE normalization.
+
+**Fix:** Use `obj.wfe_weight.normalize` for WFE scaling (matching SQN pattern). Formula: `wfe_norm = clamp(wfe / wfe_max, 0, 1)`.
+
+**Files:** `nautilus_gold_scalper/src/optimization/optimizer.py:489-493`
+
+### BUG-25: Double DD penalty (HIGH)
+
+**Bug:** Trailing DD was penalized twice: (1) objective's `dd_penalty` and (2) `apex_penalty` from ApexConstraintChecker. This over-selected ultra-low-DD configs, reducing trade count and edge discovery.
+
+**Root Cause:** Two independent penalty sources for the same metric.
+
+**Fix:** Removed objective's `dd_penalty` calculation. Apex penalty is now the single source of DD pressure (aligned with Apex rules, starts at 3% buffer).
+
+**Files:** `nautilus_gold_scalper/src/optimization/optimizer.py:523-536`
+
+### BUG-26: CLI input validation missing (CRITICAL)
+
+**Bug:** CLI args (`--initial-balance`, `--sample-rate`, etc.) were not validated for NaN/Inf/negative values before use. Invalid values could propagate and cause silent misbehavior.
+
+**Root Cause:** No early validation gate in `run_optimization()`.
+
+**Fix:** Added explicit finite + range validation for numeric CLI args at start of `run_optimization()`.
+
+**Files:** `nautilus_gold_scalper/scripts/optimize.py:1027-1051`
+
+### BUG-27: estimate_grid_size off-by-one (MEDIUM)
+
+**Bug:** `estimate_grid_size()` used `int()` which truncates, while real grid search uses `round()`. This caused misleading "Total grid combinations" estimates.
+
+**Root Cause:** Inconsistent float-to-int conversion between estimate and real implementation.
+
+**Fix:** Changed `int(...)` to `round(...)` to match grid.py implementation.
+
+**Files:** `nautilus_gold_scalper/scripts/optimize.py:445-459`
+
+**Validation:** mypy: 0 errors on modified files
+**Commit:** pending
+
+---
+
+## 2025-12-26 [FORGE] - Drawdown equity extraction uses balance-only series (BUG-28)
+
+**Module:** `scripts/optimize.py`, `scripts/backtest/run_backtest.py`, `src/optimization/validation/wfa_inline.py`
+**Severity:** CRITICAL (Apex trailing DD / HWM semantics)
+
+**Bug:** Optimization pipeline extracted `equity_series` from `engine.trader.generate_account_report()['total']`, which represents account balance (realized) and does not reliably include unrealized PnL. This can severely underestimate trailing drawdown vs Apex rules (HWM includes unrealized using conservative BID/ASK pricing).
+
+**Impact:** False Apex-compliance in optimization results: configs could appear to respect trailing DD limits in the optimizer, but would violate Apex-style HWM/trailing DD when run live-like.
+
+**Root Cause:** The backtest engine account report is not a mark-to-market equity stream; meanwhile the strategy already computes conservative MTM equity each quote tick for prop-firm enforcement (DrawdownTracker), but that data was not surfaced to the optimizer.
+
+**Fix:**
+- `BacktestRunner` now retains a reference to the strategy instance as `self.strategy` so downstream tools can access runtime risk telemetry.
+- `optimize._extract_equity_series()` now prefers mark-to-market equity from the strategy’s `DrawdownTracker` history (conservative pricing) and only falls back to account report balance.
+- `InlineWFA._compute_max_drawdown()` now fails closed: if equity is missing/non-finite/degenerate, returns 100% DD (forces non-compliance) instead of returning 0%.
+
+**Files:**
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+- `nautilus_gold_scalper/scripts/optimize.py`
+- `nautilus_gold_scalper/src/optimization/validation/wfa_inline.py`
+
+**Validation:** pytest: `nautilus_gold_scalper/tests/test_risk/test_drawdown_tracker.py` + `nautilus_gold_scalper/tests/test_apex_compliance.py`
+**Commit:** pending
+
+---
+
 ## 2025-12-26 [FORGE] - Pip/Tick Unit Ambiguity Documentation (BUG-22)
 
 **Module:** `nautilus_gold_scalper/src/risk/position_sizer.py`
@@ -115,21 +229,30 @@
 
 ---
 
-## 2025-12-26 [FORGE] - HWM Semantics Documentation (BUG-23)
+## 2025-12-26 [FORGE] - Daily DD boundary mismatch + HWM semantics (BUG-23)
 
 **Module:** `nautilus_gold_scalper/src/risk/drawdown_tracker.py`
 **Severity:** HIGH (Apex compliance)
 
-**Bug:** `update()` method lacked documentation about HWM semantics requirement. Caller must pass equity including unrealized PnL at conservative BID/ASK prices.
+**Bug:**
+- `update()` method lacked documentation about HWM semantics requirement (equity must include unrealized PnL at conservative BID/ASK prices).
+- Daily drawdown resets were tied to the timestamp’s `.date()` (UTC), which can mismatch Apex semantics (ET calendar days), especially around UTC midnight.
 
-**Impact:** If caller passes balance-only (no unrealized), trailing DD is underreported → potential Apex violation.
+**Impact:**
+- If caller passes balance-only (no unrealized), trailing DD is underreported → potential Apex violation.
+- Daily DD could reset earlier/later than intended, weakening risk gating and making validation inconsistent.
 
-**Fix:** Added comprehensive docstring with Apex HWM trap example and explicit requirements for `current_equity` parameter.
+**Fix:**
+- Added comprehensive docstring with Apex HWM trap example and explicit requirements for `current_equity` parameter.
+- Added `day_boundary_tz` to define the daily reset boundary (configured to `America/New_York` by `GoldScalperStrategy`).
+- Anchored the first observed timestamp to avoid comparing historical backtest timestamps to constructor wall-clock time.
 
 **Files:**
 - `nautilus_gold_scalper/src/risk/drawdown_tracker.py`
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+- `nautilus_gold_scalper/tests/test_risk/test_drawdown_tracker.py`
 
-**Validation:** mypy: 0 errors, pytest: passed
+**Validation:** mypy: 0 errors; pytest: passed (includes new day-boundary test)
 
 ---
 
@@ -145,11 +268,13 @@
 **Fix:**
 - Added `holiday_detector` parameter to `StrategySelector.__init__`
 - Modified `_update_session_info()` to call `HolidayDetector.is_holiday()` and `is_reduced_liquidity()` when detector is wired
+- Wired `HolidayDetector()` into `GoldScalperStrategy` when constructing `StrategySelector`
 
 **Files:**
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
 - `nautilus_gold_scalper/src/strategies/strategy_selector.py`
 
-**Validation:** mypy: 0 errors, pytest: 436 passed
+**Validation:** mypy: 0 errors, pytest: passed
 
 ---
 
@@ -1825,15 +1950,17 @@ self.log.info(f"... (need {self._min_bars_for_signal} bars, have {len(self._ltf_
 
 ---
 
-## 🟡 MEDIUM BUG #6: Slippage Model Not Applied in Backtests
-**Files:** 
+## 🟡 MEDIUM BUG #6: Slippage Model Not Applied Consistently
+**Files:**
 - `src/execution/execution_model.py` (implemented)
 - `src/execution/base_adapter.py` (not integrated)
+- `src/strategies/base_strategy.py` (previously missing tick_size propagation)
 **Severity:** MEDIUM (Unrealistic backtest results)
-**Bug:** ExecutionModel.apply_slippage() exists but never called by BaseAdapter
-**Impact:** Backtests show perfect fills (unrealistic) → overestimate performance
-**Fix Required:** Integrate slippage model into BaseAdapter fill simulation
-**Status:** ❌ PENDING FIX
+**Bug:** ExecutionModel.apply_slippage() exists but was not consistently applied across execution paths.
+**Impact:** Under-modeled slippage → optimistic results and mis-calibrated robustness tests.
+**Fix Implemented (strategy-side realism):** Pass `instrument.price_increment` as `tick_size` into `ExecutionModel.apply_slippage()` so `slippage_ticks` has effect on strategy-side execution-cost modeling.
+**Remaining Work (adapter-side fills):** Integrate slippage model into BaseAdapter fill simulation.
+**Status:** 🟡 PARTIAL (strategy-side fixed; adapter-side still pending)
 
 ---
 

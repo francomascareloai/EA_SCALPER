@@ -110,6 +110,8 @@ class BaseStrategyConfig(NautilusStrategyConfig):  # type: ignore[misc]
     news_events_path: str | None = None
 
     slippage_in_fills: bool = False
+    # When True, commissions are applied by the backtest engine fee_model.
+    fees_in_account: bool = False
 
 
 class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
@@ -247,10 +249,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         Bug Fix: Scores were resetting to 0.0 after Day 1 because
         on_reset() was clearing all bars, destroying the lookback window.
         """
-        # DO NOT clear bars - indicators need historical context
-        # self._htf_bars.clear()  # Preserved for indicator lookback
-        # self._mtf_bars.clear()  # Preserved for indicator lookback
-        # self._ltf_bars.clear()  # Preserved for indicator lookback
+        # DO NOT clear bar history here.
+        # Indicators need historical context to calculate scores correctly.
 
         # Reset position and trading state only
         self._position = None
@@ -281,8 +281,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 ts_ns = int(getattr(event, "ts_event", 0) or 0)
                 self._check_daily_reset(ts_ns)
                 return
-            except Exception:
-                self.log.debug("Delegated daily reset failed", exc_info=True)
+            except Exception as exc:
+                self.log.debug(f"Delegated daily reset failed: {type(exc).__name__}: {exc}")
 
         self.log.info("=== NEW TRADING DAY - Resetting daily counters ===")
 
@@ -320,32 +320,34 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                     current_equity=float(getattr(self, "_equity_base", 0.0)), now=tick_dt
                 )
                 self.log.info("PropFirmManager daily counters reset")
-            except Exception as e:
-                self.log.error(f"Failed to reset PropFirmManager: {e}")
+            except Exception as exc:
+                self.log.error(f"Failed to reset PropFirmManager: {type(exc).__name__}: {exc}")
 
         # Reset ConsistencyTracker (if exists)
         if hasattr(self, "consistency_tracker") and self.consistency_tracker is not None:
             try:
                 self.consistency_tracker.reset_daily()
                 self.log.info("ConsistencyTracker daily counters reset")
-            except Exception as e:
-                self.log.error(f"Failed to reset ConsistencyTracker: {e}")
+            except Exception as exc:
+                self.log.error(f"Failed to reset ConsistencyTracker: {type(exc).__name__}: {exc}")
 
         # Reset TimeConstraintManager warnings (if exists)
         if hasattr(self, "time_manager") and self.time_manager is not None:
             try:
                 self.time_manager.reset_daily()
                 self.log.info("TimeConstraintManager warnings reset")
-            except Exception as e:
-                self.log.error(f"Failed to reset TimeConstraintManager: {e}")
+            except Exception as exc:
+                self.log.error(
+                    f"Failed to reset TimeConstraintManager: {type(exc).__name__}: {exc}"
+                )
 
         # Reset CircuitBreaker daily metrics (if applicable)
         if getattr(self, "_circuit_breaker", None):
             try:
                 self._circuit_breaker.reset_daily(now=tick_dt)
                 self.log.info("CircuitBreaker daily metrics reset")
-            except Exception as e:
-                self.log.warning(f"Failed to reset CircuitBreaker: {e}")
+            except Exception as exc:
+                self.log.warning(f"Failed to reset CircuitBreaker: {type(exc).__name__}: {exc}")
 
         self.log.info("Daily reset complete")
 
@@ -570,10 +572,11 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self._trigger_execution_failsafe(reason="position_opened_without_protective_orders")
             return
 
-        # Apply strategy-side execution costs on entry ONLY when the backtest engine
-        # is not already applying fees/slippage into account equity.
-        # (We treat engine models as source of truth for account reports.)
-        if self._execution_model and not bool(getattr(self.config, "slippage_in_fills", False)):
+        # Apply strategy-side execution costs on entry only for components not already
+        # reflected in the engine account (fee_model) or fill prices (fill_model).
+        include_slippage = not bool(getattr(self.config, "slippage_in_fills", False))
+        include_commission = not bool(getattr(self.config, "fees_in_account", False))
+        if self._execution_model and (include_slippage or include_commission):
             # Handle avg_px_open being Price or float
             avg_price = (
                 self._position.avg_px_open.as_double()
@@ -590,6 +593,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 side="buy" if self._position.side == PositionSide.LONG else "sell",
                 price=avg_price,
                 quantity=qty,
+                include_slippage=include_slippage,
+                include_commission=include_commission,
             )
             if open_cost > 0:
                 self._daily_pnl -= open_cost
@@ -667,31 +672,40 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 close_px.as_double() if hasattr(close_px, "as_double") else float(close_px)
             )
 
-            # If engine fill/fee models are enabled, realized_pnl already includes fees.
+            # Apply strategy-side execution costs on close only for components not already
+            # reflected in the engine account (fee_model) or fill prices (fill_model).
             close_cost = 0.0
-            if self._execution_model and not bool(getattr(self.config, "slippage_in_fills", False)):
+            include_slippage = not bool(getattr(self.config, "slippage_in_fills", False))
+            include_commission = not bool(getattr(self.config, "fees_in_account", False))
+            if self._execution_model and (include_slippage or include_commission):
                 close_cost = self._calculate_execution_cost(
                     side="sell" if self._position.side == PositionSide.LONG else "buy",
                     price=close_price,
                     quantity=qty,
+                    include_slippage=include_slippage,
+                    include_commission=include_commission,
                 )
             net_pnl = pnl - close_cost
 
             self._daily_pnl += net_pnl
             self._equity_base += net_pnl
 
-            # Track realized PnL for telemetry/metrics and adaptive sizing
-            if hasattr(self, "_trade_pnl_history"):
-                try:
-                    self._trade_pnl_history.append(net_pnl)
-                except Exception:
-                    pass
+            # Track realized PnL for telemetry/metrics and adaptive sizing.
+            # BUG-MEM-001: Bound history growth in long-running sessions.
+            history = getattr(self, "_trade_pnl_history", None)
+            if isinstance(history, list):
+                history.append(net_pnl)
+                maxlen = int(getattr(self.config, "trade_pnl_history_maxlen", 2000))
+                if maxlen > 0 and len(history) > maxlen:
+                    del history[:-maxlen]
 
             if getattr(self, "_position_sizer", None):
                 try:
                     self._position_sizer.register_trade_result(net_pnl)
-                except Exception:
-                    self.log.debug("Position sizer trade result update failed", exc_info=True)
+                except Exception as exc:
+                    self.log.debug(
+                        f"Position sizer trade result update failed: {type(exc).__name__}: {exc}"
+                    )
 
             self.log.info(
                 f"Position CLOSED with PnL: {pnl:.2f} (net {-close_cost:.2f} costs applied) "
@@ -728,7 +742,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                         equity=float(self._equity_base),
                     )
                 except Exception as exc:
-                    self.log.debug(f"Prop firm update failed on close: {exc}")
+                    self.log.debug(f"Prop firm update failed on close: {type(exc).__name__}: {exc}")
 
             # Circuit breaker trade result
             if getattr(self, "_circuit_breaker", None):
@@ -743,14 +757,33 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                         pnl=net_pnl, is_win=net_pnl > 0, now=cb_event_dt
                     )
                 except Exception as exc:
-                    self.log.debug(f"Circuit breaker trade update failed: {exc}")
+                    self.log.debug(
+                        f"Circuit breaker trade update failed: {type(exc).__name__}: {exc}"
+                    )
 
             # HBS (Human Behavior Simulator) trade result hook
             if getattr(self, "_hbs", None):
                 try:
-                    self._hbs.on_trade_result(win=net_pnl > 0, pnl=net_pnl)
+                    # In backtest mode, HBS requires a deterministic current_time.
+                    # Use exchange-simulated event timestamps (ns) to preserve temporal correctness.
+                    ts_ns = (
+                        getattr(event, "ts_closed", None)
+                        or getattr(event, "ts_last", None)
+                        or getattr(event, "ts_opened", None)
+                    )
+                    hbs_event_dt: datetime | None
+                    if isinstance(ts_ns, int) and ts_ns > 0:
+                        hbs_event_dt = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
+                    else:
+                        hbs_event_dt = None
+
+                    self._hbs.on_trade_result(
+                        win=net_pnl > 0,
+                        pnl=net_pnl,
+                        current_time=hbs_event_dt,
+                    )
                 except Exception as exc:
-                    self.log.debug(f"HBS trade result update failed: {exc}")
+                    self.log.debug(f"HBS trade result update failed: {type(exc).__name__}: {exc}")
 
             # Check daily loss limit as % of balance
             account_balance = float(
@@ -907,8 +940,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self.log.error(f"[FAILSAFE] {reason} -> cancel_all_orders + close_all_positions + HALT")
         try:
             self.cancel_all_orders(self.config.instrument_id)
-        except Exception:
-            self.log.debug("[FAILSAFE] cancel_all_orders failed", exc_info=True)
+        except Exception as exc:
+            self.log.debug(f"[FAILSAFE] cancel_all_orders failed: {type(exc).__name__}: {exc}")
 
         # BUG-13 FIX: Try with reduce_only=True first, then False as fallback
         try:
@@ -1143,8 +1176,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                     f"[BUG-5] Cancelled old SL order (id={self._bracket_sl_client_order_id}) "
                     f"due to position quantity increase"
                 )
-        except Exception as e:
-            self.log.warning(f"[BUG-5] Failed to cancel old SL order: {e}")
+        except Exception:
+            self.log.warning("[BUG-5] Failed to cancel old SL order", exc_info=True)
 
         # Submit new SL order with updated quantity
         if self._position.side == PositionSide.LONG:
@@ -1169,9 +1202,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         try:
             self.submit_order(new_sl_order)
-        except Exception as submit_exc:
+        except Exception:
             self.log.error(
-                f"[BUG-5] CRITICAL: submit_order failed after canceling old SL: {submit_exc}"
+                "[BUG-5] CRITICAL: submit_order failed after canceling old SL",
+                exc_info=True,
             )
             self._trigger_execution_failsafe(reason="sl_submit_failed_after_cancel")
             return
@@ -1302,40 +1336,61 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             unrealized = (entry - exit_px) * qty * point_value
 
         equity = float(self._equity_base + unrealized)
-        assert qty >= 0.0
+        # R13-FIX: Replace assert with explicit validation (safe under -O)
+        if qty < 0.0:
+            raise ValueError(f"Invalid negative quantity: {qty}")
         return equity
 
-    def _calculate_execution_cost(self, side: str, price: float, quantity: float) -> float:
-        """
-        Calculate per-fill slippage + commission using configured ExecutionModel.
-        """
+    def _calculate_execution_cost(
+        self,
+        side: str,
+        price: float,
+        quantity: float,
+        *,
+        include_slippage: bool,
+        include_commission: bool,
+    ) -> float:
+        """Calculate per-fill slippage cash cost and/or commission cash cost."""
         try:
             if not self._execution_model or quantity <= 0:
                 return 0.0
+            if not include_slippage and not include_commission:
+                return 0.0
 
             # Nautilus quantity for XAUUSD is in oz, but our commission model is per-lot.
-            # Convert oz -> lots for commission only (slippage remains price_delta * oz).
+            # Convert oz -> lots for commission only.
             lot_size_oz = float(XAUUSD_LOT_SIZE)
             if self.instrument is not None:
                 try:
                     lot_size_oz = float(self.instrument.lot_size.as_double())
                 except Exception:
                     lot_size_oz = float(XAUUSD_LOT_SIZE)
-            lots = float(quantity) / lot_size_oz if lot_size_oz > 0 else 0.0
-            commission_cost = float(self._execution_model.commission(Decimal(str(lots))))
 
-            if bool(getattr(self.config, "slippage_in_fills", False)):
-                return commission_cost
+            commission_cost = 0.0
+            if include_commission:
+                lots = float(quantity) / lot_size_oz if lot_size_oz > 0 else 0.0
+                commission_cost = float(self._execution_model.commission(Decimal(str(lots))))
 
-            slip_price = self._execution_model.apply_slippage(
-                side=side,
-                current_price=Decimal(str(price)),
-            )
-            point_value = self._instrument_point_value_per_unit()
-            slip_cost = abs(float(slip_price) - float(price)) * float(quantity) * point_value
+            slip_cost = 0.0
+            if include_slippage:
+                tick_size: Decimal | None = None
+                if self.instrument is not None:
+                    try:
+                        tick_size = Decimal(str(float(self.instrument.price_increment.as_double())))
+                    except Exception:
+                        tick_size = None
+
+                slip_price = self._execution_model.apply_slippage(
+                    side=side,
+                    current_price=Decimal(str(price)),
+                    tick_size=tick_size,
+                )
+                point_value = self._instrument_point_value_per_unit()
+                slip_cost = abs(float(slip_price) - float(price)) * float(quantity) * point_value
+
             return slip_cost + commission_cost
-        except Exception as exc:  # pragma: no cover
-            self.log.debug(f"Execution cost calc failed: {exc}")
+        except Exception:  # pragma: no cover
+            self.log.debug("Execution cost calc failed", exc_info=True)
             return 0.0
 
     def _instrument_point_value_per_unit(self) -> float:

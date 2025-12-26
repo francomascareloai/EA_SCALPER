@@ -25,6 +25,7 @@ from nautilus_trader.model.events import PositionClosed, PositionOpened
 from nautilus_trader.model.objects import Quantity
 from numpy.typing import NDArray
 
+from ..context.holiday_detector import HolidayDetector
 from ..core.data_types import ConfluenceResult, FairValueGap, OrderBlock
 from ..core.definitions import (
     WEIGHT_AMD_CYCLE,
@@ -142,7 +143,7 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     enable_trend_breakout: bool = True
 
     # TrendFollow moving average type
-    trend_ma_type: str = "EMA"  # EMA | SMA
+    trend_ma_type: str = "EMA"  # EMA | SMA | WMA | HMA
 
     # TrendFollow core MA periods
     trend_ema_fast: int = 20
@@ -175,7 +176,7 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     trend_er_smoothing: int = 3
     trend_er_min: float = 0.30
 
-    # TrendFollow signal-level tuning (CLI-sweepable via --trend-XXX)
+    # TrendFollow signal-level tuning (CLI-sweepable via --trend-* args)
     trend_sep_ticks_min: float = 4.0  # EMA separation threshold in ticks
     trend_touch_dist_mult: float = 0.35  # Touch distance as ATR multiplier
     trend_min_score: float = 60.0  # Minimum signal score threshold
@@ -553,6 +554,15 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._trade_pnl_history: list[float] = []
         self._metrics_calculator: MetricsCalculator | None = None
         self._last_metrics_emit: int = 0
+
+        # BUG-PERF-001: Avoid repeated ATR computations and O(n^2) loops in hot path.
+        # Cache key includes last completed LTF bar ts_event.
+        # Note: Current ATR and ATR percentile are cached independently.
+        self._atr_cache_current_key: tuple[int, int] | None = None
+        self._atr_cache_current: float = 0.0
+        self._atr_cache_percentile_key: tuple[int, int] | None = None
+        self._atr_cache_percentile: float = 50.0
+
         # Analysis state (per timeframe)
         # BUG-11 FIX: Explicit timeframe-separated OB/FVG lists to prevent semantic collision.
         # Previously _mtf_order_blocks was overwritten by LTF detection (lines 1921-1937).
@@ -812,7 +822,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             )
             self._execution_model = ExecutionModel(costs)
         except Exception as exc:
-            self.log.debug(f"ExecutionModel setup failed, fallback to zero costs: {exc}")
+            self.log.debug(
+                f"ExecutionModel setup failed, fallback to zero costs: {type(exc).__name__}: {exc}"
+            )
             self._execution_model = None
 
         # Risk management (if prop firm mode)
@@ -855,6 +867,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 initial_equity=float(self.config.account_balance),
                 max_daily=float(self.config.daily_loss_limit_pct) / 100.0,
                 max_total=float(self.config.total_loss_limit_pct) / 100.0,
+                day_boundary_tz="America/New_York",
             )
             # Initialize prop-firm state with starting equity
             self._prop_firm.initialize(starting_equity=float(self.config.account_balance))
@@ -1009,6 +1022,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 entropy_high_threshold=float(
                     getattr(self.config, "selector_entropy_high_threshold", 2.5)
                 ),
+                holiday_detector=HolidayDetector(),
             )
 
         # Adaptive router (EV w/ DD penalty) - optional
@@ -1061,7 +1075,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
                 self.log.info(f"HBS initialized: mode={hbs_mode}, enabled=True")
             except Exception as exc:
-                self.log.warning(f"HBS initialization failed, trading without stealth: {exc}")
+                self.log.warning(
+                    f"HBS initialization failed, trading without stealth: {type(exc).__name__}: {exc}"
+                )
                 self._hbs = None
 
         # Trade Manager initialization (CRUCIBLE FIX: active trade management)
@@ -1140,7 +1156,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         f"entry={actual_entry:.2f}, qty={actual_qty}"
                     )
             except Exception as exc:
-                self.log.warning(f"[TRADE_MANAGER] fill_entry failed: {exc}")
+                self.log.warning(f"[TRADE_MANAGER] fill_entry failed: {type(exc).__name__}: {exc}")
                 # Clear trade_id to prevent stale state
                 self._active_trade_id = None
 
@@ -1191,7 +1207,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     f"price={close_price:.2f}, pnl={realized_pnl}"
                 )
             except Exception as exc:
-                self.log.warning(f"[TRADE_MANAGER] close_trade failed: {exc}")
+                self.log.warning(f"[TRADE_MANAGER] close_trade failed: {type(exc).__name__}: {exc}")
             finally:
                 # Always clear tracking state
                 self._active_trade_id = None
@@ -1250,8 +1266,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         },
                     },
                 )
-        except Exception:
-            self.log.debug("[ROUTER] post-close update failed", exc_info=True)
+        except Exception as exc:
+            self.log.debug(f"[ROUTER] post-close update failed: {type(exc).__name__}: {exc}")
 
     def _check_daily_reset(self, timestamp_ns: int) -> None:
         """
@@ -1308,8 +1324,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 try:
                     now_dt = datetime.fromtimestamp(timestamp_ns / 1e9, tz=timezone.utc)
                     self._prop_firm.on_new_day(current_equity=self._equity_base, now=now_dt)
-                except Exception:
-                    self.log.debug("PropFirmManager daily reset failed", exc_info=True)
+                except Exception as exc:
+                    self.log.debug(
+                        f"PropFirmManager daily reset failed: {type(exc).__name__}: {exc}"
+                    )
 
             # Reset drawdown tracker if active
             if self._drawdown_tracker is not None and hasattr(self._drawdown_tracker, "on_new_day"):
@@ -1331,7 +1349,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     self._hbs.on_session_start(bar_dt)
                     self.log.debug(f"[HBS] Session started for {current_date_et}")
                 except Exception as exc:
-                    self.log.debug(f"[HBS] Session start failed: {exc}")
+                    self.log.debug(f"[HBS] Session start failed: {type(exc).__name__}: {exc}")
 
             self._last_reset_date = current_date_et
             self.log.info("Daily reset complete (ET)")
@@ -1344,7 +1362,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 self._hbs.on_session_end()
                 self.log.debug("[HBS] Session ended")
             except Exception as exc:
-                self.log.debug(f"[HBS] Session end failed: {exc}")
+                self.log.debug(f"[HBS] Session end failed: {type(exc).__name__}: {exc}")
 
         # Shutdown delayed executor
         if self._hbs_delayed_executor:
@@ -1352,7 +1370,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 self._hbs_delayed_executor.shutdown()
                 self.log.debug("[HBS] DelayedExecutor shutdown complete")
             except Exception as exc:
-                self.log.debug(f"[HBS] DelayedExecutor shutdown failed: {exc}")
+                self.log.debug(
+                    f"[HBS] DelayedExecutor shutdown failed: {type(exc).__name__}: {exc}"
+                )
 
         # Emit factor activation counters (always, even if no trades were closed)
         if self._telemetry and self._confluence_scorer:
@@ -1367,21 +1387,56 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         self.log.info("Gold Scalper Strategy cleanup complete")
 
+    @staticmethod
+    def _bars_to_np(
+        bars: list[Bar],
+        *,
+        max_bars: int,
+        field: Literal["open", "high", "low", "close", "volume"],
+        dtype: type[np.floating[Any]] = np.float64,
+    ) -> NDArray[np.floating[Any]]:
+        """Fast conversion from Bar list to 1D numpy array.
+
+        BUG-PERF-002: Avoid intermediate Python lists in hot paths.
+        """
+        if not bars:
+            return np.array([], dtype=dtype)
+
+        max_bars_i = int(max_bars)
+        if max_bars_i <= 0:
+            return np.array([], dtype=dtype)
+
+        slice_bars = bars[-max_bars_i:]
+
+        if field == "open":
+            return np.fromiter((b.open.as_double() for b in slice_bars), dtype=dtype)
+        if field == "high":
+            return np.fromiter((b.high.as_double() for b in slice_bars), dtype=dtype)
+        if field == "low":
+            return np.fromiter((b.low.as_double() for b in slice_bars), dtype=dtype)
+        if field == "close":
+            return np.fromiter((b.close.as_double() for b in slice_bars), dtype=dtype)
+        return np.fromiter((b.volume.as_double() for b in slice_bars), dtype=dtype)
+
     def _on_htf_bar(self, bar: Bar) -> None:
         """Process H1 bar - Update directional bias."""
         if not self._structure_analyzer:
             return
 
-        # Extract OHLCV from bars
-        closes = np.array([b.close.as_double() for b in self._htf_bars[-200:]])
-        highs = np.array([b.high.as_double() for b in self._htf_bars[-200:]])
-        lows = np.array([b.low.as_double() for b in self._htf_bars[-200:]])
+        closes = self._bars_to_np(self._htf_bars, max_bars=200, field="close")
+        highs = self._bars_to_np(self._htf_bars, max_bars=200, field="high")
+        lows = self._bars_to_np(self._htf_bars, max_bars=200, field="low")
 
         if len(closes) < 50:
             return
 
+        timestamps = np.fromiter(
+            (int(b.ts_event) for b in self._htf_bars[-200:]),
+            dtype=np.int64,
+        ).astype("datetime64[ns]")
+
         # Analyze structure for bias
-        state = self._structure_analyzer.analyze(highs, lows, closes)
+        state = self._structure_analyzer.analyze(highs, lows, closes, timestamps)
         self._htf_bias = state.bias
 
         # Update regime (do NOT block trading here - check in _check_for_signal instead)
@@ -1406,11 +1461,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         if len(self._mtf_bars) < min_bars:
             return
 
-        closes = np.array([b.close.as_double() for b in self._mtf_bars[-100:]])
-        highs = np.array([b.high.as_double() for b in self._mtf_bars[-100:]])
-        lows = np.array([b.low.as_double() for b in self._mtf_bars[-100:]])
-        opens = np.array([b.open.as_double() for b in self._mtf_bars[-100:]])
-        volumes = np.array([b.volume.as_double() for b in self._mtf_bars[-100:]])
+        closes = self._bars_to_np(self._mtf_bars, max_bars=100, field="close")
+        highs = self._bars_to_np(self._mtf_bars, max_bars=100, field="high")
+        lows = self._bars_to_np(self._mtf_bars, max_bars=100, field="low")
+        opens = self._bars_to_np(self._mtf_bars, max_bars=100, field="open")
+        volumes = self._bars_to_np(self._mtf_bars, max_bars=100, field="volume")
 
         # Detect order blocks
         if self._ob_detector:
@@ -1605,9 +1660,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         ts_init=int(bar.ts_init),
                     ),
                 )
-            except Exception:
+            except Exception as exc:
                 if should_log:
-                    self.log.debug("[NEWS] publish_data failed", exc_info=True)
+                    self.log.debug(f"[NEWS] publish_data failed: {type(exc).__name__}: {exc}")
 
             if news_window.action == NewsTradeAction.BLOCK:
                 if should_log:
@@ -2006,13 +2061,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             tick_size = float(inst.price_increment.as_double()) if inst else float(XAUUSD_POINT)
             atr = float(self._get_current_atr())
             atr_p = float(self._get_atr_percentile())
-            closes = np.array(
-                [b.close.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64
-            )
-            highs = np.array([b.high.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
-            lows = np.array([b.low.as_double() for b in self._ltf_bars[-300:]], dtype=np.float64)
+            closes = self._bars_to_np(self._ltf_bars, max_bars=300, field="close")
+            highs = self._bars_to_np(self._ltf_bars, max_bars=300, field="high")
+            lows = self._bars_to_np(self._ltf_bars, max_bars=300, field="low")
         except Exception as exc:
-            self.log.debug(f"[SIGNALS] LTF extraction failed: {exc}")
+            self.log.debug(f"[SIGNALS] LTF extraction failed: {type(exc).__name__}: {exc}")
             tick_size = float(XAUUSD_POINT)
             atr = 0.0
             atr_p = 0.0
@@ -2157,7 +2210,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                             not in (TrendFollowVariant.BREAKOUT, TrendFollowVariant.SWING_BREAKOUT)
                         ]
             except Exception as exc:
-                self.log.debug(f"[TREND] candidate gen failed: {exc}")
+                self.log.debug(f"[TREND] candidate gen failed: {type(exc).__name__}: {exc}")
                 trend_candidates = []
 
         # Optional MeanRevert candidates (BB + RSI)
@@ -2188,7 +2241,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     min_score=float(self.config.execution_threshold),
                 )
             except Exception as exc:
-                self.log.debug(f"[MEAN] candidate gen failed: {exc}")
+                self.log.debug(f"[MEAN] candidate gen failed: {type(exc).__name__}: {exc}")
                 mean_candidates = []
 
         # Optional Parabolic SAR (PSAR) alignment filter (t-1 by default).
@@ -2273,7 +2326,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                             confluence_result = None
             except Exception as exc:
                 # Fail open: PSAR is experimental and must never block trading due to misconfig.
-                self.log.debug(f"[PSAR] filter skipped: {exc}")
+                self.log.debug(f"[PSAR] filter skipped: {type(exc).__name__}: {exc}")
 
         if confluence_result is None and not trend_candidates and not mean_candidates:
             if should_log:
@@ -2354,7 +2407,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             try:
                 sess = self._current_session.session.name if self._current_session else "UNKNOWN"
                 reg = self._current_regime.regime.name if self._current_regime else "UNKNOWN"
-                vol_bucket = int(max(0.0, min(4.0, float(self._get_atr_percentile()) // 20.0)))
+                # BUG-IND-004: Percentile is in [0, 100], bucket should be 0..4.
+                # Use int(percentile // 20) which yields 0..5, then clamp.
+                atr_p = float(self._get_atr_percentile())
+                vol_bucket = int(max(0, min(4, int(atr_p // 20.0))))
                 ctx = RouterContext(session=str(sess), regime=str(reg), vol_bucket=int(vol_bucket))
 
                 router_candidates: list[RouterCandidate] = []
@@ -2488,7 +2544,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                             },
                         )
             except Exception as exc:
-                self.log.debug(f"[ROUTER] selection failed: {exc}")
+                self.log.debug(f"[ROUTER] selection failed: {type(exc).__name__}: {exc}")
 
         # ML dataset snapshot (post-selection, pre-threshold): capture context + selection outcome.
         # Must never impact trading logic. Guarded by config.ml_capture_enabled.
@@ -2613,7 +2669,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # In log_only mode it never blocks; in gate mode it blocks when p_edge < threshold.
         if bool(getattr(self.config, "ml_filter_enabled", False)) and self._ml_filter is not None:
             try:
-                direction = "long" if signal == SignalType.SIGNAL_BUY else "short"
+                direction = (
+                    TrendDirection.LONG.value
+                    if signal == SignalType.SIGNAL_BUY
+                    else TrendDirection.SHORT.value
+                )
                 payload = {
                     "open": float(bar.open.as_double()),
                     "high": float(bar.high.as_double()),
@@ -2733,7 +2793,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 )
 
             except Exception as exc:
-                self.log.warning(f"[HBS] Decision failed, proceeding without HBS: {exc}")
+                self.log.warning(
+                    f"[HBS] Decision failed, proceeding without HBS: {type(exc).__name__}: {exc}"
+                )
                 hbs_decision = None
 
         # Calculate position size
@@ -2827,7 +2889,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 )
                 sess = self._current_session.session.name if self._current_session else "UNKNOWN"
                 reg = self._current_regime.regime.name if self._current_regime else "UNKNOWN"
-                vol_bucket = int(max(0.0, min(4.0, float(self._get_atr_percentile()) // 20.0)))
+                # BUG-IND-004: Percentile is in [0, 100], bucket should be 0..4.
+                # Use int(percentile // 20) which yields 0..5, then clamp.
+                atr_p = float(self._get_atr_percentile())
+                vol_bucket = int(max(0, min(4, int(atr_p // 20.0))))
                 self._last_entry_meta = {
                     "arm": selected_arm.value,
                     "risk_usd": float(risk_usd),
@@ -2835,7 +2900,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     "score": float(selected_score),
                     "variant": selected_trend.variant.value
                     if selected_trend
-                    else ("bb_rsi" if selected_mean else None),
+                    else (selected_mean.variant.value if selected_mean else None),
                 }
             self._enter_long(quantity, sl_price, tp_price)
             self._last_entry_ts_ns = int(bar.ts_event)
@@ -2855,7 +2920,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     self._active_trade_id = trade_info.trade_id
                     self.log.info(f"[TRADE_MANAGER] Created trade {trade_info.trade_id} LONG")
                 except Exception as exc:
-                    self.log.warning(f"[TRADE_MANAGER] Failed to create trade: {exc}")
+                    self.log.warning(
+                        f"[TRADE_MANAGER] Failed to create trade: {type(exc).__name__}: {exc}"
+                    )
                     self._active_trade_id = None
 
         elif signal == SignalType.SIGNAL_SELL:
@@ -2892,7 +2959,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 )
                 sess = self._current_session.session.name if self._current_session else "UNKNOWN"
                 reg = self._current_regime.regime.name if self._current_regime else "UNKNOWN"
-                vol_bucket = int(max(0.0, min(4.0, float(self._get_atr_percentile()) // 20.0)))
+                # BUG-IND-004: Percentile is in [0, 100], bucket should be 0..4.
+                # Use int(percentile // 20) which yields 0..5, then clamp.
+                atr_p = float(self._get_atr_percentile())
+                vol_bucket = int(max(0, min(4, int(atr_p // 20.0))))
                 self._last_entry_meta = {
                     "arm": selected_arm.value,
                     "risk_usd": float(risk_usd),
@@ -2900,7 +2970,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     "score": float(selected_score),
                     "variant": selected_trend.variant.value
                     if selected_trend
-                    else ("bb_rsi" if selected_mean else None),
+                    else (selected_mean.variant.value if selected_mean else None),
                 }
             self._enter_short(quantity, sl_price, tp_price)
             self._last_entry_ts_ns = int(bar.ts_event)
@@ -2920,59 +2990,91 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     self._active_trade_id = trade_info.trade_id
                     self.log.info(f"[TRADE_MANAGER] Created trade {trade_info.trade_id} SHORT")
                 except Exception as exc:
-                    self.log.warning(f"[TRADE_MANAGER] Failed to create trade: {exc}")
+                    self.log.warning(
+                        f"[TRADE_MANAGER] Failed to create trade: {type(exc).__name__}: {exc}"
+                    )
                     self._active_trade_id = None
 
     def _get_current_atr(self) -> float:
         """Get current ATR value from LTF bars using simple TR calculation."""
-        if len(self._ltf_bars) < 14:
+        # Need 15 bars: 14 TR values require 14 previous closes.
+        if len(self._ltf_bars) < 15:
             return 0.0
 
+        # BUG-PERF-001: compute at most once per completed LTF bar.
+        key = (len(self._ltf_bars), int(self._ltf_bars[-1].ts_event))
+        if self._atr_cache_current_key == key:
+            return float(self._atr_cache_current)
+
         try:
-            highs = np.array([b.high.as_double() for b in self._ltf_bars[-14:]])
-            lows = np.array([b.low.as_double() for b in self._ltf_bars[-14:]])
-            closes = np.array([b.close.as_double() for b in self._ltf_bars[-15:-1]])
+            highs = self._bars_to_np(self._ltf_bars, max_bars=14, field="high")
+            lows = self._bars_to_np(self._ltf_bars, max_bars=14, field="low")
+            prev_closes = self._bars_to_np(self._ltf_bars[-15:-1], max_bars=14, field="close")
 
             # True Range = max(H-L, |H-C_prev|, |L-C_prev|)
             tr1 = highs - lows
-            tr2 = np.abs(highs - closes)
-            tr3 = np.abs(lows - closes)
+            tr2 = np.abs(highs - prev_closes)
+            tr3 = np.abs(lows - prev_closes)
             tr = np.maximum(tr1, np.maximum(tr2, tr3))
 
-            return float(np.mean(tr))
+            atr = float(np.mean(tr))
+            if not np.isfinite(atr) or atr < 0.0:
+                atr = 0.0
         except Exception:
-            return 0.0
+            atr = 0.0
+
+        self._atr_cache_current_key = key
+        self._atr_cache_current = float(atr)
+        return float(atr)
 
     def _get_atr_percentile(self) -> float:
         """Get current ATR as percentile of recent ATR history (0-100)."""
         if len(self._ltf_bars) < 100:
             return 50.0  # Default to middle
 
+        # BUG-PERF-001: compute at most once per completed LTF bar.
+        key = (len(self._ltf_bars), int(self._ltf_bars[-1].ts_event))
+        if self._atr_cache_percentile_key == key:
+            return float(self._atr_cache_percentile)
+
         try:
-            # Calculate rolling ATR for last 100 bars
-            atr_history = []
-            for i in range(86, 0, -1):  # 100-14=86 lookback positions
-                slice_bars = self._ltf_bars[-(i + 14) : -i] if i > 0 else self._ltf_bars[-14:]
-                if len(slice_bars) >= 14:
-                    highs = np.array([b.high.as_double() for b in slice_bars])
-                    lows = np.array([b.low.as_double() for b in slice_bars])
-                    closes = np.array([b.close.as_double() for b in slice_bars[:-1]])
-                    if len(closes) >= 13:
-                        tr1 = highs[1:] - lows[1:]
-                        tr2 = np.abs(highs[1:] - closes)
-                        tr3 = np.abs(lows[1:] - closes)
-                        tr = np.maximum(tr1, np.maximum(tr2, tr3))
-                        atr_history.append(float(np.mean(tr)))
+            # BUG-PERF-003: Previous implementation recomputed ~86 ATR windows per call
+            # with repeated list->np.array conversions (O(n^2) per bar). Replace with a
+            # single pass over true-range series and a sliding mean.
+            highs = self._bars_to_np(self._ltf_bars, max_bars=102, field="high")
+            lows = self._bars_to_np(self._ltf_bars, max_bars=102, field="low")
+            prev_closes = self._bars_to_np(self._ltf_bars[-103:-1], max_bars=102, field="close")
 
-            if len(atr_history) < 10:
-                return 50.0
+            tr1 = highs[1:] - lows[1:]
+            tr2 = np.abs(highs[1:] - prev_closes)
+            tr3 = np.abs(lows[1:] - prev_closes)
+            tr = np.maximum(tr1, np.maximum(tr2, tr3))
 
-            current_atr = self._get_current_atr()
-            # Calculate percentile
-            percentile = (np.sum(np.array(atr_history) < current_atr) / len(atr_history)) * 100
-            return float(percentile)
+            window = 14
+            if tr.size < window:
+                percentile = 50.0
+            else:
+                csum = np.cumsum(tr, dtype=np.float64)
+                sums = csum[window - 1 :] - np.concatenate(
+                    [np.zeros(1, dtype=np.float64), csum[:-window]]
+                )
+                atr_series = sums / float(window)
+
+                if atr_series.size < 10:
+                    percentile = 50.0
+                else:
+                    current_atr = float(self._get_current_atr())
+                    percentile = float(
+                        (np.sum(atr_series < current_atr) / float(atr_series.size)) * 100.0
+                    )
+
+            percentile = float(max(0.0, min(100.0, percentile)))
         except Exception:
-            return 50.0
+            percentile = 50.0
+
+        self._atr_cache_percentile_key = key
+        self._atr_cache_percentile = float(percentile)
+        return float(percentile)
 
     def _calculate_confluence(self, bar: Bar) -> ConfluenceResult | None:
         """Calculate confluence score from all analysis components."""
@@ -2983,10 +3085,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         try:
             # Get LTF data
-            closes = np.array([b.close.as_double() for b in self._ltf_bars[-200:]])
-            highs = np.array([b.high.as_double() for b in self._ltf_bars[-200:]])
-            lows = np.array([b.low.as_double() for b in self._ltf_bars[-200:]])
-            volumes = np.array([b.volume.as_double() for b in self._ltf_bars[-200:]])
+            closes = self._bars_to_np(self._ltf_bars, max_bars=200, field="close")
+            highs = self._bars_to_np(self._ltf_bars, max_bars=200, field="high")
+            lows = self._bars_to_np(self._ltf_bars, max_bars=200, field="low")
+            volumes = self._bars_to_np(self._ltf_bars, max_bars=200, field="volume")
 
             if len(closes) < 50:
                 if getattr(self.config, "debug_mode", False):
@@ -3038,28 +3140,28 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     except InsufficientDataError:
                         # Expected during warmup - regime stays None until enough data
                         pass
-                    except Exception as e:
-                        logger.debug(f"Regime detection error: {e}")
+                    except Exception:
+                        logger.debug("Regime detection error", exc_info=True)
 
             # BUG-11 FIX: Detect order blocks on LTF (refresh every 20 bars)
             # Store in _ltf_order_blocks (not _mtf_order_blocks) to prevent semantic collision
             if self._ob_detector and len(self._ltf_bars) % 20 == 0:
                 try:
-                    opens = np.array([b.open.as_double() for b in self._ltf_bars[-200:]])
+                    opens = self._bars_to_np(self._ltf_bars, max_bars=200, field="open")
                     self._ltf_order_blocks = self._ob_detector.detect(
                         opens, highs, lows, closes, volumes
                     )
-                except Exception as e:
-                    logger.debug(f"OB detection error: {e}")
+                except Exception:
+                    logger.debug("OB detection error", exc_info=True)
 
             # BUG-11 FIX: Detect FVGs on LTF (refresh every 20 bars)
             # Store in _ltf_fvgs (not _mtf_fvgs) to prevent semantic collision
             if self._fvg_detector and len(self._ltf_bars) % 20 == 0:
                 try:
-                    opens = np.array([b.open.as_double() for b in self._ltf_bars[-200:]])
+                    opens = self._bars_to_np(self._ltf_bars, max_bars=200, field="open")
                     self._ltf_fvgs = self._fvg_detector.detect(opens, highs, lows, closes, volumes)
-                except Exception as e:
-                    logger.debug(f"FVG detection error: {e}")
+                except Exception:
+                    logger.debug("FVG detection error", exc_info=True)
 
             # Calculate final confluence
             if len(self._ltf_bars) % 100 == 0:
@@ -3097,9 +3199,13 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     current_price=float(bar.close.as_double()),
                     current_session=current_session_enum,
                 )
-            except Exception as e:
+            except Exception:
                 # BUG-3 FIX: Log with bar number for debugging + return empty result instead of None
-                self.log.warning(f"[CONFLUENCE] Bar {bar_num}: calculate_score error: {e}")
+                self.log.warning(
+                    "[CONFLUENCE] Bar %s: calculate_score error",
+                    bar_num,
+                    exc_info=True,
+                )
                 return None
 
             if len(self._ltf_bars) % 100 == 0:
@@ -3136,12 +3242,21 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             if self.config.debug_mode:
                 # BUG-3 FIX: Add bar context for debugging
                 _bar_ctx: int | str = len(self._ltf_bars) if hasattr(self, "_ltf_bars") else "?"
-                self.log.debug(f"[CONFLUENCE] Bar {_bar_ctx}: Insufficient data: {e}")
+                self.log.debug(
+                    "[CONFLUENCE] Bar %s: Insufficient data: %s",
+                    _bar_ctx,
+                    e,
+                    exc_info=True,
+                )
             return None
-        except Exception as e:
+        except Exception:
             # BUG-3 FIX: Add bar context for debugging
             _bar_ctx_ex: int | str = len(self._ltf_bars) if hasattr(self, "_ltf_bars") else "?"
-            self.log.exception(f"[CONFLUENCE] Bar {_bar_ctx_ex}: Exception: %s", e)
+            self.log.exception(
+                "[CONFLUENCE] Bar %s: Exception",
+                _bar_ctx_ex,
+                exc_info=True,
+            )
             return None
 
     def _analyze_structure_component(
@@ -3155,7 +3270,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             return None
 
         try:
-            return self._structure_analyzer.analyze(highs, lows, closes)
+            timestamps = np.fromiter(
+                (int(b.ts_event) for b in self._ltf_bars[-200:]),
+                dtype=np.int64,
+            ).astype("datetime64[ns]")
+            return self._structure_analyzer.analyze(highs, lows, closes, timestamps)
         except InsufficientDataError:
             return None
         except Exception as e:
@@ -3239,15 +3358,21 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             return 0.0, False
 
         try:
-            htf_highs = np.array([b.high.as_double() for b in self._htf_bars[-200:]])
-            htf_lows = np.array([b.low.as_double() for b in self._htf_bars[-200:]])
-            htf_closes = np.array([b.close.as_double() for b in self._htf_bars[-200:]])
-            mtf_highs = np.array([b.high.as_double() for b in self._mtf_bars[-200:]])
-            mtf_lows = np.array([b.low.as_double() for b in self._mtf_bars[-200:]])
-            mtf_closes = np.array([b.close.as_double() for b in self._mtf_bars[-200:]])
-            ltf_highs = np.array([b.high.as_double() for b in self._ltf_bars[-200:]])
-            ltf_lows = np.array([b.low.as_double() for b in self._ltf_bars[-200:]])
-            ltf_closes = np.array([b.close.as_double() for b in self._ltf_bars[-200:]])
+            # BUG-IND-003: Prevent accidental look-ahead from HTF/MTF bars which may arrive
+            # interleaved but with ts_event > current LTF bar ts_event.
+            current_ltf_ts = int(self._ltf_bars[-1].ts_event)
+            htf_bars = [b for b in self._htf_bars if int(b.ts_event) <= current_ltf_ts]
+            mtf_bars = [b for b in self._mtf_bars if int(b.ts_event) <= current_ltf_ts]
+
+            htf_highs = self._bars_to_np(htf_bars, max_bars=200, field="high")
+            htf_lows = self._bars_to_np(htf_bars, max_bars=200, field="low")
+            htf_closes = self._bars_to_np(htf_bars, max_bars=200, field="close")
+            mtf_highs = self._bars_to_np(mtf_bars, max_bars=200, field="high")
+            mtf_lows = self._bars_to_np(mtf_bars, max_bars=200, field="low")
+            mtf_closes = self._bars_to_np(mtf_bars, max_bars=200, field="close")
+            ltf_highs = self._bars_to_np(self._ltf_bars, max_bars=200, field="high")
+            ltf_lows = self._bars_to_np(self._ltf_bars, max_bars=200, field="low")
+            ltf_closes = self._bars_to_np(self._ltf_bars, max_bars=200, field="close")
 
             mtf_result = self._mtf_manager.analyze(
                 htf_data={"highs": htf_highs, "lows": htf_lows, "closes": htf_closes},
@@ -3259,8 +3384,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 else True,
             )
             return mtf_result.mtf_score, mtf_result.is_aligned
-        except Exception as e:
-            logger.error(f"MTF analysis failed: {e}")
+        except Exception:
+            logger.error("MTF analysis failed", exc_info=True)
             return 0.0, False
 
     def _calculate_sl_distance(self, bar: Bar, signal: SignalType) -> float:
@@ -3279,13 +3404,23 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         if not self._structure_analyzer:
             # Fallback to ATR-based SL
-            closes = np.array([b.close.as_double() for b in self._ltf_bars[-20:]])
-            highs = np.array([b.high.as_double() for b in self._ltf_bars[-20:]])
-            lows = np.array([b.low.as_double() for b in self._ltf_bars[-20:]])
+            closes = self._bars_to_np(self._ltf_bars, max_bars=20, field="close")
+            highs = self._bars_to_np(self._ltf_bars, max_bars=20, field="high")
+            lows = self._bars_to_np(self._ltf_bars, max_bars=20, field="low")
 
-            tr = np.maximum(highs - lows, np.abs(highs - np.roll(closes, 1)))
-            tr = np.maximum(tr, np.abs(lows - np.roll(closes, 1)))
-            atr = float(np.mean(tr[1:]))
+            # Temporal safety: avoid np.roll() wraparound (could accidentally reference last bar).
+            prev_close = np.empty_like(closes)
+            prev_close[0] = closes[0]
+            prev_close[1:] = closes[:-1]
+
+            tr = np.maximum(highs - lows, np.abs(highs - prev_close))
+            tr = np.maximum(tr, np.abs(lows - prev_close))
+
+            # Use completed bars only. If we don't have enough data, fail closed with DEFAULT_SL_DISTANCE.
+            tr_tail = tr[1:]
+            atr = float(np.mean(tr_tail)) if tr_tail.size > 0 else 0.0
+            if not np.isfinite(atr) or atr <= 0.0:
+                atr = 0.0
 
             raw_sl = float(atr * 1.5)
         else:
@@ -3303,13 +3438,21 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 raw_sl = float(last_high - close + (close * 0.0005))
             else:
                 # Fallback to ATR
-                closes = np.array([b.close.as_double() for b in self._ltf_bars[-20:]])
-                highs = np.array([b.high.as_double() for b in self._ltf_bars[-20:]])
-                lows = np.array([b.low.as_double() for b in self._ltf_bars[-20:]])
+                closes = self._bars_to_np(self._ltf_bars, max_bars=20, field="close")
+                highs = self._bars_to_np(self._ltf_bars, max_bars=20, field="high")
+                lows = self._bars_to_np(self._ltf_bars, max_bars=20, field="low")
 
-                tr = np.maximum(highs - lows, np.abs(highs - np.roll(closes, 1)))
-                tr = np.maximum(tr, np.abs(lows - np.roll(closes, 1)))
-                atr = float(np.mean(tr[1:]))
+                prev_close = np.empty_like(closes)
+                prev_close[0] = closes[0]
+                prev_close[1:] = closes[:-1]
+
+                tr = np.maximum(highs - lows, np.abs(highs - prev_close))
+                tr = np.maximum(tr, np.abs(lows - prev_close))
+
+                tr_tail = tr[1:]
+                atr = float(np.mean(tr_tail)) if tr_tail.size > 0 else 0.0
+                if not np.isfinite(atr) or atr <= 0.0:
+                    atr = 0.0
 
                 raw_sl = float(atr * 1.5)
 
@@ -3442,6 +3585,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 snapshot = self._spread_monitor.update(
                     bid=tick.bid_price.as_double(),
                     ask=tick.ask_price.as_double(),
+                    now=datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc),
                 )
                 self._spread_snapshot = snapshot
                 # Structured spread log on state change
@@ -3535,16 +3679,24 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     self._handle_close_action(action_data)
                 elif action_type == "state_changed":
                     # Log state transitions for analysis
-                    self.log.info(
-                        f"[TRADE_MANAGER] State changed to {action_data.get('new_state', 'UNKNOWN')}: "
-                        f"{action_data.get('reason', '')}"
-                    )
+                    state_payload = action_data if isinstance(action_data, dict) else {}
+                    new_state = state_payload.get("new_state", "UNKNOWN")
+                    reason = state_payload.get("reason", "")
+                    if not isinstance(action_data, dict):
+                        reason = f"non_dict_payload:{type(action_data).__name__}:{action_data}" + (
+                            f" | {reason}" if reason else ""
+                        )
+
+                    self.log.info(f"[TRADE_MANAGER] State changed to {new_state}: {reason}")
                 elif action_type == "current_r":
                     # Informational: current R multiple (for logging/telemetry)
                     pass
 
         except Exception as exc:
-            self.log.warning(f"[TRADE_MANAGER] _process_trade_management failed: {exc}")
+            # Nautilus `Logger.warning` does not accept `exc_info=`; include error inline.
+            self.log.warning(
+                f"[TRADE_MANAGER] _process_trade_management failed: {type(exc).__name__}: {exc}"
+            )
 
     def _handle_partial_action(self, action_data: dict[str, Any], current_price: float) -> None:
         """
@@ -3556,17 +3708,20 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             return
 
         try:
-            close_quantity = action_data.get("quantity", 0.0)
+            # BUG-EXEC-003: `TradeManager.update_price()` returns a Decimal quantity.
+            # Keep Decimal for trade-state accounting, but convert to float for Nautilus Quantity helpers.
+            raw_qty = action_data.get("quantity", Decimal("0"))
             reason = action_data.get("reason", "partial_tp")
 
-            if close_quantity <= 0:
+            close_qty_dec = raw_qty if isinstance(raw_qty, Decimal) else Decimal(str(raw_qty))
+            if close_qty_dec <= 0:
                 return
 
             # Get current position quantity
             current_qty = float(self._position.quantity.as_double())
 
             # Ensure we don't try to close more than we have
-            close_qty_actual = min(close_quantity, current_qty * 0.5)  # Max 50%
+            close_qty_actual = min(float(close_qty_dec), current_qty * 0.5)  # Max 50%
 
             if close_qty_actual <= 0:
                 return
@@ -3597,7 +3752,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             if self._trade_manager and self._active_trade_id:
                 self._trade_manager.execute_partial(
                     trade_id=self._active_trade_id,
-                    closed_quantity=close_qty_actual,
+                    closed_quantity=Decimal(str(close_qty_actual)),
                     close_price=current_price,
                     pnl=None,  # Will be calculated from position close event
                 )
@@ -3612,8 +3767,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # For simplicity, clear after submit (works for IOC orders in backtest)
             self._partial_close_in_progress = False
 
-        except Exception as exc:
-            self.log.warning(f"[TRADE_MANAGER] _handle_partial_action failed: {exc}")
+        except Exception:
+            self.log.warning(
+                "[TRADE_MANAGER] _handle_partial_action failed",
+                exc_info=True,
+            )
             self._partial_close_in_progress = False
 
     def _handle_sl_adjust_action(self, action_data: dict[str, Any]) -> None:
@@ -3693,9 +3851,10 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
             try:
                 self.submit_order(sl_order)
-            except Exception as submit_exc:
+            except Exception:
                 self.log.error(
-                    f"[TRADE_MANAGER] CRITICAL: submit_order failed after canceling old SL: {submit_exc}"
+                    "[TRADE_MANAGER] CRITICAL: submit_order failed after canceling old SL",
+                    exc_info=True,
                 )
                 self._sl_modification_in_progress = False
                 self._trigger_execution_failsafe(reason="sl_submit_failed_after_cancel")
@@ -3713,8 +3872,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # Clear modification flag (SL is now pending confirmation)
             self._sl_modification_in_progress = False
 
-        except Exception as exc:
-            self.log.warning(f"[TRADE_MANAGER] _handle_sl_adjust_action failed: {exc}")
+        except Exception:
+            self.log.warning(
+                "[TRADE_MANAGER] _handle_sl_adjust_action failed",
+                exc_info=True,
+            )
             self._sl_modification_in_progress = False
 
     def _handle_close_action(self, action_data: dict[str, Any]) -> None:
@@ -3730,8 +3892,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             reason = action_data.get("reason", "trade_manager_close")
             self.log.info(f"[TRADE_MANAGER] Closing position: {reason}")
             self._close_position()
-        except Exception as exc:
-            self.log.warning(f"[TRADE_MANAGER] _handle_close_action failed: {exc}")
+        except Exception:
+            self.log.warning(
+                "[TRADE_MANAGER] _handle_close_action failed",
+                exc_info=True,
+            )
 
     # ========== Operational helpers ==========
     @staticmethod
@@ -3786,6 +3951,6 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             )
 
             return metrics
-        except Exception as exc:
-            self.log.error(f"Failed to calculate metrics: {exc}")
+        except Exception:
+            self.log.error("Failed to calculate metrics", exc_info=True)
             return None

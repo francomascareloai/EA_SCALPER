@@ -2,6 +2,8 @@
 Tests for DrawdownTracker.
 """
 
+from datetime import datetime, timezone
+
 import pytest
 
 from src.risk.drawdown_tracker import (
@@ -186,8 +188,8 @@ class TestDrawdownTracker:
 
         stats = dt.get_underwater_stats()
 
-        assert stats['total_events'] >= 1
-        assert stats['avg_duration_bars'] > 0
+        assert stats["total_events"] >= 1
+        assert stats["avg_duration_bars"] > 0
 
     def test_equity_curve(self):
         """Should return equity history."""
@@ -201,3 +203,19 @@ class TestDrawdownTracker:
 
         assert len(curve) == 3
         assert curve == [101_000, 102_000, 101_500]
+
+    def test_daily_reset_uses_day_boundary_tz(self):
+        dt = DrawdownTracker(initial_equity=100_000, day_boundary_tz="America/New_York")
+
+        # 2025-01-01 00:30 UTC is still 2024-12-31 in ET.
+        dt.update(99_000, now=datetime(2025, 1, 1, 0, 30, tzinfo=timezone.utc))
+        before = dt.get_daily_drawdown_pct()
+        assert before > 0
+
+        # 2025-01-01 04:59 UTC is still 2024-12-31 in ET (23:59 ET).
+        dt.update(98_000, now=datetime(2025, 1, 1, 4, 59, tzinfo=timezone.utc))
+        assert dt.get_daily_drawdown_pct() > 0
+
+        # 2025-01-01 05:01 UTC is 00:01 ET -> new ET day, daily DD should reset.
+        dt.update(98_000, now=datetime(2025, 1, 1, 5, 1, tzinfo=timezone.utc))
+        assert dt.get_daily_drawdown_pct() == 0.0
