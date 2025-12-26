@@ -26,6 +26,11 @@ nautilus_gold_scalper/
 
 Migration is complete. For current active modules and architecture state, see `INDEX.md`.
 
+## Operational Docs
+
+Start here:
+- `docs/INDEX.md`
+
 ## Quick Start
 
 ```bash
