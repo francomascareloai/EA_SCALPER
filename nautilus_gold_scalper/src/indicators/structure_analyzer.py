@@ -16,8 +16,9 @@ Key Methods:
 
 // ✓ FORGE v4.0: 7/7 checks
 """
+
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import IntEnum
 from typing import Any
 
@@ -29,33 +30,37 @@ from ..core.exceptions import InsufficientDataError
 
 class StructurePointType(IntEnum):
     """Swing point type."""
-    HH = 0   # Higher High
-    HL = 1   # Higher Low
-    LH = 2   # Lower High
-    LL = 3   # Lower Low
+
+    HH = 0  # Higher High
+    HL = 1  # Higher Low
+    LH = 2  # Lower High
+    LL = 3  # Lower Low
     EQH = 4  # Equal High
     EQL = 5  # Equal Low
 
 
 class MarketBias(IntEnum):
     """Market bias based on structure."""
-    BULLISH = 0     # HH + HL sequence
-    BEARISH = 1     # LH + LL sequence
-    RANGING = 2     # No clear direction
+
+    BULLISH = 0  # HH + HL sequence
+    BEARISH = 1  # LH + LL sequence
+    RANGING = 2  # No clear direction
     TRANSITION = 3  # Changing direction
 
 
 class BreakType(IntEnum):
     """Structure break type."""
+
     NONE = 0
-    BOS = 1      # Break of Structure (continuation)
-    CHOCH = 2    # Change of Character (reversal)
-    SWEEP = 3    # Liquidity sweep (fake break)
+    BOS = 1  # Break of Structure (continuation)
+    CHOCH = 2  # Change of Character (reversal)
+    SWEEP = 3  # Liquidity sweep (fake break)
 
 
 @dataclass
 class SwingPoint:
     """Detected swing point."""
+
     timestamp: datetime | None = None
     price: float = 0.0
     bar_index: int = 0
@@ -70,6 +75,7 @@ class SwingPoint:
 @dataclass
 class StructureBreak:
     """Structure break event."""
+
     timestamp: datetime | None = None
     break_price: float = 0.0
     swing_price: float = 0.0
@@ -85,6 +91,7 @@ class StructureBreak:
 @dataclass
 class FibonacciLevels:
     """Key Fibonacci levels derived from the most recent swing leg."""
+
     swing_high: float = 0.0
     swing_low: float = 0.0
     golden_low: float = 0.0
@@ -99,6 +106,7 @@ class FibonacciLevels:
 @dataclass
 class StructureState:
     """Complete market structure state."""
+
     bias: MarketBias = MarketBias.RANGING
     htf_bias: MarketBias = MarketBias.RANGING
 
@@ -122,7 +130,7 @@ class StructureState:
 
     # Quality metrics
     structure_quality: float = 0.0  # 0-100
-    trend_strength: float = 0.0     # 0-100
+    trend_strength: float = 0.0  # 0-100
 
     # Score for confluence
     score: float = 0.0
@@ -160,6 +168,9 @@ class StructureAnalyzer:
             lookback_bars: Bars to analyze
             min_swing_distance: Min bars between swings
         """
+        # R11-FIX: Validate point > 0 to prevent division by zero
+        if point <= 0:
+            raise ValueError(f"point must be positive, got {point}")
         self.swing_strength = swing_strength
         # `point` is the minimum price increment for the instrument (XAUUSD=0.01, MGC=0.1).
         # The `*_pips` arguments are interpreted in "points" of size `point`.
@@ -174,6 +185,12 @@ class StructureAnalyzer:
         self._breaks: list[StructureBreak] = []
         self._state = StructureState()
         self._point = float(point)
+
+    def reset(self) -> None:
+        self._swing_highs = []
+        self._swing_lows = []
+        self._breaks = []
+        self._state = StructureState()
 
     def analyze(
         self,
@@ -201,7 +218,20 @@ class StructureAnalyzer:
             raise InsufficientDataError(f"Need at least {self.lookback_bars // 2} bars")
 
         if timestamps is None:
-            timestamps = np.arange(n)
+            raise ValueError(
+                "StructureAnalyzer.analyze requires timestamps for deterministic time semantics"
+            )
+
+        # Enforce contract: timestamps must be datetime64 for correct UTC conversion.
+        timestamps_arr = np.asarray(timestamps)
+        if not np.issubdtype(timestamps_arr.dtype, np.datetime64):
+            raise TypeError(
+                "StructureAnalyzer.analyze expects timestamps as np.datetime64 array (not ints/bar-index)"
+            )
+
+        # Fail fast on NaT to avoid silent state degradation in downstream consumers.
+        if np.isnat(timestamps_arr).any():
+            raise ValueError("StructureAnalyzer.analyze timestamps contains NaT")
 
         if current_price is None:
             current_price = float(closes[-1])
@@ -276,14 +306,38 @@ class StructureAnalyzer:
                     break
 
             if is_swing_high:
-                self._swing_highs.append(SwingPoint(
-                    timestamp=datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int)),
-                    price=float(highs[cand]),
-                    bar_index=cand,
-                    is_high=True,
-                    point_type=StructurePointType.HH,  # Will be reclassified
-                    is_valid=True,
-                ))
+                # Enforce minimum distance between swings to reduce noise.
+                # If a new swing occurs too close to the previous one, keep the more extreme level.
+                if (
+                    self._swing_highs
+                    and (cand - self._swing_highs[-1].bar_index) < self.min_swing_distance
+                ):
+                    if float(highs[cand]) > self._swing_highs[-1].price:
+                        self._swing_highs[-1] = SwingPoint(
+                            timestamp=datetime.fromtimestamp(
+                                timestamps[cand].astype("datetime64[ns]").astype(int) / 1e9,
+                                tz=timezone.utc,
+                            ),
+                            price=float(highs[cand]),
+                            bar_index=cand,
+                            is_high=True,
+                            point_type=StructurePointType.HH,  # Will be reclassified
+                            is_valid=True,
+                        )
+                else:
+                    self._swing_highs.append(
+                        SwingPoint(
+                            timestamp=datetime.fromtimestamp(
+                                timestamps[cand].astype("datetime64[ns]").astype(int) / 1e9,
+                                tz=timezone.utc,
+                            ),
+                            price=float(highs[cand]),
+                            bar_index=cand,
+                            is_high=True,
+                            point_type=StructurePointType.HH,  # Will be reclassified
+                            is_valid=True,
+                        )
+                    )
 
             # Check swing low
             is_swing_low = True
@@ -293,14 +347,39 @@ class StructureAnalyzer:
                     break
 
             if is_swing_low:
-                self._swing_lows.append(SwingPoint(
-                    timestamp=datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int)),
-                    price=float(lows[cand]),
-                    bar_index=cand,
-                    is_high=False,
-                    point_type=StructurePointType.LL,  # Will be reclassified
-                    is_valid=True,
-                ))
+                # Enforce minimum distance between swings to reduce noise.
+                # If a new swing occurs too close to the previous one, keep the more extreme level.
+                if (
+                    self._swing_lows
+                    and (cand - self._swing_lows[-1].bar_index) < self.min_swing_distance
+                ):
+                    # For lows, more extreme = lower price
+                    if float(lows[cand]) < self._swing_lows[-1].price:
+                        self._swing_lows[-1] = SwingPoint(
+                            timestamp=datetime.fromtimestamp(
+                                timestamps[cand].astype("datetime64[ns]").astype(int) / 1e9,
+                                tz=timezone.utc,
+                            ),
+                            price=float(lows[cand]),
+                            bar_index=cand,
+                            is_high=False,
+                            point_type=StructurePointType.LL,  # Will be reclassified
+                            is_valid=True,
+                        )
+                else:
+                    self._swing_lows.append(
+                        SwingPoint(
+                            timestamp=datetime.fromtimestamp(
+                                timestamps[cand].astype("datetime64[ns]").astype(int) / 1e9,
+                                tz=timezone.utc,
+                            ),
+                            price=float(lows[cand]),
+                            bar_index=cand,
+                            is_high=False,
+                            point_type=StructurePointType.LL,  # Will be reclassified
+                            is_valid=True,
+                        )
+                    )
 
         # Store last swings in state
         if len(self._swing_highs) >= 2:
@@ -362,9 +441,15 @@ class StructureAnalyzer:
                 return MarketBias.BEARISH
 
         # Check for transition (mixed signals)
-        if last_high.point_type == StructurePointType.LH and last_low.point_type == StructurePointType.HL:
+        if (
+            last_high.point_type == StructurePointType.LH
+            and last_low.point_type == StructurePointType.HL
+        ):
             return MarketBias.TRANSITION
-        if last_high.point_type == StructurePointType.HH and last_low.point_type == StructurePointType.LL:
+        if (
+            last_high.point_type == StructurePointType.HH
+            and last_low.point_type == StructurePointType.LL
+        ):
             return MarketBias.TRANSITION
 
         return MarketBias.RANGING
@@ -389,7 +474,9 @@ class StructureAnalyzer:
                     # Validate with close
                     if closes[-1] < swing.price:
                         displacement = swing.price - current_price
-                        if atr_estimate and displacement < max(self.break_buffer, atr_estimate * 0.5):
+                        if atr_estimate and displacement < max(
+                            self.break_buffer, atr_estimate * 0.5
+                        ):
                             continue
 
                         swing.is_broken = True
@@ -419,7 +506,9 @@ class StructureAnalyzer:
                     # Validate with close
                     if closes[-1] > swing.price:
                         displacement = current_price - swing.price
-                        if atr_estimate and displacement < max(self.break_buffer, atr_estimate * 0.5):
+                        if atr_estimate and displacement < max(
+                            self.break_buffer, atr_estimate * 0.5
+                        ):
                             continue
 
                         swing.is_broken = True
@@ -574,7 +663,7 @@ class StructureAnalyzer:
             score += 15
 
         # Adjust by trend strength
-        score *= (0.5 + self._state.trend_strength / 200)
+        score *= 0.5 + self._state.trend_strength / 200
 
         self._state.score = min(100, score)
         self._state.direction = direction
@@ -612,15 +701,19 @@ class StructureAnalyzer:
 
     def has_recent_bos(self) -> bool:
         """Check if there's a recent BOS."""
-        return (self._state.last_break is not None and
-                self._state.last_break.break_type == BreakType.BOS and
-                self._state.last_break.is_valid)
+        return (
+            self._state.last_break is not None
+            and self._state.last_break.break_type == BreakType.BOS
+            and self._state.last_break.is_valid
+        )
 
     def has_recent_choch(self) -> bool:
         """Check if there's a recent CHoCH."""
-        return (self._state.last_break is not None and
-                self._state.last_break.break_type == BreakType.CHOCH and
-                self._state.last_break.is_valid)
+        return (
+            self._state.last_break is not None
+            and self._state.last_break.break_type == BreakType.CHOCH
+            and self._state.last_break.is_valid
+        )
 
     def get_last_state(self) -> StructureState:
         """Return the last analyzed structure state."""

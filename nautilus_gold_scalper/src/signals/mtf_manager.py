@@ -4,14 +4,14 @@ Coordinates analysis across multiple timeframes for confluence.
 
 Timeframe Hierarchy:
 - HTF (H1): Direction and bias
-- MTF (M15): Structure and key levels
-- LTF (M5): Entry timing and execution
+- MTF (M30): Structure and key levels
+- LTF (M15): Entry timing and execution
 """
 
 import logging
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any
+from typing import Any, TypeAlias, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -19,6 +19,17 @@ from numpy.typing import NDArray
 from ..core.definitions import MarketRegime, SignalType
 from ..indicators.regime_detector import RegimeDetector
 from ..indicators.structure_analyzer import MarketBias, StructureAnalyzer
+
+PriceArray: TypeAlias = NDArray[np.floating[Any]]
+TimestampArray: TypeAlias = NDArray[np.datetime64]
+
+
+class OHLCData(TypedDict):
+    highs: PriceArray
+    lows: PriceArray
+    closes: PriceArray
+    timestamps: TimestampArray
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +69,8 @@ class MTFState:
 
     # Individual timeframe analyses
     htf_analysis: TimeframeAnalysis | None = None  # H1
-    mtf_analysis: TimeframeAnalysis | None = None  # M15
-    ltf_analysis: TimeframeAnalysis | None = None  # M5
+    mtf_analysis: TimeframeAnalysis | None = None  # M30
+    ltf_analysis: TimeframeAnalysis | None = None  # M15
 
     # Alignment
     is_aligned: bool = False
@@ -72,7 +83,7 @@ class MTFState:
 
     # Trade recommendation
     recommended_direction: SignalType = SignalType.SIGNAL_NONE
-    entry_timeframe: Timeframe = Timeframe.M5
+    entry_timeframe: Timeframe = Timeframe.M15
 
     diagnosis: str = ""
 
@@ -81,14 +92,15 @@ class MTFManager:
     """
     Multi-Timeframe Analysis Manager.
 
-    Coordinates analysis across HTF (H1), MTF (M15), and LTF (M5)
+    Coordinates analysis across HTF (H1), MTF (M30), and LTF (M15)
     to identify high-probability setups with timeframe confluence.
     """
 
     # Default timeframe configuration
+    # Defaults align with baseline: Entry=M15, Structure=M30, Direction=H1.
     DEFAULT_HTF = Timeframe.H1
-    DEFAULT_MTF = Timeframe.M15
-    DEFAULT_LTF = Timeframe.M5
+    DEFAULT_MTF = Timeframe.M30
+    DEFAULT_LTF = Timeframe.M15
 
     def __init__(
         self,
@@ -114,8 +126,8 @@ class MTFManager:
 
         Args:
             htf: Higher timeframe for direction (default H1)
-            mtf: Medium timeframe for structure (default M15)
-            ltf: Lower timeframe for entry (default M5)
+            mtf: Medium timeframe for structure (default M30)
+            ltf: Lower timeframe for entry (default M15)
         """
         self.htf = htf
         self.mtf = mtf
@@ -152,9 +164,9 @@ class MTFManager:
 
     def analyze(
         self,
-        htf_data: dict[str, NDArray[np.floating[Any]]],
-        mtf_data: dict[str, NDArray[np.floating[Any]]],
-        ltf_data: dict[str, NDArray[np.floating[Any]]],
+        htf_data: OHLCData,
+        mtf_data: OHLCData,
+        ltf_data: OHLCData,
         current_price: float,
         session_ok: bool = True,
     ) -> MTFState:
@@ -174,19 +186,23 @@ class MTFManager:
 
         # Validate inputs
         if not self._validate_data(htf_data, "HTF"):
-            logger.error("Invalid HTF data provided")
+            self._state.diagnosis = "Invalid HTF data provided"
+            logger.error(self._state.diagnosis)
             return self._state
 
         if not self._validate_data(mtf_data, "MTF"):
-            logger.error("Invalid MTF data provided")
+            self._state.diagnosis = "Invalid MTF data provided"
+            logger.error(self._state.diagnosis)
             return self._state
 
         if not self._validate_data(ltf_data, "LTF"):
-            logger.error("Invalid LTF data provided")
+            self._state.diagnosis = "Invalid LTF data provided"
+            logger.error(self._state.diagnosis)
             return self._state
 
         if current_price <= 0:
-            logger.error(f"Invalid current price: {current_price}")
+            self._state.diagnosis = f"Invalid current price: {current_price}"
+            logger.error(self._state.diagnosis)
             return self._state
 
         try:
@@ -215,44 +231,53 @@ class MTFManager:
             )
 
         except Exception as e:
-            logger.error(f"MTF analysis failed: {e}", exc_info=True)
-            self._state = MTFState()  # Return empty state on error
+            # Fail-closed: return an empty state with explicit diagnosis.
+            # Callers are expected to treat any non-empty diagnosis as a hard block.
+            self._state = MTFState()
+            self._state.diagnosis = f"ERROR: MTF analysis failed: {type(e).__name__}: {e}"
+            logger.error(self._state.diagnosis, exc_info=True)
 
         return self._state
 
-    def _validate_data(self, data: dict[str, NDArray[np.floating[Any]]], name: str) -> bool:
+    def _validate_data(self, data: OHLCData, name: str) -> bool:
         """Validate input data dictionary."""
+        # BUG-IND-002: Ensure OHLC arrays are present, aligned, and deterministic.
         if not data:
             return False
 
-        # BUG-IND-002: Ensure OHLC arrays are present and aligned (same length).
-        required_keys = ["highs", "lows", "closes"]
-        arrays: dict[str, NDArray[np.floating[Any]]] = {}
+        highs = data.get("highs")
+        lows = data.get("lows")
+        closes = data.get("closes")
+        timestamps = data.get("timestamps")
 
-        for key in required_keys:
-            if key not in data:
-                logger.warning(f"{name} data missing key: {key}")
-                return False
+        if not isinstance(highs, np.ndarray) or highs.ndim != 1 or len(highs) == 0:
+            logger.warning(f"{name} highs must be a non-empty 1D numpy array")
+            return False
+        if not isinstance(lows, np.ndarray) or lows.ndim != 1 or len(lows) == 0:
+            logger.warning(f"{name} lows must be a non-empty 1D numpy array")
+            return False
+        if not isinstance(closes, np.ndarray) or closes.ndim != 1 or len(closes) == 0:
+            logger.warning(f"{name} closes must be a non-empty 1D numpy array")
+            return False
 
-            if not isinstance(data[key], np.ndarray):
-                logger.warning(f"{name} {key} is not a numpy array")
-                return False
+        if not isinstance(timestamps, np.ndarray) or timestamps.ndim != 1 or len(timestamps) == 0:
+            logger.warning(f"{name} timestamps must be a non-empty 1D numpy array")
+            return False
 
-            if data[key].ndim != 1:
-                logger.warning(f"{name} {key} must be 1D, got ndim={data[key].ndim}")
-                return False
+        if not np.issubdtype(np.asarray(timestamps).dtype, np.datetime64):
+            logger.warning(f"{name} timestamps must be np.datetime64 for deterministic semantics")
+            return False
 
-            if len(data[key]) == 0:
-                logger.warning(f"{name} {key} is empty")
-                return False
-
-            arrays[key] = data[key]
-
-        n = len(arrays["closes"])
-        if len(arrays["highs"]) != n or len(arrays["lows"]) != n:
+        n = len(closes)
+        if len(highs) != n or len(lows) != n:
             logger.warning(
-                f"{name} OHLC arrays length mismatch: "
-                f"highs={len(arrays['highs'])} lows={len(arrays['lows'])} closes={n}"
+                f"{name} OHLC arrays length mismatch: highs={len(highs)} lows={len(lows)} closes={n}"
+            )
+            return False
+
+        if len(timestamps) != n:
+            logger.warning(
+                f"{name} OHLC/timestamps length mismatch: timestamps={len(timestamps)} closes={n}"
             )
             return False
 
@@ -261,7 +286,7 @@ class MTFManager:
     def _analyze_timeframe(
         self,
         timeframe: Timeframe,
-        data: dict[str, NDArray[np.floating[Any]]],
+        data: OHLCData,
         current_price: float,
     ) -> TimeframeAnalysis:
         """Analyze a single timeframe."""
@@ -271,14 +296,26 @@ class MTFManager:
             highs = data.get("highs", np.array([], dtype=float))
             lows = data.get("lows", np.array([], dtype=float))
             closes = data.get("closes", np.array([], dtype=float))
+            timestamps = data.get("timestamps")
 
             if len(closes) < 20:
                 return analysis
 
+            if timestamps is None:
+                raise ValueError(
+                    "MTFManager requires timestamps for deterministic StructureAnalyzer"
+                )
+
             # Structure analysis
             analyzer = self._structure_analyzers.get(timeframe)
             if analyzer:
-                structure_state = analyzer.analyze(highs, lows, closes, current_price=current_price)
+                structure_state = analyzer.analyze(
+                    highs,
+                    lows,
+                    closes,
+                    timestamps,
+                    current_price=current_price,
+                )
 
                 analysis.bias = structure_state.bias
                 analysis.direction = structure_state.direction
@@ -446,3 +483,12 @@ class MTFManager:
     def get_score(self) -> float:
         """Get MTF score."""
         return self._state.mtf_score
+
+    def reset(self) -> None:
+        """Reset all internal state to avoid cross-run leakage (e.g., WFA folds)."""
+        self._state = MTFState()
+
+        for analyzer in self._structure_analyzers.values():
+            analyzer.reset()
+
+        self._regime_detector.reset()

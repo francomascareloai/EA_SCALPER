@@ -16,6 +16,7 @@ GENIUS v4.0+ Features:
 """
 
 import logging
+import math
 from dataclasses import dataclass
 
 from ..core.data_types import (
@@ -373,6 +374,10 @@ class ConfluenceScorer:
         self.weight_mtf = float(weight_mtf)
         self.weight_footprint = float(weight_footprint)
 
+        self.reset()
+
+    def reset(self) -> None:
+        """Reset runtime state for fold/run isolation."""
         self._components = ScoringComponents()
         self._factor_counters = FactorActivationCounters()
 
@@ -453,6 +458,12 @@ class ConfluenceScorer:
                     min_age = min(min_age, age)
 
         if min_age == 999999:
+            return 1.0
+
+        if optimal_bars <= 0:
+            logger.warning(
+                "Invalid optimal_bars=%s for freshness multiplier; returning 1.0", optimal_bars
+            )
             return 1.0
 
         # Calculate multiplier: peak at optimal_bars, decay before and after
@@ -1132,7 +1143,7 @@ class ConfluenceScorer:
 
         if result.multiplier_adjustments:
             total_mult = result.multiplier_adjustments.get("total", 1.0)
-            if total_mult != 1.0:
+            if not math.isclose(total_mult, 1.0, rel_tol=1e-9, abs_tol=1e-12):
                 diagnosis += f" | Mult: {total_mult:.2f}x"
 
         return diagnosis

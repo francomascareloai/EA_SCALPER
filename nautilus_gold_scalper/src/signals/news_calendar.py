@@ -22,32 +22,37 @@ logger = logging.getLogger(__name__)
 # ENUMS
 # ============================================================================
 
+
 class NewsImpact(IntEnum):
     """News impact levels."""
+
     CRITICAL = 4  # FOMC, NFP - always stay out
-    HIGH = 3      # CPI, GDP
-    MEDIUM = 2    # Retail Sales, PMI
-    LOW = 1       # Consumer Confidence
+    HIGH = 3  # CPI, GDP
+    MEDIUM = 2  # Retail Sales, PMI
+    LOW = 1  # Consumer Confidence
     NONE = 0
 
 
 class NewsTradeAction(IntEnum):
     """Trading actions based on news proximity."""
-    TRADE_NORMAL = 0     # No news nearby
-    TRADE_CAUTION = 1    # News approaching, reduce size
-    PREPOSITION = 2      # Can pre-position for news
-    STRADDLE = 3         # Setup straddle before news
-    PULLBACK = 4         # Wait for pullback after news
-    BLOCK = 5            # Too close, no trading
+
+    TRADE_NORMAL = 0  # No news nearby
+    TRADE_CAUTION = 1  # News approaching, reduce size
+    PREPOSITION = 2  # Can pre-position for news
+    STRADDLE = 3  # Setup straddle before news
+    PULLBACK = 4  # Wait for pullback after news
+    BLOCK = 5  # Too close, no trading
 
 
 # ============================================================================
 # DATA CLASSES
 # ============================================================================
 
+
 @dataclass
 class NewsEvent:
     """Economic news event."""
+
     time_utc: datetime
     event_name: str
     currency: str = "USD"
@@ -69,6 +74,7 @@ class NewsEvent:
 @dataclass
 class NewsWindow:
     """News window analysis result."""
+
     in_window: bool = False
     action: NewsTradeAction = NewsTradeAction.TRADE_NORMAL
     event: NewsEvent | None = None
@@ -90,7 +96,6 @@ GOLD_EVENTS = [
     "FOMC Statement",
     "FOMC Press Conference",
     "Federal Funds Rate",
-
     # Employment
     "Nonfarm Payrolls",
     "Non-Farm Payrolls",
@@ -101,7 +106,6 @@ GOLD_EVENTS = [
     "Continuing Jobless Claims",
     "ADP Employment",
     "ADP Nonfarm Employment",
-
     # Inflation
     "CPI",
     "Consumer Price Index",
@@ -111,12 +115,10 @@ GOLD_EVENTS = [
     "Core PPI",
     "PCE Price Index",
     "Core PCE",
-
     # GDP & Growth
     "GDP",
     "Gross Domestic Product",
     "GDP Growth Rate",
-
     # Retail & Manufacturing
     "Retail Sales",
     "Core Retail Sales",
@@ -125,10 +127,8 @@ GOLD_EVENTS = [
     "ISM Services",
     "ISM Services PMI",
     "Durable Goods Orders",
-
     # Trade & Balance
     "Trade Balance",
-
     # Fed Officials
     "Powell",
     "Yellen",
@@ -167,6 +167,7 @@ WEEKLY_SCHEDULE: dict[str, list[str]] = {
 # HARDCODED MAJOR EVENTS (Always works, no API needed)
 # ============================================================================
 
+
 def get_hardcoded_events_2025() -> list[NewsEvent]:
     """Hardcoded fallback events.
 
@@ -188,7 +189,6 @@ def get_hardcoded_events_2025() -> list[NewsEvent]:
             event_name="FOMC Press Conference",
             impact=NewsImpact.CRITICAL,
         ),
-
         # NFP (First Friday)
         NewsEvent(
             time_utc=datetime(2025, 12, 5, 13, 30, tzinfo=timezone.utc),
@@ -200,7 +200,6 @@ def get_hardcoded_events_2025() -> list[NewsEvent]:
             event_name="Unemployment Rate",
             impact=NewsImpact.HIGH,
         ),
-
         # CPI
         NewsEvent(
             time_utc=datetime(2025, 12, 11, 13, 30, tzinfo=timezone.utc),
@@ -212,7 +211,6 @@ def get_hardcoded_events_2025() -> list[NewsEvent]:
             event_name="Core CPI",
             impact=NewsImpact.HIGH,
         ),
-
         # Retail Sales
         NewsEvent(
             time_utc=datetime(2025, 12, 16, 13, 30, tzinfo=timezone.utc),
@@ -223,7 +221,7 @@ def get_hardcoded_events_2025() -> list[NewsEvent]:
 
     events.extend(december_events)
 
-    # TODO: Add January 2026+ events as they are announced
+    # Note: Extend this list with future major events as needed.
 
     return events
 
@@ -231,6 +229,7 @@ def get_hardcoded_events_2025() -> list[NewsEvent]:
 # ============================================================================
 # MAIN CLASS
 # ============================================================================
+
 
 class NewsCalendar:
     """
@@ -305,7 +304,8 @@ class NewsCalendar:
         today_end = today_start + timedelta(days=1)
 
         return [
-            event for event in self._events
+            event
+            for event in self._events
             if today_start <= event.time_utc < today_end and event.is_valid
         ]
 
@@ -319,7 +319,8 @@ class NewsCalendar:
         week_end = week_start + timedelta(days=7)
 
         return [
-            event for event in self._events
+            event
+            for event in self._events
             if week_start <= event.time_utc < week_end and event.is_valid
         ]
 
@@ -452,7 +453,7 @@ class NewsCalendar:
                 # CRITICAL events get extended window
                 if event.impact == NewsImpact.CRITICAL:
                     window_before = int(window_before * 1.5)  # 45 min
-                    window_after = int(window_after * 1.5)    # 22 min
+                    window_after = int(window_after * 1.5)  # 22 min
 
             elif event.impact == NewsImpact.MEDIUM:
                 window_before = self.minutes_before_medium
@@ -545,7 +546,9 @@ class NewsCalendar:
         logger.info(f"Cached Events: {len(self._events)}")
 
         if self._last_cache_update:
-            age_minutes = (datetime.now(timezone.utc) - self._last_cache_update).total_seconds() / 60
+            age_minutes = (
+                datetime.now(timezone.utc) - self._last_cache_update
+            ).total_seconds() / 60
             logger.info(f"Cache Age: {int(age_minutes)} minutes")
 
         window = self.check_news_window()
@@ -608,8 +611,12 @@ class NewsCalendar:
         if self._events_path is not None:
             try:
                 events.extend(self._load_events_file(self._events_path))
-            except Exception as exc:
-                logger.warning(f"Failed to load news calendar from {self._events_path}: {exc}")
+            except Exception:
+                logger.warning(
+                    "Failed to load news calendar from %s",
+                    self._events_path,
+                    exc_info=True,
+                )
 
         if not events:
             events.extend(get_hardcoded_events_2025())
@@ -666,10 +673,13 @@ class NewsCalendar:
                 for row_index, row in enumerate(reader, start=1):
                     try:
                         event = self._parse_event_dict(row)
-                    except Exception as exc:
+                    except Exception:
                         skipped_rows += 1
                         logger.debug(
-                            f"NewsCalendar: skipping invalid CSV row {row_index} in {path}: {exc}"
+                            "NewsCalendar: skipping invalid CSV row %s in %s",
+                            row_index,
+                            path,
+                            exc_info=True,
                         )
                         continue
                     if not event.event_name:
@@ -752,12 +762,7 @@ class NewsCalendar:
         def _get(key: str, default: Any = None) -> Any:
             return d.get(key, default)
 
-        time_raw = (
-            _get("time_utc")
-            or _get("time")
-            or _get("timestamp")
-            or _get("timestamp_utc")
-        )
+        time_raw = _get("time_utc") or _get("time") or _get("timestamp") or _get("timestamp_utc")
         if time_raw in (None, ""):
             raise ValueError("Missing time_utc")
 
@@ -796,6 +801,7 @@ class NewsCalendar:
 # ============================================================================
 # UTILITIES
 # ============================================================================
+
 
 def get_weekly_events_for_day(day_name: str) -> list[str]:
     """

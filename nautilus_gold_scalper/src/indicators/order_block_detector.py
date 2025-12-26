@@ -10,7 +10,7 @@ Detects:
 - Mitigation levels (50-70% of OB zone)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -59,6 +59,9 @@ class OrderBlockDetector:
             max_order_blocks: Maximum OBs to track
             point: Instrument point size
         """
+        # R11-FIX: Validate point > 0 to prevent division by zero
+        if point <= 0:
+            raise ValueError(f"point must be positive, got {point}")
         # Convert pips to price. Default pip_factor=10 preserves legacy XAUUSD convention (1 pip = 0.1 when point=0.01).
         self.displacement_threshold = displacement_threshold * point * pip_factor
         self.volume_threshold = volume_threshold
@@ -258,7 +261,9 @@ class OrderBlockDetector:
         ob = OrderBlock()
 
         # Timestamps
-        ob.timestamp = datetime.fromtimestamp(timestamps[index].astype("datetime64[s]").astype(int))
+        ob.timestamp = datetime.fromtimestamp(
+            timestamps[index].astype("datetime64[s]").astype(int), tz=timezone.utc
+        )
 
         # Price levels
         ob.high_price = float(highs[index])
@@ -318,7 +323,9 @@ class OrderBlockDetector:
         ob = OrderBlock()
 
         # Timestamps
-        ob.timestamp = datetime.fromtimestamp(timestamps[index].astype("datetime64[s]").astype(int))
+        ob.timestamp = datetime.fromtimestamp(
+            timestamps[index].astype("datetime64[s]").astype(int), tz=timezone.utc
+        )
 
         # Price levels
         ob.high_price = float(highs[index])

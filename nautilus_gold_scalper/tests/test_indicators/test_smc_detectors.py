@@ -5,10 +5,11 @@ from src.indicators.amd_cycle_tracker import AMDCycleTracker
 from src.indicators.fvg_detector import FVGDetector
 from src.indicators.liquidity_sweep import LiquiditySweepDetector
 from src.indicators.order_block_detector import OrderBlockDetector
+from src.indicators.structure_analyzer import StructureAnalyzer
 
 
 class TestOrderBlockDetector:
-    def test_bullish_ob_detected_and_scored(self):
+    def test_bullish_ob_detected_and_scored(self) -> None:
         detector = OrderBlockDetector(
             lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0
         )
@@ -43,7 +44,7 @@ class TestOrderBlockDetector:
         assert any(o.direction == SignalType.SIGNAL_BUY for o in obs)
         assert detector.get_ob_score(base + 8.0, SignalType.SIGNAL_BUY) > 0
 
-    def test_ob_is_not_detected_without_displacement_confirmation(self):
+    def test_ob_is_not_detected_without_displacement_confirmation(self) -> None:
         detector = OrderBlockDetector(
             lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0
         )
@@ -79,7 +80,7 @@ class TestOrderBlockDetector:
 
 
 class TestFVGDetector:
-    def test_bullish_fvg_detected(self):
+    def test_bullish_fvg_detected(self) -> None:
         fvgd = FVGDetector(max_gap_size=200.0, min_displacement=1.0)
         opens = np.array([1899.0, 1902.0, 1912.0])
         highs = np.array([1900.0, 1905.0, 1920.0])
@@ -94,7 +95,7 @@ class TestFVGDetector:
         assert bullish_fvgs[0].size_atr_ratio > 0
         assert bullish_fvgs[0].age_in_bars == 0
 
-    def test_fvg_age_in_bars_increments_over_time(self):
+    def test_fvg_age_in_bars_increments_over_time(self) -> None:
         fvgd = FVGDetector(max_gap_size=200.0, min_displacement=1.0)
 
         # Build a dataset where a bullish FVG is confirmed at index=2.
@@ -115,7 +116,7 @@ class TestFVGDetector:
         expected_age = (len(opens) - 1) - 2
         assert bullish_fvgs[0].age_in_bars == expected_age
 
-    def test_fvg_requires_three_bars(self):
+    def test_fvg_requires_three_bars(self) -> None:
         fvgd = FVGDetector()
         opens = np.array([1900.0, 1905.0])
         highs = np.array([1900.0, 1905.0])
@@ -130,12 +131,12 @@ class TestFVGDetector:
 
 
 class TestLiquiditySweepDetector:
-    def test_bearish_sweep_on_swing_high(self):
+    def test_bearish_sweep_on_swing_high(self) -> None:
         detector = LiquiditySweepDetector()
         highs = np.array([100.0, 101.0, 102.0, 103.0, 104.0, 107.0])
         lows = np.array([99.5, 100.5, 101.5, 102.0, 103.0, 101.0])
         closes = np.array([99.8, 100.8, 101.7, 102.5, 102.8, 102.2])
-        timestamps = np.arange(len(highs))
+        timestamps = np.arange(len(highs)).astype("datetime64[s]")
 
         swing_highs = [103.0, 104.0]
         swing_lows = [99.0]
@@ -150,8 +151,86 @@ class TestLiquiditySweepDetector:
         assert detector.get_sweep_score(SignalType.SIGNAL_SELL) > 0
 
 
+class TestStructureAnalyzer:
+    def test_min_swing_distance_replaces_nearby_more_extreme_swing(self) -> None:
+        analyzer = StructureAnalyzer(swing_strength=1, min_swing_distance=5, lookback_bars=10)
+
+        # Construct highs so we get two swing-high candidates close together.
+        highs = np.array([100.0, 101.0, 100.0, 102.0, 101.0, 100.0])
+        lows = np.array([99.0] * len(highs))
+        closes = np.array([99.5] * len(highs))
+        timestamps = np.arange(len(highs)).astype("datetime64[s]")
+
+        state = analyzer.analyze(
+            highs, lows, closes, timestamps=timestamps, current_price=float(closes[-1])
+        )
+
+        # With min_swing_distance=5 and swing_strength=1, the later, more extreme swing-high
+        # should replace the earlier one rather than adding a second swing.
+        assert state.last_high is not None
+        assert state.last_high.price == 102.0
+
+    def test_min_swing_distance_replaces_nearby_more_extreme_swing_low(self) -> None:
+        """BUG-SMC-003: min_swing_distance must also apply to swing lows."""
+        analyzer = StructureAnalyzer(swing_strength=1, min_swing_distance=5, lookback_bars=10)
+
+        # Construct lows so we get two swing-low candidates close together.
+        # swing_strength=1 means we need 1 bar on each side higher than the candidate.
+        # With 6 bars total and candidates at indices 1 and 3, both confirmed at i=2 and i=4.
+        highs = np.array([101.0] * 6)
+        lows = np.array(
+            [100.0, 99.0, 100.0, 98.0, 100.0, 100.0]
+        )  # Two swing lows: 99 at idx 1, 98 at idx 3
+        closes = np.array([100.5] * 6)
+        timestamps = np.arange(len(highs)).astype("datetime64[s]")
+
+        state = analyzer.analyze(
+            highs, lows, closes, timestamps=timestamps, current_price=float(closes[-1])
+        )
+
+        # With min_swing_distance=5 and swing_strength=1, the later, more extreme swing-low (98.0)
+        # should replace the earlier one (99.0) rather than adding a second swing.
+        assert state.last_low is not None
+        assert state.last_low.price == 98.0, f"Expected 98.0 but got {state.last_low.price}"
+        # Should only have one swing low (replacement, not append)
+        assert len(analyzer._swing_lows) == 1, (
+            f"Expected 1 swing low, got {len(analyzer._swing_lows)}"
+        )
+
+    def test_has_recent_sweep_respects_within_bars(self) -> None:
+        detector = LiquiditySweepDetector(min_sweep_depth=1.0, lookback_bars=100)
+
+        # Build a series with a sweep at bar index 8, then extend to 20 bars.
+        highs = np.array(
+            [
+                100.0,
+                100.2,
+                100.1,
+                100.3,
+                100.25,
+                100.35,
+                100.4,
+                100.45,
+                102.0,  # sweep bar (spike above level)
+                100.2,
+            ]
+            + [100.0] * 10
+        )
+        lows = np.array([99.8] * len(highs))
+        closes = np.array([99.9] * 8 + [99.7] + [99.9] * (len(highs) - 9))
+        timestamps = np.arange(len(highs)).astype("datetime64[s]")
+
+        # Force a BSL pool at 101.0 which is swept by highs[8].
+        swing_highs = [101.0]
+        swing_lows: list[float] = []
+
+        _pools, _sweeps = detector.detect(highs, lows, closes, timestamps, swing_highs, swing_lows)
+        assert detector.has_recent_sweep(within_bars=3) is False
+        assert detector.has_recent_sweep(within_bars=20) is True
+
+
 class TestAMDTracker:
-    def test_accumulation_detected(self):
+    def test_accumulation_detected(self) -> None:
         amd = AMDCycleTracker()
         n = 40
         highs = np.ones(n) * 100.2

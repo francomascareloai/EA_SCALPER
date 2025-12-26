@@ -195,18 +195,38 @@ class NewsTrader:
         self.straddle_sell_ticket: int | None = None
 
     def update_calendar(self, events: list[NewsEvent]) -> None:
-        """
-        Update news calendar with new events.
+        """Update news calendar with new events.
+
+        BUG-MEM-002: Prevent unbounded growth from repeated updates.
 
         Args:
-            events: List of news events to add
+            events: List of news events to add.
         """
-        self.events.extend(events)
-        # Sort by time
-        self.events.sort(key=lambda e: e.time_utc)
-        # Update lookup dict
+        if not events:
+            return
+
+        max_events = 5000
+        seen_keys = {(e.time_utc, e.event_name, e.currency, int(e.impact)) for e in self.events}
+
+        added: list[NewsEvent] = []
         for event in events:
-            self.events_by_time[event.time_utc] = event
+            key = (event.time_utc, event.event_name, event.currency, int(event.impact))
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            added.append(event)
+
+        if not added:
+            return
+
+        self.events.extend(added)
+        self.events.sort(key=lambda e: e.time_utc)
+
+        if len(self.events) > max_events:
+            self.events = self.events[-max_events:]
+
+        # Update lookup dict (bounded by `max_events` too).
+        self.events_by_time = {e.time_utc: e for e in self.events}
 
     def get_next_event(self, now: datetime) -> NewsEvent | None:
         """Get next upcoming high-impact event.

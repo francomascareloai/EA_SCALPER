@@ -5,8 +5,8 @@ Implements comprehensive daily and total DD limits with dynamic adjustments.
 
 Daily DD Limits (from day start balance):
 - 1.5% WARNING → Log alert, continue cautiously
-- 2.0% REDUCE → Cut position sizes to 50%
-- 2.5% STOP_NEW → No new trades, close existing at BE
+- 2.0% CAUTION → Proceed carefully (no size cut)
+- 2.5% REDUCE → Cut position sizes to 50%
 - 3.0% EMERGENCY_HALT → Force close all, end day
 
 Total DD Limits (from high-water mark):
@@ -19,6 +19,7 @@ Total DD Limits (from high-water mark):
 Dynamic Daily Limit: MIN(3%, Remaining Buffer × 0.6)
 """
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import NamedTuple
@@ -162,21 +163,55 @@ class DDProtectionCalculator:
     @staticmethod
     def calculate_daily_dd_pct(day_start_balance: float, current_equity: float) -> float:
         """Daily DD% = (Day Start - Current) / Day Start × 100"""
+        if not (
+            isinstance(day_start_balance, (int, float)) and isinstance(current_equity, (int, float))
+        ):
+            raise TypeError(
+                f"DD inputs must be numeric, got day_start_balance={type(day_start_balance).__name__}, current_equity={type(current_equity).__name__}"
+            )
+        if not (math.isfinite(day_start_balance) and math.isfinite(current_equity)):
+            # Fail closed: treat invalid inputs as blown.
+            return 100.0
+        # Formula: daily_dd_pct = max(0, (day_start_balance - current_equity) / day_start_balance * 100)
+        # Example: day_start_balance=50000, current_equity=49250
+        #          daily_dd_pct = (50000-49250)/50000*100 = 1.5
         if day_start_balance <= 0:
             return 0.0
-        return max(0.0, ((day_start_balance - current_equity) / day_start_balance) * 100)
+
+        daily_dd_pct = ((day_start_balance - current_equity) / day_start_balance) * 100.0
+        daily_dd_pct = min(100.0, max(0.0, daily_dd_pct))
+        if not (0.0 <= daily_dd_pct <= 100.0):
+            raise ValueError(f"Invalid daily_dd_pct: {daily_dd_pct}")
+        return daily_dd_pct
 
     @staticmethod
     def calculate_total_dd_pct(hwm: float, current_equity: float) -> float:
         """Total DD% = (HWM - Current) / HWM × 100"""
+        if not (isinstance(hwm, (int, float)) and isinstance(current_equity, (int, float))):
+            raise TypeError(
+                f"DD inputs must be numeric, got hwm={type(hwm).__name__}, current_equity={type(current_equity).__name__}"
+            )
+        if not (math.isfinite(hwm) and math.isfinite(current_equity)):
+            # Fail closed: treat invalid inputs as blown.
+            return 100.0
+        # Formula: total_dd_pct = max(0, (hwm - current_equity) / hwm * 100)
+        # Example: hwm=52000, current_equity=50000
+        #          total_dd_pct = (52000-50000)/52000*100 = 3.846...
         if hwm <= 0:
             return 0.0
-        return max(0.0, ((hwm - current_equity) / hwm) * 100)
+
+        total_dd_pct = ((hwm - current_equity) / hwm) * 100.0
+        total_dd_pct = min(100.0, max(0.0, total_dd_pct))
+        if not (0.0 <= total_dd_pct <= 100.0):
+            raise ValueError(f"Invalid total_dd_pct: {total_dd_pct}")
+        return total_dd_pct
 
     @staticmethod
     def calculate_remaining_buffer_pct(total_dd_pct: float) -> float:
         """Remaining Buffer% = Apex Limit (5%) - Total DD%"""
-        return DDProtectionCalculator.APEX_LIMIT_PCT - total_dd_pct
+        # Remaining buffer can become negative after breach; keep bounded at 0 for downstream sizing.
+        buffer_pct = DDProtectionCalculator.APEX_LIMIT_PCT - float(total_dd_pct)
+        return max(0.0, buffer_pct)
 
     @staticmethod
     def calculate_max_daily_dd_pct(remaining_buffer_pct: float) -> float:
@@ -190,8 +225,15 @@ class DDProtectionCalculator:
         - Warning (1.5% buffer)     → MIN(3%, 0.9%) = 0.9%
         - Critical (0.5% buffer)    → MIN(3%, 0.3%) = 0.3%
         """
-        dynamic_limit = remaining_buffer_pct * DDProtectionCalculator.DYNAMIC_FACTOR
-        return min(DDProtectionCalculator.MAX_DAILY_DD_PCT, dynamic_limit)
+        # Formula: max_daily_dd_pct = min(MAX_DAILY_DD_PCT, remaining_buffer_pct * DYNAMIC_FACTOR)
+        # Example: remaining_buffer_pct=1.5 -> 1.5*0.6=0.9 -> min(3.0, 0.9) = 0.9
+        rb = max(0.0, float(remaining_buffer_pct))
+        dynamic_limit = rb * DDProtectionCalculator.DYNAMIC_FACTOR
+        max_daily = min(DDProtectionCalculator.MAX_DAILY_DD_PCT, dynamic_limit)
+        # Bounds: this is a percentage in [0, MAX_DAILY_DD_PCT]
+        if not (0.0 <= max_daily <= DDProtectionCalculator.MAX_DAILY_DD_PCT):
+            raise ValueError(f"Invalid max_daily_dd_pct: {max_daily}")
+        return max_daily
 
     @staticmethod
     def get_daily_dd_tier(daily_dd_pct: float) -> tuple[DDTier, int]:
@@ -319,14 +361,20 @@ class DDProtectionCalculator:
 
     @classmethod
     def validate_trade(
-        cls, dd_state: DDProtectionState, proposed_risk_pct: float
+        cls,
+        dd_state: DDProtectionState,
+        proposed_risk_pct: float,
+        *,
+        proposed_risk_pct_day_start: float | None = None,
+        proposed_risk_pct_hwm: float | None = None,
     ) -> tuple[bool, str]:
-        """
-        Validate if a trade is allowed based on DD state and proposed risk.
+        """Validate if a trade is allowed based on DD state and proposed risk.
 
         Args:
             dd_state: Current DD protection state
             proposed_risk_pct: Risk amount as % of current equity
+            proposed_risk_pct_day_start: Optional risk as % of day-start equity (daily DD denom)
+            proposed_risk_pct_hwm: Optional risk as % of HWM (trailing DD denom)
 
         Returns:
             (allowed: bool, reason: str)
@@ -345,22 +393,37 @@ class DDProtectionCalculator:
                 f"New positions blocked: Daily DD {dd_state.daily_dd_pct:.2f}%, Total DD {dd_state.total_dd_pct:.2f}%",
             )
 
+        risk_pct_day_start = (
+            float(proposed_risk_pct)
+            if proposed_risk_pct_day_start is None
+            else float(proposed_risk_pct_day_start)
+        )
+        risk_pct_hwm = (
+            float(proposed_risk_pct)
+            if proposed_risk_pct_hwm is None
+            else float(proposed_risk_pct_hwm)
+        )
+
         # PRIORITY 1: Hard-block before Apex trailing DD limit (project buffer at 4.0%).
-        potential_total_dd = dd_state.total_dd_pct + proposed_risk_pct
+        # Formula: potential_total_dd_pct = total_dd_pct + (risk_amount / HWM) * 100
+        potential_total_dd = dd_state.total_dd_pct + risk_pct_hwm
         if potential_total_dd >= 4.0:
             return False, (
                 f"Trade would breach trailing DD safety buffer: "
-                f"Current {dd_state.total_dd_pct:.2f}% + Risk {proposed_risk_pct:.2f}% = {potential_total_dd:.2f}% "
+                f"Current {dd_state.total_dd_pct:.2f}% + Risk {risk_pct_hwm:.2f}% = {potential_total_dd:.2f}% "
                 f">= 4.0%"
             )
 
         # PRIORITY 2: Check if proposed risk would exceed dynamic daily limit
-        potential_daily_dd = dd_state.daily_dd_pct + proposed_risk_pct
-        if potential_daily_dd > dd_state.max_daily_dd_pct:
+        # NOTE: Dynamic limit can be lower than current daily DD%. In that case, trading should already
+        # be effectively blocked for new risk (even a tiny trade).
+        # Daily DD is measured vs day-start equity; use matching denominator.
+        potential_daily_dd = dd_state.daily_dd_pct + risk_pct_day_start
+        if potential_daily_dd >= dd_state.max_daily_dd_pct:
             return False, (
                 f"Trade would exceed dynamic daily limit: "
-                f"Current {dd_state.daily_dd_pct:.2f}% + Risk {proposed_risk_pct:.2f}% = {potential_daily_dd:.2f}% "
-                f"> Limit {dd_state.max_daily_dd_pct:.2f}%"
+                f"Current {dd_state.daily_dd_pct:.2f}% + Risk {risk_pct_day_start:.2f}% = {potential_daily_dd:.2f}% "
+                f">= Limit {dd_state.max_daily_dd_pct:.2f}%"
             )
 
         # Trade allowed

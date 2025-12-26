@@ -12,7 +12,6 @@ v4.0 Features:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -64,6 +63,11 @@ class RegimeDetector:
         self.kalman_q = kalman_q
         self.kalman_r = kalman_r
         self.multiscale_periods = multiscale_periods or [50, 100, 200]
+
+        if len(self.multiscale_periods) != 3:
+            raise ValueError(
+                f"multiscale_periods must have exactly 3 values, got {self.multiscale_periods}"
+            )
 
         self._kalman = KalmanState()
         self._regime_history: list[MarketRegime] = []
@@ -119,7 +123,8 @@ class RegimeDetector:
             hurst_short, hurst_medium, hurst_long
         )
 
-        kalman_velocity = self._update_kalman(float(prices[-1]))
+        # BUG-IND-001: Use sanitized last price for Kalman update to avoid NaNs.
+        kalman_velocity = self._update_kalman(float(prices_f[-1]))
 
         regime = self._classify_regime(hurst, entropy, vr, multiscale_agreement)
         transition_prob = self._calculate_transition_probability(hurst)
@@ -153,7 +158,7 @@ class RegimeDetector:
             score_adjustment=score_adjustment,
             confidence=confidence,
             recommended_entry_mode=entry_mode,
-            calculation_time=datetime.now(timezone.utc),
+            calculation_time=None,
             is_valid=True,
             diagnosis=self._generate_diagnosis(regime, hurst, entropy, vr),
         )
@@ -209,7 +214,10 @@ class RegimeDetector:
         # BUG FIX: density=True returns PDF, not probabilities.
         # Must use density=False and normalize to get P(x) that sums to 1.
         hist, _ = np.histogram(returns, bins=n_bins, density=False)
-        hist = hist / hist.sum()  # Normalize to probabilities
+        denom = int(hist.sum())
+        if denom == 0:
+            return 0.0  # R13-FIX: avoid division by zero when histogram is empty
+        hist = hist / denom  # Normalize to probabilities
         hist = hist[hist > 0]
         entropy = -np.sum(hist * np.log2(hist)) / np.log2(n_bins)
         return float(entropy)

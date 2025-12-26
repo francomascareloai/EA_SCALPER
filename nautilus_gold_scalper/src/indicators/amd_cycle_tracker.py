@@ -12,7 +12,7 @@ This is the CORE institutional pattern for entries.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -66,8 +66,22 @@ class AMDCycleTracker:
         self.point = point
         self.pip_factor = pip_factor
 
-        # Current cycle state
+        # Current cycle state (runtime only; safe to reset between WFA folds)
+        self._cycle: AMDCycle
+        self.reset()
+
+    def reset(self) -> None:
+        """Reset ALL runtime state.
+
+        This method exists primarily to guarantee clean WFA fold isolation.
+        """
         self._cycle = AMDCycle()
+
+    @staticmethod
+    def _ts_to_dt_utc(ts: np.datetime64) -> datetime:
+        """Convert numpy datetime64 -> timezone-aware UTC datetime."""
+        seconds = int(ts.astype("datetime64[s]").astype(np.int64))
+        return datetime.fromtimestamp(seconds, tz=timezone.utc)
 
     def analyze(
         self,
@@ -107,7 +121,7 @@ class AMDCycleTracker:
         if self._cycle.current_phase in [AMDPhase.AMD_UNKNOWN, AMDPhase.AMD_DISTRIBUTION]:
             # Default to accumulation when starting
             self._cycle.current_phase = AMDPhase.AMD_ACCUMULATION
-            self._cycle.phase_start_time = datetime.fromtimestamp(timestamps[-1].astype("datetime64[s]").astype(int))
+            self._cycle.phase_start_time = self._ts_to_dt_utc(timestamps[-1])
             self._cycle.is_valid = True
 
         elif self._cycle.current_phase == AMDPhase.AMD_ACCUMULATION:
@@ -117,7 +131,7 @@ class AMDCycleTracker:
                     self._cycle.current_phase = AMDPhase.AMD_MANIPULATION
                 else:
                     # No manipulation detected, reset
-                    self._cycle = AMDCycle()
+                    self.reset()
 
         elif self._cycle.current_phase == AMDPhase.AMD_MANIPULATION:
             # Wait for distribution (real move)
@@ -128,7 +142,7 @@ class AMDCycleTracker:
                 # Check if manipulation failed
                 if self._cycle.phase_duration_bars > 5:
                     # Manipulation didn't produce distribution
-                    self._cycle = AMDCycle()
+                    self.reset()
 
         # Update phase duration
         self._cycle.phase_duration_bars += 1
@@ -163,8 +177,10 @@ class AMDCycleTracker:
         # Count bars within this range
         bars_in_range = 0
         for i in range(max(0, len(highs) - lookback), len(highs)):
-            if (lows[i] >= range_low - self.equal_tolerance and
-                highs[i] <= range_high + self.equal_tolerance):
+            if (
+                lows[i] >= range_low - self.equal_tolerance
+                and highs[i] <= range_high + self.equal_tolerance
+            ):
                 bars_in_range += 1
 
         # Need minimum bars in range
@@ -188,8 +204,10 @@ class AMDCycleTracker:
         current_price: float = float(closes[-1])
 
         # Check if still within accumulation range
-        if (current_price < self._cycle.accumulation_low or
-            current_price > self._cycle.accumulation_high):
+        if (
+            current_price < self._cycle.accumulation_low
+            or current_price > self._cycle.accumulation_high
+        ):
             return False
 
         return True
@@ -373,10 +391,10 @@ class AMDCycleTracker:
     def has_valid_setup(self) -> bool:
         """Check if there's a valid setup for entry."""
         return bool(
-            self._cycle.current_phase == AMDPhase.AMD_DISTRIBUTION and
-            self._cycle.expected_direction != SignalType.SIGNAL_NONE and
-            self._cycle.confidence >= 60.0 and
-            self._cycle.is_valid
+            self._cycle.current_phase == AMDPhase.AMD_DISTRIBUTION
+            and self._cycle.expected_direction != SignalType.SIGNAL_NONE
+            and self._cycle.confidence >= 60.0
+            and self._cycle.is_valid
         )
 
     def get_cycle(self) -> AMDCycle:

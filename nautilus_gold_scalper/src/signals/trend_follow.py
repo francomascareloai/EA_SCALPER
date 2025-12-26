@@ -76,6 +76,64 @@ def _sma(values: NDArray[np.floating[Any]], period: int) -> NDArray[np.floating[
     return out
 
 
+def _wma(values: NDArray[np.floating[Any]], period: int) -> NDArray[np.floating[Any]]:
+    if period <= 1 or values.size == 0:
+        return values
+
+    n = int(values.size)
+    p = int(period)
+    v = values.astype(np.float64, copy=False)
+
+    out = np.empty(n, dtype=np.float64)
+
+    # Warm-up with growing window (1..p-1)
+    for i in range(min(n, p - 1)):
+        w = i + 1
+        denom = float(w * (w + 1) / 2)
+        num = 0.0
+        for j in range(w):
+            num += float(j + 1) * float(v[i - w + 1 + j])
+        out[i] = num / max(1.0, denom)
+
+    if n < p:
+        return out
+
+    # First full window (size p)
+    denom_full = float(p * (p + 1) / 2)
+    wsum = 0.0
+    ssum = 0.0
+    for j in range(p):
+        x = float(v[j])
+        ssum += x
+        wsum += float(j + 1) * x
+    out[p - 1] = wsum / max(1.0, denom_full)
+
+    # Rolling update (O(n))
+    for i in range(p, n):
+        x_new = float(v[i])
+        wsum = wsum - ssum + float(p) * x_new
+        ssum = ssum - float(v[i - p]) + x_new
+        out[i] = wsum / max(1.0, denom_full)
+
+    return out
+
+
+def _hma(values: NDArray[np.floating[Any]], period: int) -> NDArray[np.floating[Any]]:
+    if period <= 1 or values.size == 0:
+        return values
+
+    p = int(period)
+    half = max(1, p // 2)
+    sqrt_p = max(1, int(np.sqrt(float(p))))
+
+    v = values.astype(np.float64, copy=False)
+    w_full = _wma(v, p)
+    w_half = _wma(v, half)
+
+    diff = 2.0 * w_half - w_full
+    return _wma(diff, sqrt_p)
+
+
 def compute_psar_series(
     *,
     highs: NDArray[np.floating[Any]],
@@ -246,7 +304,9 @@ def _find_last_confirmed_swings(
         # Swing high
         is_swing_high = True
         for j in range(1, s + 1):
-            if float(highs[cand]) <= float(highs[cand - j]) or float(highs[cand]) <= float(highs[cand + j]):
+            if float(highs[cand]) <= float(highs[cand - j]) or float(highs[cand]) <= float(
+                highs[cand + j]
+            ):
                 is_swing_high = False
                 break
         if is_swing_high:
@@ -255,7 +315,9 @@ def _find_last_confirmed_swings(
         # Swing low
         is_swing_low = True
         for j in range(1, s + 1):
-            if float(lows[cand]) >= float(lows[cand - j]) or float(lows[cand]) >= float(lows[cand + j]):
+            if float(lows[cand]) >= float(lows[cand - j]) or float(lows[cand]) >= float(
+                lows[cand + j]
+            ):
                 is_swing_low = False
                 break
         if is_swing_low:
@@ -318,12 +380,20 @@ def generate_trend_follow_candidates(
     l = lows.astype(np.float64, copy=False)
 
     ma = str(ma_type or "EMA").strip().upper()
-    if ma == "SMA":
-        ema_f = _sma(c, ema_fast)
-        ema_s = _sma(c, ema_slow)
-    else:
+    if ma == "EMA":
         ema_f = _ema(c, ema_fast)
         ema_s = _ema(c, ema_slow)
+    elif ma == "SMA":
+        ema_f = _sma(c, ema_fast)
+        ema_s = _sma(c, ema_slow)
+    elif ma == "WMA":
+        ema_f = _wma(c, ema_fast)
+        ema_s = _wma(c, ema_slow)
+    elif ma == "HMA":
+        ema_f = _hma(c, ema_fast)
+        ema_s = _hma(c, ema_slow)
+    else:
+        raise ValueError(f"Unknown ma_type={ma_type!r}. Expected one of: EMA, SMA, WMA, HMA")
 
     # Optional ER regime gate (Kaufman efficiency ratio).
     er: float | None = None
@@ -368,7 +438,9 @@ def generate_trend_follow_candidates(
     prev_high_bar = float(h[-2])
     last_high_bar = float(h[-1])
 
-    touch_dist = float(max(tick_size, min(last_atr * float(touch_dist_mult), last_atr or tick_size)))
+    touch_dist = float(
+        max(tick_size, min(last_atr * float(touch_dist_mult), last_atr or tick_size))
+    )
 
     pb_recross_lb = int(max(1, pullback_recross_lookback))
 
@@ -385,7 +457,9 @@ def generate_trend_follow_candidates(
                     break
             bounced = last_close > last_ema_f and recrossed
         else:
-            bounced = last_close > last_ema_f and (prev_close <= prev_ema_f or prev_low <= prev_ema_f)
+            bounced = last_close > last_ema_f and (
+                prev_close <= prev_ema_f or prev_low <= prev_ema_f
+            )
 
         if touched and bounced:
             sl = max(0.0, last_close - (recent_low - tick_size))
@@ -421,7 +495,9 @@ def generate_trend_follow_candidates(
                     break
             bounced = last_close < last_ema_f and recrossed
         else:
-            bounced = last_close < last_ema_f and (prev_close >= prev_ema_f or prev_high_bar >= prev_ema_f)
+            bounced = last_close < last_ema_f and (
+                prev_close >= prev_ema_f or prev_high_bar >= prev_ema_f
+            )
 
         if touched and bounced:
             sl = max(0.0, (recent_high + tick_size) - last_close)

@@ -12,7 +12,8 @@ Example:
     from src.risk import PropFirmManager, PositionSizer, DrawdownTracker, CircuitBreaker
 
     # Initialize risk manager
-    prop_manager = PropFirmManager(account_balance=100_000)
+    prop_manager = PropFirmManager()
+    prop_manager.initialize(100_000)
 
     # Initialize position sizer
     sizer = PositionSizer(method=LotSizeMethod.KELLY)

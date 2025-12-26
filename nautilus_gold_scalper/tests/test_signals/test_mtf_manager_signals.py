@@ -5,18 +5,19 @@ Tests structure-based direction, alignment, and MTF score calculation.
 This tests the PRODUCTION version in signals/mtf_manager.py (SMC-based),
 not the deprecated indicators/mtf_manager.py (EMA-based).
 """
-import numpy as np
-import pytest
+
 from typing import Any
 
-from nautilus_gold_scalper.src.core.definitions import SignalType, MarketRegime
+import numpy as np
+import pytest
+from nautilus_gold_scalper.src.core.definitions import MarketRegime, SignalType
+from nautilus_gold_scalper.src.indicators.structure_analyzer import MarketBias
 from nautilus_gold_scalper.src.signals.mtf_manager import (
     MTFManager,
     MTFState,
-    TimeframeAnalysis,
     Timeframe,
+    TimeframeAnalysis,
 )
-from nautilus_gold_scalper.src.indicators.structure_analyzer import MarketBias
 
 
 class TestMTFManagerSignals:
@@ -38,10 +39,12 @@ class TestMTFManagerSignals:
         closes = base + noise
         highs = closes + np.abs(np.random.randn(n) * 3) + 2
         lows = closes - np.abs(np.random.randn(n) * 3) - 2
+        timestamps = np.arange(n, dtype=np.int64).astype("datetime64[s]")
         return {
-            'highs': highs.astype(np.float64),
-            'lows': lows.astype(np.float64),
-            'closes': closes.astype(np.float64),
+            "highs": highs.astype(np.float64),
+            "lows": lows.astype(np.float64),
+            "closes": closes.astype(np.float64),
+            "timestamps": timestamps,
         }
 
     @pytest.fixture
@@ -55,10 +58,12 @@ class TestMTFManagerSignals:
         closes = base + noise
         highs = closes + np.abs(np.random.randn(n) * 3) + 2
         lows = closes - np.abs(np.random.randn(n) * 3) - 2
+        timestamps = np.arange(n, dtype=np.int64).astype("datetime64[s]")
         return {
-            'highs': highs.astype(np.float64),
-            'lows': lows.astype(np.float64),
-            'closes': closes.astype(np.float64),
+            "highs": highs.astype(np.float64),
+            "lows": lows.astype(np.float64),
+            "closes": closes.astype(np.float64),
+            "timestamps": timestamps,
         }
 
     @pytest.fixture
@@ -72,10 +77,12 @@ class TestMTFManagerSignals:
         closes = base + noise
         highs = closes + np.abs(np.random.randn(n) * 3) + 2
         lows = closes - np.abs(np.random.randn(n) * 3) - 2
+        timestamps = np.arange(n, dtype=np.int64).astype("datetime64[s]")
         return {
-            'highs': highs.astype(np.float64),
-            'lows': lows.astype(np.float64),
-            'closes': closes.astype(np.float64),
+            "highs": highs.astype(np.float64),
+            "lows": lows.astype(np.float64),
+            "closes": closes.astype(np.float64),
+            "timestamps": timestamps,
         }
 
     # Test: Initialization
@@ -83,8 +90,8 @@ class TestMTFManagerSignals:
     def test_initialization_defaults(self, manager: MTFManager) -> None:
         """Test default initialization."""
         assert manager.htf == Timeframe.H1
-        assert manager.mtf == Timeframe.M15
-        assert manager.ltf == Timeframe.M5
+        assert manager.mtf == Timeframe.M30
+        assert manager.ltf == Timeframe.M15
 
     def test_initialization_custom_timeframes(self) -> None:
         """Test custom timeframe initialization."""
@@ -120,9 +127,9 @@ class TestMTFManagerSignals:
         """Test analyze with invalid HTF data returns empty state."""
         empty_data: dict[str, np.ndarray[Any, np.dtype[np.floating[Any]]]] = {}
         valid_data = {
-            'highs': np.array([2000.0] * 50, dtype=np.float64),
-            'lows': np.array([1990.0] * 50, dtype=np.float64),
-            'closes': np.array([1995.0] * 50, dtype=np.float64),
+            "highs": np.array([2000.0] * 50, dtype=np.float64),
+            "lows": np.array([1990.0] * 50, dtype=np.float64),
+            "closes": np.array([1995.0] * 50, dtype=np.float64),
         }
         state = manager.analyze(
             htf_data=empty_data,
@@ -136,9 +143,9 @@ class TestMTFManagerSignals:
     def test_analyze_insufficient_bars(self, manager: MTFManager) -> None:
         """Test analyze with insufficient bars returns empty state."""
         short_data = {
-            'highs': np.array([2000.0, 2001.0, 2002.0], dtype=np.float64),
-            'lows': np.array([1990.0, 1991.0, 1992.0], dtype=np.float64),
-            'closes': np.array([1995.0, 1996.0, 1997.0], dtype=np.float64),
+            "highs": np.array([2000.0, 2001.0, 2002.0], dtype=np.float64),
+            "lows": np.array([1990.0, 1991.0, 1992.0], dtype=np.float64),
+            "closes": np.array([1995.0, 1996.0, 1997.0], dtype=np.float64),
         }
         state = manager.analyze(
             htf_data=short_data,

@@ -33,7 +33,33 @@ def test_trend_follow_breakout_long_candidate_generated() -> None:
         atr_percentile=80.0,
         min_score=60.0,
     )
-    assert any(c.variant == TrendFollowVariant.BREAKOUT and c.direction == TrendDirection.LONG for c in cands)
+    assert any(
+        c.variant == TrendFollowVariant.BREAKOUT and c.direction == TrendDirection.LONG
+        for c in cands
+    )
+
+
+def test_trend_follow_wma_hma_do_not_crash() -> None:
+    n = 200
+    closes = np.linspace(2500.0, 2520.0, n, dtype=np.float64)
+    highs = closes + 0.2
+    lows = closes - 0.2
+
+    for ma_type in ("WMA", "HMA"):
+        cands = generate_trend_follow_candidates(
+            closes=closes,
+            highs=highs,
+            lows=lows,
+            tick_size=0.1,
+            atr=2.0,
+            atr_percentile=70.0,
+            ma_type=ma_type,
+            min_score=60.0,
+        )
+        assert isinstance(cands, list)
+        for c in cands:
+            assert np.isfinite(float(c.score))
+            assert np.isfinite(float(c.sl_distance))
 
 
 def test_trend_follow_er_gate_blocks_candidates_when_low() -> None:
@@ -85,7 +111,10 @@ def test_trend_follow_pullback_long_candidate_generated() -> None:
         atr_percentile=70.0,
         min_score=60.0,
     )
-    assert any(c.variant == TrendFollowVariant.PULLBACK and c.direction == TrendDirection.LONG for c in cands)
+    assert any(
+        c.variant == TrendFollowVariant.PULLBACK and c.direction == TrendDirection.LONG
+        for c in cands
+    )
 
     cands_sma = generate_trend_follow_candidates(
         closes=closes,
@@ -97,7 +126,10 @@ def test_trend_follow_pullback_long_candidate_generated() -> None:
         ma_type="SMA",
         min_score=60.0,
     )
-    assert any(c.variant == TrendFollowVariant.PULLBACK and c.direction == TrendDirection.LONG for c in cands_sma)
+    assert any(
+        c.variant == TrendFollowVariant.PULLBACK and c.direction == TrendDirection.LONG
+        for c in cands_sma
+    )
 
 
 def test_trend_follow_pullback_recross_strict_blocks_when_no_recross() -> None:
@@ -163,7 +195,10 @@ def test_trend_follow_swing_breakout_long_candidate_generated() -> None:
         swing_lookback_bars=120,
         min_score=60.0,
     )
-    assert any(c.variant == TrendFollowVariant.SWING_BREAKOUT and c.direction == TrendDirection.LONG for c in cands)
+    assert any(
+        c.variant == TrendFollowVariant.SWING_BREAKOUT and c.direction == TrendDirection.LONG
+        for c in cands
+    )
 
 
 def test_psar_series_basic_shape() -> None:
@@ -176,4 +211,3 @@ def test_psar_series_basic_shape() -> None:
 
     assert sar.shape == (n,)
     assert np.isfinite(sar).all()
-

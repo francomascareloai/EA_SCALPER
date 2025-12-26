@@ -10,7 +10,7 @@ Detects:
 - Quality scoring (LOW, MEDIUM, HIGH, ELITE)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -148,7 +148,7 @@ class FVGDetector:
         current_time_dt = None
         if timestamps is not None and len(timestamps) > 0:
             current_time_dt = datetime.fromtimestamp(
-                timestamps[-1].astype("datetime64[s]").astype(int)
+                timestamps[-1].astype("datetime64[s]").astype(int), tz=timezone.utc
             )
         self._update_fvg_states(current_price, current_time_dt)
 
@@ -229,7 +229,7 @@ class FVGDetector:
 
         # Timestamp
         fvg.timestamp = datetime.fromtimestamp(
-            timestamps[index].astype("datetime64[s]").astype(int)
+            timestamps[index].astype("datetime64[s]").astype(int), tz=timezone.utc
         )
 
         # Gap boundaries (candles: index-2 is first, index is third)
@@ -290,7 +290,7 @@ class FVGDetector:
 
         # Timestamp
         fvg.timestamp = datetime.fromtimestamp(
-            timestamps[index].astype("datetime64[s]").astype(int)
+            timestamps[index].astype("datetime64[s]").astype(int), tz=timezone.utc
         )
 
         # Gap boundaries (candles: index-2 is first, index is third)

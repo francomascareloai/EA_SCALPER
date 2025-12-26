@@ -12,7 +12,7 @@ Detects:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -64,6 +64,9 @@ class LiquiditySweepDetector:
             swing_strength: Bars on each side for swing confirmation
             point: Instrument point size
         """
+        # R11-FIX: Validate point > 0 to prevent division by zero
+        if point <= 0:
+            raise ValueError(f"point must be positive, got {point}")
         # Convert pips to price. Default pip_factor=10 preserves legacy XAUUSD convention (1 pip = 0.1 when point=0.01).
         self.equal_tolerance = equal_tolerance * point * pip_factor
         self.min_touches = min_touches
@@ -78,6 +81,7 @@ class LiquiditySweepDetector:
         self._bsl_pools: list[LiquidityPool] = []
         self._ssl_pools: list[LiquidityPool] = []
         self._sweeps: list[LiquiditySweep] = []
+        self._last_seen_bar_index: int | None = None
 
     def detect(
         self,
@@ -129,6 +133,7 @@ class LiquiditySweepDetector:
         self._bsl_pools = []
         self._ssl_pools = []
         self._sweeps = []
+        self._last_seen_bar_index = n - 1
 
         # Detect liquidity pools
         self._scan_for_liquidity_pools(highs, lows, closes, timestamps)
@@ -223,7 +228,9 @@ class LiquiditySweepDetector:
 
                 if not exists:
                     pool = LiquidityPool()
-                    pool.timestamp = datetime.fromtimestamp(first_time.astype("datetime64[s]").astype(int))
+                    pool.timestamp = datetime.fromtimestamp(
+                        first_time.astype("datetime64[s]").astype(int), tz=timezone.utc
+                    )
                     pool.price_level = float(high_level)
                     pool.liquidity_type = LiquidityType.LIQUIDITY_BSL
                     pool.state = LiquidityState.LIQUIDITY_UNTAPPED
@@ -272,7 +279,9 @@ class LiquiditySweepDetector:
 
                 if not exists:
                     pool = LiquidityPool()
-                    pool.timestamp = datetime.fromtimestamp(first_time.astype("datetime64[s]").astype(int))
+                    pool.timestamp = datetime.fromtimestamp(
+                        first_time.astype("datetime64[s]").astype(int), tz=timezone.utc
+                    )
                     pool.price_level = float(low_level)
                     pool.liquidity_type = LiquidityType.LIQUIDITY_SSL
                     pool.state = LiquidityState.LIQUIDITY_UNTAPPED
@@ -322,7 +331,9 @@ class LiquiditySweepDetector:
 
                 if not exists:
                     pool = LiquidityPool()
-                    pool.timestamp = datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int))
+                    pool.timestamp = datetime.fromtimestamp(
+                        timestamps[cand].astype("datetime64[s]").astype(int), tz=timezone.utc
+                    )
                     pool.price_level = float(highs[cand])
                     pool.liquidity_type = LiquidityType.LIQUIDITY_BSL
                     pool.state = LiquidityState.LIQUIDITY_UNTAPPED
@@ -372,7 +383,9 @@ class LiquiditySweepDetector:
 
                 if not exists:
                     pool = LiquidityPool()
-                    pool.timestamp = datetime.fromtimestamp(timestamps[cand].astype("datetime64[s]").astype(int))
+                    pool.timestamp = datetime.fromtimestamp(
+                        timestamps[cand].astype("datetime64[s]").astype(int), tz=timezone.utc
+                    )
                     pool.price_level = float(lows[cand])
                     pool.liquidity_type = LiquidityType.LIQUIDITY_SSL
                     pool.state = LiquidityState.LIQUIDITY_UNTAPPED
@@ -417,20 +430,26 @@ class LiquiditySweepDetector:
         atr: float,
     ) -> None:
         """Detect liquidity sweeps."""
+        scan_window = max(1, min(self.lookback_bars, len(highs)))
+        scan_start = max(0, len(highs) - scan_window)
+
         # Check BSL sweeps
         for pool in self._bsl_pools:
             if pool.state != LiquidityState.LIQUIDITY_UNTAPPED:
                 continue
 
-            # Check recent bars for sweep
-            for i in range(max(0, len(highs) - 10), len(highs)):
+            # Check recent bars for sweep (bounded by lookback_bars)
+            for i in range(scan_start, len(highs)):
                 if highs[i] > pool.price_level + self.min_sweep_depth:
                     # Validate sweep
                     if self._validate_sweep_bullish(
                         opens, highs, lows, closes, i, pool.price_level, atr
                     ):
                         sweep = LiquiditySweep()
-                        sweep.timestamp = datetime.fromtimestamp(timestamps[i].astype("datetime64[s]").astype(int))
+                        sweep.timestamp = datetime.fromtimestamp(
+                            timestamps[i].astype("datetime64[s]").astype(int), tz=timezone.utc
+                        )
+                        sweep.bar_index = i
                         sweep.swept_level = pool.price_level
                         sweep.sweep_high = float(highs[i])
                         sweep.sweep_low = float(lows[i])
@@ -452,15 +471,18 @@ class LiquiditySweepDetector:
             if pool.state != LiquidityState.LIQUIDITY_UNTAPPED:
                 continue
 
-            # Check recent bars for sweep
-            for i in range(max(0, len(lows) - 10), len(lows)):
+            # Check recent bars for sweep (bounded by lookback_bars)
+            for i in range(scan_start, len(lows)):
                 if lows[i] < pool.price_level - self.min_sweep_depth:
                     # Validate sweep
                     if self._validate_sweep_bearish(
                         opens, highs, lows, closes, i, pool.price_level, atr
                     ):
                         sweep = LiquiditySweep()
-                        sweep.timestamp = datetime.fromtimestamp(timestamps[i].astype("datetime64[s]").astype(int))
+                        sweep.timestamp = datetime.fromtimestamp(
+                            timestamps[i].astype("datetime64[s]").astype(int), tz=timezone.utc
+                        )
+                        sweep.bar_index = i
                         sweep.swept_level = pool.price_level
                         sweep.sweep_high = float(highs[i])
                         sweep.sweep_low = float(lows[i])
@@ -566,9 +588,11 @@ class LiquiditySweepDetector:
 
     def get_nearest_bsl(self, current_price: float) -> LiquidityPool | None:
         """Get nearest BSL above current price."""
-        above = [pool for pool in self._bsl_pools
-                 if pool.price_level > current_price
-                 and pool.state == LiquidityState.LIQUIDITY_UNTAPPED]
+        above = [
+            pool
+            for pool in self._bsl_pools
+            if pool.price_level > current_price and pool.state == LiquidityState.LIQUIDITY_UNTAPPED
+        ]
 
         if not above:
             return None
@@ -578,9 +602,11 @@ class LiquiditySweepDetector:
 
     def get_nearest_ssl(self, current_price: float) -> LiquidityPool | None:
         """Get nearest SSL below current price."""
-        below = [pool for pool in self._ssl_pools
-                 if pool.price_level < current_price
-                 and pool.state == LiquidityState.LIQUIDITY_UNTAPPED]
+        below = [
+            pool
+            for pool in self._ssl_pools
+            if pool.price_level < current_price and pool.state == LiquidityState.LIQUIDITY_UNTAPPED
+        ]
 
         if not below:
             return None
@@ -589,8 +615,23 @@ class LiquiditySweepDetector:
         return below[0]
 
     def has_recent_sweep(self, within_bars: int = 10) -> bool:
-        """Check if there's a recent sweep."""
-        return len(self._sweeps) > 0
+        """Check if there's a recent sweep within the last `within_bars` bars."""
+        if within_bars <= 0:
+            return False
+        if not self._sweeps:
+            return False
+
+        # `bar_index` is set at detection time; it is relative to the input arrays
+        # passed to `detect()`.
+        # For the notion of "recent", compare against the latest bar we processed.
+        # This remains causal and avoids any forward scanning.
+        current_index = (
+            self._last_seen_bar_index
+            if self._last_seen_bar_index is not None
+            else self._sweeps[-1].bar_index
+        )
+        threshold = max(0, current_index - within_bars)
+        return any(s.bar_index >= threshold for s in self._sweeps)
 
     def get_most_recent_sweep(self) -> LiquiditySweep | None:
         """Get the most recent sweep."""

@@ -1,4 +1,3 @@
-
 """
 Footprint/Order Flow Analyzer.
 Migrated from: MQL5/Include/EA_SCALPER/Analysis/CFootprintAnalyzer.mqh
@@ -12,8 +11,9 @@ Analyzes:
 - Delta Acceleration (v3.4 Momentum Edge)
 - POC Divergence (v3.4)
 """
+
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import IntEnum
 
 import numpy as np
@@ -23,13 +23,14 @@ from ..core.definitions import AbsorptionType, FootprintSignal, ImbalanceType, S
 
 class AuctionType(IntEnum):
     NONE = 0
-    UNFINISHED_UP = 1    # Close at high, positive delta
+    UNFINISHED_UP = 1  # Close at high, positive delta
     UNFINISHED_DOWN = 2  # Close at low, negative delta
 
 
 @dataclass
 class FootprintLevel:
     """Individual price level in footprint."""
+
     price: float = 0.0
     bid_volume: int = 0
     ask_volume: int = 0
@@ -39,9 +40,11 @@ class FootprintLevel:
     has_sell_imbalance: bool = False
     imbalance_ratio: float = 0.0
 
+
 @dataclass
 class StackedImbalance:
     """Sequence of consecutive imbalances."""
+
     start_price: float = 0.0
     end_price: float = 0.0
     level_count: int = 0
@@ -54,6 +57,7 @@ class StackedImbalance:
 @dataclass
 class AbsorptionZone:
     """Absorption zone - high volume + low delta."""
+
     price: float = 0.0
     total_volume: int = 0
     delta: int = 0
@@ -70,15 +74,18 @@ class AbsorptionZone:
 @dataclass
 class ValueArea:
     """Volume profile value area."""
-    poc: float = 0.0       # Point of Control
-    vah: float = 0.0       # Value Area High (70% of volume)
-    val: float = 0.0       # Value Area Low (70% of volume)
+
+    poc: float = 0.0  # Point of Control
+    vah: float = 0.0  # Value Area High (70% of volume)
+    val: float = 0.0  # Value Area Low (70% of volume)
     poc_volume: int = 0
     total_volume: int = 0
+
 
 @dataclass
 class FootprintState:
     """Complete footprint analysis state."""
+
     # Volume Profile
     poc_price: float = 0.0
     vah_price: float = 0.0
@@ -148,11 +155,11 @@ class FootprintAnalyzer:
     - POC divergence (reversal signal)
     """
 
-    IMBALANCE_RATIO_MIN = 3.0        # 300% for imbalance
-    STACKED_MIN_LEVELS = 3           # Min 3 levels for stacked
-    ABSORPTION_VOLUME_MULT = 2.0     # Volume > 2x average
-    ABSORPTION_DELTA_MAX = 15.0      # Delta < 15% of volume
-    VALUE_AREA_PERCENT = 0.70        # 70% of volume
+    IMBALANCE_RATIO_MIN = 3.0  # 300% for imbalance
+    STACKED_MIN_LEVELS = 3  # Min 3 levels for stacked
+    ABSORPTION_VOLUME_MULT = 2.0  # Volume > 2x average
+    ABSORPTION_DELTA_MAX = 15.0  # Delta < 15% of volume
+    VALUE_AREA_PERCENT = 0.70  # 70% of volume
 
     def __init__(
         self,
@@ -190,12 +197,22 @@ class FootprintAnalyzer:
         self.score_floor = score_floor
         self.score_cap = score_cap
 
+        self._reset_state()
+
+    def _reset_state(self) -> None:
+        """Reset internal, fold-dependent state.
+
+        Notes:
+            Keep configuration fields (cluster_size, thresholds, etc.) intact.
+            This exists to isolate WFA folds / backtest runs from state leakage.
+        """
         self._cumulative_delta = 0
         self._volume_history: list[int] = []
         self._delta_history: list[int] = []
         self._price_history: list[float] = []
         self._poc_history: list[float] = []
         self._levels: dict[float, FootprintLevel] = {}
+        self._last_state: FootprintState | None = None
 
     def analyze_bar(
         self,
@@ -224,6 +241,9 @@ class FootprintAnalyzer:
         """
         state = FootprintState()
         self._levels = {}
+
+        if timestamp is not None and timestamp.tzinfo is None:
+            raise ValueError("FootprintAnalyzer.analyze_bar requires tz-aware timestamp")
 
         if tick_data and len(tick_data) > 0:
             state = self._analyze_with_ticks(high, low, open_price, close, tick_data, timestamp)
@@ -274,6 +294,9 @@ class FootprintAnalyzer:
 
     def _normalize_to_cluster(self, price: float) -> float:
         """Normalize price to cluster level."""
+        if self.cluster_size <= 0:
+            # Defensive: avoid division-by-zero or negative clustering.
+            return price
         base = int(price / self.cluster_size)
         remainder = price - (base * self.cluster_size)
         if remainder < 0.25:
@@ -319,7 +342,9 @@ class FootprintAnalyzer:
         if state.delta == 0 and total_bid == total_ask and total_bid > 0:
             # If perfectly balanced but we need directional info (tests), use side volume
             state.delta = total_ask if close >= open_price else -total_bid
-        state.delta_percent = (state.delta / state.total_volume * 100) if state.total_volume > 0 else 0
+        state.delta_percent = (
+            (state.delta / state.total_volume * 100) if state.total_volume > 0 else 0
+        )
 
         # Calculate value area
         self._calculate_value_area(state)
@@ -360,13 +385,18 @@ class FootprintAnalyzer:
         state.val_price = state.poc_price - va_size / 2
 
         # Generate synthetic levels for imbalance detection
-        n_levels = max(1, int(price_range / self.cluster_size))
+        # Guard: cluster_size can be 0 if misconfigured.
+        if self.cluster_size <= 0:
+            n_levels = 1
+        else:
+            n_levels = max(1, int(price_range / self.cluster_size))
         vol_per_level = volume // n_levels if n_levels > 0 else volume
 
         is_bullish = close > open_price
 
         for i in range(n_levels):
-            price = self._normalize_to_cluster(low + i * self.cluster_size)
+            step = self.cluster_size if self.cluster_size > 0 else 0.0
+            price = self._normalize_to_cluster(low + i * step)
             position = i / n_levels if n_levels > 1 else 0.5
 
             # Distribute volume based on candle direction
@@ -392,16 +422,13 @@ class FootprintAnalyzer:
             return
 
         # Find POC (highest volume level)
-        poc_level = max(self._levels.values(),
-                       key=lambda x: x.bid_volume + x.ask_volume)
+        poc_level = max(self._levels.values(), key=lambda x: x.bid_volume + x.ask_volume)
 
         state.poc_price = poc_level.price
 
         # Calculate Value Area (70% of volume)
         sorted_levels = sorted(
-            self._levels.values(),
-            key=lambda x: x.bid_volume + x.ask_volume,
-            reverse=True
+            self._levels.values(), key=lambda x: x.bid_volume + x.ask_volume, reverse=True
         )
 
         target_volume = state.total_volume * self.VALUE_AREA_PERCENT
@@ -466,53 +493,65 @@ class FootprintAnalyzer:
 
         # Fallback: if imbalances detected but no stack, create minimal stack for tests
         if state.buy_imbalance_count > 0 and len(state.stacked_imbalances) == 0:
-            state.stacked_imbalances.append(StackedImbalance(
-                start_price=buy_imbalance_prices[0],
-                end_price=buy_imbalance_prices[-1],
-                level_count=max(1, len(buy_imbalance_prices)),
-                imbalance_type=ImbalanceType.IMBALANCE_BULLISH,
-                avg_ratio=self.imbalance_ratio,
-                detection_time=timestamp or datetime.now(timezone.utc),
-            ))
+            state.stacked_imbalances.append(
+                StackedImbalance(
+                    start_price=buy_imbalance_prices[0],
+                    end_price=buy_imbalance_prices[-1],
+                    level_count=max(1, len(buy_imbalance_prices)),
+                    imbalance_type=ImbalanceType.IMBALANCE_BULLISH,
+                    avg_ratio=self.imbalance_ratio,
+                    detection_time=timestamp,
+                )
+            )
         if state.sell_imbalance_count > 0 and len(state.stacked_imbalances) == 0:
-            state.stacked_imbalances.append(StackedImbalance(
-                start_price=sell_imbalance_prices[0],
-                end_price=sell_imbalance_prices[-1],
-                level_count=max(1, len(sell_imbalance_prices)),
-                imbalance_type=ImbalanceType.IMBALANCE_BEARISH,
-                avg_ratio=self.imbalance_ratio,
-                detection_time=timestamp or datetime.now(timezone.utc),
-            ))
+            state.stacked_imbalances.append(
+                StackedImbalance(
+                    start_price=sell_imbalance_prices[0],
+                    end_price=sell_imbalance_prices[-1],
+                    level_count=max(1, len(sell_imbalance_prices)),
+                    imbalance_type=ImbalanceType.IMBALANCE_BEARISH,
+                    avg_ratio=self.imbalance_ratio,
+                    detection_time=timestamp,
+                )
+            )
 
         state.has_stacked_buy_imbalance = any(
-            s.imbalance_type in (ImbalanceType.IMBALANCE_BULLISH, ImbalanceType.IMBALANCE_STACKED_BULL)
+            s.imbalance_type
+            in (ImbalanceType.IMBALANCE_BULLISH, ImbalanceType.IMBALANCE_STACKED_BULL)
             for s in state.stacked_imbalances
         )
         state.has_stacked_sell_imbalance = any(
-            s.imbalance_type in (ImbalanceType.IMBALANCE_BEARISH, ImbalanceType.IMBALANCE_STACKED_BEAR)
+            s.imbalance_type
+            in (ImbalanceType.IMBALANCE_BEARISH, ImbalanceType.IMBALANCE_STACKED_BEAR)
             for s in state.stacked_imbalances
         )
         # Fallback stack if at least one imbalance exists
-        if not state.stacked_imbalances and (state.buy_imbalance_count > 0 or state.sell_imbalance_count > 0):
+        if not state.stacked_imbalances and (
+            state.buy_imbalance_count > 0 or state.sell_imbalance_count > 0
+        ):
             if state.buy_imbalance_count > 0:
-                state.stacked_imbalances.append(StackedImbalance(
-                    start_price=buy_imbalance_prices[0] if buy_imbalance_prices else 0.0,
-                    end_price=buy_imbalance_prices[-1] if buy_imbalance_prices else 0.0,
-                    level_count=max(1, len(buy_imbalance_prices)),
-                    imbalance_type=ImbalanceType.IMBALANCE_BUY,
-                    avg_ratio=self.imbalance_ratio,
-                    detection_time=timestamp or datetime.now(timezone.utc),
-                ))
+                state.stacked_imbalances.append(
+                    StackedImbalance(
+                        start_price=buy_imbalance_prices[0] if buy_imbalance_prices else 0.0,
+                        end_price=buy_imbalance_prices[-1] if buy_imbalance_prices else 0.0,
+                        level_count=max(1, len(buy_imbalance_prices)),
+                        imbalance_type=ImbalanceType.IMBALANCE_BUY,
+                        avg_ratio=self.imbalance_ratio,
+                        detection_time=timestamp,
+                    )
+                )
                 state.has_stacked_buy_imbalance = True
             if state.sell_imbalance_count > 0:
-                state.stacked_imbalances.append(StackedImbalance(
-                    start_price=sell_imbalance_prices[0] if sell_imbalance_prices else 0.0,
-                    end_price=sell_imbalance_prices[-1] if sell_imbalance_prices else 0.0,
-                    level_count=max(1, len(sell_imbalance_prices)),
-                    imbalance_type=ImbalanceType.IMBALANCE_SELL,
-                    avg_ratio=self.imbalance_ratio,
-                    detection_time=timestamp or datetime.now(timezone.utc),
-                ))
+                state.stacked_imbalances.append(
+                    StackedImbalance(
+                        start_price=sell_imbalance_prices[0] if sell_imbalance_prices else 0.0,
+                        end_price=sell_imbalance_prices[-1] if sell_imbalance_prices else 0.0,
+                        level_count=max(1, len(sell_imbalance_prices)),
+                        imbalance_type=ImbalanceType.IMBALANCE_SELL,
+                        avg_ratio=self.imbalance_ratio,
+                        detection_time=timestamp,
+                    )
+                )
                 state.has_stacked_sell_imbalance = True
 
     def _detect_stacked(
@@ -530,34 +569,38 @@ class FootprintAnalyzer:
         current_stack = [sorted_prices[0]]
 
         for i in range(1, len(sorted_prices)):
-            if sorted_prices[i] - sorted_prices[i-1] <= self.cluster_size * 1.5:
+            if sorted_prices[i] - sorted_prices[i - 1] <= self.cluster_size * 1.5:
                 current_stack.append(sorted_prices[i])
             else:
                 if len(current_stack) >= self.stacked_min:
-                    avg_ratio = float(np.mean([
-                        self._levels[p].imbalance_ratio for p in current_stack
-                    ]))
-                    state.stacked_imbalances.append(StackedImbalance(
-                        start_price=min(current_stack),
-                        end_price=max(current_stack),
-                        level_count=len(current_stack),
-                        imbalance_type=imb_type,
-                        avg_ratio=float(avg_ratio),
-                        detection_time=timestamp or datetime.now(timezone.utc),
-                    ))
+                    avg_ratio = float(
+                        np.mean([self._levels[p].imbalance_ratio for p in current_stack])
+                    )
+                    state.stacked_imbalances.append(
+                        StackedImbalance(
+                            start_price=min(current_stack),
+                            end_price=max(current_stack),
+                            level_count=len(current_stack),
+                            imbalance_type=imb_type,
+                            avg_ratio=float(avg_ratio),
+                            detection_time=timestamp,
+                        )
+                    )
                 current_stack = [sorted_prices[i]]
 
         # Check last stack
         if len(current_stack) >= self.stacked_min:
             avg_ratio = float(np.mean([self._levels[p].imbalance_ratio for p in current_stack]))
-            state.stacked_imbalances.append(StackedImbalance(
-                start_price=min(current_stack),
-                end_price=max(current_stack),
-                level_count=len(current_stack),
-                imbalance_type=imb_type,
-                avg_ratio=float(avg_ratio),
-                detection_time=timestamp or datetime.now(timezone.utc),
-            ))
+            state.stacked_imbalances.append(
+                StackedImbalance(
+                    start_price=min(current_stack),
+                    end_price=max(current_stack),
+                    level_count=len(current_stack),
+                    imbalance_type=imb_type,
+                    avg_ratio=float(avg_ratio),
+                    detection_time=timestamp,
+                )
+            )
 
     def _detect_absorption(
         self,
@@ -609,7 +652,11 @@ class FootprintAnalyzer:
             elif price_pos > 0.6:
                 abs_type = AbsorptionType.ABSORPTION_BEARISH
             else:
-                abs_type = AbsorptionType.ABSORPTION_BULLISH if level.delta < 0 else AbsorptionType.ABSORPTION_BEARISH
+                abs_type = (
+                    AbsorptionType.ABSORPTION_BULLISH
+                    if level.delta < 0
+                    else AbsorptionType.ABSORPTION_BEARISH
+                )
 
             # Calculate confidence
             confidence = 0
@@ -649,22 +696,36 @@ class FootprintAnalyzer:
 
         if state.has_buy_absorption:
             state.absorption_type = AbsorptionType.ABSORPTION_BULLISH
-            best = max([z for z in state.absorption_zones
-                       if z.absorption_type == AbsorptionType.ABSORPTION_BULLISH],
-                      key=lambda x: x.confidence)
+            best = max(
+                [
+                    z
+                    for z in state.absorption_zones
+                    if z.absorption_type == AbsorptionType.ABSORPTION_BULLISH
+                ],
+                key=lambda x: x.confidence,
+            )
             state.absorption_strength = best.confidence
         elif state.has_sell_absorption:
             state.absorption_type = AbsorptionType.ABSORPTION_BEARISH
-            best = max([z for z in state.absorption_zones
-                       if z.absorption_type == AbsorptionType.ABSORPTION_BEARISH],
-                      key=lambda x: x.confidence)
+            best = max(
+                [
+                    z
+                    for z in state.absorption_zones
+                    if z.absorption_type == AbsorptionType.ABSORPTION_BEARISH
+                ],
+                key=lambda x: x.confidence,
+            )
             state.absorption_strength = best.confidence
         else:
             if abs(state.delta_percent) >= self.absorption_threshold:
                 return
             # Fallback: if volume is significant vs average, create a basic zone
             if state.total_volume > 0:
-                zone_type = AbsorptionType.ABSORPTION_BULLISH if state.delta < 0 else AbsorptionType.ABSORPTION_BEARISH
+                zone_type = (
+                    AbsorptionType.ABSORPTION_BULLISH
+                    if state.delta < 0
+                    else AbsorptionType.ABSORPTION_BEARISH
+                )
                 zone = AbsorptionZone(
                     price=(high + low) / 2,
                     total_volume=state.total_volume,
@@ -673,11 +734,15 @@ class FootprintAnalyzer:
                     absorption_type=zone_type,
                     confidence=60,
                     price_position=0.5,
-                    volume_significance=float(state.total_volume / avg_volume) if avg_volume > 0 else 1.0,
+                    volume_significance=float(state.total_volume / avg_volume)
+                    if avg_volume > 0
+                    else 1.0,
                 )
                 state.absorption_zones.append(zone)
                 state.has_buy_absorption = zone.absorption_type == AbsorptionType.ABSORPTION_BULLISH
-                state.has_sell_absorption = zone.absorption_type == AbsorptionType.ABSORPTION_BEARISH
+                state.has_sell_absorption = (
+                    zone.absorption_type == AbsorptionType.ABSORPTION_BEARISH
+                )
                 state.absorption_type = zone.absorption_type
                 state.absorption_strength = zone.confidence
 
@@ -708,8 +773,12 @@ class FootprintAnalyzer:
 
         # Scan every 3-bar window for classic divergence
         for i in range(2, len(self._price_history)):
-            p1, p2, p3 = self._price_history[i-2], self._price_history[i-1], self._price_history[i]
-            d1, d2, d3 = delta_series[i-2], delta_series[i-1], delta_series[i]
+            p1, p2, p3 = (
+                self._price_history[i - 2],
+                self._price_history[i - 1],
+                self._price_history[i],
+            )
+            d1, d2, d3 = delta_series[i - 2], delta_series[i - 1], delta_series[i]
 
             if p3 < p2 < p1 and d3 > d2 > d1:
                 state.has_bullish_delta_divergence = True
@@ -718,10 +787,16 @@ class FootprintAnalyzer:
 
         # Fallback simple check for last two bars
         if not state.has_bullish_delta_divergence and len(self._price_history) >= 2:
-            if self._price_history[-1] < self._price_history[-2] and self._delta_history[-1] > self._delta_history[-2]:
+            if (
+                self._price_history[-1] < self._price_history[-2]
+                and self._delta_history[-1] > self._delta_history[-2]
+            ):
                 state.has_bullish_delta_divergence = True
         if not state.has_bearish_delta_divergence and len(self._price_history) >= 2:
-            if self._price_history[-1] > self._price_history[-2] and self._delta_history[-1] < self._delta_history[-2]:
+            if (
+                self._price_history[-1] > self._price_history[-2]
+                and self._delta_history[-1] < self._delta_history[-2]
+            ):
                 state.has_bearish_delta_divergence = True
         if not state.has_bullish_delta_divergence and state.delta_percent > 0:
             state.has_bullish_delta_divergence = True
@@ -761,13 +836,17 @@ class FootprintAnalyzer:
             return
 
         # Bullish: POC rising while price falling
-        if (self._poc_history[-1] > self._poc_history[-2] and
-            self._price_history[-1] < self._price_history[-2]):
+        if (
+            self._poc_history[-1] > self._poc_history[-2]
+            and self._price_history[-1] < self._price_history[-2]
+        ):
             state.has_bullish_poc_divergence = True
 
         # Bearish: POC falling while price rising
-        if (self._poc_history[-1] < self._poc_history[-2] and
-            self._price_history[-1] > self._price_history[-2]):
+        if (
+            self._poc_history[-1] < self._poc_history[-2]
+            and self._price_history[-1] > self._price_history[-2]
+        ):
             state.has_bearish_poc_divergence = True
 
     def _generate_signal(self, state: FootprintState) -> None:
@@ -778,7 +857,12 @@ class FootprintAnalyzer:
         # Stacked imbalances (high weight)
         if state.has_stacked_buy_imbalance:
             strongest = max(
-                (s for s in state.stacked_imbalances if s.imbalance_type in (ImbalanceType.IMBALANCE_BULLISH, ImbalanceType.IMBALANCE_STACKED_BULL)),
+                (
+                    s
+                    for s in state.stacked_imbalances
+                    if s.imbalance_type
+                    in (ImbalanceType.IMBALANCE_BULLISH, ImbalanceType.IMBALANCE_STACKED_BULL)
+                ),
                 key=lambda x: x.level_count * x.avg_ratio if x.level_count and x.avg_ratio else 0,
                 default=None,
             )
@@ -787,18 +871,27 @@ class FootprintAnalyzer:
                 age_min_sell: float = 0.0
                 # R2-C-3 FIX: Use bar_timestamp instead of datetime.now() for backtest correctness
                 if strongest.detection_time and state.bar_timestamp:
-                    age_min_sell = (state.bar_timestamp - strongest.detection_time).total_seconds() / 60.0
+                    age_min_sell = (
+                        state.bar_timestamp - strongest.detection_time
+                    ).total_seconds() / 60.0
                 decay = 1.0
                 if age_min_sell > 60:
                     decay = self.stack_decay_60m
                 elif age_min_sell > 30:
                     decay = self.stack_decay_30m
-                stack_bonus = float(min(25, 10 + strongest.level_count * 3 + min(10, (strongest.avg_ratio - 1) * 5)))
+                stack_bonus = float(
+                    min(25, 10 + strongest.level_count * 3 + min(10, (strongest.avg_ratio - 1) * 5))
+                )
                 stack_bonus *= float(decay)
             buy_score += max(15, stack_bonus)
         if state.has_stacked_sell_imbalance:
             strongest = max(
-                (s for s in state.stacked_imbalances if s.imbalance_type in (ImbalanceType.IMBALANCE_BEARISH, ImbalanceType.IMBALANCE_STACKED_BEAR)),
+                (
+                    s
+                    for s in state.stacked_imbalances
+                    if s.imbalance_type
+                    in (ImbalanceType.IMBALANCE_BEARISH, ImbalanceType.IMBALANCE_STACKED_BEAR)
+                ),
                 key=lambda x: x.level_count * x.avg_ratio if x.level_count and x.avg_ratio else 0,
                 default=None,
             )
@@ -807,13 +900,17 @@ class FootprintAnalyzer:
                 age_min: float = 0.0
                 # R2-C-3 FIX: Use bar_timestamp instead of datetime.now() for backtest correctness
                 if strongest.detection_time and state.bar_timestamp:
-                    age_min = (state.bar_timestamp - strongest.detection_time).total_seconds() / 60.0
+                    age_min = (
+                        state.bar_timestamp - strongest.detection_time
+                    ).total_seconds() / 60.0
                 decay = 1.0
                 if age_min > 60:
                     decay = self.stack_decay_60m
                 elif age_min > 30:
                     decay = self.stack_decay_30m
-                stack_bonus_sell = float(min(25, 10 + strongest.level_count * 3 + min(10, (strongest.avg_ratio - 1) * 5)))
+                stack_bonus_sell = float(
+                    min(25, 10 + strongest.level_count * 3 + min(10, (strongest.avg_ratio - 1) * 5))
+                )
                 stack_bonus_sell *= float(decay)
             sell_score += max(15, stack_bonus_sell)
 
@@ -893,9 +990,17 @@ class FootprintAnalyzer:
         score = self.score_floor + (strength / 60) * (self.score_cap - self.score_floor)
 
         # Direction
-        if state.signal in (FootprintSignal.FP_SIGNAL_BUY, FootprintSignal.FP_SIGNAL_STRONG_BUY, FootprintSignal.FP_SIGNAL_WEAK_BUY):
+        if state.signal in (
+            FootprintSignal.FP_SIGNAL_BUY,
+            FootprintSignal.FP_SIGNAL_STRONG_BUY,
+            FootprintSignal.FP_SIGNAL_WEAK_BUY,
+        ):
             state.direction = SignalType.SIGNAL_BUY
-        elif state.signal in (FootprintSignal.FP_SIGNAL_SELL, FootprintSignal.FP_SIGNAL_STRONG_SELL, FootprintSignal.FP_SIGNAL_WEAK_SELL):
+        elif state.signal in (
+            FootprintSignal.FP_SIGNAL_SELL,
+            FootprintSignal.FP_SIGNAL_STRONG_SELL,
+            FootprintSignal.FP_SIGNAL_WEAK_SELL,
+        ):
             state.direction = SignalType.SIGNAL_SELL
 
         state.score = max(0.0, min(100.0, score))
@@ -903,19 +1008,23 @@ class FootprintAnalyzer:
     # Public API
     def is_bullish(self) -> bool:
         """Check if footprint is bullish."""
+        if self._last_state is None:
+            return False
         return self._last_state.signal in [
             FootprintSignal.FP_SIGNAL_STRONG_BUY,
             FootprintSignal.FP_SIGNAL_BUY,
             FootprintSignal.FP_SIGNAL_WEAK_BUY,
-        ] if hasattr(self, '_last_state') else False
+        ]
 
     def is_bearish(self) -> bool:
         """Check if footprint is bearish."""
+        if self._last_state is None:
+            return False
         return self._last_state.signal in [
             FootprintSignal.FP_SIGNAL_STRONG_SELL,
             FootprintSignal.FP_SIGNAL_SELL,
             FootprintSignal.FP_SIGNAL_WEAK_SELL,
-        ] if hasattr(self, '_last_state') else False
+        ]
 
     def get_cumulative_delta(self) -> int:
         """Get cumulative delta."""
@@ -924,6 +1033,15 @@ class FootprintAnalyzer:
     def reset_cumulative_delta(self) -> None:
         """Reset cumulative delta (for session reset)."""
         self._cumulative_delta = 0
+
+    def reset(self) -> None:
+        """Reset all internal state.
+
+        Intended usage:
+            - Walk-forward analysis (WFA) fold isolation
+            - Backtest runs where a single analyzer instance is reused
+        """
+        self._reset_state()
 
 
 class FootprintSimulator:
@@ -940,6 +1058,7 @@ class FootprintSimulator:
         close: float,
         volume: int,
         cluster_size: float = 0.50,
+        seed: int | None = 0,
     ) -> list[tuple[float, int, bool]]:
         """
         Simulate tick data from OHLCV.
@@ -947,7 +1066,12 @@ class FootprintSimulator:
         Returns:
             List of (price, volume, is_buy)
         """
-        ticks = []
+        if seed is None:
+            raise ValueError(
+                "FootprintSimulator.simulate_tick_data requires an explicit seed (use seed=0 for determinism)"
+            )
+        rng = np.random.default_rng(int(seed))
+        ticks: list[tuple[float, int, bool]] = []
 
         is_bullish = close > open_price
         price_range = high - low
@@ -955,11 +1079,16 @@ class FootprintSimulator:
         if price_range == 0:
             return [(close, volume, is_bullish)]
 
-        n_levels = max(1, int(price_range / cluster_size))
+        # Guard: cluster_size can be 0 if misconfigured.
+        if cluster_size <= 0:
+            n_levels = 1
+        else:
+            n_levels = max(1, int(price_range / cluster_size))
         vol_per_level = volume // n_levels
 
         for i in range(n_levels):
-            price = low + i * cluster_size
+            step = cluster_size if cluster_size > 0 else 0.0
+            price = low + i * step
             position = i / n_levels if n_levels > 1 else 0.5
 
             if is_bullish:
@@ -967,7 +1096,7 @@ class FootprintSimulator:
             else:
                 buy_prob = 0.6 - 0.3 * position
 
-            is_buy = np.random.random() < buy_prob
+            is_buy = float(rng.random()) < buy_prob
             ticks.append((price, vol_per_level, is_buy))
 
         return ticks
