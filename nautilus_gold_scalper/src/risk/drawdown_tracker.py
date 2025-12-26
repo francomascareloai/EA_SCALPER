@@ -124,7 +124,42 @@ class DrawdownTracker:
     def update(
         self, current_equity: float, pnl: float | None = None, now: datetime | None = None
     ) -> DrawdownAnalysis:
-        """Update tracker with current equity and optional trade PnL."""
+        """Update tracker with current equity and optional trade PnL.
+
+        CRITICAL - Apex HWM Semantics:
+        -----------------------------
+        The `current_equity` parameter MUST include unrealized PnL calculated
+        using CONSERVATIVE prices:
+        - LONG positions: mark-to-market at BID (exit price if you sold now)
+        - SHORT positions: mark-to-market at ASK (exit price if you covered now)
+
+        Formula: current_equity = balance + sum(unrealized_pnl_conservative)
+
+        The High Water Mark (HWM) is updated whenever current_equity exceeds
+        the previous peak. For Apex prop firms, trailing drawdown is calculated
+        from HWM and NEVER resets during a session. Unrealized profit that
+        touches HWM becomes a permanent liability.
+
+        Example - HWM Trap:
+        - Start: $50,000, HWM = $50,000
+        - Trade goes +$2,000 unrealized → current_equity = $52,000 → HWM = $52,000
+        - 5% trailing DD floor = $49,400
+        - Trade reverses, exits at -$1,000 → equity = $49,000
+        - RESULT: Account TERMINATED (below $49,400 floor)
+        - Net P&L was only -$1,000, but HWM trap killed the account
+
+        NEVER pass balance-only (excluding unrealized PnL) as this will
+        underreport trailing drawdown and can lead to Apex violation.
+
+        Args:
+            current_equity: Account equity INCLUDING unrealized PnL at
+                           conservative BID/ASK marks.
+            pnl: Optional realized P&L from a closed trade (for streak tracking).
+            now: Timestamp for the update (use bar timestamp in backtests).
+
+        Returns:
+            DrawdownAnalysis snapshot of current DD state.
+        """
         # Always prefer explicit timestamp for backtest accuracy.
         # Use datetime.now() only as fallback for live trading.
         # Resolve `now` BEFORE any day-boundary logic to keep backtests deterministic.

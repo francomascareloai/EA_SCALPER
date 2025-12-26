@@ -177,6 +177,7 @@ class StrategySelector:
         hurst_revert_threshold: float = DEFAULT_HURST_REVERT,
         entropy_low_threshold: float = DEFAULT_ENTROPY_LOW,
         entropy_high_threshold: float = DEFAULT_ENTROPY_HIGH,
+        holiday_detector: object | None = None,
     ):
         """
         Initialize the strategy selector.
@@ -189,6 +190,7 @@ class StrategySelector:
             hurst_revert_threshold: Hurst below this = reverting
             entropy_low_threshold: Entropy below this = low noise
             entropy_high_threshold: Entropy above this = high noise
+            holiday_detector: Optional HolidayDetector for automatic holiday detection
         """
         self.ftmo_safe_mode = ftmo_safe_mode
         self.allow_news_trading = allow_news_trading
@@ -207,9 +209,13 @@ class StrategySelector:
         self._current_hurst = 0.5
         self._current_entropy = 2.0
 
+        # Holiday detection (optional)
+        self._holiday_detector = holiday_detector
+
         logger.info(
             f"StrategySelector initialized: ftmo_safe={ftmo_safe_mode}, "
-            f"news={allow_news_trading}, asian={allow_asian_session}"
+            f"news={allow_news_trading}, asian={allow_asian_session}, "
+            f"holiday_detector={'wired' if holiday_detector else 'none'}"
         )
 
     def set_regime(self, hurst: float, entropy: float) -> None:
@@ -288,6 +294,24 @@ class StrategySelector:
         self._context.is_london = 7 <= hour < 16
         self._context.is_newyork = 13 <= hour < 22
         self._context.is_overlap = 13 <= hour < 16  # Best hours
+
+        # Holiday detection (if HolidayDetector is wired)
+        if self._holiday_detector is not None:
+            try:
+                # HolidayDetector.is_holiday(check_time) -> bool
+                is_holiday_method = getattr(self._holiday_detector, "is_holiday", None)
+                if is_holiday_method is not None:
+                    self._context.is_holiday = is_holiday_method(now)
+                    # Also check for reduced liquidity (day before/after major holidays)
+                    reduced_liq_method = getattr(
+                        self._holiday_detector, "is_reduced_liquidity", None
+                    )
+                    if reduced_liq_method is not None:
+                        self._context.reduced_liquidity = reduced_liq_method(now)
+            except Exception:
+                # Fail-safe: if HolidayDetector fails, assume no holiday
+                self._context.is_holiday = False
+                self._context.reduced_liquidity = False
 
     def _update_regime_info(self) -> None:
         """Update regime classification."""

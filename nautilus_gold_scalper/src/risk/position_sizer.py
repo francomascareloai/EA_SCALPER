@@ -155,7 +155,7 @@ class PositionSizer:
             if stop_loss_pips is None or pip_value is None:
                 raise ValueError("stop_loss_pips and pip_value required for PERCENT_RISK")
 
-            risk_pct = risk_percent if risk_percent else self._risk_per_trade
+            risk_pct = risk_percent if risk_percent is not None else self._risk_per_trade
             risk_pct = self._apply_drawdown_throttle(risk_pct, current_drawdown_pct)
             # Apply regime multiplier BEFORE cap to ensure max_risk is never exceeded
             risk_pct *= regime_multiplier
@@ -181,7 +181,7 @@ class PositionSizer:
             if atr_value is None or pip_value is None:
                 raise ValueError("atr_value and pip_value required for ATR")
 
-            risk_pct = risk_percent if risk_percent else self._risk_per_trade
+            risk_pct = risk_percent if risk_percent is not None else self._risk_per_trade
             risk_pct = self._apply_drawdown_throttle(risk_pct, current_drawdown_pct)
             # Apply regime multiplier BEFORE cap to ensure max_risk is never exceeded
             risk_pct *= regime_multiplier
@@ -272,7 +272,18 @@ class PositionSizer:
         """
         Calculate lot size for fixed % risk.
 
-        Formula: Lot = Risk$ / (SL_pips × pip_value_per_lot)
+        Formula: Lot = Risk$ / (SL_distance × value_per_unit)
+
+        XAUUSD Unit Clarification:
+        - `stop_loss_pips`: Despite the name, for XAUUSD this is price distance
+          in "points" (each point = $0.01 price move). E.g., SL distance of 3.0
+          means $3.00 price move.
+        - `pip_value`: For XAUUSD, use XAUUSD_TICK_VALUE (1.0) which represents
+          $1.00 per point ($0.01 price move) per standard lot (100oz).
+
+        Example (XAUUSD):
+        - Balance: $50,000, Risk: 0.5% ($250), SL: 2.50 points ($2.50 move)
+        - Lot = $250 / (2.50 × $1.00) = 100.0 (clamped by max_lot)
         """
         if stop_loss_pips <= 0 or pip_value <= 0:
             return 0.0

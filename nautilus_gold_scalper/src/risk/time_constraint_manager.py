@@ -392,17 +392,33 @@ class TimeConstraintManager:
 
         Args:
             positions: List of open positions to close.
-            use_ioc: If True, use IOC (Immediate-Or-Cancel) time-in-force for urgency.
+            use_ioc: If True, escalate to individual position closes immediately.
+                     Standard close_all_positions may batch orders; on retry we want
+                     explicit per-position attempts for better error isolation.
+
+        Note:
+            True IOC (Immediate-Or-Cancel) time-in-force would require submitting
+            MarketOrder objects directly via strategy.submit_order() with
+            TimeInForce.IOC. Current NautilusTrader Protocol doesn't expose this.
+            The use_ioc flag here triggers aggressive retry behavior instead.
         """
         self._close_order_ids.clear()
+        instrument_id = getattr(self.strategy.config, "instrument_id", None)
+
+        # IOC ESCALATION: On retry, skip batch close and go directly to individual
+        # position closes for better error isolation and logging per position.
+        if use_ioc:
+            self.strategy.log.warning(
+                '{"event":"IOC_ESCALATION","action":"individual_close",'
+                f'"position_count":{len(positions)},"retry":true}}'
+            )
+            self._close_positions_individually(positions)
+            return
 
         try:
-            # Use close_all_positions first (standard approach)
+            # Standard approach: use close_all_positions (batched)
             # Note: close_all_positions doesn't return order IDs directly,
             # but we can track orders submitted after this call
-            instrument_id = getattr(self.strategy.config, "instrument_id", None)
-
-            # Get order count before submission
             orders_before = len(list(self.strategy.cache.orders(instrument_id)))
 
             self.strategy.close_all_positions(
@@ -420,11 +436,28 @@ class TimeConstraintManager:
 
         except Exception:
             # Fallback: try closing positions individually
-            for pos in positions:
-                try:
-                    self.strategy.close_position(pos, reduce_only=False)
-                except Exception:
-                    pass
+            self._close_positions_individually(positions)
+
+    def _close_positions_individually(self, positions: list[object]) -> None:
+        """Close positions one by one with explicit logging per position.
+
+        Used as fallback and for IOC escalation retries.
+        """
+        for i, pos in enumerate(positions):
+            try:
+                self.strategy.close_position(pos, reduce_only=False)
+                # Track order ID if available
+                if hasattr(pos, "id"):
+                    self.strategy.log.warning(
+                        f'{{"event":"INDIVIDUAL_CLOSE_SUBMITTED","position":{i + 1},'
+                        f'"total":{len(positions)},"id":"{getattr(pos, "id", "?")}"}}'
+                        ""
+                    )
+            except Exception as e:
+                self.strategy.log.error(
+                    f'{{"event":"INDIVIDUAL_CLOSE_FAILED","position":{i + 1},'
+                    f'"total":{len(positions)},"error":"{e!s}"}}'
+                )
 
     def _log_warning(self, level: str, dt_et: datetime) -> None:
         cutoff_str = self.cutoff.strftime("%H:%M")

@@ -63,6 +63,269 @@
 
 ## Log Entries
 
+## 🚨 2025-12-26 [FORGE] - CRITICAL: IOC Retry Escalation Not Applied (BUG-21)
+
+**Module:** `nautilus_gold_scalper/src/risk/time_constraint_manager.py`
+**Severity:** CRITICAL (Account survival - Apex compliance)
+
+**Bug:** `_submit_close_orders(use_ioc=True)` received the IOC flag on retry attempts but completely ignored it, always using the same `close_all_positions()` call.
+
+**Impact:** Emergency close retries would repeat the same failed approach instead of escalating. Could leave positions open past 4:59 PM ET cutoff → Apex account termination.
+
+**Root Cause (5 Whys):**
+1. Why did IOC not work? The `use_ioc` parameter was never used in the method body.
+2. Why wasn't it used? The docstring said "use IOC" but implementation was incomplete.
+3. Why incomplete? The method was added in BUG-17 fix but IOC escalation wasn't fully implemented.
+4. Why not caught earlier? No test verified that retry behavior actually differed from first attempt.
+5. Why? Gap in test coverage for retry-specific code paths.
+
+**Fix:**
+- When `use_ioc=True`: skip batch `close_all_positions()`, go directly to individual position closes with per-position logging
+- Added new `_close_positions_individually()` helper with explicit logging
+- Added IOC_ESCALATION log event for monitoring
+
+**Prevention:**
+- ✅ Added explicit logging for IOC escalation path
+- ✅ Individual close now logs per-position success/failure
+- ⬜ TODO: Add test that verifies retry uses different code path
+
+**Files:**
+- `nautilus_gold_scalper/src/risk/time_constraint_manager.py`
+
+**Validation:** mypy: 0 errors, pytest: 436 passed
+**Commit:** pending
+
+---
+
+## 2025-12-26 [FORGE] - Pip/Tick Unit Ambiguity Documentation (BUG-22)
+
+**Module:** `nautilus_gold_scalper/src/risk/position_sizer.py`
+**Severity:** MEDIUM (Documentation/clarity)
+
+**Bug:** `_calculate_percent_risk()` uses `stop_loss_pips` parameter name but for XAUUSD these are actually price points ($0.01 moves), not pips.
+
+**Impact:** Could cause confusion and incorrect lot sizing if caller misunderstands units.
+
+**Fix:** Added extensive docstring clarifying XAUUSD unit semantics with worked example.
+
+**Files:**
+- `nautilus_gold_scalper/src/risk/position_sizer.py`
+
+**Validation:** mypy: 0 errors, pytest: passed
+
+---
+
+## 2025-12-26 [FORGE] - HWM Semantics Documentation (BUG-23)
+
+**Module:** `nautilus_gold_scalper/src/risk/drawdown_tracker.py`
+**Severity:** HIGH (Apex compliance)
+
+**Bug:** `update()` method lacked documentation about HWM semantics requirement. Caller must pass equity including unrealized PnL at conservative BID/ASK prices.
+
+**Impact:** If caller passes balance-only (no unrealized), trailing DD is underreported → potential Apex violation.
+
+**Fix:** Added comprehensive docstring with Apex HWM trap example and explicit requirements for `current_equity` parameter.
+
+**Files:**
+- `nautilus_gold_scalper/src/risk/drawdown_tracker.py`
+
+**Validation:** mypy: 0 errors, pytest: passed
+
+---
+
+## 2025-12-26 [FORGE] - Holiday Gate Wiring Dead Code (BUG-24)
+
+**Module:** `nautilus_gold_scalper/src/strategies/strategy_selector.py`
+**Severity:** MEDIUM (Feature not working)
+
+**Bug:** `MarketContext.is_holiday` was always `False` - the HolidayDetector was never wired to StrategySelector despite holiday check code existing.
+
+**Impact:** Holiday-related size reduction logic was never triggered, potentially trading with full size on low-liquidity days.
+
+**Fix:**
+- Added `holiday_detector` parameter to `StrategySelector.__init__`
+- Modified `_update_session_info()` to call `HolidayDetector.is_holiday()` and `is_reduced_liquidity()` when detector is wired
+
+**Files:**
+- `nautilus_gold_scalper/src/strategies/strategy_selector.py`
+
+**Validation:** mypy: 0 errors, pytest: 436 passed
+
+---
+
+## 2025-12-26 23:59 [FORGE-NAUTILUS] - SMC liquidity sweep recency + indexing + swing distance (BUG-SMC-001..003)
+
+### BUG-SMC-001: `has_recent_sweep(within_bars)` ignored `within_bars`
+
+**Module:** `nautilus_gold_scalper/src/indicators/liquidity_sweep.py`
+
+**Bug:** `LiquiditySweepDetector.has_recent_sweep()` returned `len(self._sweeps) > 0`, ignoring the requested `within_bars` window.
+
+**Impact:** Any recency-gated logic (e.g., ICT sequence checks or “recent sweep” filters) could produce false positives and distort scoring.
+
+**Fix:** Implement recency using per-sweep `bar_index` so the check is causal and does not require scanning forward.
+
+---
+
+### BUG-SMC-002: Sweep events lacked `bar_index` and sweep scan window was hardcoded
+
+**Module:** `nautilus_gold_scalper/src/indicators/liquidity_sweep.py`
+
+**Bug:** `LiquiditySweep` events did not record which bar produced the sweep; additionally, sweep scanning used a hardcoded 10-bar window regardless of configured `lookback_bars`.
+
+**Impact:** It was impossible to reliably answer “was there a sweep in the last N bars?” and sweeps could be missed when the sweep happened earlier than 10 bars from the end (despite passing `lookback_bars`).
+
+**Fix:**
+- Added `bar_index` to `LiquiditySweep` (`nautilus_gold_scalper/src/core/data_types.py`) and set it when a sweep is emitted.
+- Use `lookback_bars` as the sweep scan window (bounded).
+
+---
+
+### BUG-SMC-003: `min_swing_distance` parameter was unused for swing detection
+
+**Module:** `nautilus_gold_scalper/src/indicators/structure_analyzer.py`
+
+**Bug:** `StructureAnalyzer.min_swing_distance` was configurable but not applied, allowing clusters of adjacent swings in choppy/ranging conditions.
+
+**Impact:** Noisy swing sequences can flip bias classification and BOS/CHoCH detection in ranges.
+
+**Fix:** Enforce a minimum distance between swing highs; when a nearer swing is detected, replace the previous swing if the new one is more extreme.
+
+**Files:**
+- `nautilus_gold_scalper/src/core/data_types.py`
+- `nautilus_gold_scalper/src/indicators/liquidity_sweep.py`
+- `nautilus_gold_scalper/src/indicators/structure_analyzer.py`
+- `nautilus_gold_scalper/tests/test_indicators/test_smc_detectors.py`
+
+**Validation:**
+- `pytest -q /home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/tests/test_indicators/test_smc_detectors.py` (PASS)
+- `pytest -q /home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/tests/test_indicators/test_fibonacci_levels.py` (PASS)
+- `/home/franco/projetos/EA_SCALPER_XAUUSD/.venv/bin/mypy --strict` on touched files (PASS)
+
+---
+
+
+## 2025-12-26 16:55 [FORGE-NAUTILUS] - Security hardening (BUG-SEC-001..002)
+
+### BUG-SEC-001: Pickle-based RNG persistence in HumanBehaviorSimulator (RCE vector)
+
+**Module:** `nautilus_gold_scalper/src/execution/human_simulator.py`
+
+**Bug:** `_load_rng_state()` could load a legacy pickle state file via `pickle.load`, and `_save_rng_state()` could write via `pickle.dump` when `rng_use_json_format=False`.
+
+**Impact:** Arbitrary code execution if an attacker can place/replace the RNG state file (or a user runs in a directory containing a malicious state file).
+
+**Fix:** Disabled pickle load/write paths. Persistence is JSON-only; when a legacy pickle file exists it is ignored with a warning. Added a symlink guard to refuse reading/writing RNG state when the state path is a symlink.
+
+**Files:**
+- `nautilus_gold_scalper/src/execution/human_simulator.py`
+- `nautilus_gold_scalper/src/execution/human_config.py`
+
+**Validation:** `python3 -m mypy --config-file mypy.ini` (PASS), `pytest -q` (PASS).
+
+---
+
+### BUG-SEC-002: Untrusted model loading via `joblib.load` in ONNX exporter (RCE footgun)
+
+**Module:** `nautilus_gold_scalper/scripts/ml/export_onnx.py`
+
+**Bug:** `export_filter_onnx()` unconditionally called `joblib.load(model_path)`. Joblib uses pickle under the hood.
+
+**Impact:** Arbitrary code execution if a user points `--model` to a malicious `.joblib`/`.pkl` file.
+
+**Fix:** Added explicit opt-in: `export_filter_onnx(..., allow_unsafe_pickle=True)` and CLI flag `--allow-unsafe-pickle`. Default behavior now refuses to load pickles.
+
+**Files:**
+- `nautilus_gold_scalper/scripts/ml/export_onnx.py`
+- `nautilus_gold_scalper/tests/test_ml/test_train_export_infer.py`
+- `nautilus_gold_scalper/tests/test_ml/test_entry_filter_runtime.py`
+
+**Validation:** `python3 -m mypy --config-file mypy.ini` (PASS), `pytest -q` (PASS).
+
+---
+
+## 2025-12-26 03:08 [FORGE-NAUTILUS] - Config loading/validation fixes (BUG-CFG-001..006)
+
+### BUG-CFG-001: Optimization YAML root/section type assumptions
+
+**Module:** `nautilus_gold_scalper/src/optimization/config.py`
+
+**Bug:** `OptimizationConfig.from_yaml()` coerced empty YAML to `{}`, and `_from_dict()` assumed root/sections were mappings.
+
+**Impact:** Malformed YAML (root list/null, or sections set to scalar/list) could fail with low-signal exceptions or silently degrade to defaults.
+
+**Fix:** Fail fast with clear `ValueError` if YAML root is not a mapping, and require key sections to be mappings when present.
+
+---
+
+### BUG-CFG-002: `parameters.*.step` type coercion bug
+
+**Module:** `nautilus_gold_scalper/src/optimization/config.py`
+
+**Bug:** `step` was passed through as-is (could be a string), relying on downstream coercion.
+
+**Impact:** Runtime issues in grid construction / comparisons when YAML provides `"0.1"` or other non-numeric strings.
+
+**Fix:** Coerce `step` to `float | None` during config load and raise a precise error if conversion fails.
+
+---
+
+### BUG-CFG-003: Objective composite schema drift (`win_rate` vs `consistency`) + ignored source
+
+**Modules:**
+- `nautilus_gold_scalper/src/optimization/config.py`
+- `nautilus_gold_scalper/src/optimization/optimizer.py`
+
+**Bug:** Grid YAMLs define `objective.composite.win_rate` with `source: win_rate_pct`, but the loader only read `objective.composite.consistency` and scoring always used `positive_days_ratio`.
+
+**Impact:** Optimizer scoring diverged from YAML intent, selecting the wrong parameter sets.
+
+**Fix:**
+- Accept `objective.composite.consistency` plus aliases `win_rate` and `positive_days`.
+- Score using `consistency_weight.source` (`positive_days_ratio`, `win_rate`, `win_rate_pct`) and normalize via `consistency_weight.normalize`.
+
+---
+
+### BUG-CFG-004: YAML boolean edge case (`bool("false") is True`) + root validation
+
+**Module:** `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+
+**Bug:** Config-driven flags used `bool(...)` coercion, and `load_yaml_config()` accepted non-mapping YAML roots.
+
+**Impact:** Unexpected feature enablement (telemetry/filters/session flags) and inconsistent backtests due to malformed configs silently degrading to `{}`.
+
+**Fix:**
+- Replaced config-sourced `bool(...)` conversions with `_parse_bool(..., default=...)`.
+- Made `load_yaml_config()` validate YAML root is a mapping (or empty).
+
+---
+
+### BUG-CFG-005: `sessions.sessions` tuple conversion missing validation
+
+**Module:** `nautilus_gold_scalper/src/validation/core/config.py`
+
+**Bug:** `ValidationConfig.from_yaml()` assumed `sessions.sessions` was a mapping of 2-item sequences.
+
+**Impact:** Malformed YAML could crash with confusing errors or create invalid session definitions.
+
+**Fix:** Validate `sessions.sessions` is a mapping and each entry is a 2-item list/tuple before converting to `(int,int)`.
+
+---
+
+### BUG-CFG-006: HumanSimConfig YAML root type not validated
+
+**Module:** `nautilus_gold_scalper/src/execution/human_config.py`
+
+**Bug:** `HumanSimConfig.from_yaml()` did `cls(**data)` without checking that `data` is a mapping.
+
+**Impact:** Malformed YAML could error with unclear `TypeError`.
+
+**Fix:** Validate YAML root is a mapping and open file with UTF-8 encoding.
+
+**Validation:**
+- `.venv/bin/mypy --strict` on modified files (PASS)
+- Parsed all `nautilus_gold_scalper/configs/grids/*.yaml` via `OptimizationConfig.from_yaml` (PASS)
+
 ## 2025-12-26 [CRITICAL] - FIXED: WFA timestamp look-ahead bias
 
 **Module:** `nautilus_gold_scalper/scripts/optimize.py`
@@ -3127,6 +3390,104 @@ Threshold values hardcoded or not validated against config.
 Minor logging format inconsistencies in risk module.
 
 **Status:** PENDING (low priority)
+
+---
+
+## Rodada 11 - Logging fixes (2025-12-26)
+
+### BUG-LOG-001: Add `exc_info=True` for exception paths in delayed execution
+
+**Files:** `nautilus_gold_scalper/src/execution/delayed_executor.py`
+
+**Bug Description:** Exception-path logs dropped stack traces and used eager f-string formatting.
+
+**Fix:** Parameterized logs + include `order_params` context; add `exc_info=True` on callback failures.
+
+**Status:** FIXED
+
+---
+
+### BUG-LOG-002: Log cache corruption with traceback in EconomicCalendar
+
+**Files:** `nautilus_gold_scalper/src/execution/economic_calendar.py`
+
+**Bug Description:** Cache corruption handling logged without stack traces.
+
+**Fix:** Parameterized warning + `exc_info=True`.
+
+**Status:** FIXED
+
+---
+
+### BUG-LOG-003: Add traceback for RNG persistence/load failures in HBS
+
+**Files:** `nautilus_gold_scalper/src/execution/human_simulator.py`
+
+**Bug Description:** RNG save/load failures logged without stack traces; symlink/legacy-file warnings used f-strings.
+
+**Fix:** Parameterized logs + `exc_info=True` where applicable.
+
+**Status:** FIXED
+
+---
+
+### BUG-LOG-004: Preserve stack traces when ML model inference fails
+
+**Files:** `nautilus_gold_scalper/src/ml/ensemble_predictor.py`
+
+**Bug Description:** Model prediction failures logged as debug f-strings (no traceback).
+
+**Fix:** `logger.debug("Model %s prediction failed", name, exc_info=True)`.
+
+**Status:** FIXED
+
+---
+
+### BUG-LOG-005: Improve Optuna/Bayesian search logs on failures
+
+**Files:** `nautilus_gold_scalper/src/optimization/search/bayesian.py`
+
+**Bug Description:** Trial failures logged without traceback; sampler fallback used f-string.
+
+**Fix:** `exc_info=True` for trial failures; parameterized warning for unknown sampler.
+
+**Status:** FIXED
+
+---
+
+### BUG-LOG-006: Avoid duplicate exception logging in validation runner
+
+**Files:** `nautilus_gold_scalper/src/validation/run_validation.py`
+
+**Bug Description:** Exception path logged both `logger.exception(...)` and `logger.error(...)`.
+
+**Fix:** Keep `logger.exception(...)` (with phase number); remove redundant `logger.error`.
+
+**Status:** FIXED
+
+---
+
+### BUG-LOG-007: Add tracebacks for DuckDB query failures in Phase 3/4 validation
+
+**Files:** `nautilus_gold_scalper/src/validation/phases/phase_3_4.py`
+
+**Bug Description:** Several query failures logged only the exception string.
+
+**Fix:** Add `exc_info=True` and simplify messages.
+
+**Status:** FIXED
+
+---
+
+### BUG-LOG-008: Preserve stack traces in GoldScalperStrategy exception paths
+
+**Files:** `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+
+**Bug Description:** Multiple exception handlers logged only exception strings (and used f-strings), dropping stack traces needed for post-mortems (e.g., HBS lifecycle hooks, MTF analysis wrapper, trade-management actions).
+
+**Fix:** Convert exception-path logs to parameterized calls and include `exc_info=True` so the full traceback is preserved.
+
+**Status:** FIXED
 
 ---
 
