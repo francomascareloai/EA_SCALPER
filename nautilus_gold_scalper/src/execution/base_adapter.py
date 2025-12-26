@@ -164,6 +164,15 @@ class BaseExecutionAdapter:
         return oid
 
     def _is_order_allowed(self, *, now_utc: datetime, order_type: str) -> bool:
+        order_type_norm = order_type.lower().strip()
+        is_reduce_only = order_type_norm in {"close", "flatten", "reduce", "reduce_only"}
+
+        # BUG-LIVE-002: Always allow reduce-only orders.
+        # If ET conversion is unavailable, fail-closed for NEW entries but fail-open for
+        # flattening to avoid getting stuck with positions into the close.
+        if is_reduce_only:
+            return True
+
         if _ET_TZ is None:
             return False
 
@@ -171,22 +180,9 @@ class BaseExecutionAdapter:
         now_time = dt_et.time()
 
         urgent = time(16, 30)
-        emergency = time(16, 55)
-        cutoff = time(16, 59)
-
-        order_type_norm = order_type.lower().strip()
-        is_reduce_only = order_type_norm in {"close", "flatten", "reduce", "reduce_only"}
-
-        # Reduce-only / flatten orders are allowed at any time.
-        if is_reduce_only:
-            return True
 
         # Never allow new entries after urgent.
         if now_time >= urgent:
-            return False
-
-        # Block any new orders after emergency/cutoff (defense in depth).
-        if now_time >= emergency or now_time >= cutoff:
             return False
 
         return True

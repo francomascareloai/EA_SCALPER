@@ -47,6 +47,7 @@ URLs:
 
 // ✓ FORGE v4.0: Full Tradovate API integration
 """
+
 import asyncio
 import json
 import logging
@@ -67,6 +68,7 @@ logger = logging.getLogger(__name__)
 
 class ConnectionState(Enum):
     """Broker connection state."""
+
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -76,6 +78,7 @@ class ConnectionState(Enum):
 
 class OrderState(Enum):
     """Broker order state."""
+
     PENDING_NEW = "pending_new"
     WORKING = "working"
     FILLED = "filled"
@@ -87,6 +90,7 @@ class OrderState(Enum):
 @dataclass
 class ApexAccount:
     """Apex trading account information."""
+
     account_id: str
     account_name: str
     account_type: str  # "evaluation", "funded", "pa"
@@ -112,6 +116,7 @@ class ApexAccount:
 @dataclass
 class ApexPosition:
     """Apex position information."""
+
     position_id: str
     symbol: str
     side: str  # "long", "short"
@@ -130,6 +135,7 @@ class ApexPosition:
 @dataclass
 class ApexOrder:
     """Apex order information."""
+
     order_id: str
     client_order_id: str
     symbol: str
@@ -155,6 +161,7 @@ class ApexOrder:
 @dataclass
 class ApexAdapterConfig:
     """Configuration for Apex adapter."""
+
     # API credentials (should be loaded from environment)
     api_key: str = ""
     api_secret: str = ""
@@ -248,12 +255,12 @@ class ApexAdapter:
         self._p_ticket: str | None = None  # Tradovate rate limit ticket
 
         # Load credentials from environment (never hardcode!)
-        self._api_key = os.getenv('TRADOVATE_API_KEY', self.config.api_key)
-        self._api_secret = os.getenv('TRADOVATE_API_SECRET', self.config.api_secret)
-        self._app_id = os.getenv('TRADOVATE_APP_ID', 'EA_SCALPER_XAUUSD')
-        self._device_id = os.getenv('TRADOVATE_DEVICE_ID', 'DEVICE_001')
-        self._cid = os.getenv('TRADOVATE_CID', '')
-        self._sec = os.getenv('TRADOVATE_SEC', '')
+        self._api_key = os.getenv("TRADOVATE_API_KEY", self.config.api_key)
+        self._api_secret = os.getenv("TRADOVATE_API_SECRET", self.config.api_secret)
+        self._app_id = os.getenv("TRADOVATE_APP_ID", "EA_SCALPER_XAUUSD")
+        self._device_id = os.getenv("TRADOVATE_DEVICE_ID", "DEVICE_001")
+        self._cid = os.getenv("TRADOVATE_CID", "")
+        self._sec = os.getenv("TRADOVATE_SEC", "")
 
         # Callbacks
         self._on_order_update: Callable | None = None
@@ -365,7 +372,9 @@ class ApexAdapter:
             True if authentication successful
         """
         if not self._api_key or not self._api_secret:
-            logger.error("⚠️ API credentials not configured. Set TRADOVATE_API_KEY and TRADOVATE_API_SECRET")
+            logger.error(
+                "⚠️ API credentials not configured. Set TRADOVATE_API_KEY and TRADOVATE_API_SECRET"
+            )
             return False
 
         # Check if we have a valid token
@@ -400,8 +409,8 @@ class ApexAdapter:
 
             async with self._session.post(auth_url, json=auth_payload) as resp:
                 # Check for p-ticket rate limiting (Tradovate-specific)
-                if 'p-ticket' in resp.headers:
-                    self._p_ticket = resp.headers['p-ticket']
+                if "p-ticket" in resp.headers:
+                    self._p_ticket = resp.headers["p-ticket"]
                     logger.debug(f"Received p-ticket: {self._p_ticket}")
 
                 if resp.status == 200:
@@ -412,9 +421,13 @@ class ApexAdapter:
 
                     # Token expiry (Tradovate tokens typically valid for 1 hour)
                     expires_in_seconds = data.get("expirationTime", 3600)
-                    self._token_expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+                    self._token_expiry = datetime.now(timezone.utc) + timedelta(
+                        seconds=expires_in_seconds
+                    )
 
-                    logger.info(f"✅ Authentication successful. Token expires at {self._token_expiry}")
+                    logger.info(
+                        f"✅ Authentication successful. Token expires at {self._token_expiry}"
+                    )
                     return True
 
                 elif resp.status == 401:
@@ -428,7 +441,7 @@ class ApexAdapter:
                     logger.error(f"❌ Rate limited (429). P-ticket: {p_ticket}")
 
                     # Wait longer on rate limit
-                    retry_after = int(resp.headers.get('Retry-After', 10))
+                    retry_after = int(resp.headers.get("Retry-After", 10))
                     logger.info(f"Waiting {retry_after}s before retry...")
                     await asyncio.sleep(retry_after)
                     return False
@@ -466,7 +479,9 @@ class ApexAdapter:
 
                     self._access_token = data.get("accessToken")
                     expires_in_seconds = data.get("expirationTime", 3600)
-                    self._token_expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+                    self._token_expiry = datetime.now(timezone.utc) + timedelta(
+                        seconds=expires_in_seconds
+                    )
 
                     logger.info("✅ Token refreshed successfully")
                     return True
@@ -494,8 +509,8 @@ class ApexAdapter:
         try:
             async with self._session.get(account_list_url, headers=headers) as resp:
                 # Check for p-ticket
-                if 'p-ticket' in resp.headers:
-                    self._p_ticket = resp.headers['p-ticket']
+                if "p-ticket" in resp.headers:
+                    self._p_ticket = resp.headers["p-ticket"]
 
                 if resp.status == 200:
                     accounts = await resp.json()
@@ -507,7 +522,10 @@ class ApexAdapter:
                     # Find the account (use config.account_id if specified, or first account)
                     account_data = None
                     if self.config.account_id:
-                        account_data = next((a for a in accounts if str(a.get("id")) == self.config.account_id), None)
+                        account_data = next(
+                            (a for a in accounts if str(a.get("id")) == self.config.account_id),
+                            None,
+                        )
 
                     if not account_data:
                         account_data = accounts[0]  # Use first account
@@ -539,8 +557,12 @@ class ApexAdapter:
                         last_updated=datetime.now(timezone.utc),
                     )
 
-                    logger.info(f"✅ Account loaded: {self._account.account_name} (ID: {account_id})")
-                    logger.info(f"   Balance: ${self._account.balance:.2f} | Equity: ${self._account.equity:.2f}")
+                    logger.info(
+                        f"✅ Account loaded: {self._account.account_name} (ID: {account_id})"
+                    )
+                    logger.info(
+                        f"   Balance: ${self._account.balance:.2f} | Equity: ${self._account.equity:.2f}"
+                    )
                     logger.info(f"   Daily P&L: ${self._account.daily_pnl:.2f}")
 
                     # Also load positions
@@ -561,13 +583,15 @@ class ApexAdapter:
             return
 
         headers = {"Authorization": f"Bearer {self._access_token}"}
-        positions_url = urljoin(self.config.rest_url, f"/position/list?accountId={self.config.account_id}")
+        positions_url = urljoin(
+            self.config.rest_url, f"/position/list?accountId={self.config.account_id}"
+        )
 
         try:
             async with self._session.get(positions_url, headers=headers) as resp:
                 # Check for p-ticket
-                if 'p-ticket' in resp.headers:
-                    self._p_ticket = resp.headers['p-ticket']
+                if "p-ticket" in resp.headers:
+                    self._p_ticket = resp.headers["p-ticket"]
 
                 if resp.status == 200:
                     positions_data = await resp.json()
@@ -584,7 +608,9 @@ class ApexAdapter:
                             current_price=float(pos_data.get("currentPrice", 0.0)),
                             unrealized_pnl=float(pos_data.get("unrealizedPnL", 0.0)),
                             realized_pnl=float(pos_data.get("realizedPnL", 0.0)),
-                            opened_at=datetime.fromisoformat(pos_data.get("timestamp")) if pos_data.get("timestamp") else None,
+                            opened_at=datetime.fromisoformat(pos_data.get("timestamp"))
+                            if pos_data.get("timestamp")
+                            else None,
                             last_updated=datetime.now(timezone.utc),
                         )
 
@@ -639,7 +665,7 @@ class ApexAdapter:
 
         sync_request = {
             "op": "user/syncrequest",
-            "args": [{"users": []}]  # Empty = all users for this account
+            "args": [{"users": []}],  # Empty = all users for this account
         }
 
         await self._ws.send_json(sync_request)
@@ -667,7 +693,9 @@ class ApexAdapter:
                     await self._ws.send_json(heartbeat_msg)
                     self._last_heartbeat = datetime.now(timezone.utc)
 
-                    logger.debug(f"❤️ Heartbeat sent at {self._last_heartbeat.strftime('%H:%M:%S.%f')[:-3]}")
+                    logger.debug(
+                        f"❤️ Heartbeat sent at {self._last_heartbeat.strftime('%H:%M:%S.%f')[:-3]}"
+                    )
 
                 except Exception as e:
                     logger.error(f"❌ Heartbeat send failed: {type(e).__name__}: {e}")
@@ -791,15 +819,19 @@ class ApexAdapter:
         order = self._orders[order_id]
 
         # Update state
-        status = data.get("ordStatus", "").lower()
-        if status == "working":
-            order.state = OrderState.WORKING
-        elif status == "filled":
-            order.state = OrderState.FILLED
-        elif status == "cancelled":
-            order.state = OrderState.CANCELLED
-        elif status == "rejected":
-            order.state = OrderState.REJECTED
+        # BUG-ENUM-004: Parse `ordStatus` string into OrderState (no raw string comparisons).
+        status_raw = str(data.get("ordStatus", "")).strip().lower()
+        status_map = {
+            "working": OrderState.WORKING,
+            "filled": OrderState.FILLED,
+            "cancelled": OrderState.CANCELLED,
+            "rejected": OrderState.REJECTED,
+            "expired": OrderState.EXPIRED,
+            "pending_new": OrderState.PENDING_NEW,
+        }
+        if status_raw in status_map:
+            order.state = status_map[status_raw]
+        if order.state == OrderState.REJECTED:
             order.reject_reason = data.get("text", "Unknown")
 
         order.updated_at = datetime.now(timezone.utc)
@@ -863,7 +895,9 @@ class ApexAdapter:
 
         self._account.last_updated = datetime.now(timezone.utc)
 
-        logger.debug(f"Account updated: Equity=${self._account.equity:.2f} | P&L=${self._account.daily_pnl:.2f}")
+        logger.debug(
+            f"Account updated: Equity=${self._account.equity:.2f} | P&L=${self._account.daily_pnl:.2f}"
+        )
 
         if self._on_account_update:
             self._on_account_update(self._account)
@@ -882,7 +916,9 @@ class ApexAdapter:
         delay = self.config.reconnect_delay_seconds * (2 ** (self._reconnect_attempts - 1))
         delay = min(delay, 60)  # Cap at 60 seconds
 
-        logger.info(f"Reconnecting in {delay:.1f}s (attempt {self._reconnect_attempts}/{self.config.reconnect_attempts})...")
+        logger.info(
+            f"Reconnecting in {delay:.1f}s (attempt {self._reconnect_attempts}/{self.config.reconnect_attempts})..."
+        )
 
         await asyncio.sleep(delay)
 
@@ -912,7 +948,9 @@ class ApexAdapter:
 
         # If no heartbeat in 10 seconds, connection might be stale
         if time_since_heartbeat > 10:
-            logger.warning(f"⚠️ No heartbeat sent for {time_since_heartbeat:.1f}s - connection may be stale")
+            logger.warning(
+                f"⚠️ No heartbeat sent for {time_since_heartbeat:.1f}s - connection may be stale"
+            )
             return False
 
         return True
@@ -1016,10 +1054,12 @@ class ApexAdapter:
             if self.config.log_orders:
                 logger.info(f"📤 Submitting market order: {order_action} {quantity} {symbol}")
 
-            async with self._session.post(place_order_url, json=order_payload, headers=headers) as resp:
+            async with self._session.post(
+                place_order_url, json=order_payload, headers=headers
+            ) as resp:
                 # Check for p-ticket
-                if 'p-ticket' in resp.headers:
-                    self._p_ticket = resp.headers['p-ticket']
+                if "p-ticket" in resp.headers:
+                    self._p_ticket = resp.headers["p-ticket"]
 
                 if resp.status == 200:
                     order_response = await resp.json()
@@ -1054,14 +1094,18 @@ class ApexAdapter:
                     # Attempt to re-authenticate
                     if await self._authenticate():
                         # Retry once
-                        return await self.submit_market_order(symbol, side, quantity, client_order_id)
+                        return await self.submit_market_order(
+                            symbol, side, quantity, client_order_id
+                        )
                     return None
 
                 elif resp.status == 429:
                     # Rate limited with p-ticket
                     p_ticket = self._p_ticket or "unknown"
-                    retry_after = int(resp.headers.get('Retry-After', 5))
-                    logger.error(f"❌ Rate limited (429). P-ticket: {p_ticket}. Retry after {retry_after}s")
+                    retry_after = int(resp.headers.get("Retry-After", 5))
+                    logger.error(
+                        f"❌ Rate limited (429). P-ticket: {p_ticket}. Retry after {retry_after}s"
+                    )
                     await asyncio.sleep(retry_after)
                     return None
 
@@ -1150,7 +1194,9 @@ class ApexAdapter:
         self._orders[order_id] = order
 
         if self.config.log_orders:
-            logger.info(f"Stop order submitted: {order_side} {quantity} {symbol} @ stop {stop_price}")
+            logger.info(
+                f"Stop order submitted: {order_side} {quantity} {symbol} @ stop {stop_price}"
+            )
 
         return order_id
 
@@ -1172,29 +1218,23 @@ class ApexAdapter:
 
         # Entry order
         if entry_price:
-            result["entry"] = await self.submit_limit_order(
-                symbol, side, quantity, entry_price
-            )
+            result["entry"] = await self.submit_limit_order(symbol, side, quantity, entry_price)
         else:
-            result["entry"] = await self.submit_market_order(
-                symbol, side, quantity
-            )
+            result["entry"] = await self.submit_market_order(symbol, side, quantity)
 
         if not result["entry"]:
             return result
 
         # Exit orders (opposite side)
-        exit_side = SignalType.SIGNAL_SELL if side == SignalType.SIGNAL_BUY else SignalType.SIGNAL_BUY
+        exit_side = (
+            SignalType.SIGNAL_SELL if side == SignalType.SIGNAL_BUY else SignalType.SIGNAL_BUY
+        )
 
         # Stop loss
-        result["sl"] = await self.submit_stop_order(
-            symbol, exit_side, quantity, stop_loss
-        )
+        result["sl"] = await self.submit_stop_order(symbol, exit_side, quantity, stop_loss)
 
         # Take profit
-        result["tp"] = await self.submit_limit_order(
-            symbol, exit_side, quantity, take_profit
-        )
+        result["tp"] = await self.submit_limit_order(symbol, exit_side, quantity, take_profit)
 
         return result
 
@@ -1230,8 +1270,8 @@ class ApexAdapter:
 
             async with self._session.post(cancel_url, json=cancel_payload, headers=headers) as resp:
                 # Check for p-ticket
-                if 'p-ticket' in resp.headers:
-                    self._p_ticket = resp.headers['p-ticket']
+                if "p-ticket" in resp.headers:
+                    self._p_ticket = resp.headers["p-ticket"]
 
                 if resp.status == 200:
                     order.state = OrderState.CANCELLED
@@ -1255,7 +1295,7 @@ class ApexAdapter:
                 elif resp.status == 429:
                     p_ticket = self._p_ticket or "unknown"
                     logger.error(f"❌ Rate limited (429). P-ticket: {p_ticket}")
-                    retry_after = int(resp.headers.get('Retry-After', 5))
+                    retry_after = int(resp.headers.get("Retry-After", 5))
                     await asyncio.sleep(retry_after)
                     return False
 
@@ -1319,7 +1359,9 @@ class ApexAdapter:
         close_qty = quantity or position.quantity
 
         # Determine closing side
-        close_side = SignalType.SIGNAL_SELL if position.side == "long" else SignalType.SIGNAL_BUY
+        # BUG-ENUM-003: Normalize `position.side` string to avoid mismatches.
+        side = str(position.side).strip().lower()
+        close_side = SignalType.SIGNAL_SELL if side == "long" else SignalType.SIGNAL_BUY
 
         return await self.submit_market_order(symbol, close_side, close_qty)
 
@@ -1426,7 +1468,9 @@ class ApexAdapter:
         logger.info(f"Authenticated: {status['authenticated']}")
         logger.info(f"Token Expiry: {status['token_expiry']}")
         logger.info(f"Last Heartbeat: {status['last_heartbeat']}")
-        logger.info(f"Reconnect Attempts: {status['reconnect_attempts']}/{self.config.reconnect_attempts}")
+        logger.info(
+            f"Reconnect Attempts: {status['reconnect_attempts']}/{self.config.reconnect_attempts}"
+        )
         logger.info(f"P-Ticket: {status['p_ticket']}")
         logger.info(f"Account ID: {status['account_id']}")
         logger.info(f"Open Positions: {status['open_positions']}")

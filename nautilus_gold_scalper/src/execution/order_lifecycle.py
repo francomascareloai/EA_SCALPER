@@ -24,14 +24,20 @@ from datetime import datetime, timedelta
 from enum import Enum, auto
 from zoneinfo import ZoneInfo
 
+from ..core.definitions import Direction
+
 logger = logging.getLogger(__name__)
 
 # Use UTC for internal timestamps
 UTC = ZoneInfo("UTC")
 
+# Floating-point tolerance for fill quantity comparisons.
+_FILL_EPS = 1e-9
+
 
 class OrderState(Enum):
     """Order lifecycle states."""
+
     PENDING = auto()
     PARTIAL = auto()
     FILLED = auto()
@@ -42,6 +48,7 @@ class OrderState(Enum):
 
 class OrderType(Enum):
     """Order types we track."""
+
     MARKET = auto()
     LIMIT = auto()
     STOP_LIMIT = auto()
@@ -63,10 +70,14 @@ class TrackedOrder:
     R2-C-3 FIX: created_at/updated_at should be set explicitly by caller
     using current_time parameter, not via default_factory with datetime.utcnow().
     The factory now uses timezone-aware UTC.
+
+    BUG-ENUM-005: `direction` uses core `Direction` IntEnum (LONG/SHORT) to
+    prevent magic strings.
     """
+
     order_id: str
     order_type: OrderType
-    direction: str  # "LONG" or "SHORT"
+    direction: Direction
     requested_qty: float
     filled_qty: float = 0.0
     limit_price: float | None = None
@@ -101,7 +112,7 @@ class OrderLifecycleManager:
         tracked = manager.track_order(
             order_id="123",
             order_type=OrderType.LIMIT,
-            direction="LONG",
+            direction=Direction.LONG,
             qty=1.0,
             limit_price=2000.50,
         )
@@ -140,7 +151,7 @@ class OrderLifecycleManager:
         self,
         order_id: str,
         order_type: OrderType,
-        direction: str,
+        direction: Direction,
         qty: float,
         limit_price: float | None = None,
         stop_price: float | None = None,
@@ -173,7 +184,8 @@ class OrderLifecycleManager:
             if order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT):
                 self._total_limits_submitted += 1
 
-        logger.debug(f"Tracking order {order_id}: {order_type.name} {direction}")
+        direction_label = direction.name if hasattr(direction, "name") else str(direction)
+        logger.debug(f"Tracking order {order_id}: {order_type.name} {direction_label}")
         return order
 
     def on_fill(
@@ -189,34 +201,63 @@ class OrderLifecycleManager:
         """Handle order fill event.
 
         R2-C-3 FIX: Accept current_time for backtest correctness.
+
+        BUG-EXEC-002: Normalize partial fills into a consistent state machine.
+        - Clamp overfills to requested_qty.
+        - Mark FILLED automatically once cumulative fills reach requested_qty.
+        - Count "limit filled" metric at most once per order.
         """
         if current_time is None:
             current_time = _utc_now()
 
+        finalized = False
         with self._lock:
             order = self._orders.get(order_id)
             if not order:
                 logger.warning(f"Fill for unknown order: {order_id}")
                 return
 
+            if filled_qty <= 0:
+                logger.warning(f"Ignoring non-positive fill qty for {order_id}: {filled_qty}")
+                return
+
+            remaining = max(0.0, order.requested_qty - order.filled_qty)
+            if filled_qty - remaining > _FILL_EPS:
+                logger.warning(
+                    f"Overfill detected for {order_id}: filled_qty={filled_qty} remaining={remaining} "
+                    f"requested={order.requested_qty} already_filled={order.filled_qty}"
+                )
+                filled_qty = remaining
+
+            if filled_qty <= _FILL_EPS:
+                return
+
+            prev_state = order.state
             order.filled_qty += filled_qty
             order.updated_at = current_time
             order.fill_price = fill_price
             order.realized_pnl = realized_pnl
 
-            if is_partial:
-                order.state = OrderState.PARTIAL
-            else:
+            # Derive state from cumulative fills; tolerate caller's is_partial hint.
+            if order.filled_qty + _FILL_EPS >= order.requested_qty:
+                order.filled_qty = order.requested_qty
                 order.state = OrderState.FILLED
-                if order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT):
+                finalized = True
+                if (
+                    order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT)
+                    and prev_state != OrderState.FILLED
+                ):
                     self._total_limits_filled += 1
+            else:
+                order.state = (
+                    OrderState.PARTIAL if is_partial or order.filled_qty > 0 else OrderState.PENDING
+                )
 
         logger.info(
-            f"Order {order_id} filled: qty={filled_qty}, "
-            f"price={fill_price}, winner={is_winner}"
+            f"Order {order_id} filled: qty={filled_qty}, price={fill_price}, winner={is_winner}"
         )
 
-        if self._on_fill and order.state == OrderState.FILLED:
+        if self._on_fill and finalized:
             self._on_fill(order, is_winner)
 
     def on_cancel(
@@ -237,9 +278,14 @@ class OrderLifecycleManager:
             if not order:
                 return
 
+            # Do not double-count cancel events.
+            prev_state = order.state
             order.state = OrderState.CANCELLED
             order.updated_at = current_time
-            if order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT):
+            if (
+                order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT)
+                and prev_state != OrderState.CANCELLED
+            ):
                 self._total_limits_cancelled += 1
 
         logger.info(f"Order {order_id} cancelled: {reason}")
@@ -263,9 +309,14 @@ class OrderLifecycleManager:
             if not order:
                 return
 
+            # Do not double-count expire events.
+            prev_state = order.state
             order.state = OrderState.EXPIRED
             order.updated_at = current_time
-            if order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT):
+            if (
+                order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT)
+                and prev_state != OrderState.EXPIRED
+            ):
                 self._total_limits_expired += 1
 
         logger.info(f"Order {order_id} expired")
@@ -290,9 +341,14 @@ class OrderLifecycleManager:
             if not order:
                 return
 
+            # Do not double-count reject events.
+            prev_state = order.state
             order.state = OrderState.REJECTED
             order.updated_at = current_time
-            if order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT):
+            if (
+                order.order_type in (OrderType.LIMIT, OrderType.STOP_LIMIT)
+                and prev_state != OrderState.REJECTED
+            ):
                 self._total_limits_rejected += 1
 
         logger.warning(f"Order {order_id} rejected: {reason}")
@@ -306,7 +362,8 @@ class OrderLifecycleManager:
         """Get all pending (unfilled) orders."""
         with self._lock:
             return [
-                o for o in self._orders.values()
+                o
+                for o in self._orders.values()
                 if o.state in (OrderState.PENDING, OrderState.PARTIAL)
             ]
 
@@ -324,15 +381,27 @@ class OrderLifecycleManager:
             return self._total_limits_filled / self._total_limits_submitted
 
     def get_metrics(self) -> dict[str, float]:
-        """Get all lifecycle metrics."""
+        """Get all lifecycle metrics.
+
+        BUG-EXEC-001: Avoid deadlock.
+        `get_limit_fill_rate()` acquires the same lock; calling it under the lock
+        would deadlock (threading.Lock is not re-entrant).
+        """
         with self._lock:
+            submitted = self._total_limits_submitted
+            filled = self._total_limits_filled
+            cancelled = self._total_limits_cancelled
+            expired = self._total_limits_expired
+            rejected = self._total_limits_rejected
+            fill_rate = (filled / submitted) if submitted else 0.0
+
             return {
-                "limits_submitted": self._total_limits_submitted,
-                "limits_filled": self._total_limits_filled,
-                "limits_cancelled": self._total_limits_cancelled,
-                "limits_expired": self._total_limits_expired,
-                "limits_rejected": self._total_limits_rejected,
-                "fill_rate": self.get_limit_fill_rate(),
+                "limits_submitted": submitted,
+                "limits_filled": filled,
+                "limits_cancelled": cancelled,
+                "limits_expired": expired,
+                "limits_rejected": rejected,
+                "fill_rate": fill_rate,
             }
 
     def clear_completed(
@@ -361,8 +430,12 @@ class OrderLifecycleManager:
         with self._lock:
             to_remove = []
             for order_id, order in self._orders.items():
-                if order.state in (OrderState.FILLED, OrderState.CANCELLED,
-                                   OrderState.EXPIRED, OrderState.REJECTED):
+                if order.state in (
+                    OrderState.FILLED,
+                    OrderState.CANCELLED,
+                    OrderState.EXPIRED,
+                    OrderState.REJECTED,
+                ):
                     if order.updated_at < cutoff:
                         to_remove.append(order_id)
 

@@ -25,11 +25,10 @@ All CRITIC/ARGUS fixes incorporated:
 import hashlib
 import json
 import logging
-import pickle
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -39,12 +38,42 @@ from .human_config import HumanSimConfig
 
 ET = ZoneInfo("America/New_York")
 
+
+def _localize_et_strict(dt: datetime) -> datetime:
+    """Attach ET tzinfo to naive datetimes, handling DST correctly.
+
+    This emulates `pytz.timezone(...).localize(dt, is_dst=None)` strictness:
+    - Raises ValueError for ambiguous (fold) or nonexistent local times.
+    - Returns an ET-aware datetime when unambiguous.
+    """
+    if dt.tzinfo is not None:
+        return dt.astimezone(ET)
+
+    # Try both folds. For a valid local time, exactly one fold should round-trip.
+    dt_fold0 = dt.replace(tzinfo=ET, fold=0)
+    dt_fold1 = dt.replace(tzinfo=ET, fold=1)
+
+    rt0 = dt_fold0.astimezone(timezone.utc).astimezone(ET).replace(tzinfo=None)
+    rt1 = dt_fold1.astimezone(timezone.utc).astimezone(ET).replace(tzinfo=None)
+
+    ok0 = rt0 == dt
+    ok1 = rt1 == dt
+
+    if ok0 and ok1:
+        raise ValueError(f"Ambiguous local time in ET: {dt!r}")
+    if not ok0 and not ok1:
+        raise ValueError(f"Nonexistent local time in ET: {dt!r}")
+
+    return dt_fold0 if ok0 else dt_fold1
+
+
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class HBSState:
     """Mutable state tracking for the simulator."""
+
     # Daily state (reset on session_start)
     trades_today: int = 0
     warmup_trades_target: int = 1  # Randomized 1-3
@@ -81,6 +110,7 @@ class HBSState:
 @dataclass
 class HBSDecision:
     """Output of HBS decision-making."""
+
     should_skip: bool = False
     skip_reason: str | None = None
     delay_seconds: float = 0.0
@@ -90,11 +120,11 @@ class HBSDecision:
     is_throttled: bool = False
     throttle_wait_seconds: float = 0.0
     # C-NEW-2 FIX: Add limit_price and stop_price for LIMIT/STOP_LIMIT orders
-    limit_price: float | None = None    # Price for LIMIT orders
-    stop_price: float | None = None     # Trigger price for STOP_LIMIT orders
+    limit_price: float | None = None  # Price for LIMIT orders
+    stop_price: float | None = None  # Trigger price for STOP_LIMIT orders
     # H-NEW-4 FIX: Context-aware cancellation
-    cancel_if_price_moves_ticks: int = 5   # Cancel limit if price moves X ticks away
-    cancel_after_seconds: float = 30.0     # Cancel limit if not filled in X seconds
+    cancel_if_price_moves_ticks: int = 5  # Cancel limit if price moves X ticks away
+    cancel_after_seconds: float = 30.0  # Cancel limit if not filled in X seconds
 
 
 class HumanBehaviorSimulator:
@@ -172,9 +202,7 @@ class HumanBehaviorSimulator:
             return  # Can't jitter without account ID
 
         # Hash account ID to get deterministic jitter seed
-        hash_bytes = hashlib.sha256(
-            self.config.rng_seed_account_id.encode()
-        ).digest()
+        hash_bytes = hashlib.sha256(self.config.rng_seed_account_id.encode()).digest()
         jitter_seed = int.from_bytes(hash_bytes[:8], byteorder="big")
         jitter_rng = np.random.default_rng(jitter_seed)
 
@@ -196,12 +224,10 @@ class HumanBehaviorSimulator:
         self.config.size_variation = jitter(self.config.size_variation)
 
         # Jitter throttle cooldown
-        self.config.throttle_cooldown_seconds = jitter(
-            self.config.throttle_cooldown_seconds
-        )
+        self.config.throttle_cooldown_seconds = jitter(self.config.throttle_cooldown_seconds)
 
         logger.debug(
-            f"Applied account jitter (±{jitter_range*100:.0f}%): "
+            f"Applied account jitter (±{jitter_range * 100:.0f}%): "
             f"delay_mean={self.config.delay_mean:.3f}, "
             f"skip_rate={self.config.skip_base_rate:.3f}"
         )
@@ -239,14 +265,13 @@ class HumanBehaviorSimulator:
 
         # Ensure timezone
         if current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=ET)
+            current_time = _localize_et_strict(current_time)  # R13-FIX
 
         decision = HBSDecision()
 
         # H-NEW-6 FIX: Check if we're in crisis mode (DD > threshold)
         in_crisis = (
-            self.config.crisis_mode_enabled
-            and current_dd >= self.config.crisis_dd_threshold
+            self.config.crisis_mode_enabled and current_dd >= self.config.crisis_dd_threshold
         )
 
         # === PRE-CHECKS ===
@@ -341,7 +366,8 @@ class HumanBehaviorSimulator:
         # Apply news event modifier (C5 fix)
         if event:
             news_mult = self.calendar.get_post_event_delay_multiplier(
-                current_time, event,
+                current_time,
+                event,
                 self.config.news_post_event_delay_minutes,
                 self.config.news_high_impact_delay_mult,
                 self.config.news_medium_impact_delay_mult,
@@ -354,11 +380,11 @@ class HumanBehaviorSimulator:
 
         # H-NEW-6 FIX: In crisis mode, reduce delays to execute faster
         if in_crisis:
-            base_delay *= (1.0 - self.config.crisis_delay_reduction)
+            base_delay *= 1.0 - self.config.crisis_delay_reduction
             logger.warning(
-                f"CRISIS MODE: DD={current_dd*100:.2f}% > "
-                f"{self.config.crisis_dd_threshold*100:.1f}%, "
-                f"delay reduced by {self.config.crisis_delay_reduction*100:.0f}%"
+                f"CRISIS MODE: DD={current_dd * 100:.2f}% > "
+                f"{self.config.crisis_dd_threshold * 100:.1f}%, "
+                f"delay reduced by {self.config.crisis_delay_reduction * 100:.0f}%"
             )
 
         decision.delay_seconds = base_delay
@@ -375,9 +401,9 @@ class HumanBehaviorSimulator:
 
         # === ENTRY OFFSET ===
 
-        decision.entry_offset_ticks = int(self._rng.integers(
-            0, self.config.entry_offset_ticks_max + 1
-        ))
+        decision.entry_offset_ticks = int(
+            self._rng.integers(0, self.config.entry_offset_ticks_max + 1)
+        )
 
         # CRITICAL-6 FIX: Document and validate limit price requirement
         # For LIMIT/STOP_LIMIT orders, caller MUST calculate limit_price and stop_price
@@ -464,7 +490,7 @@ class HumanBehaviorSimulator:
                 )
             current_time = datetime.now(ET)
         elif current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=ET)
+            current_time = _localize_et_strict(current_time)  # R13-FIX
 
         self.state.trades_today += 1
         self.state.daily_pnl += pnl
@@ -484,11 +510,11 @@ class HumanBehaviorSimulator:
                         # Pause for 5-15 minutes (human celebration/relaxation)
                         pause_minutes = float(self._rng.uniform(5, 15))
                         # HIGH-2 FIX: Use current_time instead of datetime.now()
-                        self.state.big_win_pause_until = (
-                            current_time + timedelta(minutes=pause_minutes)
+                        self.state.big_win_pause_until = current_time + timedelta(
+                            minutes=pause_minutes
                         )
                         logger.info(
-                            f"Big win pause triggered: pnl={pnl:.2f} ({pnl_pct*100:.1f}%), "
+                            f"Big win pause triggered: pnl={pnl:.2f} ({pnl_pct * 100:.1f}%), "
                             f"pausing for {pause_minutes:.1f} minutes"
                         )
         else:
@@ -515,7 +541,7 @@ class HumanBehaviorSimulator:
         """Reset daily state, roll sick day, set mood."""
         # Ensure timezone
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ET)
+            dt = _localize_et_strict(dt)  # R13-FIX
 
         # Reset daily state
         self.state.trades_today = 0
@@ -528,10 +554,12 @@ class HumanBehaviorSimulator:
         self.state.break_end_time = None
 
         # Randomize warmup trades (1-3)
-        self.state.warmup_trades_target = int(self._rng.integers(
-            self.config.size_warmup_trades_min,
-            self.config.size_warmup_trades_max + 1,
-        ))
+        self.state.warmup_trades_target = int(
+            self._rng.integers(
+                self.config.size_warmup_trades_min,
+                self.config.size_warmup_trades_max + 1,
+            )
+        )
 
         # Roll sick day
         sick_rate = self.config.sick_day_rate
@@ -541,10 +569,12 @@ class HumanBehaviorSimulator:
 
         # Roll daily mood (H7 fix)
         if self.config.mood_variance_enabled:
-            self.state.mood_modifier = float(self._rng.uniform(
-                self.config.mood_daily_modifier_min,
-                self.config.mood_daily_modifier_max,
-            ))
+            self.state.mood_modifier = float(
+                self._rng.uniform(
+                    self.config.mood_daily_modifier_min,
+                    self.config.mood_daily_modifier_max,
+                )
+            )
 
         # Re-seed RNG for new session (H8 fix)
         if self.config.rng_seed_from_date:
@@ -570,8 +600,7 @@ class HumanBehaviorSimulator:
             self._save_rng_state()
 
         logger.info(
-            f"Session ended: trades={self.state.trades_today}, "
-            f"daily_pnl={self.state.daily_pnl:.2f}"
+            f"Session ended: trades={self.state.trades_today}, daily_pnl={self.state.daily_pnl:.2f}"
         )
 
     # ==========================================================================
@@ -586,16 +615,20 @@ class HumanBehaviorSimulator:
         # Choose component
         if self._rng.random() < self.config.delay_gaussian_weight:
             # Gaussian component
-            delay = float(self._rng.normal(
-                self.config.delay_mean,
-                self.config.delay_std,
-            ))
+            delay = float(
+                self._rng.normal(
+                    self.config.delay_mean,
+                    self.config.delay_std,
+                )
+            )
         else:
             # Log-normal component (long-tail)
-            delay = float(self._rng.lognormal(
-                self.config.delay_longtail_mu,
-                self.config.delay_longtail_sigma,
-            ))
+            delay = float(
+                self._rng.lognormal(
+                    self.config.delay_longtail_mu,
+                    self.config.delay_longtail_sigma,
+                )
+            )
 
         # Apply fatigue
         fatigue_mult = self._calculate_fatigue_modifier(current_time)
@@ -656,7 +689,7 @@ class HumanBehaviorSimulator:
         # Human traders become increasingly cautious after losses
         if self.state.consecutive_losses >= 1:
             # Exponential: base^losses (e.g., 1.5^3 = 3.375x increase after 3 losses)
-            fear_multiplier = 1.5 ** self.state.consecutive_losses
+            fear_multiplier = 1.5**self.state.consecutive_losses
             # Cap at 5x to prevent excessive skipping
             fear_multiplier = min(fear_multiplier, 5.0)
             skip_rate *= fear_multiplier
@@ -688,10 +721,12 @@ class HumanBehaviorSimulator:
     def _calculate_size_multiplier(self) -> float:
         """Tier 2: Size variation with loss/warmup modifiers and mood."""
         # Base variation
-        variation = float(self._rng.uniform(
-            1.0 - self.config.size_variation,
-            1.0 + self.config.size_variation,
-        ))
+        variation = float(
+            self._rng.uniform(
+                1.0 - self.config.size_variation,
+                1.0 + self.config.size_variation,
+            )
+        )
 
         # Apply mood (H7)
         if self.config.mood_variance_enabled and "size" in self.config.mood_affects:
@@ -699,11 +734,11 @@ class HumanBehaviorSimulator:
 
         # Loss reduction
         if self.state.consecutive_losses >= self.config.size_reduce_after_losses:
-            variation *= (1.0 - self.config.size_loss_reduction)
+            variation *= 1.0 - self.config.size_loss_reduction
 
         # Warmup reduction
         if self.state.trades_today < self.state.warmup_trades_target:
-            variation *= (1.0 - self.config.size_warmup_reduction)
+            variation *= 1.0 - self.config.size_warmup_reduction
 
         return float(np.clip(variation, 0.5, 1.2))
 
@@ -718,10 +753,12 @@ class HumanBehaviorSimulator:
         (want immediate fill, less confident in limits getting filled).
         """
         # Apply daily drift
-        drift = float(self._rng.uniform(
-            -self.config.order_type_daily_drift,
-            self.config.order_type_daily_drift,
-        ))
+        drift = float(
+            self._rng.uniform(
+                -self.config.order_type_daily_drift,
+                self.config.order_type_daily_drift,
+            )
+        )
 
         market_pct = self.config.order_type_market_pct + drift
         limit_pct = self.config.order_type_limit_pct
@@ -834,10 +871,12 @@ class HumanBehaviorSimulator:
         prob = self.config.micro_break_probability_per_hour / 3.0
 
         if self._rng.random() < prob:
-            duration = int(self._rng.integers(
-                self.config.micro_break_duration_min_minutes,
-                self.config.micro_break_duration_max_minutes + 1,
-            ))
+            duration = int(
+                self._rng.integers(
+                    self.config.micro_break_duration_min_minutes,
+                    self.config.micro_break_duration_max_minutes + 1,
+                )
+            )
             self.state.in_micro_break = True
             # HIGH-3 FIX: Use current_time instead of datetime.now()
             self.state.break_end_time = current_time + timedelta(minutes=duration)
@@ -903,30 +942,49 @@ class HumanBehaviorSimulator:
         if current_time is None:
             current_time = datetime.now(ET)
         elif current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=ET)
+            current_time = _localize_et_strict(current_time)  # R13-FIX
 
         state_file = Path(self.config.rng_state_file)
-        state_data = {
+        json_file = (
+            state_file if state_file.suffix.lower() == ".json" else state_file.with_suffix(".json")
+        )
+
+        state_data: dict[str, Any] = {
             "rng_state": self._rng.bit_generator.state,
-            "session_counter": self.config.rng_session_counter,
+            "session_counter": int(self.config.rng_session_counter),
             "last_save_date": current_time.date().isoformat(),
         }
 
         try:
-            # Use JSON for security (pickle can execute arbitrary code)
-            if self.config.rng_use_json_format:
-                # RNG state contains numpy arrays, need to convert
-                json_file = state_file.with_suffix(".json")
-                with open(json_file, "w") as f:
-                    json.dump({
-                        "session_counter": state_data["session_counter"],
-                        "last_save_date": state_data["last_save_date"],
-                    }, f)
-            else:
-                with open(state_file, "wb") as f:
-                    pickle.dump(state_data, f)
-        except Exception as e:
-            logger.warning(f"Failed to save RNG state: {e}")
+            if not self.config.rng_use_json_format:
+                logger.warning(
+                    "rng_use_json_format=False is ignored; pickle persistence is disabled (RCE risk)."
+                )
+
+            json_file.parent.mkdir(parents=True, exist_ok=True)
+
+            if json_file.exists() and json_file.is_symlink():
+                logger.warning("Refusing to write RNG state to symlink: %s", json_file)
+                return
+
+            with open(json_file, "w", encoding="utf-8") as f:
+                try:
+                    json.dump(state_data, f, ensure_ascii=True, sort_keys=True)
+                except TypeError:
+                    # Safety fallback: if the RNG state is not JSON serializable in some
+                    # environments, persist at least the session counter.
+                    json.dump(
+                        {
+                            "session_counter": state_data["session_counter"],
+                            "last_save_date": state_data["last_save_date"],
+                        },
+                        f,
+                        ensure_ascii=True,
+                        sort_keys=True,
+                    )
+                f.write("\n")
+        except Exception:
+            logger.warning("Failed to save RNG state", exc_info=True)
 
     def _load_rng_state(self, current_time: datetime | None = None) -> None:
         """Load persisted RNG state and increment session counter.
@@ -942,22 +1000,45 @@ class HumanBehaviorSimulator:
         if current_time is None:
             current_time = datetime.now(ET)
         elif current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=ET)
+            current_time = _localize_et_strict(current_time)  # R13-FIX
 
         today = current_time.date().isoformat()
 
         state_file = Path(self.config.rng_state_file)
-        json_file = state_file.with_suffix(".json")
+        json_file = (
+            state_file if state_file.suffix.lower() == ".json" else state_file.with_suffix(".json")
+        )
 
         try:
-            if self.config.rng_use_json_format and json_file.exists():
-                with open(json_file) as f:
+            if not self.config.rng_use_json_format and (json_file.exists() or state_file.exists()):
+                logger.warning(
+                    "rng_use_json_format=False is ignored; pickle loading is disabled (RCE risk)."
+                )
+
+            if json_file.exists() and json_file.is_symlink():
+                logger.warning("Refusing to read RNG state from symlink: %s", json_file)
+                return
+
+            if json_file.exists():
+                with open(json_file, encoding="utf-8") as f:
                     data = json.load(f)
-                last_date = data.get("last_save_date", "")
+
+                if not isinstance(data, dict):
+                    return
+
+                # Restore RNG state if present.
+                rng_state = data.get("rng_state")
+                if isinstance(rng_state, dict):
+                    self._rng.bit_generator.state = rng_state
+
+                last_date = str(data.get("last_save_date", ""))
+
+                raw_counter = data.get("session_counter", 0)
+                counter = int(raw_counter) if isinstance(raw_counter, (int, str)) else 0
 
                 if last_date == today:
                     # Same day restart - increment counter
-                    self.config.rng_session_counter = data.get("session_counter", 0) + 1
+                    self.config.rng_session_counter = counter + 1
                     logger.info(
                         f"Same-day restart detected, incrementing session_counter to "
                         f"{self.config.rng_session_counter}"
@@ -966,21 +1047,12 @@ class HumanBehaviorSimulator:
                     # New day - reset counter
                     self.config.rng_session_counter = 0
             elif state_file.exists():
-                # Legacy pickle format
-                with open(state_file, "rb") as f:
-                    data = pickle.load(f)
-                if isinstance(data, dict):
-                    self._rng.bit_generator.state = data.get(
-                        "rng_state", self._rng.bit_generator.state
-                    )
-                    last_date = data.get("last_save_date", "")
-                    if last_date == today:
-                        self.config.rng_session_counter = data.get("session_counter", 0) + 1
-                else:
-                    # Old format (just the state)
-                    self._rng.bit_generator.state = data
-        except Exception as e:
-            logger.warning(f"Failed to load RNG state: {e}")
+                logger.warning(
+                    "Ignoring legacy pickle RNG state file (RCE risk): %s",
+                    state_file,
+                )
+        except Exception:
+            logger.warning("Failed to load RNG state", exc_info=True)
             # Use fresh RNG if load fails
 
     # ==========================================================================
@@ -1116,25 +1188,21 @@ class HumanBehaviorSimulator:
         # Check price movement cancellation (deterministic)
         if price_moved_ticks >= 5:  # Default from HBSDecision
             logger.debug(
-                f"Order {order_id}: price moved {price_moved_ticks} ticks, "
-                f"recommending cancel"
+                f"Order {order_id}: price moved {price_moved_ticks} ticks, recommending cancel"
             )
             return True, "price_moved"
 
         # Check timeout cancellation (deterministic)
         if seconds_pending >= 30.0:  # Default from HBSDecision
             logger.debug(
-                f"Order {order_id}: pending {seconds_pending:.1f}s > 30s, "
-                f"recommending cancel"
+                f"Order {order_id}: pending {seconds_pending:.1f}s > 30s, recommending cancel"
             )
             return True, "timeout"
 
         # Roll probabilistic cancellation based on cancel_rate
         # This simulates human indecision / changing their mind
         if self._rng.random() < self.config.cancel_rate:
-            logger.debug(
-                f"Order {order_id}: random cancel rolled (rate={self.config.cancel_rate})"
-            )
+            logger.debug(f"Order {order_id}: random cancel rolled (rate={self.config.cancel_rate})")
             return True, "random_cancel"
 
         return False, None

@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PendingExecution:
     """A delayed execution waiting to fire."""
+
     execute_at: datetime
     callback: Callable[[], None]
     order_params: dict[str, Any]
@@ -88,6 +89,7 @@ class DelayedExecutor:
 
     def _start_executor_loop(self) -> None:
         """Start background event loop for delayed executions."""
+
         def run_loop() -> None:
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
@@ -137,12 +139,18 @@ class DelayedExecutor:
         if not self._is_live:
             # BACKTEST MODE: Execute immediately, record delay for metrics
             logger.debug(
-                f"[BACKTEST] HBS delay {delay_seconds:.2f}s (executing immediately)"
+                "[BACKTEST] HBS delay %.2fs (executing immediately) order_params=%s",
+                delay_seconds,
+                order_params,
             )
             try:
                 callback()
-            except Exception as e:
-                logger.error(f"[BACKTEST] Callback failed: {e}")
+            except Exception:
+                logger.error(
+                    "[BACKTEST] Callback failed order_params=%s",
+                    order_params,
+                    exc_info=True,
+                )
             return None
 
         # LIVE MODE: Schedule actual delayed execution
@@ -161,9 +169,7 @@ class DelayedExecutor:
         with self._pending_lock:
             # Limit pending queue
             if len(self._pending) >= self._max_pending:
-                logger.warning(
-                    f"Pending queue full ({self._max_pending}), dropping oldest"
-                )
+                logger.warning(f"Pending queue full ({self._max_pending}), dropping oldest")
                 oldest = self._pending.pop(0)
                 oldest.cancelled = True
             self._pending.append(pending)
@@ -175,9 +181,7 @@ class DelayedExecutor:
                 self._loop,
             )
 
-        logger.info(
-            f"[LIVE] Scheduled execution in {delay_seconds:.2f}s at {execute_at}"
-        )
+        logger.info(f"[LIVE] Scheduled execution in {delay_seconds:.2f}s at {execute_at}")
         return pending
 
     async def _delayed_execute(
@@ -209,7 +213,8 @@ class DelayedExecutor:
                 time_drift = (current_time - pending.execute_at).total_seconds()
                 if time_drift > 60.0:  # More than 1 minute late = session likely ended
                     logger.warning(
-                        f"Delayed execution skipped: {time_drift:.1f}s late (session may have ended)"
+                        "Delayed execution skipped: %.1fs late (session may have ended)",
+                        time_drift,
                     )
                     self._pending.remove(pending)
                     return
@@ -217,8 +222,8 @@ class DelayedExecutor:
         try:
             pending.callback()
             logger.info("Delayed execution fired successfully")
-        except Exception as e:
-            logger.error(f"Delayed execution failed: {e}")
+        except Exception:
+            logger.error("Delayed execution failed", exc_info=True)
         finally:
             with self._pending_lock:
                 if pending in self._pending:
@@ -268,6 +273,13 @@ class DelayedExecutor:
         cancelled = 0
         now = self._clock.utc_now()
 
+        # BUG-LIVE-003: Guard against invalid tick_size.
+        # If tick_size is <= 0, skip the price-distance check to avoid ZeroDivisionError
+        # and rely on time-based cancellation.
+        price_check_enabled = tick_size > 0
+        if not price_check_enabled:
+            logger.warning(f"Invalid tick_size={tick_size}; disabling price-based cancellation")
+
         with self._pending_lock:
             to_cancel = []
             for pending in self._pending:
@@ -275,21 +287,17 @@ class DelayedExecutor:
                     continue
 
                 # Check price movement
-                if pending.entry_price > 0:
+                if price_check_enabled and pending.entry_price > 0:
                     price_diff_ticks = abs(current_price - pending.entry_price) / tick_size
                     if price_diff_ticks >= pending.cancel_if_price_moves_ticks:
-                        logger.info(
-                            f"Context cancel: price moved {price_diff_ticks:.1f} ticks"
-                        )
+                        logger.info(f"Context cancel: price moved {price_diff_ticks:.1f} ticks")
                         to_cancel.append(pending)
                         continue
 
                 # Check time elapsed
                 elapsed = (now - pending.created_at).total_seconds()
                 if elapsed >= pending.cancel_after_seconds:
-                    logger.info(
-                        f"Context cancel: pending for {elapsed:.1f}s"
-                    )
+                    logger.info(f"Context cancel: pending for {elapsed:.1f}s")
                     to_cancel.append(pending)
 
             for pending in to_cancel:

@@ -39,58 +39,58 @@ class HumanSimConfig:
     # Mixture model: 80% Gaussian + 20% long-tail for anti-detection
     delay_gaussian_weight: float = 0.80  # 80% of delays from Gaussian
     delay_longtail_weight: float = 0.20  # 20% from log-normal (long-tail)
-    delay_mean: float = 1.0              # Center of Gaussian component
-    delay_std: float = 0.45              # FIXED: Was 0.3, now 0.45 for CV > 0.35
-    delay_min: float = 0.6               # FIXED: Was 0.5, now 0.6 (sub-600ms = bot)
-    delay_max: float = 3.5               # FIXED: Was 2.5, now 3.5 for long-tail
-    delay_longtail_mu: float = 0.5       # Log-normal mu for long-tail
-    delay_longtail_sigma: float = 0.8    # Log-normal sigma
+    delay_mean: float = 1.0  # Center of Gaussian component
+    delay_std: float = 0.45  # FIXED: Was 0.3, now 0.45 for CV > 0.35
+    delay_min: float = 0.6  # FIXED: Was 0.5, now 0.6 (sub-600ms = bot)
+    delay_max: float = 3.5  # FIXED: Was 2.5, now 3.5 for long-tail
+    delay_longtail_mu: float = 0.5  # Log-normal mu for long-tail
+    delay_longtail_sigma: float = 0.8  # Log-normal sigma
     delay_fatigue_curve: Literal["linear", "logistic"] = "logistic"  # FIXED: Was linear
-    delay_fatigue_max: float = 0.30      # Max fatigue increase (30%)
+    delay_fatigue_max: float = 0.30  # Max fatigue increase (30%)
     delay_fatigue_midpoint_hours: float = 3.0  # Logistic midpoint
 
     # === TIER 1: ENTRY PRECISION ===
-    entry_offset_ticks_max: int = 3      # Random offset 0 to N ticks
-    stop_limit_offset_ticks: int = 5     # Ticks above/below market for STOP_LIMIT
+    entry_offset_ticks_max: int = 3  # Random offset 0 to N ticks
+    stop_limit_offset_ticks: int = 5  # Ticks above/below market for STOP_LIMIT
 
     # === TIER 1: ORDER CANCELLATION ===
-    cancel_rate: float = 0.09            # FIXED: Was 0.06, now 0.09 (research: 8-12%)
+    cancel_rate: float = 0.09  # FIXED: Was 0.06, now 0.09 (research: 8-12%)
     cancel_only_pending: bool = True
 
     # === TIER 1: TRADING HOURS (ET) ===
     trading_start_hour: int = 9
     trading_end_hour: int = 17
     friday_early_end_hour: int = 14
-    timezone: str = "America/New_York"   # Explicit timezone (FIXED: H3)
+    timezone: str = "America/New_York"  # Explicit timezone (FIXED: H3)
 
     # === TIER 1: APEX TIME GATES (HIGH-5/HIGH-8) ===
     # These are NON-NEGOTIABLE Apex Trader requirements
-    apex_new_trade_block_hour: int = 16   # 4:00 PM ET - block new trades
-    apex_new_trade_block_minute: int = 30 # 4:30 PM ET (16:30)
-    apex_force_close_hour: int = 16       # 4:00 PM ET
-    apex_force_close_minute: int = 55     # 4:55 PM ET - emergency close all
-    apex_session_end_hour: int = 17       # 5:00 PM ET - absolute deadline
+    apex_new_trade_block_hour: int = 16  # 4:00 PM ET - block new trades
+    apex_new_trade_block_minute: int = 30  # 4:30 PM ET (16:30)
+    apex_force_close_hour: int = 16  # 4:00 PM ET
+    apex_force_close_minute: int = 55  # 4:55 PM ET - emergency close all
+    apex_session_end_hour: int = 17  # 5:00 PM ET - absolute deadline
 
     # === TIER 1: ECONOMIC CALENDAR (C5) ===
     news_events_enabled: bool = True
-    news_high_impact_delay_mult: float = 2.5   # NFP, FOMC, etc.
+    news_high_impact_delay_mult: float = 2.5  # NFP, FOMC, etc.
     news_medium_impact_delay_mult: float = 1.5
-    news_pre_event_block_minutes: int = 5      # Block trades 5min before
-    news_post_event_delay_minutes: int = 10    # Extended delay after
+    news_pre_event_block_minutes: int = 5  # Block trades 5min before
+    news_post_event_delay_minutes: int = 10  # Extended delay after
     news_calendar_source: str = "forexfactory"  # or "investing.com"
 
     # === TIER 2: SIGNAL SKIP (FIXED - H6) ===
     skip_enabled: bool = True
-    skip_base_rate: float = 0.13         # FIXED: Was 0.10, now 0.13 (research: 12-15%)
+    skip_base_rate: float = 0.13  # FIXED: Was 0.10, now 0.13 (research: 12-15%)
     skip_after_loss_increase: float = 0.05
     skip_weak_threshold: float = 0.75
 
     # === TIER 2: SIZE VARIATION ===
-    size_variation: float = 0.18         # FIXED: Was 0.15, now 0.18 for CV > 0.15
+    size_variation: float = 0.18  # FIXED: Was 0.15, now 0.18 for CV > 0.15
     size_reduce_after_losses: int = 2
     size_loss_reduction: float = 0.20
     size_warmup_reduction: float = 0.30
-    size_warmup_trades_min: int = 1      # FIXED: Variable warmup (1-3)
+    size_warmup_trades_min: int = 1  # FIXED: Variable warmup (1-3)
     size_warmup_trades_max: int = 3
 
     # === TIER 2: SL ADJUSTMENTS ===
@@ -104,7 +104,7 @@ class HumanSimConfig:
     big_win_pause_probability: float = 0.55  # FIXED: Was 0.40, now 0.55
 
     # === TIER 3: DAY OFF ===
-    sick_day_rate: float = 0.035         # ~1 day/month
+    sick_day_rate: float = 0.035  # ~1 day/month
     sick_day_monday_reduction: float = 0.50  # 50% less likely on Monday
 
     # === TIER 3: SESSION MOOD (H7) ===
@@ -132,65 +132,84 @@ class HumanSimConfig:
 
     # === TIER 4: SIGNAL THROTTLE (H4) ===
     throttle_enabled: bool = True
-    throttle_max_orders_per_minute: int = 3   # Max 3 orders/minute
-    throttle_cooldown_seconds: float = 20.0   # Min 20s between orders
+    throttle_max_orders_per_minute: int = 3  # Max 3 orders/minute
+    throttle_cooldown_seconds: float = 20.0  # Min 20s between orders
     throttle_exponential_backoff: bool = True  # Exponential if exceeded
 
     # === TIER 4: ERROR RETRY ===
     retry_delays: list[float] = field(default_factory=lambda: [2.0, 5.0, 10.0])
 
     # === RNG MANAGEMENT (C1, H8, C-NEW-1, H-NEW-3) ===
-    rng_seed_from_date: bool = True      # Derive seed from date+account
-    rng_seed_account_id: str = ""        # Account ID for seed (REQUIRED if rng_seed_from_date=True)
-    rng_persist_state: bool = True       # Persist state across restarts
-    rng_state_file: str = ".hbs_rng_state.pkl"
-    rng_session_counter: int = 0         # Increment on each restart (H-NEW-3)
-    rng_use_json_format: bool = True     # Use JSON instead of pickle for security
+    rng_seed_from_date: bool = True  # Derive seed from date+account
+    rng_seed_account_id: str = ""  # Account ID for seed (REQUIRED if rng_seed_from_date=True)
+    rng_persist_state: bool = True  # Persist state across restarts
+    rng_state_file: str = ".hbs_rng_state.json"
+    rng_session_counter: int = 0  # Increment on each restart (H-NEW-3)
+    rng_use_json_format: bool = True  # Use JSON instead of pickle for security
 
     # === APEX COMPLIANCE (H2, C-NEW-3) ===
     apex_30pct_rule_enabled: bool = True
     apex_track_cumulative_pnl: bool = True
-    apex_profit_target: float = 0.0      # C-NEW-3: Must be set! 30% calculated from THIS, not equity
+    apex_profit_target: float = 0.0  # C-NEW-3: Must be set! 30% calculated from THIS, not equity
 
     # === CRISIS MODE (H-NEW-6) ===
     crisis_mode_enabled: bool = True
-    crisis_dd_threshold: float = 0.035   # DD > 3.5% triggers crisis mode
+    crisis_dd_threshold: float = 0.035  # DD > 3.5% triggers crisis mode
     crisis_delay_reduction: float = 0.50  # Reduce delays by 50% in crisis
-    crisis_skip_disabled: bool = True    # Disable skips in crisis (execute ASAP)
+    crisis_skip_disabled: bool = True  # Disable skips in crisis (execute ASAP)
 
     # === PARAMETER JITTER (A1) ===
     jitter_enabled: bool = True
-    jitter_range: float = 0.10           # ±10% randomization per account
+    jitter_range: float = 0.10  # ±10% randomization per account
 
     # === DAY-OF-WEEK VARIANCE (A5) ===
-    weekday_modifiers: dict[str, float] = field(default_factory=lambda: {
-        "Monday": 0.85,    # Less aggressive start of week
-        "Tuesday": 1.0,
-        "Wednesday": 1.0,
-        "Thursday": 1.05,  # Slightly more aggressive
-        "Friday": 0.90,    # Conservative before weekend
-    })
+    weekday_modifiers: dict[str, float] = field(
+        default_factory=lambda: {
+            "Monday": 0.85,  # Less aggressive start of week
+            "Tuesday": 1.0,
+            "Wednesday": 1.0,
+            "Thursday": 1.05,  # Slightly more aggressive
+            "Friday": 0.90,  # Conservative before weekend
+        }
+    )
 
     @classmethod
     def from_yaml(cls, path: Path) -> "HumanSimConfig":
         """Load config from YAML file with validation."""
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"HumanSimConfig YAML root must be a mapping, got {type(data).__name__}"
+            )
         config = cls(**data)
         config.validate()
         return config
 
     def validate(self) -> None:
         """Validate all parameters are within acceptable ranges."""
+        # R12-FIX: Replace assert with explicit validation (assert disabled with -O).
         # Basic parameter validation
-        assert 0.5 <= self.delay_mean <= 2.0, "delay_mean should be 0.5-2.0s"
-        assert 0.3 <= self.delay_std <= 0.8, "delay_std should be 0.3-0.8s"
-        assert self.delay_min >= 0.5, "delay_min must be >= 0.5s (anti-bot)"
-        assert 0.0 <= self.skip_base_rate <= 0.30, "skip_base_rate should be 0-30%"
-        assert 0.10 <= self.size_variation <= 0.25, "size_variation should be 10-25%"
-        assert abs(self.delay_gaussian_weight + self.delay_longtail_weight - 1.0) < 0.01, \
-            "delay weights must sum to 1.0"
-        assert self.throttle_max_orders_per_minute >= 1
+        if not (0.5 <= self.delay_mean <= 2.0):
+            raise ValueError(f"delay_mean should be 0.5-2.0s, got {self.delay_mean}")
+        if not (0.3 <= self.delay_std <= 0.8):
+            raise ValueError(f"delay_std should be 0.3-0.8s, got {self.delay_std}")
+        if self.delay_min < 0.5:
+            raise ValueError(f"delay_min must be >= 0.5s (anti-bot), got {self.delay_min}")
+        if not (0.0 <= self.skip_base_rate <= 0.30):
+            raise ValueError(f"skip_base_rate should be 0-30%, got {self.skip_base_rate}")
+        if not (0.10 <= self.size_variation <= 0.25):
+            raise ValueError(f"size_variation should be 10-25%, got {self.size_variation}")
+        if abs(self.delay_gaussian_weight + self.delay_longtail_weight - 1.0) >= 0.01:
+            raise ValueError(
+                f"delay weights must sum to 1.0, got gaussian={self.delay_gaussian_weight} + "
+                f"longtail={self.delay_longtail_weight} = "
+                f"{self.delay_gaussian_weight + self.delay_longtail_weight}"
+            )
+        if self.throttle_max_orders_per_minute < 1:
+            raise ValueError(
+                f"throttle_max_orders_per_minute must be >= 1, got {self.throttle_max_orders_per_minute}"
+            )
 
         # C-NEW-1: Account ID REQUIRED when using date-based seeding
         if self.rng_seed_from_date and not self.rng_seed_account_id:
@@ -209,8 +228,11 @@ class HumanSimConfig:
 
         # Crisis mode validation
         if self.crisis_mode_enabled:
-            assert 0.02 <= self.crisis_dd_threshold <= 0.045, \
-                "crisis_dd_threshold should be 2-4.5%"
+            # R12-FIX: Replace assert with explicit validation (assert disabled with -O).
+            if not (0.02 <= self.crisis_dd_threshold <= 0.045):
+                raise ValueError(
+                    f"crisis_dd_threshold should be 2-4.5%, got {self.crisis_dd_threshold}"
+                )
 
 
 # === FACTORY FUNCTIONS ===

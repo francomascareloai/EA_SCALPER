@@ -272,8 +272,17 @@ class PropFirmManager:
 
         # AGENTS.md v3.7.0 Multi-Tier DD Protection
         dd_state = self.get_dd_protection_state()
-        risk_pct = (risk_amount / self._equity) * 100 if self._equity > 0 else 0
-        allowed, reason = DDProtectionCalculator.validate_trade(dd_state, risk_pct)
+        risk_pct_equity = (risk_amount / self._equity) * 100 if self._equity > 0 else 0.0
+        risk_pct_day_start = (
+            (risk_amount / self._daily_start_equity) * 100 if self._daily_start_equity > 0 else 0.0
+        )
+        risk_pct_hwm = (risk_amount / self._high_water) * 100 if self._high_water > 0 else 0.0
+        allowed, reason = DDProtectionCalculator.validate_trade(
+            dd_state,
+            risk_pct_equity,
+            proposed_risk_pct_day_start=risk_pct_day_start,
+            proposed_risk_pct_hwm=risk_pct_hwm,
+        )
 
         if not allowed:
             return False, f"DD Protection: {reason}"

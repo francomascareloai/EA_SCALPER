@@ -86,13 +86,13 @@ class TestHumanSimConfig:
         with pytest.raises(ValueError, match="apex_profit_target must be set"):
             config.validate()
 
-    def test_invalid_delay_weights_uses_assert(self):
+    def test_invalid_delay_weights_raises(self):
         """Delay weights must sum to approximately 1.0."""
         config = HumanSimConfig(
             delay_gaussian_weight=0.5,
             delay_longtail_weight=0.3,  # Sum = 0.8 != 1.0
         )
-        with pytest.raises(AssertionError, match="delay weights must sum to 1.0"):
+        with pytest.raises(ValueError, match="delay weights must sum to 1.0"):
             config.validate()
 
 
@@ -145,7 +145,9 @@ class TestHumanBehaviorSimulator:
         loss_time = datetime(2025, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
         # Record multiple losses
         for i in range(5):
-            hbs.on_trade_result(win=False, pnl=-100.0, current_time=loss_time + timedelta(minutes=i))
+            hbs.on_trade_result(
+                win=False, pnl=-100.0, current_time=loss_time + timedelta(minutes=i)
+            )
 
         now = datetime(2025, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
 

@@ -13,6 +13,7 @@ Usage:
 
 Outputs a JSON summary (optional) and prints violations.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,6 +24,7 @@ import pandas as pd
 
 try:
     from zoneinfo import ZoneInfo
+
     ET_TZ: tzinfo = ZoneInfo("America/New_York")
 except Exception:  # pragma: no cover
     ET_TZ = timezone.utc
@@ -42,7 +44,9 @@ def _parse_timestamp_column(df: pd.DataFrame) -> pd.Series:
             col = c
             break
     if col is None:
-        raise ValueError("No timestamp column found (expected one of ts_event|timestamp|time|datetime)")
+        raise ValueError(
+            "No timestamp column found (expected one of ts_event|timestamp|time|datetime)"
+        )
 
     series = df[col]
     # If numeric, assume nanoseconds since epoch
@@ -78,15 +82,23 @@ def _parse_pnl_column(df: pd.DataFrame) -> pd.Series | None:
 
 def check_cutoff_and_overnight(ts_utc: pd.Series, cutoff: time) -> tuple[int, int]:
     """Return (cutoff_violations, overnight_violations)."""
-    ts_et = ts_utc.dt.tz_convert(ET_TZ)
-    cutoff_viol = (ts_et.dt.time >= cutoff).sum()
+    # Ensure chronological ordering for boundary detection.
+    ts_utc = ts_utc.sort_values()
 
-    # Overnight: detect any span crossing calendar day in ET for same position/order group if available
-    overnight = 0
-    days = ts_et.dt.date
-    # If timestamps not grouped, approximate by consecutive fills crossing day boundary
-    overnight = (days.diff() != 0).sum() if len(days) else 0
-    return int(cutoff_viol), int(overnight)
+    ts_et = ts_utc.dt.tz_convert(ET_TZ)
+    cutoff_viol = int((ts_et.dt.time >= cutoff).sum())
+
+    # BUG-LIVE-004: `Series.dt.date` produces Python `date` objects (dtype=object),
+    # and `diff()` can raise TypeError. Use timezone-aware day buckets instead.
+    if len(ts_et) <= 1:
+        return cutoff_viol, 0
+
+    day_bucket = ts_et.dt.floor("D")
+    # Count day-boundary transitions between consecutive fills.
+    transitions = int(day_bucket.ne(day_bucket.shift(1)).sum()) - 1
+    overnight = max(0, transitions)
+
+    return cutoff_viol, overnight
 
 
 def check_trailing_dd(pnl_series: pd.Series, account_size: float, dd_limit: float) -> float:
@@ -111,12 +123,31 @@ def check_consistency(pnl_series: pd.Series, ts_utc: pd.Series, limit: float) ->
     return float(ratios.max())
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Validate Apex prop-firm compliance on trades/fills CSV")
-    parser.add_argument("--trades", type=Path, default=Path("logs/backtest_latest/fills.csv"), help="Path to fills/trades CSV")
-    parser.add_argument("--account-size", type=float, default=100_000.0, help="Starting equity for DD calc")
-    parser.add_argument("--dd-limit", type=float, default=0.05, help="Trailing DD hard limit (fraction, e.g., 0.05 = 5% Apex)")
-    parser.add_argument("--consistency-limit", type=float, default=0.25, help="Daily profit / total profit limit (fraction)")
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Validate Apex prop-firm compliance on trades/fills CSV"
+    )
+    parser.add_argument(
+        "--trades",
+        type=Path,
+        default=Path("logs/backtest_latest/fills.csv"),
+        help="Path to fills/trades CSV",
+    )
+    parser.add_argument(
+        "--account-size", type=float, default=100_000.0, help="Starting equity for DD calc"
+    )
+    parser.add_argument(
+        "--dd-limit",
+        type=float,
+        default=0.05,
+        help="Trailing DD hard limit (fraction, e.g., 0.05 = 5% Apex)",
+    )
+    parser.add_argument(
+        "--consistency-limit",
+        type=float,
+        default=0.25,
+        help="Daily profit / total profit limit (fraction)",
+    )
     parser.add_argument("--cutoff", type=str, default="16:59", help="Cutoff time ET HH:MM")
     parser.add_argument("--output", type=Path, default=None, help="Optional JSON output path")
     args = parser.parse_args()
@@ -132,7 +163,9 @@ def main():
     cutoff_viol, overnight_viol = check_cutoff_and_overnight(ts_utc, cutoff_time)
 
     max_dd = check_trailing_dd(pnl, args.account_size, args.dd_limit) if pnl is not None else None
-    consistency_ratio = check_consistency(pnl, ts_utc, args.consistency_limit) if pnl is not None else None
+    consistency_ratio = (
+        check_consistency(pnl, ts_utc, args.consistency_limit) if pnl is not None else None
+    )
 
     violations = []
     if cutoff_viol > 0:
@@ -140,9 +173,13 @@ def main():
     if overnight_viol > 0:
         violations.append(f"Overnight exposures detected: {overnight_viol}")
     if max_dd is not None and max_dd > args.dd_limit:
-        violations.append(f"Trailing DD {max_dd*100:.2f}% exceeds limit {args.dd_limit*100:.2f}%")
+        violations.append(
+            f"Trailing DD {max_dd * 100:.2f}% exceeds limit {args.dd_limit * 100:.2f}%"
+        )
     if consistency_ratio is not None and consistency_ratio >= args.consistency_limit:
-        violations.append(f"Consistency ratio {consistency_ratio*100:.2f}% >= limit {args.consistency_limit*100:.2f}%")
+        violations.append(
+            f"Consistency ratio {consistency_ratio * 100:.2f}% >= limit {args.consistency_limit * 100:.2f}%"
+        )
 
     summary = {
         "trades_file": str(args.trades),
@@ -151,7 +188,9 @@ def main():
         "overnight_violations": overnight_viol,
         "max_trailing_dd_pct": None if max_dd is None else round(max_dd * 100, 2),
         "dd_limit_pct": args.dd_limit * 100,
-        "consistency_ratio_pct": None if consistency_ratio is None else round(consistency_ratio * 100, 2),
+        "consistency_ratio_pct": None
+        if consistency_ratio is None
+        else round(consistency_ratio * 100, 2),
         "consistency_limit_pct": args.consistency_limit * 100,
         "passed": len(violations) == 0,
         "violations": violations,
@@ -172,6 +211,7 @@ def main():
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         import json
+
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
 

@@ -232,6 +232,7 @@ class LiquiditySweep:
     """Detected liquidity sweep."""
 
     timestamp: datetime | None = None
+    bar_index: int = 0
 
     swept_level: float = 0.0
     sweep_high: float = 0.0

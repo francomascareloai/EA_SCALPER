@@ -10,12 +10,41 @@ H-NEW-2 FIX: Implements FOMC, CPI, GDP events (not just NFP).
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
+
+
+def _localize_et_strict(dt: datetime) -> datetime:
+    """Attach ET tzinfo to naive datetimes, handling DST correctly.
+
+    This emulates `pytz.timezone(...).localize(dt, is_dst=None)` strictness:
+    - Raises ValueError for ambiguous (fold) or nonexistent local times.
+    - Returns an ET-aware datetime when unambiguous.
+    """
+    if dt.tzinfo is not None:
+        return dt.astimezone(ET)
+
+    # Try both folds. For a valid local time, exactly one fold should round-trip.
+    dt_fold0 = dt.replace(tzinfo=ET, fold=0)
+    dt_fold1 = dt.replace(tzinfo=ET, fold=1)
+
+    rt0 = dt_fold0.astimezone(timezone.utc).astimezone(ET).replace(tzinfo=None)
+    rt1 = dt_fold1.astimezone(timezone.utc).astimezone(ET).replace(tzinfo=None)
+
+    ok0 = rt0 == dt
+    ok1 = rt1 == dt
+
+    if ok0 and ok1:
+        raise ValueError(f"Ambiguous local time in ET: {dt!r}")
+    if not ok0 and not ok1:
+        raise ValueError(f"Nonexistent local time in ET: {dt!r}")
+
+    return dt_fold0 if ok0 else dt_fold1
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +52,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EconomicEvent:
     """Single economic event."""
+
     name: str
     datetime_et: datetime
     impact: Literal["high", "medium", "low"]
@@ -84,9 +114,9 @@ class EconomicCalendar:
         """Load events for date range (from cache or generate)."""
         # Ensure timezone
         if start.tzinfo is None:
-            start = start.replace(tzinfo=ET)
+            start = _localize_et_strict(start)  # R13-FIX
         if end.tzinfo is None:
-            end = end.replace(tzinfo=ET)
+            end = _localize_et_strict(end)  # R13-FIX
 
         cache_file = self.cache_dir / f"{start.date()}_{end.date()}.json"
 
@@ -107,7 +137,7 @@ class EconomicCalendar:
         """Get nearest high/medium impact event within window."""
         # Ensure timezone
         if current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=ET)
+            current_time = _localize_et_strict(current_time)  # R13-FIX
 
         window_start = current_time - timedelta(minutes=lookbehind_minutes)
         window_end = current_time + timedelta(minutes=lookahead_minutes)
@@ -127,7 +157,7 @@ class EconomicCalendar:
         """Check if we're in pre-event block window."""
         # Ensure timezone
         if current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=ET)
+            current_time = _localize_et_strict(current_time)  # R13-FIX
 
         block_start = event.datetime_et - timedelta(minutes=block_minutes)
         return block_start <= current_time < event.datetime_et
@@ -143,7 +173,7 @@ class EconomicCalendar:
         """Get delay multiplier for post-event period."""
         # Ensure timezone
         if current_time.tzinfo is None:
-            current_time = current_time.replace(tzinfo=ET)
+            current_time = _localize_et_strict(current_time)  # R13-FIX
 
         if current_time < event.datetime_et:
             return 1.0  # Not post-event yet
@@ -175,16 +205,15 @@ class EconomicCalendar:
                 )
                 for e in data
             ]
-        except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
-            logger.warning(f"Corrupted cache file {cache_file}: {e}. Regenerating events.")
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+            logger.warning(
+                "Corrupted cache file %s - regenerating events",
+                cache_file,
+                exc_info=True,
+            )
             self.events = []  # Fall back to empty, caller will regenerate
 
-    def _fetch_and_cache(
-        self,
-        start: datetime,
-        end: datetime,
-        cache_file: Path
-    ) -> None:
+    def _fetch_and_cache(self, start: datetime, end: datetime, cache_file: Path) -> None:
         """Generate events and cache for future use."""
         self.events = self._generate_known_events(start, end)
 
@@ -205,11 +234,7 @@ class EconomicCalendar:
                 indent=2,
             )
 
-    def _generate_known_events(
-        self,
-        start: datetime,
-        end: datetime
-    ) -> list[EconomicEvent]:
+    def _generate_known_events(self, start: datetime, end: datetime) -> list[EconomicEvent]:
         """
         Generate known recurring events.
 
@@ -238,17 +263,16 @@ class EconomicCalendar:
             while first_friday.weekday() != 4:  # Friday = 4
                 first_friday += timedelta(days=1)
 
-            nfp_time = first_friday.replace(
-                hour=8, minute=30, second=0, microsecond=0,
-                tzinfo=ET
-            )
+            nfp_time = first_friday.replace(hour=8, minute=30, second=0, microsecond=0, tzinfo=ET)
             if start <= nfp_time <= end:
-                events.append(EconomicEvent(
-                    name="Nonfarm Payrolls",
-                    datetime_et=nfp_time,
-                    impact="high",
-                    currency="USD",
-                ))
+                events.append(
+                    EconomicEvent(
+                        name="Nonfarm Payrolls",
+                        datetime_et=nfp_time,
+                        impact="high",
+                        currency="USD",
+                    )
+                )
 
             # Move to next month
             if current.month == 12:
@@ -271,17 +295,16 @@ class EconomicCalendar:
             while cpi_day.weekday() >= 5:  # Sat/Sun
                 cpi_day += timedelta(days=1)
 
-            cpi_time = cpi_day.replace(
-                hour=8, minute=30, second=0, microsecond=0,
-                tzinfo=ET
-            )
+            cpi_time = cpi_day.replace(hour=8, minute=30, second=0, microsecond=0, tzinfo=ET)
             if start <= cpi_time <= end:
-                events.append(EconomicEvent(
-                    name="CPI",
-                    datetime_et=cpi_time,
-                    impact="high",
-                    currency="USD",
-                ))
+                events.append(
+                    EconomicEvent(
+                        name="CPI",
+                        datetime_et=cpi_time,
+                        impact="high",
+                        currency="USD",
+                    )
+                )
 
             # Move to next month
             if current.month == 12:
@@ -301,16 +324,16 @@ class EconomicCalendar:
                     while gdp_day.weekday() >= 5:
                         gdp_day += timedelta(days=1)
 
-                    gdp_time = gdp_day.replace(
-                        hour=8, minute=30, second=0, microsecond=0
-                    )
+                    gdp_time = gdp_day.replace(hour=8, minute=30, second=0, microsecond=0)
                     if start <= gdp_time <= end:
-                        events.append(EconomicEvent(
-                            name="GDP",
-                            datetime_et=gdp_time,
-                            impact="high",
-                            currency="USD",
-                        ))
+                        events.append(
+                            EconomicEvent(
+                                name="GDP",
+                                datetime_et=gdp_time,
+                                impact="high",
+                                currency="USD",
+                            )
+                        )
                 except ValueError:
                     continue  # Skip invalid dates
 
@@ -327,16 +350,16 @@ class EconomicCalendar:
                     days_to_wed = (2 - first_day.weekday()) % 7  # Wed = 2
                     third_wed = first_day + timedelta(days=days_to_wed + 14)
 
-                    fomc_time = third_wed.replace(
-                        hour=14, minute=0, second=0, microsecond=0
-                    )
+                    fomc_time = third_wed.replace(hour=14, minute=0, second=0, microsecond=0)
                     if start <= fomc_time <= end:
-                        events.append(EconomicEvent(
-                            name="FOMC Statement",
-                            datetime_et=fomc_time,
-                            impact="high",
-                            currency="USD",
-                        ))
+                        events.append(
+                            EconomicEvent(
+                                name="FOMC Statement",
+                                datetime_et=fomc_time,
+                                impact="high",
+                                currency="USD",
+                            )
+                        )
                 except ValueError:
                     continue  # Skip invalid dates
 
@@ -346,13 +369,10 @@ class EconomicCalendar:
     def get_events_for_date(self, dt: datetime) -> list[EconomicEvent]:
         """Get all events for a specific date."""
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ET)
+            dt = _localize_et_strict(dt)  # R13-FIX
 
         target_date = dt.date()
-        return [
-            e for e in self.events
-            if e.datetime_et.date() == target_date
-        ]
+        return [e for e in self.events if e.datetime_et.date() == target_date]
 
     def has_high_impact_today(self, dt: datetime) -> bool:
         """Check if there are any high-impact events today."""
