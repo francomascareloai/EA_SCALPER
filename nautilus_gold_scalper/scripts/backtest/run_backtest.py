@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import random
+import subprocess
 import sys
 import time
 from collections.abc import Generator, Iterator
@@ -95,6 +96,95 @@ _MINUTE_BAR_STEPS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30)
 
 # Base latency models minimum network RTT (production always has non-zero RTT).
 _DEFAULT_BASE_LATENCY_MS: int = 10
+
+
+# ---------------------------------------------------------------------------
+# Certification mode helpers (--certify)
+# ---------------------------------------------------------------------------
+
+
+class CertifyPreflightError(RuntimeError):
+    """Raised when --certify preflight validation fails."""
+
+
+def resolve_certify_output_dir(
+    product: str,
+    start: str,
+    end: str,
+    *,
+    base_logs_dir: Path | None = None,
+) -> Path:
+    """
+    Generate a unique output directory for certification artifacts.
+
+    Format: logs/certify_<YYYYMMDD_HHMMSS>_<product>_<start>_<end>/
+
+    Args:
+        product: Product identifier (xauusd, mgc).
+        start: Start date string (YYYY-MM-DD).
+        end: End date string (YYYY-MM-DD).
+        base_logs_dir: Base logs directory. Defaults to project logs/.
+
+    Returns:
+        Path to the unique output directory (created).
+    """
+    if base_logs_dir is None:
+        base_logs_dir = Path(__file__).resolve().parent.parent.parent / "logs"
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    # Sanitize date strings (remove any non-alphanumeric chars except dash)
+    start_safe = "".join(c for c in start if c.isalnum() or c == "-")
+    end_safe = "".join(c for c in end if c.isalnum() or c == "-")
+    product_safe = "".join(c for c in product if c.isalnum())
+
+    dir_name = f"certify_{timestamp}_{product_safe}_{start_safe}_{end_safe}"
+    out_dir = base_logs_dir / dir_name
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir
+
+
+def certify_preflight_checks(
+    *,
+    feed: str,
+    no_prop: bool,
+) -> None:
+    """
+    Validate preflight conditions for --certify mode.
+
+    Raises:
+        CertifyPreflightError: If any preflight check fails.
+    """
+    # 1. Feed must be ticks (bar-only mode is not valid for prop-firm compliance)
+    if feed != "ticks":
+        raise CertifyPreflightError(
+            f"--certify requires --feed=ticks (got {feed!r}). "
+            "Bar-only mode is not valid for Apex prop-firm MTM equity/HWM enforcement."
+        )
+
+    # 2. Cannot disable prop-firm rules in certification mode
+    if no_prop:
+        raise CertifyPreflightError(
+            "--certify is incompatible with --no-prop. "
+            "Certification requires prop-firm rules enabled for compliance validation."
+        )
+
+
+def _get_git_head() -> str | None:
+    """Best-effort retrieval of current git HEAD commit hash."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.returncode == 0:
+            stdout: str = result.stdout
+            return stdout.strip()[:12]  # Short hash
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return None
 
 
 def _bar_spec_from_minutes(*, minutes: int) -> BarSpecification:
@@ -1872,7 +1962,14 @@ class BacktestRunner:
 
         if profile:
             dt = time.perf_counter() - t0
-            _p(json.dumps({"event": "profile", "total_seconds": round(dt, 3)}))
+            payload = {"event": "profile", "total_seconds": round(dt, 3)}
+            if output_dir:
+                try:
+                    profile_path = Path(output_dir) / "profile.json"
+                    profile_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+                except Exception:
+                    pass
+            _p(json.dumps(payload))
 
         engine.dispose()
 
@@ -2342,6 +2439,16 @@ def main() -> None:
     parser.add_argument(
         "--no-prop", action="store_true", help="Disable prop-firm rules (for diagnostics only)"
     )
+    parser.add_argument(
+        "--certify",
+        action="store_true",
+        help=(
+            "Institutional-grade certification mode: forces ticks feed, telemetry, "
+            "prop-firm rules, and runs Apex compliance validator post-backtest. "
+            "Auto-creates output directory under logs/certify_<timestamp>/. "
+            "Exits non-zero if compliance validation fails."
+        ),
+    )
     # Default config path relative to script location (works from any CWD)
     _default_config = str(Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml")
     parser.add_argument("--config", default=_default_config, help="Path to strategy YAML")
@@ -2536,6 +2643,40 @@ def main() -> None:
         help='PSAR index selection: use t-1 for trend/smc/both, or use last bar with "none".',
     )
     args = parser.parse_args()
+
+    # ---------------------------------------------------------------------------
+    # Certification mode preflight and setup (--certify)
+    # ---------------------------------------------------------------------------
+    certify_mode: bool = getattr(args, "certify", False)
+    certify_out_dir: Path | None = None
+
+    if certify_mode:
+        # Preflight checks: fail fast before any heavy work
+        try:
+            certify_preflight_checks(feed=args.feed, no_prop=args.no_prop)
+        except CertifyPreflightError as e:
+            sys.exit(f"CERTIFY PREFLIGHT FAILED: {e}")
+
+        # Auto-create output directory if not provided
+        if args.out_dir:
+            certify_out_dir = Path(args.out_dir)
+            certify_out_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            certify_out_dir = resolve_certify_output_dir(
+                product=args.product, start=args.start, end=args.end
+            )
+            # Override args.out_dir so downstream logic uses it
+            args.out_dir = str(certify_out_dir)
+
+        # Force telemetry enabled with path inside out-dir
+        if args.telemetry_path is None:
+            args.telemetry_path = str(certify_out_dir / "telemetry.jsonl")
+
+        # Force require_telemetry=True for certification
+        args.require_telemetry = True
+
+        print(f"[CERTIFY] Output directory: {certify_out_dir}")
+        print(f"[CERTIFY] Telemetry path: {args.telemetry_path}")
 
     config_path = Path(args.config)
     cfg = load_yaml_config(config_path)
@@ -3298,7 +3439,8 @@ def main() -> None:
             if isinstance(exec_over, dict):
                 exec_over.setdefault("time_gate_use_clock_timer", False)
 
-        runner.run(
+        # In certification mode, we need the summary for validation
+        summary = runner.run(
             start_date=args.start,
             end_date=args.end,
             ltf_minutes=int(args.ltf_minutes),
@@ -3325,7 +3467,94 @@ def main() -> None:
             catalog_paths=catalog_paths,
             strategy_config_path=config_path,
             config_overrides=config_overrides,
+            return_summary=certify_mode,  # Force return_summary in certification mode
         )
+
+        # ---------------------------------------------------------------------------
+        # Certification mode: run Apex compliance validator and write certification.json
+        # ---------------------------------------------------------------------------
+        if certify_mode and certify_out_dir is not None:
+            from nautilus_gold_scalper.scripts.validate_apex_compliance import (
+                validate_compliance_from_paths,
+            )
+
+            print("\n[CERTIFY] Running Apex compliance validation...")
+
+            fills_path = certify_out_dir / "fills.csv"
+            positions_path = certify_out_dir / "positions.csv"
+            telemetry_path = Path(args.telemetry_path) if args.telemetry_path else None
+            apex_cert_path = certify_out_dir / "apex_compliance_cert.json"
+
+            # Validate required artifacts exist
+            if not fills_path.exists():
+                sys.exit(
+                    f"CERTIFY FAILED: fills.csv not found at {fills_path}. "
+                    "Ensure backtest produced fill reports (--reports=full or default)."
+                )
+
+            # Run validator in-process
+            validator_summary = validate_compliance_from_paths(
+                trades_path=fills_path,
+                positions_path=positions_path if positions_path.exists() else None,
+                telemetry_path=telemetry_path,
+                account_size=float(runner.initial_balance),
+                dd_limit=0.05,
+                daily_dd_limit=0.03,
+                consistency_limit=0.30,
+                cutoff="16:59",
+                require_telemetry=True,
+                output_path=apex_cert_path,
+            )
+
+            # Build certification.json
+            certification_data: dict[str, object] = {
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "git_head": _get_git_head(),
+                "run_args": {
+                    "start": args.start,
+                    "end": args.end,
+                    "product": args.product,
+                    "gateway": args.gateway,
+                    "feed": args.feed,
+                    "ltf_minutes": int(args.ltf_minutes),
+                    "config": str(config_path),
+                    "initial_balance": float(runner.initial_balance),
+                },
+                "artifact_paths": {
+                    "fills": str(fills_path),
+                    "positions": str(positions_path) if positions_path.exists() else None,
+                    "telemetry": str(telemetry_path) if telemetry_path else None,
+                    "apex_compliance_cert": str(apex_cert_path),
+                },
+                "backtest_summary": {
+                    "trades": summary.trades if summary else None,
+                    "fills": summary.fills if summary else None,
+                    "total_pnl": summary.total_pnl if summary else None,
+                    "final_balance": summary.final_balance if summary else None,
+                    "terminated": summary.terminated if summary else None,
+                    "max_drawdown_pct": summary.max_drawdown_pct if summary else None,
+                    "sharpe": summary.sharpe if summary else None,
+                    "sqn": summary.sqn if summary else None,
+                },
+                "validator_summary": validator_summary,
+                "passed": bool(validator_summary.get("passed", False)),
+            }
+
+            cert_path = certify_out_dir / "certification.json"
+            with open(cert_path, "w", encoding="utf-8") as f:
+                json.dump(certification_data, f, indent=2)
+
+            print(f"[CERTIFY] Certification written to: {cert_path}")
+
+            # Check pass/fail
+            if certification_data["passed"]:
+                print("[CERTIFY] PASSED - Apex compliance validated")
+            else:
+                violations = validator_summary.get("violations", [])
+                print("[CERTIFY] FAILED - Apex compliance violations detected:")
+                for v in violations:
+                    print(f"  - {v}")
+                sys.exit(1)
 
 
 if __name__ == "__main__":
