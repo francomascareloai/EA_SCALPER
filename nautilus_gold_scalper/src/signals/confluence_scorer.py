@@ -941,14 +941,15 @@ class ConfluenceScorer:
         if score > 0:
             self._factor_counters.fibonacci_fired += 1
 
-        if fib.direction == SignalType.SIGNAL_BUY:
-            self._components.bullish_factors += 1
-            if result.direction == SignalType.SIGNAL_NONE:
-                result.direction = SignalType.SIGNAL_BUY
-        elif fib.direction == SignalType.SIGNAL_SELL:
-            self._components.bearish_factors += 1
-            if result.direction == SignalType.SIGNAL_NONE:
-                result.direction = SignalType.SIGNAL_SELL
+        if score > 0:
+            if fib.direction == SignalType.SIGNAL_BUY:
+                self._components.bullish_factors += 1
+                if result.direction == SignalType.SIGNAL_NONE:
+                    result.direction = SignalType.SIGNAL_BUY
+            elif fib.direction == SignalType.SIGNAL_SELL:
+                self._components.bearish_factors += 1
+                if result.direction == SignalType.SIGNAL_NONE:
+                    result.direction = SignalType.SIGNAL_SELL
 
     def _calculate_total(
         self,

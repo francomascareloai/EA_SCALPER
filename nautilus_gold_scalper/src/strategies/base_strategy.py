@@ -38,7 +38,14 @@ from nautilus_trader.model import (
     Position,
     QuoteTick,
 )
-from nautilus_trader.model.enums import OrderSide, PositionSide, TimeInForce
+from nautilus_trader.model.enums import (
+    ContingencyType,
+    OrderSide,
+    OrderType,
+    PositionSide,
+    TimeInForce,
+    TradingState,
+)
 from nautilus_trader.model.events import (
     OrderAccepted,
     OrderCanceled,
@@ -49,6 +56,11 @@ from nautilus_trader.model.events import (
 )
 from nautilus_trader.model.instruments import Instrument
 from nautilus_trader.model.objects import Price, Quantity
+
+try:
+    from nautilus_trader.indicators import SpreadAnalyzer
+except ImportError:  # pragma: no cover
+    SpreadAnalyzer = None
 
 try:
     from nautilus_trader.trading.strategy import Strategy as NautilusStrategy
@@ -68,6 +80,7 @@ from ..core.definitions import (
     XAUUSD_LOT_SIZE,
     SignalQuality,
 )
+from ..risk.circuit_breaker import CircuitBreakerLevel
 
 
 class BaseStrategyConfig(NautilusStrategyConfig, kw_only=True):  # type: ignore[misc,call-arg]
@@ -101,6 +114,9 @@ class BaseStrategyConfig(NautilusStrategyConfig, kw_only=True):  # type: ignore[
     min_rr_ratio: float = 1.5
     target_rr_ratio: float = 2.5
     max_spread_points: int = 80
+    # SpreadAnalyzer: block entries when spread > Nx average (news/volatility protection)
+    spread_block_multiplier: float = 2.0
+    spread_analyzer_capacity: int = 100  # Rolling window size for spread average
 
     # Bracket order confirmation timeout (nanoseconds)
     # Default 60 seconds for backtest compatibility with stride tick data
@@ -112,6 +128,7 @@ class BaseStrategyConfig(NautilusStrategyConfig, kw_only=True):  # type: ignore[
     use_regime_filter: bool = True
     use_mtf: bool = True
     use_footprint: bool = True
+    use_native_brackets: bool = False  # Use Nautilus native bracket orders (OCO)
 
     # Debugging
     debug_mode: bool = False
@@ -183,6 +200,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._bracket_tp_confirmed: bool = False
         self._bracket_tp_expected: bool = False
         self._bracket_submitted_ts_ns: int | None = None
+        self._active_bracket_list_id: str | None = None  # Native bracket order list ID
         self._bracket_confirm_timeout_ns: int = int(
             getattr(config, "bracket_confirm_timeout_ns", 60_000_000_000)
         )
@@ -215,6 +233,14 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._telemetry_max_total_dd_pct: float = 0.0
         self._telemetry_max_daily_dd_pct: float = 0.0
 
+        # SpreadAnalyzer for spread quality monitoring
+        # Initialized in on_start() when instrument_id is confirmed
+        self._spread_analyzer: Any = None
+        self._spread_block_multiplier: float = float(
+            getattr(config, "spread_block_multiplier", 2.0)
+        )
+        self._spread_analyzer_capacity: int = int(getattr(config, "spread_analyzer_capacity", 100))
+
     # ========== Lifecycle Methods ==========
 
     def on_start(self) -> None:
@@ -242,8 +268,43 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Subscribe to quote ticks for spread monitoring
         self.subscribe_quote_ticks(self.config.instrument_id)
 
+        # Initialize SpreadAnalyzer for spread quality monitoring
+        if SpreadAnalyzer is not None:
+            self._spread_analyzer = SpreadAnalyzer(
+                instrument_id=self.config.instrument_id,
+                capacity=self._spread_analyzer_capacity,
+            )
+            self.log.info(
+                f"SpreadAnalyzer initialized (capacity={self._spread_analyzer_capacity}, "
+                f"block_multiplier={self._spread_block_multiplier}x)"
+            )
+
         # Daily resets are handled using event timestamps (ET) to keep backtests deterministic.
         # Do not rely on wall-clock timers here.
+
+        # Set up periodic DD check timer (Phase 3: clock.set_timer)
+        # This runs DD checks every 30 seconds even when no market events arrive
+        if getattr(self.config, "time_gate_use_clock_timer", True):
+            try:
+                from datetime import timedelta as _timedelta
+
+                # DD check timer: every 30 seconds
+                self.clock.set_timer(
+                    name="dd_check_timer",
+                    interval=_timedelta(seconds=30),
+                    callback=self._on_dd_check_timer,
+                )
+
+                # Time gate check timer: every 60 seconds
+                self.clock.set_timer(
+                    name="time_gate_timer",
+                    interval=_timedelta(seconds=60),
+                    callback=self._on_time_gate_timer,
+                )
+
+                self.log.info("[TIMER] DD check (30s) and time gate (60s) timers started")
+            except Exception as exc:
+                self.log.warning(f"[TIMER] Failed to set timers: {exc}")
 
         # Strategy-specific initialization
         self._on_strategy_start()
@@ -267,6 +328,13 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.unsubscribe_bars(self.config.htf_bar_type)
 
         self.unsubscribe_quote_ticks(self.config.instrument_id)
+
+        # Cancel timers to prevent memory leaks
+        try:
+            self.clock.cancel_timer("dd_check_timer")
+            self.clock.cancel_timer("time_gate_timer")
+        except Exception:
+            pass  # Timers may not exist if time_gate_use_clock_timer was False
 
         # Strategy-specific cleanup
         self._on_strategy_stop()
@@ -492,6 +560,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if not self.instrument:
             return
 
+        # Update SpreadAnalyzer with the latest quote tick
+        if self._spread_analyzer is not None:
+            self._spread_analyzer.handle_quote_tick(tick)
+
         self._finalize_entry_terminal_if_safe(tick_ts_ns)
         if self._execution_failsafe_triggered and self._position is not None:
             self._attempt_failsafe_flatten(now_ts_ns=int(tick.ts_event))
@@ -570,10 +642,21 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if getattr(self, "_prop_firm", None) and self._position:
             try:
                 self._prop_firm.update_equity(equity, now=now_dt)
-                self._prop_firm.ensure_compliance(now=now_dt)
-                if not self._prop_firm.can_trade(now=now_dt):
+
+                # Ensure compliance is sufficient: it checks DD protection and triggers
+                # hard stop behavior when configured.
+                state = self._prop_firm.ensure_compliance(now=now_dt)
+
+                # Fast-path: if compliance reports trading not allowed, halt immediately.
+                if not state.is_trading_allowed:
                     self._trigger_execution_failsafe(reason="prop_firm_dd_breach")
                     return
+
+                # Consistency gate (daily profit cap) is separate; keep it explicit.
+                if not self._prop_firm.can_trade(now=now_dt):
+                    self._trigger_execution_failsafe(reason="prop_firm_consistency_block")
+                    return
+
             except Exception as exc:
                 # Fail closed: if compliance check explodes, do not keep trading.
                 self._trigger_execution_failsafe(
@@ -588,8 +671,6 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Only hard lockdown states should force an emergency flatten.
         if getattr(self, "_circuit_breaker", None) and self._position:
             try:
-                from nautilus_gold_scalper.src.risk.circuit_breaker import CircuitBreakerLevel
-
                 self._circuit_breaker.update_equity(equity, now=now_dt)
                 cb_state = self._circuit_breaker.get_state()
 
@@ -993,6 +1074,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.log.error("[WP0] Refusing to enter LONG without SL price")
             return
 
+        # Native bracket mode: submit atomic bracket order
+        if getattr(self.config, "use_native_brackets", False):
+            self._submit_native_bracket(
+                order_side=OrderSide.BUY,
+                quantity=quantity,
+                sl_price=sl_price,
+                tp_price=tp_price,
+            )
+            self.log.info(f"Entering LONG (native bracket) with qty={quantity}")
+            return
+
+        # Legacy mode: separate entry + bracket orders
         # Queue SL/TP orders BEFORE submitting the entry order.
         # In simulated/backtest execution, an IOC market order may fill synchronously and
         # immediately trigger `on_position_opened` during `submit_order()`. If we stage after
@@ -1044,6 +1137,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.log.error("[WP0] Refusing to enter SHORT without SL price")
             return
 
+        # Native bracket mode: submit atomic bracket order
+        if getattr(self.config, "use_native_brackets", False):
+            self._submit_native_bracket(
+                order_side=OrderSide.SELL,
+                quantity=quantity,
+                sl_price=sl_price,
+                tp_price=tp_price,
+            )
+            self.log.info(f"Entering SHORT (native bracket) with qty={quantity}")
+            return
+
+        # Legacy mode: separate entry + bracket orders
         # Queue SL/TP orders BEFORE submitting the entry order.
         # See `_enter_long` for rationale (synchronous fills in backtest/sim).
         self._pending_sl = sl_price
@@ -1113,6 +1218,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._bracket_tp_confirmed = False
         self._bracket_tp_expected = False
         self._active_position_id = None
+        self._active_bracket_list_id = None  # Native bracket order list ID
         self._entry_terminal_ts_ns = None
         self._entry_terminal_reason = None
         self._position_opened_ts_ns = None
@@ -1175,6 +1281,226 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.log.debug(
                 f"[FAILSAFE] close_all_positions (reduce_only=True) failed: {type(exc).__name__}: {exc}"
             )
+
+    # ========== TradingState Machine (Apex Compliance) ==========
+
+    def _set_trading_state(self, state: TradingState, reason: str) -> None:
+        """Set RiskEngine trading state with logging.
+
+        TradingState controls order flow at the RiskEngine level:
+        - ACTIVE: Normal operation, all orders allowed
+        - REDUCING: Only position-reducing orders allowed (cancels + exits)
+        - HALTED: All orders blocked except cancels
+
+        This integrates with Apex compliance time gates and DD thresholds.
+        """
+        # Access risk engine via execution client's registered risk engine
+        # In backtest, this may not be available - log warning and continue
+        try:
+            # NautilusTrader provides risk_engine access via trader
+            trader = getattr(self, "trader", None)
+            if trader is not None:
+                risk_engine = getattr(trader, "risk_engine", None)
+                if risk_engine is not None:
+                    current_state = getattr(risk_engine, "trading_state", None)
+                    if current_state != state:
+                        risk_engine.set_trading_state(state)
+                        self.log.warning(
+                            f"[TRADING_STATE] {current_state} -> {state.name}: {reason}"
+                        )
+                    return
+            # Fallback: log that we can't set trading state (backtest mode)
+            self.log.info(f"[TRADING_STATE] (no risk_engine) Would set {state.name}: {reason}")
+        except Exception as exc:
+            self.log.debug(f"[TRADING_STATE] Failed to set {state.name}: {exc}")
+
+    def _get_trading_state(self) -> TradingState:
+        """Get current RiskEngine trading state.
+
+        Returns ACTIVE if risk engine is not available (e.g., backtest).
+        """
+        try:
+            trader = getattr(self, "trader", None)
+            if trader is not None:
+                risk_engine = getattr(trader, "risk_engine", None)
+                if risk_engine is not None:
+                    return risk_engine.trading_state
+        except Exception:
+            pass
+        return TradingState.ACTIVE
+
+    def _check_dd_trading_state(self) -> None:
+        """Check DD thresholds and update trading state.
+
+        Apex compliance thresholds:
+        - Daily DD >= 2.5%: Set REDUCING (only exits allowed)
+        - Daily DD >= 3.0% OR Trailing DD >= 4.0%: Set HALTED
+
+        Note: This method only updates the TradingState. Emergency close and
+        failsafe logic is handled separately in _apply_drawdown_limits to
+        maintain proper separation of concerns.
+
+        Formula example:
+        - trailing_dd_pct = (hwm - current_equity) / hwm * 100
+        - Example: hwm=52000, equity=50000 → (52000-50000)/52000*100 = 3.85%
+        """
+        # Get DD values from tracker
+        daily_dd = getattr(self._drawdown_tracker, "get_daily_drawdown_pct", lambda: 0.0)()
+        trailing_dd = getattr(self._drawdown_tracker, "get_total_drawdown_pct", lambda: 0.0)()
+
+        # Validate DD values are in expected range
+        if not (0 <= daily_dd <= 100) or not (0 <= trailing_dd <= 100):
+            self.log.warning(
+                f"[DD_STATE] Invalid DD values: daily={daily_dd}, trailing={trailing_dd}"
+            )
+            return
+
+        # HALTED: DD breach - immediate halt
+        # Trailing DD >= 4.0% OR Daily DD >= 3.0%
+        if trailing_dd >= 4.0 or daily_dd >= 3.0:
+            self._set_trading_state(
+                TradingState.HALTED,
+                f"DD breach: daily={daily_dd:.2f}%, trailing={trailing_dd:.2f}%",
+            )
+            return
+
+        # REDUCING: DD warning - only position-reducing orders
+        # Daily DD >= 2.5%
+        if daily_dd >= 2.5:
+            self._set_trading_state(TradingState.REDUCING, f"DD warning: daily={daily_dd:.2f}%")
+            return
+
+        # ACTIVE: DD within safe limits (restore if previously restricted)
+        current_state = self._get_trading_state()
+        if current_state != TradingState.ACTIVE:
+            # Only restore to ACTIVE if DD is well below thresholds (hysteresis)
+            if daily_dd < 2.0 and trailing_dd < 3.5:
+                self._set_trading_state(TradingState.ACTIVE, "DD recovered below thresholds")
+
+    # ========== Timer Callbacks (Periodic Checks) ==========
+
+    def _on_dd_check_timer(self, event: Any) -> None:
+        """Periodic DD check callback.
+
+        Called every 30 seconds to check DD thresholds even when no market
+        events are arriving (e.g., during low-liquidity periods or feed stalls).
+        """
+        try:
+            self._check_dd_trading_state()
+        except Exception as exc:
+            self.log.debug(f"[TIMER] DD check failed: {exc}")
+
+    def _on_time_gate_timer(self, event: Any) -> None:
+        """Periodic time gate check callback.
+
+        Called every 60 seconds to enforce Apex time gates:
+        - 4:30 PM ET: Set REDUCING (no new trades)
+        - 4:55 PM ET: Set HALTED + emergency close
+
+        Uses event timestamp for deterministic behavior in backtest.
+        """
+        try:
+            # Get current time from event or clock
+            ts_ns = getattr(event, "ts_event", None) or self.clock.timestamp_ns()
+
+            # Convert to ET for time gate checks
+            try:
+                import zoneinfo
+
+                et_tz: Any = zoneinfo.ZoneInfo("America/New_York")
+            except ImportError:
+                import pytz
+
+                et_tz = pytz.timezone("America/New_York")
+
+            now_utc = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
+            now_et = now_utc.astimezone(et_tz)
+            hour, minute = now_et.hour, now_et.minute
+
+            # 4:55 PM ET: Emergency close
+            if hour == 16 and minute >= 55:
+                if not self._execution_failsafe_triggered:
+                    self._set_trading_state(TradingState.HALTED, "4:55 PM ET - emergency close")
+                    self._trigger_execution_failsafe(reason="time_gate_emergency_close")
+                return
+
+            # 4:30 PM ET: No new trades
+            if hour == 16 and minute >= 30:
+                current_state = self._get_trading_state()
+                if current_state == TradingState.ACTIVE:
+                    self._set_trading_state(TradingState.REDUCING, "4:30 PM ET - no new trades")
+                return
+
+        except Exception as exc:
+            self.log.debug(f"[TIMER] Time gate check failed: {exc}")
+
+    # ========== SpreadAnalyzer (Entry Quality Gate) ==========
+
+    def _is_spread_acceptable(self) -> bool:
+        """Check if current spread is acceptable for trading.
+
+        Uses SpreadAnalyzer to block entries when spread is abnormally wide,
+        which typically indicates:
+        - News events
+        - Low liquidity periods
+        - High volatility
+        - Market gaps
+
+        Returns True during warmup (analyzer not yet initialized) to avoid
+        blocking trades unnecessarily.
+
+        Formula: Block if current_spread > spread_block_multiplier * average_spread
+        Example: average=2.5 pips, multiplier=2.0 → block if current > 5.0 pips
+        """
+        if self._spread_analyzer is None:
+            return True  # No analyzer available
+
+        if not self._spread_analyzer.initialized:
+            return True  # Allow during warmup
+
+        try:
+            current = float(self._spread_analyzer.current)
+            average = float(self._spread_analyzer.average)
+
+            # Validate values
+            if average <= 0 or current < 0:
+                return True  # Invalid values, allow trading
+
+            threshold = average * self._spread_block_multiplier
+
+            if current > threshold:
+                self.log.warning(
+                    f"[SPREAD] Blocking entry: current={current:.5f} > "
+                    f"{self._spread_block_multiplier}x avg={average:.5f} (threshold={threshold:.5f})"
+                )
+                return False
+
+            return True
+        except Exception as exc:
+            self.log.debug(f"[SPREAD] Error checking spread: {exc}")
+            return True  # On error, allow trading
+
+    def get_spread_metrics(self) -> dict[str, float]:
+        """Get current spread metrics for monitoring/logging.
+
+        Returns:
+            Dictionary with current, average, and ratio (current/average).
+        """
+        if self._spread_analyzer is None or not self._spread_analyzer.initialized:
+            return {"current": 0.0, "average": 0.0, "ratio": 0.0}
+
+        try:
+            current = float(self._spread_analyzer.current)
+            average = float(self._spread_analyzer.average)
+            ratio = current / average if average > 0 else 0.0
+
+            return {
+                "current": current,
+                "average": average,
+                "ratio": ratio,
+            }
+        except Exception:
+            return {"current": 0.0, "average": 0.0, "ratio": 0.0}
 
     def on_order_rejected(self, event: OrderRejected) -> None:
         # Entry rejected: clear pending brackets if no position was opened.
@@ -1268,6 +1594,76 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Do NOT fail-safe based on acceptance ordering alone.
         # The SL may be accepted after TP depending on venue/broker routing.
         # We enforce SL presence via a timestamp watchdog in on_quote_tick.
+
+    def _submit_native_bracket(
+        self,
+        order_side: OrderSide,
+        quantity: Quantity,
+        sl_price: Price,
+        tp_price: Price | None,
+    ) -> None:
+        """Submit bracket order using native Nautilus API.
+
+        Creates an atomic bracket with OCO contingency:
+        - Entry: MARKET order
+        - SL: STOP_MARKET (OCO with TP)
+        - TP: LIMIT (OCO with SL) - optional
+
+        Args:
+            order_side: Direction for entry order (BUY/SELL)
+            quantity: Position size
+            sl_price: Stop loss trigger price
+            tp_price: Take profit limit price (None to skip TP)
+        """
+        if self.instrument is None:
+            self.log.error("Cannot submit native bracket: instrument not loaded")
+            return
+
+        # Build bracket order list
+        bracket_list = self.order_factory.bracket(
+            instrument_id=self.config.instrument_id,
+            order_side=order_side,
+            quantity=quantity,
+            entry_order_type=OrderType.MARKET,
+            sl_trigger_price=sl_price,
+            tp_price=tp_price,
+            contingency_type=ContingencyType.OCO,
+            entry_tags=["ENTRY", "NATIVE_BRACKET"],
+            sl_tags=["STOP_LOSS", "NATIVE_BRACKET"],
+            tp_tags=["TAKE_PROFIT", "NATIVE_BRACKET"] if tp_price else None,
+        )
+
+        # Track the order list ID for monitoring
+        self._active_bracket_list_id = str(bracket_list.id)
+
+        # Extract individual order IDs for compatibility with existing tracking
+        # OrderList contains: [entry, sl, tp] in order
+        orders = list(bracket_list.orders)
+        if len(orders) >= 1:
+            self._entry_client_order_id = str(orders[0].client_order_id)
+        if len(orders) >= 2:
+            self._bracket_sl_client_order_id = str(orders[1].client_order_id)
+            self._bracket_sl_order_id = orders[1].client_order_id
+        if len(orders) >= 3 and tp_price:
+            self._bracket_tp_client_order_id = str(orders[2].client_order_id)
+
+        # Set bracket state
+        self._bracket_tp_expected = tp_price is not None
+        self._bracket_sl_confirmed = False
+        self._bracket_tp_confirmed = False
+
+        # Start confirmation watchdog
+        now_ns = int(getattr(self, "_last_market_ts_ns", 0) or 0)
+        self._bracket_submitted_ts_ns = now_ns if now_ns > 0 else None
+
+        # Submit the bracket order list
+        self.submit_order_list(bracket_list)
+
+        self.log.info(
+            f"Native bracket submitted: entry={self._entry_client_order_id}, "
+            f"sl={self._bracket_sl_client_order_id} @ {sl_price}, "
+            f"tp={self._bracket_tp_client_order_id} @ {tp_price}"
+        )
 
     def _submit_bracket_orders(self) -> None:
         """Submit SL and TP orders for current position."""
@@ -1783,6 +2179,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                         f"total={total_dd:.2f}% (>= {total_limit_pct:.2f}%)"
                     )
                 )
+
+        # Update TradingState machine for Apex compliance
+        self._check_dd_trading_state()
 
     def _get_signal_quality(self, score: float) -> SignalQuality:
         """Determine signal quality tier from score."""

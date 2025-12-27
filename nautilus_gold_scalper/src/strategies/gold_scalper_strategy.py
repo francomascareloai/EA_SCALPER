@@ -12,7 +12,7 @@ Implements the complete SMC (Smart Money Concepts) trading system:
 import logging
 import random
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, tzinfo
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -408,7 +408,7 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     spread_history_size: int = 200
     spread_update_interval: int = 1
     spread_pip_factor: float = 10.0
-    spread_warmup_block_trading: bool = False
+    spread_warmup_block_trading: bool = True
 
     # EDGE-1: Gap cooldown after market reopen / data gaps
     gap_reopen_threshold_minutes: float = 30.0
@@ -582,6 +582,16 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         self._atr_cache_current: float = 0.0
         self._atr_cache_percentile_key: tuple[int, int] | None = None
         self._atr_cache_percentile: float = 50.0
+
+        # PERF: Cache recent LTF bar arrays keyed by (len(_ltf_bars), last_ts_event).
+        # These arrays are recomputed many times per LTF bar in the signal path.
+        self._ltf_cache_key: tuple[int, int] | None = None
+        self._ltf_cache_n: int = 0
+        self._ltf_cache_open: NDArray[np.float64] | None = None
+        self._ltf_cache_high: NDArray[np.float64] | None = None
+        self._ltf_cache_low: NDArray[np.float64] | None = None
+        self._ltf_cache_close: NDArray[np.float64] | None = None
+        self._ltf_cache_volume: NDArray[np.float64] | None = None
 
         # Analysis state (per timeframe)
         # BUG-11 FIX: Explicit timeframe-separated OB/FVG lists to prevent semantic collision.
@@ -926,6 +936,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 max_daily=float(self.config.daily_loss_limit_pct) / 100.0,
                 max_total=float(self.config.total_loss_limit_pct) / 100.0,
                 day_boundary_tz="America/New_York",
+                strict_now=True,
             )
             # Initialize prop-firm state with starting equity
             self._prop_firm.initialize(starting_equity=float(self.config.account_balance))
@@ -1014,7 +1025,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             max_spread_pips=float(self.config.max_spread_pips),
             update_interval=int(self.config.spread_update_interval),
             pip_factor=float(self.config.spread_pip_factor),
-            warmup_block_trading=bool(getattr(self.config, "spread_warmup_block_trading", False)),
+            warmup_block_trading=bool(getattr(self.config, "spread_warmup_block_trading", True)),
         )
 
         # Apex time cutoff manager
@@ -1338,8 +1349,6 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         Eastern Time boundary; otherwise, after the cutoff the strategy stays
         blocked until 00:00 UTC and misses London/NY next day.
         """
-        from datetime import datetime, timezone, tzinfo
-
         try:
             from zoneinfo import ZoneInfo
 
@@ -1456,8 +1465,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         self.log.info("Gold Scalper Strategy cleanup complete")
 
-    @staticmethod
     def _bars_to_np(
+        self,
         bars: list[Bar],
         *,
         max_bars: int,
@@ -1466,7 +1475,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
     ) -> NDArray[np.floating[Any]]:
         """Fast conversion from Bar list to 1D numpy array.
 
-        BUG-PERF-002: Avoid intermediate Python lists in hot paths.
+        PERF: For the hottest path (LTF bars), reuse cached arrays within the same
+        completed bar. Cache key includes (len(bars), last ts_event).
         """
         if not bars:
             return np.array([], dtype=dtype)
@@ -1474,6 +1484,44 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         max_bars_i = int(max_bars)
         if max_bars_i <= 0:
             return np.array([], dtype=dtype)
+
+        # Only cache LTF lookups (dominant frequency). For other bar lists, keep
+        # behavior simple and deterministic.
+        if bars is self._ltf_bars and dtype is np.float64:
+            key = (len(bars), int(bars[-1].ts_event))
+            if self._ltf_cache_key != key or self._ltf_cache_n < max_bars_i:
+                # Build cache at required max depth.
+                slice_bars = bars[-max_bars_i:]
+                count = len(slice_bars)
+
+                self._ltf_cache_key = key
+                self._ltf_cache_n = max_bars_i
+                self._ltf_cache_open = np.fromiter(
+                    (b.open.as_double() for b in slice_bars), dtype=np.float64, count=count
+                )
+                self._ltf_cache_high = np.fromiter(
+                    (b.high.as_double() for b in slice_bars), dtype=np.float64, count=count
+                )
+                self._ltf_cache_low = np.fromiter(
+                    (b.low.as_double() for b in slice_bars), dtype=np.float64, count=count
+                )
+                self._ltf_cache_close = np.fromiter(
+                    (b.close.as_double() for b in slice_bars), dtype=np.float64, count=count
+                )
+                self._ltf_cache_volume = np.fromiter(
+                    (b.volume.as_double() for b in slice_bars), dtype=np.float64, count=count
+                )
+
+            # Preserve original semantics: return the last `max_bars` only.
+            if field == "open":
+                return np.asarray(self._ltf_cache_open, dtype=np.float64)[-max_bars_i:]
+            if field == "high":
+                return np.asarray(self._ltf_cache_high, dtype=np.float64)[-max_bars_i:]
+            if field == "low":
+                return np.asarray(self._ltf_cache_low, dtype=np.float64)[-max_bars_i:]
+            if field == "close":
+                return np.asarray(self._ltf_cache_close, dtype=np.float64)[-max_bars_i:]
+            return np.asarray(self._ltf_cache_volume, dtype=np.float64)[-max_bars_i:]
 
         slice_bars = bars[-max_bars_i:]
         count = len(slice_bars)
@@ -3774,7 +3822,8 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         f"pips={snapshot.current_spread_pips:.2f} ratio={snapshot.spread_ratio:.2f} can_trade={snapshot.can_trade}"
                     )
                     if self._telemetry and getattr(self.config, "telemetry_capture_spread", True):
-                        tick_time = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
+                        # Reuse cached tick datetime (avoid extra fromtimestamp in hot path)
+                        tick_time = now_dt
                         self._telemetry.emit(
                             "spread_state",
                             {
@@ -4009,8 +4058,16 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             sl_order_id: str | None = getattr(self, "_bracket_sl_client_order_id", None)
             if sl_order_id:
                 try:
-                    # Find and cancel the existing SL order
-                    self.cancel_order(ClientOrderId(sl_order_id))
+                    # Nautilus API: Strategy.cancel_order expects an Order, not a ClientOrderId.
+                    sl_order = self.cache.order(ClientOrderId(sl_order_id))
+                    if sl_order is None:
+                        self.log.warning(
+                            f"[TRADE_MANAGER] Cannot cancel old SL; order not found in cache: {sl_order_id}"
+                        )
+                        self._sl_modification_in_progress = False
+                        return
+
+                    self.cancel_order(sl_order)
                     self._pending_sl_cancel_order_id = sl_order_id
                     self.log.debug(f"[TRADE_MANAGER] Canceling old SL: {sl_order_id}")
                 except Exception as cancel_exc:

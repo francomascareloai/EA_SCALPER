@@ -454,6 +454,8 @@ class EnsemblePredictor:
         features: np.ndarray[Any, Any],
         regime: MarketRegime | None = None,
         n_bootstrap: int = 100,
+        *,
+        rng_seed: int = 42,
     ) -> tuple[EnsemblePrediction, float, float]:
         """
         Predict with uncertainty estimation via bootstrap.
@@ -467,13 +469,15 @@ class EnsemblePredictor:
             return base_pred, base_pred.probability, base_pred.probability
 
         # Bootstrap predictions by randomly weighting models
+        # Use a local RNG for determinism in backtests/tests.
         bootstrap_probs = []
+        rng = np.random.default_rng(int(rng_seed))
 
         for _ in range(n_bootstrap):
             # Random perturbation of weights
-            perturbed_weights = {}
+            perturbed_weights: dict[str, float] = {}
             for name, w in self.config.model_weights.items():
-                perturbed_weights[name] = w * np.random.uniform(0.8, 1.2)
+                perturbed_weights[name] = float(w) * float(rng.uniform(0.8, 1.2))
 
             # Normalize
             total = sum(perturbed_weights.values())
