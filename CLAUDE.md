@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.25</version>
+  <version>3.10.26</version>
   <last_updated>2025-12-27</last_updated>
-  <changelog>v3.10.25: Fix model_policy to reflect actual CLIProxy config (haiku/sonnet→Opus, opus→GPT-5.2). Add explicit model param rules.</changelog>
-  <previous_changes>v3.10.24: Add git_safety rule forbidding git checkout/reset without explicit Franco approval. | v3.10.20: Add ARGUS research gate to increase evidence-based decisions. | v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews.</previous_changes>
+  <changelog>v3.10.26: Add FORGE-MQL5 v1.0 dedicated agent for MetaTrader 5 development. Add route for mql5/EA/metatrader triggers.</changelog>
+  <previous_changes>v3.10.25: Fix model_policy to reflect actual CLIProxy config. | v3.10.24: Add git_safety rule. | v3.10.20: Add ARGUS research gate. | v3.10.19: Add falsification-first protocol.</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -549,6 +549,7 @@
 
   <!-- Code & Implementation -->
   <route intent="Code (Python/Nautilus)" agent="FORGE" trigger="Forge|/codigo|implement|fix|refactor" spec=".claude/agents/forge-nautilus.md"/>
+  <route intent="Code (MQL5/MetaTrader)" agent="FORGE-MQL5" trigger="mql5|metatrader|.mq5|.mqh|EA|metaeditor" spec=".claude/agents/forge-mql5-architect.md"/>
   <route intent="Code Review/Audit" agent="REVIEWER" trigger="review|/audit" spec=".claude/agents/generic-code-reviewer.md"/>
 
   <!-- Validation & Testing -->
