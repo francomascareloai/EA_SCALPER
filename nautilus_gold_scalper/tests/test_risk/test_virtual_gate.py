@@ -2,7 +2,11 @@ from nautilus_gold_scalper.src.risk.virtual_gate import VirtualGate, VirtualGate
 
 
 def test_virtual_gate_temporal_contract_fail_closed_on_violation() -> None:
-    gate = VirtualGate(lookback_bars=3, range_spike_multiplier=3.0)
+    gate = VirtualGate(
+        lookback_bars=3,
+        range_spike_multiplier=3.0,
+        fail_open_on_insufficient_history=False,
+    )
 
     inp = VirtualGateInput(
         decision_ts_ns=100,
@@ -23,7 +27,11 @@ def test_virtual_gate_temporal_contract_fail_closed_on_violation() -> None:
 
 
 def test_virtual_gate_is_deterministic_for_identical_inputs() -> None:
-    gate = VirtualGate(lookback_bars=5, range_spike_multiplier=3.0)
+    gate = VirtualGate(
+        lookback_bars=5,
+        range_spike_multiplier=3.0,
+        fail_open_on_insufficient_history=False,
+    )
 
     inp = VirtualGateInput(
         decision_ts_ns=100,

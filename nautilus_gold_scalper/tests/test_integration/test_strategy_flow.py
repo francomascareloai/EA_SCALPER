@@ -3,6 +3,8 @@ Integration test for the complete strategy flow.
 Tests all modules working together with simulated XAUUSD data.
 """
 
+import importlib
+import pkgutil
 from datetime import datetime
 
 import numpy as np
@@ -59,6 +61,35 @@ def generate_trending_data(n_bars: int = 200, direction: str = "bull") -> dict:
     }
 
 
+class TestImports:
+    def test_import_indicators_signals_risk_strategy_modules(self) -> None:
+        """Ensure all core modules import (catches missing/unused dependency drift)."""
+        packages = [
+            "src.indicators",
+            "src.signals",
+            "src.risk",
+            "src.strategies",
+        ]
+
+        module_names: list[str] = []
+        for pkg in packages:
+            module_names.extend(_iter_package_modules(pkg))
+
+        # Skip explicitly archived code paths.
+        module_names = [name for name in module_names if ".execution._archive" not in name]
+
+        assert module_names, "Expected to discover modules for import smoke test"
+
+        failed: list[str] = []
+        for name in module_names:
+            try:
+                importlib.import_module(name)
+            except Exception:
+                failed.append(name)
+
+        assert not failed, f"Import failures: {failed}"
+
+
 class TestSessionFilter:
     """Test SessionFilter."""
 
@@ -110,6 +141,18 @@ class TestRegimeDetector:
         print(f"OK: Size mult={analysis.size_multiplier:.2f}")
 
 
+def _iter_package_modules(package_name: str) -> list[str]:
+    """Return fully-qualified module names under a package."""
+    package = importlib.import_module(package_name)
+    if not hasattr(package, "__path__"):
+        return []
+
+    names: list[str] = []
+    for mod in pkgutil.iter_modules(package.__path__, prefix=f"{package_name}."):
+        names.append(mod.name)
+    return names
+
+
 class TestStructureAnalyzer:
     """Test StructureAnalyzer."""
 
@@ -130,8 +173,9 @@ class TestSpreadMonitor:
     def test_normal_spread(self):
         sm = SpreadMonitor(max_spread_pips=5.0)
 
-        for _ in range(50):
-            sm.update(bid=2650.00, ask=2650.20)
+        t = datetime(2025, 1, 1)
+        for i in range(50):
+            sm.update(bid=2650.00, ask=2650.20, now=t.replace(second=i))
 
         assert sm.can_trade()
         print("OK: Normal spread allows trading")
@@ -139,8 +183,9 @@ class TestSpreadMonitor:
     def test_size_multiplier(self):
         sm = SpreadMonitor(max_spread_pips=5.0)
 
-        for _ in range(50):
-            sm.update(bid=2650.00, ask=2650.40)
+        t = datetime(2025, 1, 1)
+        for i in range(50):
+            sm.update(bid=2650.00, ask=2650.40, now=t.replace(second=i))
 
         mult = sm.get_size_multiplier()
         assert mult <= 1.0
@@ -276,8 +321,9 @@ class TestFullFlow:
 
         # 4. Spread
         sm = SpreadMonitor()
-        for _ in range(30):
-            sm.update(bid=price, ask=price + 0.20)
+        t = datetime(2025, 1, 1)
+        for i in range(30):
+            sm.update(bid=price, ask=price + 0.20, now=t.replace(second=i))
         print(f"4. Spread OK: {sm.can_trade()}")
         assert sm.can_trade()
 

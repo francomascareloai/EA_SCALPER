@@ -2,7 +2,7 @@
 Tests for DrawdownTracker.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -14,6 +14,11 @@ from src.risk.drawdown_tracker import (
 
 class TestDrawdownTracker:
     """Test suite for DrawdownTracker."""
+
+    @staticmethod
+    def _t(i: int) -> datetime:
+        # Use deterministic UTC timestamps for strict_now=True.
+        return datetime(2025, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=i)
 
     def test_initial_state(self):
         """Initial state should show no drawdown."""
@@ -31,8 +36,8 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # Simulate profit then loss
-        dt.update(105_000)  # Peak
-        analysis = dt.update(102_000)  # Drawdown
+        dt.update(105_000, now=self._t(1))  # Peak
+        analysis = dt.update(102_000, now=self._t(2))  # Drawdown
 
         assert analysis.is_in_drawdown is True
         assert analysis.current_drawdown_abs == 3_000
@@ -43,9 +48,9 @@ class TestDrawdownTracker:
         """Should detect recovery from drawdown."""
         dt = DrawdownTracker(initial_equity=100_000)
 
-        dt.update(105_000)  # Peak
-        dt.update(102_000)  # Drawdown
-        analysis = dt.update(106_000)  # Recovery + new high
+        dt.update(105_000, now=self._t(1))  # Peak
+        dt.update(102_000, now=self._t(2))  # Drawdown
+        analysis = dt.update(106_000, now=self._t(3))  # Recovery + new high
 
         assert analysis.is_in_drawdown is False
         assert analysis.peak_equity == 106_000
@@ -55,11 +60,11 @@ class TestDrawdownTracker:
         """Should track maximum drawdown."""
         dt = DrawdownTracker(initial_equity=100_000)
 
-        dt.update(110_000)  # Peak 1
-        dt.update(105_000)  # DD 1: ~4.5%
-        dt.update(112_000)  # Peak 2
-        dt.update(100_000)  # DD 2: ~10.7%
-        analysis = dt.update(115_000)  # Recovery
+        dt.update(110_000, now=self._t(1))  # Peak 1
+        dt.update(105_000, now=self._t(2))  # DD 1: ~4.5%
+        dt.update(112_000, now=self._t(3))  # Peak 2
+        dt.update(100_000, now=self._t(4))  # DD 2: ~10.7%
+        analysis = dt.update(115_000, now=self._t(5))  # Recovery
 
         # Max DD should be the 10.7% one
         assert analysis.max_drawdown_pct >= 10
@@ -69,10 +74,10 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # Simulate 4 losses
-        dt.update(99_000, pnl=-1000)
-        dt.update(98_000, pnl=-1000)
-        dt.update(97_000, pnl=-1000)
-        analysis = dt.update(96_000, pnl=-1000)
+        dt.update(99_000, pnl=-1000, now=self._t(1))
+        dt.update(98_000, pnl=-1000, now=self._t(2))
+        dt.update(97_000, pnl=-1000, now=self._t(3))
+        analysis = dt.update(96_000, pnl=-1000, now=self._t(4))
 
         assert analysis.current_losing_streak == 4
         assert analysis.max_losing_streak == 4
@@ -82,9 +87,9 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # Simulate 3 wins
-        dt.update(101_000, pnl=1000)
-        dt.update(102_000, pnl=1000)
-        analysis = dt.update(103_000, pnl=1000)
+        dt.update(101_000, pnl=1000, now=self._t(1))
+        dt.update(102_000, pnl=1000, now=self._t(2))
+        analysis = dt.update(103_000, pnl=1000, now=self._t(3))
 
         assert analysis.current_winning_streak == 3
         assert analysis.max_winning_streak == 3
@@ -94,11 +99,11 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # Build winning streak
-        dt.update(101_000, pnl=1000)
-        dt.update(102_000, pnl=1000)
+        dt.update(101_000, pnl=1000, now=self._t(1))
+        dt.update(102_000, pnl=1000, now=self._t(2))
 
         # One loss resets
-        analysis = dt.update(101_500, pnl=-500)
+        analysis = dt.update(101_500, pnl=-500, now=self._t(3))
 
         assert analysis.current_winning_streak == 0
         assert analysis.current_losing_streak == 1
@@ -109,28 +114,28 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # Minor < 2%
-        dt.update(100_000)
-        analysis = dt.update(99_000)  # 1%
+        dt.update(100_000, now=self._t(1))
+        analysis = dt.update(99_000, now=self._t(2))  # 1%
         assert analysis.severity == DrawdownSeverity.MINOR
 
         # Moderate 2-5%
-        dt.update(100_000)
-        analysis = dt.update(97_000)  # 3%
+        dt.update(100_000, now=self._t(3))
+        analysis = dt.update(97_000, now=self._t(4))  # 3%
         assert analysis.severity == DrawdownSeverity.MODERATE
 
         # Significant 5-8%
-        dt.update(100_000)
-        analysis = dt.update(93_500)  # 6.5%
+        dt.update(100_000, now=self._t(5))
+        analysis = dt.update(93_500, now=self._t(6))  # 6.5%
         assert analysis.severity == DrawdownSeverity.SIGNIFICANT
 
         # Severe 8-10%
-        dt.update(100_000)
-        analysis = dt.update(91_000)  # 9%
+        dt.update(100_000, now=self._t(7))
+        analysis = dt.update(91_000, now=self._t(8))  # 9%
         assert analysis.severity == DrawdownSeverity.SEVERE
 
         # Critical > 10%
-        dt.update(100_000)
-        analysis = dt.update(88_000)  # 12%
+        dt.update(100_000, now=self._t(9))
+        analysis = dt.update(88_000, now=self._t(10))  # 12%
         assert analysis.severity == DrawdownSeverity.CRITICAL
 
     def test_should_reduce_size(self):
@@ -138,12 +143,12 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # 2 losses - not yet
-        dt.update(99_000, pnl=-1000)
-        dt.update(98_000, pnl=-1000)
+        dt.update(99_000, pnl=-1000, now=self._t(1))
+        dt.update(98_000, pnl=-1000, now=self._t(2))
         assert dt.should_reduce_size(threshold_streak=3) is False
 
         # 3 losses - yes
-        dt.update(97_000, pnl=-1000)
+        dt.update(97_000, pnl=-1000, now=self._t(3))
         assert dt.should_reduce_size(threshold_streak=3) is True
 
     def test_size_reduction_factor(self):
@@ -154,13 +159,13 @@ class TestDrawdownTracker:
         assert dt.get_size_reduction_factor() == 1.0
 
         # After 2 losses
-        dt.update(99_000, pnl=-1000)
-        dt.update(98_000, pnl=-1000)
+        dt.update(99_000, pnl=-1000, now=self._t(1))
+        dt.update(98_000, pnl=-1000, now=self._t(2))
         assert dt.get_size_reduction_factor() == 0.85  # -15%
 
         # After 4 losses
-        dt.update(97_000, pnl=-1000)
-        dt.update(96_000, pnl=-1000)
+        dt.update(97_000, pnl=-1000, now=self._t(3))
+        dt.update(96_000, pnl=-1000, now=self._t(4))
         assert dt.get_size_reduction_factor() == 0.40  # -60%
 
     def test_recovery_factor(self):
@@ -168,9 +173,9 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # Profit of $10,000 with max DD of $5,000
-        dt.update(110_000)  # Peak
-        dt.update(105_000)  # DD = $5,000
-        analysis = dt.update(115_000)  # Profit = $15,000
+        dt.update(110_000, now=self._t(1))  # Peak
+        dt.update(105_000, now=self._t(2))  # DD = $5,000
+        analysis = dt.update(115_000, now=self._t(3))  # Profit = $15,000
 
         # Recovery factor = profit / max_dd = 15,000 / 5,000 = 3.0
         assert analysis.recovery_factor >= 2.0
@@ -180,11 +185,11 @@ class TestDrawdownTracker:
         dt = DrawdownTracker(initial_equity=100_000)
 
         # Create a drawdown period
-        dt.update(105_000)  # Peak
-        dt.update(102_000)  # DD start
-        dt.update(101_000)
-        dt.update(100_500)
-        dt.update(106_000)  # Recovery
+        dt.update(105_000, now=self._t(1))  # Peak
+        dt.update(102_000, now=self._t(2))  # DD start
+        dt.update(101_000, now=self._t(3))
+        dt.update(100_500, now=self._t(4))
+        dt.update(106_000, now=self._t(5))  # Recovery
 
         stats = dt.get_underwater_stats()
 
@@ -195,9 +200,9 @@ class TestDrawdownTracker:
         """Should return equity history."""
         dt = DrawdownTracker(initial_equity=100_000)
 
-        dt.update(101_000)
-        dt.update(102_000)
-        dt.update(101_500)
+        dt.update(101_000, now=self._t(1))
+        dt.update(102_000, now=self._t(2))
+        dt.update(101_500, now=self._t(3))
 
         curve = dt.get_equity_curve()
 

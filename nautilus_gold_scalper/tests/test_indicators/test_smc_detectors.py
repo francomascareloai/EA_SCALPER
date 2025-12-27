@@ -11,7 +11,10 @@ from src.indicators.structure_analyzer import StructureAnalyzer
 class TestOrderBlockDetector:
     def test_bullish_ob_detected_and_scored(self) -> None:
         detector = OrderBlockDetector(
-            lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0
+            lookback_bars=50,
+            displacement_threshold=5.0,
+            volume_threshold=1.0,
+            require_structure_break=False,
         )
         n = 80
         base = 1900.0
@@ -46,7 +49,10 @@ class TestOrderBlockDetector:
 
     def test_ob_is_not_detected_without_displacement_confirmation(self) -> None:
         detector = OrderBlockDetector(
-            lookback_bars=50, displacement_threshold=5.0, volume_threshold=1.0
+            lookback_bars=50,
+            displacement_threshold=5.0,
+            volume_threshold=1.0,
+            require_structure_break=False,
         )
         n = 80
         base = 1900.0
@@ -78,6 +84,49 @@ class TestOrderBlockDetector:
 
         assert not obs
 
+    def test_ob_requires_structure_break_when_enabled(self) -> None:
+        detector = OrderBlockDetector(
+            lookback_bars=50,
+            displacement_threshold=5.0,
+            volume_threshold=1.0,
+            require_structure_break=True,
+        )
+        n = 80
+        base = 1900.0
+
+        opens = np.linspace(base, base + 0.4, n)
+        closes = opens + 0.05
+        highs = closes + 0.05
+        lows = opens - 0.05
+        volumes = np.ones(n) * 1_000
+        timestamps = np.arange(n)
+
+        # Create an OB-like pattern at (60, 61) with displacement above OB high,
+        # but NOT breaking above prior structure high.
+        prior_struct_high = base + 20.0
+        highs[:60] = prior_struct_high
+        closes[:60] = highs[:60] - 0.05
+        opens[:60] = closes[:60] - 0.05
+        lows[:60] = opens[:60] - 0.05
+
+        opens[60] = base + 4.0
+        closes[60] = base + 0.6
+        highs[60] = opens[60] + 0.1
+        lows[60] = closes[60] - 0.2
+        volumes[60] = 2_000
+
+        # Displacement close above OB high, but still below prior_struct_high.
+        opens[61] = base + 0.6
+        closes[61] = prior_struct_high - 0.5
+        highs[61] = closes[61] + 0.2
+        lows[61] = opens[61] - 0.3
+
+        obs = detector.detect(
+            opens, highs, lows, closes, volumes, timestamps, current_price=float(closes[-1])
+        )
+
+        assert not obs
+
 
 class TestFVGDetector:
     def test_bullish_fvg_detected(self) -> None:
@@ -94,6 +143,53 @@ class TestFVGDetector:
         assert bullish_fvgs, "Gap bullish deve ser detectado"
         assert bullish_fvgs[0].size_atr_ratio > 0
         assert bullish_fvgs[0].age_in_bars == 0
+
+    def test_bullish_fvg_fill_percentage_uses_bar_low(self) -> None:
+        import pytest
+
+        fvgd = FVGDetector(max_gap_size=200.0, min_displacement=1.0)
+
+        # Bullish FVG confirmed at index=2 from bars (0,1,2): high[0]=1900 < low[2]=1910.
+        # Next bar trades down into the gap with low=1904.
+        opens = np.array([1899.0, 1902.0, 1912.0, 1909.0])
+        highs = np.array([1900.0, 1905.0, 1920.0, 1910.0])
+        lows = np.array([1895.0, 1900.0, 1910.0, 1904.0])
+        closes = np.array([1898.0, 1903.0, 1918.0, 1908.0])
+        timestamps = np.arange(len(opens)).astype("datetime64[s]")
+
+        fvgs = fvgd.detect(
+            opens, highs, lows, closes, None, timestamps, current_price=float(closes[-1])
+        )
+
+        bullish_fvgs = [f for f in fvgs if f.direction == SignalType.SIGNAL_BUY]
+        assert bullish_fvgs
+        assert bullish_fvgs[0].fill_percentage == pytest.approx(60.0)
+        assert bullish_fvgs[0].is_fresh is False
+
+    def test_bearish_fvg_fill_percentage_uses_bar_high(self) -> None:
+        import pytest
+
+        fvgd = FVGDetector(max_gap_size=200.0, min_displacement=1.0)
+
+        # Bearish FVG confirmed at index=2 from bars (0,1,2): high[2]=1900 < low[0]=1910.
+        # Next bar trades up into the gap with high=1906.
+        opens = np.array([1912.0, 1910.0, 1899.0, 1901.0])
+        highs = np.array([1915.0, 1912.0, 1900.0, 1906.0])
+        lows = np.array([1910.0, 1908.0, 1895.0, 1898.0])
+        closes = np.array([1911.0, 1909.0, 1897.0, 1904.0])
+        timestamps = np.arange(len(opens)).astype("datetime64[s]")
+
+        fvgs = fvgd.detect(
+            opens, highs, lows, closes, None, timestamps, current_price=float(closes[-1])
+        )
+
+        bearish_fvgs = [f for f in fvgs if f.direction == SignalType.SIGNAL_SELL]
+        assert bearish_fvgs
+
+        # Multiple bearish FVGs can be present; pick the one with the largest gap.
+        target = max(bearish_fvgs, key=lambda f: f.upper_level - f.lower_level)
+        assert target.fill_percentage == pytest.approx(60.0)
+        assert target.is_fresh is False
 
     def test_fvg_age_in_bars_increments_over_time(self) -> None:
         fvgd = FVGDetector(max_gap_size=200.0, min_displacement=1.0)
@@ -227,6 +323,22 @@ class TestStructureAnalyzer:
         _pools, _sweeps = detector.detect(highs, lows, closes, timestamps, swing_highs, swing_lows)
         assert detector.has_recent_sweep(within_bars=3) is False
         assert detector.has_recent_sweep(within_bars=20) is True
+
+    def test_eqh_or_eql_bias_is_ranging(self) -> None:
+        analyzer = StructureAnalyzer(swing_strength=1, min_swing_distance=1, lookback_bars=10)
+
+        # Construct a series which produces an equal-high (EQH) on the last swing high
+        # while the last swing low is a higher-low (HL). Bias should fail-closed to RANGING.
+        highs = np.array([100.0, 101.0, 100.0, 101.0, 100.0, 101.0])
+        lows = np.array([99.0, 100.0, 99.1, 100.1, 99.2, 100.2])
+        closes = np.array([99.5, 100.5, 99.6, 100.6, 99.7, 100.7])
+        timestamps = np.arange(len(highs)).astype("datetime64[s]")
+
+        state = analyzer.analyze(
+            highs, lows, closes, timestamps=timestamps, current_price=float(closes[-1])
+        )
+
+        assert state.bias == state.bias.RANGING
 
 
 class TestAMDTracker:

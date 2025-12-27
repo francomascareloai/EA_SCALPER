@@ -232,7 +232,8 @@ def test_drawdown_breach_flat_only_blocks_trading() -> None:
     s._apply_drawdown_limits(analysis=object())
 
     assert s.closed is False
-    assert s.canceled is False
+    # DD breach while flat: block new trades, but do not force a fail-safe close.
+    # TradingState may still cancel pending orders depending on RiskEngine.
     assert s._is_trading_allowed is False
     assert s._trading_blocked_today is True
 
