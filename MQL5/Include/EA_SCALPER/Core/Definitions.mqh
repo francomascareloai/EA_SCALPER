@@ -1,12 +1,55 @@
 //+------------------------------------------------------------------+
 //|                                                  Definitions.mqh |
-//|                           Autonomous Expert Advisor for XAUUSD Trading |
-//|                                      Common Definitions & Structures |
+//|                     EA_SCALPER_XAUUSD - Common Definitions        |
+//|                     Migration from Python/Nautilus v2.2           |
 //+------------------------------------------------------------------+
-#property copyright "Developed by Autonomous AI Agent - FTMO Elite Trading System"
+#ifndef DEFINITIONS_MQH
+#define DEFINITIONS_MQH
+
+#property copyright "EA_SCALPER_XAUUSD - Apex Compliant Trading System"
 #property strict
 
-// === ENUMERATIONS ===
+// === APEX COMPLIANCE ENUMERATIONS ===
+
+//--- 6-level DD Severity (CLAUDE.md authoritative taxonomy)
+//--- Trailing DD thresholds from HIGH-WATER MARK (includes unrealized)
+enum ENUM_DD_SEVERITY
+{
+    DD_NORMAL = 0,      // 0-3% - Normal operation
+    DD_WARN = 1,        // 3.0% - Warning level
+    DD_CAUTION = 2,     // 3.5% - Caution, reduce exposure
+    DD_CRITICAL = 3,    // 4.0% - Critical, prepare to halt
+    DD_HALT = 4,        // 4.5% - HALT trading immediately
+    DD_TERMINATED = 5   // 5.0% - APEX LIMIT BREACHED - ACCOUNT BLOWN
+};
+
+//--- Time states for Apex overnight position rules
+//--- All times are Eastern Time (America/New_York)
+enum ENUM_TIME_STATE
+{
+    TIME_NORMAL = 0,        // Normal trading hours
+    TIME_BLOCK_NEW = 1,     // After 4:30 PM ET - block new trades
+    TIME_EMERGENCY = 2,     // After 4:55 PM ET - force close all
+    TIME_HALTED = 3         // After 4:59 PM ET - market closed
+};
+
+//--- Gate reasons as bitmask (CRITIC FIX #5: replaces dynamic array)
+//--- Multiple reasons can be combined using bitwise OR
+enum ENUM_GATE_REASON
+{
+    GATE_OK           = 0,      // No blocking - trading allowed
+    GATE_TIME         = 1,      // Time-based block (4:30 PM+ ET)
+    GATE_DD_TRAILING  = 2,      // Trailing DD threshold breach
+    GATE_DD_DAILY     = 4,      // Daily DD threshold breach
+    GATE_SPREAD       = 8,      // Spread too wide
+    GATE_VIRTUAL      = 16,     // Virtual trading mode active
+    GATE_GAP_COOLDOWN = 32,     // Post-gap cooldown period
+    GATE_NEWS         = 64,     // High-impact news window
+    GATE_SESSION      = 128     // Outside trading session
+};
+
+// === STANDARD ENUMERATIONS ===
+
 enum ENUM_LOT_SIZE_METHOD
 {
    LOT_FIXED = 0,           // Fixed lot size
@@ -342,3 +385,6 @@ struct SFTMOCompliance
     bool                weekend_gap_protection; // Weekend gap protection
     bool                news_trading_halt;      // News-based trading halt
 };
+
+#endif // DEFINITIONS_MQH
+//+------------------------------------------------------------------+

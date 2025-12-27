@@ -5,29 +5,24 @@
 //+------------------------------------------------------------------+
 #property copyright "Franco - Singularity Edition"
 #property link      "https://www.mql5.com"
-#property version   "3.30"
+#property version   "4.0"
 #property strict
 
 /*
-   v3.30 - Order Flow + Multi-Timeframe Architecture
-   ==================================================
-   HTF (H1)  = Direction filter - NEVER trade against H1 trend
-   MTF (M15) = Structure zones  - OB, FVG, Liquidity levels
-   LTF (M5)  = Execution        - Entry confirmation & tight SL
-   
-   NEW in v3.30:
-   - Footprint/Cluster Chart Analysis (ATAS-style)
-   - Diagonal Imbalance Detection
-   - Stacked Imbalance Detection (3+ consecutive)
-   - Absorption Zone Detection
-   - Order Flow Confluence Scoring
-   
-   Benefits:
-   - 2-3x more trading opportunities
-   - Tighter stop losses (M5 precision)
-   - Better alignment with SMC methodology
-   - Order Flow confirmation for higher win rate
-   - Spread cost still acceptable (5-8% on M5)
+   v4.0 - Apex-Safe Risk Infrastructure (Phase 13 Migration)
+   ==========================================================
+   Complete migration from Python/NautilusTrader to MQL5 with:
+   - 6-level DD taxonomy (WARN/CAUTION/CRITICAL/HALT/REDUCE/TERMINATED)
+   - HWM tracking via AccountEquity() only (CRITIC fix)
+   - DST-safe ET handling with TimeGMT() base
+   - Idempotent wall-clock enforcement (catches missed OnTimer)
+   - VirtualGate, UnifiedRiskPolicy, GapCooldown gates
+   - Visual HUD for investor demo
+
+   Previous versions:
+   - v3.30: Order Flow + Multi-Timeframe Architecture
+   - v3.20: MTF Manager integration
+   - v3.10: SMC core (OB, FVG, Liquidity sweeps)
 */
 
 //--- Core Includes
@@ -60,6 +55,17 @@
 //--- Bridge (Phase 2)
 //#include <EA_SCALPER/Bridge/PythonBridge.mqh>
 #include <EA_SCALPER/Bridge/COnnxBrain.mqh>
+
+//--- v4.0: New Apex Risk Components (Task 4.1 Integration)
+#include <EA_SCALPER/Core/Version.mqh>
+#include <EA_SCALPER/Risk/CApexDDTracker.mqh>
+#include <EA_SCALPER/Risk/CApexTimeHandler.mqh>
+#include <EA_SCALPER/Risk/CWallClockEnforcer.mqh>
+#include <EA_SCALPER/Risk/CUnifiedRiskPolicy.mqh>
+#include <EA_SCALPER/Risk/CVirtualGate.mqh>
+#include <EA_SCALPER/Risk/CGapCooldown.mqh>
+#include <EA_SCALPER/Safety/CSpreadMonitor.mqh>
+#include <EA_SCALPER/UI/CRiskHUD.mqh>
 
 //--- Mode presets (quick configuration profiles)
 enum ENUM_ModePreset
@@ -189,6 +195,16 @@ CConfluenceScorer       g_Confluence;
 
 // v3.31: Footprint/Order Flow Analyzer (FORGE genius upgrade)
 CFootprintAnalyzer      g_Footprint;
+
+//--- v4.0: Apex Risk Components (Task 4.1 Integration)
+CApexDDTracker          g_DDTracker;
+CApexTimeHandler        g_TimeHandler;
+CWallClockEnforcer      g_WallClock;
+CSpreadMonitor          g_SpreadMonitorV2;   // Renamed to avoid conflict with legacy spread check
+CVirtualGate            g_VirtualGate;
+CGapCooldown            g_GapCooldown;
+CUnifiedRiskPolicy      g_RiskPolicy;
+CRiskHUD                g_RiskHUD;           // Visual HUD for investor display
 
 //--- ML Brain
 COnnxBrain              g_OnnxBrain;
@@ -461,8 +477,71 @@ int OnInit()
       g_Footprint.EnableSessionReset(true);                     // Reset delta at London/NY open
       Print("Footprint v3.4 initialized: M5 cluster=dynamic(ATR*0.1), session_reset=ON");
    }
-   
-   // 7. Connect Confluence Scorer to all detectors (v3.31: 9 factors)
+
+   //=== v4.0: Initialize Apex Risk Components (Task 4.1 Integration) ===
+   // 1. Initialize time handler first (needed by wall clock)
+   if(!g_TimeHandler.Init())
+   {
+      Print("Critical Error: Time Handler Initialization Failed!");
+      return(INIT_FAILED);
+   }
+
+   // 2. Initialize DD tracker with starting equity
+   if(!g_DDTracker.Init(AccountInfoDouble(ACCOUNT_EQUITY)))
+   {
+      Print("Critical Error: DD Tracker Initialization Failed!");
+      return(INIT_FAILED);
+   }
+
+   // 3. Initialize wall clock with time handler
+   if(!g_WallClock.Init(InpMagicNumber, _Symbol))
+   {
+      Print("Critical Error: Wall Clock Initialization Failed!");
+      return(INIT_FAILED);
+   }
+   g_WallClock.AttachTimeHandler(&g_TimeHandler);
+
+   // 4. Initialize spread monitor v2
+   if(!g_SpreadMonitorV2.Init(_Symbol, 100))
+   {
+      Print("Warning: SpreadMonitor v2 initialization failed");
+   }
+   g_SpreadMonitorV2.SetMaxSpreadPoints(g_ModeCfg.max_spread_points);
+
+   // 5. Initialize virtual gate (volatility filter)
+   if(!g_VirtualGate.Init(20, 3.0, 2.5, 0.30, true))  // fail_open=true for initial data collection
+   {
+      Print("Warning: Virtual Gate initialization failed");
+   }
+
+   // 6. Initialize gap cooldown
+   if(!g_GapCooldown.Init(30, 15))  // 30 min gap threshold, 15 min cooldown
+   {
+      Print("Warning: Gap Cooldown initialization failed");
+   }
+
+   // 7. Initialize unified risk policy with all components
+   if(!g_RiskPolicy.Init(&g_DDTracker, &g_TimeHandler, &g_WallClock,
+                         &g_SpreadMonitorV2, &g_VirtualGate, &g_GapCooldown))
+   {
+      Print("Critical Error: Unified Risk Policy Initialization Failed!");
+      return(INIT_FAILED);
+   }
+
+   Print("=== v4.0 Apex Risk Components Initialized ===");
+   g_RiskPolicy.PrintStatus();
+
+   // 8. Initialize Risk HUD for investor display
+   if(!g_RiskHUD.Init(10, 50))  // Position at x=10, y=50
+   {
+      Print("Warning: Risk HUD initialization failed - visual display disabled");
+   }
+   else
+   {
+      Print("Risk HUD initialized: Visual display active");
+   }
+
+   // 9. Connect Confluence Scorer to all detectors (v3.31: 9 factors)
    g_Confluence.AttachRegimeDetector(&g_Regime);
    g_Confluence.AttachStructureAnalyzer(&g_Structure);
    g_Confluence.AttachSweepDetector(&g_Sweep);
@@ -544,20 +623,137 @@ int OnInit()
 
 //+------------------------------------------------------------------+
 //| Expert deinitialization function                                 |
+//| CRITIC FIX: Added mandatory flatten on EA removal/chart change   |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+   Print("OnDeinit called, reason: ", reason);
+
+   // Kill timer first
    EventKillTimer();
-   
+
+   //=== v4.0: ALWAYS flatten on EA removal/chart change ===
+   // This is CRITICAL for Apex compliance - no orphan positions
+   FlattenAllPositions("OnDeinit");
+
+   //=== Cancel all pending orders for this EA ===
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = OrderGetTicket(i);
+      if(OrderSelect(ticket))
+      {
+         if(OrderGetString(ORDER_SYMBOL) == _Symbol &&
+            OrderGetInteger(ORDER_MAGIC) == InpMagicNumber)
+         {
+            CTrade trade;
+            trade.OrderDelete(ticket);
+            Print("OnDeinit: Cancelled pending order #", ticket);
+         }
+      }
+   }
+
    // Cleanup modules
    g_MTF.Deinit();
    g_AMD.Deinitialize();
    g_Sweep.Deinitialize();
    g_OnnxBrain.Deinitialize();
+   g_RiskHUD.Delete();  // v4.0: Cleanup HUD objects
    if(g_atr_fast_handle!=INVALID_HANDLE) IndicatorRelease(g_atr_fast_handle);
    if(g_atr_slow_handle!=INVALID_HANDLE) IndicatorRelease(g_atr_slow_handle);
-   
-   Print("EA_SCALPER_XAUUSD v3.30 Singularity Order Flow Deinitialized. Reason: ", reason);
+
+   Print("EA_SCALPER_XAUUSD v4.0 Singularity Order Flow Deinitialized. Reason: ", reason);
+}
+
+//+------------------------------------------------------------------+
+//| FlattenAllPositions - Close all positions for this EA            |
+//| v4.0: Unified flatten function for OnDeinit and risk gates       |
+//+------------------------------------------------------------------+
+void FlattenAllPositions(string reason)
+{
+   Print("FlattenAllPositions called. Reason: ", reason);
+
+   CTrade trade;
+   trade.SetExpertMagicNumber(InpMagicNumber);
+   trade.SetDeviationInPoints(InpSlippage);
+
+   int positions_closed = 0;
+   int positions_failed = 0;
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(!PositionSelectByTicket(ticket))
+         continue;
+
+      // Check magic and symbol
+      if(PositionGetInteger(POSITION_MAGIC) != InpMagicNumber)
+         continue;
+
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol)
+         continue;
+
+      // Found a position that needs closing
+      double volume = PositionGetDouble(POSITION_VOLUME);
+      double profit = PositionGetDouble(POSITION_PROFIT);
+
+      Print("FlattenAllPositions: Closing position #", ticket,
+            " Volume: ", DoubleToString(volume, 2),
+            " Profit: ", DoubleToString(profit, 2));
+
+      // Attempt to close with retry
+      bool closed = false;
+      for(int retry = 0; retry < 3 && !closed; retry++)
+      {
+         if(retry > 0)
+         {
+            Sleep(200);
+            if(!PositionSelectByTicket(ticket))
+            {
+               closed = true;  // Position no longer exists
+               break;
+            }
+         }
+
+         if(trade.PositionClose(ticket))
+         {
+            closed = true;
+            positions_closed++;
+         }
+         else
+         {
+            uint retcode = trade.ResultRetcode();
+            Print("FlattenAllPositions: Close retry ", retry + 1,
+                  " failed - ", trade.ResultRetcodeDescription());
+
+            // Non-retriable errors
+            if(retcode != TRADE_RETCODE_REQUOTE &&
+               retcode != TRADE_RETCODE_PRICE_CHANGED &&
+               retcode != TRADE_RETCODE_PRICE_OFF &&
+               retcode != TRADE_RETCODE_CONNECTION &&
+               retcode != TRADE_RETCODE_TIMEOUT)
+            {
+               break;
+            }
+         }
+      }
+
+      if(!closed)
+      {
+         positions_failed++;
+         Print("FlattenAllPositions: FAILED to close position #", ticket);
+      }
+   }
+
+   if(positions_closed > 0 || positions_failed > 0)
+   {
+      Print("FlattenAllPositions: Closed=", positions_closed,
+            " Failed=", positions_failed, " Reason=", reason);
+   }
+
+   if(positions_failed > 0)
+   {
+      Alert("CRITICAL: Failed to close ", positions_failed, " positions on ", reason);
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -568,7 +764,32 @@ void OnTick()
    // Always refresh risk state (daily reset / drawdown monitoring) even if spread gate blocks
    g_RiskManager.OnTick();
 
-   // Apex cutoff: flatten and block new trades after 16:55 ET
+   //=== v4.0: Update Apex Risk Components ===
+   g_DDTracker.Update();               // Update DD tracking with current equity
+   g_WallClock.CheckAndEnforce();      // Check time gates (idempotent)
+   g_SpreadMonitorV2.Check();          // Update spread statistics
+
+   // v4.0: Get unified risk decision FIRST (before any trading logic)
+   RiskDecision decision = g_RiskPolicy.EvaluateEntry(0);  // No direction for now
+
+   // v4.0: Update Risk HUD (every tick for live display)
+   g_RiskHUD.Update(&g_DDTracker, &g_TimeHandler, decision);
+
+   // CRITICAL: If must_flatten, close all positions immediately and exit
+   if(decision.must_flatten)
+   {
+      string reason = decision.GetPrimaryReason();
+      Print("v4.0 RiskPolicy: MUST FLATTEN - ", reason);
+      FlattenAllPositions(reason);
+      g_IsEmergencyMode = true;
+      return;
+   }
+
+   // If can't open new trades, still manage existing positions but don't enter new
+   // This is handled later in the trading logic
+
+   // Legacy Apex cutoff: flatten and block new trades after 16:55 ET
+   // v4.0: This is now handled by CWallClockEnforcer, but keep as fallback
    if(InpEnforceApexCutoff && g_RiskManager.IsAfterCutoffET(16, InpApexCutoffMinute))
    {
       if(g_TradeManager.HasActiveTrade())
@@ -744,6 +965,26 @@ void OnTick()
    
    //=== GATE 5: Risk Manager - Can open new trade? ===
    if(!g_RiskManager.CanOpenNewTrade()) return;
+
+   //=== GATE 5.1: v4.0 Unified Risk Policy (Apex DD + Time + Spread + VirtualGate + Gap) ===
+   // decision was already calculated at the start of OnTick
+   if(!decision.can_open_new)
+   {
+      // Log periodically (not every tick)
+      static datetime last_risk_gate_log = 0;
+      if(TimeCurrent() - last_risk_gate_log >= 60)  // Every 60 seconds
+      {
+         string block_reason = decision.GetPrimaryReason();
+         Print("[v4.0 RiskPolicy] New entries blocked: ", block_reason);
+         last_risk_gate_log = TimeCurrent();
+      }
+      return;
+   }
+
+   // v4.0: Apply size factor from unified risk policy
+   // This will reduce position size when DD is approaching limits or spread is elevated
+   // Stored for use in lot size calculation later
+   double risk_policy_size_mult = decision.size_factor;
 
    //=== GATE 6: Multi-Timeframe Analysis (NEW v3.20) ===
    if(g_ModeCfg.use_mtf)
@@ -1145,6 +1386,23 @@ void OnTick()
    // Ensure minimum lot size
    double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    if(lotSize < minLot) lotSize = minLot;
+
+   // v4.0: Apply unified risk policy size factor (DD approach / spread scaling)
+   if(risk_policy_size_mult < 1.0 && risk_policy_size_mult > 0.0)
+   {
+      double adjusted_lot = lotSize * risk_policy_size_mult;
+      if(adjusted_lot >= minLot)
+      {
+         Print("[v4.0 RiskPolicy] Position size reduced: ", DoubleToString(lotSize, 2),
+               " -> ", DoubleToString(adjusted_lot, 2),
+               " (factor: ", DoubleToString(risk_policy_size_mult, 2), ")");
+         lotSize = adjusted_lot;
+      }
+      else
+      {
+         Print("[v4.0 RiskPolicy] Position size would be below minLot - keeping minLot");
+      }
+   }
    
    // v3.31: Enhanced trade reason with confluence details
    string reason = StringFormat("Score:%d/%d Conf:%d/9 Q:%s AMD:%s RR:%.1f", 
@@ -1197,10 +1455,22 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-//| Timer function - Slow lane updates                               |
+//| Timer function - Slow lane updates + Wall Clock Enforcement      |
+//| v4.0: Added wall clock enforcement for Apex time gates           |
 //+------------------------------------------------------------------+
 void OnTimer()
 {
+   //=== v4.0: Wall clock enforcement (CRITICAL for Apex 4:59 PM ET deadline) ===
+   // This runs every 1 second to ensure time gates are enforced
+   // even if there are no ticks (low liquidity / market gap)
+   g_WallClock.CheckAndEnforce();
+
+   // v4.0: Check if must flatten based on time
+   if(g_TimeHandler.IsHalted() || g_TimeHandler.IsEmergencyClose())
+   {
+      FlattenAllPositions("OnTimer: Apex time deadline");
+   }
+
    // Slow-lane analytics
    static datetime last_h1_bar = 0;
    static datetime last_m15_bar = 0;

@@ -2,11 +2,15 @@
 //|                                              CSpreadMonitor.mqh |
 //|                                                           Franco |
 //|                   EA_SCALPER_XAUUSD v4.0 - Safety Layer          |
+//|                   Implements IRiskGate for unified gate system    |
 //+------------------------------------------------------------------+
 #property copyright "Franco"
 #property link      "EA_SCALPER_XAUUSD"
-#property version   "1.00"
+#property version   "2.00"
 #property strict
+
+#include "../Core/Definitions.mqh"
+#include "../Core/IRiskGate.mqh"
 
 //+------------------------------------------------------------------+
 //| Spread Status                                                     |
@@ -65,14 +69,19 @@ struct SSpreadAnalysis
 //+------------------------------------------------------------------+
 //| Class: CSpreadMonitor                                             |
 //| Purpose: Monitor spread and adjust trading accordingly            |
+//| Implements: IRiskGate interface for unified gate system           |
 //|                                                                   |
 //| Design Philosophy:                                                |
 //| - Track rolling average of last N spread samples                  |
 //| - Detect abnormal spread (statistically or by ratio)              |
 //| - Reduce position size during high spread                         |
 //| - Block trading during extreme spread                             |
+//|                                                                   |
+//| Gate Behavior:                                                    |
+//| - Returns GATE_SPREAD when spread > max_spread_points             |
+//| - max_spread_points default: 80 (8 pips for XAUUSD)               |
 //+------------------------------------------------------------------+
-class CSpreadMonitor
+class CSpreadMonitor : public IRiskGate
 {
 private:
    //--- Configuration
@@ -80,57 +89,68 @@ private:
    int               m_history_size;      // Samples to keep
    double            m_warning_ratio;     // Warn when spread > avg * ratio
    double            m_block_ratio;       // Block when spread > avg * ratio
-   double            m_max_spread_pips;   // Absolute max spread allowed
-   
+   double            m_max_spread_pips;   // Absolute max spread allowed (pips)
+   int               m_max_spread_points; // Absolute max spread allowed (points)
+
    //--- Spread history
    double            m_spread_history[];
    int               m_history_index;
    int               m_samples_collected;
-   
+
    //--- Statistics
    double            m_sum;
    double            m_sum_sq;
    double            m_min_observed;
    double            m_max_observed;
-   
+
    //--- Status cache
    SSpreadAnalysis   m_analysis;
    datetime          m_last_update;
    int               m_update_interval;   // Seconds between updates
-   
+
    //--- Point/pip conversion
    double            m_pip_factor;        // Points per pip (10 for JPY, 1 otherwise)
-   
+
 public:
                      CSpreadMonitor();
                     ~CSpreadMonitor();
-   
+
    //--- Initialization
    bool              Init(string symbol = "", int history_size = 100);
    void              SetWarningRatio(double ratio) { m_warning_ratio = ratio; }
    void              SetBlockRatio(double ratio) { m_block_ratio = ratio; }
    void              SetMaxSpreadPips(double pips) { m_max_spread_pips = pips; }
+   void              SetMaxSpreadPoints(int points) { m_max_spread_points = points; }
    void              SetUpdateInterval(int seconds) { m_update_interval = seconds; }
-   
+
    //--- Main check
    SSpreadAnalysis   Check();
    bool              CanTrade() { Check(); return m_analysis.can_trade; }
    double            GetSizeMultiplier() { Check(); return m_analysis.size_multiplier; }
    int               GetScoreAdjustment() { Check(); return m_analysis.score_adjustment; }
-   
+
    //--- Status access
    ENUM_SPREAD_STATUS GetStatus() { Check(); return m_analysis.status; }
    SSpreadAnalysis   GetAnalysis() { Check(); return m_analysis; }
-   
+
    //--- Raw values
    double            GetCurrentSpread();
    double            GetCurrentSpreadPips();
    double            GetAverageSpread() { return m_analysis.average_spread; }
-   
+   double            GetMedianSpread();
+   double            GetZScore() { Check(); return m_analysis.z_score; }
+
    //--- Utility
    void              Reset();
    void              PrintStatus();
    string            GetStatusString();
+
+   //--- IRiskGate interface implementation
+   virtual bool              IsBlocked(void);
+   virtual ENUM_GATE_REASON  GetReason(void);
+   virtual string            GetReasonText(void);
+   virtual void              OnTick(void) { Check(); }
+   virtual string            GetGateName(void) { return "SpreadMonitor"; }
 
 private:
    void              RecordSpread(double spread);
@@ -149,20 +169,21 @@ CSpreadMonitor::CSpreadMonitor()
    m_warning_ratio = 2.0;    // Warn at 2x normal
    m_block_ratio = 5.0;      // Block at 5x normal
    m_max_spread_pips = 50.0; // Absolute max 50 pips
-   
+   m_max_spread_points = 80; // Default 80 points (8 pips for XAUUSD)
+
    m_history_index = 0;
    m_samples_collected = 0;
-   
+
    m_sum = 0;
    m_sum_sq = 0;
    m_min_observed = DBL_MAX;
    m_max_observed = 0;
-   
+
    m_last_update = 0;
    m_update_interval = 1;
-   
+
    m_pip_factor = 1.0;
-   
+
    m_analysis.Reset();
 }
 
@@ -362,15 +383,28 @@ void CSpreadMonitor::AnalyzeSpread()
       m_analysis.z_score = 0;
    
    //--- Determine status and adjustments
-   
-   // BLOCKED: Absolute max exceeded
+
+   // BLOCKED: Absolute max exceeded (check both points and pips thresholds)
+   // Task 2.2: max_spread_points (default 80) is the primary gate
+   if(current > (double)m_max_spread_points)
+   {
+      m_analysis.status = SPREAD_BLOCKED;
+      m_analysis.size_multiplier = 0.0;
+      m_analysis.score_adjustment = -100;
+      m_analysis.can_trade = false;
+      m_analysis.reason = StringFormat("Spread %.0f exceeds max %d points",
+                                        current, m_max_spread_points);
+      return;
+   }
+
+   // Also check pips threshold (legacy support)
    if(current_pips >= m_max_spread_pips)
    {
       m_analysis.status = SPREAD_BLOCKED;
       m_analysis.size_multiplier = 0.0;
       m_analysis.score_adjustment = -100;
       m_analysis.can_trade = false;
-      m_analysis.reason = StringFormat("Spread %.1f pips exceeds max %.1f", 
+      m_analysis.reason = StringFormat("Spread %.1f pips exceeds max %.1f",
                                         current_pips, m_max_spread_pips);
       return;
    }
@@ -493,6 +527,93 @@ string CSpreadMonitor::GetStatusString()
       case SPREAD_BLOCKED:  return "BLOCKED";
       default:              return "UNKNOWN";
    }
+}
+
+//+------------------------------------------------------------------+
+//| Get median spread (for statistical analysis)                      |
+//+------------------------------------------------------------------+
+double CSpreadMonitor::GetMedianSpread()
+{
+   if(m_samples_collected == 0)
+      return 0.0;
+
+   // Copy history for sorting (don't modify original)
+   double sorted[];
+   int count = MathMin(m_samples_collected, m_history_size);
+   ArrayResize(sorted, count);
+
+   for(int i = 0; i < count; i++)
+   {
+      sorted[i] = m_spread_history[i];
+   }
+
+   // Sort ascending
+   ArraySort(sorted);
+
+   // Return median
+   if(count % 2 == 0)
+   {
+      // Even: average of two middle values
+      return (sorted[count/2 - 1] + sorted[count/2]) / 2.0;
+   }
+   else
+   {
+      // Odd: middle value
+      return sorted[count/2];
+   }
+}
+
+//+------------------------------------------------------------------+
+//| IRiskGate: Check if trading is blocked                            |
+//| Blocks when current spread > max_spread_points OR status=BLOCKED  |
+//+------------------------------------------------------------------+
+bool CSpreadMonitor::IsBlocked(void)
+{
+   Check();
+
+   // Check max_spread_points threshold
+   double current = GetCurrentSpread();
+   if(current > (double)m_max_spread_points)
+      return true;
+
+   // Also check status-based blocking
+   return (m_analysis.status == SPREAD_BLOCKED ||
+           m_analysis.status == SPREAD_EXTREME);
+}
+
+//+------------------------------------------------------------------+
+//| IRiskGate: Get the reason for blocking                            |
+//+------------------------------------------------------------------+
+ENUM_GATE_REASON CSpreadMonitor::GetReason(void)
+{
+   if(!IsBlocked())
+      return GATE_OK;
+
+   return GATE_SPREAD;
+}
+
+//+------------------------------------------------------------------+
+//| IRiskGate: Get human-readable reason text                         |
+//+------------------------------------------------------------------+
+string CSpreadMonitor::GetReasonText(void)
+{
+   if(!IsBlocked())
+      return "OK";
+
+   double current = GetCurrentSpread();
+
+   // Check max_spread_points first (primary threshold)
+   if(current > (double)m_max_spread_points)
+   {
+      return StringFormat("Spread %.0f > max %d points",
+                         current, m_max_spread_points);
+   }
+
+   // Status-based message
+   return StringFormat("Spread %s: %.1f pips (%.1fx normal)",
+                      GetStatusString(),
+                      m_analysis.current_spread_pips,
+                      m_analysis.spread_ratio);
 }
 
 //+------------------------------------------------------------------+
