@@ -198,6 +198,10 @@ class OrderBlockDetector:
         if displacement <= 0:
             return False
 
+        # SMC-5: Enforce displacement threshold (in price units)
+        if displacement < self.displacement_threshold:
+            return False
+
         # OB must have meaningful body size
         total_range = highs[ob_index] - lows[ob_index]
         if total_range <= 0 or abs(ob_body) < total_range * 0.5:
@@ -231,6 +235,10 @@ class OrderBlockDetector:
         # Displacement candle (current) must close below OB low
         displacement = lows[ob_index] - closes[index]
         if displacement <= 0:
+            return False
+
+        # SMC-5: Enforce displacement threshold (in price units)
+        if displacement < self.displacement_threshold:
             return False
 
         # OB must have meaningful body size
@@ -288,14 +296,16 @@ class OrderBlockDetector:
             self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
         )
 
-        # Quality assessment
+        # Institutional check FIRST (scoring methods use this flag for bonuses)
+        ob.is_institutional = self._is_institutional_ob(ob)
+
+        # Quality assessment (uses is_institutional for +15 bonuses)
         ob.strength = self._calculate_ob_strength(ob)
         ob.quality = self._classify_ob_quality(ob)
         ob.probability_score = self._calculate_probability_score(ob)
 
         # Flags
         ob.is_fresh = True
-        ob.is_institutional = self._is_institutional_ob(ob)
         ob.is_valid = True
         ob.touch_count = 0
 
@@ -352,14 +362,16 @@ class OrderBlockDetector:
             self._calculate_volume_ratio(volumes, index, avg_volume) if volumes is not None else 1.0
         )
 
-        # Quality assessment
+        # Institutional check FIRST (scoring methods use this flag for bonuses)
+        ob.is_institutional = self._is_institutional_ob(ob)
+
+        # Quality assessment (uses is_institutional for +15 bonuses)
         ob.strength = self._calculate_ob_strength(ob)
         ob.quality = self._classify_ob_quality(ob)
         ob.probability_score = self._calculate_probability_score(ob)
 
         # Flags
         ob.is_fresh = True
-        ob.is_institutional = self._is_institutional_ob(ob)
         ob.is_valid = True
         ob.touch_count = 0
 
@@ -379,6 +391,7 @@ class OrderBlockDetector:
             return False
         if ob.quality < OrderBlockQuality.OB_QUALITY_MEDIUM:
             return False
+
         return True
 
     def _calculate_displacement(

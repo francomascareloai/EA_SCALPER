@@ -202,7 +202,9 @@ class LiquiditySweepDetector:
 
         # NOTE: Equal-high detection must be causal.
         # We only look backward from i and count prior touches.
-        for i in range(self.swing_strength, lookback):
+        # FIX: Iterate over TRAILING window (most recent bars), not oldest bars
+        start_idx = max(self.swing_strength, n - lookback)
+        for i in range(start_idx, n):
             if i >= len(timestamps):
                 break
 
@@ -253,7 +255,9 @@ class LiquiditySweepDetector:
 
         # NOTE: Equal-low detection must be causal.
         # We only look backward from i and count prior touches.
-        for i in range(self.swing_strength, lookback):
+        # FIX: Iterate over TRAILING window (most recent bars), not oldest bars
+        start_idx = max(self.swing_strength, n - lookback)
+        for i in range(start_idx, n):
             if i >= len(timestamps):
                 break
 
@@ -312,7 +316,9 @@ class LiquiditySweepDetector:
         if lookback < (strength * 2 + 1):
             return
 
-        for i in range(strength * 2, lookback):
+        # FIX: Iterate over TRAILING window (most recent bars), not oldest bars
+        start_idx = max(strength * 2, n - lookback)
+        for i in range(start_idx, n):
             cand = i - strength
             if cand - strength < 0 or cand + strength >= len(highs):
                 continue
@@ -364,7 +370,9 @@ class LiquiditySweepDetector:
         if lookback < (strength * 2 + 1):
             return
 
-        for i in range(strength * 2, lookback):
+        # FIX: Iterate over TRAILING window (most recent bars), not oldest bars
+        start_idx = max(strength * 2, n - lookback)
+        for i in range(start_idx, n):
             cand = i - strength
             if cand - strength < 0 or cand + strength >= len(lows):
                 continue

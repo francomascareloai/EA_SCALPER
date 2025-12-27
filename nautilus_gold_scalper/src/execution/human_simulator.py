@@ -43,28 +43,40 @@ def _localize_et_strict(dt: datetime) -> datetime:
     """Attach ET tzinfo to naive datetimes, handling DST correctly.
 
     This emulates `pytz.timezone(...).localize(dt, is_dst=None)` strictness:
-    - Raises ValueError for ambiguous (fold) or nonexistent local times.
+    - Raises ValueError for ambiguous (fall-back) local times.
+    - Raises ValueError for nonexistent (spring-forward) local times.
     - Returns an ET-aware datetime when unambiguous.
+
+    Note on `zoneinfo`:
+        For many unambiguous local times, `fold=0` and `fold=1` may produce the
+        same UTC offset, so a naive "round-trip" check alone cannot distinguish
+        ambiguity. We must also consider offset differences.
     """
     if dt.tzinfo is not None:
         return dt.astimezone(ET)
 
-    # Try both folds. For a valid local time, exactly one fold should round-trip.
+    # Evaluate both folds.
     dt_fold0 = dt.replace(tzinfo=ET, fold=0)
     dt_fold1 = dt.replace(tzinfo=ET, fold=1)
 
+    # Detect ambiguity via offset difference.
+    off0 = dt_fold0.utcoffset()
+    off1 = dt_fold1.utcoffset()
+    if off0 is not None and off1 is not None and off0 != off1:
+        raise ValueError(f"Ambiguous local time in ET: {dt!r}")
+
+    # Detect nonexistent local times via strict round-trip.
     rt0 = dt_fold0.astimezone(timezone.utc).astimezone(ET).replace(tzinfo=None)
     rt1 = dt_fold1.astimezone(timezone.utc).astimezone(ET).replace(tzinfo=None)
 
     ok0 = rt0 == dt
     ok1 = rt1 == dt
 
-    if ok0 and ok1:
-        raise ValueError(f"Ambiguous local time in ET: {dt!r}")
     if not ok0 and not ok1:
         raise ValueError(f"Nonexistent local time in ET: {dt!r}")
 
-    return dt_fold0 if ok0 else dt_fold1
+    # Unambiguous local time: choose fold=0 by convention.
+    return dt_fold0
 
 
 logger = logging.getLogger(__name__)

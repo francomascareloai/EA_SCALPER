@@ -112,6 +112,7 @@ class SpreadMonitor:
         max_spread_pips: float = 50.0,
         update_interval: int = 1,
         pip_factor: float = 10.0,
+        warmup_block_trading: bool = False,
     ):
         """
         Initialize SpreadMonitor.
@@ -153,6 +154,7 @@ class SpreadMonitor:
         self._max_spread_pips = max_spread_pips
         self._update_interval = update_interval
         self._pip_factor = pip_factor
+        self._warmup_block_trading = bool(warmup_block_trading)
 
         # Spread history (circular buffer)
         self._spread_history: deque[float] = deque(maxlen=history_size)
@@ -377,6 +379,24 @@ class SpreadMonitor:
 
         # Need some history before making decisions
         if n < 10:
+            if self._warmup_block_trading:
+                return SpreadSnapshot(
+                    timestamp=now,
+                    status=SpreadState.BLOCKED,
+                    current_spread_points=current_points,
+                    current_spread_pips=current_pips,
+                    average_spread=base_avg * 10 if n > 0 else 0.0,
+                    max_spread=base_max * 10,
+                    min_spread=base_min * 10,
+                    std_dev=std_dev,
+                    spread_ratio=1.0,
+                    z_score=0.0,
+                    size_multiplier=0.0,
+                    score_adjustment=-100,
+                    can_trade=False,
+                    reason="Collecting spread baseline",
+                )
+
             return SpreadSnapshot(
                 timestamp=now,
                 status=SpreadState.NORMAL,

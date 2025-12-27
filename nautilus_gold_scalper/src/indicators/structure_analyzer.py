@@ -431,14 +431,19 @@ class StructureAnalyzer:
         last_low = self._swing_lows[-1]
 
         # Bullish: HH + HL
-        if last_high.point_type in [StructurePointType.HH, StructurePointType.EQH]:
+        if last_high.point_type == StructurePointType.HH:
             if last_low.point_type in [StructurePointType.HL, StructurePointType.EQL]:
                 return MarketBias.BULLISH
 
         # Bearish: LH + LL
-        if last_high.point_type in [StructurePointType.LH, StructurePointType.EQH]:
+        if last_high.point_type == StructurePointType.LH:
             if last_low.point_type in [StructurePointType.LL, StructurePointType.EQL]:
                 return MarketBias.BEARISH
+
+        # SMC-6: Resolve EQH/EQL ambiguity (range -> fail closed)
+        # If the last high is EQH, bias is ambiguous without additional context.
+        if last_high.point_type == StructurePointType.EQH:
+            return MarketBias.RANGING
 
         # Check for transition (mixed signals)
         if (
@@ -462,73 +467,86 @@ class StructureAnalyzer:
         timestamps: np.ndarray[Any, Any],
         current_price: float,
     ) -> None:
-        """Detect BOS and CHoCH."""
+        """Detect BOS and CHoCH.
+
+        FIX: Process only ONE break per update - the NEAREST level.
+        This prevents chronology collapse when multiple levels break at once.
+        """
         atr_estimate: float | None = None
         if len(highs) >= 14:
             atr_estimate = float(np.mean(highs[-14:] - lows[-14:]))
 
         # Check breaks of swing lows (bearish break)
-        for swing in self._swing_lows:
-            if not swing.is_broken and swing.is_valid:
-                if current_price < swing.price - self.break_buffer:
-                    # Validate with close
-                    if closes[-1] < swing.price:
-                        displacement = swing.price - current_price
-                        if atr_estimate and displacement < max(
-                            self.break_buffer, atr_estimate * 0.5
-                        ):
-                            continue
+        # Sort by price DESCENDING so we check the HIGHEST swing low first (nearest to break)
+        sorted_swing_lows = sorted(
+            [s for s in self._swing_lows if not s.is_broken and s.is_valid],
+            key=lambda s: s.price,
+            reverse=True,
+        )
+        for swing in sorted_swing_lows:
+            if current_price < swing.price - self.break_buffer:
+                # Validate with close
+                if closes[-1] < swing.price:
+                    displacement = swing.price - current_price
+                    if atr_estimate and displacement < max(self.break_buffer, atr_estimate * 0.5):
+                        continue
 
-                        swing.is_broken = True
+                    swing.is_broken = True
 
-                        # Determine if BOS or CHoCH
-                        if self._state.bias == MarketBias.BEARISH:
-                            break_type = BreakType.BOS
-                            self._state.bos_count += 1
-                        else:
-                            break_type = BreakType.CHOCH
-                            self._state.choch_count += 1
+                    # Determine if BOS or CHoCH
+                    if self._state.bias == MarketBias.BEARISH:
+                        break_type = BreakType.BOS
+                        self._state.bos_count += 1
+                    else:
+                        break_type = BreakType.CHOCH
+                        self._state.choch_count += 1
 
-                        self._state.last_break = StructureBreak(
-                            break_price=current_price,
-                            swing_price=swing.price,
-                            break_type=break_type,
-                            new_bias=MarketBias.BEARISH,
-                            displacement=displacement,
-                            strength=min(100, int(displacement / self._point / 10)),
-                            is_valid=True,
-                        )
+                    self._state.last_break = StructureBreak(
+                        break_price=current_price,
+                        swing_price=swing.price,
+                        break_type=break_type,
+                        new_bias=MarketBias.BEARISH,
+                        displacement=displacement,
+                        strength=min(100, int(displacement / self._point / 10)),
+                        is_valid=True,
+                    )
+                    # FIX: Only one break per update - exit after first break
+                    break
 
         # Check breaks of swing highs (bullish break)
-        for swing in self._swing_highs:
-            if not swing.is_broken and swing.is_valid:
-                if current_price > swing.price + self.break_buffer:
-                    # Validate with close
-                    if closes[-1] > swing.price:
-                        displacement = current_price - swing.price
-                        if atr_estimate and displacement < max(
-                            self.break_buffer, atr_estimate * 0.5
-                        ):
-                            continue
+        # Sort by price ASCENDING so we check the LOWEST swing high first (nearest to break)
+        sorted_swing_highs = sorted(
+            [s for s in self._swing_highs if not s.is_broken and s.is_valid],
+            key=lambda s: s.price,
+        )
+        for swing in sorted_swing_highs:
+            if current_price > swing.price + self.break_buffer:
+                # Validate with close
+                if closes[-1] > swing.price:
+                    displacement = current_price - swing.price
+                    if atr_estimate and displacement < max(self.break_buffer, atr_estimate * 0.5):
+                        continue
 
-                        swing.is_broken = True
+                    swing.is_broken = True
 
-                        if self._state.bias == MarketBias.BULLISH:
-                            break_type = BreakType.BOS
-                            self._state.bos_count += 1
-                        else:
-                            break_type = BreakType.CHOCH
-                            self._state.choch_count += 1
+                    if self._state.bias == MarketBias.BULLISH:
+                        break_type = BreakType.BOS
+                        self._state.bos_count += 1
+                    else:
+                        break_type = BreakType.CHOCH
+                        self._state.choch_count += 1
 
-                        self._state.last_break = StructureBreak(
-                            break_price=current_price,
-                            swing_price=swing.price,
-                            break_type=break_type,
-                            new_bias=MarketBias.BULLISH,
-                            displacement=displacement,
-                            strength=min(100, int(displacement / self._point / 10)),
-                            is_valid=True,
-                        )
+                    self._state.last_break = StructureBreak(
+                        break_price=current_price,
+                        swing_price=swing.price,
+                        break_type=break_type,
+                        new_bias=MarketBias.BULLISH,
+                        displacement=displacement,
+                        strength=min(100, int(displacement / self._point / 10)),
+                        is_valid=True,
+                    )
+                    # FIX: Only one break per update - exit after first break
+                    break
 
     def _calculate_premium_discount(self, current_price: float) -> None:
         """Calculate premium/discount zones."""

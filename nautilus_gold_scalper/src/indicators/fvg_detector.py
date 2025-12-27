@@ -150,7 +150,7 @@ class FVGDetector:
             current_time_dt = datetime.fromtimestamp(
                 timestamps[-1].astype("datetime64[s]").astype(int), tz=timezone.utc
             )
-        self._update_fvg_states(current_price, current_time_dt)
+        self._update_fvg_states(current_price, current_time_dt, float(highs[-1]), float(lows[-1]))
 
         # Sort by quality score
         self._fvgs.sort(key=lambda x: x.confluence_score, reverse=True)
@@ -450,20 +450,39 @@ class FVGDetector:
         self,
         current_price: float,
         current_time: datetime | None = None,
+        current_high: float | None = None,
+        current_low: float | None = None,
     ) -> None:
-        """Update FVG states, fill percentages, and time decay."""
+        """Update FVG states, fill percentages, and time decay.
+
+        FIX: Use bar high/low for fill detection (wick-inclusive), not just close.
+        This prevents false positives where FVG appears open but was wicked through.
+        """
+        # Fall back to current_price if high/low not provided
+        bar_high = current_high if current_high is not None else current_price
+        bar_low = current_low if current_low is not None else current_price
+
         for fvg in self._fvgs:
-            # Check if price entered FVG zone
-            if fvg.lower_level <= current_price <= fvg.upper_level:
+            # Check if bar high/low touched FVG zone (wick-inclusive fill detection)
+            # A bar touches the gap if its range overlaps with the gap range
+            bar_touches_gap = bar_low <= fvg.upper_level and bar_high >= fvg.lower_level
+
+            if bar_touches_gap:
                 fvg.is_fresh = False
 
-                # Calculate fill percentage
+                # Calculate fill percentage based on how much of the gap was penetrated
                 gap_size = fvg.upper_level - fvg.lower_level
                 if gap_size > 0:
                     if fvg.fvg_type == FVGType.FVG_BULLISH:
-                        filled = current_price - fvg.lower_level
+                        # For bullish FVG: measure how high into the gap price went
+                        # (from lower_level upward)
+                        penetration = min(bar_high, fvg.upper_level) - fvg.lower_level
+                        filled = max(0.0, penetration)
                     else:
-                        filled = fvg.upper_level - current_price
+                        # For bearish FVG: measure how low into the gap price went
+                        # (from upper_level downward)
+                        penetration = fvg.upper_level - max(bar_low, fvg.lower_level)
+                        filled = max(0.0, penetration)
 
                     fvg.fill_percentage = max(fvg.fill_percentage, (filled / gap_size) * 100.0)
 

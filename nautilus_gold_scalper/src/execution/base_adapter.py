@@ -110,15 +110,49 @@ class BaseExecutionAdapter:
                 f"Missing required tick columns: {missing} (available={list(df.columns)})"
             )
 
-        for _, row in df.iterrows():
-            yield TickEvent(
-                symbol=self.symbol,
-                timestamp=pd.to_datetime(row[ts_col]),
-                bid=float(row[bid_col]),
-                ask=float(row[ask_col]),
-                last=float(row[last_col]),
-                volume=float(row[vol_col]) if vol_col else 0.0,
-            )
+        assert ts_col is not None
+        assert bid_col is not None
+        assert ask_col is not None
+        assert last_col is not None
+
+        # Fast path: vectorize conversions once and iterate over NumPy arrays.
+        # This significantly reduces per-tick Python overhead vs itertuples/getattr.
+        ts_arr = pd.to_datetime(df[ts_col]).to_numpy()
+        bid_arr = df[bid_col].to_numpy(dtype=float, copy=False)
+        ask_arr = df[ask_col].to_numpy(dtype=float, copy=False)
+        last_arr = df[last_col].to_numpy(dtype=float, copy=False)
+        if vol_col:
+            vol_arr = df[vol_col].to_numpy(dtype=float, copy=False)
+        else:
+            vol_arr = None
+
+        if vol_arr is None:
+            for ts, bid, ask, last in zip(ts_arr, bid_arr, ask_arr, last_arr, strict=True):
+                yield TickEvent(
+                    symbol=self.symbol,
+                    timestamp=pd.Timestamp(ts),
+                    bid=float(bid),
+                    ask=float(ask),
+                    last=float(last),
+                    volume=0.0,
+                )
+        else:
+            for ts, bid, ask, last, vol in zip(
+                ts_arr,
+                bid_arr,
+                ask_arr,
+                last_arr,
+                vol_arr,
+                strict=True,
+            ):
+                yield TickEvent(
+                    symbol=self.symbol,
+                    timestamp=pd.Timestamp(ts),
+                    bid=float(bid),
+                    ask=float(ask),
+                    last=float(last),
+                    volume=float(vol) if vol == vol else 0.0,
+                )
 
     # --- Orders -----------------------------------------------------------
     def send_order(

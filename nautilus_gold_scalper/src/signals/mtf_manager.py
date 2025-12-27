@@ -240,7 +240,10 @@ class MTFManager:
         return self._state
 
     def _validate_data(self, data: OHLCData, name: str) -> bool:
-        """Validate input data dictionary."""
+        """Validate input data dictionary.
+
+        FIX LOOKAHEAD-1: Added timestamp monotonicity checks to prevent look-ahead bias.
+        """
         # BUG-IND-002: Ensure OHLC arrays are present, aligned, and deterministic.
         if not data:
             return False
@@ -280,6 +283,16 @@ class MTFManager:
                 f"{name} OHLC/timestamps length mismatch: timestamps={len(timestamps)} closes={n}"
             )
             return False
+
+        # FIX LOOKAHEAD-1: Verify timestamps are monotonically non-decreasing
+        # This prevents look-ahead bias from out-of-order bars
+        if len(timestamps) > 1:
+            ts_int = timestamps.view("i8")  # Convert datetime64 to int64 for comparison
+            if not np.all(ts_int[1:] >= ts_int[:-1]):
+                logger.warning(
+                    f"{name} timestamps are not monotonically increasing - potential look-ahead bias"
+                )
+                return False
 
         return True
 
