@@ -11,11 +11,14 @@ Important:
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 PropProfile = Literal["apex", "ftmo"]
 Product = Literal["xauusd", "mgc"]
 Gateway = Literal["rithmic", "tradovate"]
+
+_LOG = logging.getLogger(__name__)
 
 
 def commission_per_side_usd(*, profile: PropProfile, product: Product, gateway: Gateway) -> float:
@@ -23,10 +26,28 @@ def commission_per_side_usd(*, profile: PropProfile, product: Product, gateway: 
 
     Notes:
     - We model commission as "per side". Round turn ~= 2x per-side.
-    - This function is intentionally strict: unsupported combinations raise.
+    - This function models *explicit commissions only*.
+      Do NOT use it to model spread if your feed already contains bid/ask.
+    - The backtest runner can also stress spread via bid/ask widening; charging a
+      spread-proxy here would double-count costs.
+    - Unsupported combinations generally raise, except for conservative
+      fail-open fallbacks which prevent avoidable backtest crashes.
     """
 
     if profile == "apex":
+        # Apex is primarily futures (e.g., MGC). For our XAUUSD spot/CFD dataset,
+        # we treat Apex as having *no explicit commission* and rely on bid/ask + slippage.
+        #
+        # This avoids a common footgun:
+        # - If the feed already contains bid/ask, spread is already paid implicitly.
+        # - If we also model half-spread as "commission" here, we double-charge.
+        if product == "xauusd":
+            _LOG.warning(
+                "[commission_schedule] Fallback: Apex commission requested for product='xauusd'. "
+                "Returning 0.0 (explicit commissions only; spread/slippage modeled elsewhere)."
+            )
+            return 0.0
+
         # Costs as of 2024-2025 for MGC (Micro Gold)
         # Breakdown is per-side (per fill) USD; round turn ~= 2x.
         if product != "mgc":
@@ -37,14 +58,14 @@ def commission_per_side_usd(*, profile: PropProfile, product: Product, gateway: 
             return 1.04  # Exchange $0.52 + NFA $0.02 + Commission $0.50
         raise ValueError(f"Unsupported gateway={gateway!r}")
 
-    # FTMO is FX/CFD, not futures. For CFDs we approximate the spread cost as a
-    # per-side proxy: half-spread in USD (entry/exit).
+    # FTMO is FX/CFD, not futures.
+    # For this project we do NOT encode spread as a commission schedule because the
+    # feed already contains bid/ask. Keep FTMO strict until we define an explicit
+    # broker commission model.
     if profile == "ftmo":
-        if product == "xauusd":
-            # Typical XAUUSD CFD spread assumption: ~$0.30 → half-spread ~$0.15 per side.
-            return 0.15
         raise NotImplementedError(
-            "FTMO commission schedule not implemented for this product; use manual commission_per_contract"
+            "FTMO commission schedule intentionally undefined (avoid spread double-counting). "
+            "Use execution.commission_source=manual with commission_per_contract=0.0 and rely on bid/ask + slippage."
         )
 
     raise ValueError(f"Unsupported profile={profile!r}")

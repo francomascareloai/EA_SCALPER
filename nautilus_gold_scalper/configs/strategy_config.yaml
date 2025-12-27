@@ -80,7 +80,7 @@ execution:
   # Commission per side (USD) for 1 lot/contract.
   # commission_source=schedule only works for MGC (Apex futures).
   # For XAUUSD (forex/CFD simulation), use manual with commission_per_contract.
-  commission_source: manual  # manual | schedule (schedule only for MGC)
+  commission_source: schedule  # manual | schedule (schedule only for MGC)
   commission_profile: apex    # apex | ftmo
   commission_gateway: tradovate  # tradovate | rithmic
   commission_per_contract: 2.5  # Used when commission_source=manual
