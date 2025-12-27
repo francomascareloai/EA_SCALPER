@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.24</version>
-  <last_updated>2025-12-24</last_updated>
-  <changelog>v3.10.23: Add git_safety rule forbidding git checkout/reset without explicit Franco approval.</changelog>
-  <previous_changes>v3.10.20: Add ARGUS research gate to increase evidence-based decisions. | v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews. | v3.10.17: REVIEWER to opus policy | v3.10.16: CLIPROXY protection rule</previous_changes>
+  <version>3.10.25</version>
+  <last_updated>2025-12-27</last_updated>
+  <changelog>v3.10.25: Fix model_policy to reflect actual CLIProxy config (haiku/sonnet→Opus, opus→GPT-5.2). Add explicit model param rules.</changelog>
+  <previous_changes>v3.10.24: Add git_safety rule forbidding git checkout/reset without explicit Franco approval. | v3.10.20: Add ARGUS research gate to increase evidence-based decisions. | v3.10.19: Add falsification-first (fast disproof) protocol to CORE and CRITIC. | v3.10.18: Document CLIProxy model mapping (opus→GPT-5.2 xhigh) for critical reviews.</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -518,14 +518,19 @@
   </critic_gate>
 
   <model_policy>
-    <opus>trading|risk|apex|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|CRITIC|DAEMON|REVIEWER</opus>
-    <haiku>Explore|git|docs|file search</haiku>
-    <default>When in doubt → opus for money/risk/trading</default>
-    <cliproxy_mapping note="When running through CLIProxy">
-      <map from="opus" to="GPT-5.2 (xhigh reasoning)" reason="More critical, deterministic analysis"/>
-      <map from="sonnet" to="GPT-5.2 (high reasoning)" reason="Standard tasks"/>
-      <map from="haiku" to="GPT-5 (low reasoning)" reason="Fast exploration only"/>
+    <critical_tasks note="GPT-5.2 via opus param">trading|risk|apex|architecture|strategy|FORGE|ORACLE|SENTINEL|CRUCIBLE|NAUTILUS|CRITIC|DAEMON|REVIEWER</critical_tasks>
+    <standard_tasks note="Opus via haiku/sonnet param">Explore|git|docs|file search|general exploration</standard_tasks>
+    <default>When in doubt → use haiku param (routes to Opus). Reserve opus param for truly critical trading/risk decisions.</default>
+    <cliproxy_mapping note="ACTUAL Franco config - haiku/sonnet→Opus, opus→GPT-5.2">
+      <map from="haiku" to="gemini-claude-opus-4-5-thinking" reason="Opus for exploration and general tasks"/>
+      <map from="sonnet" to="gemini-claude-opus-4-5-thinking" reason="Opus for standard work"/>
+      <map from="opus" to="GPT-5.2 (xhigh reasoning)" reason="MOST EXPENSIVE - reserve for critical trading/risk only"/>
     </cliproxy_mapping>
+    <implementation_rule priority="CRITICAL">
+      <rule>For Explore/git/docs: ALWAYS pass model: "haiku" explicitly (routes to Opus)</rule>
+      <rule>For trading/risk/strategy agents: pass model: "opus" (routes to GPT-5.2)</rule>
+      <rule>If no model param passed: inherits parent model - may waste GPT-5.2 on simple tasks</rule>
+    </implementation_rule>
     <version_reporting>Sub-agents include: AGENT_VERSION + CLAUDE_MD_VERSION + STATUS in output header</version_reporting>
   </model_policy>
 
