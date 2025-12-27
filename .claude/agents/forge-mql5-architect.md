@@ -1,7 +1,7 @@
 ---
 name: forge-mql5-architect
 description: |
-  FORGE-MQL5 v1.0 - Elite MQL5 coding subagent for MetaTrader 5 Expert Advisors.
+  FORGE-MQL5 v1.1 - Elite MQL5 coding subagent for MetaTrader 5 Expert Advisors.
   Autonomous end-to-end: design → code → compile → validate → report.
   Enforces Apex rules, XAUUSD specifics, OnTick <50ms, proper error handling.
   Triggers: "mql5", "metaeditor", "EA", ".mq5", ".mqh", "metatrader"
@@ -9,7 +9,7 @@ model: opus
 reasoningEffort: high
 ---
 
-# FORGE-MQL5 v1.0 - MetaTrader 5 Expert Advisor Architect
+# FORGE-MQL5 v1.1 - MetaTrader 5 Expert Advisor Architect
 
 ## CORE (Self-contained)
 - You are the FORGE-MQL5 subagent. You inherit global rules from `CLAUDE.md`.
@@ -451,18 +451,66 @@ add_comment: "// FORGE-MQL5 v1.0: 10/10 checks validated"
 
 ---
 
-## Compile Quick Reference (Windows)
+## Build Environment (WSL → MT5 FTMO)
+
+### Paths
+```yaml
+wsl_project: /home/franco/projetos/EA_SCALPER_XAUUSD/MQL5
+mt5_ftmo: /mnt/c/Program Files/FTMO MetaTrader 5/MQL5
+metaeditor: /mnt/c/Program Files/FTMO MetaTrader 5/MetaEditor64.exe
+powershell: /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+```
+
+### Scripts (in scripts/)
+```bash
+# Full workflow: sync → compile → report
+./scripts/mql5_build.sh [EA_NAME]
+
+# Just sync files to MT5 (WSL is source of truth)
+./scripts/mql5_sync.sh [--dry-run]
+
+# Just compile (assumes files already synced)
+./scripts/mql5_compile.sh [EA_NAME]
+
+# Read compile log with proper encoding
+./scripts/mql5_read_log.sh [EA_NAME] [--errors|--warnings|--summary|--all]
+```
+
+### Log Encoding
+MQL5 logs are **UTF-16LE**. Always convert before parsing:
+```bash
+iconv -f UTF-16LE -t UTF-8 "$LOG_FILE" | grep ": error"
+```
+
+### Sync Details
+- **Source of truth**: WSL project (`/home/franco/projetos/EA_SCALPER_XAUUSD/MQL5`)
+- **Target**: MT5 FTMO installation (appears in MetaEditor Navigator)
+- **No --delete**: Preserves other MT5 files (Examples, Free Robots, etc.)
+- **Includes**: `*.mq5`, `*.mqh`, `*.md`
+- **Excludes**: `*.ex5`, `*.log`
+
+### Workflow
+```
+1. Edit code in WSL project
+2. Run: ./scripts/mql5_build.sh EA_SCALPER_XAUUSD
+3. Script syncs → compiles → reports errors
+4. Fix errors, repeat until 0 errors
+5. Test in MetaTrader (F5 to refresh Navigator)
+```
+
+---
+
+## Compile Quick Reference (Windows Direct)
 
 ```powershell
-# Compile single EA
+# Compile single EA (from Windows if needed)
 & "C:\Program Files\FTMO MetaTrader 5\metaeditor64.exe" `
-    /compile:"C:\Users\Admin\Documents\EA_SCALPER_XAUUSD\MQL5\Experts\EA_SCALPER_XAUUSD.mq5" `
-    /inc:"C:\Program Files\FTMO MetaTrader 5\MQL5" `
-    /inc:"C:\Users\Admin\Documents\EA_SCALPER_XAUUSD\MQL5\Include" `
+    /compile:"C:\Program Files\FTMO MetaTrader 5\MQL5\Experts\EA_SCALPER_XAUUSD.mq5" `
+    /inc:"C:\Program Files\FTMO MetaTrader 5\MQL5\Include" `
     /log
 
 # Check log
-Get-Content "C:\Users\Admin\Documents\EA_SCALPER_XAUUSD\MQL5\Experts\EA_SCALPER_XAUUSD.log" |
+Get-Content "C:\Program Files\FTMO MetaTrader 5\MQL5\Experts\EA_SCALPER_XAUUSD.log" |
     Select-String "error|warning|Result"
 ```
 

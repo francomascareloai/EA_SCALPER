@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.26</version>
+  <version>3.10.27</version>
   <last_updated>2025-12-27</last_updated>
-  <changelog>v3.10.26: Add FORGE-MQL5 v1.0 dedicated agent for MetaTrader 5 development. Add route for mql5/EA/metatrader triggers.</changelog>
-  <previous_changes>v3.10.25: Fix model_policy to reflect actual CLIProxy config. | v3.10.24: Add git_safety rule. | v3.10.20: Add ARGUS research gate. | v3.10.19: Add falsification-first protocol.</previous_changes>
+  <changelog>v3.10.27: Add mql5_build section with WSL→MT5 workflow scripts and paths.</changelog>
+  <previous_changes>v3.10.26: Add FORGE-MQL5 v1.0 agent. | v3.10.25: Fix model_policy to reflect actual CLIProxy config. | v3.10.24: Add git_safety rule. | v3.10.20: Add ARGUS research gate.</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -580,6 +580,21 @@
   <exclude>.venv/ | .rag-db/ | data/ | tools/antigravity/ | external/</exclude>
   <rg_default>rg -n -S --glob '!.venv/**' --glob '!.rag-db/**' --glob '!data/**' --glob '!tools/antigravity/**' --glob '!external/**' "pattern" .</rg_default>
 </wsl_cli>
+
+<mql5_build note="WSL → MT5 FTMO compilation workflow">
+  <scripts>
+    <script>./scripts/mql5_build.sh [EA_NAME] - Full workflow: sync → compile → report</script>
+    <script>./scripts/mql5_sync.sh [--dry-run] - Sync files to MT5 (WSL is source of truth)</script>
+    <script>./scripts/mql5_read_log.sh [EA_NAME] [--errors|--warnings|--summary] - Read logs</script>
+  </scripts>
+  <paths>
+    <wsl>/home/franco/projetos/EA_SCALPER_XAUUSD/MQL5</wsl>
+    <mt5>/mnt/c/Program Files/FTMO MetaTrader 5/MQL5</mt5>
+    <metaeditor>/mnt/c/Program Files/FTMO MetaTrader 5/MetaEditor64.exe</metaeditor>
+  </paths>
+  <log_encoding>UTF-16LE → use iconv -f UTF-16LE -t UTF-8</log_encoding>
+  <details ref=".claude/agents/forge-mql5-architect.md">Full build environment docs</details>
+</mql5_build>
 
 <references>
   <doc>DOCS/_INDEX.md (navigation)</doc>
