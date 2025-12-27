@@ -2,20 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-from nautilus_trader.model.events import OrderAccepted, OrderCanceled, OrderRejected, PositionOpened
-from nautilus_trader.model.enums import PositionSide
-from nautilus_trader.model.objects import Price, Quantity
-
 from nautilus_gold_scalper.src.strategies.base_strategy import BaseGoldStrategy, BaseStrategyConfig
-
-
+from nautilus_trader.model.enums import PositionSide
+from nautilus_trader.model.events import OrderAccepted, OrderCanceled, OrderRejected
 from nautilus_trader.model.identifiers import InstrumentId
+from nautilus_trader.model.objects import Price, Quantity
 
 
 class DummyConfig(BaseStrategyConfig):
     # Only what BaseGoldStrategy requires at init-time
     instrument_id = InstrumentId.from_str("XAUUSD.SIM")
+    seed = 42
 
 
 class DummyStrategy(BaseGoldStrategy):
@@ -289,7 +286,7 @@ def test_bracket_sl_confirm_timeout_triggers_failsafe() -> None:
         def as_double(self) -> float:
             return self._v
 
-        def __sub__(self, other: "_Px") -> float:
+        def __sub__(self, other: _Px) -> float:
             return self._v - other._v
 
     class DummyTick:
@@ -366,3 +363,177 @@ def test_position_opened_without_protective_orders_triggers_failsafe() -> None:
     assert s.canceled is True
     assert s._is_trading_allowed is False
     assert s._trading_blocked_today is True
+
+
+def test_entry_stages_protection_before_submit_order() -> None:
+    """Regression: IOC market order can fill synchronously in backtests.
+
+    Ensure `_pending_sl/_pending_tp` are staged *before* `submit_order()`.
+    """
+
+    class _Order:
+        def __init__(self, client_order_id: str) -> None:
+            self.client_order_id = client_order_id
+
+    class _StubOrderFactory:
+        def market(self, **_kwargs: Any) -> _Order:
+            return _Order("ENTRY")
+
+    class ImmediateFillStrategy(DummyStrategy):
+        def __init__(self) -> None:
+            super().__init__()
+            self._saw_submit = False
+
+        @property
+        def order_factory(self) -> Any:  # pragma: no cover
+            return _StubOrderFactory()
+
+        def submit_order(self, _order: Any) -> None:  # type: ignore[override]
+            # This is the critical assertion: protection must already be staged.
+            assert self._pending_sl is not None
+            self._saw_submit = True
+
+    s = ImmediateFillStrategy()
+
+    s._enter_long(
+        quantity=Quantity.from_int(1),
+        sl_price=Price.from_str("1.0"),
+        tp_price=Price.from_str("2.0"),
+    )
+
+    assert s._saw_submit is True
+    assert s._execution_failsafe_triggered is False
+    assert s._is_trading_allowed is True
+    assert s._trading_blocked_today is False
+
+
+def test_sl_reject_during_forced_flatten_does_not_trigger_failsafe() -> None:
+    s = DummyStrategy()
+    _set_min_position(s)
+
+    # Forced flatten can cause SL/TP to be rejected/canceled by the engine/venue. This should
+    # not recursively trigger FAILSAFE again.
+    s._forcing_flatten = True  # type: ignore[attr-defined]
+    s._bracket_sl_client_order_id = "SL"
+
+    evt = _event(OrderRejected, client_order_id="SL", reason="reject")
+    s.on_order_rejected(evt)
+
+    assert s._execution_failsafe_triggered is False
+    assert s.closed is False
+    assert s.canceled is False
+    assert s._is_trading_allowed is True
+    assert s._trading_blocked_today is False
+
+
+def test_sl_cancel_during_forced_flatten_does_not_trigger_failsafe() -> None:
+    s = DummyStrategy()
+    _set_min_position(s)
+
+    s._forcing_flatten = True  # type: ignore[attr-defined]
+    s._bracket_sl_client_order_id = "SL"
+
+    evt = _event(OrderCanceled, client_order_id="SL", ts_event=1)
+    s.on_order_canceled(evt)
+
+    assert s._execution_failsafe_triggered is False
+    assert s.closed is False
+    assert s.canceled is False
+    assert s._is_trading_allowed is True
+    assert s._trading_blocked_today is False
+
+
+def test_failsafe_flatten_retry_is_throttled_by_interval() -> None:
+    class CaptureCloseStrategy(DummyStrategy):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_kwargs: list[dict[str, Any]] = []
+
+        def close_all_positions(self, *_args: Any, **kwargs: Any) -> None:  # type: ignore[override]
+            self.close_kwargs.append(dict(kwargs))
+            super().close_all_positions(*_args, **kwargs)
+
+    s = CaptureCloseStrategy()
+    _set_min_position(s)
+
+    s._failsafe_close_retry_interval_ns = 10
+    s._failsafe_close_max_attempts = 10
+    s._failsafe_close_retry_count = 0
+    s._failsafe_close_last_attempt_ts_ns = None
+
+    s._attempt_failsafe_flatten(now_ts_ns=100)
+    assert len(s.close_kwargs) == 1
+
+    # Within retry interval -> no new attempt
+    s._attempt_failsafe_flatten(now_ts_ns=105)
+    assert len(s.close_kwargs) == 1
+
+    # After retry interval -> next attempt
+    s._attempt_failsafe_flatten(now_ts_ns=110)
+    assert len(s.close_kwargs) == 2
+
+    assert s.close_kwargs[0].get("reduce_only") is True
+
+
+def test_failsafe_flatten_stops_after_max_attempts() -> None:
+    class CaptureCloseStrategy(DummyStrategy):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_calls = 0
+
+        def close_all_positions(self, *_args: Any, **_kwargs: Any) -> None:  # type: ignore[override]
+            self.close_calls += 1
+            super().close_all_positions(*_args, **_kwargs)
+
+    s = CaptureCloseStrategy()
+    _set_min_position(s)
+
+    s._failsafe_close_retry_interval_ns = 0
+    s._failsafe_close_max_attempts = 2
+    s._failsafe_close_retry_count = 0
+    s._failsafe_close_last_attempt_ts_ns = None
+
+    s._attempt_failsafe_flatten(now_ts_ns=100)
+    s._attempt_failsafe_flatten(now_ts_ns=101)
+    s._attempt_failsafe_flatten(now_ts_ns=102)
+
+    assert s.close_calls == 2
+
+
+def test_failsafe_does_not_crash_if_close_all_positions_throws() -> None:
+    class CloseRaisesStrategy(DummyStrategy):
+        def close_all_positions(self, *_args: Any, **_kwargs: Any) -> None:  # type: ignore[override]
+            raise RuntimeError("boom")
+
+    s = CloseRaisesStrategy()
+    _set_min_position(s)
+
+    s._trigger_execution_failsafe(reason="test")
+
+    assert s._execution_failsafe_triggered is True
+    assert s._is_trading_allowed is False
+    assert s._trading_blocked_today is True
+
+
+def test_on_bar_attempts_flatten_when_failsafe_triggered() -> None:
+    class CaptureCloseStrategy(DummyStrategy):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_calls = 0
+
+        def close_all_positions(self, *_args: Any, **_kwargs: Any) -> None:  # type: ignore[override]
+            self.close_calls += 1
+            super().close_all_positions(*_args, **_kwargs)
+
+    s = CaptureCloseStrategy()
+    _set_min_position(s)
+    s._execution_failsafe_triggered = True
+
+    class DummyBar:
+        def __init__(self) -> None:
+            self.ts_event = 123
+            self.bar_type = None
+            self.is_revision = False
+
+    s.on_bar(DummyBar())  # type: ignore[arg-type]
+    assert s.close_calls == 1

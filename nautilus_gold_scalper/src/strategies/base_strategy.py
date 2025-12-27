@@ -19,9 +19,14 @@ from typing import Any, Literal
 try:
     from nautilus_trader.config import StrategyConfig as NautilusStrategyConfig
 except ImportError:  # mypy/CI environments may not have NautilusTrader stubs
+    from typing import Any as _Any
 
     class NautilusStrategyConfig:  # type: ignore[no-redef]
-        pass
+        """Dummy fallback for environments without NautilusTrader."""
+
+        def __init_subclass__(cls, **kwargs: _Any) -> None:
+            # Accept kw_only, frozen, etc. kwargs that msgspec.Struct uses
+            super().__init_subclass__()
 
 
 from nautilus_trader.core.message import Event
@@ -65,10 +70,13 @@ from ..core.definitions import (
 )
 
 
-class BaseStrategyConfig(NautilusStrategyConfig):  # type: ignore[misc]
+class BaseStrategyConfig(NautilusStrategyConfig, kw_only=True):  # type: ignore[misc,call-arg]
     """Base configuration for gold scalping strategies."""
 
     instrument_id: InstrumentId
+
+    # Determinism: used to seed per-strategy RNG for any randomized logic.
+    seed: int = 42
 
     # Multi-timeframe bar types
     htf_bar_type: BarType | None = None  # H1 - Direction
@@ -136,6 +144,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
     def __init__(self, config: BaseStrategyConfig):
         super().__init__(config=config)
 
+        # Determinism: avoid global RNG state for any randomized strategy logic.
+        self._rng = random.Random(int(getattr(config, "seed", 42)))
+
         self.instrument: Instrument | None = None
 
         # Bar storage
@@ -151,6 +162,12 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._equity_base: float = float(getattr(config, "account_balance", 100_000.0))
         self._tick_counter: int = 0
 
+        # Latest market timestamp (ns) for deterministic time-based guards.
+        # NOTE: must exist even in unit tests which don't call on_start().
+        self._last_market_ts_ns: int | None = None
+        self._last_tick_ts_ns: int | None = None
+        self._last_tick_dt: datetime | None = None
+
         # Pending SL/TP for position management
         self._pending_sl: Price | None = None
         self._pending_tp: Price | None = None
@@ -160,6 +177,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._entry_terminal_ts_ns: int | None = None
         self._entry_terminal_reason: str | None = None
         self._bracket_sl_client_order_id: str | None = None
+        self._bracket_sl_order_id: ClientOrderId | None = None
         self._bracket_tp_client_order_id: str | None = None
         self._bracket_sl_confirmed: bool = False
         self._bracket_tp_confirmed: bool = False
@@ -173,6 +191,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._trading_blocked_today: bool = False
         self._position_opened_ts_ns: int | None = None
 
+        # Fail-safe flatten retry (hostile execution can reject a single close attempt).
+        self._failsafe_close_retry_count: int = 0
+        self._failsafe_close_last_attempt_ts_ns: int | None = None
+        self._failsafe_close_retry_interval_ns: int = int(
+            getattr(config, "failsafe_close_retry_interval_ns", 2_000_000_000)
+        )
+        self._failsafe_close_max_attempts: int = int(
+            getattr(config, "failsafe_close_max_attempts", 10)
+        )
+
         # Current analysis results
         self._current_regime: RegimeAnalysis | None = None
         self._current_session: SessionInfo | None = None
@@ -182,6 +210,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         # Signal generation thresholds
         self._min_bars_for_signal: int = 50  # Minimum bars required for signal generation
+
+        # DD telemetry tracking (for dd_snapshot emission on new max)
+        self._telemetry_max_total_dd_pct: float = 0.0
+        self._telemetry_max_daily_dd_pct: float = 0.0
 
     # ========== Lifecycle Methods ==========
 
@@ -210,9 +242,6 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Subscribe to quote ticks for spread monitoring
         self.subscribe_quote_ticks(self.config.instrument_id)
 
-        # Latest market timestamp (ns) for deterministic time-based guards
-        self._last_market_ts_ns: int | None = None
-
         # Daily resets are handled using event timestamps (ET) to keep backtests deterministic.
         # Do not rely on wall-clock timers here.
 
@@ -226,8 +255,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Cancel all pending orders FIRST (including SL/TP) to avoid orphaned orders
         self.cancel_all_orders(self.config.instrument_id)
 
-        # Then close all open positions
-        self.close_all_positions(self.config.instrument_id)
+        # Then close all open positions (reduce_only=True ensures we never open new positions)
+        self.close_all_positions(self.config.instrument_id, reduce_only=True)
 
         # Unsubscribe from data
         if self.config.ltf_bar_type:
@@ -314,14 +343,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             f"[DAILY_RESET] _is_trading_allowed = {self._is_trading_allowed} (daily reset)"
         )
 
+        # Compute tick_dt once for all reset operations
+        try:
+            tick_dt = datetime.fromtimestamp(
+                int(getattr(event, "ts_event", 0) or 0) / 1e9, tz=timezone.utc
+            )
+        except Exception:
+            tick_dt = None
+
         # Reset PropFirmManager daily counters (if exists)
         if getattr(self, "_prop_firm", None):
-            try:
-                tick_dt = datetime.fromtimestamp(
-                    int(getattr(event, "ts_event", 0) or 0) / 1e9, tz=timezone.utc
-                )
-            except Exception:
-                tick_dt = None
             try:
                 self._prop_firm.on_new_day(
                     current_equity=float(getattr(self, "_equity_base", 0.0)), now=tick_dt
@@ -351,10 +382,19 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Reset CircuitBreaker daily metrics (if applicable)
         if getattr(self, "_circuit_breaker", None):
             try:
+                # Push current equity update before reset to anchor daily_start_equity correctly
+                # This ensures DD tracking is accurate even when flat at day boundary
+                self._circuit_breaker.update_equity(self._equity_base, now=tick_dt)
                 self._circuit_breaker.reset_daily(now=tick_dt)
                 self.log.info("CircuitBreaker daily metrics reset")
             except Exception as exc:
                 self.log.warning(f"Failed to reset CircuitBreaker: {type(exc).__name__}: {exc}")
+
+        # Reset daily DD telemetry max tracker (for dd_snapshot emission)
+        # IMPORTANT: Only reset daily max, NOT total (session) max
+        # Trailing DD is from session HWM and should NOT reset on daily boundary
+        self._telemetry_max_daily_dd_pct = 0.0
+        # Do NOT reset: self._telemetry_max_total_dd_pct (session-level metric)
 
         self.log.info("Daily reset complete")
 
@@ -370,6 +410,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # WP0: maintain a deterministic market timestamp even if quote ticks stall.
         self._last_market_ts_ns = int(bar.ts_event)
         self._finalize_entry_terminal_if_safe(int(bar.ts_event))
+        if self._execution_failsafe_triggered and self._position is not None:
+            self._attempt_failsafe_flatten(now_ts_ns=int(bar.ts_event))
 
         # Debug logging only (avoid stdout prints in hot path)
         total_bars = len(self._ltf_bars) + len(self._mtf_bars) + len(self._htf_bars)
@@ -437,14 +479,28 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
     def on_quote_tick(self, tick: QuoteTick) -> None:
         """Process quote tick for spread monitoring."""
+        tick_ts_ns = int(tick.ts_event)
+        self._last_market_ts_ns = tick_ts_ns
+
+        # Cache datetime conversion (hot path).
+        now_dt = self._last_tick_dt
+        if now_dt is None or self._last_tick_ts_ns != tick_ts_ns:
+            now_dt = datetime.fromtimestamp(tick_ts_ns / 1e9, tz=timezone.utc)
+            self._last_tick_dt = now_dt
+            self._last_tick_ts_ns = tick_ts_ns
+
         if not self.instrument:
             return
 
-        self._last_market_ts_ns = int(tick.ts_event)
-        self._finalize_entry_terminal_if_safe(int(tick.ts_event))
+        self._finalize_entry_terminal_if_safe(tick_ts_ns)
+        if self._execution_failsafe_triggered and self._position is not None:
+            self._attempt_failsafe_flatten(now_ts_ns=int(tick.ts_event))
 
+        inst = self.instrument
+        # Hot path: keep numeric conversions local and avoid repeated attribute lookups.
         spread = float(tick.ask_price - tick.bid_price)
-        spread_points = int(spread / self.instrument.price_increment)
+        price_inc = float(inst.price_increment)
+        spread_points = int(spread / price_inc)
 
         if spread_points > self.config.max_spread_points:
             if self.config.debug_mode:
@@ -461,7 +517,15 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             # Some venues/backtest engines may not emit OrderAccepted for stop orders
             # until triggered. Treat presence in cache as confirmation.
             try:
-                sl_order = self.cache.order(ClientOrderId(self._bracket_sl_client_order_id))
+                if self._bracket_sl_order_id is None:
+                    bracket_id = self._bracket_sl_client_order_id
+                    if bracket_id is None:
+                        sl_order = None
+                    else:
+                        self._bracket_sl_order_id = ClientOrderId(bracket_id)
+                        sl_order = self.cache.order(self._bracket_sl_order_id)
+                else:
+                    sl_order = self.cache.order(self._bracket_sl_order_id)
             except Exception:
                 sl_order = None
             if sl_order is not None:
@@ -489,7 +553,11 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         equity = self._compute_equity_from_tick(tick)
         if equity is None:
             return
-        now_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
+        now_dt = self._last_tick_dt
+        if now_dt is None:
+            now_dt = datetime.fromtimestamp(tick_ts_ns / 1e9, tz=timezone.utc)
+            self._last_tick_dt = now_dt
+            self._last_tick_ts_ns = tick_ts_ns
 
         # Intrabar drawdown monitoring (mark-to-market)
         if getattr(self, "_drawdown_tracker", None) and self._position:
@@ -525,6 +593,42 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 self._circuit_breaker.update_equity(equity, now=now_dt)
                 cb_state = self._circuit_breaker.get_state()
 
+                # Emit dd_snapshot telemetry when a new max DD is reached
+                # This supplements circuit_state (which only fires on level change)
+                # and ensures Apex DD validation never misses peak DD values.
+                telemetry = getattr(self, "_telemetry", None)
+                if telemetry and getattr(self.config, "telemetry_capture_circuit", True):
+                    emit_snapshot = False
+                    total_dd_pct = float(cb_state.total_dd_percent)
+                    daily_dd_pct = float(cb_state.daily_dd_percent)
+
+                    # Emit when total_dd exceeds previous max by > 1e-6
+                    if total_dd_pct > self._telemetry_max_total_dd_pct + 1e-6:
+                        self._telemetry_max_total_dd_pct = total_dd_pct
+                        emit_snapshot = True
+
+                    # Emit when daily_dd exceeds previous max by > 1e-6
+                    if daily_dd_pct > self._telemetry_max_daily_dd_pct + 1e-6:
+                        self._telemetry_max_daily_dd_pct = daily_dd_pct
+                        emit_snapshot = True
+
+                    if emit_snapshot:
+                        snapshot_payload: dict[str, object] = {
+                            "ts": now_dt.isoformat(),
+                            "equity": equity,
+                            "daily_dd": daily_dd_pct,
+                            "total_dd": total_dd_pct,
+                            "source": "circuit_breaker",
+                        }
+                        # Include peak_equity and daily_start_equity if available
+                        if hasattr(cb_state, "peak_equity"):
+                            snapshot_payload["peak_equity"] = float(cb_state.peak_equity)
+                        if hasattr(cb_state, "daily_start_equity"):
+                            snapshot_payload["daily_start_equity"] = float(
+                                cb_state.daily_start_equity
+                            )
+                        telemetry.emit("dd_snapshot", snapshot_payload)
+
                 if cb_state.level >= CircuitBreakerLevel.LEVEL_4_CRITICAL:
                     self._trigger_execution_failsafe(
                         reason=f"circuit_breaker_lockdown:{cb_state.level.name}"
@@ -557,6 +661,14 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self._trigger_execution_failsafe(reason="position_opened_but_cache_position_missing")
             return
 
+        # Entry lock: once a position is opened (and cache resolved), clear the pending entry gate.
+        # Keep local copies for diagnostics before clearing.
+        entry_cid_at_open = self._entry_client_order_id
+        entry_terminal_reason_at_open = self._entry_terminal_reason
+        self._entry_client_order_id = None
+        self._entry_terminal_ts_ns = None
+        self._entry_terminal_reason = None
+
         self.log.info(
             f"Position OPENED: {self._position.side} "
             f"@ {self._position.avg_px_open} "
@@ -576,6 +688,17 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 return
         else:
             # WP0: Never allow an open position without protective orders staged.
+            opening_oid = getattr(event, "opening_order_id", None)
+            try:
+                self.log.error(
+                    f"[WP0] Position opened without staged protection: "
+                    f"opening_order_id={str(opening_oid) if opening_oid is not None else None} "
+                    f"entry_client_order_id={entry_cid_at_open} "
+                    f"entry_terminal_reason={entry_terminal_reason_at_open}"
+                )
+            except Exception:
+                # Never let diagnostics break the WP0 fail-closed invariant.
+                pass
             self._trigger_execution_failsafe(reason="position_opened_without_protective_orders")
             return
 
@@ -726,10 +849,20 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             # Update drawdown tracker with realized PnL
             if getattr(self, "_drawdown_tracker", None):
                 ts_ns = getattr(event, "ts_event", None)
+                if not (isinstance(ts_ns, int) and ts_ns > 0):
+                    ts_ns = self._last_market_ts_ns
+
+                now_dt: datetime | None
                 if isinstance(ts_ns, int) and ts_ns > 0:
                     now_dt = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
                 else:
-                    now_dt = datetime.now(timezone.utc)
+                    # Determinism fallback: reuse last known tracker timestamp if available.
+                    try:
+                        last = self._drawdown_tracker.get_history(last_n=1)
+                        now_dt = last[0].timestamp if last else None
+                    except Exception:
+                        now_dt = None
+
                 analysis = self._drawdown_tracker.update(self._equity_base, pnl=net_pnl, now=now_dt)
                 self._apply_drawdown_limits(analysis)
 
@@ -737,11 +870,15 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             if getattr(self, "_prop_firm", None):
                 try:
                     ts_ns = getattr(event, "ts_event", None)
+                    if not (isinstance(ts_ns, int) and ts_ns > 0):
+                        ts_ns = self._last_market_ts_ns
+
                     prop_event_dt: datetime | None
                     if isinstance(ts_ns, int) and ts_ns > 0:
                         prop_event_dt = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
                     else:
                         prop_event_dt = None
+
                     self._prop_firm.register_trade_close(
                         contracts=qty,
                         profit=net_pnl,
@@ -755,11 +892,19 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             if getattr(self, "_circuit_breaker", None):
                 try:
                     ts_ns = getattr(event, "ts_event", None)
+                    if not (isinstance(ts_ns, int) and ts_ns > 0):
+                        ts_ns = self._last_market_ts_ns
+
                     cb_event_dt: datetime | None
                     if isinstance(ts_ns, int) and ts_ns > 0:
                         cb_event_dt = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
                     else:
                         cb_event_dt = None
+
+                    # Update equity with realized balance BEFORE registering trade result
+                    # This keeps DD consistent after position close (no unrealized component).
+                    self._circuit_breaker.update_equity(self._equity_base, now=cb_event_dt)
+
                     self._circuit_breaker.register_trade_result(
                         pnl=net_pnl, is_win=net_pnl > 0, now=cb_event_dt
                     )
@@ -779,6 +924,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                         or getattr(event, "ts_last", None)
                         or getattr(event, "ts_opened", None)
                     )
+                    if not (isinstance(ts_ns, int) and ts_ns > 0):
+                        ts_ns = self._last_market_ts_ns
+
                     hbs_event_dt: datetime | None
                     if isinstance(ts_ns, int) and ts_ns > 0:
                         hbs_event_dt = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc)
@@ -829,8 +977,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self, quantity: Quantity, sl_price: Price | None = None, tp_price: Price | None = None
     ) -> None:
         """Enter a long position."""
-        if self._position is not None:
-            self.log.warning("Cannot enter long - position already exists")
+        if self._position is not None or self._entry_client_order_id is not None:
+            self.log.warning("Cannot enter long - position already exists or entry pending")
             return
 
         # Partial fill simulation (single source of truth: _simulate_partial_fill)
@@ -840,6 +988,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.log.warning("Partial fill simulation resulted in zero quantity; skipping order")
             return
 
+        # WP0: Never allow an entry without an SL staged.
+        if sl_price is None:
+            self.log.error("[WP0] Refusing to enter LONG without SL price")
+            return
+
+        # Queue SL/TP orders BEFORE submitting the entry order.
+        # In simulated/backtest execution, an IOC market order may fill synchronously and
+        # immediately trigger `on_position_opened` during `submit_order()`. If we stage after
+        # `submit_order`, the position can open without protection and triggers a failsafe.
+        self._pending_sl = sl_price
+        self._pending_tp = tp_price
+
         # Create market order
         order = self.order_factory.market(
             instrument_id=self.config.instrument_id,
@@ -847,16 +1007,20 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             quantity=quantity,
             time_in_force=TimeInForce.IOC,
         )
-        self.submit_order(order)
 
         # Track entry order id (for IOC reject/cancel cleanup)
         self._entry_client_order_id = str(order.client_order_id)
         self._entry_terminal_ts_ns = None
         self._entry_terminal_reason = None
 
-        # Queue SL/TP orders if provided (handled in on_position_opened)
-        self._pending_sl = sl_price
-        self._pending_tp = tp_price
+        try:
+            self.submit_order(order)
+        except Exception as exc:
+            # If entry submission failed, clear staged protection so it can't leak to the next attempt.
+            self._clear_pending_orders_and_brackets(
+                reason=f"entry_submit_failed:{type(exc).__name__}"
+            )
+            raise
 
         self.log.info(f"Entering LONG with qty={quantity} (entry_id={self._entry_client_order_id})")
 
@@ -864,8 +1028,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self, quantity: Quantity, sl_price: Price | None = None, tp_price: Price | None = None
     ) -> None:
         """Enter a short position."""
-        if self._position is not None:
-            self.log.warning("Cannot enter short - position already exists")
+        if self._position is not None or self._entry_client_order_id is not None:
+            self.log.warning("Cannot enter short - position already exists or entry pending")
             return
 
         # Partial fill simulation (single source of truth: _simulate_partial_fill)
@@ -875,21 +1039,35 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             self.log.warning("Partial fill simulation resulted in zero quantity; skipping order")
             return
 
+        # WP0: Never allow an entry without an SL staged.
+        if sl_price is None:
+            self.log.error("[WP0] Refusing to enter SHORT without SL price")
+            return
+
+        # Queue SL/TP orders BEFORE submitting the entry order.
+        # See `_enter_long` for rationale (synchronous fills in backtest/sim).
+        self._pending_sl = sl_price
+        self._pending_tp = tp_price
+
         order = self.order_factory.market(
             instrument_id=self.config.instrument_id,
             order_side=OrderSide.SELL,
             quantity=quantity,
             time_in_force=TimeInForce.IOC,
         )
-        self.submit_order(order)
 
         # Track entry order id (for IOC reject/cancel cleanup)
         self._entry_client_order_id = str(order.client_order_id)
         self._entry_terminal_ts_ns = None
         self._entry_terminal_reason = None
 
-        self._pending_sl = sl_price
-        self._pending_tp = tp_price
+        try:
+            self.submit_order(order)
+        except Exception as exc:
+            self._clear_pending_orders_and_brackets(
+                reason=f"entry_submit_failed:{type(exc).__name__}"
+            )
+            raise
 
         self.log.info(
             f"Entering SHORT with qty={quantity} (entry_id={self._entry_client_order_id})"
@@ -900,7 +1078,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if self._position is None:
             return
 
-        self.close_position(self._position)
+        # reduce_only=True ensures close intents never flip into a new position.
+        self.close_position(self._position, reduce_only=True)
         self.log.info("Closing position")
 
     def _finalize_entry_terminal_if_safe(self, now_ts_ns: int) -> None:
@@ -928,6 +1107,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._entry_terminal_ts_ns = None
         self._entry_terminal_reason = None
         self._bracket_sl_client_order_id = None
+        self._bracket_sl_order_id = None
         self._bracket_tp_client_order_id = None
         self._bracket_sl_confirmed = False
         self._bracket_tp_confirmed = False
@@ -949,6 +1129,8 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if self._execution_failsafe_triggered:
             return
         self._execution_failsafe_triggered = True
+        self._failsafe_close_retry_count = 0
+        self._failsafe_close_last_attempt_ts_ns = None
 
         self.log.error(f"[FAILSAFE] {reason} -> cancel_all_orders + close_all_positions + HALT")
         try:
@@ -956,25 +1138,43 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         except Exception as exc:
             self.log.debug(f"[FAILSAFE] cancel_all_orders failed: {type(exc).__name__}: {exc}")
 
-        # BUG-13 FIX: Try with reduce_only=True first, then False as fallback
+        self._attempt_failsafe_flatten(now_ts_ns=self._last_market_ts_ns)
+
+        self._is_trading_allowed = False
+        self._trading_blocked_today = True
+
+        self._clear_pending_orders_and_brackets(reason=reason)
+
+    def _attempt_failsafe_flatten(self, *, now_ts_ns: int | None) -> None:
+        if self._position is None:
+            return
+
+        if now_ts_ns is not None:
+            if (
+                self._failsafe_close_last_attempt_ts_ns is not None
+                and (now_ts_ns - self._failsafe_close_last_attempt_ts_ns)
+                < self._failsafe_close_retry_interval_ns
+            ):
+                return
+            self._failsafe_close_last_attempt_ts_ns = int(now_ts_ns)
+
+        if self._failsafe_close_retry_count >= self._failsafe_close_max_attempts:
+            self.log.error(
+                f"[FAILSAFE] flatten attempts exceeded max={self._failsafe_close_max_attempts}; giving up"
+            )
+            return
+
+        self._failsafe_close_retry_count += 1
+        self.log.error(
+            f"[FAILSAFE] flatten attempt #{self._failsafe_close_retry_count} (reduce_only=True)"
+        )
+
         try:
             self.close_all_positions(self.config.instrument_id, reduce_only=True)
         except Exception as exc:
             self.log.debug(
                 f"[FAILSAFE] close_all_positions (reduce_only=True) failed: {type(exc).__name__}: {exc}"
             )
-            try:
-                # Fallback: force close without reduce_only restriction
-                self.close_all_positions(self.config.instrument_id, reduce_only=False)
-            except Exception as exc2:
-                self.log.debug(
-                    f"[FAILSAFE] close_all_positions (reduce_only=False) failed: {type(exc2).__name__}: {exc2}"
-                )
-
-        self._is_trading_allowed = False
-        self._trading_blocked_today = True
-
-        self._clear_pending_orders_and_brackets(reason=reason)
 
     def on_order_rejected(self, event: OrderRejected) -> None:
         # Entry rejected: clear pending brackets if no position was opened.
@@ -1102,6 +1302,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             )
             self.submit_order(sl_order)
             self._bracket_sl_client_order_id = str(sl_order.client_order_id)
+            self._bracket_sl_order_id = sl_order.client_order_id
             self.log.info(
                 f"SL order submitted @ {self._pending_sl} (id={self._bracket_sl_client_order_id})"
             )
@@ -1212,6 +1413,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # BUG-FIX: If submit_order fails, position would be left without SL protection
         self._bracket_sl_confirmed = False
         self._bracket_sl_client_order_id = str(new_sl_order.client_order_id)
+        self._bracket_sl_order_id = new_sl_order.client_order_id
 
         try:
             self.submit_order(new_sl_order)
@@ -1256,7 +1458,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 fill_ratio *= max(0.3, 1.0 - 0.2 * vol_factor)
 
         # Optional partial fill probability
-        if cfg_prob > 0 and random.random() < cfg_prob:
+        if cfg_prob > 0 and self._rng.random() < cfg_prob:
             fill_ratio *= cfg_ratio
 
         # Fill rejection modeled by spread + base
@@ -1266,7 +1468,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         elif fill_model == "immediate":
             reject_prob = 0.0
 
-        if reject_prob > 0 and random.random() < reject_prob:
+        if reject_prob > 0 and self._rng.random() < reject_prob:
             self.log.warning(
                 f'{{"event":"fill_reject","side":"{side}","spread_ratio":{spread_ratio:.2f},"reject_prob":{reject_prob:.2f}}}'
             )
@@ -1325,26 +1527,30 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         # Formula: unrealized_usd = (exit_px - entry_px) * qty_units * point_value
         # Example (LONG): entry=2000.0, bid=2000.5, qty=1.0, point_value=1.0 -> +$0.50
-        def _as_float(v: object) -> float:
-            if hasattr(v, "as_double"):
-                try:
-                    return float(v.as_double())
-                except Exception:
-                    return float(v)  # type: ignore[arg-type]
-            return float(v)  # type: ignore[arg-type]
+        pos = self._position
 
-        entry = _as_float(getattr(self._position, "avg_px_open", 0.0))
-        qty = _as_float(getattr(self._position, "quantity", 0.0))
+        entry_obj = getattr(pos, "avg_px_open", 0.0)
+        qty_obj = getattr(pos, "quantity", 0.0)
+        entry = (
+            float(entry_obj.as_double()) if hasattr(entry_obj, "as_double") else float(entry_obj)
+        )
+        qty = float(qty_obj.as_double()) if hasattr(qty_obj, "as_double") else float(qty_obj)
         point_value = float(self._instrument_point_value_per_unit())
 
         # Conservative mark-to-market (Apex HWM trap defense):
         # - LONG exits at BID
         # - SHORT exits at ASK
-        if self._position.side == PositionSide.LONG:
-            exit_px = _as_float(getattr(tick, "bid_price", 0.0))
+        if pos.side == PositionSide.LONG:
+            bid_obj = getattr(tick, "bid_price", 0.0)
+            exit_px = (
+                float(bid_obj.as_double()) if hasattr(bid_obj, "as_double") else float(bid_obj)
+            )
             unrealized = (exit_px - entry) * qty * point_value
         else:
-            exit_px = _as_float(getattr(tick, "ask_price", 0.0))
+            ask_obj = getattr(tick, "ask_price", 0.0)
+            exit_px = (
+                float(ask_obj.as_double()) if hasattr(ask_obj, "as_double") else float(ask_obj)
+            )
             unrealized = (entry - exit_px) * qty * point_value
 
         equity = float(self._equity_base + unrealized)

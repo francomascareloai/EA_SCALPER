@@ -408,6 +408,12 @@ class GoldScalperConfig(BaseStrategyConfig):  # type: ignore[misc, unused-ignore
     spread_history_size: int = 200
     spread_update_interval: int = 1
     spread_pip_factor: float = 10.0
+    spread_warmup_block_trading: bool = False
+
+    # EDGE-1: Gap cooldown after market reopen / data gaps
+    gap_reopen_threshold_minutes: float = 30.0
+    gap_reopen_cooldown_minutes: float = 15.0
+
     time_warning_et: str = "16:00"
     time_urgent_et: str = "16:30"
     time_emergency_et: str = "16:55"
@@ -503,6 +509,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         # Phase 11 safety layer components (entry-only)
         self._last_entry_ts_ns: int | None = None
+        # FIX EDGE-2: Track last event timestamp to detect regressive timestamps
+        self._last_event_ts_ns: int = 0
+        # EDGE-1: Gap cooldown after market reopen / data gaps
+        self._gap_last_seen_ts_ns: int = 0
+        self._gap_cooldown_until_ts_ns: int | None = None
         self._news_size_mult: float = 1.0
         self._dow_size_mult: float = 1.0  # Day-of-week size adjustment (FORGE-NAUTILUS Wave 2)
         self._spread_monitor: SpreadMonitor | None = None
@@ -1003,6 +1014,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             max_spread_pips=float(self.config.max_spread_pips),
             update_interval=int(self.config.spread_update_interval),
             pip_factor=float(self.config.spread_pip_factor),
+            warmup_block_trading=bool(getattr(self.config, "spread_warmup_block_trading", False)),
         )
 
         # Apex time cutoff manager
@@ -1339,6 +1351,9 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
 
         if not hasattr(self, "_last_reset_date"):
             self._last_reset_date = current_date_et
+            # EDGE-1: Initialize gap guard state on first tick/bar
+            self._gap_cooldown_until_ts_ns = None
+            self._gap_last_seen_ts_ns = int(timestamp_ns)
             return
 
         if current_date_et != self._last_reset_date:
@@ -1359,6 +1374,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # Re-enable trading for the new day
             self._is_trading_allowed = True
             self._trading_blocked_today = False
+
+            # EDGE-1: Reset gap guard for new ET trading day
+            self._gap_cooldown_until_ts_ns = None
+            self._gap_last_seen_ts_ns = int(timestamp_ns)
+
             self.log.info(
                 f"[DAILY_RESET] trading_allowed={self._is_trading_allowed} (lifted prior cutoff/blocks)"
             )
@@ -1456,16 +1476,17 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             return np.array([], dtype=dtype)
 
         slice_bars = bars[-max_bars_i:]
+        count = len(slice_bars)
 
         if field == "open":
-            return np.fromiter((b.open.as_double() for b in slice_bars), dtype=dtype)
+            return np.fromiter((b.open.as_double() for b in slice_bars), dtype=dtype, count=count)
         if field == "high":
-            return np.fromiter((b.high.as_double() for b in slice_bars), dtype=dtype)
+            return np.fromiter((b.high.as_double() for b in slice_bars), dtype=dtype, count=count)
         if field == "low":
-            return np.fromiter((b.low.as_double() for b in slice_bars), dtype=dtype)
+            return np.fromiter((b.low.as_double() for b in slice_bars), dtype=dtype, count=count)
         if field == "close":
-            return np.fromiter((b.close.as_double() for b in slice_bars), dtype=dtype)
-        return np.fromiter((b.volume.as_double() for b in slice_bars), dtype=dtype)
+            return np.fromiter((b.close.as_double() for b in slice_bars), dtype=dtype, count=count)
+        return np.fromiter((b.volume.as_double() for b in slice_bars), dtype=dtype, count=count)
 
     def _on_htf_bar(self, bar: Bar) -> None:
         """Process H1 bar - Update directional bias."""
@@ -1479,10 +1500,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         if len(closes) < 50:
             return
 
+        slice_bars = self._htf_bars[-200:]
         timestamps = np.fromiter(
-            (int(b.ts_event) for b in self._htf_bars[-200:]),
+            (int(b.ts_event) for b in slice_bars),
             dtype=np.int64,
-        ).astype("datetime64[ns]")
+            count=len(slice_bars),
+        ).view("datetime64[ns]")
 
         # Analyze structure for bias
         state = self._structure_analyzer.analyze(highs, lows, closes, timestamps)
@@ -1729,6 +1752,38 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             # apply conservative size/score adjustments
             self._news_size_mult = max(news_window.size_multiplier, 0.0)
 
+        # EDGE-1: Gap cooldown after market reopen / data gaps
+        gap_threshold_ns = int(float(self.config.gap_reopen_threshold_minutes) * 60.0 * 1e9)
+        gap_cooldown_ns = int(float(self.config.gap_reopen_cooldown_minutes) * 60.0 * 1e9)
+
+        if self._gap_last_seen_ts_ns <= 0:
+            self._gap_last_seen_ts_ns = int(bar.ts_event)
+            self._gap_cooldown_until_ts_ns = None
+        else:
+            gap_ns = int(bar.ts_event) - int(self._gap_last_seen_ts_ns)
+            if gap_ns < 0:
+                # Regressive timestamps handled elsewhere; fail closed here
+                gap_ns = 0
+
+            if gap_threshold_ns > 0 and gap_ns >= gap_threshold_ns:
+                self._gap_cooldown_until_ts_ns = int(bar.ts_event) + gap_cooldown_ns
+                if should_log:
+                    self.log.warning(
+                        f"[GAP] Detected data gap: {gap_ns / 1e9:.1f}s >= {gap_threshold_ns / 1e9:.1f}s; "
+                        f"cooldown={gap_cooldown_ns / 1e9 / 60.0:.1f}m"
+                    )
+
+            self._gap_last_seen_ts_ns = int(bar.ts_event)
+
+        if self._gap_cooldown_until_ts_ns is not None and int(bar.ts_event) < int(
+            self._gap_cooldown_until_ts_ns
+        ):
+            if should_log:
+                self.log.info(
+                    f"[SIGNAL_CHECK] GAP cooldown active until {self._gap_cooldown_until_ts_ns}; blocking new entries"
+                )
+            return
+
         # Unified safety policy surface (Phase 11)
         # NOTE: This is entry-only gating; forced close / flatten must bypass it.
         time_gate_ok = True
@@ -1816,7 +1871,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             if self._telemetry and decision.reasons:
                 # Use the first reason for existing dashboards; keep details in log.
                 self._telemetry.emit(
-                    "signal_reject", {"reason": decision.reasons[0], "bar": len(self._ltf_bars)}
+                    "signal_reject",
+                    {
+                        "ts": bar_time.isoformat(),
+                        "reason": decision.reasons[0],
+                        "bar": len(self._ltf_bars),
+                    },
                 )
             if (not prop_firm_ok) and self.config.prop_firm_enabled:
                 self._is_trading_allowed = False
@@ -1840,6 +1900,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         self._telemetry.emit(
                             "circuit_state",
                             {
+                                "ts": bar_time.isoformat(),
                                 "level": cb_state.level.name,
                                 "can_trade": cb_state.can_trade,
                                 "size_mult": cb_state.size_multiplier,
@@ -1863,6 +1924,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                     self._telemetry.emit(
                         "signal_reject",
                         {
+                            "ts": bar_time.isoformat(),
                             "reason": "circuit_breaker",
                             "level": cb_state.level.name,
                             "bar": len(self._ltf_bars),
@@ -2416,6 +2478,7 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                 self._telemetry.emit(
                     "score_calculated",
                     {
+                        "ts": bar_time.isoformat(),
                         "bar": len(self._ltf_bars),
                         "base_score": confluence_result.total_score,
                         "news_adj": news_score_adj,
@@ -3330,10 +3393,12 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             return None
 
         try:
+            slice_bars = self._ltf_bars[-200:]
             timestamps = np.fromiter(
-                (int(b.ts_event) for b in self._ltf_bars[-200:]),
+                (int(b.ts_event) for b in slice_bars),
                 dtype=np.int64,
-            ).astype("datetime64[ns]")
+                count=len(slice_bars),
+            ).view("datetime64[ns]")
             return self._structure_analyzer.analyze(highs, lows, closes, timestamps)
         except InsufficientDataError:
             return None
@@ -3433,16 +3498,25 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         ltf_lows = self._bars_to_np(self._ltf_bars, max_bars=200, field="low")
         ltf_closes = self._bars_to_np(self._ltf_bars, max_bars=200, field="close")
 
-        htf_ts = np.fromiter((int(b.ts_event) for b in htf_bars[-200:]), dtype=np.int64).astype(
-            "datetime64[ns]"
-        )
-        mtf_ts = np.fromiter((int(b.ts_event) for b in mtf_bars[-200:]), dtype=np.int64).astype(
-            "datetime64[ns]"
-        )
-        ltf_ts = np.fromiter(
-            (int(b.ts_event) for b in self._ltf_bars[-200:]),
+        htf_slice = htf_bars[-200:]
+        mtf_slice = mtf_bars[-200:]
+        ltf_slice = self._ltf_bars[-200:]
+
+        htf_ts = np.fromiter(
+            (int(b.ts_event) for b in htf_slice),
             dtype=np.int64,
-        ).astype("datetime64[ns]")
+            count=len(htf_slice),
+        ).view("datetime64[ns]")
+        mtf_ts = np.fromiter(
+            (int(b.ts_event) for b in mtf_slice),
+            dtype=np.int64,
+            count=len(mtf_slice),
+        ).view("datetime64[ns]")
+        ltf_ts = np.fromiter(
+            (int(b.ts_event) for b in ltf_slice),
+            dtype=np.int64,
+            count=len(ltf_slice),
+        ).view("datetime64[ns]")
 
         mtf_result = self._mtf_manager.analyze(
             htf_data={
@@ -3621,12 +3695,22 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         # Use PositionSizer.calculate_lot (instrument-aware: "pip" == tick)
         sl_pips = sl_distance / max(1e-9, tick_size)
         pip_value = tick_size * point_value_per_unit * lot_size
+
+        # FIX RISK-1: Pass current drawdown for throttling
+        # The position sizer applies size reduction as drawdown approaches limits
+        current_dd_pct = 0.0
+        if self._drawdown_tracker:
+            # Use trailing (peak-to-valley) drawdown for throttle - this is Apex-critical
+            # Convert from percentage (3.5) to decimal (0.035)
+            current_dd_pct = self._drawdown_tracker.get_total_drawdown_pct() / 100.0
+
         position_size = self._position_sizer.calculate_lot(
             balance=self._equity_base,
             risk_percent=risk_pct,
             stop_loss_pips=sl_pips,
             regime_multiplier=regime_mult,
             pip_value=float(pip_value),
+            current_drawdown_pct=current_dd_pct,
         )
 
         # Normalize to float and wrap into Quantity
@@ -3646,6 +3730,17 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
         """Track spread for spread filter."""
         super().on_quote_tick(tick)
 
+        # FIX EDGE-2: Guard against regressive timestamps (rare but lethal edge case)
+        # If feed delivers ts_event going backwards, daily reset and time gates could fail
+        ts_ns = int(tick.ts_event)
+        if ts_ns < self._last_event_ts_ns:
+            self.log.warning(
+                f"[TIMESTAMP] Regressive timestamp detected: {ts_ns} < {self._last_event_ts_ns}, "
+                f"delta={self._last_event_ts_ns - ts_ns}ns - skipping tick"
+            )
+            return
+        self._last_event_ts_ns = ts_ns
+
         # Daily reset guard (ET calendar) to re-enable trading after prior cutoff blocks
         self._check_daily_reset(tick.ts_event)
 
@@ -3662,10 +3757,13 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
             self._current_spread = int(spread / self.instrument.price_increment)
         if self._spread_monitor:
             try:
+                now_dt = getattr(self, "_last_tick_dt", None)
+                if now_dt is None:
+                    now_dt = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
                 snapshot = self._spread_monitor.update(
                     bid=tick.bid_price.as_double(),
                     ask=tick.ask_price.as_double(),
-                    now=datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc),
+                    now=now_dt,
                 )
                 self._spread_snapshot = snapshot
                 # Structured spread log on state change
@@ -3676,9 +3774,11 @@ class GoldScalperStrategy(BaseGoldStrategy):  # type: ignore[misc, unused-ignore
                         f"pips={snapshot.current_spread_pips:.2f} ratio={snapshot.spread_ratio:.2f} can_trade={snapshot.can_trade}"
                     )
                     if self._telemetry and getattr(self.config, "telemetry_capture_spread", True):
+                        tick_time = datetime.fromtimestamp(tick.ts_event / 1e9, tz=timezone.utc)
                         self._telemetry.emit(
                             "spread_state",
                             {
+                                "ts": tick_time.isoformat(),
                                 "state": snapshot.status.name,
                                 "points": snapshot.current_spread_points,
                                 "pips": snapshot.current_spread_pips,
