@@ -25,13 +25,15 @@ echo "Step 2/3: Compiling..."
 
 WIN_METAEDITOR="C:\\Program Files\\FTMO MetaTrader 5\\MetaEditor64.exe"
 WIN_EA="C:\\Program Files\\FTMO MetaTrader 5\\MQL5\\Experts\\${EA_NAME}.mq5"
-WIN_INCLUDE="C:\\Program Files\\FTMO MetaTrader 5\\MQL5\\Include"
+# NOTE: MetaEditor uses MQL5/Include as default include path
+# The /inc: argument ADDS paths, so we don't need it for standard includes
+# If custom paths needed: /inc:"MQL5" (NOT MQL5/Include - that causes double path)
 
-# Run MetaEditor via PowerShell
+# Run MetaEditor via PowerShell (no /inc: needed - uses default MQL5/Include)
 POWERSHELL="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
 "$POWERSHELL" -NoProfile -Command "
     \$process = Start-Process -FilePath '$WIN_METAEDITOR' \`
-        -ArgumentList '/compile:\"$WIN_EA\"', '/inc:\"$WIN_INCLUDE\"', '/log' \`
+        -ArgumentList '/compile:\"$WIN_EA\"', '/log' \`
         -Wait -NoNewWindow -PassThru
     exit \$process.ExitCode
 " 2>/dev/null || echo "(PowerShell warning ignored)"
@@ -46,8 +48,13 @@ echo ""
 LOG_FILE="/mnt/c/Program Files/FTMO MetaTrader 5/MQL5/Experts/${EA_NAME}.log"
 
 if [[ -f "$LOG_FILE" ]]; then
-    ERRORS=$(iconv -f UTF-16LE -t UTF-8 "$LOG_FILE" 2>/dev/null | grep -c ": error" || echo 0)
-    WARNINGS=$(iconv -f UTF-16LE -t UTF-8 "$LOG_FILE" 2>/dev/null | grep -c ": warning" || echo 0)
+    # Convert UTF-16LE to UTF-8 and strip Windows CR
+    LOG_CONTENT=$(iconv -f UTF-16LE -t UTF-8 "$LOG_FILE" 2>/dev/null | tr -d '\r')
+    ERRORS=$(echo "$LOG_CONTENT" | grep -c ": error" || true)
+    WARNINGS=$(echo "$LOG_CONTENT" | grep -c ": warning" || true)
+    # Default to 0 if empty
+    ERRORS=${ERRORS:-0}
+    WARNINGS=${WARNINGS:-0}
 
     echo "=========================================="
     if [[ "$ERRORS" -gt 0 ]]; then
@@ -55,14 +62,14 @@ if [[ -f "$LOG_FILE" ]]; then
         echo "=========================================="
         echo ""
         echo "ERRORS:"
-        iconv -f UTF-16LE -t UTF-8 "$LOG_FILE" 2>/dev/null | grep ": error" | while read line; do
+        echo "$LOG_CONTENT" | grep ": error" | while read line; do
             # Extract file:line and message
             echo "  $line" | sed 's/C:\\[^:]*\\//'
         done
         echo ""
         if [[ "$WARNINGS" -gt 0 ]]; then
             echo "WARNINGS:"
-            iconv -f UTF-16LE -t UTF-8 "$LOG_FILE" 2>/dev/null | grep ": warning" | head -5 | while read line; do
+            echo "$LOG_CONTENT" | grep ": warning" | head -5 | while read line; do
                 echo "  $line" | sed 's/C:\\[^:]*\\//'
             done
         fi
@@ -73,7 +80,7 @@ if [[ -f "$LOG_FILE" ]]; then
         if [[ "$WARNINGS" -gt 0 ]]; then
             echo ""
             echo "WARNINGS:"
-            iconv -f UTF-16LE -t UTF-8 "$LOG_FILE" 2>/dev/null | grep ": warning" | while read line; do
+            echo "$LOG_CONTENT" | grep ": warning" | while read line; do
                 echo "  $line" | sed 's/C:\\[^:]*\\//'
             done
         fi
