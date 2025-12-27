@@ -9,6 +9,7 @@
 
 - ✅ **v1.0 Safety Layer** - Phase 11 (complete)
 - 🚧 **v1.1 Multi-Fidelity Optimization** - Phase 12 (in progress)
+- ✅ **v2.0 MQL5 Migration** - Phase 13 (complete) ← INVESTIDOR ÁRABE
 
 ---
 
@@ -60,12 +61,34 @@
 
 ---
 
+### ✅ Phase 13 — MQL5 Complete Migration (v2.0) - COMPLETE (pending verification)
+
+**Goal:** Migrar toda a lógica avançada do Python/NautilusTrader para MQL5/MT5 com paridade completa. Entregar EA funcional com indicadores visuais para investidor árabe.
+
+**Status:** Code complete, awaiting MT5 compilation and backtest verification
+
+**Completed 2025-12-27:**
+- 17 new MQL5 files created
+- All 5 CRITIC issues fixed
+- 4 disproof test scripts with 140+ assertions
+- Visual HUD and Dashboard for investor demo
+- Demo mode for presentations
+
+**Artifacts:**
+- MEGA-PLAN: `.planning/phases/13-mql5-migration/13-MEGA-PLAN.md`
+- SUMMARY: `.planning/phases/13-mql5-migration/13-SUMMARY.md`
+- BACKTEST_GUIDE: `.planning/phases/13-mql5-migration/BACKTEST_GUIDE.md`
+- DISPROOF_TESTS: `.planning/phases/13-mql5-migration/DISPROOF_TESTS.md`
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 11. Safety Layer | v1.0 | 4/4 | Complete | 2025-12-25 |
 | 12. Multi-Fidelity | v1.1 | 0/6 | Not started | - |
+| 13. MQL5 Migration | v2.0 | 1/1 (MEGA) | Complete (pending verification) | 2025-12-27 |
 
 ---
 
@@ -85,6 +108,9 @@
 - `.planning/phases/12-multi-fidelity-optimization/12-04-PLAN.md`
 - `.planning/phases/12-multi-fidelity-optimization/12-05-PLAN.md`
 - `.planning/phases/12-multi-fidelity-optimization/12-06-PLAN.md`
+
+### Phase 13 — MQL5 Migration (MEGA-PLAN)
+- `.planning/phases/13-mql5-migration/13-MEGA-PLAN.md` ← ÚNICO DOCUMENTO
 
 ---
 
