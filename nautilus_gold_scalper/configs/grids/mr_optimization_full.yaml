@@ -183,7 +183,6 @@ stress_test:
     must_survive: 0.25
 
 data:
-  path: "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
   train_range:
     start: "2015-01-01"
     end: "2022-12-31"

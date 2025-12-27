@@ -138,7 +138,6 @@ stress_test:
   top_n: 3
 
 data:
-  path: "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
   train_range:
     start: "2020-01-01"
     end: "2023-12-31"

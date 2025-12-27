@@ -4,7 +4,7 @@
 active_dataset:
   name: "XAUUSD Tick Data 2003-2025 (Stride 20 - Default)"
   path: "../data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
-  native_catalog_path: "../data/catalog_native/xauusd_2003_2025_stride1_COMPLETE"
+  native_catalog_path: "../data/catalog_native/xauusd_2003_2025_stride1_COMPLETE_filtered_from_20200101_consolidated_7d"
   format: "parquet"
   instrument: "XAU/USD.SIM"
   data_type: "quote_tick"
@@ -18,11 +18,26 @@ active_dataset:
 
 datasets:
   stride20:
-    name: "XAUUSD Stride 20 (Analysis)"
+    name: "XAUUSD Stride 20 (Generic Parquet - Analysis)"
     path: "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
     use_case: "Feature engineering, quick analysis"
 
-  stride1_catalog:
-    name: "XAUUSD Stride 1 Native Catalog"
-    path: "data/catalog_native/xauusd_2003_2025_stride1_full"
-    use_case: "Full backtesting with NautilusTrader BacktestEngine"
+  stride1_catalog_2020:
+    name: "XAUUSD Stride 1 Native Catalog (2020+ Consolidated 7d)"
+    path: "data/catalog_native/xauusd_2003_2025_stride1_COMPLETE_filtered_from_20200101_consolidated_7d"
+    use_case: "Highest fidelity tick backtesting (native catalog)"
+
+  stride5_catalog_2020:
+    name: "XAUUSD Stride 5 Native Catalog (2020+ Consolidated 7d)"
+    path: "data/catalog_native/xauusd_2003_2025_stride5_filtered_from_20200101_consolidated_7d"
+    use_case: "Native tick screening (faster/lower fidelity than stride1)"
+
+  stride10_catalog_2020:
+    name: "XAUUSD Stride 10 Native Catalog (2020+ Consolidated 7d)"
+    path: "data/catalog_native/xauusd_2003_2025_stride10_filtered_from_20200101_consolidated_7d"
+    use_case: "Native tick screening (faster/lower fidelity than stride5)"
+
+  stride20_catalog_2020:
+    name: "XAUUSD Stride 20 Native Catalog (2020+ Consolidated 7d)"
+    path: "data/catalog_native/xauusd_2003_2025_stride20_filtered_from_20200101_consolidated_7d"
+    use_case: "Native tick screening (fastest/lower fidelity than stride10)"

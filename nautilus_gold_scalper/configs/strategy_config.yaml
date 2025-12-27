@@ -119,6 +119,7 @@ spread_monitor:
   max_spread_pips: 45.0
   update_interval: 1
   pip_factor: 10.0
+  warmup_block_trading: true
 time:
   cutoff_et: '16:59'
   warning_et: '16:00'

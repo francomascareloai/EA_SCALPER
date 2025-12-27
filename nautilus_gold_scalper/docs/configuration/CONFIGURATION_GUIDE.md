@@ -56,33 +56,48 @@ Compatibility wrapper:
 #### Recommended workflow (fast validation → final verification)
 
 1) **Smoke/validation (fast):**
-- Use default Parquet stride20 (`data/config.yaml active_dataset.path`).
-- Run `--smoke-matrix` (ticks feed, source=parquet) over a short window to validate flag wiring and determinism.
+- Use the native catalog screening default (XAUUSD 2020+ auto-selects stride20 catalog).
+- Run `--smoke-matrix` over a short window to validate flag wiring and determinism.
+- Note: `--smoke-matrix` auto-creates `--out-dir` under `nautilus_gold_scalper/_artifacts/_smoke_matrix` so telemetry is always captured.
 
 2) **Final verification (slow, highest fidelity):**
-- Use `--source catalog` (native ParquetDataCatalog stride1) on a smaller curated period (or session-sliced catalogs).
+- Use `--catalog-stride 1` (native ParquetDataCatalog stride1) on a smaller curated period (or session-sliced catalogs).
+- This is the **max fidelity** option for final verification.
 - Only do this after smoke passes to avoid wasting hours on broken wiring.
 
 
-- **Single run (ticks feed, parquet source):**
-  - Uses `data/config.yaml active_dataset.path` (default: Parquet stride20).
-  - Most live-like (but slower).
+- **Single run (ticks feed, recommended default):**
+  - Use `--source auto` (XAUUSD 2020+ defaults to native catalog stride20).
+  - Force `--catalog-stride 1` for max fidelity.
 
 - **Fast screening (bars feed):**
   - Uses bars instead of ticks.
-  - If you use `--bars-file`, it currently supports M5 only.
+  - If you use `--bars-file`, it supports M5/M15.
 
 ### Data source selection
 
 `--source` controls how ticks/bars are loaded:
 
-- `--source auto` (default): uses Parquet (`active_dataset.path`).
-- `--source parquet`: same as auto, explicit.
-- `--source catalog`: uses Nautilus native catalog.
+### Telemetry gate (Apex compliance)
+
+The backtest runner defaults to **requiring telemetry artifacts** so Apex compliance checks are auditable.
+
+- Default behavior: `--require-telemetry` is enabled.
+- If you don’t pass `--telemetry-path` or `--out-dir`, the runner exits with an error.
+- `--smoke-matrix` auto-creates an output directory and writes `telemetry.jsonl` inside it.
+- Disable only for quick local iteration (not recommended for Apex validation): `--no-require-telemetry`.
+
+- `--source auto` (default): product=xauusd + ticks + start>=2020 auto-selects native stride20 catalog; otherwise uses Parquet (`active_dataset.path`).
+- `--source parquet`: always uses Parquet (`active_dataset.path`).
+- `--source catalog`: uses Nautilus native catalog (via `active_dataset.native_catalog_path` or `--catalog-path/--catalog-paths`).
+
+Convenience selector for native 2020+ catalogs:
+
+- `--catalog-stride {1,5,10,20}`: selects one of the prebuilt native catalogs and forces `--source=catalog`.
 
 Important realism/memory note:
-- Catalog mode can load huge amounts of ticks into RAM before sampling.
-- For stride1 catalogs, this can require very large memory; prefer parquet (stride20) for normal iteration.
+- For tick backtests, prefer catalog stride20/10/5 for screening and stride1 for final verification.
+- The runner uses streaming ingestion for catalog ticks to stay memory-safe.
 
 Implementation: `nautilus_gold_scalper/scripts/backtest/run_backtest.py:1514`.
 

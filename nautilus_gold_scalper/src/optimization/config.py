@@ -365,7 +365,7 @@ class StressTestConfig:
 class DataConfig:
     """Data configuration."""
 
-    path: str = "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
+    path: str = ""
     train_start: str = "2010-01-01"
     train_end: str = "2022-12-31"
     test_start: str = "2023-01-01"
@@ -795,9 +795,7 @@ class OptimizationConfig:
             raise ValueError(f"data.test_range must be a mapping, got {type(test_range).__name__}")
 
         data_config = DataConfig(
-            path=data_raw.get(
-                "path", "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
-            ),
+            path=data_raw.get("path", ""),
             train_start=train_range.get("start", "2010-01-01"),
             train_end=train_range.get("end", "2022-12-31"),
             test_start=test_range.get("start", "2023-01-01"),

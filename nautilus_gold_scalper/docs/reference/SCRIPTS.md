@@ -8,8 +8,11 @@ Esta pasta contém os **scripts oficiais** para rodar o robô (NautilusTrader) d
   - `python -m nautilus_gold_scalper.scripts.run_backtest --start 2024-11-01 --end 2024-11-07`
   - Defaults atuais: `--product mgc` e `--gateway tradovate`.
   - Dica performance: use `--feed bars` para iteração rápida; use `--feed ticks` para simulação mais detalhada.
-  - Stride (aproximação): use `--sample N` (ex.: `--sample 20` ≈ pegar 1 a cada 20 ticks). Para produção/validação final, prefira `data/config.yaml` com dataset stride20 ou `--source catalog` para stride1 completo.
-  - Para screening rápido com barras M5 prontas: `--bars-file Python_Agent_Hub/ml_pipeline/data/Bars_2020-2025XAUUSD_ftmo-M5-No Session.csv`
+  - Ticks (recomendado): use catálogos nativos 2020+ via `--catalog-stride {1,5,10,20}`.
+    - Para screening rápido: `--catalog-stride 20` (default do `--source auto` para XAUUSD 2020+).
+    - Para validação final (máxima fidelidade): `--catalog-stride 1`.
+  - Stride (aproximação, legacy): use `--sample N` (ex.: `--sample 20` ≈ pegar 1 a cada 20 ticks).
+  - Para screening rápido com barras prontas: `--bars-file ...` (suporta M5/M15; `--feed bars`).
 
 ## Compatibilidade
 
@@ -26,8 +29,14 @@ Alguns imports antigos em testes/planos usam `scripts.*` (package local). Para e
 
 ### Readiness gate (1 comando)
 
-- Rodar gates de prontidão (pytest + mypy --strict + backtest smoke matrix stride20):
+- Rodar gates de prontidão (pytest + mypy --strict + backtest smoke matrix ticks, source=auto):
   - `python -m nautilus_gold_scalper.scripts.workflows.validate_ready --start 2024-01-01 --end 2024-02-01`
+
+**Nota (telemetria / Apex compliance):**
+- O backtest runner tem um **hard-gate** de telemetria por padrão (`--require-telemetry`).
+- Se você não passar `--telemetry-path` nem `--out-dir`, o runner falha com erro pedindo um destino.
+- Para `--smoke-matrix`, o runner auto-cria `--out-dir` e grava `telemetry.jsonl` dentro dele.
+- Para desabilitar o gate (não recomendado para validação Apex), use `--no-require-telemetry`.
 
 - Rodar também validação lenta do catálogo stride1 (DuckDB phases 2-4):
   - `python -m nautilus_gold_scalper.scripts.workflows.validate_ready --with-data-validation`

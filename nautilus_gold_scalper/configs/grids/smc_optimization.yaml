@@ -167,7 +167,6 @@ stress_test:
     regime_bias_check: true
 
 data:
-  path: "data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet"
   train_range:
     start: "2010-01-01"
     end: "2022-12-31"

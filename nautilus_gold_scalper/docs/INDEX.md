@@ -13,6 +13,7 @@ This folder is the canonical home for **operational documentation** (how to run/
   - `reference/NEWS_CALENDAR.md`
   - `reference/NEWS_CALENDAR_IMPLEMENTATION.md`
   - `reference/NEWS_TRADER_NOTES.md`
+  - `reference/DATASETS.md` (native catalogs: stride 1/5/10/20, 2020+)
 
 - ML
   - `ml/ML_PIPELINE.md`

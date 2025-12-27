@@ -1,0 +1,50 @@
+# Live Trading Configuration Template
+# Purpose: Production configuration with Redis cache persistence
+# Created: 2025-12-27
+# Status: TEMPLATE - customize before deploying
+
+# Redis Cache Configuration
+# Enables order/position state persistence across strategy restarts
+cache:
+  type: redis
+  host: localhost  # Or Redis server IP
+  port: 6379
+  username: null  # Set if auth enabled
+  password: null  # Use env var: REDIS_PASSWORD
+  database: 0
+  encoding: msgpack
+  buffer_interval_ms: 100
+  flush_on_start: false  # Preserve state across restarts
+
+# Trading Node Configuration
+trading_node:
+  timeout_connection_ms: 5000
+  timeout_disconnection_ms: 3000
+  timeout_post_stop_ms: 2000
+  check_residuals_delay_ms: 5000
+
+# Risk Limits (Apex Compliance)
+risk:
+  max_notional_per_order: 1000000  # $1M max per order
+  max_quantity_per_order: 10.0     # 10 lots max
+  max_orders_per_second: 5
+
+# Environment Variables Required
+# - REDIS_PASSWORD: Redis auth password (if enabled)
+# - API_KEY: Broker API key
+# - API_SECRET: Broker API secret
+
+# Usage:
+# from nautilus_trader.cache.config import CacheConfig
+# from nautilus_trader.common.config import DatabaseConfig
+#
+# cache_config = CacheConfig(
+#     database=DatabaseConfig(
+#         type="redis",
+#         host="localhost",
+#         port=6379,
+#     ),
+#     encoding="msgpack",
+#     buffer_interval_ms=100,
+#     flush_on_start=False,
+# )
