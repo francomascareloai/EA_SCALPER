@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from statistics import median
-from typing import Sequence
 
 
 def _clamp01(value: float) -> float:
@@ -86,30 +86,37 @@ class VirtualGate:
                 return VirtualGateResult(gate_ok=True)
             return VirtualGateResult(gate_ok=False, gate_reason="insufficient_history")
 
-        bar_ts_ns_lookback = bar_ts_ns[-self._lookback_bars :]
-        bar_highs_lookback = bar_highs[-self._lookback_bars :]
-        bar_lows_lookback = bar_lows[-self._lookback_bars :]
+        end = len(bar_ts_ns)
+        start = end - self._lookback_bars
+        if start < 0:
+            if self._fail_open_on_insufficient_history:
+                return VirtualGateResult(gate_ok=True)
+            return VirtualGateResult(gate_ok=False, gate_reason="insufficient_history")
 
-        # Sanity: after slicing we must have at least 2 bars for pairwise checks.
-        if len(bar_ts_ns_lookback) < 2:
+        # Sanity: we must have at least 2 bars for pairwise checks.
+        if (end - start) < 2:
             if self._fail_open_on_insufficient_history:
                 return VirtualGateResult(gate_ok=True)
             return VirtualGateResult(gate_ok=False, gate_reason="insufficient_history")
 
         # Anti-lookahead: input bars must be completed before the decision timestamp.
-        for ts in bar_ts_ns_lookback:
-            if int(ts) >= int(decision_ts_ns):
+        decision_ts_ns_i = int(decision_ts_ns)
+        for i in range(start, end):
+            if int(bar_ts_ns[i]) >= decision_ts_ns_i:
                 return VirtualGateResult(gate_ok=False, gate_reason="temporal_violation")
 
         # Feed sanity: ensure strictly increasing timestamps.
-        for prev_ts, ts in zip(bar_ts_ns_lookback, bar_ts_ns_lookback[1:]):
-            if int(ts) <= int(prev_ts):
+        prev_ts_i = int(bar_ts_ns[start])
+        for i in range(start + 1, end):
+            ts_i = int(bar_ts_ns[i])
+            if ts_i <= prev_ts_i:
                 return VirtualGateResult(gate_ok=False, gate_reason="non_monotonic_ts")
+            prev_ts_i = ts_i
 
         ranges: list[float] = []
-        for high, low in zip(bar_highs_lookback, bar_lows_lookback, strict=True):
-            h = float(high)
-            l = float(low)
+        for i in range(start, end):
+            h = float(bar_highs[i])
+            l = float(bar_lows[i])
             if h < l:
                 return VirtualGateResult(gate_ok=False, gate_reason="invalid_bar_range")
             ranges.append(h - l)
@@ -133,12 +140,16 @@ class VirtualGate:
         spike_frac = spike_count / float(self._lookback_bars)
         if self._cluster_max_fraction <= 0.0:
             if spike_count > 0:
-                return VirtualGateResult(gate_ok=False, gate_reason="turbulence_cluster", gate_score=0.0)
+                return VirtualGateResult(
+                    gate_ok=False, gate_reason="turbulence_cluster", gate_score=0.0
+                )
             score_cluster = 1.0
         else:
             score_cluster = _clamp01(1.0 - (spike_frac / self._cluster_max_fraction))
             if spike_frac > self._cluster_max_fraction:
-                return VirtualGateResult(gate_ok=False, gate_reason="turbulence_cluster", gate_score=score_cluster)
+                return VirtualGateResult(
+                    gate_ok=False, gate_reason="turbulence_cluster", gate_score=score_cluster
+                )
 
         # Informational score (not used for sizing by default).
         if ratio <= 1.0:

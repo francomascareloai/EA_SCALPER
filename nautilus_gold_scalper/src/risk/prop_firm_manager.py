@@ -92,6 +92,10 @@ class PropFirmManager:
         self._strategy = None  # optional hook for stop/flatten on breach
         self._consistency = ConsistencyTracker(initial_balance=self.limits.account_size)
         self._terminated = False
+        self._cached_state: PropFirmState | None = None
+        self._cached_state_equity: float | None = None
+        self._cached_state_hwm: float | None = None
+        self._cached_state_day_start: float | None = None
 
     # -------------------- lifecycle
     def initialize(self, starting_equity: float) -> None:
@@ -143,10 +147,17 @@ class PropFirmManager:
 
         if not self._initialized:
             self.initialize(float(equity))
+
         self._equity = float(equity)
         if self._equity > self._high_water:
             self._high_water = self._equity
         self._last_update = self._resolve_now(now)
+
+        # Invalidate / refresh cached state whenever equity/HWM/day-start changes.
+        self._cached_state = None
+        self._cached_state_equity = self._equity
+        self._cached_state_hwm = self._high_water
+        self._cached_state_day_start = self._daily_start_equity
 
     def register_trade_close(
         self,
@@ -174,9 +185,11 @@ class PropFirmManager:
         if profit > 0:
             self._consecutive_wins += 1
             self._consecutive_losses = 0
+            self._cached_state = None
         elif profit < 0:
             self._consecutive_losses += 1
             self._consecutive_wins = 0
+            self._cached_state = None
 
         if equity is not None:
             self.update_equity(equity, now=now_dt)
@@ -201,6 +214,12 @@ class PropFirmManager:
         self._consecutive_losses = 0
         self._last_update = now_dt
         self._consistency.reset_daily()
+
+        # Day-start is part of DD state; invalidate cached state.
+        self._cached_state = None
+        self._cached_state_equity = self._equity
+        self._cached_state_hwm = self._high_water
+        self._cached_state_day_start = self._daily_start_equity
 
     # -------------------- checks
     def can_trade(self, now: datetime | None = None) -> bool:
@@ -303,6 +322,14 @@ class PropFirmManager:
 
     # -------------------- metrics
     def get_state(self) -> PropFirmState:
+        if (
+            self._cached_state is not None
+            and self._cached_state_equity == self._equity
+            and self._cached_state_hwm == self._high_water
+            and self._cached_state_day_start == self._daily_start_equity
+        ):
+            return self._cached_state
+
         daily_loss = max(0.0, self._daily_start_equity - self._equity)
         trailing_dd = max(0.0, self._high_water - self._equity)
 
@@ -334,7 +361,7 @@ class PropFirmManager:
         else:
             risk_level = RiskLevel.NORMAL
 
-        return PropFirmState(
+        state = PropFirmState(
             is_trading_allowed=not is_hard_breached and dd_protection.can_trade,
             is_hard_breached=is_hard_breached,
             risk_level=risk_level,
@@ -344,6 +371,11 @@ class PropFirmManager:
             consecutive_losses=self._consecutive_losses,
             dd_protection=dd_protection,
         )
+        self._cached_state = state
+        self._cached_state_equity = self._equity
+        self._cached_state_hwm = self._high_water
+        self._cached_state_day_start = self._daily_start_equity
+        return state
 
     def get_max_risk_available(self) -> float:
         daily_loss = max(0.0, self._daily_start_equity - self._equity)
@@ -381,7 +413,10 @@ class PropFirmManager:
                     f"APEX DD BREACH - stopping strategy. Daily={state.daily_loss_current:.2f}, "
                     f"Trailing={state.trailing_dd_current:.2f}"
                 )
-            self._strategy.close_all_positions(self._strategy.config.instrument_id)
+            self._strategy.close_all_positions(
+                self._strategy.config.instrument_id,
+                reduce_only=True,
+            )
             self._strategy.stop()
         except Exception as e:
             # last resort: mark trading not allowed

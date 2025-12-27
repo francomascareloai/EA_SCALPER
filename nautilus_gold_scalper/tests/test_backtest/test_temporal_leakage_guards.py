@@ -79,6 +79,43 @@ def test_bars_resample_is_labeled_at_bar_close() -> None:
     assert bars.index[0] == pd.Timestamp("2025-01-01 10:05:00+00:00")
 
 
+def test_load_bars_csv_respects_timestamp_basis_open_vs_close(tmp_path) -> None:
+    """Bars CSV timestamp basis must be explicit to avoid double-shift.
+
+    - timestamp_basis='open' shifts timestamps +ltf_minutes to align to bar close.
+    - timestamp_basis='close' leaves timestamps as-is.
+    """
+
+    from nautilus_gold_scalper.scripts.backtest.run_backtest import load_bars_csv
+
+    csv_path = tmp_path / "bars.csv"
+    csv_path.write_text(
+        "timestamp,open,high,low,close,volume\n"
+        "2025-01-01T10:00:00Z,100,101,99,100.5,10\n"
+        "2025-01-01T10:05:00Z,100.5,102,100,101.0,12\n"
+        "2025-01-01T10:10:00Z,101.0,103,100.5,102.0,11\n",
+        encoding="utf-8",
+    )
+
+    df_close = load_bars_csv(
+        csv_path,
+        start_date="2025-01-01",
+        end_date="2025-01-01",
+        ltf_minutes=5,
+        timestamp_basis="close",
+    )
+    assert df_close.index[0] == pd.Timestamp("2025-01-01 10:00:00+00:00")
+
+    df_open = load_bars_csv(
+        csv_path,
+        start_date="2025-01-01",
+        end_date="2025-01-01",
+        ltf_minutes=5,
+        timestamp_basis="open",
+    )
+    assert df_open.index[0] == pd.Timestamp("2025-01-01 10:05:00+00:00")
+
+
 def test_build_strategy_config_maps_new_execution_fields() -> None:
     """Ensure runner maps new execution config keys into GoldScalperConfig."""
 

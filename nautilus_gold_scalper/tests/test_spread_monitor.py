@@ -122,7 +122,7 @@ class TestSpreadMonitorUpdate:
 
         # Add 10 spreads
         for i in range(10):
-            monitor.update(bid=2650.00, ask=2650.00 + (i+1)*0.01)
+            monitor.update(bid=2650.00, ask=2650.00 + (i + 1) * 0.01)
 
         assert len(monitor._spread_history) == 10
 
@@ -132,7 +132,7 @@ class TestSpreadMonitorUpdate:
 
         # Add 10 spreads (should keep last 5)
         for i in range(10):
-            monitor.update(bid=2650.00, ask=2650.00 + (i+1)*0.01)
+            monitor.update(bid=2650.00, ask=2650.00 + (i + 1) * 0.01)
 
         assert len(monitor._spread_history) == 5
 
@@ -268,7 +268,7 @@ class TestSpreadStatistics:
 
         # Add spreads: 1, 2, 3, ..., 10 points
         for i in range(1, 11):
-            snapshot = monitor.update(bid=2650.00, ask=2650.00 + i*0.01)
+            snapshot = monitor.update(bid=2650.00, ask=2650.00 + i * 0.01)
 
         # Average should be 5.5 points
         assert snapshot.average_spread == pytest.approx(5.5, rel=1e-2)

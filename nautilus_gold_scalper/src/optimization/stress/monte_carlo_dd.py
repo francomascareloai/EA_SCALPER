@@ -162,6 +162,9 @@ def compute_mc_drawdown_percentiles_from_trades(
 
         dd_samples[i] = _max_drawdown_pct(sim_equity)
 
+    # Fail-closed if any simulation produced invalid values.
+    dd_samples = np.where(np.isfinite(dd_samples), dd_samples, 100.0)
+
     mc_95 = float(np.percentile(dd_samples, 95))
     mc_99 = float(np.percentile(dd_samples, 99))
 
@@ -225,6 +228,9 @@ def compute_mc_drawdown_percentiles(
         sim_equity[1:] += start_equity
 
         dd_samples[i] = _max_drawdown_pct(sim_equity)
+
+    # Fail-closed if any simulation produced invalid values.
+    dd_samples = np.where(np.isfinite(dd_samples), dd_samples, 100.0)
 
     # Percentiles in percent units.
     mc_95 = float(np.percentile(dd_samples, 95))

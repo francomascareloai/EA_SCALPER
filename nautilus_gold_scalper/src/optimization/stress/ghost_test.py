@@ -35,11 +35,17 @@ class GhostTestResult:
 def _sharpe(pnl: NDArray[np.float64], periods_per_year: int = 252) -> float:
     if pnl.size < 2:
         return 0.0
+
     mean = float(np.mean(pnl))
     std = float(np.std(pnl, ddof=1))
-    if std <= 0:
+    if (not np.isfinite(mean)) or (not np.isfinite(std)) or std <= 0.0:
         return 0.0
-    return float(mean / std * np.sqrt(periods_per_year))
+
+    sharpe = float(mean / std * np.sqrt(periods_per_year))
+    if not np.isfinite(sharpe):
+        return 0.0
+
+    return sharpe
 
 
 def _block_bootstrap_permutation(
@@ -85,7 +91,7 @@ def run_ghost_test(
     if pnl_col not in trades_df.columns:
         raise ValueError(f"trades_df missing required column: {pnl_col}")
 
-    pnl_series = trades_df[pnl_col].astype(float)
+    pnl_series = trades_df[pnl_col].astype(float).replace([np.inf, -np.inf], np.nan).dropna()
     pnl = pnl_series.to_numpy(dtype=np.float64, copy=False)
 
     sharpe_full = _sharpe(pnl)

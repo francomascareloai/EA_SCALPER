@@ -83,6 +83,7 @@ class DrawdownTracker:
         alert_thresholds: list[float] | None = None,
         *,
         day_boundary_tz: str = "UTC",
+        strict_now: bool = False,
     ):
         if initial_equity <= 0:
             raise ValueError(f"Invalid initial_equity: {initial_equity}")
@@ -130,6 +131,11 @@ class DrawdownTracker:
         self._max_history_size = 10000
         self._alerts_triggered: list[tuple[datetime, str]] = []
 
+        self._strict_now = bool(strict_now)
+
+        # NOTE: The tracker can be constructed before any backtest timestamps are known.
+        # `_last_update` will be anchored on the first update when a deterministic
+        # `now` is provided.
         self._last_update = datetime.now(timezone.utc)
         self._last_day_check = self._last_update
 
@@ -175,8 +181,12 @@ class DrawdownTracker:
         """
         # Always prefer explicit timestamp for backtest accuracy.
         # Use datetime.now() only as fallback for live trading.
-        # Resolve `now` BEFORE any day-boundary logic to keep backtests deterministic.
+        # In strict mode, fail closed if `now` is missing (prevents backtest nondeterminism).
         if now is None:
+            if self._strict_now:
+                raise ValueError(
+                    "DrawdownTracker.update() requires explicit 'now' when strict_now=True"
+                )
             now = datetime.now(timezone.utc)
 
         if current_equity <= 0:
@@ -400,6 +410,10 @@ class DrawdownTracker:
         The "day" boundary is defined by `day_boundary_tz`.
         """
         if now is None:
+            if self._strict_now:
+                raise ValueError(
+                    "DrawdownTracker._check_new_day() requires explicit 'now' when strict_now=True"
+                )
             now = datetime.now(timezone.utc)
 
         # Backtest determinism: the tracker may be constructed at wall-clock time
@@ -447,4 +461,7 @@ class DrawdownTracker:
         )
         self._history.append(snap)
         if len(self._history) > self._max_history_size:
-            self._history = self._history[-self._max_history_size :]
+            # Avoid allocating a new list on every trim (hot path).
+            excess = len(self._history) - self._max_history_size
+            if excess > 0:
+                del self._history[:excess]

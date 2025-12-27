@@ -267,7 +267,7 @@ class TimeConstraintManager:
             try:
                 self.strategy.close_all_positions(
                     getattr(self.strategy.config, "instrument_id", None),
-                    reduce_only=False,
+                    reduce_only=True,
                 )
             except Exception:
                 pass
@@ -445,7 +445,7 @@ class TimeConstraintManager:
 
             self.strategy.close_all_positions(
                 instrument_id,
-                reduce_only=False,  # Force close
+                reduce_only=True,  # Force close (never open new positions)
             )
 
             after_ids = _collect_order_ids()
@@ -463,7 +463,7 @@ class TimeConstraintManager:
         """
         for i, pos in enumerate(positions):
             try:
-                self.strategy.close_position(pos, reduce_only=False)
+                self.strategy.close_position(pos, reduce_only=True)
                 # Track order ID if available
                 if hasattr(pos, "id"):
                     self.strategy.log.warning(

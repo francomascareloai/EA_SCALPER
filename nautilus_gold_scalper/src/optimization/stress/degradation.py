@@ -89,7 +89,13 @@ def compute_degradation_survived(
     if not np.isfinite(dd_limit) or dd_limit <= 0.0 or dd_limit > 100.0:
         raise ValueError(f"dd_limit_pct must be in (0, 100], got {dd_limit_pct}")
 
-    pnl = trades_df[pnl_col].astype(float).to_numpy(dtype=np.float64, copy=False)
+    pnl = (
+        trades_df[pnl_col]
+        .astype(float)
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+        .to_numpy(dtype=np.float64, copy=False)
+    )
     if pnl.size == 0:
         return []
 

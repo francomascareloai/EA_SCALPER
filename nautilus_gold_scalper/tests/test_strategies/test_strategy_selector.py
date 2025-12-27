@@ -9,17 +9,17 @@ Tests the complete decision hierarchy:
 5. HOLIDAY CHECK - Holiday handling
 6. REGIME SELECTION - Hurst/entropy-based strategy selection
 """
+
 import os
 import sys
+from datetime import datetime, timezone
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 import pytest
-
 from nautilus_gold_scalper.src.strategies.strategy_selector import (
     MarketContext,
     NewsImpact,
-    StrategySelection,
     StrategySelector,
     StrategyType,
 )
@@ -113,7 +113,12 @@ class TestGate2FTMO:
     def test_near_dd_limit_triggers_safe_mode(self) -> None:
         """Gate 2 triggers safe mode when near DD limit (>3%)."""
         selector = StrategySelector()
-        selector.update_context(daily_dd_percent=3.1)  # Above 3% threshold
+
+        # Use an explicit weekday timestamp so Gate 1 (weekend) does not preempt Gate 2.
+        selector.update_context(
+            daily_dd_percent=3.1,  # Above 3% threshold
+            bar_time=datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc),
+        )
         selection = selector.select_strategy()
 
         assert selection.strategy == StrategyType.STRATEGY_SAFE_MODE
@@ -223,15 +228,36 @@ class TestGate3News:
 
         # Test various news scenarios
         scenarios = [
-            MarketContext(circuit_ok=True, spread_ok=True, is_london=True,
-                         in_news_window=True, news_impact=NewsImpact.IMPACT_HIGH,
-                         is_trending=True, hurst=0.65, entropy=1.0),
-            MarketContext(circuit_ok=True, spread_ok=True, is_london=True,
-                         in_news_window=True, news_impact=NewsImpact.IMPACT_MEDIUM,
-                         is_trending=True, hurst=0.65, entropy=1.0),
-            MarketContext(circuit_ok=True, spread_ok=True, is_london=True,
-                         in_news_window=True, news_impact=NewsImpact.IMPACT_LOW,
-                         is_trending=True, hurst=0.65, entropy=1.0),
+            MarketContext(
+                circuit_ok=True,
+                spread_ok=True,
+                is_london=True,
+                in_news_window=True,
+                news_impact=NewsImpact.IMPACT_HIGH,
+                is_trending=True,
+                hurst=0.65,
+                entropy=1.0,
+            ),
+            MarketContext(
+                circuit_ok=True,
+                spread_ok=True,
+                is_london=True,
+                in_news_window=True,
+                news_impact=NewsImpact.IMPACT_MEDIUM,
+                is_trending=True,
+                hurst=0.65,
+                entropy=1.0,
+            ),
+            MarketContext(
+                circuit_ok=True,
+                spread_ok=True,
+                is_london=True,
+                in_news_window=True,
+                news_impact=NewsImpact.IMPACT_LOW,
+                is_trending=True,
+                hurst=0.65,
+                entropy=1.0,
+            ),
         ]
 
         for ctx in scenarios:
@@ -536,10 +562,22 @@ class TestSelectorOnlyValidStrategies:
 
         contexts = [
             MarketContext(circuit_ok=False),  # Blocked
-            MarketContext(circuit_ok=True, spread_ok=True, is_london=True,
-                         is_trending=True, hurst=0.65, entropy=1.0),  # Trend
-            MarketContext(circuit_ok=True, spread_ok=True, is_london=True,
-                         is_reverting=True, hurst=0.35, entropy=1.0),  # Revert
+            MarketContext(
+                circuit_ok=True,
+                spread_ok=True,
+                is_london=True,
+                is_trending=True,
+                hurst=0.65,
+                entropy=1.0,
+            ),  # Trend
+            MarketContext(
+                circuit_ok=True,
+                spread_ok=True,
+                is_london=True,
+                is_reverting=True,
+                hurst=0.35,
+                entropy=1.0,
+            ),  # Revert
         ]
 
         for ctx in contexts:
