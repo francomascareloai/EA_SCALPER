@@ -202,6 +202,19 @@ class OrderBlockDetector:
         if displacement < self.displacement_threshold:
             return False
 
+        # SMC-5: Optional market structure break confirmation.
+        # We define "structure break" causally as the displacement candle closing above
+        # the highest high of a trailing window (excluding the OB candle itself).
+        if self.require_structure_break and not self._has_structure_break(
+            highs=highs,
+            lows=lows,
+            closes=closes,
+            confirmation_index=index,
+            ob_index=ob_index,
+            bullish=True,
+        ):
+            return False
+
         # OB must have meaningful body size
         total_range = highs[ob_index] - lows[ob_index]
         if total_range <= 0 or abs(ob_body) < total_range * 0.5:
@@ -239,6 +252,19 @@ class OrderBlockDetector:
 
         # SMC-5: Enforce displacement threshold (in price units)
         if displacement < self.displacement_threshold:
+            return False
+
+        # SMC-5: Optional market structure break confirmation.
+        # We define "structure break" causally as the displacement candle closing below
+        # the lowest low of a trailing window (excluding the OB candle itself).
+        if self.require_structure_break and not self._has_structure_break(
+            highs=highs,
+            lows=lows,
+            closes=closes,
+            confirmation_index=index,
+            ob_index=ob_index,
+            bullish=False,
+        ):
             return False
 
         # OB must have meaningful body size
@@ -444,6 +470,42 @@ class OrderBlockDetector:
 
         bodies = np.abs(closes[start:end] - opens[start:end])
         return float(np.mean(bodies)) if len(bodies) > 0 else 0.0
+
+    def _has_structure_break(
+        self,
+        *,
+        highs: NDArray[np.floating[Any]],
+        lows: NDArray[np.floating[Any]],
+        closes: NDArray[np.floating[Any]],
+        confirmation_index: int,
+        ob_index: int,
+        bullish: bool,
+    ) -> bool:
+        """Return True if the confirmation candle breaks prior structure (causal).
+
+        Definition (causal): compare the confirmation close to the trailing extremes
+        of a lookback window which ends BEFORE the OB candle.
+        """
+        n = len(closes)
+        if confirmation_index <= 0 or confirmation_index >= n:
+            return False
+        if ob_index <= 0 or ob_index >= n:
+            return False
+        if ob_index >= confirmation_index:
+            return False
+
+        lookback = min(int(self.lookback_bars), ob_index)
+        start = max(0, ob_index - lookback)
+        end = ob_index  # exclude OB candle
+        if end - start < 3:
+            return False
+
+        if bullish:
+            prior_high = float(np.max(highs[start:end]))
+            return float(closes[confirmation_index]) > prior_high
+
+        prior_low = float(np.min(lows[start:end]))
+        return float(closes[confirmation_index]) < prior_low
 
     def _calculate_ob_strength(self, ob: OrderBlock) -> float:
         """Calculate order block strength (0-100)."""

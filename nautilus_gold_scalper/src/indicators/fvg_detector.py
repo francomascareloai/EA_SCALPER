@@ -474,17 +474,22 @@ class FVGDetector:
                 gap_size = fvg.upper_level - fvg.lower_level
                 if gap_size > 0:
                     if fvg.fvg_type == FVGType.FVG_BULLISH:
-                        # For bullish FVG: measure how high into the gap price went
-                        # (from lower_level upward)
-                        penetration = min(bar_high, fvg.upper_level) - fvg.lower_level
-                        filled = max(0.0, penetration)
+                        # Bullish FVG fills when price trades DOWN into the gap.
+                        # Formula: filled = upper - max(bar_low, lower)
+                        # Example: lower=100, upper=110, bar_low=106 -> filled=110-106=4 -> 40%
+                        filled = max(0.0, fvg.upper_level - max(bar_low, fvg.lower_level))
                     else:
-                        # For bearish FVG: measure how low into the gap price went
-                        # (from upper_level downward)
-                        penetration = fvg.upper_level - max(bar_low, fvg.lower_level)
-                        filled = max(0.0, penetration)
+                        # Bearish FVG fills when price trades UP into the gap.
+                        # Formula: filled = min(bar_high, upper) - lower
+                        # Example: lower=90, upper=100, bar_high=96 -> filled=96-90=6 -> 60%
+                        filled = max(0.0, min(bar_high, fvg.upper_level) - fvg.lower_level)
 
-                    fvg.fill_percentage = max(fvg.fill_percentage, (filled / gap_size) * 100.0)
+                    fill_pct = (filled / gap_size) * 100.0
+                    if fill_pct > 100.0:
+                        fill_pct = 100.0
+                    if not (0.0 <= float(fill_pct) <= 100.0):
+                        raise ValueError(f"Invalid FVG fill%: {fill_pct}")
+                    fvg.fill_percentage = max(fvg.fill_percentage, float(fill_pct))
 
                 # Update state based on fill
                 if fvg.fill_percentage >= 100.0:

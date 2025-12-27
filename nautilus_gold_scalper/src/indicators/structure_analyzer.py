@@ -431,13 +431,14 @@ class StructureAnalyzer:
         last_low = self._swing_lows[-1]
 
         # Bullish: HH + HL
+        # NOTE: treat EQL/EQH as ambiguous for bias; fail closed to RANGING.
         if last_high.point_type == StructurePointType.HH:
-            if last_low.point_type in [StructurePointType.HL, StructurePointType.EQL]:
+            if last_low.point_type == StructurePointType.HL:
                 return MarketBias.BULLISH
 
         # Bearish: LH + LL
         if last_high.point_type == StructurePointType.LH:
-            if last_low.point_type in [StructurePointType.LL, StructurePointType.EQL]:
+            if last_low.point_type == StructurePointType.LL:
                 return MarketBias.BEARISH
 
         # SMC-6: Resolve EQH/EQL ambiguity (range -> fail closed)
@@ -476,6 +477,10 @@ class StructureAnalyzer:
         if len(highs) >= 14:
             atr_estimate = float(np.mean(highs[-14:] - lows[-14:]))
 
+        # FIX: Detect at most ONE break per update.
+        # If price is beyond multiple levels at once, record the nearest level only.
+        break_recorded = False
+
         # Check breaks of swing lows (bearish break)
         # Sort by price DESCENDING so we check the HIGHEST swing low first (nearest to break)
         sorted_swing_lows = sorted(
@@ -510,8 +515,11 @@ class StructureAnalyzer:
                         strength=min(100, int(displacement / self._point / 10)),
                         is_valid=True,
                     )
-                    # FIX: Only one break per update - exit after first break
+                    break_recorded = True
                     break
+
+        if break_recorded:
+            return
 
         # Check breaks of swing highs (bullish break)
         # Sort by price ASCENDING so we check the LOWEST swing high first (nearest to break)
@@ -545,7 +553,6 @@ class StructureAnalyzer:
                         strength=min(100, int(displacement / self._point / 10)),
                         is_valid=True,
                     )
-                    # FIX: Only one break per update - exit after first break
                     break
 
     def _calculate_premium_discount(self, current_price: float) -> None:

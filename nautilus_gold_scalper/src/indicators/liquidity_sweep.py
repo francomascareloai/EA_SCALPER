@@ -446,8 +446,9 @@ class LiquiditySweepDetector:
             if pool.state != LiquidityState.LIQUIDITY_UNTAPPED:
                 continue
 
-            # Check recent bars for sweep (bounded by lookback_bars)
-            for i in range(scan_start, len(highs)):
+            # Check recent bars for sweep (bounded by lookback_bars).
+            # Iterate newest -> oldest so we capture the most recent sweep event.
+            for i in range(len(highs) - 1, scan_start - 1, -1):
                 if highs[i] > pool.price_level + self.min_sweep_depth:
                     # Validate sweep
                     if self._validate_sweep_bullish(
@@ -479,8 +480,9 @@ class LiquiditySweepDetector:
             if pool.state != LiquidityState.LIQUIDITY_UNTAPPED:
                 continue
 
-            # Check recent bars for sweep (bounded by lookback_bars)
-            for i in range(scan_start, len(lows)):
+            # Check recent bars for sweep (bounded by lookback_bars).
+            # Iterate newest -> oldest so we capture the most recent sweep event.
+            for i in range(len(lows) - 1, scan_start - 1, -1):
                 if lows[i] < pool.price_level - self.min_sweep_depth:
                     # Validate sweep
                     if self._validate_sweep_bearish(
@@ -642,8 +644,10 @@ class LiquiditySweepDetector:
         return any(s.bar_index >= threshold for s in self._sweeps)
 
     def get_most_recent_sweep(self) -> LiquiditySweep | None:
-        """Get the most recent sweep."""
-        return self._sweeps[-1] if len(self._sweeps) > 0 else None
+        """Get the most recent sweep (by bar_index)."""
+        if not self._sweeps:
+            return None
+        return max(self._sweeps, key=lambda s: s.bar_index)
 
     def get_recent_sweep(self, direction: SignalType) -> LiquiditySweep | None:
         """Get most recent sweep filtered by direction."""

@@ -39,31 +39,34 @@ from .amd_cycle_tracker import AMDCycleTracker
 from .fvg_detector import FVGDetector
 from .liquidity_sweep import LiquiditySweepDetector
 from .order_block_detector import OrderBlockDetector
+from .swings_wrapper import SwingsWrapper
 
 __all__ = [
     # Structure analysis
-    'StructureAnalyzer',
-    'StructureState',
-    'StructurePointType',
-    'MarketBias',
-    'BreakType',
-    'SwingPoint',
-    'StructureBreak',
+    "StructureAnalyzer",
+    "StructureState",
+    "StructurePointType",
+    "MarketBias",
+    "BreakType",
+    "SwingPoint",
+    "StructureBreak",
     # Session and regime
-    'SessionFilter',
-    'RegimeDetector',
+    "SessionFilter",
+    "RegimeDetector",
     # Footprint (optional)
-    'FootprintAnalyzer',
-    'FootprintState',
-    'FootprintLevel',
-    'StackedImbalance',
-    'AbsorptionZone',
-    'ValueArea',
-    'AuctionType',
-    'FootprintSimulator',
+    "FootprintAnalyzer",
+    "FootprintState",
+    "FootprintLevel",
+    "StackedImbalance",
+    "AbsorptionZone",
+    "ValueArea",
+    "AuctionType",
+    "FootprintSimulator",
     # SMC components (STREAM C)
-    'OrderBlockDetector',
-    'FVGDetector',
-    'LiquiditySweepDetector',
-    'AMDCycleTracker',
+    "OrderBlockDetector",
+    "FVGDetector",
+    "LiquiditySweepDetector",
+    "AMDCycleTracker",
+    # Nautilus native wrappers
+    "SwingsWrapper",
 ]
