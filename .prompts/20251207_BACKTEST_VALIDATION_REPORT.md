@@ -216,8 +216,9 @@ Exit Code: 0 (success)
 | ⚠️ Consistency rule | SKIP | No profits to cap |
 | ⚠️ Trailing DD | SKIP | No positions to track |
 | ⚠️ Metrics (Sharpe, etc) | SKIP | No trades = no metrics |
+| ⚠️ Stress/robustness gates (MC DD + degradation) | SKIP | Needs trades_df; now implemented in optimizer stress layer |
 
-**Score**: 6/10 validations passed (4 skipped due to no trades)
+**Score**: 6/11 validations passed (5 skipped due to no trades)
 
 ---
 
@@ -315,7 +316,7 @@ Updated documents this session:
 
 1. **Trade Generation**: Need to validate with actual trades (lower threshold or different period).
 2. **Memory Usage**: 95% swap usage is concerning for longer backtests (consider stride50 or chunked loading).
-3. **Remaining P1 Items**: Still need WFA script, Monte Carlo script, telemetry enhancements.
+3. **Remaining P1 Items**: Still need WFA script, stress tests + robustness gates (MC DD percentiles + degradation), telemetry enhancements.
 
 ### Risks Mitigated 🛡️
 
