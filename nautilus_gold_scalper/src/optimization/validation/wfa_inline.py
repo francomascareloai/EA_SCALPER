@@ -92,20 +92,24 @@ class InlineWFA:
         is_ratio: float = 0.8,
         purge_days: int = 5,
         embargo_days: int = 2,
+        allow_timestamp_fallback: bool = False,
     ) -> None:
-        """
-        Initialize inline WFA.
+        """Initialize inline WFA.
 
         Args:
             windows: Number of rolling windows
             is_ratio: In-sample ratio per window (0.8 = 80% IS, 20% OOS)
             purge_days: Gap between IS and OOS to prevent leakage
             embargo_days: Gap at end of OOS for additional safety
+            allow_timestamp_fallback: If True, allow window assignment by 'timestamp' when
+                'entry_time' is missing/empty. This is NOT recommended because it can
+                introduce look-ahead bias if 'timestamp' is derived from exit_time.
         """
         self.windows = windows
         self.is_ratio = is_ratio
         self.purge_days = purge_days
         self.embargo_days = embargo_days
+        self.allow_timestamp_fallback = bool(allow_timestamp_fallback)
 
     def compute_window_splits(
         self,
@@ -222,7 +226,7 @@ class InlineWFA:
         Analyze trade series across WFA windows.
 
         Args:
-            trades_df: DataFrame with columns [timestamp, pnl, ...]
+            trades_df: DataFrame with columns [entry_time, pnl, ...]
             splits: List of (is_start, is_end, oos_start, oos_end) tuples
 
         Returns:
@@ -230,7 +234,7 @@ class InlineWFA:
         """
         windows: list[WFAWindow] = []
 
-        if trades_df.empty or "timestamp" not in trades_df.columns:
+        if trades_df.empty:
             return windows
 
         if "pnl" not in trades_df.columns:
@@ -243,23 +247,38 @@ class InlineWFA:
         # The entry decision reflects what was known at decision time.
         # Using exit time creates look-ahead bias (trade opened in IS but counted as OOS
         # because it exited later), inflating WFE.
-        use_entry_time = "entry_time" in trades_df.columns and trades_df["entry_time"].notna().any()
-        time_col = "entry_time" if use_entry_time else "timestamp"
-        if not use_entry_time:
+        if "entry_time" in trades_df.columns and trades_df["entry_time"].notna().any():
+            time_col = "entry_time"
+        else:
+            if not self.allow_timestamp_fallback:
+                logger.error(
+                    "InlineWFA: trades_df missing or empty 'entry_time' - failing closed to avoid WFA look-ahead risk "
+                    "(set allow_timestamp_fallback=True to override)"
+                )
+                return []
+
+            if "timestamp" not in trades_df.columns or not trades_df["timestamp"].notna().any():
+                logger.error(
+                    "InlineWFA: trades_df missing/empty 'entry_time' and has no usable 'timestamp'; failing closed"
+                )
+                return []
+
+            time_col = "timestamp"
+
             global _WARNED_WFA_TIME_FALLBACK
             if not _WARNED_WFA_TIME_FALLBACK:
                 logger.warning(
-                    "WFA trade assignment falling back to 'timestamp' because 'entry_time' is missing or empty. "
-                    "This may introduce look-ahead bias if 'timestamp' is derived from exit_time."
+                    "WFA trade assignment falling back to 'timestamp' because 'entry_time' is missing or empty and "
+                    "allow_timestamp_fallback=True. This may introduce look-ahead bias if 'timestamp' is derived from exit_time."
                 )
                 _WARNED_WFA_TIME_FALLBACK = True
 
-        # Ensure chosen time column is datetime (UTC-aware)
-        if not pd.api.types.is_datetime64_any_dtype(trades_df[time_col]):
-            trades_df[time_col] = pd.to_datetime(trades_df[time_col], utc=True, errors="coerce")
+        # Coerce time column to UTC-aware timestamps.
+        # Pandas 2.3 emits a warning for mixed formats unless format='mixed'.
+        times_utc = pd.to_datetime(trades_df[time_col], utc=True, errors="coerce", format="mixed")
 
         # Fail closed on invalid timestamps to avoid biased window assignment.
-        nat_count = int(pd.to_datetime(trades_df[time_col], utc=True, errors="coerce").isna().sum())
+        nat_count = int(times_utc.isna().sum())
         if nat_count > 0:
             logger.warning(
                 "InlineWFA: %d trades have invalid %s timestamps; failing closed for this trial",
@@ -267,6 +286,8 @@ class InlineWFA:
                 time_col,
             )
             return []
+
+        trades_df[time_col] = times_utc
 
         for i, (is_start, is_end, oos_start, oos_end) in enumerate(splits):
             # Filter trades for IS and OOS periods
@@ -800,7 +821,7 @@ def quick_wfa_check(
     Quick WFA validation check (utility function).
 
     Args:
-        trades_df: DataFrame with timestamp and pnl columns
+        trades_df: DataFrame with `entry_time` and `pnl` columns.
         start_date: Start date string
         end_date: End date string
         windows: Number of WFA windows
