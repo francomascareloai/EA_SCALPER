@@ -5,6 +5,7 @@ Uses real XAUUSD tick data (25M+ records) with NautilusTrader native engine.
 Ticks are fed as QuoteTicks and aggregated to LTF bars for strategy consumption.
 """
 
+import contextlib
 import copy
 import json
 import logging
@@ -303,16 +304,25 @@ class BacktestSummary:
     sqn: float | None
 
 
-def find_tick_file() -> Path:
-    """Locate a tick file under Python_Agent_Hub/ml_pipeline/data."""
-    root = Path(__file__).parent.parent.parent / "Python_Agent_Hub" / "ml_pipeline" / "data"
-    candidates = list(root.glob("**/*tick*.parquet")) + list(root.glob("**/*ticks*.parquet"))
-    if not candidates:
-        candidates = list(root.glob("**/*tick*.csv")) + list(root.glob("**/*ticks*.csv"))
-    if not candidates:
-        raise FileNotFoundError(f"Nenhum arquivo de ticks encontrado em {root}")
-    # choose the largest (most complete)
-    return max(candidates, key=lambda p: p.stat().st_size)
+# ---------------------------------------------------------------------------
+# Profiling helpers
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class _TimingSegment:
+    name: str
+    seconds: float
+
+
+@contextlib.contextmanager
+def _time_segment(name: str, segments: list[_TimingSegment]) -> Generator[None, None, None]:
+    t0 = time.perf_counter()
+    try:
+        yield
+    finally:
+        dt = time.perf_counter() - t0
+        segments.append(_TimingSegment(name=name, seconds=dt))
 
 
 def create_xauusd_instrument(venue: Venue) -> CurrencyPair:
@@ -958,11 +968,16 @@ def build_strategy_config(
 
     ltf_bar_minutes = int(exec_cfg.get("ltf_bar_minutes", ltf_minutes_int) or ltf_minutes_int)
     if ltf_bar_minutes != ltf_minutes_int:
-        # ltf_minutes is controlled by the runner (engine bar aggregation). YAML must not diverge.
-        raise ValueError(
-            f"execution.ltf_bar_minutes ({ltf_bar_minutes}) must match runner ltf_minutes ({ltf_minutes_int}). "
-            "Use --ltf-minutes or optimize execution.ltf_bar_minutes to drive LTF."
-        )
+        # ltf_minutes is controlled by the runner (engine bar aggregation).
+        # In bars-file screening, we force ltf_minutes=5 (M5 bars) and allow config divergence
+        # without failing hard.
+        if agg_source == AggregationSource.EXTERNAL and ltf_minutes_int == 5:
+            ltf_bar_minutes = ltf_minutes_int
+        else:
+            raise ValueError(
+                f"execution.ltf_bar_minutes ({ltf_bar_minutes}) must match runner ltf_minutes ({ltf_minutes_int}). "
+                "Use --ltf-minutes or optimize execution.ltf_bar_minutes to drive LTF."
+            )
     if management_bar_minutes < 0:
         raise ValueError(
             f"execution.management_bar_minutes must be >= 0, got {management_bar_minutes}"
@@ -1465,6 +1480,16 @@ class BacktestRunner:
         _p(f"Feed: {feed} | Source: {data_source}")
         _p(f"LTF minutes: {ltf_minutes}")
 
+        # Use an explicit engine window for deterministic runs.
+        # Nautilus `BacktestEngine.run()` treats `end` as inclusive, so for date-only inputs
+        # we set end to the last nanosecond of the day to avoid bleeding into the next day.
+        window_start_ts = pd.Timestamp(start_date, tz="UTC")
+        window_end_ts = pd.Timestamp(end_date, tz="UTC")
+        if len(end_date) <= 10:
+            window_end_ts = window_end_ts + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+        window_start_ns = int(window_start_ts.value)
+        window_end_ns = int(window_end_ts.value)
+
         # CRITICAL: Apex trailing DD / HWM semantics require QuoteTicks (bid/ask) for
         # mark-to-market equity updates. Bar-only mode is a fast screener but is NOT
         # valid for prop-firm compliance decisions.
@@ -1476,7 +1501,8 @@ class BacktestRunner:
         # Note: Filters/defaults are loaded from the selected strategy YAML.
         _p(f"Initial Balance: ${self.initial_balance:,.2f}")
 
-        t0 = time.perf_counter()
+        wall_t0 = time.perf_counter()
+        segments: list[_TimingSegment] = []
 
         # Make runs deterministic by default (critical for comparing parameter sweeps).
         # Also avoid hash-randomization affecting any set/dict ordering in configs.
@@ -1485,31 +1511,39 @@ class BacktestRunner:
         np.random.seed(self.seed)
 
         # Configure engine
-        engine_config = BacktestEngineConfig(
-            trader_id=TraderId("GOLD-TICK-001"),
-            logging=LoggingConfig(log_level=self.log_level),
-            risk_engine=RiskEngineConfig(bypass=False),
-        )
+        with _time_segment("engine_setup", segments):
+            engine_config = BacktestEngineConfig(
+                trader_id=TraderId("GOLD-TICK-001"),
+                logging=LoggingConfig(log_level=self.log_level),
+                risk_engine=RiskEngineConfig(bypass=False),
+            )
 
-        engine = NautilusEngine(config=engine_config)
-        self.engine = engine
+        with _time_segment("engine_init", segments):
+            engine = NautilusEngine(config=engine_config)
+            self.engine = engine
 
         resolved_product: Product = product or self.product
         resolved_gateway: Gateway = gateway or self.gateway
 
         # Create instrument early (needed for lot_size conversion in engine fee model)
-        if resolved_product == "xauusd":
-            instrument = create_xauusd_instrument(self.venue)
-        elif resolved_product == "mgc":
-            instrument = create_mgc_instrument(self.venue)
-        else:  # pragma: no cover
-            raise ValueError(f"Unsupported product={resolved_product!r}")
-        self.instrument = instrument
+        with _time_segment("instrument_create", segments):
+            if resolved_product == "xauusd":
+                instrument = create_xauusd_instrument(self.venue)
+            elif resolved_product == "mgc":
+                instrument = create_mgc_instrument(self.venue)
+            else:  # pragma: no cover
+                raise ValueError(f"Unsupported product={resolved_product!r}")
+            self.instrument = instrument
 
         # Load strategy YAML config early so engine models (fills/fees/latency) match the strategy config.
-        default_cfg_path = Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml"
-        cfg_path = strategy_config_path if strategy_config_path is not None else default_cfg_path
-        strategy_cfg_dict = load_yaml_config(cfg_path)
+        with _time_segment("strategy_yaml_load", segments):
+            default_cfg_path = (
+                Path(__file__).parent.parent.parent / "configs" / "strategy_config.yaml"
+            )
+            cfg_path = (
+                strategy_config_path if strategy_config_path is not None else default_cfg_path
+            )
+            strategy_cfg_dict = load_yaml_config(cfg_path)
         strategy_cfg_dict.setdefault("confluence", {})
         strategy_cfg_dict.setdefault("execution", {})
         strategy_cfg_dict.setdefault("risk", {})
@@ -1634,31 +1668,34 @@ class BacktestRunner:
             )
 
         # Add venue
-        engine.add_venue(
-            venue=self.venue,
-            oms_type=OmsType.NETTING,
-            account_type=AccountType.MARGIN,
-            base_currency=USD,
-            starting_balances=[Money(self.initial_balance, USD)],
-            default_leverage=Decimal("20"),
-            fill_model=fill_model,
-            fee_model=fee_model,
-            latency_model=latency_model,
-        )
+        with _time_segment("engine_add_venue", segments):
+            engine.add_venue(
+                venue=self.venue,
+                oms_type=OmsType.NETTING,
+                account_type=AccountType.MARGIN,
+                base_currency=USD,
+                starting_balances=[Money(self.initial_balance, USD)],
+                default_leverage=Decimal("20"),
+                fill_model=fill_model,
+                fee_model=fee_model,
+                latency_model=latency_model,
+            )
 
-        engine.add_instrument(instrument)
+        with _time_segment("engine_add_instrument", segments):
+            engine.add_instrument(instrument)
 
         _p(f"Instrument: {instrument.id} (product={resolved_product}, gateway={resolved_gateway})")
 
-        # Load tick data from config.yaml (SINGLE SOURCE OF TRUTH)
-        config_path = Path(__file__).parent.parent.parent / "data" / "config.yaml"
-        if not config_path.exists():
-            raise FileNotFoundError(
-                f"Data config not found: {config_path}. Please create data/config.yaml first!"
-            )
+        with _time_segment("data_config_load", segments):
+            # Load tick data from config.yaml (SINGLE SOURCE OF TRUTH)
+            config_path = Path(__file__).parent.parent.parent / "data" / "config.yaml"
+            if not config_path.exists():
+                raise FileNotFoundError(
+                    f"Data config not found: {config_path}. Please create data/config.yaml first!"
+                )
 
-        with open(config_path, encoding="utf-8") as f:
-            data_config = yaml.safe_load(f) or {}
+            with open(config_path, encoding="utf-8") as f:
+                data_config = yaml.safe_load(f) or {}
 
         # Validate required config structure
         if "active_dataset" not in data_config:
@@ -1707,8 +1744,30 @@ class BacktestRunner:
         elif data_source == "parquet":
             use_catalog = False
         else:
-            # auto: prefer the configured Parquet file unless explicitly selecting catalog
+            # auto: for XAUUSD tick backtests (2020+ workflow), prefer the native stride20 catalog
+            # for speed and to avoid loading large DataFrames.
             use_catalog = False
+
+            if feed == "ticks" and resolved_product == "xauusd":
+                start_ok = False
+                try:
+                    start_ts_auto = pd.Timestamp(start_date, tz="UTC")
+                    start_ok = start_ts_auto >= pd.Timestamp("2020-01-01", tz="UTC")
+                except Exception:
+                    start_ok = False
+
+                if start_ok:
+                    datasets_cfg = data_config.get("datasets", {})
+                    ds = (
+                        datasets_cfg.get("stride20_catalog_2020")
+                        if isinstance(datasets_cfg, dict)
+                        else None
+                    )
+                    if isinstance(ds, dict) and ds.get("path"):
+                        selected = (repo_root / str(ds["path"])).resolve()
+                        if selected.exists():
+                            native_catalogs = [selected]
+                            use_catalog = True
 
         if resolved_product == "mgc" and use_catalog:
             raise ValueError(
@@ -1723,9 +1782,9 @@ class BacktestRunner:
 
         bars_df: pd.DataFrame | None = None
         if feed == "bars" and bars_override is None and bars_file:
-            if ltf_minutes_int != 5:
+            if ltf_minutes_int not in (5, 15):
                 raise ValueError(
-                    "bars_file input currently supports only M5 bars; use feed=ticks for ltf-minutes != 5"
+                    "bars_file input currently supports only M5/M15 bars; use feed=ticks for other ltf-minutes"
                 )
             bars_path = Path(bars_file)
             if not bars_path.exists():
@@ -1766,25 +1825,40 @@ class BacktestRunner:
             missing = [p for p in native_catalogs if not p.exists()]
             if missing:
                 raise FileNotFoundError(f"Catalog path(s) not found: {missing}")
-            catalogs = [ParquetDataCatalog(str(p)) for p in native_catalogs]
+            with _time_segment("catalog_init", segments):
+                catalogs = [ParquetDataCatalog(str(p)) for p in native_catalogs]
 
-            # ParquetDataCatalog.quote_ticks expects nanosecond timestamps (int), not date strings.
-            # When we pass strings, it returns an empty result (silent failure) and the backtest crashes later.
-            start_ts = pd.Timestamp(start_date, tz="UTC")
-            end_ts = pd.Timestamp(end_date, tz="UTC")
-            # If the user passed a date-only string, include the full day (end is exclusive).
-            if len(end_date) <= 10:
-                end_ts = end_ts + pd.Timedelta(days=1)
-            start_ns = int(start_ts.value)
-            end_ns = int(end_ts.value)
+            # Use the same deterministic window used for engine.run(...).
+            start_ns = window_start_ns
+            end_ns = window_end_ns
 
             # Streaming ingestion path (memory-safe for stride1): use the Rust backend session
             # and yield QuoteTick chunks to NautilusEngine via add_data_iterator.
             # NOTE: ParquetDataCatalog.quote_ticks materializes full lists and will OOM on stride1.
-            if step != 1:
-                raise ValueError(
-                    "source=catalog currently requires sample_rate=1 when streaming (sampling before materialization is not supported)"
-                )
+            # Sampling is applied during streaming to avoid pre-materialization.
+
+            def _sample_quote_tick_chunks(
+                chunks: Iterator[list[QuoteTick]],
+                *,
+                step: int,
+            ) -> Iterator[list[QuoteTick]]:
+                if step <= 1:
+                    yield from chunks
+                    return
+
+                idx = 0
+                out: list[QuoteTick] = []
+                out_max = 4096
+                for chunk in chunks:
+                    for tick in chunk:
+                        if (idx % step) == 0:
+                            out.append(tick)
+                            if len(out) >= out_max:
+                                yield out
+                                out = []
+                        idx += 1
+                if out:
+                    yield out
 
             def _iter_catalog_quote_tick_chunks(
                 catalog: ParquetDataCatalog,
@@ -1801,54 +1875,64 @@ class BacktestRunner:
                     if chunk:
                         yield cast(list[QuoteTick], chunk)
 
-            if len(catalogs) == 1:
-                engine.add_data_iterator(
-                    "backtest_data",
-                    cast(
-                        Generator[list[Any], None, None],
-                        _iter_catalog_quote_tick_chunks(catalogs[0]),
-                    ),
-                )
-            else:
-                # Multiple catalogs: merge chunk heads by first ts_init.
-                def _merge_catalogs_in_ts_order(
-                    catalogs_in: list[ParquetDataCatalog],
-                ) -> Iterator[list[QuoteTick]]:
-                    iters = [_iter_catalog_quote_tick_chunks(c) for c in catalogs_in]
-                    heads: list[list[QuoteTick] | None] = []
-                    for it in iters:
-                        try:
-                            heads.append(next(it))
-                        except StopIteration:
-                            heads.append(None)
+            with _time_segment("engine_add_ticks_iterator", segments):
+                if len(catalogs) == 1:
+                    engine.add_data_iterator(
+                        "backtest_data",
+                        cast(
+                            Generator[list[Any], None, None],
+                            _sample_quote_tick_chunks(
+                                _iter_catalog_quote_tick_chunks(catalogs[0]),
+                                step=step,
+                            ),
+                        ),
+                    )
+                else:
+                    # Multiple catalogs: merge chunk heads by first ts_init.
+                    def _merge_catalogs_in_ts_order(
+                        catalogs_in: list[ParquetDataCatalog],
+                    ) -> Iterator[list[QuoteTick]]:
+                        iters = [_iter_catalog_quote_tick_chunks(c) for c in catalogs_in]
+                        heads: list[list[QuoteTick] | None] = []
+                        for it in iters:
+                            try:
+                                heads.append(next(it))
+                            except StopIteration:
+                                heads.append(None)
 
-                    while True:
-                        best_i: int | None = None
-                        best_ts: int | None = None
-                        for i, head in enumerate(heads):
-                            if not head:
-                                continue
-                            ts0 = int(head[0].ts_init)
-                            if best_ts is None or ts0 < best_ts:
-                                best_ts = ts0
-                                best_i = i
+                        while True:
+                            best_i: int | None = None
+                            best_ts: int | None = None
+                            for i, head in enumerate(heads):
+                                if not head:
+                                    continue
+                                ts0 = int(head[0].ts_init)
+                                if best_ts is None or ts0 < best_ts:
+                                    best_ts = ts0
+                                    best_i = i
 
-                        if best_i is None:
-                            return
+                            if best_i is None:
+                                return
 
-                        out = heads[best_i]
-                        assert out is not None
-                        yield out
+                            out = heads[best_i]
+                            assert out is not None
+                            yield out
 
-                        try:
-                            heads[best_i] = next(iters[best_i])
-                        except StopIteration:
-                            heads[best_i] = None
+                            try:
+                                heads[best_i] = next(iters[best_i])
+                            except StopIteration:
+                                heads[best_i] = None
 
-                engine.add_data_iterator(
-                    "backtest_data",
-                    cast(Generator[list[Any], None, None], _merge_catalogs_in_ts_order(catalogs)),
-                )
+                    engine.add_data_iterator(
+                        "backtest_data",
+                        cast(
+                            Generator[list[Any], None, None],
+                            _sample_quote_tick_chunks(
+                                _merge_catalogs_in_ts_order(catalogs),
+                                step=step,
+                            ),
+                        ),
+                    )
 
             quote_ticks = []  # streaming mode; do not materialize
             _p(f"[CATALOG] Streaming quote ticks from native catalog(s): {len(catalogs)}")
@@ -1858,11 +1942,13 @@ class BacktestRunner:
                     f"Tick data not found at {tick_path}. Check data/config.yaml!"
                 )
 
-            df = load_tick_data(str(tick_path), start_date, end_date, sample_rate)
+            with _time_segment("parquet_load_tick_df", segments):
+                df = load_tick_data(str(tick_path), start_date, end_date, sample_rate)
             if feed == "ticks":
-                quote_ticks = build_ticks_with_wrangler(
-                    df=df, instrument=self.instrument, latency_ms=self.latency_ms
-                )
+                with _time_segment("tick_wrangler_build", segments):
+                    quote_ticks = build_ticks_with_wrangler(
+                        df=df, instrument=self.instrument, latency_ms=self.latency_ms
+                    )
 
         # Create bar type for internal aggregation from ticks
         agg_source = AggregationSource.INTERNAL if feed == "ticks" else AggregationSource.EXTERNAL
@@ -1882,7 +1968,9 @@ class BacktestRunner:
                     raise ValueError(
                         f"No tick data found for period {start_date} to {end_date}. Check date range and data source."
                     )
-                engine.add_data(quote_ticks)
+                with _time_segment("engine_add_ticks", segments):
+                    engine.add_data(quote_ticks, sort=False)
+                    engine.sort_data()
                 _p(f"Added {len(quote_ticks):,} ticks to engine (bars aggregated internally)")
         else:
             if bars_override is not None:
@@ -1910,17 +1998,23 @@ class BacktestRunner:
                         bars_df2["low"].astype(float).values, tick=tick, mode="floor"
                     )
                 bars = build_bars_with_wrangler(bars_df2, bar_type=bar_type, instrument=instrument)
-            engine.add_data(bars)
+            with _time_segment("engine_add_bars", segments):
+                engine.add_data(bars, sort=False)
+                engine.sort_data()
             _p(f"Added {len(bars):,} bars to engine (external bars feed)")
 
         # Configure strategy from YAML + overrides (built earlier so engine + strategy share the same economics)
-        strategy_config = build_strategy_config(
-            strategy_cfg_dict, bar_type, instrument.id, ltf_minutes=ltf_minutes_int
-        )
+        with _time_segment("strategy_build", segments):
+            strategy_config = build_strategy_config(
+                strategy_cfg_dict, bar_type, instrument.id, ltf_minutes=ltf_minutes_int
+            )
 
-        strategy = GoldScalperStrategy(config=strategy_config)
-        engine.add_strategy(strategy)
-        self.strategy = strategy
+        with _time_segment("strategy_init", segments):
+            strategy = GoldScalperStrategy(config=strategy_config)
+
+        with _time_segment("engine_add_strategy", segments):
+            engine.add_strategy(strategy)
+            self.strategy = strategy
 
         _p(f"Strategy: {strategy_config.strategy_id}")
 
@@ -1933,7 +2027,8 @@ class BacktestRunner:
         terminated = False
         use_streaming = use_catalog and feed == "ticks"
         try:
-            engine.run(streaming=use_streaming)
+            with _time_segment("engine_run", segments):
+                engine.run(start=window_start_ns, end=window_end_ns, streaming=use_streaming)
         except AccountTerminatedException as exc:
             # In prop-firm mode we terminate early on hard breaches; keep reporting stable.
             terminated = True
@@ -1949,20 +2044,25 @@ class BacktestRunner:
             if quiet:
                 logging.disable(prev_disable)
 
-        summary = self._print_results(
-            reports=reports,
-            start_date=start_date,
-            end_date=end_date,
-            feed=feed,
-            source=data_source,
-            sample=float(sample_rate),
-            output_dir=Path(output_dir) if output_dir else None,
-            terminated=terminated,
-        )
+        with _time_segment("reporting", segments):
+            summary = self._print_results(
+                reports=reports,
+                start_date=start_date,
+                end_date=end_date,
+                feed=feed,
+                source=data_source,
+                sample=float(sample_rate),
+                output_dir=Path(output_dir) if output_dir else None,
+                terminated=terminated,
+            )
 
         if profile:
-            dt = time.perf_counter() - t0
-            payload = {"event": "profile", "total_seconds": round(dt, 3)}
+            wall_dt = time.perf_counter() - wall_t0
+            payload: dict[str, Any] = {
+                "event": "profile",
+                "total_seconds": round(wall_dt, 3),
+                "segments_seconds": {s.name: round(s.seconds, 6) for s in segments},
+            }
             if output_dir:
                 try:
                     profile_path = Path(output_dir) / "profile.json"
@@ -2344,7 +2444,10 @@ def main() -> None:
         "--source",
         choices=["auto", "parquet", "catalog"],
         default="auto",
-        help="Data source selection",
+        help=(
+            "Data source selection. NOTE: for product=xauusd, feed=ticks, and start>=2020-01-01, "
+            "source=auto defaults to the native stride20 catalog for speed."
+        ),
     )
     parser.add_argument("--profile", action="store_true", help="Print coarse timing JSON")
     parser.add_argument(
@@ -2502,6 +2605,17 @@ def main() -> None:
         help="Comma-separated catalog dirs (absolute or repo-relative). Overrides --catalog-path.",
     )
     parser.add_argument(
+        "--catalog-stride",
+        type=int,
+        default=None,
+        choices=[1, 5, 10, 20],
+        help=(
+            "Select one of the prebuilt native 2020+ catalogs (stride 1/5/10/20). "
+            "This sets --source=catalog and overrides --catalog-path/--catalog-paths. "
+            "Use --catalog-stride 1 for highest-fidelity final verification."
+        ),
+    )
+    parser.add_argument(
         "--fidelity-stride1",
         action="store_true",
         help=(
@@ -2643,6 +2757,11 @@ def main() -> None:
         help='PSAR index selection: use t-1 for trend/smc/both, or use last bar with "none".',
     )
     args = parser.parse_args()
+
+    # Smoke matrix runs should not require manual output/telemetry flags.
+    # Default to writing artifacts under nautilus_gold_scalper/_artifacts.
+    if getattr(args, "smoke_matrix", False) and args.out_dir is None:
+        args.out_dir = str(Path("nautilus_gold_scalper") / "_artifacts" / "_smoke_matrix")
 
     # ---------------------------------------------------------------------------
     # Certification mode preflight and setup (--certify)
@@ -2958,23 +3077,63 @@ def main() -> None:
     repo_root = project_root.parent
 
     catalog_paths: list[str] | None = None
-    explicit_catalog_paths = _split_csv(args.catalog_paths)
-    if explicit_catalog_paths:
-        catalog_paths = explicit_catalog_paths
-    elif args.all_sessions or args.sessions:
-        sessions = _split_csv(args.sessions)
-        resolved = _resolve_session_catalogs(
-            repo_root=repo_root,
-            sessions_root=str(args.sessions_root),
-            product=cast(Product, args.product),
-            sessions=sessions,
-            all_sessions=bool(args.all_sessions),
-        )
-        catalog_paths = resolved if resolved else None
+
+    def _load_data_config() -> dict[str, Any]:
+        cfg_path = Path(__file__).parent.parent.parent / "data" / "config.yaml"
+        with open(cfg_path, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return cfg if isinstance(cfg, dict) else {}
+
+    # Convenience selector for the prebuilt 2020+ native catalogs.
+    # This is intentionally opinionated to support the screening funnel:
+    # stride20 -> stride10 -> stride5 -> stride1.
+    if args.catalog_stride is not None:
+        data_config = _load_data_config()
+        stride = int(args.catalog_stride)
+        if stride == 1:
+            key = "stride1_catalog_2020"
+        elif stride == 5:
+            key = "stride5_catalog_2020"
+        elif stride == 10:
+            key = "stride10_catalog_2020"
+        elif stride == 20:
+            key = "stride20_catalog_2020"
+        else:  # pragma: no cover
+            raise ValueError(f"Unsupported --catalog-stride={stride}")
+
+        datasets = data_config.get("datasets", {})
+        ds = datasets.get(key) if isinstance(datasets, dict) else None
+        if not isinstance(ds, dict) or not ds.get("path"):
+            raise FileNotFoundError(
+                f"data/config.yaml missing datasets.{key}.path for --catalog-stride={stride}"
+            )
+
+        rel = str(ds["path"])
+        selected = (repo_root / rel).resolve()
+        if not selected.exists():
+            raise FileNotFoundError(f"Selected catalog not found: {selected}")
+
+        args.source = "catalog"
+        catalog_paths = [str(selected)]
+
+    else:
+        explicit_catalog_paths = _split_csv(args.catalog_paths)
+        if explicit_catalog_paths:
+            catalog_paths = explicit_catalog_paths
+        elif args.all_sessions or args.sessions:
+            sessions = _split_csv(args.sessions)
+            resolved = _resolve_session_catalogs(
+                repo_root=repo_root,
+                sessions_root=str(args.sessions_root),
+                product=cast(Product, args.product),
+                sessions=sessions,
+                all_sessions=bool(args.all_sessions),
+            )
+            catalog_paths = resolved if resolved else None
 
     if args.smoke_matrix:
         # Fast validation harness: run a short, deterministic matrix of feature toggles
-        # using the default parquet stride20 dataset.
+        # using the default tick runner settings (ticks, source=auto).
         import datetime as _dt
 
         start_dt = _dt.date.fromisoformat(str(args.start))
@@ -3130,10 +3289,10 @@ def main() -> None:
         ]
 
         print("\n" + "=" * 60)
-        print("SMOKE MATRIX (stride20 parquet)")
+        print("SMOKE MATRIX (ticks, source=auto)")
         print("=" * 60)
         print(f"Window: {smoke_start} to {smoke_end} (clamped to <= {max_days} days)")
-        print("Mode: feed=ticks, source=parquet")
+        print("Mode: feed=ticks, source=auto")
         print("\nCASE\tOK\tTRADES\tFILLS\tPNL\tTERMINATED")
 
         baseline_signature: tuple[int, int, float, bool] | None = None
@@ -3166,7 +3325,7 @@ def main() -> None:
                     execution_threshold=int(threshold),
                     debug_mode=False,
                     feed="ticks",
-                    data_source="parquet",
+                    data_source="auto",
                     profile=False,
                     reports="none",
                     bars_file=None,

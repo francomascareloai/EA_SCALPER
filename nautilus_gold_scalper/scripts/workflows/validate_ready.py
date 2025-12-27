@@ -78,12 +78,14 @@ def main() -> int:
                 "-m",
                 "nautilus_gold_scalper.scripts.run_backtest",
                 "--smoke-matrix",
+                "--product",
+                "xauusd",
                 "--start",
                 str(args.start),
                 "--end",
                 str(args.end),
             ],
-            title="backtest smoke matrix (stride20 parquet)",
+            title="backtest smoke matrix (ticks, source=auto)",
             env=env,
         )
 

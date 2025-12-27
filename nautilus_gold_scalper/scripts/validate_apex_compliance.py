@@ -235,23 +235,28 @@ def _count_overnight_for_group(group_df: pd.DataFrame, ts_col: str) -> int:
     def is_flat(pos: float) -> bool:
         return abs(pos) < tol
 
-    for _, row in df.iterrows():
-        # Compute signed delta: BUY=+1, SELL=-1
-        side = str(row.get("side", "")).upper()
+    cols = list(df.columns)
+    ts_i = int(df.columns.get_loc(ts_col))
+    side_i = int(df.columns.get_loc("side")) if "side" in cols else -1
+    filled_i = int(df.columns.get_loc("filled_qty")) if "filled_qty" in cols else -1
+    qty_i = int(df.columns.get_loc("quantity")) if "quantity" in cols else -1
+
+    for row in df.itertuples(index=False, name=None):
+        side = str(row[side_i]) if side_i >= 0 else ""
+        side = side.upper()
         sign = 1.0 if side == "BUY" else -1.0 if side == "SELL" else 0.0
 
-        # Prefer filled_qty over quantity
-        qty = row.get("filled_qty")
-        if pd.isna(qty):
-            qty = row.get("quantity", 0.0)
-        qty = float(qty) if not pd.isna(qty) else 0.0
+        qty = row[filled_i] if filled_i >= 0 else None
+        if qty is None or pd.isna(qty):
+            qty = row[qty_i] if qty_i >= 0 else 0.0
+        qty_f = float(qty) if qty is not None and not pd.isna(qty) else 0.0
 
-        delta = sign * qty
+        delta = sign * qty_f
         was_flat = is_flat(position)
         position += delta
         now_flat = is_flat(position)
 
-        ts_et = row[ts_col]
+        ts_et = row[ts_i]
         current_date = ts_et.date()
 
         # Detect open: flat -> non-flat

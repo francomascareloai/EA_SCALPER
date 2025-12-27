@@ -1,15 +1,72 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import yaml
 from nautilus_trader.model.data import QuoteTick
 from nautilus_trader.persistence.catalog import ParquetDataCatalog
+
+_WINDOWS_DRIVE_RX = re.compile(r"^(?P<drive>[A-Za-z]):[\\/](?P<rest>.*)$")
+
+
+def _normalize_cli_path(value: str) -> Path:
+    """Normalize CLI paths across WSL + Windows.
+
+    Supports both:
+    - WSL style: /mnt/d/...
+    - Windows style: D:\\... or D:/...
+    """
+
+    s = str(value).strip().strip('"').strip("'")
+    m = _WINDOWS_DRIVE_RX.match(s)
+    if m:
+        drive = m.group("drive").lower()
+        rest = m.group("rest").replace("\\", "/")
+        return Path("/mnt") / drive / rest
+    return Path(s)
+
+
+def _format_bytes(n: int) -> str:
+    # Simple, stable formatting (avoid locale issues)
+    units = ["B", "KB", "MB", "GB", "TB"]
+    size = float(n)
+    for u in units:
+        if size < 1024.0:
+            return f"{size:.1f}{u}"
+        size /= 1024.0
+    return f"{size:.1f}PB"
+
+
+def _estimate_tree_size_bytes(root: Path) -> int:
+    total = 0
+    for dirpath, _dirnames, filenames in os.walk(root):
+        dp = Path(dirpath)
+        for name in filenames:
+            try:
+                total += (dp / name).stat().st_size
+            except FileNotFoundError:
+                # File might disappear mid-walk; treat as 0.
+                pass
+    return total
+
+
+def _nearest_existing_parent(path: Path) -> Path:
+    p = path
+    while not p.exists():
+        parent = p.parent
+        if parent == p:
+            return p
+        p = parent
+    return p
 
 
 def _repo_root() -> Path:
@@ -139,12 +196,23 @@ def _count_filtered_quote_tick_files(
     return total, keep
 
 
+def _sample_arrow_table_stride(table: pa.Table, *, stride: int) -> pa.Table:
+    if stride <= 1:
+        return table
+    n = table.num_rows
+    if n == 0:
+        return table
+    idx = np.arange(0, n, stride, dtype=np.int64)
+    return table.take(pa.array(idx))
+
+
 def _copy_filtered_quote_ticks(
     *,
     src_catalog: Path,
     out_catalog: Path,
     start: pd.Timestamp | None,
     end: pd.Timestamp | None,
+    stride: int,
 ) -> None:
     """Copy only the parts of the catalog needed for QuoteTick backtests.
 
@@ -153,7 +221,8 @@ def _copy_filtered_quote_ticks(
     - data/currency_pair/** (small instrument metadata)
     - root checkpoint json if present
 
-    The goal is to avoid copying the full catalog when we only backtest recent windows.
+    If `stride` > 1, downsample ticks while copying by taking every Nth row within each file.
+    Output remains a Nautilus-native ParquetDataCatalog layout.
     """
 
     if out_catalog.exists():
@@ -197,8 +266,22 @@ def _copy_filtered_quote_ticks(
                         keep = False
                     if end is not None and a > end:
                         keep = False
-            if keep:
+            if not keep:
+                continue
+
+            if stride <= 1:
                 shutil.copy2(f, dst_inst / f.name)
+                continue
+
+            table = pq.read_table(f)
+            table = _sample_arrow_table_stride(table, stride=stride)
+            if table.num_rows == 0:
+                continue
+            pq.write_table(
+                table,
+                where=str(dst_inst / f.name),
+                row_group_size=5000,
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,18 +293,29 @@ class Plan:
     end: pd.Timestamp | None
     ensure_contiguous_files: bool
     filtered_copy: bool
+    stride: int
 
 
 def _build_plan(args: argparse.Namespace) -> Plan:
-    src = Path(args.catalog_dir).expanduser() if args.catalog_dir else _load_default_catalog_path()
+    src = (
+        _normalize_cli_path(args.catalog_dir).expanduser()
+        if args.catalog_dir
+        else _load_default_catalog_path()
+    )
     src = src.resolve()
 
     start = _parse_date_utc(args.start) if args.start else None
     end = _parse_date_utc(args.end) if args.end else None
 
+    stride = max(1, int(args.stride))
+
     if args.output_dir:
-        out = Path(args.output_dir).expanduser().resolve()
+        out = _normalize_cli_path(args.output_dir).expanduser().resolve()
     else:
+        base = src.name
+        if stride > 1:
+            base = f"{base}_stride{stride}"
+
         if args.filtered_copy and (start is not None or end is not None):
             if start is not None and end is not None:
                 suffix = f"filtered_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}"
@@ -231,9 +325,9 @@ def _build_plan(args: argparse.Namespace) -> Plan:
                 end_ts = end
                 assert end_ts is not None
                 suffix = f"filtered_until_{end_ts.strftime('%Y%m%d')}"
-            out = src.with_name(f"{src.name}_{suffix}_consolidated_{args.period_days}d")
+            out = src.with_name(f"{base}_{suffix}_consolidated_{args.period_days}d")
         else:
-            out = src.with_name(f"{src.name}_consolidated_{args.period_days}d")
+            out = src.with_name(f"{base}_consolidated_{args.period_days}d")
 
     return Plan(
         source_catalog=src,
@@ -243,6 +337,7 @@ def _build_plan(args: argparse.Namespace) -> Plan:
         end=end,
         ensure_contiguous_files=bool(args.ensure_contiguous_files),
         filtered_copy=bool(args.filtered_copy),
+        stride=stride,
     )
 
 
@@ -273,6 +368,15 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=7,
         help="Consolidation period size in days (recommended: 7 or 30 for stride1).",
+    )
+    p.add_argument(
+        "--stride",
+        type=int,
+        default=1,
+        help=(
+            "Optional downsampling stride applied during filtered copy (take every Nth tick within each file). "
+            "Use 1 for full fidelity."
+        ),
     )
     p.add_argument(
         "--start", default=None, help="Optional start (YYYY-MM-DD or ISO datetime, UTC)."
@@ -347,6 +451,30 @@ def main() -> int:
         print(f"QuoteTick parquet files: {total}")
         print(f"QuoteTick files kept:   {keep}")
 
+        # Show size estimate early to help choose output disk.
+        # Note: this is an overestimate if consolidation merges files.
+        src_qt = src / "data" / "quote_tick"
+        est_bytes = 0
+        for inst_dir in src_qt.iterdir():
+            if not inst_dir.is_dir():
+                continue
+            for f in inst_dir.glob("*.parquet"):
+                iv = _parse_filename_range(f.name)
+                if iv is None:
+                    continue
+                a, b = iv
+                if plan.start is not None and b < plan.start:
+                    continue
+                if plan.end is not None and a > plan.end:
+                    continue
+                try:
+                    est_bytes += f.stat().st_size
+                except FileNotFoundError:
+                    pass
+        stride_note = f" (stride={plan.stride})" if plan.stride > 1 else ""
+        est_scaled = int(est_bytes / float(plan.stride)) if plan.stride > 1 else est_bytes
+        print(f"Estimated QuoteTick bytes to copy{stride_note}: {_format_bytes(est_scaled)}")
+
     if args.dry_run:
         return 0
 
@@ -360,6 +488,7 @@ def main() -> int:
                 out_catalog=out,
                 start=plan.start,
                 end=plan.end,
+                stride=plan.stride,
             )
         else:
             print("Copying catalog (safe mode)...")
