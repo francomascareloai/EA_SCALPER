@@ -2,14 +2,17 @@
 NautilusTrader Tick-Based Backtest for Gold Scalper.
 
 Uses real XAUUSD tick data (25M+ records) with NautilusTrader native engine.
-Ticks are fed as QuoteTicks and aggregated to M5 bars for strategy consumption.
+Ticks are fed as QuoteTicks and aggregated to LTF bars for strategy consumption.
 """
 
+import copy
 import json
 import logging
+import os
 import random
 import sys
 import time
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -40,7 +43,7 @@ from nautilus_trader.backtest.models import (
 )
 from nautilus_trader.config import BacktestEngineConfig, LoggingConfig, RiskEngineConfig
 from nautilus_trader.model.currencies import USD, XAU
-from nautilus_trader.model.data import Bar, BarSpecification, BarType, QuoteTick
+from nautilus_trader.model.data import Bar, BarSpecification, BarType, QuoteTick, capsule_to_list
 from nautilus_trader.model.enums import (
     AccountType,
     AggregationSource,
@@ -73,9 +76,16 @@ from src.utils.metrics import MetricsCalculator
 Sample = int | float
 FeedMode = Literal["ticks", "bars"]
 DataSource = Literal["auto", "parquet", "catalog"]
+
+
+class TickSourceMismatchError(RuntimeError):
+    """Raised when attempting to run a stride=1 fidelity comparison on a non-equivalent tick source."""
+
+
 ReportsMode = Literal["none", "positions", "summary", "full"]
 Product = Literal["xauusd", "mgc"]
 Gateway = Literal["rithmic", "tradovate"]
+BarsTimestampBasis = Literal["open", "close"]
 
 _MISSING = object()
 
@@ -159,6 +169,30 @@ def _parse_bool(value: Any, default: bool) -> bool:
     if isinstance(value, int):
         return bool(value)
     return default
+
+
+def _parse_bars_timestamp_basis(value: Any, *, field: str) -> BarsTimestampBasis:
+    """Parse bars timestamp basis.
+
+    Supported:
+    - "open": timestamps represent bar start (requires +bar_duration shift to close).
+    - "close": timestamps already represent bar close (no shift).
+
+    Fail-closed: invalid values raise ValueError.
+    """
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if s in ("open", "close"):
+            return cast(BarsTimestampBasis, s)
+    raise ValueError(f"{field} must be one of: 'open', 'close' (got {value!r})")
+
+
+def _bars_timestamp_basis_from_execution_cfg(exec_cfg: dict[str, Any]) -> BarsTimestampBasis:
+    raw = exec_cfg.get("bars_timestamp_basis")
+    if raw is None:
+        # Default preserves historical behavior: assume bar-open timestamps and shift to close.
+        return "open"
+    return _parse_bars_timestamp_basis(raw, field="execution.bars_timestamp_basis")
 
 
 @dataclass(frozen=True, slots=True)
@@ -336,6 +370,17 @@ def load_tick_data(
         df = df.sort_values("datetime")
         if not df["datetime"].is_monotonic_increasing:
             raise ValueError("Tick data timestamps are not monotonic even after sort")
+
+    # EDGE-4: De-duplicate duplicate timestamps after sort
+    # Duplicates can appear in some data sources and can break downstream "one tick per ts" assumptions.
+    # Keep the first occurrence to preserve causality.
+    if df["datetime"].duplicated().any():
+        n_before = len(df)
+        df = df[~df["datetime"].duplicated(keep="first")].copy()
+        n_removed = n_before - len(df)
+        if n_removed > 0:
+            print(f"[WARN] Removed {n_removed:,} duplicate-timestamp ticks")
+
     if df[["bid", "ask"]].isna().any().any():
         raise ValueError("Tick data contains NaN bid/ask values")
 
@@ -400,6 +445,24 @@ def sample_to_step(sample: Sample) -> int:
     if sample_f < 1:
         return max(1, int(round(1.0 / sample_f)))
     return max(1, int(round(sample_f)))
+
+
+def _build_fill_model(fill_model: str | None, *, seed: int) -> object | None:
+    """Construct a Nautilus fill model with deterministic seeding.
+
+    NOTE: Nautilus FillModels seed Python's global RNG in __init__.
+    Passing `random_seed` is mandatory to avoid OS-entropy seeding which breaks determinism.
+    """
+    resolved = str(fill_model or "").strip().lower()
+    if resolved in ("", "none", "off"):
+        return None
+    if resolved in ("one_tick", "one-tick", "1tick", "1_tick"):
+        return cast(object, OneTickSlippageFillModel(random_seed=int(seed)))
+    if resolved in ("two_tier", "two-tier", "2tier", "2_tier"):
+        return cast(object, TwoTierFillModel(random_seed=int(seed)))
+    if resolved in ("three_tier", "three-tier", "3tier", "3_tier", "realistic"):
+        return cast(object, ThreeTierFillModel(random_seed=int(seed)))
+    raise ValueError(f"Unsupported fill_model={resolved!r}")
 
 
 def _merge_sorted_quote_ticks(ticks_lists: list[list[QuoteTick]]) -> list[QuoteTick]:
@@ -494,12 +557,14 @@ def load_bars_csv(
     end_date: str,
     *,
     ltf_minutes: int,
+    timestamp_basis: BarsTimestampBasis,
 ) -> pd.DataFrame:
     """Load bars file (CSV or Parquet) into an OHLCV DataFrame indexed by UTC timestamp.
 
     Temporal correctness:
-    - If the input timestamp represents bar *start*, shift the index forward by the bar duration
-      so downstream logic treats OHLC as known only at bar close.
+    - If the input timestamp represents bar *start* ("open"), shift the index forward by the
+      bar duration so downstream logic treats OHLC as known only at bar close.
+    - If the input timestamp represents bar *close* ("close"), DO NOT shift.
 
     Supported inputs:
     - FTMO-style CSV with `Date` (YYYYMMDD) + `Time` (HH:MM:SS) and `Open/High/Low/Close[/Volume]`
@@ -562,9 +627,15 @@ def load_bars_csv(
     if ltf_minutes <= 0:
         raise ValueError(f"ltf_minutes must be positive, got {ltf_minutes}")
 
-    # Assume bars are timestamped by bar *start* and shift to bar close to
-    # avoid look-ahead when consuming OHLC in the strategy.
-    df.index = pd.to_datetime(df.index, utc=True) + pd.Timedelta(minutes=int(ltf_minutes))
+    if timestamp_basis == "open":
+        # Assume bars are timestamped by bar *start* and shift to bar close to
+        # avoid look-ahead when consuming OHLC in the strategy.
+        df.index = pd.to_datetime(df.index, utc=True) + pd.Timedelta(minutes=int(ltf_minutes))
+    elif timestamp_basis == "close":
+        # Bars already labeled at bar close; do not shift.
+        df.index = pd.to_datetime(df.index, utc=True)
+    else:  # pragma: no cover
+        raise ValueError(f"Invalid timestamp_basis={timestamp_basis!r}")
 
     # Sanity check: for contiguous intraday data, the most common step should match the bar duration.
     # (Allow gaps for weekends/holidays by only checking short deltas.)
@@ -577,7 +648,7 @@ def load_bars_csv(
             if most_common != expected:
                 raise ValueError(
                     f"Bars timestamps step mismatch: expected {expected}, most_common={most_common}. "
-                    "If your bars are already close-timestamped, disable shifting or adjust loader assumptions."
+                    f"timestamp_basis={timestamp_basis!r} may be wrong for this file."
                 )
 
     start_ts = pd.Timestamp(start_date, tz="UTC")
@@ -828,6 +899,7 @@ def build_strategy_config(
 
     return GoldScalperConfig(
         strategy_id="GOLD-TICK-001",
+        seed=int(exec_cfg.get("seed", 42)),
         instrument_id=instrument_id,
         htf_bar_type=htf_bar_type,
         mtf_bar_type=mtf_bar_type,
@@ -1317,6 +1389,8 @@ class BacktestRunner:
         t0 = time.perf_counter()
 
         # Make runs deterministic by default (critical for comparing parameter sweeps).
+        # Also avoid hash-randomization affecting any set/dict ordering in configs.
+        os.environ.setdefault("PYTHONHASHSEED", str(self.seed))
         random.seed(self.seed)
         np.random.seed(self.seed)
 
@@ -1400,6 +1474,7 @@ class BacktestRunner:
         exec_cfg["partial_fill_prob"] = float(self.partial_fill_prob)
         exec_cfg["partial_fill_ratio"] = float(self.partial_fill_ratio)
         exec_cfg["fill_model"] = str(self.fill_model)
+        exec_cfg["seed"] = int(self.seed)
         exec_cfg["debug_mode"] = bool(debug_mode)
         exec_cfg["prop_firm_enabled"] = bool(prop_firm_enabled)
         # Keep strategy-side risk state aligned with the backtest account.
@@ -1441,17 +1516,7 @@ class BacktestRunner:
 
         # Fill slippage model (engine-level): defines fill prices.
         # NOTE: TwoTier/ThreeTier are depth simulators and can create >1 tick average slippage for large orders.
-        resolved_fill_model = str(self.fill_model or "").strip().lower()
-        if resolved_fill_model in ("", "none", "off"):
-            fill_model = None
-        elif resolved_fill_model in ("one_tick", "one-tick", "1tick", "1_tick"):
-            fill_model = OneTickSlippageFillModel()
-        elif resolved_fill_model in ("two_tier", "two-tier", "2tier", "2_tier"):
-            fill_model = TwoTierFillModel()
-        elif resolved_fill_model in ("three_tier", "three-tier", "3tier", "3_tier", "realistic"):
-            fill_model = ThreeTierFillModel()
-        else:
-            raise ValueError(f"Unsupported fill_model={resolved_fill_model!r}")
+        fill_model = _build_fill_model(self.fill_model, seed=int(self.seed))
 
         # Fee model (engine-level): defines account commissions.
         # Interpretation: `commission_per_contract` is per side for ONE lot.
@@ -1575,11 +1640,15 @@ class BacktestRunner:
             bars_path = Path(bars_file)
             if not bars_path.exists():
                 raise FileNotFoundError(f"bars_file not found: {bars_path}")
+
+            bars_timestamp_basis = _bars_timestamp_basis_from_execution_cfg(exec_cfg)
+
             bars_df = load_bars_csv(
                 bars_path,
                 start_date=start_date,
                 end_date=end_date,
                 ltf_minutes=ltf_minutes_int,
+                timestamp_basis=bars_timestamp_basis,
             )
             if resolved_product == "mgc":
                 tick = float(instrument.price_increment.as_double())
@@ -1608,6 +1677,7 @@ class BacktestRunner:
             if missing:
                 raise FileNotFoundError(f"Catalog path(s) not found: {missing}")
             catalogs = [ParquetDataCatalog(str(p)) for p in native_catalogs]
+
             # ParquetDataCatalog.quote_ticks expects nanosecond timestamps (int), not date strings.
             # When we pass strings, it returns an empty result (silent failure) and the backtest crashes later.
             start_ts = pd.Timestamp(start_date, tz="UTC")
@@ -1617,35 +1687,81 @@ class BacktestRunner:
                 end_ts = end_ts + pd.Timedelta(days=1)
             start_ns = int(start_ts.value)
             end_ns = int(end_ts.value)
-            ticks_lists: list[list[QuoteTick]] = []
-            for idx, catalog in enumerate(catalogs):
-                ticks = catalog.quote_ticks(
-                    instrument_ids=[self.instrument.id.value],
+
+            # Streaming ingestion path (memory-safe for stride1): use the Rust backend session
+            # and yield QuoteTick chunks to NautilusEngine via add_data_iterator.
+            # NOTE: ParquetDataCatalog.quote_ticks materializes full lists and will OOM on stride1.
+            if step != 1:
+                raise ValueError(
+                    "source=catalog currently requires sample_rate=1 when streaming (sampling before materialization is not supported)"
+                )
+
+            def _iter_catalog_quote_tick_chunks(
+                catalog: ParquetDataCatalog,
+            ) -> Iterator[list[QuoteTick]]:
+                session = catalog.backend_session(
+                    data_cls=QuoteTick,
+                    identifiers=[instrument.id.value],
                     start=start_ns,
                     end=end_ns,
                 )
-                ticks_lists.append(ticks)
-                if len(catalogs) > 1:
-                    _p(f"[CATALOG] Loaded {len(ticks):,} ticks from catalog[{idx}]")
-            if len(ticks_lists) > 1:
-                quote_ticks = _merge_sorted_quote_ticks(ticks_lists)
-            else:
-                quote_ticks = ticks_lists[0] if ticks_lists else []
-            _p(f"[CATALOG] Loaded {len(quote_ticks):,} ticks from native catalog(s)")
-            if step > 1:
-                # WARNING: Catalog mode loads ALL ticks into memory BEFORE sampling.
-                # For stride1 datasets (~654M ticks, ~14GB), this requires 50GB+ RAM.
-                # Consider using stride20 dataset or pre-sampled catalog for lower memory usage.
-                import warnings
+                result = session.to_query_result()
+                for capsule in result:
+                    chunk = capsule_to_list(capsule)
+                    if chunk:
+                        yield cast(list[QuoteTick], chunk)
 
-                if len(quote_ticks) > 50_000_000:
-                    warnings.warn(
-                        f"Catalog loaded {len(quote_ticks):,} ticks before sampling. "
-                        f"This requires significant RAM. Consider using stride20 dataset.",
-                        ResourceWarning,
-                        stacklevel=2,
-                    )
-                quote_ticks = quote_ticks[::step]
+            if len(catalogs) == 1:
+                engine.add_data_iterator(
+                    "backtest_data",
+                    cast(
+                        Generator[list[Any], None, None],
+                        _iter_catalog_quote_tick_chunks(catalogs[0]),
+                    ),
+                )
+            else:
+                # Multiple catalogs: merge chunk heads by first ts_init.
+                def _merge_catalogs_in_ts_order(
+                    catalogs_in: list[ParquetDataCatalog],
+                ) -> Iterator[list[QuoteTick]]:
+                    iters = [_iter_catalog_quote_tick_chunks(c) for c in catalogs_in]
+                    heads: list[list[QuoteTick] | None] = []
+                    for it in iters:
+                        try:
+                            heads.append(next(it))
+                        except StopIteration:
+                            heads.append(None)
+
+                    while True:
+                        best_i: int | None = None
+                        best_ts: int | None = None
+                        for i, head in enumerate(heads):
+                            if not head:
+                                continue
+                            ts0 = int(head[0].ts_init)
+                            if best_ts is None or ts0 < best_ts:
+                                best_ts = ts0
+                                best_i = i
+
+                        if best_i is None:
+                            return
+
+                        out = heads[best_i]
+                        assert out is not None
+                        yield out
+
+                        try:
+                            heads[best_i] = next(iters[best_i])
+                        except StopIteration:
+                            heads[best_i] = None
+
+                engine.add_data_iterator(
+                    "backtest_data",
+                    cast(Generator[list[Any], None, None], _merge_catalogs_in_ts_order(catalogs)),
+                )
+
+            quote_ticks = []  # streaming mode; do not materialize
+            _p(f"[CATALOG] Streaming quote ticks from native catalog(s): {len(catalogs)}")
         elif feed == "ticks" or (feed == "bars" and bars_override is None and bars_df is None):
             if not tick_path.exists():
                 raise FileNotFoundError(
@@ -1668,12 +1784,16 @@ class BacktestRunner:
         _p(f"Bar type: {bar_type}")
 
         if feed == "ticks":
-            if not quote_ticks:
-                raise ValueError(
-                    f"No tick data found for period {start_date} to {end_date}. Check date range and data source."
-                )
-            engine.add_data(quote_ticks)
-            _p(f"Added {len(quote_ticks):,} ticks to engine (bars aggregated internally)")
+            if use_catalog:
+                # Data is fed via add_data_iterator in streaming mode.
+                _p("Added ticks via catalog iterator (streaming)")
+            else:
+                if not quote_ticks:
+                    raise ValueError(
+                        f"No tick data found for period {start_date} to {end_date}. Check date range and data source."
+                    )
+                engine.add_data(quote_ticks)
+                _p(f"Added {len(quote_ticks):,} ticks to engine (bars aggregated internally)")
         else:
             if bars_override is not None:
                 bars = bars_override
@@ -1721,13 +1841,21 @@ class BacktestRunner:
             print("=" * 60 + "\n")
 
         terminated = False
+        use_streaming = use_catalog and feed == "ticks"
         try:
-            engine.run()
+            engine.run(streaming=use_streaming)
         except AccountTerminatedException as exc:
             # In prop-firm mode we terminate early on hard breaches; keep reporting stable.
             terminated = True
             _p(f"[TERMINATED] {exc}")
         finally:
+            # If we ran in streaming mode, explicitly end the engine before dispose().
+            # Nautilus does not call end() when streaming=True.
+            if use_streaming:
+                try:
+                    engine.end()
+                except Exception:
+                    pass
             if quiet:
                 logging.disable(prev_disable)
 
@@ -2096,7 +2224,7 @@ def main() -> None:
     parser.add_argument(
         "--product",
         choices=["xauusd", "mgc"],
-        default="xauusd",
+        default="mgc",
         help="Instrument product to simulate",
     )
     parser.add_argument(
@@ -2129,9 +2257,31 @@ def main() -> None:
         help="Console reporting level",
     )
     parser.add_argument(
-        "--bars-file", default=None, help="Optional M5 bars CSV file for fast screening (feed=bars)"
+        "--bars-file",
+        default=None,
+        help=(
+            "Optional M5 bars CSV file for fast screening (feed=bars). "
+            "Use --bars-timestamp-basis to specify whether timestamps are bar-open or bar-close."
+        ),
+    )
+    parser.add_argument(
+        "--bars-timestamp-basis",
+        choices=["open", "close"],
+        default=None,
+        help=(
+            "Bars timestamp basis for --bars-file: 'open' (bar start, shift +duration) or 'close' "
+            "(already bar close, no shift). Default preserves current behavior: 'open'."
+        ),
     )
     parser.add_argument("--sweep", action="store_true", help="Run parameter sweep")
+    parser.add_argument(
+        "--smoke-matrix",
+        action="store_true",
+        help=(
+            "Run a fast stride20 smoke matrix (short window) to validate feature flags wiring. "
+            "Uses parquet stride20, feed=ticks, and prints a compact pass/fail table."
+        ),
+    )
     parser.add_argument("--no-news", action="store_true", help="Disable news filter")
     parser.add_argument(
         "--news-events-path",
@@ -2223,6 +2373,13 @@ def main() -> None:
         "--telemetry-path", default=None, help="Override YAML telemetry.path (JSONL)"
     )
     parser.add_argument(
+        "--require-telemetry",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Require telemetry artifacts for Apex compliance (default: True). "
+        "Use --no-require-telemetry to disable this gate.",
+    )
+    parser.add_argument(
         "--ml-capture",
         action="store_true",
         help="Enable ML snapshot capture to telemetry (ml_snapshot events)",
@@ -2236,6 +2393,14 @@ def main() -> None:
         "--catalog-paths",
         default=None,
         help="Comma-separated catalog dirs (absolute or repo-relative). Overrides --catalog-path.",
+    )
+    parser.add_argument(
+        "--fidelity-stride1",
+        action="store_true",
+        help=(
+            "Run a stride20 vs stride1 fidelity check on the SAME time window. "
+            "Requires tick feed; runs parquet stride20 and catalog stride1, then compares key metrics."
+        ),
     )
     parser.add_argument(
         "--sessions-root",
@@ -2377,15 +2542,65 @@ def main() -> None:
     exec_cfg = cfg.get("execution", {}) if isinstance(cfg, dict) else {}
 
     config_overrides: dict[str, object] | None = None
-    if args.news_events_path:
-        config_overrides = {"news": {"events_path": args.news_events_path}}
 
-    if args.telemetry_path:
+    # Bars timestamp basis override: CLI wins over YAML; conflicts fail closed.
+    if args.bars_timestamp_basis is not None:
+        cli_basis = _parse_bars_timestamp_basis(
+            args.bars_timestamp_basis, field="--bars-timestamp-basis"
+        )
+        yaml_basis: BarsTimestampBasis | None = None
+        if isinstance(exec_cfg, dict) and exec_cfg.get("bars_timestamp_basis") is not None:
+            yaml_basis = _parse_bars_timestamp_basis(
+                exec_cfg.get("bars_timestamp_basis"), field="execution.bars_timestamp_basis"
+            )
+        if yaml_basis is not None and yaml_basis != cli_basis:
+            raise ValueError(
+                "Conflicting bars timestamp basis: "
+                f"CLI --bars-timestamp-basis={cli_basis!r} vs YAML execution.bars_timestamp_basis={yaml_basis!r}"
+            )
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault("execution", {})
+        exec_over = config_overrides.get("execution")
+        if isinstance(exec_over, dict):
+            exec_over["bars_timestamp_basis"] = cli_basis
+
+    if args.news_events_path:
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault("news", {})
+        news_over = config_overrides.get("news")
+        if isinstance(news_over, dict):
+            news_over["events_path"] = args.news_events_path
+
+    # Telemetry hard-gate for Apex compliance (default: require telemetry artifacts)
+    # This ensures backtest runs intended for Apex compliance always produce telemetry.
+    require_telemetry: bool = getattr(args, "require_telemetry", True)
+    effective_telemetry_path: str | None = args.telemetry_path
+
+    if require_telemetry:
+        # Must have telemetry path - fail closed if missing
+        if effective_telemetry_path is None:
+            if args.out_dir:
+                effective_telemetry_path = str(Path(args.out_dir) / "telemetry.jsonl")
+            else:
+                sys.exit(
+                    "ERROR: Telemetry required for Apex compliance. "
+                    "Pass --telemetry-path <path> or --out-dir <dir> (auto-creates telemetry.jsonl). "
+                    "Use --no-require-telemetry to disable this gate."
+                )
+    else:
+        # Not required, but auto-set for reproducibility if reports enabled and out_dir provided
+        if effective_telemetry_path is None and args.reports != "none" and args.out_dir:
+            effective_telemetry_path = str(Path(args.out_dir) / "telemetry.jsonl")
+
+    # Apply telemetry overrides if we have a path
+    if effective_telemetry_path:
         config_overrides = config_overrides or {}
         config_overrides.setdefault("telemetry", {})
         tel_over = config_overrides.get("telemetry")
         if isinstance(tel_over, dict):
-            tel_over["path"] = str(args.telemetry_path)
+            tel_over["path"] = effective_telemetry_path
+            if require_telemetry:
+                tel_over["enabled"] = True
 
     if args.ml_capture:
         config_overrides = config_overrides or {}
@@ -2594,6 +2809,7 @@ def main() -> None:
         partial_fill_prob=partial_prob,
         partial_fill_ratio=partial_ratio,
         fill_model=str(exec_cfg.get("fill_model", "realistic")),
+        seed=int(exec_cfg.get("seed", 42)),
     )
     runner.metrics_jsonl = metrics_jsonl
 
@@ -2614,6 +2830,373 @@ def main() -> None:
             all_sessions=bool(args.all_sessions),
         )
         catalog_paths = resolved if resolved else None
+
+    if args.smoke_matrix:
+        # Fast validation harness: run a short, deterministic matrix of feature toggles
+        # using the default parquet stride20 dataset.
+        import datetime as _dt
+
+        start_dt = _dt.date.fromisoformat(str(args.start))
+        end_dt = _dt.date.fromisoformat(str(args.end))
+        max_days = 5
+        if (end_dt - start_dt).days + 1 > max_days:
+            end_dt = start_dt + _dt.timedelta(days=max_days - 1)
+
+        smoke_start = start_dt.isoformat()
+        smoke_end = end_dt.isoformat()
+
+        # Base overrides from CLI (e.g., telemetry path, news file) are respected.
+        base_overrides = copy.deepcopy(config_overrides) if config_overrides is not None else None
+
+        def _case_overrides(extra: dict[str, Any] | None) -> dict[str, Any] | None:
+            if base_overrides is None and not extra:
+                return None
+            merged: dict[str, Any] = (
+                copy.deepcopy(base_overrides) if base_overrides is not None else {}
+            )
+            if extra:
+                _deep_update(merged, extra)
+            return merged
+
+        cases: list[tuple[str, dict[str, Any] | None, dict[str, Any]]] = [
+            (
+                "baseline",
+                None,
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "baseline_repeat",
+                None,
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "no_news",
+                None,
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": False,
+                },
+            ),
+            (
+                "no_session_filter",
+                None,
+                {
+                    "use_session_filter": False,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "no_regime_filter",
+                None,
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": False,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "no_mtf",
+                None,
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": False,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "no_virtual_gate",
+                {"execution": {"virtual_gate_enabled": False}},
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "no_vol_spacing",
+                {"execution": {"vol_spacing_max_seconds": 0.0}},
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "no_exposure_caps",
+                {"execution": {"max_concurrent_positions": 99, "max_concurrent_instruments": 99}},
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+            (
+                "mr_only",
+                {
+                    "execution": {
+                        "enable_mean_revert": True,
+                        "use_selector": True,
+                        "enable_smc": False,
+                        "enable_trend_follow": False,
+                    }
+                },
+                {
+                    "use_session_filter": resolved_use_session_filter,
+                    "use_regime_filter": resolved_use_regime_filter,
+                    "use_mtf": resolved_use_mtf,
+                    "use_footprint": resolved_use_footprint,
+                    "prop_firm_enabled": resolved_prop_firm_enabled,
+                    "use_news_filter": resolved_use_news_filter,
+                },
+            ),
+        ]
+
+        print("\n" + "=" * 60)
+        print("SMOKE MATRIX (stride20 parquet)")
+        print("=" * 60)
+        print(f"Window: {smoke_start} to {smoke_end} (clamped to <= {max_days} days)")
+        print("Mode: feed=ticks, source=parquet")
+        print("\nCASE\tOK\tTRADES\tFILLS\tPNL\tTERMINATED")
+
+        baseline_signature: tuple[int, int, float, bool] | None = None
+
+        for name, extra_overrides, params in cases:
+            try:
+                runner_case = BacktestRunner(
+                    initial_balance=exec_cfg.get("initial_balance", 100_000.0),
+                    log_level="ERROR",
+                    slippage_ticks=int(slippage_ticks),
+                    commission_per_contract=float(commission),
+                    product=cast(Product, args.product),
+                    gateway=cast(Gateway, args.gateway),
+                    latency_ms=int(latency_ms),
+                    partial_fill_prob=float(partial_prob),
+                    partial_fill_ratio=float(partial_ratio),
+                    fill_model=str(exec_cfg.get("fill_model", "realistic")),
+                )
+                summary = runner_case.run(
+                    start_date=smoke_start,
+                    end_date=smoke_end,
+                    ltf_minutes=int(args.ltf_minutes),
+                    sample_rate=float(args.sample),
+                    use_session_filter=bool(params["use_session_filter"]),
+                    use_regime_filter=bool(params["use_regime_filter"]),
+                    use_mtf=bool(params["use_mtf"]),
+                    use_footprint=bool(params["use_footprint"]),
+                    prop_firm_enabled=bool(params["prop_firm_enabled"]),
+                    use_news_filter=bool(params["use_news_filter"]),
+                    execution_threshold=int(threshold),
+                    debug_mode=False,
+                    feed="ticks",
+                    data_source="parquet",
+                    profile=False,
+                    reports="none",
+                    bars_file=None,
+                    output_dir=None,
+                    risk_per_trade=args.risk,
+                    product=cast(Product, args.product),
+                    gateway=cast(Gateway, args.gateway),
+                    quiet=True,
+                    catalog_path=None,
+                    catalog_paths=None,
+                    strategy_config_path=config_path,
+                    config_overrides=_case_overrides(extra_overrides),
+                    return_summary=True,
+                )
+
+                if summary is None:
+                    raise RuntimeError("BacktestRunner returned no summary")
+
+                sig = (
+                    int(summary.trades),
+                    int(summary.fills),
+                    float(summary.total_pnl),
+                    bool(summary.terminated),
+                )
+                if name == "baseline":
+                    baseline_signature = sig
+                if (
+                    name == "baseline_repeat"
+                    and baseline_signature is not None
+                    and sig != baseline_signature
+                ):
+                    raise RuntimeError(
+                        f"Non-deterministic baseline: expected {baseline_signature}, got {sig}"
+                    )
+
+                print(
+                    f"{name}\tOK\t{summary.trades}\t{summary.fills}\t{summary.total_pnl:.2f}\t{int(summary.terminated)}"
+                )
+            except Exception as exc:
+                print(f"{name}\tFAIL\t0\t0\t0.00\t0\t# {type(exc).__name__}: {exc}")
+
+        return
+
+    if args.fidelity_stride1:
+        if args.feed != "ticks":
+            raise ValueError("--fidelity-stride1 requires --feed=ticks")
+
+        if cast(Product, args.product) != "xauusd":
+            raise TickSourceMismatchError(
+                "--fidelity-stride1 is only supported for product=xauusd (spot). "
+                "MGC uses a different data source and cannot be compared tick-for-tick."
+            )
+
+        # Keep this run deterministic and comparable: force same strategy config + same window,
+        # but different tick sources.
+        base_kwargs = dict(
+            start_date=args.start,
+            end_date=args.end,
+            ltf_minutes=int(args.ltf_minutes),
+            sample_rate=1.0,
+            use_session_filter=resolved_use_session_filter,
+            use_regime_filter=resolved_use_regime_filter,
+            use_mtf=resolved_use_mtf,
+            use_footprint=resolved_use_footprint,
+            prop_firm_enabled=resolved_prop_firm_enabled,
+            use_news_filter=resolved_use_news_filter,
+            execution_threshold=int(threshold),
+            debug_mode=False,
+            feed="ticks",
+            profile=bool(args.profile),
+            reports="none",
+            bars_file=None,
+            output_dir=None,
+            risk_per_trade=args.risk,
+            product=cast(Product, args.product),
+            gateway=cast(Gateway, args.gateway),
+            quiet=True,
+            strategy_config_path=config_path,
+            config_overrides=config_overrides,
+            return_summary=True,
+        )
+
+        runner_stride20 = BacktestRunner(
+            initial_balance=exec_cfg.get("initial_balance", 100_000.0),
+            log_level="ERROR",
+            slippage_ticks=int(slippage_ticks),
+            commission_per_contract=float(commission),
+            product=cast(Product, args.product),
+            gateway=cast(Gateway, args.gateway),
+            latency_ms=int(latency_ms),
+            partial_fill_prob=float(partial_prob),
+            partial_fill_ratio=float(partial_ratio),
+            fill_model=str(exec_cfg.get("fill_model", "realistic")),
+            seed=int(exec_cfg.get("seed", 42)),
+        )
+
+        runner_stride1 = BacktestRunner(
+            initial_balance=exec_cfg.get("initial_balance", 100_000.0),
+            log_level="ERROR",
+            slippage_ticks=int(slippage_ticks),
+            commission_per_contract=float(commission),
+            product=cast(Product, args.product),
+            gateway=cast(Gateway, args.gateway),
+            latency_ms=int(latency_ms),
+            partial_fill_prob=float(partial_prob),
+            partial_fill_ratio=float(partial_ratio),
+            fill_model=str(exec_cfg.get("fill_model", "realistic")),
+            seed=int(exec_cfg.get("seed", 42)),
+        )
+
+        summary_stride20 = runner_stride20.run(
+            **base_kwargs,
+            data_source="parquet",
+            catalog_path=None,
+            catalog_paths=None,
+        )
+        summary_stride1 = runner_stride1.run(
+            **base_kwargs,
+            data_source="catalog",
+            catalog_path=args.catalog_path,
+            catalog_paths=catalog_paths,
+        )
+
+        if summary_stride20 is None or summary_stride1 is None:
+            raise RuntimeError("Fidelity run returned no summary")
+
+        print("\n" + "=" * 60)
+        print("FIDELITY CHECK: stride20(parquet) vs stride1(catalog)")
+        print("=" * 60)
+        print(f"Window: {args.start} -> {args.end}")
+        print("Metric\tstride20\tstride1\tΔ")
+
+        def _row(name: str, a: float, b: float) -> None:
+            delta = b - a
+            print(f"{name}\t{a}\t{b}\t{delta}")
+
+        _row("trades", float(summary_stride20.trades), float(summary_stride1.trades))
+        _row("fills", float(summary_stride20.fills), float(summary_stride1.fills))
+        _row("pnl", float(summary_stride20.total_pnl), float(summary_stride1.total_pnl))
+        _row(
+            "terminated",
+            float(int(summary_stride20.terminated)),
+            float(int(summary_stride1.terminated)),
+        )
+
+        # Determinism guard: stride1 must be stable on repeat.
+        summary_stride1_repeat = runner_stride1.run(
+            **base_kwargs,
+            data_source="catalog",
+            catalog_path=args.catalog_path,
+            catalog_paths=catalog_paths,
+        )
+        if summary_stride1_repeat is None:
+            raise RuntimeError("Fidelity repeat returned no summary")
+
+        sig1 = (
+            int(summary_stride1.trades),
+            int(summary_stride1.fills),
+            float(summary_stride1.total_pnl),
+            bool(summary_stride1.terminated),
+        )
+        sig1b = (
+            int(summary_stride1_repeat.trades),
+            int(summary_stride1_repeat.fills),
+            float(summary_stride1_repeat.total_pnl),
+            bool(summary_stride1_repeat.terminated),
+        )
+        if sig1 != sig1b:
+            raise RuntimeError(f"Non-deterministic stride1: expected {sig1}, got {sig1b}")
+
+        return
 
     if args.sweep:
         # Parameter sweep mode

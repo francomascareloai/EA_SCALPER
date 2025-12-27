@@ -8,7 +8,7 @@ This folder is the canonical home for **operational documentation** (how to run/
   - `configuration/CONFIGURATION_GUIDE.md`
 
 - Reference
-  - `reference/SCRIPTS.md`
+  - `reference/SCRIPTS.md` (includes **Readiness gate**: 1-command pytest+mypy+smoke-matrix)
   - `reference/BARS_GENERATION.md`
   - `reference/NEWS_CALENDAR.md`
   - `reference/NEWS_CALENDAR_IMPLEMENTATION.md`

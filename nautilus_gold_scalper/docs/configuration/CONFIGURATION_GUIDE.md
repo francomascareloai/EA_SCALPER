@@ -53,8 +53,19 @@ Compatibility wrapper:
 
 ### Common patterns
 
+#### Recommended workflow (fast validation → final verification)
+
+1) **Smoke/validation (fast):**
+- Use default Parquet stride20 (`data/config.yaml active_dataset.path`).
+- Run `--smoke-matrix` (ticks feed, source=parquet) over a short window to validate flag wiring and determinism.
+
+2) **Final verification (slow, highest fidelity):**
+- Use `--source catalog` (native ParquetDataCatalog stride1) on a smaller curated period (or session-sliced catalogs).
+- Only do this after smoke passes to avoid wasting hours on broken wiring.
+
+
 - **Single run (ticks feed, parquet source):**
-  - Uses `data/config.yaml active_dataset.path`.
+  - Uses `data/config.yaml active_dataset.path` (default: Parquet stride20).
   - Most live-like (but slower).
 
 - **Fast screening (bars feed):**

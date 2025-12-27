@@ -6,7 +6,9 @@ Esta pasta contém os **scripts oficiais** para rodar o robô (NautilusTrader) d
 
 - CLI principal (tick ou bars):
   - `python -m nautilus_gold_scalper.scripts.run_backtest --start 2024-11-01 --end 2024-11-07`
+  - Defaults atuais: `--product mgc` e `--gateway tradovate`.
   - Dica performance: use `--feed bars` para iteração rápida; use `--feed ticks` para simulação mais detalhada.
+  - Stride (aproximação): use `--sample N` (ex.: `--sample 20` ≈ pegar 1 a cada 20 ticks). Para produção/validação final, prefira `data/config.yaml` com dataset stride20 ou `--source catalog` para stride1 completo.
   - Para screening rápido com barras M5 prontas: `--bars-file Python_Agent_Hub/ml_pipeline/data/Bars_2020-2025XAUUSD_ftmo-M5-No Session.csv`
 
 ## Compatibilidade
@@ -21,6 +23,15 @@ Alguns imports antigos em testes/planos usam `scripts.*` (package local). Para e
 - Scripts genéricos de dados/ORACLE permanecem em `scripts/data/` e `scripts/oracle/`.
 
 ## Workflows (screening/otimização)
+
+### Readiness gate (1 comando)
+
+- Rodar gates de prontidão (pytest + mypy --strict + backtest smoke matrix stride20):
+  - `python -m nautilus_gold_scalper.scripts.workflows.validate_ready --start 2024-01-01 --end 2024-02-01`
+
+- Rodar também validação lenta do catálogo stride1 (DuckDB phases 2-4):
+  - `python -m nautilus_gold_scalper.scripts.workflows.validate_ready --with-data-validation`
+
 
 - Otimização unificada (grid/random/bayesian/successive_halving):
   - `python nautilus_gold_scalper/scripts/optimize.py --config nautilus_gold_scalper/configs/grids/smc_optimization_fast.yaml --dry-run`

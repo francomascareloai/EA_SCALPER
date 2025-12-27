@@ -30,6 +30,7 @@
 ## Documentation (root level)
 - `INDEX.md` – This file: structural overview + current state
 - `docs/INDEX.md` – Operational documentation (canonical)
+- `docs/reference/SCRIPTS.md` – Commands + **Readiness gate** (1-command pytest+mypy+smoke-matrix)
 - `docs/configuration/CONFIGURATION_GUIDE.md` – Detailed configuration reference (YAML + backtest CLI + optimizer dotpaths)
 - `CHANGELOG.md` – Detailed log of COMPLETED work units (features, bugfixes, improvements)
 - `BUGFIX_LOG.md` – Quick reference for bugs discovered + fixes (debugging focus)
