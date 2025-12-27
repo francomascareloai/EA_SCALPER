@@ -90,7 +90,7 @@ class SpreadMonitor:
         monitor = SpreadMonitor(max_spread_pips=50.0)
 
         # Update with current bid/ask
-        snapshot = monitor.update(bid=2650.20, ask=2650.50)
+        snapshot = monitor.update(bid=2650.20, ask=2650.50, now=datetime(2025, 1, 1))
 
         # Check trading conditions
         if monitor.can_trade():
@@ -112,7 +112,9 @@ class SpreadMonitor:
         max_spread_pips: float = 50.0,
         update_interval: int = 1,
         pip_factor: float = 10.0,
-        warmup_block_trading: bool = False,
+        warmup_block_trading: bool = True,
+        *,
+        strict_now: bool = False,
     ):
         """
         Initialize SpreadMonitor.
@@ -155,6 +157,7 @@ class SpreadMonitor:
         self._update_interval = update_interval
         self._pip_factor = pip_factor
         self._warmup_block_trading = bool(warmup_block_trading)
+        self._strict_now = bool(strict_now)
 
         # Spread history (circular buffer)
         self._spread_history: deque[float] = deque(maxlen=history_size)
@@ -201,6 +204,10 @@ class SpreadMonitor:
 
         # Rate limiting
         if now is None:
+            if self._strict_now:
+                raise ValueError(
+                    "SpreadMonitor.update() requires explicit 'now' when strict_now=True"
+                )
             now = datetime.now(timezone.utc)
         if self._last_update is not None:
             elapsed = (now - self._last_update).total_seconds()
@@ -239,7 +246,8 @@ class SpreadMonitor:
             bool: True if spread allows trading
         """
         if self._snapshot is None:
-            return True  # No data yet, allow trading
+            # Fail closed if configured to block trading during warmup.
+            return not self._warmup_block_trading
         return self._snapshot.can_trade
 
     def get_size_multiplier(self) -> float:

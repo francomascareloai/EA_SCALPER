@@ -203,8 +203,25 @@ class PropFirmManager:
     def on_new_day(self, current_equity: float | None = None, now: datetime | None = None) -> None:
         """
         Reset daily loss tracking at start of trading day.
+
+        IMPORTANT - Apex HWM Semantics:
+        -------------------------------
+        This method intentionally does NOT reset the High Water Mark (_high_water).
+
+        For Apex prop firms, trailing drawdown is calculated from the HIGHEST equity
+        ever reached during the evaluation/funded period, not from daily peaks.
+        The HWM is monotonic and never decreases.
+
+        Only daily-specific counters are reset:
+        - _daily_start_equity: anchored to current equity for new day's daily DD calc
+        - Consecutive win/loss streaks: reset to 0 for fresh start
+        - ConsistencyTracker: daily profit tracking reset
+
+        This conservative behavior ensures we never underestimate trailing DD vs Apex rules.
+
         Args:
             current_equity: equity snapshot to set as new daily start (optional)
+            now: timestamp for the reset (optional)
         """
         now_dt = self._resolve_now(now)
         if current_equity is not None:
@@ -233,16 +250,19 @@ class PropFirmManager:
             if self._raise_on_breach:
                 self._hard_stop(state)
             return False
-        if state.is_trading_allowed and not self._consistency.can_trade(now_et):
+
+        # ConsistencyTracker is deterministic-only: must pass explicit ET timestamp.
+        if not self._consistency.can_trade(now_et):
             return False
-        return state.is_trading_allowed
+
+        return True
 
     def ensure_compliance(self, now: datetime | None = None) -> PropFirmState:
         """Enforce hard stop when already in breach.
 
         This is intended for intrabar checks while positions are open.
         """
-        now_dt = self._resolve_now(now)
+        _ = self._resolve_now(now)
         state = self.get_state()
         if (
             state.is_hard_breached

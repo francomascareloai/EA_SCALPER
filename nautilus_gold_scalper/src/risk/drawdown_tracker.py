@@ -7,6 +7,7 @@ for prop-firm style risk controls and analytics.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import IntEnum
@@ -127,17 +128,18 @@ class DrawdownTracker:
         self._peak_at_max_dd = initial_equity
 
         # History
-        self._history: list[DrawdownSnapshot] = []
+        # PERF: keep a bounded deque to avoid O(n) trims in hot path.
         self._max_history_size = 10000
+        self._history: deque[DrawdownSnapshot] = deque(maxlen=self._max_history_size)
         self._alerts_triggered: list[tuple[datetime, str]] = []
 
         self._strict_now = bool(strict_now)
 
         # NOTE: The tracker can be constructed before any backtest timestamps are known.
-        # `_last_update` will be anchored on the first update when a deterministic
-        # `now` is provided.
-        self._last_update = datetime.now(timezone.utc)
-        self._last_day_check = self._last_update
+        # To keep backtests deterministic, we do NOT set wall-clock timestamps here.
+        # Both are anchored on the first update when a deterministic `now` is provided.
+        self._last_update: datetime | None = None
+        self._last_day_check: datetime | None = None
 
     # ------------------------------------------------------------------ API
     def update(
@@ -180,14 +182,19 @@ class DrawdownTracker:
             DrawdownAnalysis snapshot of current DD state.
         """
         # Always prefer explicit timestamp for backtest accuracy.
-        # Use datetime.now() only as fallback for live trading.
-        # In strict mode, fail closed if `now` is missing (prevents backtest nondeterminism).
+        # In strict mode, fail closed if `now` is missing.
         if now is None:
             if self._strict_now:
                 raise ValueError(
                     "DrawdownTracker.update() requires explicit 'now' when strict_now=True"
                 )
             now = datetime.now(timezone.utc)
+
+        # Anchor timestamps for determinism.
+        if self._last_update is None:
+            self._last_update = now
+        if self._last_day_check is None:
+            self._last_day_check = now
 
         if current_equity <= 0:
             return self.get_analysis()
@@ -269,7 +276,22 @@ class DrawdownTracker:
         return analysis
 
     def reset_daily(self) -> None:
-        """Reset daily counters (use on new trading day)."""
+        """Reset daily counters (use on new trading day).
+
+        IMPORTANT - Apex HWM Semantics:
+        -------------------------------
+        This method intentionally does NOT reset the High Water Mark (_high_water_mark).
+
+        For Apex prop firms, trailing drawdown is calculated from the HIGHEST equity
+        ever reached during the evaluation/funded period, not from daily peaks.
+        The HWM is monotonic and never decreases.
+
+        Only daily-specific counters are reset:
+        - _daily_start_equity: anchored to current equity for new day's daily DD calc
+        - _daily_drawdown / _daily_drawdown_pct: reset to 0
+
+        This conservative behavior ensures we never underestimate trailing DD vs Apex rules.
+        """
         self._daily_start_equity = self._current_equity
         self._daily_drawdown = 0.0
         self._daily_drawdown_pct = 0.0
@@ -325,12 +347,13 @@ class DrawdownTracker:
 
     def get_equity_curve(self) -> list[float]:
         """Return equity history as simple list of equity values."""
-        return [h.equity for h in self._history]
+        return [h.equity for h in list(self._history)]
 
     def get_history(self, last_n: int | None = None) -> list[DrawdownSnapshot]:
+        history = list(self._history)
         if last_n is None:
-            return self._history.copy()
-        return self._history[-last_n:].copy()
+            return history
+        return history[-last_n:]
 
     def get_analysis(self) -> DrawdownAnalysis:
         """Return latest analysis without updating."""
@@ -423,7 +446,9 @@ class DrawdownTracker:
             self._last_day_check = now
             return
 
-        if self._date_in_boundary_tz(now) != self._date_in_boundary_tz(self._last_day_check):
+        if self._last_day_check is not None and self._date_in_boundary_tz(
+            now
+        ) != self._date_in_boundary_tz(self._last_day_check):
             self.reset_daily()
 
         # Update check timestamp to provided time for backtest accuracy
@@ -442,9 +467,12 @@ class DrawdownTracker:
             if max_pct >= thr_pct:
                 msg = f"Drawdown alert {thr_pct:.0f}% | daily {self._daily_drawdown_pct:.2f}% total {self._total_drawdown_pct:.2f}%"
                 # Use last_update timestamp instead of wall-clock for backtest accuracy
-                self._alerts_triggered.append((self._last_update, msg))
+                if self._last_update is not None:
+                    self._alerts_triggered.append((self._last_update, msg))
 
     def _save_snapshot(self, severity: DrawdownSeverity) -> None:
+        if self._last_update is None:
+            return
         snap = DrawdownSnapshot(
             # Use last_update timestamp instead of wall-clock for backtest accuracy
             timestamp=self._last_update,
@@ -460,8 +488,3 @@ class DrawdownTracker:
             severity=severity,
         )
         self._history.append(snap)
-        if len(self._history) > self._max_history_size:
-            # Avoid allocating a new list on every trim (hot path).
-            excess = len(self._history) - self._max_history_size
-            if excess > 0:
-                del self._history[:excess]

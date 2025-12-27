@@ -83,6 +83,11 @@ class TimeConstraintManager:
         self._timer_interval_ns = int(timer_interval_ns)
         self._timer_name = "apex_time_gates"
 
+        # PERF: cache timestamp->ET conversion by epoch-minute.
+        # Many ticks share the same minute; time-gate decisions are minute-based.
+        self._to_et_cached_minute_key: int | None = None
+        self._to_et_cached_dt: datetime | None = None
+
         if self._use_clock_timer and self._clock is not None:
             self._ensure_timer_started()
 
@@ -164,12 +169,19 @@ class TimeConstraintManager:
 
         # Cutoff window: force-close on every call until flat.
         if now_time >= self.cutoff:
+            # PERF: if we've already issued the flatten sequence and have no positions,
+            # avoid re-running force-close logic on every tick.
+            if self._close_orders_submitted and not list(self.strategy.cache.positions_open()):
+                return False
             self._force_close_all(dt_et, trigger="cutoff", gate_time=self.cutoff)
             self._issued.add("cutoff")
             return False
 
         # Emergency window: force-close on every call until flat.
         if now_time >= self.warnings["emergency"]:
+            # PERF: same as cutoff; keep trading blocked but skip redundant work.
+            if self._close_orders_submitted and not list(self.strategy.cache.positions_open()):
+                return False
             self._force_close_all(dt_et, trigger="emergency", gate_time=self.warnings["emergency"])
             return False
 
@@ -178,11 +190,25 @@ class TimeConstraintManager:
     def _to_et(self, ts_ns: int) -> datetime:
         """Convert event timestamp (ns) to America/New_York.
 
+        PERF:
+            Cache conversion by epoch-minute. Gate logic only inspects `.time()`
+            against minute-precision thresholds, so second-level precision is not
+            required for correctness.
+
         Fail-safe: if timezone info is unavailable, assume worst-case and return a
         timestamp in UTC but shifted to be conservative for close compliance.
         """
         if ET_TZ is not None:
-            return datetime.fromtimestamp(ts_ns / 1e9, tz=ET_TZ)
+            # Cache by epoch-minute (UTC-based) to avoid repeated fromtimestamp+tz conversion.
+            # minute_key = floor(ts_seconds / 60)
+            minute_key = int(ts_ns // 60_000_000_000)
+            if minute_key == self._to_et_cached_minute_key and self._to_et_cached_dt is not None:
+                return self._to_et_cached_dt
+
+            dt_et = datetime.fromtimestamp(ts_ns / 1e9, tz=ET_TZ)
+            self._to_et_cached_minute_key = minute_key
+            self._to_et_cached_dt = dt_et
+            return dt_et
 
         # Degraded mode: without reliable ET conversion, fail-safe.
         # If we can't compute ET reliably, assume we're in the danger window and block.
@@ -202,6 +228,11 @@ class TimeConstraintManager:
     def reset_daily(self) -> None:
         """Reset warning flags for a new trading day."""
         self._issued.clear()
+
+        # PERF: reset timestamp conversion cache.
+        self._to_et_cached_minute_key = None
+        self._to_et_cached_dt = None
+
         # BUG-13 FIX: Reset close order tracking for new day
         self._close_orders_submitted = False
         self._close_submitted_ts_ns = None
@@ -257,6 +288,10 @@ class TimeConstraintManager:
 
         # SUCCESS: No positions remaining - all done
         if not remaining:
+            # PERF: After we have already submitted the "close" sequence once, avoid
+            # re-calling close_all_positions() on every tick in the emergency window.
+            if self._close_orders_submitted:
+                return
             try:
                 self.strategy._forcing_flatten = False
             except Exception:

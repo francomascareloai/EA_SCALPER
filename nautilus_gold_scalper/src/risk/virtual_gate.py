@@ -48,7 +48,7 @@ class VirtualGate:
         range_spike_multiplier: float = 3.0,
         cluster_spike_multiplier: float = 2.5,
         cluster_max_fraction: float = 0.30,
-        fail_open_on_insufficient_history: bool = True,
+        fail_open_on_insufficient_history: bool = False,
     ) -> None:
         if lookback_bars <= 1:
             raise ValueError("lookback_bars must be > 1")

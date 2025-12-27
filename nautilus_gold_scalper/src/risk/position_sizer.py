@@ -8,6 +8,15 @@ Calculates optimal position size based on:
 - Adaptive (performance-based)
 
 Integrates with PropFirmManager for limit compliance.
+
+DECISION (2025-12-27): Keep custom PositionSizer instead of Nautilus FixedRiskSizer.
+Reason: Our sizer has more features that Nautilus native lacks:
+- Kelly Criterion sizing
+- ATR-based scaling
+- Adaptive (performance-based) sizing
+- DD scaling (dd_soft/dd_hard thresholds)
+- Regime multiplier support
+See: /home/franco/.claude/plans/composed-brewing-wombat.md Phase 3
 """
 
 import math
