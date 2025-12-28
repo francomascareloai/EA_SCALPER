@@ -404,7 +404,6 @@ void CreateDashboard()
     // Gate icons row
     int gate_x = col1;
     string gate_labels[] = {"T", "D", "S", "V", "G", "N"};
-    string gate_tooltips[] = {"Time", "DD", "Spread", "Virtual", "Gap", "News"};
 
     for(int i = 0; i < 6; i++)
     {

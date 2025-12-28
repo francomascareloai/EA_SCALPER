@@ -71,50 +71,85 @@ long CalculateBarDelta(int barIndex)
    datetime barTime = iTime(_Symbol, _Period, barIndex);
    int barSeconds = PeriodSeconds(_Period);
    datetime barEnd = barTime + barSeconds;
-   
+
+   if(barSeconds <= 0)
+      return 0;
+
+   ulong from_msc = (ulong)barTime * 1000ULL;
+   ulong to_msc = (ulong)barEnd * 1000ULL;
+   if(to_msc > 0)
+      to_msc -= 1ULL; // avoid bar boundary bleed
+   if(to_msc <= from_msc)
+      return 0;
+
    MqlTick ticks[];
-   int copied = CopyTicksRange(_Symbol, ticks, COPY_TICKS_ALL,
-                               barTime * 1000, barEnd * 1000);
-   
+   int copied = CopyTicksRange(_Symbol, ticks, COPY_TICKS_ALL, from_msc, to_msc);
+
    if(copied <= 0)
       return 0;
-   
+
    long delta = 0;
-   double lastPrice = 0;
+   double lastBid = 0.0;
+   double lastAsk = 0.0;
+   double lastTrade = 0.0;
+
    double clusterSize = InpClusterSize;
    if(clusterSize <= 0) clusterSize = 0.50;
-   
+
    for(int i = 0; i < copied; i++)
    {
-      double price = (ticks[i].last > 0) ? ticks[i].last : ticks[i].bid;
+      const double bid = ticks[i].bid;
+      const double ask = ticks[i].ask;
+      const double last = ticks[i].last;
+
       long vol = (ticks[i].volume > 0) ? (long)ticks[i].volume : 1;
-      
-      // Detecta direcao
+
       int direction = 0;
-      
-      // Tick flags
+
       bool hasBuy = (ticks[i].flags & TICK_FLAG_BUY) != 0;
       bool hasSell = (ticks[i].flags & TICK_FLAG_SELL) != 0;
-      
+
       if(hasBuy && !hasSell)
+      {
          direction = 1;
+      }
       else if(hasSell && !hasBuy)
+      {
          direction = -1;
-      else if(ticks[i].ask > 0 && ticks[i].bid > 0)
-      {
-         double mid = (ticks[i].bid + ticks[i].ask) / 2;
-         direction = (price >= mid) ? 1 : -1;
       }
-      else if(lastPrice > 0)
+      else if(last > 0 && bid > 0 && ask > 0)
       {
-         if(price > lastPrice) direction = 1;
-         else if(price < lastPrice) direction = -1;
+         // Prefer trade-price classification when available
+         const double mid = (bid + ask) / 2.0;
+         direction = (last >= mid) ? 1 : -1;
       }
-      
+      else
+      {
+         // Quote-based fallback (avoids systematic sell-bias when last==0)
+         if(lastBid > 0 && bid > 0)
+         {
+            if(bid > lastBid) direction = 1;
+            else if(bid < lastBid) direction = -1;
+         }
+         else if(lastAsk > 0 && ask > 0)
+         {
+            if(ask > lastAsk) direction = 1;
+            else if(ask < lastAsk) direction = -1;
+         }
+         else if(lastTrade > 0 && last > 0)
+         {
+            if(last > lastTrade) direction = 1;
+            else if(last < lastTrade) direction = -1;
+         }
+      }
+
       delta += direction * vol;
-      lastPrice = price;
+
+      if(bid > 0) lastBid = bid;
+      if(ask > 0) lastAsk = ask;
+      if(last > 0) lastTrade = last;
    }
-   
+
    return delta;
 }
 

@@ -34,7 +34,7 @@
 #property indicator_width3  1
 
 // Inputs
-input double   InpClusterSize     = 0.50;   // Cluster Size (pontos)
+input double   InpClusterSize     = 2.50;   // Cluster Size (XAUUSD optimal: 2-5 pts)
 input int      InpBarsToCalculate = 200;    // Barras para calcular
 input double   InpValueAreaPct    = 0.70;   // Value Area % (0.70 = 70%)
 
@@ -90,14 +90,18 @@ void CalculateValueArea(int barIndex, double &poc, double &vah, double &val)
    datetime barEnd = barTime + barSeconds;
    
    MqlTick ticks[];
+   ulong from_msc = (ulong)barTime * 1000ULL;
+   ulong to_msc = (ulong)barEnd * 1000ULL;
+   if(to_msc > 0) to_msc -= 1ULL; // end-exclusive to avoid double counting boundary ticks
+
    int copied = CopyTicksRange(_Symbol, ticks, COPY_TICKS_ALL,
-                               barTime * 1000, barEnd * 1000);
+                               (long)from_msc, (long)to_msc);
    
    if(copied <= 0)
       return;
    
    double clusterSize = InpClusterSize;
-   if(clusterSize <= 0) clusterSize = 0.50;
+   if(clusterSize <= 0) clusterSize = 2.50;
    
    // Agrupa volume por nivel de preco
    SPriceLevel levels[];
