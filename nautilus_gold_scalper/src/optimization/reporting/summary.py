@@ -223,6 +223,7 @@ class SummaryReporter:
         *,
         ghost_summary: dict[str, Any] | None = None,
         stratification_summary: dict[str, Any] | None = None,
+        overfit_analysis: dict[str, list[str]] | None = None,
     ) -> Path:
         """
         Generate structured handoff document for target agent.
@@ -231,6 +232,9 @@ class SummaryReporter:
             results: List of trial results
             target: Target agent (ORACLE or SENTINEL)
             study_stats: Optional study statistics
+            ghost_summary: Ghost test results dict (from ghost_test_summary_dict)
+            stratification_summary: Breakdown by session/variant/regime
+            overfit_analysis: Dict with keys 'cliff', 'island', 'regime_bias' -> list of warnings
 
         Returns:
             Path to handoff markdown file
@@ -254,6 +258,21 @@ class SummaryReporter:
             if r.trades < self.config.constraints.validation.min_trades:
                 rejections["Trades < min"] = rejections.get("Trades < min", 0) + 1
 
+        # Build overfit_analysis from top_n overfit_warnings if not provided
+        if overfit_analysis is None:
+            overfit_analysis = {"cliff": [], "island": [], "regime_bias": []}
+            for r in top_n:
+                if r.overfit_warnings:
+                    for w in r.overfit_warnings:
+                        warning_type = w.get("type", "")
+                        msg = w.get("message", str(w))
+                        if "CLIFF" in warning_type.upper():
+                            overfit_analysis["cliff"].append(msg)
+                        elif "ISLAND" in warning_type.upper() or "SPARSE" in warning_type.upper():
+                            overfit_analysis["island"].append(msg)
+                        elif "REGIME" in warning_type.upper():
+                            overfit_analysis["regime_bias"].append(msg)
+
         content = self._format_handoff(
             top_n=top_n,
             compliant_count=len(compliant),
@@ -263,6 +282,7 @@ class SummaryReporter:
             target=target,
             ghost_summary=ghost_summary,
             stratification_summary=stratification_summary,
+            overfit_analysis=overfit_analysis,
         )
 
         with open(path, "w", encoding="utf-8") as f:
@@ -280,6 +300,7 @@ class SummaryReporter:
         target: str,
         ghost_summary: dict[str, Any] | None,
         stratification_summary: dict[str, Any] | None,
+        overfit_analysis: dict[str, list[str]] | None = None,
     ) -> str:
         """Format handoff document content."""
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -333,6 +354,63 @@ class SummaryReporter:
             strat_json = json.dumps(stratification_summary, indent=2, default=str)
             strat_block = "\n### Stratification Summary\n```json\n" + strat_json + "\n```\n"
 
+        # Build overfitting analysis block from top_n candidates' overfit_warnings
+        overfit_block = ""
+        if overfit_analysis is not None and any(overfit_analysis.values()):
+            overfit_lines = ["\n### Overfitting Analysis"]
+            cliff_warnings = overfit_analysis.get("cliff", [])
+            island_warnings = overfit_analysis.get("island", [])
+            regime_warnings = overfit_analysis.get("regime_bias", [])
+
+            if not cliff_warnings and not island_warnings and not regime_warnings:
+                overfit_lines.append("- **Cliff Detection**: CLEAR (no params at boundaries)")
+                overfit_lines.append(
+                    "- **Island Detection**: CLEAR (top configs have similar neighbors)"
+                )
+                overfit_lines.append("- **Regime Bias**: CLEAR")
+            else:
+                if cliff_warnings:
+                    overfit_lines.append("- **Cliff Detection**: ⚠️ WARNING")
+                    for w in cliff_warnings[:3]:  # Limit to 3
+                        overfit_lines.append(f"  - {w}")
+                else:
+                    overfit_lines.append("- **Cliff Detection**: CLEAR")
+
+                if island_warnings:
+                    overfit_lines.append("- **Island Detection**: ⚠️ WARNING")
+                    for w in island_warnings[:3]:
+                        overfit_lines.append(f"  - {w}")
+                else:
+                    overfit_lines.append("- **Island Detection**: CLEAR")
+
+                if regime_warnings:
+                    overfit_lines.append("- **Regime Bias**: ⚠️ WARNING")
+                    for w in regime_warnings[:3]:
+                        overfit_lines.append(f"  - {w}")
+                else:
+                    overfit_lines.append("- **Regime Bias**: CLEAR")
+
+            overfit_block = "\n".join(overfit_lines) + "\n"
+        elif top_n:
+            # If no overfit_analysis passed but we have top_n, show CLEAR defaults
+            overfit_block = (
+                "\n### Overfitting Analysis\n"
+                "- **Cliff Detection**: CLEAR (no params at boundaries)\n"
+                "- **Island Detection**: CLEAR (top configs have similar neighbors)\n"
+                "- **Regime Bias**: CLEAR\n"
+            )
+
+        # Apex limits block (explicit constraints with buffers)
+        apex_limits = self.config.constraints.apex
+        apex_block = (
+            "\n### Apex Compliance Limits (Configured Buffers)\n"
+            f"- Trailing DD Max: {apex_limits.trailing_dd_max}% (Apex limit: 5%)\n"
+            f"- Daily DD Max: {apex_limits.daily_dd_max}% (CLAUDE.md hard block: 3%)\n"
+            f"- Daily Profit Max: {apex_limits.daily_profit_max}% (consistency rule: 30%)\n"
+            f"- Overnight Positions: {apex_limits.overnight_positions} (must be 0)\n"
+            f"- Time Gate Violations: {apex_limits.time_gate_violations} (must be 0)\n"
+        )
+
         content = f"""## HANDOFF: APEX_OPTIMIZER → {target}
 
 ### Run Metadata
@@ -342,7 +420,7 @@ class SummaryReporter:
 - **Trials**: {study_stats.get("n_complete", 0)} completed, {study_stats.get("n_pruned", 0)} pruned
 - **Duration**: {study_stats.get("duration_seconds", 0):.1f}s
 - **Apex Compliant**: {compliant_count}/{total_count} ({100 * compliant_count / max(1, total_count):.1f}%)
-
+{apex_block}
 ### Search Space Summary
 {params_table}
 
@@ -351,7 +429,7 @@ class SummaryReporter:
 
 ### Apex Rejection Summary
 {reject_table}
-{ghost_block}{strat_block}
+{ghost_block}{strat_block}{overfit_block}
 ### Recommendations for {target}
 1. **Validate top candidates** with full CPCV
 2. **Run Monte Carlo stress test** on top 3

@@ -32,7 +32,7 @@ Transformar o `DOCS/02_IMPLEMENTATION/APEX_OPTIMIZER_PRD.md` em um conjunto de p
 | **10-03** | Constraints Semantics | ⚠️ PARTIAL | 75% |
 | **10-04** | Monte Carlo Layer 3 | ✅ COMPLETE | 95% |
 | **10-05** | Anti-Overfit Detectors | ✅ COMPLETE | 100% |
-| **10-06** | Handoff Format | ⚠️ PARTIAL | 60% |
+| **10-06** | Handoff Format | ✅ COMPLETE | 100% |
 
 ### Detailed Status
 
@@ -72,12 +72,14 @@ Transformar o `DOCS/02_IMPLEMENTATION/APEX_OPTIMIZER_PRD.md` em um conjunto de p
 - ✅ Integrated into optimizer.py (Layer 3c)
 - ✅ `test_anti_overfit.py` with 21 tests (all passing)
 
-#### 10-06: Handoff Format ⚠️
+#### 10-06: Handoff Format ✅ (Completed 2025-12-28)
 - ✅ `generate_handoff()` in summary.py
 - ✅ Ghost Test fully implemented
-- ❌ Stratification Summary - placeholder only
-- ❌ Overfitting Analysis - depends on 10-05
+- ✅ Stratification Summary section
+- ✅ Overfitting Analysis section (cliff/island/regime_bias)
+- ✅ Apex Compliance Limits section with buffers
 - ✅ CLI `--help` shows happy path
+- ✅ `test_handoff_format.py` with 13 passing tests
 
 ---
 
@@ -93,14 +95,14 @@ Transformar o `DOCS/02_IMPLEMENTATION/APEX_OPTIMIZER_PRD.md` em um conjunto de p
 - ~~`tests/test_optimization/test_anti_overfit.py`~~ ✅ Created 2025-12-28 (21 tests)
 - `tests/test_optimization/test_reporting_overfit_fields.py`
 - `tests/test_optimization/test_reporting_stress_fields.py`
-- `tests/test_optimization/test_handoff_format.py`
+- ~~`tests/test_optimization/test_handoff_format.py`~~ ✅ Created 2025-12-28 (13 tests)
 
 ### Summaries
 - ~~`10-01-SUMMARY.md`~~ ✅ Created 2025-12-28
 - `10-03-SUMMARY.md`
 - `10-04-SUMMARY.md`
 - ~~`10-05-SUMMARY.md`~~ ✅ Created 2025-12-28
-- `10-06-SUMMARY.md`
+- ~~`10-06-SUMMARY.md`~~ ✅ Created 2025-12-28
 
 ---
 

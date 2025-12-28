@@ -35,18 +35,39 @@ def parse_args() -> argparse.Namespace:
         description="Apex Optimizer - Parameter optimization for Apex-compliant trading strategies",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # Run Bayesian optimization with 100 trials
-  python -m src.optimization --config configs/grids/smc.yaml --trials 100
+================================================================================
+                           APEX OPTIMIZER - HAPPY PATH
+================================================================================
 
-  # Dry run to see grid size
-  python -m src.optimization --config configs/grids/smc.yaml --dry-run
+1. VALIDATE CONFIG (dry-run):
+   python -m src.optimization --config configs/grids/smc.yaml --dry-run
 
-  # Run with custom date range (smoke test)
-  python -m src.optimization --config configs/grids/smc.yaml --train-start 2020-01-01 --train-end 2020-03-31
+2. RUN OPTIMIZATION:
+   # Bayesian search (recommended for exploration):
+   python -m src.optimization --config configs/grids/smc.yaml --mode bayesian --trials 100
 
-  # Run with custom output directory
-  python -m src.optimization --config configs/grids/smc.yaml --output logs/my_run
+   # Quick smoke test (narrow date range):
+   python -m src.optimization --config configs/grids/smc.yaml --train-start 2020-01-01 --train-end 2020-06-30 --trials 20
+
+   # Grid search (small parameter space only):
+   python -m src.optimization --config configs/grids/smc.yaml --mode grid
+
+   # Successive Halving (multi-fidelity, recommended for large searches):
+   python -m src.optimization --config configs/grids/smc.yaml --mode successive_halving --trials 200
+
+3. OUTPUTS (in logs/optimization/<session>/):
+   - summary.json        Full results with all metrics
+   - summary.csv         Tabular summary for analysis
+   - top_candidates.json Top N candidates with params
+   - HANDOFF_ORACLE.md   Structured handoff for ORACLE agent
+   - HANDOFF_SENTINEL.md Structured handoff for SENTINEL agent
+
+4. NEXT STEPS:
+   - Review HANDOFF_ORACLE.md for validation recommendations
+   - Run ORACLE/SENTINEL validation on top candidates
+   - Generate final GO/NO-GO recommendation
+
+================================================================================
 """,
     )
 
