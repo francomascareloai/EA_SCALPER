@@ -1,8 +1,8 @@
 # Phase 14 — Nautilus Expansion (MASTER PLAN)
 
 Created: 2025-12-27
-Last updated: 2025-12-27
-Status: DRAFT (revised with CRITIC/FORGE/CRUCIBLE feedback)
+Last updated: 2025-12-28
+Status: ACTIVE (triaged with CRITIC/NAUTILUS/FORGE value review)
 
 This plan is intentionally exhaustive. It preserves the full scope discovered in NautilusTrader docs/examples and turns it into an implementation program that avoids retrabalho.
 
@@ -31,7 +31,7 @@ These contain the review outputs which drove the changes below:
 
 Turn `nautilus_gold_scalper/` into a production-grade “machine” by implementing the full set of NautilusTrader features discovered, while maintaining Apex safety invariants and preventing overfit.
 
-Capabilities in-scope:
+Capabilities in-scope (exhaustive scope; annex-backed):
 
 1. Risk hardening (RiskEngineConfig rate limits + max notional + enforcement tests)
 2. Position sizing upgrade (adapter to Nautilus FixedRiskSizer without breaking existing sizing policy)
@@ -42,6 +42,94 @@ Capabilities in-scope:
 7. Controller orchestration (multi-strategy) — deferred until safety and event semantics are proven
 8. Persistence + recovery (on_save/on_load) — promoted earlier because it’s safety-critical
 9. Portfolio/account reporting — last, and explicitly non-authoritative for risk decisions
+
+## 2025-12-28 Triage (CRITIC + NAUTILUS + FORGE)
+
+This plan intentionally contains the *full discovered scope* (annexes). But shipping everything is not automatically “better”.
+
+We operate with two layers:
+- **Exhaustive scope (reference)**: annexes listed at the top (what exists in Nautilus and could be integrated).
+- **Authoritative roadmap (action)**: the prioritized sequence below (what we actually implement next).
+
+### Clarification: “multi-strategy” vs “controller”
+
+There are two different meanings people mix:
+
+1) **Multi-mode inside a single Strategy** (already present)
+- SMC / Trend-follow / Mean-revert are *multiple decision templates* living inside one Strategy process.
+- This can already be “multi-strategy” in the trading sense (multiple edges), without adding orchestration topology.
+
+2) **Multi-strategy orchestration via a Nautilus Controller** (not the same thing)
+- A Controller is lifecycle/portfolio orchestration: create/start/stop strategies, coordinate shared exposure, unify risk budgets.
+- This adds failure modes (stale state, cross-strategy coupling, stop-path bugs) and creates new Apex blow-up paths if not proven.
+
+So the question is not “do we want multiple edges?” (yes) — it’s “do we need a Controller topology now?” (only if we can prove net survival improvement).
+
+### When a Controller becomes justified (gating criteria)
+
+We implement a Nautilus Controller only if at least one is true:
+
+- **Operational need**: we must start/stop strategies independently (e.g., staged rollouts, kill-switch per mode) and we cannot do it safely within a single Strategy.
+- **Portfolio-level risk budgeting**: we need a shared risk budget across modes which cannot be expressed cleanly in the current `UnifiedRiskPolicy`.
+- **Proven tail-risk reduction**: empirical evidence (Monte Carlo survival under Apex trailing DD constraints) shows the Controller topology reduces blow-up probability vs the single-strategy multi-mode design.
+
+Hard requirements if we ever add Controller:
+- Emergency close remains a **top-level** enforcement path (not stoppable by Controller/strategy lifecycle).
+- Controller decisions apply **next bar only** (no same-bar regime/controller switches).
+- The Controller adds **near-zero tunables** (avoid a new optimization surface).
+
+### Decision matrix (value vs complexity)
+
+Rules of thumb used by all 3 reviewers:
+- Safety/ops guardrails (engine-level risk limits, notional caps) are high ROI.
+- Execution state machines (TWAP/child orders) and data transforms (Renko) are high risk unless slippage/noise is a proven bottleneck.
+- New indicators are *assumed overfit* until falsification tests prove otherwise.
+
+| Area | Problem it solves | Main upside | Main downside | Verdict |
+|---|---|---|---|---|
+| Phase B: RiskEngineConfig hardening | Order spam + fat-finger notional | Apex survival ↑ (tail risk ↓) | Misconfig can block orders | **IMPLEMENT (MUST)** |
+| Phase C: FixedRiskSizer adapter | Standardize sizing math | Possible code deletion | Silent sizing distribution shift | **DEFER (only if it deletes code)** |
+| Phase D: TWAP entries | Reduce impact/slippage | Potential slippage ↓ | Deadline/time-gate interactions; partial fills | **DEFER (experimental)** |
+| Phase E: 5 indicators | More confluence inputs | Maybe fewer bad trades | Parameter/overfit explosion | **SKIP by default** |
+| Phase F: Renko mode | Noise reduction | Cleaner structure (maybe) | Look-ahead + fill realism risk | **DEFER (experiment-only)** |
+| Phase G: Signal bus | Decouple + observability | Debuggability ↑ | Stale/out-of-order data | **DEFER / MINIMAL (telemetry)** |
+| Phase H: Controller | True multi-strategy topology | Portfolio orchestration | Correlation blow-ups + stop-path bugs | **SKIP for now** |
+| Phase J: Reporting | Post-mortems + drift detection | Faster iteration, fewer blind spots | Wrong accounting/timezone lies | **DEFER (keep tight)** |
+
+### Hard gates (falsification-first, before shipping complexity)
+
+These are mandatory “fastest disproof” gates:
+
+1) **GHOST TEST (edge attribution)**
+- Replace the entry signal with random direction/timing while keeping *all* existing gates (time/DD/circuit breaker/spread).
+- If performance remains positive/acceptable → signals/indicators are not the edge; filters/risk are.
+- Action: stop adding indicators and focus on risk + execution realism.
+
+2) **Apex survival (tail-risk first)**
+- Required improvements must be reported as ΔMC95DD and survival probability under Apex trailing DD constraints.
+- Any feature which improves Sharpe but worsens MC95DD/survival is rejected.
+
+3) **Time-gate invariants (structural safety)**
+- Nothing may weaken the hard invariants:
+  - Block new trades after 4:30 PM ET.
+  - Emergency close from 4:55 PM ET.
+  - Flat by 4:59 PM ET.
+- Any execution feature (TWAP, Controller) must be provably overrideable by the emergency close path.
+
+4) **Complexity budget**
+- Any new feature which adds tunables must delete others or stay behind a default-OFF toggle.
+- If a human cannot explain “why did we trade?” quickly from logs, complexity is too high.
+
+### Roadmap (authoritative for implementation)
+
+1. **Phase B (MUST)**: finish RiskEngineConfig hardening + tests proving enforcement.
+2. **Run GHOST TEST**: decide if “signals” add edge beyond filters.
+3. **Phase G (optional, minimal)**: add/keep signal bus as *telemetry* only (state-change events), not as core decision wiring.
+4. **Phase D (optional)**: TWAP only if we can prove entry slippage is materially hurting (and keep it OFF by default).
+5. **Phase F (optional)**: Renko as an isolated experiment only after strict look-ahead + hostile-cost tests.
+6. **Phase E (optional)**: indicators only one-at-a-time, only if they replace equivalent math and pass falsification.
+7. **Phase J (later)**: reporting when it directly supports decisions/kill-switches.
+8. **Phase H (last)**: Controller only if we truly need multi-strategy lifecycle management *and* it improves Apex survival.
 
 ---
 
@@ -200,7 +288,26 @@ Deliverable:
 
 Scope source: `RISK_ENGINE_AND_SIZING.md`.
 
-Implementation requirements:
+## Implementation status (2025-12-28)
+
+**DONE**
+- YAML support for `risk_engine.max_order_modify_rate` added.
+- Runner wiring parses and passes `max_order_modify_rate` into `RiskEngineConfig`.
+- `max_notional_per_order` enforcement is covered by a focused integration test (real RiskEngine denial path).
+
+Evidence:
+- Config: `nautilus_gold_scalper/configs/strategy_config.yaml` (`risk_engine.max_order_modify_rate`).
+- Wiring: `nautilus_gold_scalper/scripts/backtest/run_backtest.py` (`_risk_engine_config_from_cfg`).
+- Tests:
+  - `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_config_wiring.py`
+  - `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_notional_enforcement.py`
+
+Validation gate:
+- `pytest -q` PASS (E2E tick test may skip if external tick fixture absent).
+- `mypy --strict` PASS.
+
+## Implementation requirements
+
 1. Extend existing `RiskEngineConfig(bypass=False)` wiring to include:
    - `max_order_submit_rate`
    - `max_order_modify_rate`
@@ -209,11 +316,13 @@ Implementation requirements:
 2. Values come from a single source of truth (YAML/config), not scattered constants.
 
 3. Explicitly ensure “close always wins” is not violated:
-   - if RiskEngine limits cannot be exempted for reduce-only, set limits high enough for emergency close and enforce entry limits elsewhere.
+   - If RiskEngine limits cannot be exempted for reduce-only, keep limits high enough for emergency close and enforce entry limits elsewhere.
 
-Tests:
-- Oversize order rejected under max_notional.
-- Rate limits do not block normal operation.
+## Performance + safety notes
+
+- Parsing is a **cold path** (runner setup). No impact to per-tick performance.
+- Runtime enforcement happens inside Nautilus RiskEngine per command; that is not a hot loop for us.
+- Primary operational risk is misconfiguration (submit/modify rates too tight). Keep defaults high and validate emergency close behavior.
 
 ---
 
@@ -367,7 +476,7 @@ Rules:
 
 # Execution order (updated)
 
-Phases execute in this strict order:
+Phases execute in this strict order (reference order; **implementation may stop early** if falsification gates reject optional items):
 
 0 → A → B → I → C → D → E → F → G → H → J
 
@@ -381,6 +490,8 @@ Rationale:
 - Then signal bus
 - Controller late
 - Reporting last
+
+**Authoritative next steps** are defined in the triage roadmap earlier in this document (Phase B → GHOST TEST → optional phases).
 
 ---
 

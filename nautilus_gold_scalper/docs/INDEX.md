@@ -5,15 +5,19 @@ This folder is the canonical home for **operational documentation** (how to run/
 ## Index
 
 - Configuration
-  - `configuration/CONFIGURATION_GUIDE.md`
+  - `configuration/CONFIGURATION_GUIDE.md` (includes `risk_engine.*` keys: submit/modify rate + max notional)
 
 - Reference
-  - `reference/SCRIPTS.md` (includes **Readiness gate**: 1-command pytest+mypy+smoke-matrix)
+  - `reference/SCRIPTS.md` (includes **Readiness gate**: 1-command pytest+mypy+smoke-matrix; includes sizing A/B via `--sizing-engine`)
   - `reference/BARS_GENERATION.md`
   - `reference/NEWS_CALENDAR.md`
   - `reference/NEWS_CALENDAR_IMPLEMENTATION.md`
   - `reference/NEWS_TRADER_NOTES.md`
   - `reference/DATASETS.md` (native catalogs: stride 1/5/10/20, 2020+)
+
+- Performance
+  - `reference/SCRIPTS.md` (profiling: `--profile`, determinism via `trade_signature_v2.json`)
+  - `reference/DATASETS.md` (stride choice and speed/fidelity trade-off)
 
 - ML
   - `ml/ML_PIPELINE.md`

@@ -146,7 +146,31 @@ Phase 11 safety layer:
 ### `risk:`
 
 - `risk.max_risk_per_trade`: risk fraction per trade.
+- `risk.sizing_engine`: `custom` (default) or `nautilus_fixed` (Nautilus `FixedRiskSizer`) — can be overridden via CLI `--sizing-engine`.
 - `risk.dd_soft`, `risk.dd_hard`: drawdown buffers.
+
+### `risk_engine:` (Nautilus `RiskEngineConfig`)
+
+Engine-level risk checks applied before orders reach the execution engine.
+
+- `risk_engine.max_order_submit_rate`: submit throttle (string like `"100/00:00:01"`).
+- `risk_engine.max_order_modify_rate`: modify throttle (string like `"100/00:00:01"`).
+  - If omitted, the runner leaves it unset so Nautilus defaults apply (validated in `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_config_wiring.py:32`).
+- `risk_engine.max_notional_per_order`: max USD notional per order.
+  - Mapping form: `{ "XAU/USD.SIM": 50000 }`
+  - Shorthand form: `50000` (applies to the current `instrument_id`)
+  - Empty mapping `{}` disables the check.
+
+Key implementation:
+- Config source: `nautilus_gold_scalper/configs/strategy_config.yaml:63`
+- Wiring/parser: `nautilus_gold_scalper/scripts/backtest/run_backtest.py:331` (`_risk_engine_config_from_cfg`)
+- Enforcement proof: `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_notional_enforcement.py:21`
+
+Operational guardrail:
+- Keep submit/modify rates high enough that emergency close cannot be rate-limited; use strategy-level filters to reduce entry churn.
+- `max_notional_per_order` enforcement depends on how Nautilus computes notional for the account/venue model.
+  - In this repo’s backtest engine we use `AccountType.MARGIN` (see `nautilus_gold_scalper/scripts/backtest/run_backtest.py:1876`), and very small notionals may still allow fills.
+  - The enforcement path is verified in a focused integration test using a CASH account: `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_notional_enforcement.py:21`.
 
 ### `news:`
 

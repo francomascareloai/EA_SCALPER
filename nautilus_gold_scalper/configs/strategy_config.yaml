@@ -50,10 +50,34 @@ spread:
   block_ratio: 5.0
   urgency_threshold: 0.8
 risk:
+  # Position sizing engine:
+  # - custom: use nautilus_gold_scalper.src.risk.position_sizer.PositionSizer (default)
+  # - nautilus_fixed: use nautilus_trader.risk.sizing.FixedRiskSizer
+  sizing_engine: custom
+
   max_risk_per_trade: 0.005  # Reduced from 0.01 to 0.5% per trade (Oracle finding: $2300 single-trade losses)
   dd_soft: 0.03
   dd_hard: 0.05
   kelly_fraction: 0.25
+
+# Nautilus RiskEngineConfig (engine-level pre-trade checks)
+# - max_order_submit_rate: "N/HH:MM:SS" (example: "10/00:00:01" = 10 submits per second)
+# - max_order_modify_rate: "N/HH:MM:SS" (example: "10/00:00:01" = 10 modifies per second)
+# - max_notional_per_order:
+#   - either a dict keyed by instrument_id string, or
+#   - a shorthand integer which applies to the current instrument.
+#
+# NOTE: Defaults are applied in the runner if omitted.
+risk_engine:
+  # Nautilus `RiskEngineConfig.max_order_submit_rate` (type: str)
+  max_order_submit_rate: "100/00:00:01"
+
+  # Nautilus `RiskEngineConfig.max_order_modify_rate` (type: str)
+  max_order_modify_rate: "100/00:00:01"
+
+  # Nautilus `RiskEngineConfig.max_notional_per_order` (type: dict[str, int])
+  # Set to 0 to disable the notional check.
+  max_notional_per_order: {}
 news:
   enabled: true
   score_penalty: -15
@@ -65,6 +89,23 @@ news:
   events_path: nautilus_gold_scalper/data/raw/forex_factory_calendar_usd_top_movers_validated.csv
 execution:
   execution_threshold: 35  # FORGE recommended: matches confluence threshold
+
+  # Bars timestamp basis (feed=bars):
+  # - open: input timestamps represent bar start; runner shifts to bar close
+  # - close: input timestamps already represent bar close; no shift
+  # Renko bricks are timestamped at brick close, so use close.
+  bars_timestamp_basis: open
+
+  # Bars aggregation type when running with --feed=bars.
+  # - minute: regular OHLC bars
+  # - renko: offline Renko bricks (requires renko section below)
+  bars_agg: minute
+
+  # Execution algorithm (optional): TWAP for entry orders.
+  # Guardrail: this is ONLY applied to entry market orders; emergency close/flatten never uses TWAP.
+  twap_enabled: false
+  twap_horizon_secs: 30.0
+  twap_interval_secs: 3.0
 
   # Timeframe controls (minutes)
   # - LTF is the bar interval used for entries (runner uses --ltf-minutes; keep consistent)
@@ -212,3 +253,12 @@ ml:
   filter_mode: log_only
   filter_min_p_edge: 0.55
   filter_model_path: null
+
+# Offline Renko bricks (builder: scripts/data/build_renko_bars.py)
+# NOTE: Renko is for screening/backtests; Apex compliance requires tick feed.
+renko:
+  enabled: false  # set true to auto-select renko when --feed=bars
+  brick_usd: 0.75
+  reversal_mult: 2
+  price: bid
+  tick_size: 0.01

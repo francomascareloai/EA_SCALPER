@@ -88,6 +88,8 @@ ReportsMode = Literal["none", "positions", "summary", "full"]
 Product = Literal["xauusd", "mgc"]
 Gateway = Literal["rithmic", "tradovate"]
 BarsTimestampBasis = Literal["open", "close"]
+BarsAggregation = Literal["minute", "renko"]
+RenkoPriceStream = Literal["bid", "mid", "ask"]
 
 _MISSING = object()
 
@@ -212,6 +214,46 @@ def _bar_spec_from_minutes(*, minutes: int) -> BarSpecification:
     )
 
 
+def _bar_spec_from_renko_ticks(*, brick_ticks: int, price_type: PriceType) -> BarSpecification:
+    brick_ticks_int = int(brick_ticks)
+    if brick_ticks_int <= 0:
+        raise ValueError(f"renko.brick_usd (in ticks) must be > 0, got {brick_ticks!r}")
+    return BarSpecification(
+        step=brick_ticks_int, aggregation=BarAggregation.RENKO, price_type=price_type
+    )
+
+
+def _bar_type_from_renko_ticks(
+    *,
+    instrument_id: InstrumentId,
+    brick_ticks: int,
+    price_type: PriceType,
+    aggregation_source: AggregationSource,
+) -> BarType:
+    return BarType(
+        instrument_id=instrument_id,
+        bar_spec=_bar_spec_from_renko_ticks(brick_ticks=brick_ticks, price_type=price_type),
+        aggregation_source=aggregation_source,
+    )
+
+
+def _quantize_renko_ticks(*, brick_usd: float, tick_size: float) -> int:
+    """Convert brick size (USD) into an integer number of ticks.
+
+    # Formula: brick_ticks = round(brick_usd / tick_size)
+    # Example: brick_usd=0.75, tick_size=0.01 -> round(75) = 75 ticks
+    """
+    if tick_size <= 0:
+        raise ValueError(f"tick_size must be > 0, got {tick_size!r}")
+    if brick_usd <= 0:
+        raise ValueError(f"brick_usd must be > 0, got {brick_usd!r}")
+    scaled = float(brick_usd) / float(tick_size)
+    brick_ticks = int(np.rint(scaled))
+    if brick_ticks <= 0:
+        raise ValueError(f"Invalid brick ticks after quantize: {brick_ticks}")
+    return brick_ticks
+
+
 def _bar_type_from_minutes(
     *, instrument_id: InstrumentId, minutes: int, aggregation_source: AggregationSource
 ) -> BarType:
@@ -220,6 +262,30 @@ def _bar_type_from_minutes(
         bar_spec=_bar_spec_from_minutes(minutes=minutes),
         aggregation_source=aggregation_source,
     )
+
+
+def _parse_renko_price_stream(value: Any, *, field: str) -> RenkoPriceStream:
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if s in ("bid", "mid", "ask"):
+            return cast(RenkoPriceStream, s)
+    raise ValueError(f"{field} must be one of: 'bid', 'mid', 'ask' (got {value!r})")
+
+
+def _parse_bars_aggregation(value: Any, *, field: str) -> BarsAggregation:
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if s in ("minute", "renko"):
+            return cast(BarsAggregation, s)
+    raise ValueError(f"{field} must be one of: 'minute', 'renko' (got {value!r})")
+
+
+def _renko_price_type_from_stream(stream: RenkoPriceStream) -> PriceType:
+    if stream == "bid":
+        return PriceType.BID
+    if stream == "ask":
+        return PriceType.ASK
+    return PriceType.MID
 
 
 def _deep_update(dst: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
@@ -260,6 +326,107 @@ def _parse_bool(value: Any, default: bool) -> bool:
     if isinstance(value, int):
         return bool(value)
     return default
+
+
+def _risk_engine_config_from_cfg(cfg: dict[str, Any], *, instrument_id: str) -> RiskEngineConfig:
+    """Build a Nautilus RiskEngineConfig from merged YAML/overrides.
+
+    Expected YAML shape:
+
+        risk_engine:
+          max_order_submit_rate: "10/00:00:01"
+          max_notional_per_order:
+            "XAU/USD.SIM": 50000
+
+    Shorthand supported:
+
+        risk_engine:
+          max_notional_per_order: 50000
+
+    In shorthand form, the value applies to the current `instrument_id`.
+
+    Notes:
+    - `RiskEngineConfig.max_order_submit_rate` is a string (see Nautilus risk/config.py).
+    - `RiskEngineConfig.max_order_modify_rate` is a string (see Nautilus risk/config.py).
+    - `RiskEngineConfig.max_notional_per_order` is a dict[str, int] keyed by instrument ID.
+    """
+
+    raw = cfg.get("risk_engine")
+    if raw is None:
+        # Preserve historical behavior: only disable bypass.
+        return RiskEngineConfig(bypass=False)
+
+    if not isinstance(raw, dict):
+        raise ValueError(f"risk_engine must be a mapping (got {type(raw).__name__})")
+
+    risk_engine_kwargs: dict[str, Any] = {"bypass": False}
+
+    submit_rate = raw.get("max_order_submit_rate")
+    if submit_rate is not None:
+        if not isinstance(submit_rate, str):
+            raise ValueError(
+                "risk_engine.max_order_submit_rate must be a string like '100/00:00:01'"
+            )
+        risk_engine_kwargs["max_order_submit_rate"] = submit_rate
+
+    modify_rate = raw.get("max_order_modify_rate")
+    if modify_rate is not None:
+        if not isinstance(modify_rate, str):
+            raise ValueError(
+                "risk_engine.max_order_modify_rate must be a string like '100/00:00:01'"
+            )
+        risk_engine_kwargs["max_order_modify_rate"] = modify_rate
+
+    max_notional = raw.get("max_notional_per_order")
+    if max_notional is not None:
+        parsed: dict[str, int] = {}
+        if isinstance(max_notional, dict):
+            for key, value in max_notional.items():
+                if not isinstance(key, str):
+                    raise ValueError(
+                        "risk_engine.max_notional_per_order keys must be instrument_id strings"
+                    )
+                if isinstance(value, bool):
+                    raise ValueError(
+                        "risk_engine.max_notional_per_order values must be ints (bool is not allowed)"
+                    )
+                if isinstance(value, float):
+                    if not value.is_integer():
+                        raise ValueError(
+                            "risk_engine.max_notional_per_order values must be whole USD integers"
+                        )
+                    value_int = int(value)
+                elif isinstance(value, int):
+                    value_int = int(value)
+                else:
+                    raise ValueError("risk_engine.max_notional_per_order values must be ints (USD)")
+                if value_int < 0:
+                    raise ValueError("risk_engine.max_notional_per_order values must be >= 0")
+                parsed[key] = value_int
+        elif isinstance(max_notional, float):
+            if not max_notional.is_integer():
+                raise ValueError(
+                    "risk_engine.max_notional_per_order must be an int when using shorthand"
+                )
+            value_int = int(max_notional)
+            if value_int < 0:
+                raise ValueError(
+                    "risk_engine.max_notional_per_order must be >= 0 when using shorthand"
+                )
+            parsed[instrument_id] = value_int
+        elif isinstance(max_notional, int) and not isinstance(max_notional, bool):
+            value_int = int(max_notional)
+            if value_int < 0:
+                raise ValueError(
+                    "risk_engine.max_notional_per_order must be >= 0 when using shorthand"
+                )
+            parsed[instrument_id] = value_int
+        else:
+            raise ValueError("risk_engine.max_notional_per_order must be a mapping or an int (USD)")
+
+        risk_engine_kwargs["max_notional_per_order"] = parsed
+
+    return RiskEngineConfig(**risk_engine_kwargs)
 
 
 def _parse_bars_timestamp_basis(value: Any, *, field: str) -> BarsTimestampBasis:
@@ -658,6 +825,7 @@ def load_bars_csv(
     *,
     ltf_minutes: int,
     timestamp_basis: BarsTimestampBasis,
+    validate_step: bool = True,
 ) -> pd.DataFrame:
     """Load bars file (CSV or Parquet) into an OHLCV DataFrame indexed by UTC timestamp.
 
@@ -737,9 +905,10 @@ def load_bars_csv(
     else:  # pragma: no cover
         raise ValueError(f"Invalid timestamp_basis={timestamp_basis!r}")
 
-    # Sanity check: for contiguous intraday data, the most common step should match the bar duration.
+    # Sanity check: for contiguous intraday time bars, the most common step should match the bar duration.
     # (Allow gaps for weekends/holidays by only checking short deltas.)
-    if len(df.index) >= 3:
+    # NOTE: For non-time-based bars (e.g., Renko), the time deltas are irregular by design.
+    if validate_step and len(df.index) >= 3:
         deltas = df.index.to_series().diff().dropna()
         expected = pd.Timedelta(minutes=int(ltf_minutes))
         short = deltas[deltas <= expected * 2]
@@ -828,6 +997,7 @@ def build_strategy_config(
     consistency_cfg = cfg.get("consistency", {}) if isinstance(cfg, dict) else {}
     telemetry_cfg = cfg.get("telemetry", {}) if isinstance(cfg, dict) else {}
     telemetry_capture = telemetry_cfg.get("capture", {}) if isinstance(telemetry_cfg, dict) else {}
+    fine_profile_cfg = cfg.get("fine_profile", {}) if isinstance(cfg, dict) else {}
     ml_cfg = cfg.get("ml", {}) if isinstance(cfg, dict) else {}
 
     confluence_weights = (
@@ -898,6 +1068,10 @@ def build_strategy_config(
     # the MTF-driven OB/FVG inputs empty.
     use_mtf = _parse_bool(exec_cfg.get("use_mtf"), default=True)
     require_htf_align = _parse_bool(exec_cfg.get("require_htf_align"), default=True)
+
+    # NOTE: The backtest engine expects time-based bars when running in bars-feed mode.
+    # Any offline "Renko" dataset is treated as irregularly-timestamped OHLCV bars; we do not
+    # override the BarType aggregation to RENKO.
     agg_source = bar_type.aggregation_source
 
     # Keep timeframes consistent across LTF experiments.
@@ -1002,20 +1176,32 @@ def build_strategy_config(
         else None
     )
 
+    ltf_bar_type_final = bar_type
+
+    bars_timestamp_basis = str(exec_cfg.get("bars_timestamp_basis", "open")).strip().lower()
+    if bars_timestamp_basis not in ("open", "close"):
+        raise ValueError(
+            f"Invalid execution.bars_timestamp_basis={bars_timestamp_basis!r} (expected 'open' or 'close')"
+        )
+
     return GoldScalperConfig(
         strategy_id="GOLD-TICK-001",
         seed=int(exec_cfg.get("seed", 42)),
         instrument_id=instrument_id,
         htf_bar_type=htf_bar_type,
         mtf_bar_type=mtf_bar_type,
-        ltf_bar_type=bar_type,
+        ltf_bar_type=ltf_bar_type_final,
         ltf_bar_minutes=ltf_minutes_int,
+        bars_timestamp_basis=bars_timestamp_basis,
         mtf_bar_minutes=int(mtf_minutes),
         htf_bar_minutes=int(htf_minutes),
         management_bar_minutes=int(management_bar_minutes),
         execution_threshold=int(execution_threshold),
         slippage_in_fills=_infer_slippage_in_fills(exec_cfg),
         fees_in_account=_infer_fees_in_account(exec_cfg),
+        twap_enabled=_parse_bool(exec_cfg.get("twap_enabled"), default=False),
+        twap_horizon_secs=float(exec_cfg.get("twap_horizon_secs", 30.0)),
+        twap_interval_secs=float(exec_cfg.get("twap_interval_secs", 3.0)),
         min_mtf_confluence=float(confluence_cfg.get("min_score_to_trade", 50)),
         min_rr_ratio=float(exec_cfg.get("min_rr_ratio", 1.5)),
         target_rr_ratio=float(exec_cfg.get("target_rr_ratio", 2.5)),
@@ -1044,7 +1230,9 @@ def build_strategy_config(
         total_loss_limit_pct=float(risk_cfg.get("dd_hard", 0.05)) * 100.0
         if float(risk_cfg.get("dd_hard", 0.05)) < 1.0
         else float(risk_cfg.get("dd_hard", 5.0)),
+        sizing_engine=str(risk_cfg.get("sizing_engine", "custom")),
         risk_per_trade=Decimal(str(risk_cfg.get("max_risk_per_trade", 0.01))),
+        max_risk_per_trade=Decimal(str(risk_cfg.get("max_risk_per_trade", 0.01))),
         max_spread_points=int(
             spread_cfg.get("max_spread_points", exec_cfg.get("max_spread_points", 80))
         ),
@@ -1210,6 +1398,7 @@ def build_strategy_config(
         telemetry_capture_spread=_parse_bool(telemetry_capture.get("spread"), default=True),
         telemetry_capture_circuit=_parse_bool(telemetry_capture.get("circuit"), default=True),
         telemetry_capture_cutoff=_parse_bool(telemetry_capture.get("cutoff"), default=True),
+        fine_profile_enabled=_parse_bool(fine_profile_cfg.get("enabled"), default=False),
         ml_filter_enabled=_parse_bool(
             ml_cfg.get("filter_enabled") if isinstance(ml_cfg, dict) else None,
             default=False,
@@ -1448,6 +1637,7 @@ class BacktestRunner:
         return_summary: bool = False,
         output_dir: str | None = None,
         risk_per_trade: float | None = None,
+        sizing_engine: str | None = None,
         product: Product | None = None,
         gateway: Gateway | None = None,
         config_overrides: dict[str, Any] | None = None,
@@ -1510,18 +1700,6 @@ class BacktestRunner:
         random.seed(self.seed)
         np.random.seed(self.seed)
 
-        # Configure engine
-        with _time_segment("engine_setup", segments):
-            engine_config = BacktestEngineConfig(
-                trader_id=TraderId("GOLD-TICK-001"),
-                logging=LoggingConfig(log_level=self.log_level),
-                risk_engine=RiskEngineConfig(bypass=False),
-            )
-
-        with _time_segment("engine_init", segments):
-            engine = NautilusEngine(config=engine_config)
-            self.engine = engine
-
         resolved_product: Product = product or self.product
         resolved_gateway: Gateway = gateway or self.gateway
 
@@ -1547,6 +1725,7 @@ class BacktestRunner:
         strategy_cfg_dict.setdefault("confluence", {})
         strategy_cfg_dict.setdefault("execution", {})
         strategy_cfg_dict.setdefault("risk", {})
+        strategy_cfg_dict.setdefault("risk_engine", {})
         strategy_cfg_dict.setdefault("news", {})
         strategy_cfg_dict.setdefault("footprint", {})
         strategy_cfg_dict.setdefault("regime", {})
@@ -1606,6 +1785,28 @@ class BacktestRunner:
         news_cfg["enabled"] = bool(use_news_filter)
         if risk_per_trade is not None:
             risk_cfg["max_risk_per_trade"] = float(risk_per_trade)
+        if sizing_engine is not None:
+            risk_cfg["sizing_engine"] = str(sizing_engine)
+
+        # Configure engine (after YAML merge so risk engine config is applied).
+        # PERF: Use bypass_logging=True to eliminate logging overhead.
+        # This saves 10-30% on tick-heavy backtests by avoiding log string
+        # formatting and MPSC channel overhead.
+        with _time_segment("engine_setup", segments):
+            engine_config = BacktestEngineConfig(
+                trader_id=TraderId("GOLD-TICK-001"),
+                logging=LoggingConfig(
+                    log_level=self.log_level,
+                    bypass_logging=True,  # PERF: Eliminate logging overhead
+                ),
+                risk_engine=_risk_engine_config_from_cfg(
+                    strategy_cfg_dict, instrument_id=str(instrument.id)
+                ),
+            )
+
+        with _time_segment("engine_init", segments):
+            engine = NautilusEngine(config=engine_config)
+            self.engine = engine
 
         # Commission schedule knobs must reflect the run-time gateway/product.
         exec_cfg.setdefault("commission_source", "manual")
@@ -1792,12 +1993,14 @@ class BacktestRunner:
 
             bars_timestamp_basis = _bars_timestamp_basis_from_execution_cfg(exec_cfg)
 
+            bars_agg = str(exec_cfg.get("bars_agg", "minute")).strip().lower()
             bars_df = load_bars_csv(
                 bars_path,
                 start_date=start_date,
                 end_date=end_date,
                 ltf_minutes=ltf_minutes_int,
                 timestamp_basis=bars_timestamp_basis,
+                validate_step=(bars_agg != "renko"),
             )
             if resolved_product == "mgc":
                 tick = float(instrument.price_increment.as_double())
@@ -1950,13 +2153,17 @@ class BacktestRunner:
                         df=df, instrument=self.instrument, latency_ms=self.latency_ms
                     )
 
-        # Create bar type for internal aggregation from ticks
+        # Create bar type for internal aggregation from ticks (or for external bars wrangling).
         agg_source = AggregationSource.INTERNAL if feed == "ticks" else AggregationSource.EXTERNAL
         bar_type = _bar_type_from_minutes(
             instrument_id=instrument.id,
             minutes=ltf_minutes_int,
             aggregation_source=agg_source,
         )
+
+        # NOTE: We intentionally keep BarType time-based even when consuming offline Renko bars.
+        # The backtest exchange matching path relies on BarSpecification.timedelta.
+
         _p(f"Bar type: {bar_type}")
 
         if feed == "ticks":
@@ -1969,8 +2176,10 @@ class BacktestRunner:
                         f"No tick data found for period {start_date} to {end_date}. Check date range and data source."
                     )
                 with _time_segment("engine_add_ticks", segments):
-                    engine.add_data(quote_ticks, sort=False)
-                    engine.sort_data()
+                    # NOTE: In some NautilusTrader builds, BacktestEngine.sort_data() uses
+                    # in-place list.sort() without a key, which fails for QuoteTick ordering.
+                    # Use add_data(sort=True) to sort by ts_init safely.
+                    engine.add_data(quote_ticks, sort=True)
                 _p(f"Added {len(quote_ticks):,} ticks to engine (bars aggregated internally)")
         else:
             if bars_override is not None:
@@ -1999,8 +2208,8 @@ class BacktestRunner:
                     )
                 bars = build_bars_with_wrangler(bars_df2, bar_type=bar_type, instrument=instrument)
             with _time_segment("engine_add_bars", segments):
-                engine.add_data(bars, sort=False)
-                engine.sort_data()
+                # Keep sorting behavior consistent with tick path.
+                engine.add_data(bars, sort=True)
             _p(f"Added {len(bars):,} bars to engine (external bars feed)")
 
         # Configure strategy from YAML + overrides (built earlier so engine + strategy share the same economics)
@@ -2011,6 +2220,13 @@ class BacktestRunner:
 
         with _time_segment("strategy_init", segments):
             strategy = GoldScalperStrategy(config=strategy_config)
+
+        # Register execution algorithms (must happen before trader is running).
+        # Source: external/nautilus_trader/nautilus_trader/trading/trader.py:add_exec_algorithm
+        if bool(getattr(strategy_config, "twap_enabled", False)):
+            from nautilus_trader.examples.algorithms.twap import TWAPExecAlgorithm
+
+            engine.trader.add_exec_algorithm(TWAPExecAlgorithm())
 
         with _time_segment("engine_add_strategy", segments):
             engine.add_strategy(strategy)
@@ -2119,6 +2335,76 @@ class BacktestRunner:
                     print(fills.tail(10).to_string())
             if fills is not None and len(fills) > 0:
                 fills.to_csv(out_dir / "fills.csv", index=False)
+
+                # Deterministic trade signature for before/after comparisons.
+                # Purpose: ignore non-deterministic IDs (UUIDs) while asserting the *same trades*.
+                try:
+                    stable_cols = [
+                        "type",
+                        "side",
+                        "quantity",
+                        "filled_qty",
+                        "avg_px",
+                        "is_reduce_only",
+                        "ts_init",
+                        "ts_last",
+                    ]
+                    cols = [c for c in stable_cols if c in fills.columns]
+                    sig_df = fills[cols].copy()
+                    sig_df = sig_df.sort_values(by=["ts_init", "ts_last", "side"], kind="mergesort")
+                    sig_json = sig_df.to_json(orient="records")
+                    import hashlib
+
+                    sig_hash = hashlib.sha256(sig_json.encode("utf-8")).hexdigest()
+                    payload = {
+                        "schema": "trade_signature_v1",
+                        "count": int(len(sig_df)),
+                        "sha256": sig_hash,
+                        "stable_columns": cols,
+                    }
+                    with open(out_dir / "trade_signature.json", "w", encoding="utf-8") as f:
+                        json.dump(payload, f, indent=2, default=str)
+
+                    # Stable signature (v2): canonicalize timestamps + float rounding to avoid
+                    # formatting-driven diffs (e.g. ts precision or float repr).
+                    try:
+                        sig_v2 = sig_df.copy()
+
+                        # Timestamps -> int64 ns (UTC) for stable hashing.
+                        for col in ("ts_init", "ts_last"):
+                            if col in sig_v2.columns:
+                                parsed = pd.to_datetime(
+                                    sig_v2[col], format="mixed", utc=True, errors="coerce"
+                                )
+                                sig_v2[col] = parsed.view("i8")
+
+                        # Floats -> fixed rounding (execution price is 2dp on XAUUSD in this sim).
+                        for col, decimals in (("avg_px", 2), ("quantity", 4), ("filled_qty", 4)):
+                            if col in sig_v2.columns:
+                                sig_v2[col] = pd.to_numeric(sig_v2[col], errors="coerce").round(
+                                    decimals
+                                )
+
+                        sig_v2 = sig_v2.fillna(0)
+                        sig_v2_json = sig_v2.to_json(orient="records")
+                        sig_v2_hash = hashlib.sha256(sig_v2_json.encode("utf-8")).hexdigest()
+                        payload_v2 = {
+                            "schema": "trade_signature_v2",
+                            "count": int(len(sig_v2)),
+                            "sha256": sig_v2_hash,
+                            "stable_columns": cols,
+                            "notes": {
+                                "ts_format": "int64_ns_utc",
+                                "rounding": {"avg_px": 2, "quantity": 4, "filled_qty": 4},
+                            },
+                        }
+                        with open(out_dir / "trade_signature_v2.json", "w", encoding="utf-8") as f:
+                            json.dump(payload_v2, f, indent=2, sort_keys=True)
+                    except Exception:
+                        pass
+                except Exception:
+                    # Never let signature generation break report output.
+                    pass
         except Exception as e:
             if reports in ("summary", "full"):
                 print(f"Fills report error: {e}")
@@ -2281,9 +2567,13 @@ class BacktestRunner:
 
             # Win rate from positions
             if positions is not None and len(positions) > 0 and "realized_pnl" in positions.columns:
-                pnls = positions["realized_pnl"].apply(
-                    lambda x: float(str(x).replace(" USD", "")) if pd.notna(x) else 0
-                )
+                # PERF: avoid per-row lambda/apply overhead.
+                # realized_pnl values are commonly like "12.34 USD".
+                # Convert to string once, strip suffix, then numeric.
+                pnls = pd.to_numeric(
+                    positions["realized_pnl"].astype(str).str.replace(" USD", "", regex=False),
+                    errors="coerce",
+                ).fillna(0.0)
                 wins = (pnls > 0).sum()
                 losses = (pnls < 0).sum()
                 total = wins + losses
@@ -2473,6 +2763,41 @@ def main() -> None:
             "(already bar close, no shift). Default preserves current behavior: 'open'."
         ),
     )
+    parser.add_argument(
+        "--bars-agg",
+        choices=["minute", "renko"],
+        default="minute",
+        help="Bars aggregation type (feed=bars): 'minute' (regular OHLC) or 'renko' (offline bricks)",
+    )
+    parser.add_argument(
+        "--renko-brick-usd",
+        type=float,
+        default=None,
+        help="Renko brick size in USD (e.g., 0.75). Only used when --bars-agg=renko.",
+    )
+    parser.add_argument(
+        "--renko-reversal-mult",
+        type=int,
+        default=None,
+        help="Renko reversal threshold multiplier in bricks (default: 2). Only used when --bars-agg=renko.",
+    )
+    parser.add_argument(
+        "--renko-price",
+        choices=["bid", "mid", "ask"],
+        default=None,
+        help="Price stream used to build Renko bricks (default: bid). Only used when --bars-agg=renko.",
+    )
+    parser.add_argument(
+        "--renko-tick-size",
+        type=float,
+        default=None,
+        help="Instrument tick size used for brick quantization (default: 0.01 for XAUUSD). Only used when --bars-agg=renko.",
+    )
+    parser.add_argument(
+        "--renko-out",
+        default=None,
+        help="Optional Renko parquet output path. If omitted, uses data/derived/renko/ under repo root.",
+    )
     parser.add_argument("--sweep", action="store_true", help="Run parameter sweep")
     parser.add_argument(
         "--smoke-matrix",
@@ -2583,6 +2908,15 @@ def main() -> None:
         "--telemetry-path", default=None, help="Override YAML telemetry.path (JSONL)"
     )
     parser.add_argument(
+        "--telemetry-enabled",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Override YAML telemetry.enabled (default: use YAML). "
+            "Use --no-telemetry-enabled to disable telemetry writing."
+        ),
+    )
+    parser.add_argument(
         "--require-telemetry",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -2593,6 +2927,11 @@ def main() -> None:
         "--ml-capture",
         action="store_true",
         help="Enable ML snapshot capture to telemetry (ml_snapshot events)",
+    )
+    parser.add_argument(
+        "--fine-profile",
+        action="store_true",
+        help="Enable fine-grained profiling and write fine_profile.json under --out-dir",
     )
     parser.add_argument(
         "--catalog-path",
@@ -2643,6 +2982,13 @@ def main() -> None:
         type=float,
         default=None,
         help="Risk per trade (fraction, e.g. 0.005 = 0.5 percent)",
+    )
+    parser.add_argument(
+        "--sizing-engine",
+        type=str,
+        default=None,
+        choices=("custom", "nautilus_fixed"),
+        help="Override YAML risk.sizing_engine (custom or nautilus_fixed)",
     )
     parser.add_argument(
         "--verbose",
@@ -2758,6 +3104,22 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    cfg_path_tmp = Path(args.config)
+    cfg_tmp = load_yaml_config(cfg_path_tmp)
+
+    # Convenience: allow bars_agg + renko.enabled in YAML.
+    if args.bars_agg == "minute":
+        exec_tmp = cfg_tmp.get("execution", {}) if isinstance(cfg_tmp, dict) else {}
+        if isinstance(exec_tmp, dict) and exec_tmp.get("bars_agg") is not None:
+            args.bars_agg = _parse_bars_aggregation(
+                exec_tmp.get("bars_agg"), field="execution.bars_agg"
+            )
+
+    if args.bars_agg == "minute":
+        renko_tmp = cfg_tmp.get("renko", {}) if isinstance(cfg_tmp, dict) else {}
+        if isinstance(renko_tmp, dict) and _parse_bool(renko_tmp.get("enabled"), default=False):
+            args.bars_agg = "renko"
+
     # Smoke matrix runs should not require manual output/telemetry flags.
     # Default to writing artifacts under nautilus_gold_scalper/_artifacts.
     if getattr(args, "smoke_matrix", False) and args.out_dir is None:
@@ -2824,6 +3186,125 @@ def main() -> None:
         if isinstance(exec_over, dict):
             exec_over["bars_timestamp_basis"] = cli_basis
 
+    # Renko mode: offline brick builder -> feed bars from generated parquet.
+    if args.bars_agg == "renko":
+        if args.feed != "bars":
+            raise ValueError("--bars-agg=renko requires --feed=bars")
+        if args.bars_file is not None:
+            raise ValueError("--bars-agg=renko cannot be combined with --bars-file")
+
+        renko_cfg = cfg.get("renko", {}) if isinstance(cfg, dict) else {}
+        if not isinstance(renko_cfg, dict):
+            renko_cfg = {}
+
+        brick_usd_raw = (
+            args.renko_brick_usd if args.renko_brick_usd is not None else renko_cfg.get("brick_usd")
+        )
+        if brick_usd_raw is None:
+            raise ValueError("Renko requires renko.brick_usd in YAML or --renko-brick-usd")
+        brick_usd = float(brick_usd_raw)
+
+        reversal_raw = (
+            args.renko_reversal_mult
+            if args.renko_reversal_mult is not None
+            else renko_cfg.get("reversal_mult", 2)
+        )
+        reversal_mult = int(reversal_raw)
+        if reversal_mult < 1:
+            raise ValueError(f"renko.reversal_mult must be >= 1, got {reversal_mult}")
+
+        price_raw = (
+            args.renko_price if args.renko_price is not None else renko_cfg.get("price", "bid")
+        )
+        price_stream = _parse_renko_price_stream(price_raw, field="renko.price")
+        tick_size_raw = (
+            args.renko_tick_size
+            if args.renko_tick_size is not None
+            else renko_cfg.get("tick_size", 0.01)
+        )
+        tick_size = float(tick_size_raw)
+
+        brick_ticks = _quantize_renko_ticks(brick_usd=brick_usd, tick_size=tick_size)
+        renko_price_type = _renko_price_type_from_stream(price_stream)
+
+        if args.bars_timestamp_basis is not None:
+            forced = _parse_bars_timestamp_basis(
+                args.bars_timestamp_basis, field="--bars-timestamp-basis"
+            )
+            if forced != "close":
+                raise ValueError(
+                    "Renko bars are timestamped at brick close; use --bars-timestamp-basis=close"
+                )
+        else:
+            config_overrides = config_overrides or {}
+            config_overrides.setdefault("execution", {})
+            exec_over2 = config_overrides.get("execution")
+            if isinstance(exec_over2, dict):
+                exec_over2["bars_timestamp_basis"] = "close"
+
+        renko_out = Path(str(args.renko_out)).expanduser() if args.renko_out else None
+        if renko_out is not None and not renko_out.is_absolute():
+            renko_out = (_repo_root / renko_out).resolve()
+
+        builder = _project_root / "scripts" / "data" / "build_renko_bars.py"
+        if not builder.exists():
+            raise FileNotFoundError(f"Renko builder not found: {builder}")
+
+        cmd = [
+            sys.executable,
+            str(builder),
+            "--start",
+            str(args.start),
+            "--end",
+            str(args.end),
+            "--brick-usd",
+            str(brick_usd),
+            "--tick-size",
+            str(tick_size),
+            "--price",
+            str(price_stream),
+            "--reversal-mult",
+            str(reversal_mult),
+        ]
+        if renko_out is not None:
+            cmd.extend(["--out", str(renko_out)])
+
+        print(
+            f"[RENKO] Building bricks: brick_usd={brick_usd} tick_size={tick_size} ({brick_ticks} ticks), "
+            f"price={price_stream}, reversal={reversal_mult}"
+        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(
+                "Renko build failed:\n"
+                f"cmd={' '.join(cmd)}\n"
+                f"stdout:\n{result.stdout}\n"
+                f"stderr:\n{result.stderr}\n"
+            )
+
+        out_path: Path | None = None
+        if renko_out is not None:
+            out_path = renko_out
+        else:
+            for line in (result.stdout or "").splitlines():
+                if "Renko bricks ->" in line:
+                    tail = line.split("Renko bricks ->", 1)[1].strip()
+                    if tail:
+                        out_path = Path(tail)
+                        break
+        if out_path is None:
+            raise RuntimeError("Renko build succeeded but output path could not be inferred")
+        if not out_path.is_absolute():
+            out_path = (_repo_root / out_path).resolve()
+        if not out_path.exists():
+            raise FileNotFoundError(f"Renko parquet not found after build: {out_path}")
+
+        args.bars_file = str(out_path)
+
+        # NOTE: We DO NOT set the engine BarType to RENKO.
+        # Nautilus backtest matching expects time-based bar specifications (uses BarSpecification.timedelta).
+        # Renko here is an *offline data transform* producing OHLCV bars at irregular times.
+
     if args.news_events_path:
         config_overrides = config_overrides or {}
         config_overrides.setdefault("news", {})
@@ -2852,13 +3333,25 @@ def main() -> None:
         if effective_telemetry_path is None and args.reports != "none" and args.out_dir:
             effective_telemetry_path = str(Path(args.out_dir) / "telemetry.jsonl")
 
-    # Apply telemetry overrides if we have a path
+    # Apply telemetry overrides.
+    # NOTE: We allow `--telemetry-enabled/--no-telemetry-enabled` even when no path override
+    # is provided, so callers can disable telemetry writing entirely for perf comparisons.
+    telemetry_enabled_override = getattr(args, "telemetry_enabled", None)
+    if telemetry_enabled_override is not None:
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault("telemetry", {})
+        tel_over_any = config_overrides.get("telemetry")
+        if isinstance(tel_over_any, dict):
+            tel_over_any["enabled"] = bool(telemetry_enabled_override)
+
     if effective_telemetry_path:
         config_overrides = config_overrides or {}
         config_overrides.setdefault("telemetry", {})
         tel_over = config_overrides.get("telemetry")
         if isinstance(tel_over, dict):
             tel_over["path"] = effective_telemetry_path
+
+            # If telemetry is required, force enabled.
             if require_telemetry:
                 tel_over["enabled"] = True
 
@@ -2868,6 +3361,24 @@ def main() -> None:
         ml_over = config_overrides.get("ml")
         if isinstance(ml_over, dict):
             ml_over["capture_enabled"] = True
+
+    if getattr(args, "fine_profile", False):
+        if not args.out_dir:
+            sys.exit(
+                "ERROR: --fine-profile requires --out-dir (fine_profile.json is written under out-dir)."
+            )
+        config_overrides = config_overrides or {}
+        config_overrides.setdefault("fine_profile", {})
+        fp_over = config_overrides.get("fine_profile")
+        if isinstance(fp_over, dict):
+            fp_over["enabled"] = True
+
+        # Ensure fine_profile.json lands under --out-dir even when telemetry isn't required.
+        if args.telemetry_path is None and not require_telemetry:
+            config_overrides.setdefault("telemetry", {})
+            tel_over2 = config_overrides.get("telemetry")
+            if isinstance(tel_over2, dict) and "path" not in tel_over2:
+                tel_over2["path"] = str(Path(args.out_dir) / "telemetry.jsonl")
 
     # Safety Layer overrides (avoid editing YAML for quick experiments)
     if args.no_virtual_gate or args.no_vol_spacing or args.no_exposure_caps:
@@ -2907,6 +3418,7 @@ def main() -> None:
             if args.mr_only:
                 exec_over["enable_smc"] = False
                 exec_over["enable_trend_follow"] = False
+                exec_over["force_mean_revert"] = True
 
     # TrendFollow parameter overrides (sensitivity sweeps per Oracle/CRITIC)
     _tf_param_override = (
@@ -3331,6 +3843,7 @@ def main() -> None:
                     bars_file=None,
                     output_dir=None,
                     risk_per_trade=args.risk,
+                    sizing_engine=args.sizing_engine,
                     product=cast(Product, args.product),
                     gateway=cast(Gateway, args.gateway),
                     quiet=True,
@@ -3400,6 +3913,7 @@ def main() -> None:
             bars_file=None,
             output_dir=None,
             risk_per_trade=args.risk,
+            sizing_engine=args.sizing_engine,
             product=cast(Product, args.product),
             gateway=cast(Gateway, args.gateway),
             quiet=True,
@@ -3538,6 +4052,7 @@ def main() -> None:
                     bars_file=args.bars_file,
                     output_dir=args.out_dir,
                     risk_per_trade=args.risk,
+                    sizing_engine=args.sizing_engine,
                     product=cast(Product, args.product),
                     gateway=cast(Gateway, args.gateway),
                     quiet=bool(args.quiet),
@@ -3598,6 +4113,13 @@ def main() -> None:
             if isinstance(exec_over, dict):
                 exec_over.setdefault("time_gate_use_clock_timer", False)
 
+        if args.bars_agg == "renko":
+            config_overrides = config_overrides or {}
+            config_overrides.setdefault("execution", {})
+            exec_over2 = config_overrides.get("execution")
+            if isinstance(exec_over2, dict):
+                exec_over2["bars_agg"] = "renko"
+
         # In certification mode, we need the summary for validation
         summary = runner.run(
             start_date=args.start,
@@ -3619,6 +4141,7 @@ def main() -> None:
             bars_file=args.bars_file,
             output_dir=args.out_dir,
             risk_per_trade=args.risk,
+            sizing_engine=args.sizing_engine,
             product=cast(Product, args.product),
             gateway=cast(Gateway, args.gateway),
             quiet=bool(args.quiet),

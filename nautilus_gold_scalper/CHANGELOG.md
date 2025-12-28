@@ -28,6 +28,104 @@
 
 ---
 
+## Phase B: RiskEngineConfig hardening (modify rate + max notional enforcement) - 2025-12-28 (GPT-5.2)
+
+### ⚙️ CONFIG + ✅ SAFETY: Wire `max_order_modify_rate` + enforce `max_notional_per_order`
+
+**What:**
+- Added YAML support for `risk_engine.max_order_modify_rate` (paired with submit rate).
+- Extended `_risk_engine_config_from_cfg(...)` to parse `max_order_modify_rate`.
+- Added focused integration test proving `RiskEngineConfig.max_notional_per_order` actually denies oversized market orders.
+
+**Why:**
+- Rate limiting and notional caps are engine-level guardrails which reduce order spam and fat-finger exposure.
+- We want an explicit test that the guardrail is real (not just config parsing).
+
+**Impact:**
+- Default behavior unchanged unless you set new YAML keys.
+- Adds a safety rail which can prevent runaway exposure; keep values conservative and verify emergency close still works.
+
+**Files:**
+- `nautilus_gold_scalper/configs/strategy_config.yaml`
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+- `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_config_wiring.py`
+- `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_notional_enforcement.py`
+
+**Validation:** mypy --strict PASS; pytest PASS
+**Commit:** Pending
+
+---
+
+## Backtest Runner: sizing engine + tick sort stability - 2025-12-28 (GPT-5.2)
+
+### 🐛 BUGFIX + ⚙️ CONFIG: Stable tick sorting + `--sizing-engine` override
+
+**What:**
+- Fixed tick backtest sorting crash by switching to `engine.add_data(..., sort=True)` (ticks + bars).
+- Added/validated `--sizing-engine {custom,nautilus_fixed}` CLI override so A/B tests don’t require editing YAML.
+- Backtest outputs now include deterministic signatures (`trade_signature.json`, `trade_signature_v2.json`) under `--out-dir` for drift checks.
+
+**Why:**
+- Some Nautilus builds fail on `BacktestEngine.sort_data()` because `QuoteTick` is not orderable.
+- Controlled experiments need an easy CLI-level toggle for sizing logic.
+
+**Impact:**
+- Backtests no longer depend on QuoteTick ordering semantics of the installed Nautilus build.
+- Enables fast comparisons: `custom` vs `nautilus_fixed` sizing on the same window and feed.
+- Artifacts stored under `nautilus_gold_scalper/_artifacts/backtests/` for audit/repro.
+
+**Files:**
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+
+**Artifacts (examples):**
+- `nautilus_gold_scalper/_artifacts/backtests/sizing_compare/custom_20240102_20240105/trade_signature_v2.json`
+- `nautilus_gold_scalper/_artifacts/backtests/sizing_compare/nautilus_fixed_20240102_20240105/trade_signature_v2.json`
+
+**Validation:** mypy --strict PASS; pytest PASS
+**Commit:** Pending
+
+---
+
+## Backtest Performance Optimization (deterministic) - 2025-12-27 (GPT-5.2)
+
+### 🚀 IMPROVEMENT: Reduce tick backtest runtime without trade drift
+
+**What:** Optimized hot paths in `GoldScalperStrategy` to reduce allocations and repeated conversions during `_check_for_signal()` and VirtualGate evaluation.
+
+**Why:** Tick backtests were spending most time inside `engine_run` and strategy hot loops. The goal was to cut wall time while preserving exact trade decisions.
+
+**Impact:**
+- Determinism preserved using `trade_signature_v2.json` hashing across repeated runs.
+- Primary speedups came from avoiding repeated Bar→Price allocations and reducing Python-level loops.
+- Added lightweight caching for ET timezone and repeated timestamp conversions.
+
+**Measured results (selected):**
+- Day 2024-01-02 (ticks, reports none):
+  - stride=1: `engine_run=16.240s`
+  - stride=5: `engine_run=3.936s` (4.13x)
+  - stride=10: `engine_run=2.317s` (7.01x)
+  - stride=20: `engine_run=1.277s` (12.72x)
+- Month 2025-06:
+  - stride=1: `engine_run=468.877s`
+  - stride=5: `engine_run=137.041s` (3.42x)
+  - stride=10: `engine_run=75.126s` (6.24x)
+  - stride=20: `engine_run=43.232s` (10.85x)
+- Month 2025-06 (stride=1, reports full): `engine_run=635.629s`, PnL `-$994.33` (35 trades)
+
+**Files:**
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+- `nautilus_gold_scalper/src/strategies/base_strategy.py`
+
+**Artifacts (examples):**
+- `nautilus_gold_scalper/_artifacts/_cmp_day_2024-01-02_stride20/profile.json`
+- `nautilus_gold_scalper/_artifacts/_cmp_month_2025-06_stride20/profile.json`
+- `nautilus_gold_scalper/_artifacts/_month_2025-06_stride1_reports_full/profile.json`
+
+**Validation:** mypy --strict PASS; pytest PASS; repeated backtests MATCH via trade_signature_v2
+**Commit:** Pending
+
+---
+
 ## Execution Timeframes (Entry vs Management) - 2025-12-26 (FORGE)
 
 ### ⚙️ CONFIG + ✨ FEATURE: Configurable LTF/MTF/HTF minutes + management rate-limit
