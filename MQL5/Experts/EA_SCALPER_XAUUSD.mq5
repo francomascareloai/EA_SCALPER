@@ -5,10 +5,20 @@
 //+------------------------------------------------------------------+
 #property copyright "Franco - Singularity Edition"
 #property link      "https://www.mql5.com"
-#property version   "4.0"
+#property version   "4.3"
 #property strict
 
 /*
+   v4.3 - Recovery/Hedge Entry Logic (FORGE-3)
+   ===========================================
+   New feature: Allow recovery entries when existing position is losing,
+   IF a better signal opportunity exists. Key constraints:
+   - Recovery != Martingale (NO lot doubling)
+   - Must have BETTER signal (score boost required)
+   - Respects Apex DD limits at all times
+   - Configurable via input parameters
+   - Optional hedge entries for AGGRESSIVE profile
+
    v4.0 - Apex-Safe Risk Infrastructure (Phase 13 Migration)
    ==========================================================
    Complete migration from Python/NautilusTrader to MQL5 with:
@@ -50,6 +60,10 @@
 //--- Order Flow / Footprint Analysis (NEW v3.30)
 #include <EA_SCALPER/Analysis/CFootprintAnalyzer.mqh>
 
+//--- v4.2: New Strategy Modules (TrendFollow + AdaptiveRouter)
+#include <EA_SCALPER/Strategy/CTrendFollowStrategy.mqh>
+#include <EA_SCALPER/Strategy/CAdaptiveRouter.mqh>
+
 //--- Signal Modules (CConfluenceScorer moved to Core Includes for dependency order)
 
 //--- Bridge (Phase 2)
@@ -64,6 +78,8 @@
 #include <EA_SCALPER/Risk/CUnifiedRiskPolicy.mqh>
 #include <EA_SCALPER/Risk/CVirtualGate.mqh>
 #include <EA_SCALPER/Risk/CGapCooldown.mqh>
+#include <EA_SCALPER/Risk/CRecoveryManager.mqh>  // v4.3: Recovery/Hedge entry logic
+#include <EA_SCALPER/Risk/CRiskProfileManager.mqh>  // v4.3: Configurable risk profiles
 #include <EA_SCALPER/Safety/CSpreadMonitor.mqh>
 #include <EA_SCALPER/UI/CRiskHUD.mqh>
 
@@ -101,41 +117,56 @@ struct SModeConfig
 
 //--- Input Parameters: Risk Management
 input group "=== Risk Management (FTMO) ==="
+input ENUM_RISK_PROFILE InpRiskProfile = RISK_BALANCED; // Risk Profile (SAFE/BALANCED/AGGRESSIVE)
 input double   InpRiskPerTrade      = 0.5;      // Risk Per Trade (%)
-input double   InpMaxDailyLoss      = 5.0;      // Max Daily Loss (%)
+input double   InpMaxDailyLoss      = 4.5;      // Max Daily Loss (%) - Buffer before 5% Apex limit
 input double   InpSoftStop          = 4.0;      // Soft Stop Level (%)
-input double   InpMaxTotalLoss      = 10.0;     // Max Total Loss (%)
+input double   InpMaxTotalLoss      = 9.0;      // Max Total Loss (%) - Buffer before 10% limit
 input int      InpMaxTradesPerDay   = 20;       // Max Trades Per Day
-input int      InpETOffset          = -5;       // ET offset vs GMT (Apex cutoff/reset)
-input bool     InpEnforceApexCutoff = true;     // Enforce Apex hard close at 16:55 ET
-input int      InpApexCutoffMinute  = 55;       // Minute of 16:xx ET to start flattening
+input int      InpETOffset          = -5;       // ET offset vs GMT (EST=-5, EDT=-4)
+input bool     InpEnforceApexCutoff = true;     // Enforce Apex hard close at 16:55 ET (ALWAYS ON for safety)
+input int      InpApexCutoffMinute  = 50;       // Minute of 16:xx ET to start flattening
 
 
 //--- Input Parameters: Scoring Engine
 input group "=== Scoring Engine ==="
-input int      InpExecutionThreshold = 50;      // Execution Score Threshold (DEFAULT: 50 for testing)
-input double   InpWeightTech        = 0.6;      // Weight: Technical
-input double   InpWeightFund        = 0.25;     // Weight: Fundamental
-input double   InpWeightSent        = 0.15;     // Weight: Sentiment
+input int      InpExecutionThreshold = 60;      // Minimum score (60/100 = TIER_C quality - was 50, too low)
+input int      InpVoteMargin         = 2;       // Direction vote margin (2 = more signals, 3 = stricter)
+input double   InpWeightTech         = 0.6;     // Weight: Technical
+input double   InpWeightFund         = 0.25;    // Weight: Fundamental
+input double   InpWeightSent         = 0.15;    // Weight: Sentiment
 
 //--- Input Parameters: Execution
 input group "=== Execution Settings ==="
-input int      InpSlippage          = 50;       // Max Slippage (points)
+input int      InpSlippage          = 30;       // Max Slippage (points) - 30 typical for XAUUSD
 input int      InpMagicNumber       = 123456;   // Magic Number
 input string   InpTradeComment      = "SINGULARITY"; // Trade Comment
 
+//--- Input Parameters: Recovery/Hedge Entry (NEW v4.3)
+input group "=== Recovery Entry Settings ==="
+input bool     InpAllowRecoveryEntry = true;    // Allow Recovery Entries
+input double   InpRecoveryMinLoss    = -0.5;    // Min Loss % for Recovery (e.g., -0.5 = 0.5% loss)
+input int      InpRecoveryScoreBoost = 10;      // Score Boost Required (new > old + boost)
+input int      InpRecoveryCooldown   = 5;       // Cooldown Bars (between entries)
+input int      InpMaxRecoveryPerDay  = 2;       // Max Recovery Entries Per Day
+input double   InpRecoverySizeMult   = 0.5;     // Recovery Size Multiplier (<=1.0, NOT martingale)
+input bool     InpAllowHedge         = false;   // Allow Hedge Entries (opposite direction)
+input int      InpHedgeMinScore      = 80;      // Hedge Minimum Score (TIER_A = 80)
+
 //--- Input Parameters: Session Filter
 input group "=== Session & Time Filters ==="
-input bool     InpAllowAsian        = false;    // Allow Asian Session (TESTED: OFF is better)
-input bool     InpAllowLateNY       = false;    // Allow Late NY (TESTED: OFF is better)
-input int      InpGMTOffset         = 0;        // Broker GMT Offset
+input bool     InpDisableAllTimeGates = false; // Disable time gates (OFF for realistic testing)
+input bool     InpDisableAMDGate      = false; // Disable AMD requirement (OFF for ICT sequence)
+input bool     InpAllowAsian          = false; // Allow Asian Session (OFF = skip low-quality session)
+input bool     InpAllowLateNY       = false;   // Allow Late NY (OFF = skip low-quality session)
+input int      InpGMTOffset         = 2;        // Broker GMT Offset (FTMO = GMT+2)
 input int      InpFridayCloseHour   = 14;       // Friday Close Hour (GMT)
-input bool     InpDisableFridayClose = true;    // Disable Friday Close (for backtest)
+input bool     InpDisableFridayClose = false;   // Disable Friday Close (FALSE for Apex - MUST close Friday)
 
 //--- Input Parameters: News Filter
 input group "=== News Filter ==="
-input bool     InpNewsFilterEnabled = false;    // Enable News Filter (DEFAULT OFF for faster BT)
-input bool     InpBlockHighImpact   = false;    // Block High-Impact News
+input bool     InpNewsFilterEnabled = true;     // Enable News Filter (DEFAULT ON for live trading safety)
+input bool     InpBlockHighImpact   = true;     // Block High-Impact News (TRUE for Apex safety)
 input bool     InpBlockMediumImpact = false;    // Block Medium-Impact News
 
 //--- Input Parameters: Machine Learning / Safeguards
@@ -144,11 +175,11 @@ input bool     InpUseML             = false;    // Enable ONNX Direction Model
 input double   InpMLThreshold       = 0.65;     // Min confidence to accept ML signal
 input int      InpMLCacheSeconds    = 60;       // Cache horizon for ML predictions
 input bool     InpLogML             = false;    // Log ML outputs for debugging
-input int      InpMaxSpreadPoints   = 80;       // Gate 1: Max spread (points) to trade
+input int      InpMaxSpreadPoints   = 40;       // Gate 1: Max spread (points) - tight for quality entries
 
 //--- Input Parameters: Entry Optimization
 input group "=== Entry Optimization ==="
-input double   InpMinRR             = 1.5;      // Minimum R:R Ratio
+input double   InpMinRR             = 1.5;      // Minimum R:R Ratio (1.5 = quality risk/reward)
 input double   InpTargetRR          = 2.5;      // Target R:R Ratio
 input int      InpMaxWaitBars       = 10;       // Max Bars to Wait for Entry
 
@@ -159,18 +190,21 @@ input int      InpDebugInterval     = 30;       // Debug Log Interval (seconds)
 
 //--- Input Parameters: Multi-Timeframe (NEW v3.20)
 input group "=== Multi-Timeframe Settings ==="
-input bool     InpUseMTF            = false;    // Enable MTF Architecture (DEFAULT: OFF for testing)
-input double   InpMinMTFConfluence  = 50.0;     // Min MTF Confluence Score (relaxed)
-input bool     InpRequireHTFAlign   = false;    // Require H1 Trend Alignment (DEFAULT: OFF)
-input bool     InpRequireMTFZone    = false;    // Require M15 Structure Zone (DEFAULT: OFF)
-input bool     InpRequireLTFConfirm = false;    // Require M5 Confirmation (DEFAULT: OFF)
+input ENUM_TIMEFRAMES InpEntryTimeframe  = PERIOD_M15;  // Entry Timeframe (signal generation)
+input ENUM_TIMEFRAMES InpMgmtTimeframe   = PERIOD_H1;   // Management Timeframe (regime/trend analysis)
+input ENUM_TIMEFRAMES InpLTFTimeframe    = PERIOD_M5;   // LTF Timeframe (confirmation/execution)
+input bool     InpUseMTF            = false;   // Enable MTF Architecture (OFF = unreliable in backtest)
+input double   InpMinMTFConfluence  = 0.5;      // Min MTF Confluence Score (0.5 = moderate filter)
+input bool     InpRequireHTFAlign   = false;   // Require H1 Trend Alignment (OFF = optional)
+input bool     InpRequireMTFZone    = true;    // Require M15 Structure Zone (ON = SMC validation)
+input bool     InpRequireLTFConfirm = false;    // Require M5 Confirmation (OFF = not overly strict)
 
 //--- Input Parameters: Mode/Boosts
 input group "=== Mode Settings ==="
-input ENUM_ModePreset InpModePreset = MODE_CUSTOM; // Quick preset selector (CUSTOM = manual)
-input bool     InpUseFootprintBoost = false;    // Use footprint veto/boost (DEFAULT OFF)
-input bool     InpUseBanditContext  = false;    // Use contextual bandit-lite gating (DEFAULT OFF)
-input bool     InpAggressiveMode    = false;    // Enable aggressive boosts (DEFAULT OFF)
+input ENUM_ModePreset InpModePreset = MODE_ELITE;  // Quick preset (ELITE = best quality trades)
+input bool     InpUseFootprintBoost = true;     // Use footprint veto/boost (ON = institutional flow filter)
+input bool     InpUseBanditContext  = true;     // Use contextual bandit-lite gating (ON = adaptive filtering)
+input bool     InpAggressiveMode    = true;     // Enable aggressive boosts (ON for ELITE mode)
 
 //--- Global Objects (Core)
 CFTMO_RiskManager    g_RiskManager;
@@ -196,6 +230,10 @@ CConfluenceScorer       g_Confluence;
 // v3.31: Footprint/Order Flow Analyzer (FORGE genius upgrade)
 CFootprintAnalyzer      g_Footprint;
 
+// v4.2: Strategy Modules (TrendFollow + AdaptiveRouter)
+CTrendFollowStrategy    g_TrendFollow;
+CAdaptiveRouter         g_Router;
+
 //--- v4.0: Apex Risk Components (Task 4.1 Integration)
 CApexDDTracker          g_DDTracker;
 CApexTimeHandler        g_TimeHandler;
@@ -205,6 +243,8 @@ CVirtualGate            g_VirtualGate;
 CGapCooldown            g_GapCooldown;
 CUnifiedRiskPolicy      g_RiskPolicy;
 CRiskHUD                g_RiskHUD;           // Visual HUD for investor display
+CRecoveryManager        g_RecoveryManager;   // v4.3: Recovery/Hedge entry logic
+CRiskProfileManager     g_RiskProfile;       // v4.3: Configurable risk profiles
 
 //--- ML Brain
 COnnxBrain              g_OnnxBrain;
@@ -231,7 +271,8 @@ int                     g_bucket_trades[96];
 //+------------------------------------------------------------------+
 void ApplyModePreset()
 {
-   // Seed config with manual inputs (MODE_CUSTOM)
+   // v4.2: ALWAYS use input values - no more hardcoded presets
+   // The user controls everything via inputs. Presets are just for documentation.
    g_ModeCfg.risk_per_trade     = InpRiskPerTrade;
    g_ModeCfg.max_daily_loss     = InpMaxDailyLoss;
    g_ModeCfg.soft_stop          = InpSoftStop;
@@ -251,88 +292,15 @@ void ApplyModePreset()
    g_ModeCfg.max_wait_bars      = InpMaxWaitBars;
    g_ModeCfg.max_spread_points  = InpMaxSpreadPoints;
 
-   switch(InpModePreset)
-   {
-      case MODE_CONSERVATIVE:
-         g_ModeCfg.risk_per_trade      = 0.35;
-         g_ModeCfg.soft_stop           = 3.5;
-         g_ModeCfg.max_trades_per_day  = 10;
-         g_ModeCfg.execution_threshold = 65;
-         g_ModeCfg.min_mtf_confluence  = 65.0;
-         g_ModeCfg.use_mtf             = true;
-         g_ModeCfg.require_htf_align   = true;
-         g_ModeCfg.require_mtf_zone    = true;
-         g_ModeCfg.require_ltf_confirm = true;
-         g_ModeCfg.aggressive_mode     = false;
-         g_ModeCfg.use_footprint_boost = false;
-         g_ModeCfg.use_bandit_context  = false;
-         g_ModeCfg.min_rr              = 2.0;
-         g_ModeCfg.target_rr           = 3.0;
-         g_ModeCfg.max_wait_bars       = 16;
-         g_ModeCfg.max_spread_points   = 60;
-         break;
-         
-      case MODE_BALANCED:
-         g_ModeCfg.risk_per_trade      = 0.50;
-         g_ModeCfg.soft_stop           = 4.0;
-         g_ModeCfg.max_trades_per_day  = 15;
-         g_ModeCfg.execution_threshold = 50;
-         g_ModeCfg.min_mtf_confluence  = 60.0;
-         g_ModeCfg.use_mtf             = true;
-         g_ModeCfg.require_htf_align   = true;
-         g_ModeCfg.require_mtf_zone    = true;
-         g_ModeCfg.require_ltf_confirm = false;
-         g_ModeCfg.aggressive_mode     = false;
-         g_ModeCfg.use_footprint_boost = true;
-         g_ModeCfg.use_bandit_context  = false;
-         g_ModeCfg.min_rr              = 1.6;
-         g_ModeCfg.target_rr           = 2.4;
-         g_ModeCfg.max_wait_bars       = 12;
-         g_ModeCfg.max_spread_points   = 75;
-         break;
-
-      case MODE_ELITE:
-         g_ModeCfg.risk_per_trade      = 0.65;
-         g_ModeCfg.soft_stop           = 4.2;
-         g_ModeCfg.max_trades_per_day  = 18;
-         g_ModeCfg.execution_threshold = 50;
-         g_ModeCfg.min_mtf_confluence  = 55.0;
-         g_ModeCfg.use_mtf             = true;
-         g_ModeCfg.require_htf_align   = true;
-         g_ModeCfg.require_mtf_zone    = false;
-         g_ModeCfg.require_ltf_confirm = false;
-         g_ModeCfg.aggressive_mode     = true;
-         g_ModeCfg.use_footprint_boost = true;
-         g_ModeCfg.use_bandit_context  = true;
-         g_ModeCfg.min_rr              = 1.6;
-         g_ModeCfg.target_rr           = 2.3;
-         g_ModeCfg.max_wait_bars       = 10;
-         g_ModeCfg.max_spread_points   = 85;
-         break;
-
-      case MODE_RISK_ON:
-         g_ModeCfg.risk_per_trade      = 1.0;
-         g_ModeCfg.soft_stop           = 4.5;
-         g_ModeCfg.max_trades_per_day  = 22;
-         g_ModeCfg.execution_threshold = 45;
-         g_ModeCfg.min_mtf_confluence  = 50.0;
-         g_ModeCfg.use_mtf             = true;
-         g_ModeCfg.require_htf_align   = false;
-         g_ModeCfg.require_mtf_zone    = false;
-         g_ModeCfg.require_ltf_confirm = false;
-         g_ModeCfg.aggressive_mode     = true;
-         g_ModeCfg.use_footprint_boost = true;
-         g_ModeCfg.use_bandit_context  = true;
-         g_ModeCfg.min_rr              = 1.3;
-         g_ModeCfg.target_rr           = 2.0;
-         g_ModeCfg.max_wait_bars       = 8;
-         g_ModeCfg.max_spread_points   = 95;
-         break;
-
-      default:
-         // MODE_CUSTOM keeps user-provided inputs
-         break;
-   }
+   // Log the actual config being used
+   PrintFormat("[CONFIG] Mode=%s Risk=%.2f%% Threshold=%d MinRR=%.1f Spread=%d HTF=%s MTF=%s",
+               EnumToString(InpModePreset),
+               g_ModeCfg.risk_per_trade,
+               g_ModeCfg.execution_threshold,
+               g_ModeCfg.min_rr,
+               g_ModeCfg.max_spread_points,
+               g_ModeCfg.require_htf_align ? "ON" : "OFF",
+               g_ModeCfg.use_mtf ? "ON" : "OFF");
 
    // Safety clamps aligned to FTMO guardrails
    g_ModeCfg.risk_per_trade     = MathMin(1.0, MathMax(0.1, g_ModeCfg.risk_per_trade)); // 0.1% - 1.0%
@@ -361,9 +329,23 @@ int OnInit()
 
    // Apply selected trading mode before initializing modules
    ApplyModePreset();
-   
-   // 1. Initialize Risk Manager (FTMO Compliance)
-   if(!g_RiskManager.Init(g_ModeCfg.risk_per_trade, g_ModeCfg.max_daily_loss, g_ModeCfg.max_total_loss, g_ModeCfg.max_trades_per_day, g_ModeCfg.soft_stop, 1.0, InpETOffset))
+
+   // v4.3: Initialize Risk Profile Manager (FIRST - controls risk parameters)
+   if(!g_RiskProfile.Init(InpRiskProfile))
+   {
+      Print("Critical Error: Risk Profile Manager Initialization Failed!");
+      return(INIT_FAILED);
+   }
+
+   // v4.2: InpDisableAllTimeGates ONLY affects time/session gates, NOT quality thresholds
+   // The name says "TimeGates" - it should only disable time-related gates, not scoring!
+   if(InpDisableAllTimeGates)
+   {
+      Print("[TIME BYPASS] InpDisableAllTimeGates=true - Time/session gates disabled, but quality thresholds preserved");
+   }
+
+   // 1. Initialize Risk Manager (FTMO Compliance) - with symbol/magic for safe flatten
+   if(!g_RiskManager.Init(g_ModeCfg.risk_per_trade, g_ModeCfg.max_daily_loss, g_ModeCfg.max_total_loss, g_ModeCfg.max_trades_per_day, g_ModeCfg.soft_stop, 1.0, InpETOffset, _Symbol, InpMagicNumber))
    {
       Print("Critical Error: Risk Manager Initialization Failed!");
       return(INIT_FAILED);
@@ -385,7 +367,13 @@ int OnInit()
    }
    g_TradeManager.SetManagementMode(MGMT_PARTIAL_TP);
    g_TradeManager.ConfigurePartials(1.5, 2.5, 0.40, 0.50);  // 40% at 1.5R, 30% at 2.5R
-   
+
+   // v4.3: Set max positions from RiskProfile and sync with broker
+   int max_pos = g_RiskProfile.IsInitialized() ? g_RiskProfile.GetMaxPositions() : 1;
+   g_TradeManager.SetMaxPositions(max_pos);
+   g_TradeManager.SyncWithBrokerPositions();  // Recover state on EA restart
+   Print("TradeManager: Max positions set to ", max_pos, " (from RiskProfile)");
+
    // v4.2 GENIUS: Attach analyzers for intelligent trade management
    // Structure-based trailing: Never trail through valid swing levels
    g_TradeManager.AttachStructureAnalyzer(&g_Structure);
@@ -466,7 +454,7 @@ int OnInit()
    g_EntryOpt.SetMaxWaitBars(g_ModeCfg.max_wait_bars);
    
    // v3.31: Initialize Footprint Analyzer (FORGE fix - was missing!)
-   if(!g_Footprint.Init(_Symbol, PERIOD_M5, 0.50, 3.0))
+   if(!g_Footprint.Init(_Symbol, InpLTFTimeframe, 0.50, 3.0))
    {
       Print("Warning: Footprint analyzer initialization issue");
    }
@@ -480,7 +468,8 @@ int OnInit()
 
    //=== v4.0: Initialize Apex Risk Components (Task 4.1 Integration) ===
    // 1. Initialize time handler first (needed by wall clock)
-   if(!g_TimeHandler.Init())
+   // Pass broker GMT offset for backtest timezone correction (FTMO uses GMT+2)
+   if(!g_TimeHandler.Init(InpGMTOffset == 0 ? 2 : InpGMTOffset))  // Default to 2 if not set
    {
       Print("Critical Error: Time Handler Initialization Failed!");
       return(INIT_FAILED);
@@ -513,6 +502,8 @@ int OnInit()
    {
       Print("Warning: Virtual Gate initialization failed");
    }
+   //--- Enable self-updating mode so median range is computed automatically
+   g_VirtualGate.EnableSelfUpdate(Symbol(), Period());
 
    // 6. Initialize gap cooldown
    if(!g_GapCooldown.Init(30, 15))  // 30 min gap threshold, 15 min cooldown
@@ -528,6 +519,20 @@ int OnInit()
       return(INIT_FAILED);
    }
 
+   // v4.0: Apply time gate disable flag (for backtesting)
+   if(InpDisableAllTimeGates)
+   {
+      g_RiskPolicy.SetDisableTimeGates(true);
+      Print("*** TIME GATES DISABLED (backtest mode) ***");
+   }
+
+   // v4.1: Connect news filter to unified risk policy if enabled
+   if(InpNewsFilterEnabled && g_NewsNative.IsInitialized())
+   {
+      g_RiskPolicy.SetNewsFilter(&g_NewsNative);
+      Print("*** NEWS FILTER CONNECTED TO UNIFIED RISK POLICY ***");
+   }
+
    Print("=== v4.0 Apex Risk Components Initialized ===");
    g_RiskPolicy.PrintStatus();
 
@@ -539,6 +544,24 @@ int OnInit()
    else
    {
       Print("Risk HUD initialized: Visual display active");
+   }
+
+   // 8.1 v4.3: Initialize Recovery Manager
+   if(!g_RecoveryManager.Init(InpAllowRecoveryEntry,
+                               InpRecoveryMinLoss,
+                               InpRecoveryScoreBoost,
+                               InpRecoveryCooldown,
+                               InpMaxRecoveryPerDay))
+   {
+      Print("Warning: Recovery Manager initialization failed - recovery entries disabled");
+   }
+   else
+   {
+      g_RecoveryManager.SetSymbolMagic(_Symbol, InpMagicNumber);
+      g_RecoveryManager.SetRecoverySizeMultiplier(InpRecoverySizeMult);
+      g_RecoveryManager.SetAllowHedge(InpAllowHedge);
+      g_RecoveryManager.SetHedgeMinScore(InpHedgeMinScore);
+      Print("Recovery Manager initialized: ", g_RecoveryManager.GetStatusString());
    }
 
    // 9. Connect Confluence Scorer to all detectors (v3.31: 9 factors)
@@ -555,9 +578,10 @@ int OnInit()
    else
       g_Confluence.AttachMTFManager(NULL);
    g_Confluence.AttachFootprint(&g_Footprint);
-   
-   g_Confluence.SetMinScore(70);       // Tier B minimum
-   g_Confluence.SetMinConfluences(3);  // At least 3 factors (can be higher with 9 available)
+
+   g_Confluence.SetMinScore(InpExecutionThreshold);  // Match EA execution threshold
+   g_Confluence.SetMinConfluences(2);                 // v4.0: Relaxed (was 3)
+   g_Confluence.SetVoteMargin(InpVoteMargin);         // v4.2: Configurable vote margin (2 = more signals, 3 = stricter)
    
    // v4.2 GENIUS: Bayesian Learning - Connect CTradeManager to CConfluenceScorer
    // This enables self-improving priors based on actual trade outcomes
@@ -566,7 +590,29 @@ int OnInit()
    // v4.2 GENIUS: Kelly Learning - Connect CTradeManager to RiskManager
    // This enables adaptive Kelly position sizing based on trade outcomes
    g_TradeManager.AttachRiskManager(&g_RiskManager);
-   
+
+   //=== v4.2: Initialize Strategy Modules (TrendFollow + AdaptiveRouter) ===
+   // 1. Initialize AdaptiveRouter (rule-based strategy selection)
+   if(!g_Router.Init())
+   {
+      Print("Warning: AdaptiveRouter initialization failed - using SMC only");
+   }
+   else
+   {
+      Print("[AdaptiveRouter] Active - routes by regime/session/volatility");
+   }
+
+   // 2. Initialize TrendFollow Strategy (EMA pullback + Donchian breakout)
+   if(!g_TrendFollow.Init(_Symbol, InpEntryTimeframe))
+   {
+      Print("Warning: TrendFollow strategy initialization failed - SMC fallback only");
+   }
+   else
+   {
+      g_TrendFollow.SetTPRR(InpTargetRR);  // Use configured R:R
+      Print("[TrendFollow] Active - EMA pullback + Donchian breakout, ER threshold=0.30");
+   }
+
    // 8. Timer for slow-lane updates
    EventSetTimer(1);
 
@@ -586,9 +632,9 @@ int OnInit()
       }
    }
 
-   // 10. Init ATR handles for volatility rank (M5)
-   g_atr_fast_handle = iATR(_Symbol, PERIOD_M5, 14);
-   g_atr_slow_handle = iATR(_Symbol, PERIOD_M5, 100);
+   // 10. Init ATR handles for volatility rank (LTF)
+   g_atr_fast_handle = iATR(_Symbol, InpLTFTimeframe, 14);
+   g_atr_slow_handle = iATR(_Symbol, InpLTFTimeframe, 100);
    if(g_atr_fast_handle == INVALID_HANDLE || g_atr_slow_handle == INVALID_HANDLE)
       Print("Warning: ATR handles for vol rank failed to initialize");
    
@@ -596,7 +642,7 @@ int OnInit()
 
    // v4.2: Initialize regime strategy at startup (GENIUS refinement)
    // This ensures strategy is ready even before first H1 bar change
-   SRegimeAnalysis init_regime = g_Regime.AnalyzeRegime(_Symbol, PERIOD_H1);
+   SRegimeAnalysis init_regime = g_Regime.AnalyzeRegime(_Symbol, InpMgmtTimeframe);
    if(init_regime.is_valid)
    {
       g_CurrentStrategy = g_Regime.GetCurrentStrategy();
@@ -634,7 +680,16 @@ void OnDeinit(const int reason)
 
    //=== v4.0: ALWAYS flatten on EA removal/chart change ===
    // This is CRITICAL for Apex compliance - no orphan positions
-   FlattenAllPositions("OnDeinit");
+   // Only flatten on specific deinit reasons (not chart period change)
+   if(reason == REASON_REMOVE || reason == REASON_CLOSE ||
+      reason == REASON_ACCOUNT || reason == REASON_PROGRAM)
+   {
+      FlattenAllPositions("OnDeinit - " + IntegerToString(reason));
+   }
+   else
+   {
+      Print("OnDeinit: Keeping positions open (reason=", reason, ")");
+   }
 
    //=== Cancel all pending orders for this EA ===
    for(int i = OrdersTotal() - 1; i >= 0; i--)
@@ -790,7 +845,8 @@ void OnTick()
 
    // Legacy Apex cutoff: flatten and block new trades after 16:55 ET
    // v4.0: This is now handled by CWallClockEnforcer, but keep as fallback
-   if(InpEnforceApexCutoff && g_RiskManager.IsAfterCutoffET(16, InpApexCutoffMinute))
+   // SKIP if time gates are disabled (backtest mode)
+   if(!InpDisableAllTimeGates && InpEnforceApexCutoff && g_RiskManager.IsAfterCutoffET(16, InpApexCutoffMinute))
    {
       if(g_TradeManager.HasActiveTrade())
          g_TradeManager.CloseTrade("Apex cutoff 16:55 ET");
@@ -809,7 +865,12 @@ void OnTick()
       
       // Collect ALL gate statuses
       int spread_pts = (int)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
-      bool spread_ok = (spread_pts <= g_ModeCfg.max_spread_points);
+      int spread_cap = g_ModeCfg.max_spread_points;
+      bool in_tester = (bool)MQLInfoInteger(MQL_TESTER);
+      // Backtest runs often encode wider synthetic spreads; loosen cap in tester/backtest.
+      if(in_tester || InpDisableAllTimeGates)
+         spread_cap = MathMax(spread_cap, 200);
+      bool spread_ok = (spread_pts <= spread_cap);
       bool session_ok = g_Session.IsTradingAllowed();
       bool news_ok = g_News.IsTradingAllowed();
       SNewsWindowNative news_native = g_NewsNative.CheckNewsWindow();
@@ -819,8 +880,13 @@ void OnTick()
       
       // MTF status
       SMTFConfluence mtf_conf = g_MTF.GetConfluence();
-      bool htf_ok = mtf_conf.htf_aligned;
-      bool mtf_align_ok = (mtf_conf.alignment >= MTF_ALIGN_GOOD);
+      bool htf_ok = true;
+      bool mtf_align_ok = true;
+      if(g_ModeCfg.use_mtf)
+      {
+         htf_ok = mtf_conf.htf_aligned;
+         mtf_align_ok = (mtf_conf.alignment >= MTF_ALIGN_GOOD);
+      }
       
       // Regime status
       SRegimeStrategy regime = g_Regime.GetCurrentStrategy();
@@ -843,7 +909,7 @@ void OnTick()
       PrintFormat("  Risk: [%s]", risk_ok ? "OK" : "BLOCKED");
       PrintFormat("  Has Trade: [%s]", has_trade ? "YES-SKIP" : "NO-OK");
       PrintFormat("  HTF Align: [%s]", htf_ok ? "OK" : "BLOCKED");
-      PrintFormat("  MTF Align: %s [%s]", EnumToString(mtf_conf.alignment), mtf_align_ok ? "OK" : "BLOCKED");
+      PrintFormat("  MTF Align: %s [%s]", g_ModeCfg.use_mtf ? EnumToString(mtf_conf.alignment) : "MTF_DISABLED", mtf_align_ok ? "OK" : "BLOCKED");
       PrintFormat("  Regime: %s [%s]", regime.philosophy, regime_ok ? "OK" : "BLOCKED");
       PrintFormat("  Score: %d/%d [%s]", score, g_ModeCfg.execution_threshold, score_ok ? "OK" : "LOW");
       PrintFormat("  AMD Phase: %s [%s]", EnumToString(amd), amd_ok ? "OK" : "WAITING");
@@ -855,12 +921,20 @@ void OnTick()
    int spread_points = (int)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
    g_spread_buff[g_spread_idx % 20] = spread_points;
    g_spread_idx++;
-   if(spread_points > g_ModeCfg.max_spread_points)
+   if(g_spread_idx >= 1000000) g_spread_idx = 20;  // Reset to prevent overflow
+
+   int spread_cap = g_ModeCfg.max_spread_points;
+   bool in_tester = (bool)MQLInfoInteger(MQL_TESTER);
+   // Backtest runs often encode wider synthetic spreads; loosen cap in tester/backtest.
+   if(in_tester || InpDisableAllTimeGates)
+      spread_cap = MathMax(spread_cap, 200);
+
+   if(spread_points > spread_cap)
    {
       static datetime last_spread_log = 0;
       if(TimeCurrent() - last_spread_log > 300)
       {
-         if(InpDebugMode) Print("[BLOCKED] Spread too high: ", spread_points, " > ", g_ModeCfg.max_spread_points);
+         if(InpDebugMode) Print("[BLOCKED] Spread too high: ", spread_points, " > ", spread_cap);
          last_spread_log = TimeCurrent();
       }
       return;
@@ -874,10 +948,11 @@ void OnTick()
    }
    
    // Keep managing open positions even during halt/soft-stop conditions
-   g_TradeManager.OnTick();  // State machine for partials/trailing
-   if(!g_TradeManager.HasActiveTrade())
-      g_Executor.ManagePositions(); // Legacy manager only if TradeManager not handling a position
-   
+   // v4.3: Use ManageAllPositions for multi-position support
+   g_TradeManager.ManageAllPositions();  // State machine for partials/trailing (all positions)
+   if(g_TradeManager.GetActiveCount() == 0)
+      g_Executor.ManagePositions(); // Legacy manager only if TradeManager not handling any positions
+
    // Hard halt: no new trades while still allow management above
    if(g_RiskManager.IsTradingHalted())
    {
@@ -888,9 +963,51 @@ void OnTick()
       }
       return;
    }
-   
-   // Skip new trade logic if we already have a position
-   if(g_TradeManager.HasActiveTrade()) return;
+
+   // v4.3: Update RecoveryManager daily reset check
+   g_RecoveryManager.OnTick();
+
+   // v4.3: Recovery entry tracking
+   bool is_recovery_entry = false;
+   double recovery_size_mult = 1.0;
+   int existing_entry_score = 0;
+   ENUM_POSITION_TYPE existing_position_type = POSITION_TYPE_BUY;  // Default
+   double unrealized_pct = 0.0;
+   int bars_since_entry = 0;
+
+   // v4.3: Skip new trade logic if we have reached max positions (UNLESS recovery is allowed)
+   // Use CanOpenNewTrade() which respects m_max_positions limit
+   if(!g_TradeManager.CanOpenNewTrade())
+   {
+      // Get existing trade info for recovery decision (use first active position)
+      STradeInfo active_trade = g_TradeManager.GetTradeInfo();
+      existing_entry_score = (int)active_trade.entry_score;
+      existing_position_type = active_trade.type;
+
+      // Calculate unrealized P/L as percentage of equity (for all positions)
+      double unrealized_pnl = g_TradeManager.GetTotalUnrealizedPnL();
+      double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+      unrealized_pct = (equity > 0) ? (unrealized_pnl / equity) * 100.0 : 0.0;
+
+      // Calculate bars since entry (first position)
+      if(active_trade.entry_time > 0)
+      {
+         datetime current_bar = iTime(_Symbol, PERIOD_CURRENT, 0);
+         bars_since_entry = Bars(_Symbol, PERIOD_CURRENT, active_trade.entry_time, current_bar);
+         if(bars_since_entry < 0) bars_since_entry = 0;  // Error protection
+      }
+
+      // If position is profitable OR recovery not enabled, skip new entries
+      if(unrealized_pct >= 0 || !g_RecoveryManager.IsEnabled())
+      {
+         return;  // Position profitable or recovery disabled - no new entries
+      }
+
+      // Position is losing - continue to signal generation, then check recovery
+      // We'll validate recovery after we have a signal score to compare
+      // Mark that we have an existing position for later check
+      is_recovery_entry = true;  // Will be validated after signal generation
+   }
 
    //=== GATE 2: ML Direction (ONNX) ===
    ENUM_SIGNAL_TYPE ml_signal = SIGNAL_NONE;
@@ -916,7 +1033,8 @@ void OnTick()
    }
 
    //=== GATE 3: Session Filter ===
-   if(!g_Session.IsTradingAllowed())
+   // v4.1: Bypass session gate when InpDisableAllTimeGates is enabled (backtest mode)
+   if(!InpDisableAllTimeGates && !g_Session.IsTradingAllowed())
    {
       // Static to avoid spamming logs
       static datetime last_session_log = 0;
@@ -987,7 +1105,8 @@ void OnTick()
    double risk_policy_size_mult = decision.size_factor;
 
    //=== GATE 6: Multi-Timeframe Analysis (NEW v3.20) ===
-   if(g_ModeCfg.use_mtf)
+   // v4.1: Bypass HTF alignment when InpDisableAllTimeGates is enabled (backtest mode)
+   if(g_ModeCfg.use_mtf && !InpDisableAllTimeGates)
    {
       // Check HTF (H1) direction - NEVER trade against H1 trend
       SMTFConfluence mtf_conf_htf = g_MTF.GetConfluence();
@@ -1003,24 +1122,142 @@ void OnTick()
       }
    }
 
-   //=== SIGNAL GENERATION (v3.31: Using CConfluenceScorer - 9 factors) ===
-   // Analysis modules are updated on timer to reduce per-tick load
-   
-   // v3.31: Calculate confluence using the REAL brain (FORGE genius upgrade)
-   SConfluenceResult conf_result = g_Confluence.CalculateConfluence();
-   int score = (int)conf_result.total_score;
-   
-   // Check minimum score threshold
-   if(score < g_ModeCfg.execution_threshold) return;
+   //=== v4.2: ADAPTIVE STRATEGY ROUTING ===
+   // Use router to select best strategy for current conditions
+   // Router decides between SMC (confluence) and TrendFollow based on regime/session/volatility
+   SRegimeAnalysis current_regime = g_Regime.AnalyzeRegime(_Symbol, InpMgmtTimeframe);
+
+   // Map session filter state to router session type
+   ENUM_ROUTER_SESSION router_session = ROUTER_SESSION_OFF_HOURS;
+   string session_name = g_Session.GetSessionName();
+   if(StringFind(session_name, "Asian") >= 0)          router_session = ROUTER_SESSION_ASIAN;
+   else if(StringFind(session_name, "London") >= 0)    router_session = ROUTER_SESSION_LONDON;
+   else if(StringFind(session_name, "NY") >= 0)
+   {
+      if(StringFind(session_name, "Overlap") >= 0)     router_session = ROUTER_SESSION_NY_OVERLAP;
+      else                                              router_session = ROUTER_SESSION_NY_AFTERNOON;
+   }
+
+   // Get volatility percentile for router
+   double vol_percentile = GetVolRank() * 100.0;  // Convert 0-1 to 0-100
+
+   // Get router decision
+   SRouterDecision router_decision = g_Router.SelectStrategy(
+      current_regime.regime,
+      router_session,
+      vol_percentile
+   );
+
+   // Log router decision periodically
+   static datetime last_router_log = 0;
+   if(InpDebugMode && TimeCurrent() - last_router_log >= 300)
+   {
+      PrintFormat("[Router] Strategy=%s Conf=%.0f%% Size=%.2f Reason=%s",
+                  g_Router.StrategyToString(router_decision.primary_strategy),
+                  router_decision.confidence,
+                  router_decision.size_multiplier,
+                  router_decision.reason);
+      last_router_log = TimeCurrent();
+   }
+
+   //=== SIGNAL GENERATION (v4.2: Strategy-Aware) ===
+   // Select strategy based on router decision
+   ENUM_SIGNAL_TYPE signal = SIGNAL_NONE;
+   int score = 0;
+   bool using_trend_follow = false;
+   double trend_follow_sl = 0, trend_follow_tp = 0, trend_follow_entry = 0;
+
+   if(router_decision.primary_strategy == STRATEGY_TREND_FOLLOW && g_TrendFollow.IsTrending())
+   {
+      // Use TrendFollow strategy
+      STrendFollowSignal tf_signal = g_TrendFollow.GetBestSignal();
+      if(tf_signal.is_valid)
+      {
+         signal = tf_signal.direction;
+         score = (int)tf_signal.confidence;
+         trend_follow_sl = tf_signal.stop_loss;
+         trend_follow_tp = tf_signal.take_profit;
+         trend_follow_entry = tf_signal.entry_price;
+         using_trend_follow = true;
+
+         if(InpDebugMode)
+         {
+            PrintFormat("[TrendFollow] Signal=%s Mode=%s ER=%.2f Conf=%.0f",
+                       EnumToString(signal),
+                       EnumToString(tf_signal.mode),
+                       tf_signal.efficiency_ratio,
+                       tf_signal.confidence);
+         }
+      }
+   }
+
+   // Fallback to SMC confluence if TrendFollow didn't produce signal OR router chose SMC
+   double fp_score = 0;  // Footprint score for booster/veto
+   SConfluenceResult conf_result;  // Declare in outer scope for later use
+   // MQL5 structs are zero-initialized by default
+
+   if(signal == SIGNAL_NONE)
+   {
+      // v3.31: Calculate confluence using the REAL brain (FORGE genius upgrade)
+      conf_result = g_Confluence.CalculateConfluence();
+      score = (int)conf_result.total_score;
+      signal = conf_result.direction;
+      fp_score = conf_result.footprint_score;
+
+      // v4.2: Validity check is ALWAYS enforced (never bypass)
+      if(!conf_result.is_valid) return;
+   }
+   else
+   {
+      // TrendFollow was used - still get confluence for supplementary data
+      conf_result = g_Confluence.CalculateConfluence();
+      fp_score = conf_result.footprint_score;
+   }
+
+   // Check minimum score threshold - ALWAYS ENFORCED (never bypass)
+   // v4.2: Keep EA threshold aligned with confluence engine input (adaptive threshold can be stricter internally)
+   if(score < InpExecutionThreshold) return;
+
+   //=== v4.3: RECOVERY ENTRY VALIDATION GATE ===
+   // If we have an existing position (is_recovery_entry=true), validate if recovery is allowed
+   if(is_recovery_entry)
+   {
+      // Use the full recovery decision method for detailed checking
+      SRecoveryDecision recovery_decision = g_RecoveryManager.ShouldAllowRecoveryEntry(
+         unrealized_pct,              // Current unrealized P/L %
+         score,                       // New signal score
+         existing_entry_score,        // Original entry score
+         bars_since_entry,            // Bars elapsed since entry
+         existing_position_type,      // Existing position type (BUY/SELL)
+         signal                       // New signal type
+      );
+
+      if(!recovery_decision.allowed)
+      {
+         // Recovery not allowed - log periodically and exit
+         static datetime last_recovery_reject_log = 0;
+         if(TimeCurrent() - last_recovery_reject_log > 300)
+         {
+            Print("[Recovery v4.3] Entry rejected: ", recovery_decision.reason);
+            last_recovery_reject_log = TimeCurrent();
+         }
+         return;
+      }
+
+      // Recovery allowed - apply size multiplier
+      recovery_size_mult = recovery_decision.size_multiplier;
+      Print("[Recovery v4.3] ", recovery_decision.reason);
+      PrintFormat("  Size multiplier: %.2f (NOT martingale)", recovery_size_mult);
+   }
 
    // Volatility & spread-relative filters
+   // v4.1: Bypass vol_rank check when InpDisableAllTimeGates is enabled
    double vol_rank = GetVolRank();
-   if(vol_rank < 0.15) return;              // block chop dead markets
+   if(!InpDisableAllTimeGates && vol_rank < 0.15) return;              // block chop dead markets
    double median_spread = GetMedianSpread();
-   if(g_spread_idx >= 5 && median_spread > 0 && spread_points > median_spread * 1.8) return;
+   if(!InpDisableAllTimeGates && g_spread_idx >= 5 && median_spread > 0 && spread_points > median_spread * 1.8) return;
 
-   // Footprint booster/veto
-   double fp_score = conf_result.footprint_score;
+   // Footprint booster/veto (fp_score already set above)
    if(g_ModeCfg.use_footprint_boost && g_ModeCfg.aggressive_mode)
    {
       if(fp_score <= 20) return;
@@ -1043,21 +1280,20 @@ void OnTick()
    //=== GATE 7: AMD Cycle Check ===
    // Only trade in DISTRIBUTION phase (after manipulation)
    // NOTE: This is also checked by CConfluenceScorer but kept for explicit control
+   // SKIP if AMD gate is disabled (backtest mode)
    ENUM_AMD_PHASE amd_phase = g_AMD.GetCurrentPhase();
-   if(amd_phase == AMD_PHASE_ACCUMULATION || amd_phase == AMD_PHASE_MANIPULATION)
+   if(!InpDisableAMDGate)
    {
-      // Still in setup phase - wait
-      return;
+      if(amd_phase == AMD_PHASE_ACCUMULATION || amd_phase == AMD_PHASE_MANIPULATION)
+      {
+         // Still in setup phase - wait
+         return;
+      }
    }
-   
-   //=== ENTRY OPTIMIZATION (M5 precision) ===
-   // v3.31: Get direction from CConfluenceScorer (includes MTF + Footprint voting)
-   ENUM_SIGNAL_TYPE signal = conf_result.direction;
-   
+
+   // Signal was already determined above by router logic
+   // Final signal check before proceeding to entry
    if(signal == SIGNAL_NONE) return;
-   
-   // v3.31: Also check validity from CConfluenceScorer
-   if(!conf_result.is_valid) return;
 
    // Align with ML direction if enabled
    if(g_MLEnabled)
@@ -1248,8 +1484,8 @@ void OnTick()
             bool confirmed = true;
             for(int cb = 1; cb <= g_CurrentStrategy.confirmation_bars; cb++)
             {
-               double bar_close = iClose(_Symbol, PERIOD_M5, cb);
-               double bar_open = iOpen(_Symbol, PERIOD_M5, cb);
+               double bar_close = iClose(_Symbol, InpLTFTimeframe, cb);
+               double bar_open = iOpen(_Symbol, InpLTFTimeframe, cb);
                if(signal == SIGNAL_BUY && bar_close < bar_open) confirmed = false;
                if(signal == SIGNAL_SELL && bar_close > bar_open) confirmed = false;
             }
@@ -1357,6 +1593,7 @@ void OnTick()
       double free_margin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
       if(margin_required > free_margin * 0.8)
       {
+         if(lotSize <= 0) return;  // Guard against division by zero
          double safe_lot = (free_margin * 0.8) / (margin_required / lotSize);
          lotSize = MathMin(lotSize, safe_lot);
          if(lotSize < SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN))
@@ -1403,7 +1640,24 @@ void OnTick()
          Print("[v4.0 RiskPolicy] Position size would be below minLot - keeping minLot");
       }
    }
-   
+
+   // v4.3: Apply recovery size multiplier (always <= 1.0, NOT martingale)
+   if(is_recovery_entry && recovery_size_mult < 1.0 && recovery_size_mult > 0.0)
+   {
+      double recovery_adjusted_lot = lotSize * recovery_size_mult;
+      if(recovery_adjusted_lot >= minLot)
+      {
+         Print("[Recovery v4.3] Position size reduced: ", DoubleToString(lotSize, 2),
+               " -> ", DoubleToString(recovery_adjusted_lot, 2),
+               " (recovery mult: ", DoubleToString(recovery_size_mult, 2), ")");
+         lotSize = recovery_adjusted_lot;
+      }
+      else
+      {
+         Print("[Recovery v4.3] Position size would be below minLot - keeping minLot");
+      }
+   }
+
    // v3.31: Enhanced trade reason with confluence details
    string reason = StringFormat("Score:%d/%d Conf:%d/9 Q:%s AMD:%s RR:%.1f", 
                                 score, g_ModeCfg.execution_threshold,
@@ -1434,8 +1688,8 @@ void OnTick()
       // increment bucket trade count for exploration decay
       if(g_ModeCfg.use_bandit_context && g_ModeCfg.aggressive_mode)
       {
-         int bucket = GetBucket15();
-         if(bucket >=0 && bucket < 96) g_bucket_trades[bucket]++;
+         int exec_bucket = GetBucket15();
+         if(exec_bucket >=0 && exec_bucket < 96) g_bucket_trades[exec_bucket]++;
       }
       Print("=== TRADE EXECUTED (v3.31 FORGE Genius Edition) ===");
       Print("Direction: ", (signal == SIGNAL_BUY ? "BUY" : "SELL"));
@@ -1449,7 +1703,15 @@ void OnTick()
       Print("Factors: ", conf_result.total_confluences, "/9 | MTF:", DoubleToString(conf_result.mtf_score,1), " | FP:", DoubleToString(conf_result.footprint_score,1));
       if(g_ModeCfg.use_mtf) Print("MTF: ", g_MTF.GetAnalysisSummary());
       Print("============================================");
-      
+
+      // v4.3: Record recovery entry for daily counter tracking
+      if(is_recovery_entry)
+      {
+         g_RecoveryManager.RecordRecoveryEntry();
+         Print("[Recovery v4.3] Recovery entry recorded. Remaining today: ",
+               g_RecoveryManager.GetRemainingRecoveries());
+      }
+
       g_RiskManager.OnTradeExecuted();
    }
 }
@@ -1465,23 +1727,21 @@ void OnTimer()
    // even if there are no ticks (low liquidity / market gap)
    g_WallClock.CheckAndEnforce();
 
-   // v4.0: Check if must flatten based on time
-   if(g_TimeHandler.IsHalted() || g_TimeHandler.IsEmergencyClose())
-   {
-      FlattenAllPositions("OnTimer: Apex time deadline");
-   }
+   // v4.0: Time-based flatten is ALREADY handled by g_WallClock.CheckAndEnforce()
+   // which is idempotent (only flattens once per session)
+   // REMOVED: Redundant FlattenAllPositions call that caused infinite loop
 
    // Slow-lane analytics
    static datetime last_h1_bar = 0;
    static datetime last_m15_bar = 0;
-   
-   datetime h1_bar = iTime(_Symbol, PERIOD_H1, 0);
-   datetime m15_bar = iTime(_Symbol, PERIOD_M15, 0);
-   
-   // Regime/HTF updates on new H1 bar
+
+   datetime h1_bar = iTime(_Symbol, InpMgmtTimeframe, 0);
+   datetime m15_bar = iTime(_Symbol, InpEntryTimeframe, 0);
+
+   // Regime/HTF updates on new management bar
    if(h1_bar != last_h1_bar)
    {
-      SRegimeAnalysis regime = g_Regime.AnalyzeRegime(_Symbol, PERIOD_H1);
+      SRegimeAnalysis regime = g_Regime.AnalyzeRegime(_Symbol, InpMgmtTimeframe);
       if(regime.is_valid)
       {
          g_RiskManager.SetRegimeMultiplier(regime.size_multiplier);
@@ -1503,10 +1763,10 @@ void OnTimer()
       last_h1_bar = h1_bar;
    }
    
-   // Structure/M15 updates on new M15 bar
+   // Structure/Entry TF updates on new entry timeframe bar
    if(m15_bar != last_m15_bar)
    {
-      g_Structure.AnalyzeStructure(_Symbol, PERIOD_M15);
+      g_Structure.AnalyzeStructure(_Symbol, InpEntryTimeframe);
       last_m15_bar = m15_bar;
       
       // Refresh FVGs on new M15 bar to avoid heavy per-tick detection

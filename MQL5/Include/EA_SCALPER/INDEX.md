@@ -107,7 +107,9 @@ MQL5/
 │   ├── Bridge/                         # Integracao Externa
 │   │   ├── COnnxBrain.mqh              # Cerebro ONNX (ML)
 │   │   ├── PythonBridge.mqh            # Ponte Python
-│   │   └── CFundamentalsBridge.mqh     # [NEW] Ponte Fundamentals
+│   │   ├── CFundamentalsBridge.mqh     # [NEW] Ponte Fundamentals
+│   │   ├── CCOTBridge.mqh              # [NEW v4.3] Ponte COT (STUB)
+│   │   └── CMemoryBridge.mqh           # Ponte Memory System
 │   │
 │   ├── Signal/                         # Geracao de Sinais
 │   │   ├── CConfluenceScorer.mqh       # Scorer de Confluencia
@@ -790,6 +792,15 @@ struct SConfluenceScore {
 | Prime Regime | +10 | Hurst/Entropy favoravel |
 | AMD Distribution | +10 | Fase de distribuicao |
 
+**VIX Integration [v4.3]**:
+```
+VIX > 25 (Risk-Off): Gold bullish bias  -> +5 to +10 for longs
+VIX < 15 (Risk-On):  Gold bearish bias  -> -5 to -10 for longs
+VIX 15-25 (Neutral): No adjustment
+
+Metodo: SetVIXLevel(double vix) e GetVIXScoreAdjustment(direction)
+```
+
 **Tiers de Sinal**:
 ```
 TIER A (90-100): Confluencia perfeita → Full size
@@ -1052,7 +1063,46 @@ struct SFundamentalsSignal {
 
 ---
 
-### 7.4 CFundamentalsIntegrator.mqh - Fusao Tech+Fund [NEW v3.21]
+### 7.4 CCOTBridge.mqh - Ponte COT [NEW v4.3]
+
+**Proposito**: Integrar dados COT (Commitment of Traders) para sentimento institucional
+
+**Descricao**: Bridge HTTP STUB para futura integracao de dados COT do CFTC via Python Hub. COT data mostra posicionamento de commercials, speculators e managed money.
+
+**Estruturas**:
+```cpp
+struct SCOTPosition {
+   long     long_contracts;      // Contratos long
+   long     short_contracts;     // Contratos short
+   long     net_position;        // Posicao liquida
+   double   percent_of_oi;       // % do open interest
+};
+
+struct SCOTReport {
+   datetime report_date;         // Data do report
+   SCOTPosition commercial;      // Hedgers comerciais
+   SCOTPosition large_spec;      // Large speculators
+   SCOTPosition small_spec;      // Small speculators
+   SCOTPosition managed_money;   // Managed money
+};
+
+struct SCOTSignal {
+   string   bias;                // BULLISH, BEARISH, NEUTRAL
+   int      score_adjustment;    // -15 a +15
+   double   confidence;          // 0.0 a 1.0
+};
+```
+
+**Logica de Sinal COT**:
+- Commercials net SHORT = bullish para gold (hedging producao)
+- Commercials net LONG = bearish para gold (hedging compras)
+- Speculators em extremos = sinal contrario (crowd is wrong)
+
+**Status**: STUB - Implementacao completa pendente
+
+---
+
+### 7.5 CFundamentalsIntegrator.mqh - Fusao Tech+Fund [NEW v3.21]
 
 **Proposito**: Combinar analise tecnica (CConfluenceScorer) com fundamentals
 
