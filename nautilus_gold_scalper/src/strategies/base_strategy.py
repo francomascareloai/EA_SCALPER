@@ -9,10 +9,11 @@ Provides abstract base class for all trading strategies with common functionalit
 - Signal generation interface
 """
 
+import json
 import math
 import random
 from abc import abstractmethod
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -54,6 +55,7 @@ from nautilus_trader.model.events import (
     PositionClosed,
     PositionOpened,
 )
+from nautilus_trader.model.identifiers import ExecAlgorithmId
 from nautilus_trader.model.instruments import Instrument
 from nautilus_trader.model.objects import Price, Quantity
 
@@ -71,6 +73,16 @@ except ImportError:  # mypy/CI environments may not have NautilusTrader stubs
 
 
 from ..core.data_types import ConfluenceResult, RegimeAnalysis, SessionInfo
+
+
+def _et_day_key(ts_ns: int) -> date | None:
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        return None
+    return datetime.fromtimestamp(ts_ns / 1e9, tz=ZoneInfo("America/New_York")).date()
+
+
 from ..core.definitions import (
     MIN_VALID_SCORE,
     TIER_A_MIN,
@@ -81,6 +93,20 @@ from ..core.definitions import (
     SignalQuality,
 )
 from ..risk.circuit_breaker import CircuitBreakerLevel
+
+
+def _encode_json_bytes(payload: dict[str, Any]) -> bytes:
+    data = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    if not isinstance(data, (bytes, bytearray)):
+        raise TypeError("Expected bytes from JSON encoding")
+    return bytes(data)
+
+
+def _decode_json_bytes(blob: bytes) -> dict[str, Any]:
+    obj = json.loads(blob.decode("utf-8"))
+    if not isinstance(obj, dict):
+        raise TypeError(f"Expected dict JSON payload, got {type(obj).__name__}")
+    return obj
 
 
 class BaseStrategyConfig(NautilusStrategyConfig, kw_only=True):  # type: ignore[misc,call-arg]
@@ -112,6 +138,16 @@ class BaseStrategyConfig(NautilusStrategyConfig, kw_only=True):  # type: ignore[
     # Execution parameters
     min_score_to_trade: float = MIN_VALID_SCORE
     min_rr_ratio: float = 1.5
+
+    # Bars timestamp basis (feed=bars): 'open' means bar-open timestamps and must be shifted by the runner.
+    # This is primarily for traceability/debugging; it does not affect strategy logic.
+    bars_timestamp_basis: str = "open"
+
+    # TWAP execution algorithm (optional). When enabled, entry market orders will be
+    # annotated with exec_algorithm_id/params and executed by the registered TWAP algorithm.
+    twap_enabled: bool = False
+    twap_horizon_secs: float = 30.0
+    twap_interval_secs: float = 3.0
     target_rr_ratio: float = 2.5
     max_spread_points: int = 80
     # SpreadAnalyzer: block entries when spread > Nx average (news/volatility protection)
@@ -185,6 +221,11 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._last_tick_ts_ns: int | None = None
         self._last_tick_dt: datetime | None = None
 
+        # Persistence (Phase 14): state is session-bound in ET.
+        # We fail-closed if a state blob is for a different ET day.
+        self._persistence_schema_version: int = 1
+        self._persistence_day_key: date | None = None
+
         # Pending SL/TP for position management
         self._pending_sl: Price | None = None
         self._pending_tp: Price | None = None
@@ -208,6 +249,12 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._execution_failsafe_triggered: bool = False
         self._trading_blocked_today: bool = False
         self._position_opened_ts_ns: int | None = None
+
+        # Hot-path caches (updated on position lifecycle events)
+        self._pos_cache_entry_px: float | None = None
+        self._pos_cache_qty: float | None = None
+        self._pos_cache_point_value: float | None = None
+        self._pos_cache_side: PositionSide | None = None
 
         # Fail-safe flatten retry (hostile execution can reject a single close attempt).
         self._failsafe_close_retry_count: int = 0
@@ -308,6 +355,11 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         # Strategy-specific initialization
         self._on_strategy_start()
+
+        # After a persistence restore, ensure time gates are enforced using the latest
+        # known market timestamp. This is fail-closed for Apex compliance.
+        if self._last_market_ts_ns is not None:
+            self._enforce_time_gates_after_restore(self._last_market_ts_ns)
 
         self.log.info(f"Strategy started for {self.config.instrument_id}")
 
@@ -438,9 +490,9 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 self.log.error(f"Failed to reset ConsistencyTracker: {type(exc).__name__}: {exc}")
 
         # Reset TimeConstraintManager warnings (if exists)
-        if hasattr(self, "time_manager") and self.time_manager is not None:
+        if getattr(self, "_time_manager", None) is not None:
             try:
-                self.time_manager.reset_daily()
+                self._time_manager.reset_daily()
                 self.log.info("TimeConstraintManager warnings reset")
             except Exception as exc:
                 self.log.error(
@@ -470,9 +522,15 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
     def on_bar(self, bar: Bar) -> None:
         """Process incoming bar data."""
+        fp = getattr(self, "_fine_profiler", None)
+        if fp is not None:
+            fp.start("base_on_bar")
+
         # Guard against revision bars (partial updates). We only want final OHLC bars to
         # avoid any look-ahead from in-progress aggregation.
         if getattr(bar, "is_revision", False):
+            if fp is not None:
+                fp.stop("base_on_bar")
             return
 
         # WP0: maintain a deterministic market timestamp even if quote ticks stall.
@@ -517,17 +575,29 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if self.config.htf_bar_type and bar.bar_type == self.config.htf_bar_type:
             self._htf_bars.append(bar)
             self._trim_bars(self._htf_bars, 500)
+            if fp is not None:
+                fp.start("base_on_htf_bar")
             self._on_htf_bar(bar)
+            if fp is not None:
+                fp.stop("base_on_htf_bar")
 
         elif self.config.mtf_bar_type and bar.bar_type == self.config.mtf_bar_type:
             self._mtf_bars.append(bar)
             self._trim_bars(self._mtf_bars, 500)
+            if fp is not None:
+                fp.start("base_on_mtf_bar")
             self._on_mtf_bar(bar)
+            if fp is not None:
+                fp.stop("base_on_mtf_bar")
 
         elif self.config.ltf_bar_type and bar.bar_type == self.config.ltf_bar_type:
             self._ltf_bars.append(bar)
             self._trim_bars(self._ltf_bars, 1000)
+            if fp is not None:
+                fp.start("base_on_ltf_bar")
             self._on_ltf_bar(bar)
+            if fp is not None:
+                fp.stop("base_on_ltf_bar")
 
             # LTF bar is primary execution timeframe - check for signals
             has_data = self._has_enough_data()
@@ -539,46 +609,85 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 )
 
             if self._is_trading_allowed and has_data:
+                if fp is not None:
+                    fp.start("base_check_for_signal")
                 self._check_for_signal(bar)
+                if fp is not None:
+                    fp.stop("base_check_for_signal")
+
             elif not has_data and len(self._ltf_bars) % 100 == 0:
                 self.log.info(
                     f"[LTF_BAR] Skipping signal check: insufficient data (need {self._min_bars_for_signal} bars, have {len(self._ltf_bars)})"
                 )
 
+        if fp is not None:
+            fp.stop("base_on_bar")
+
     def on_quote_tick(self, tick: QuoteTick) -> None:
         """Process quote tick for spread monitoring."""
+        fp = getattr(self, "_fine_profiler", None)
+        if fp is not None:
+            fp.start("base_on_quote_tick")
+
         tick_ts_ns = int(tick.ts_event)
         self._last_market_ts_ns = tick_ts_ns
 
         # Cache datetime conversion (hot path).
+        if fp is not None:
+            fp.start("tick_dt_cache")
         now_dt = self._last_tick_dt
         if now_dt is None or self._last_tick_ts_ns != tick_ts_ns:
             now_dt = datetime.fromtimestamp(tick_ts_ns / 1e9, tz=timezone.utc)
             self._last_tick_dt = now_dt
             self._last_tick_ts_ns = tick_ts_ns
+        if fp is not None:
+            fp.stop("tick_dt_cache")
 
-        if not self.instrument:
+        inst = self.instrument
+        if inst is None:
+            if fp is not None:
+                fp.stop("base_on_quote_tick")
             return
 
         # Update SpreadAnalyzer with the latest quote tick
+        # PERF: When no position is open, sample every 50 ticks to reduce overhead.
+        # Entry gating happens on bar close (on_bar), so spread stats don't need tick-level updates.
+        # At 160K ticks/day, 50-tick sampling still provides ~3200 samples/day (ample for rolling avg).
+        # When a position IS open, update every tick for accurate monitoring.
+        if fp is not None:
+            fp.start("tick_spread_analyzer")
         if self._spread_analyzer is not None:
-            self._spread_analyzer.handle_quote_tick(tick)
+            position = self._position
+            if position is not None or self._tick_counter % 50 == 0:
+                self._spread_analyzer.handle_quote_tick(tick)
+        if fp is not None:
+            fp.stop("tick_spread_analyzer")
 
+        if fp is not None:
+            fp.start("tick_entry_terminal")
         self._finalize_entry_terminal_if_safe(tick_ts_ns)
+        if fp is not None:
+            fp.stop("tick_entry_terminal")
+
         if self._execution_failsafe_triggered and self._position is not None:
-            self._attempt_failsafe_flatten(now_ts_ns=int(tick.ts_event))
+            if fp is not None:
+                fp.start("tick_failsafe_flatten")
+            self._attempt_failsafe_flatten(now_ts_ns=tick_ts_ns)
+            if fp is not None:
+                fp.stop("tick_failsafe_flatten")
 
-        inst = self.instrument
-        # Hot path: keep numeric conversions local and avoid repeated attribute lookups.
-        spread = float(tick.ask_price - tick.bid_price)
-        price_inc = float(inst.price_increment)
-        spread_points = int(spread / price_inc)
+        if self.config.debug_mode:
+            # Hot path: keep numeric conversions local and avoid repeated attribute lookups.
+            spread = float(tick.ask_price - tick.bid_price)
+            price_inc = float(inst.price_increment)
+            spread_points = int(spread / price_inc)
 
-        if spread_points > self.config.max_spread_points:
-            if self.config.debug_mode:
+            if spread_points > self.config.max_spread_points:
                 self.log.warning(f"Spread too wide: {spread_points} points")
 
         # WP0: bracket confirmation watchdog (deterministic, ts_event-driven)
+        if fp is not None:
+            fp.start("tick_bracket_watchdog")
         if (
             self._position is not None
             and not self._execution_failsafe_triggered
@@ -603,7 +712,7 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             if sl_order is not None:
                 self._bracket_sl_confirmed = True
             else:
-                elapsed_ns = int(tick.ts_event) - int(self._bracket_submitted_ts_ns)
+                elapsed_ns = tick_ts_ns - int(self._bracket_submitted_ts_ns)
                 if elapsed_ns > int(self._bracket_confirm_timeout_ns):
                     self._trigger_execution_failsafe(reason="bracket_sl_not_confirmed_timeout")
 
@@ -616,45 +725,67 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
             and not self._bracket_sl_confirmed
             and self._position_opened_ts_ns is not None
         ):
-            elapsed_since_open_ns = int(tick.ts_event) - int(self._position_opened_ts_ns)
+            elapsed_since_open_ns = tick_ts_ns - int(self._position_opened_ts_ns)
             if elapsed_since_open_ns > int(self._bracket_confirm_timeout_ns):
                 self._trigger_execution_failsafe(reason="sl_not_confirmed_after_position_open")
+        if fp is not None:
+            fp.stop("tick_bracket_watchdog")
 
         self._tick_counter += 1
 
+        if fp is not None:
+            fp.start("tick_compute_equity")
         equity = self._compute_equity_from_tick(tick)
+        if fp is not None:
+            fp.stop("tick_compute_equity")
         if equity is None:
+            if fp is not None:
+                fp.stop("base_on_quote_tick")
             return
-        now_dt = self._last_tick_dt
-        if now_dt is None:
-            now_dt = datetime.fromtimestamp(tick_ts_ns / 1e9, tz=timezone.utc)
-            self._last_tick_dt = now_dt
-            self._last_tick_ts_ns = tick_ts_ns
 
         # Intrabar drawdown monitoring (mark-to-market)
-        if getattr(self, "_drawdown_tracker", None) and self._position:
-            analysis = self._drawdown_tracker.update(equity, now=now_dt)
+        position = self._position
+
+        if fp is not None:
+            fp.start("tick_dd_tracker")
+        drawdown_tracker = getattr(self, "_drawdown_tracker", None)
+        if drawdown_tracker is not None and position is not None:
+            analysis = drawdown_tracker.update(equity, now=now_dt)
             self._apply_drawdown_limits(analysis)
             if not self._is_trading_allowed:
+                if fp is not None:
+                    fp.stop("tick_dd_tracker")
+                    fp.stop("base_on_quote_tick")
                 return
+        if fp is not None:
+            fp.stop("tick_dd_tracker")
 
         # Prop-firm manager intrabar enforcement (uses conservative MTM equity)
-        if getattr(self, "_prop_firm", None) and self._position:
+        if fp is not None:
+            fp.start("tick_prop_firm")
+        prop_firm = getattr(self, "_prop_firm", None)
+        if prop_firm is not None and position is not None:
             try:
-                self._prop_firm.update_equity(equity, now=now_dt)
+                prop_firm.update_equity(equity, now=now_dt)
 
                 # Ensure compliance is sufficient: it checks DD protection and triggers
                 # hard stop behavior when configured.
-                state = self._prop_firm.ensure_compliance(now=now_dt)
+                state = prop_firm.ensure_compliance(now=now_dt)
 
                 # Fast-path: if compliance reports trading not allowed, halt immediately.
                 if not state.is_trading_allowed:
                     self._trigger_execution_failsafe(reason="prop_firm_dd_breach")
+                    if fp is not None:
+                        fp.stop("tick_prop_firm")
+                        fp.stop("base_on_quote_tick")
                     return
 
                 # Consistency gate (daily profit cap) is separate; keep it explicit.
-                if not self._prop_firm.can_trade(now=now_dt):
+                if not prop_firm.can_trade(now=now_dt):
                     self._trigger_execution_failsafe(reason="prop_firm_consistency_block")
+                    if fp is not None:
+                        fp.stop("tick_prop_firm")
+                        fp.stop("base_on_quote_tick")
                     return
 
             except Exception as exc:
@@ -662,26 +793,41 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                 self._trigger_execution_failsafe(
                     reason=f"prop_firm_intrabar_exception: {type(exc).__name__}"
                 )
+                if fp is not None:
+                    fp.stop("tick_prop_firm")
+                    fp.stop("base_on_quote_tick")
                 return
+        if fp is not None:
+            fp.stop("tick_prop_firm")
 
         # Circuit breaker intrabar enforcement (uses conservative MTM equity)
         # IMPORTANT: CircuitBreaker `can_trade()` can be False due to cooldowns after consecutive
         # losses (LEVEL_1/2) or temporary risk pauses. That should NOT trigger an emergency
         # flatten + HALT while a position is open; it's an *entry* gate.
         # Only hard lockdown states should force an emergency flatten.
-        if getattr(self, "_circuit_breaker", None) and self._position:
+        circuit_breaker = getattr(self, "_circuit_breaker", None)
+        if circuit_breaker is not None and position is not None:
             try:
-                self._circuit_breaker.update_equity(equity, now=now_dt)
-                cb_state = self._circuit_breaker.get_state()
+                if fp is not None:
+                    fp.start("cb_update_equity")
+                (
+                    cb_level,
+                    daily_dd_pct,
+                    total_dd_pct,
+                    peak_equity,
+                    daily_start_equity,
+                ) = circuit_breaker.update_equity_and_get_level_and_drawdown(equity, now=now_dt)
+                if fp is not None:
+                    fp.stop("cb_update_equity")
 
                 # Emit dd_snapshot telemetry when a new max DD is reached
                 # This supplements circuit_state (which only fires on level change)
                 # and ensures Apex DD validation never misses peak DD values.
+                if fp is not None:
+                    fp.start("tick_cb_telemetry")
                 telemetry = getattr(self, "_telemetry", None)
                 if telemetry and getattr(self.config, "telemetry_capture_circuit", True):
                     emit_snapshot = False
-                    total_dd_pct = float(cb_state.total_dd_percent)
-                    daily_dd_pct = float(cb_state.daily_dd_percent)
 
                     # Emit when total_dd exceeds previous max by > 1e-6
                     if total_dd_pct > self._telemetry_max_total_dd_pct + 1e-6:
@@ -699,27 +845,31 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                             "equity": equity,
                             "daily_dd": daily_dd_pct,
                             "total_dd": total_dd_pct,
+                            "peak_equity": peak_equity,
+                            "daily_start_equity": daily_start_equity,
                             "source": "circuit_breaker",
                         }
-                        # Include peak_equity and daily_start_equity if available
-                        if hasattr(cb_state, "peak_equity"):
-                            snapshot_payload["peak_equity"] = float(cb_state.peak_equity)
-                        if hasattr(cb_state, "daily_start_equity"):
-                            snapshot_payload["daily_start_equity"] = float(
-                                cb_state.daily_start_equity
-                            )
                         telemetry.emit("dd_snapshot", snapshot_payload)
+                if fp is not None:
+                    fp.stop("tick_cb_telemetry")
 
-                if cb_state.level >= CircuitBreakerLevel.LEVEL_4_CRITICAL:
+                if cb_level >= CircuitBreakerLevel.LEVEL_4_CRITICAL:
                     self._trigger_execution_failsafe(
-                        reason=f"circuit_breaker_lockdown:{cb_state.level.name}"
+                        reason=f"circuit_breaker_lockdown:{cb_level.name}"
                     )
+                    if fp is not None:
+                        fp.stop("base_on_quote_tick")
                     return
             except Exception as exc:
                 self._trigger_execution_failsafe(
                     reason=f"circuit_breaker_intrabar_exception: {type(exc).__name__}"
                 )
+                if fp is not None:
+                    fp.stop("base_on_quote_tick")
                 return
+
+        if fp is not None:
+            fp.stop("base_on_quote_tick")
 
     # ========== Position Event Handlers ==========
 
@@ -741,6 +891,18 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if self._position is None:
             self._trigger_execution_failsafe(reason="position_opened_but_cache_position_missing")
             return
+
+        # Cache position attributes for hot-path equity calculations.
+        entry_obj = getattr(self._position, "avg_px_open", 0.0)
+        qty_obj = getattr(self._position, "quantity", 0.0)
+        self._pos_cache_entry_px = (
+            float(entry_obj.as_double()) if hasattr(entry_obj, "as_double") else float(entry_obj)
+        )
+        self._pos_cache_qty = (
+            float(qty_obj.as_double()) if hasattr(qty_obj, "as_double") else float(qty_obj)
+        )
+        self._pos_cache_side = self._position.side
+        self._pos_cache_point_value = float(self._instrument_point_value_per_unit())
 
         # Entry lock: once a position is opened (and cache resolved), clear the pending entry gate.
         # Keep local copies for diagnostics before clearing.
@@ -846,6 +1008,19 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         if self._position is None:
             return
+
+        # Update hot-path caches (position may have scaled in/out).
+        entry_obj = getattr(self._position, "avg_px_open", 0.0)
+        qty_obj = getattr(self._position, "quantity", 0.0)
+        self._pos_cache_entry_px = (
+            float(entry_obj.as_double()) if hasattr(entry_obj, "as_double") else float(entry_obj)
+        )
+        self._pos_cache_qty = (
+            float(qty_obj.as_double()) if hasattr(qty_obj, "as_double") else float(qty_obj)
+        )
+        self._pos_cache_side = self._position.side
+        if self._pos_cache_point_value is None:
+            self._pos_cache_point_value = float(self._instrument_point_value_per_unit())
 
         # Get new quantity
         new_qty = (
@@ -1051,6 +1226,12 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
                     )
 
             self._position = None
+            self._active_position_id = None
+            self._position_opened_ts_ns = None
+            self._pos_cache_entry_px = None
+            self._pos_cache_qty = None
+            self._pos_cache_point_value = None
+            self._pos_cache_side = None
 
     # ========== Trading Methods ==========
 
@@ -1093,12 +1274,16 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._pending_sl = sl_price
         self._pending_tp = tp_price
 
+        twap = self._twap_exec_for_entry()
+
         # Create market order
         order = self.order_factory.market(
             instrument_id=self.config.instrument_id,
             order_side=OrderSide.BUY,
             quantity=quantity,
             time_in_force=TimeInForce.IOC,
+            exec_algorithm_id=twap[0] if twap is not None else None,
+            exec_algorithm_params=twap[1] if twap is not None else None,
         )
 
         # Track entry order id (for IOC reject/cancel cleanup)
@@ -1154,11 +1339,15 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         self._pending_sl = sl_price
         self._pending_tp = tp_price
 
+        twap = self._twap_exec_for_entry()
+
         order = self.order_factory.market(
             instrument_id=self.config.instrument_id,
             order_side=OrderSide.SELL,
             quantity=quantity,
             time_in_force=TimeInForce.IOC,
+            exec_algorithm_id=twap[0] if twap is not None else None,
+            exec_algorithm_params=twap[1] if twap is not None else None,
         )
 
         # Track entry order id (for IOC reject/cancel cleanup)
@@ -1227,6 +1416,27 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         if getattr(self.config, "debug_mode", False):
             self.log.debug(f"[WP0] cleared pending brackets ({reason})")
 
+    def _twap_exec_for_entry(self) -> tuple[ExecAlgorithmId, dict[str, Any]] | None:
+        if not bool(getattr(self.config, "twap_enabled", False)):
+            return None
+
+        # Guardrail: never allow TWAP orders when we are blocked / failsafe triggered.
+        if self._execution_failsafe_triggered or self._trading_blocked_today:
+            return None
+
+        horizon_secs = float(getattr(self.config, "twap_horizon_secs", 0.0))
+        interval_secs = float(getattr(self.config, "twap_interval_secs", 0.0))
+
+        if not (horizon_secs > 0.0 and interval_secs > 0.0 and interval_secs <= horizon_secs):
+            # Fail-closed: TWAP misconfiguration should never silently create unsafe behavior.
+            self._trigger_execution_failsafe(reason="twap_invalid_params")
+            return None
+
+        return (
+            ExecAlgorithmId("TWAP"),
+            {"horizon_secs": horizon_secs, "interval_secs": interval_secs},
+        )
+
     def _trigger_execution_failsafe(self, reason: str) -> None:
         """Fail-safe: cancel orders, flatten positions, and halt trading.
 
@@ -1294,22 +1504,39 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         This integrates with Apex compliance time gates and DD thresholds.
         """
-        # Access risk engine via execution client's registered risk engine
-        # In backtest, this may not be available - log warning and continue
+        # RiskEngine handle is injected at the engine-layer in backtests (see scripts/backtest/run_backtest.py).
+        # In other environments, the handle may be absent; in that case, we only log intent.
         try:
-            # NautilusTrader provides risk_engine access via trader
-            trader = getattr(self, "trader", None)
-            if trader is not None:
-                risk_engine = getattr(trader, "risk_engine", None)
-                if risk_engine is not None:
-                    current_state = getattr(risk_engine, "trading_state", None)
-                    if current_state != state:
-                        risk_engine.set_trading_state(state)
-                        self.log.warning(
-                            f"[TRADING_STATE] {current_state} -> {state.name}: {reason}"
-                        )
-                    return
-            # Fallback: log that we can't set trading state (backtest mode)
+            risk_engine = getattr(self, "_risk_engine", None)
+            if risk_engine is None:
+                trader = getattr(self, "trader", None)
+                if trader is not None:
+                    risk_engine = getattr(trader, "risk_engine", None)
+
+            if risk_engine is not None:
+                desired_state = state
+                # Safety: HALTED may block order submits; never HALT while in-position.
+                if desired_state == TradingState.HALTED and self._position is not None:
+                    desired_state = TradingState.REDUCING
+
+                current_raw = getattr(risk_engine, "trading_state", None)
+                try:
+                    if isinstance(current_raw, int):
+                        current_state: TradingState | None = TradingState(current_raw)
+                    elif isinstance(current_raw, TradingState):
+                        current_state = current_raw
+                    else:
+                        current_state = None
+                except Exception:
+                    current_state = None
+
+                if current_state != desired_state:
+                    risk_engine.set_trading_state(desired_state)
+                    self.log.warning(
+                        f"[TRADING_STATE] {current_state} -> {desired_state.name}: {reason}"
+                    )
+                return
+
             self.log.info(f"[TRADING_STATE] (no risk_engine) Would set {state.name}: {reason}")
         except Exception as exc:
             self.log.debug(f"[TRADING_STATE] Failed to set {state.name}: {exc}")
@@ -1320,11 +1547,23 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         Returns ACTIVE if risk engine is not available (e.g., backtest).
         """
         try:
-            trader = getattr(self, "trader", None)
-            if trader is not None:
-                risk_engine = getattr(trader, "risk_engine", None)
-                if risk_engine is not None:
-                    return risk_engine.trading_state
+            risk_engine = getattr(self, "_risk_engine", None)
+            if risk_engine is None:
+                trader = getattr(self, "trader", None)
+                if trader is not None:
+                    risk_engine = getattr(trader, "risk_engine", None)
+
+            if risk_engine is not None:
+                raw = getattr(risk_engine, "trading_state", None)
+                if raw is None:
+                    return TradingState.ACTIVE
+                try:
+                    if isinstance(raw, int):
+                        return TradingState(raw)
+                    if isinstance(raw, TradingState):
+                        return raw
+                except Exception:
+                    return TradingState.ACTIVE
         except Exception:
             pass
         return TradingState.ACTIVE
@@ -1433,6 +1672,171 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
 
         except Exception as exc:
             self.log.debug(f"[TIMER] Time gate check failed: {exc}")
+
+    # ========== Persistence (Phase 14) ==========
+
+    def on_save(self) -> dict[str, bytes]:
+        payload: dict[str, Any] = {
+            "v": int(self._persistence_schema_version),
+            "day_key": self._persistence_day_key.isoformat() if self._persistence_day_key else None,
+            "is_trading_allowed": bool(self._is_trading_allowed),
+            "trading_blocked_today": bool(self._trading_blocked_today),
+            "execution_failsafe_triggered": bool(self._execution_failsafe_triggered),
+            "failsafe_close_retry_count": int(self._failsafe_close_retry_count),
+            "failsafe_close_last_attempt_ts_ns": self._failsafe_close_last_attempt_ts_ns,
+            "last_market_ts_ns": self._last_market_ts_ns,
+            "current_regime": getattr(self._current_regime, "regime", None)
+            if self._current_regime is not None
+            else None,
+        }
+
+        if self._entry_client_order_id is not None:
+            payload["entry_client_order_id"] = str(self._entry_client_order_id)
+        if self._bracket_sl_client_order_id is not None:
+            payload["bracket_sl_client_order_id"] = str(self._bracket_sl_client_order_id)
+        if self._bracket_tp_client_order_id is not None:
+            payload["bracket_tp_client_order_id"] = str(self._bracket_tp_client_order_id)
+        if self._active_bracket_list_id is not None:
+            payload["active_bracket_list_id"] = str(self._active_bracket_list_id)
+
+        if getattr(self, "_time_manager", None) is not None:
+            tm = self._time_manager
+            try:
+                payload["time_manager"] = {
+                    "issued": sorted(list(getattr(tm, "_issued", set()))),
+                    "close_orders_submitted": bool(getattr(tm, "_close_orders_submitted", False)),
+                    "close_submitted_ts_ns": getattr(tm, "_close_submitted_ts_ns", None),
+                    "flatten_complete": bool(getattr(tm, "_flatten_complete", False)),
+                    "close_retry_count": int(getattr(tm, "_close_retry_count", 0)),
+                    "close_order_ids": [str(x) for x in getattr(tm, "_close_order_ids", [])],
+                }
+            except Exception:
+                # Fail-open for telemetry only; time gates are enforced from clock on restore.
+                pass
+
+        return {"base": _encode_json_bytes(payload)}
+
+    def on_load(self, state: dict[str, bytes]) -> None:
+        try:
+            raw = state.get("base")
+            if raw is None:
+                return
+            payload = _decode_json_bytes(raw)
+
+            if int(payload.get("v", 0)) != int(self._persistence_schema_version):
+                raise ValueError("Unsupported persistence schema version")
+
+            # Restore timestamps first so day_key validation can run.
+            loaded_last_ts = payload.get("last_market_ts_ns")
+            self._last_market_ts_ns = int(loaded_last_ts) if loaded_last_ts is not None else None
+
+            # Validate day boundary (ET) if possible.
+            loaded_day = payload.get("day_key")
+            if isinstance(loaded_day, str):
+                loaded_day_key = date.fromisoformat(loaded_day)
+            else:
+                loaded_day_key = None
+
+            current_day_key = (
+                _et_day_key(self._last_market_ts_ns)
+                if self._last_market_ts_ns is not None
+                else None
+            )
+            if (
+                loaded_day_key is not None
+                and current_day_key is not None
+                and loaded_day_key != current_day_key
+            ):
+                raise ValueError("Persistence state from different ET day")
+
+            self._persistence_day_key = current_day_key or loaded_day_key
+
+            # Restore fail-safe latches (fail-closed): never clear True -> False.
+            self._trading_blocked_today = bool(payload.get("trading_blocked_today", False)) or bool(
+                self._trading_blocked_today
+            )
+            self._execution_failsafe_triggered = bool(
+                payload.get("execution_failsafe_triggered", False)
+            ) or bool(self._execution_failsafe_triggered)
+
+            if self._execution_failsafe_triggered or self._trading_blocked_today:
+                self._is_trading_allowed = False
+            else:
+                self._is_trading_allowed = bool(payload.get("is_trading_allowed", True)) and bool(
+                    self._is_trading_allowed
+                )
+
+            self._failsafe_close_retry_count = max(
+                int(getattr(self, "_failsafe_close_retry_count", 0)),
+                int(payload.get("failsafe_close_retry_count", 0) or 0),
+            )
+            loaded_last_attempt = payload.get("failsafe_close_last_attempt_ts_ns")
+            if loaded_last_attempt is not None:
+                try:
+                    self._failsafe_close_last_attempt_ts_ns = int(loaded_last_attempt)
+                except Exception:
+                    pass
+
+            # Restore bracket tracking strings (do not reconstruct full Order objects).
+            self._entry_client_order_id = payload.get("entry_client_order_id")
+            self._bracket_sl_client_order_id = payload.get("bracket_sl_client_order_id")
+            self._bracket_tp_client_order_id = payload.get("bracket_tp_client_order_id")
+            self._active_bracket_list_id = payload.get("active_bracket_list_id")
+
+            # Restore time-manager idempotency markers (attempted/issued).
+            if getattr(self, "_time_manager", None) is not None:
+                tm_payload = payload.get("time_manager")
+                if isinstance(tm_payload, dict):
+                    try:
+                        issued = tm_payload.get("issued")
+                        if isinstance(issued, list):
+                            self._time_manager._issued = set(str(x) for x in issued)
+                        self._time_manager._close_orders_submitted = bool(
+                            tm_payload.get("close_orders_submitted", False)
+                        )
+                        self._time_manager._close_submitted_ts_ns = tm_payload.get(
+                            "close_submitted_ts_ns"
+                        )
+                        self._time_manager._flatten_complete = bool(
+                            tm_payload.get("flatten_complete", False)
+                        )
+                        self._time_manager._close_retry_count = int(
+                            tm_payload.get("close_retry_count", 0) or 0
+                        )
+                        close_ids = tm_payload.get("close_order_ids")
+                        if isinstance(close_ids, list):
+                            self._time_manager._close_order_ids = [
+                                ClientOrderId(str(x)) for x in close_ids
+                            ]
+                    except Exception:
+                        # Any issue restoring the time-manager snapshot is non-fatal; enforce from time.
+                        pass
+
+            if self._last_market_ts_ns is not None:
+                self._enforce_time_gates_after_restore(self._last_market_ts_ns)
+
+        except Exception as exc:
+            self.log.error(
+                f"[PERSISTENCE] on_load failed -> fail-closed: {type(exc).__name__}: {exc}"
+            )
+            self._trigger_execution_failsafe(reason="persistence_on_load_failed")
+
+    def _enforce_time_gates_after_restore(self, ts_ns: int) -> None:
+        # Enforce both time gates and TradingState at restore time.
+        # This is intentionally conservative: any exception is treated as unsafe.
+        try:
+            if getattr(self, "_time_manager", None) is not None:
+                allowed = bool(self._time_manager.check(int(ts_ns)))
+                if not allowed:
+                    self._is_trading_allowed = False
+                    self._trading_blocked_today = True
+            # Always run time-gate trading-state updates.
+            self._on_time_gate_timer({"ts_event": int(ts_ns)})
+        except Exception as exc:
+            self.log.error(
+                f"[PERSISTENCE] Time gate enforcement failed -> fail-closed: {type(exc).__name__}: {exc}"
+            )
+            self._trigger_execution_failsafe(reason="persistence_time_gate_enforce_failed")
 
     # ========== SpreadAnalyzer (Entry Quality Gate) ==========
 
@@ -1925,18 +2329,27 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
         # Example (LONG): entry=2000.0, bid=2000.5, qty=1.0, point_value=1.0 -> +$0.50
         pos = self._position
 
-        entry_obj = getattr(pos, "avg_px_open", 0.0)
-        qty_obj = getattr(pos, "quantity", 0.0)
-        entry = (
-            float(entry_obj.as_double()) if hasattr(entry_obj, "as_double") else float(entry_obj)
-        )
-        qty = float(qty_obj.as_double()) if hasattr(qty_obj, "as_double") else float(qty_obj)
-        point_value = float(self._instrument_point_value_per_unit())
+        entry = self._pos_cache_entry_px
+        qty = self._pos_cache_qty
+        point_value = self._pos_cache_point_value
+
+        if entry is None or qty is None or point_value is None or self._pos_cache_side is None:
+            entry_obj = getattr(pos, "avg_px_open", 0.0)
+            qty_obj = getattr(pos, "quantity", 0.0)
+            entry = (
+                float(entry_obj.as_double())
+                if hasattr(entry_obj, "as_double")
+                else float(entry_obj)
+            )
+            qty = float(qty_obj.as_double()) if hasattr(qty_obj, "as_double") else float(qty_obj)
+            point_value = float(self._instrument_point_value_per_unit())
 
         # Conservative mark-to-market (Apex HWM trap defense):
         # - LONG exits at BID
         # - SHORT exits at ASK
-        if pos.side == PositionSide.LONG:
+        cached_side = self._pos_cache_side
+        side = cached_side if cached_side is not None else pos.side
+        if side == PositionSide.LONG:
             bid_obj = getattr(tick, "bid_price", 0.0)
             exit_px = (
                 float(bid_obj.as_double()) if hasattr(bid_obj, "as_double") else float(bid_obj)
@@ -2087,7 +2500,10 @@ class BaseGoldStrategy(NautilusStrategy):  # type: ignore[misc]
     ) -> Quantity:
         """Quantize a float to the instrument's size increment/precision (safe default: floor)."""
         if value <= 0:
-            return Quantity.from_str("0")
+            # PERF: avoid Quantity.from_str("0") parsing on hot paths.
+            # Nautilus Quantity.from_int is a dedicated constructor:
+            # `external/nautilus_trader/nautilus_trader/model/objects.pyx:529-548`.
+            return Quantity.from_int(0)
 
         inst = self.instrument
         if inst is None:
