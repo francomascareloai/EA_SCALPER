@@ -97,22 +97,30 @@ def _build_renko_ohlc(
     wick_high = last_close
     wick_low = last_close
 
-    out_ts: list[datetime] = []
+    out_ts_ns: list[int] = []
     out_o: list[float] = []
     out_h: list[float] = []
     out_l: list[float] = []
     out_c: list[float] = []
     out_v: list[int] = []
 
-    def _emit(*, ts: datetime, close: float) -> None:
-        nonlocal last_close, wick_high, wick_low
+    last_emitted_ns: int | None = None
+
+    def _emit(*, ts_ns: int, close: float) -> None:
+        nonlocal last_close, wick_high, wick_low, last_emitted_ns
 
         open_ = last_close
         close_ = float(close)
         high_ = max(wick_high, open_, close_)
         low_ = min(wick_low, open_, close_)
 
-        out_ts.append(ts)
+        # Renko can emit multiple bricks on a single tick timestamp.
+        # Ensure strictly increasing nanosecond timestamps (required by anti-lookahead gates).
+        if last_emitted_ns is not None and ts_ns <= last_emitted_ns:
+            ts_ns = last_emitted_ns + 1
+        last_emitted_ns = ts_ns
+
+        out_ts_ns.append(ts_ns)
         out_o.append(open_)
         out_h.append(high_)
         out_l.append(low_)
@@ -128,12 +136,12 @@ def _build_renko_ohlc(
         if not np.isfinite(p):
             continue
 
-        # Ensure Python datetime for output.
-        ts: datetime
+        # Normalize incoming tick timestamp to UTC nanoseconds.
         if isinstance(ts_raw, np.datetime64):
-            ts = ts_raw.astype("datetime64[ns]").astype(datetime)
-        else:
-            ts = ts_raw
+            ts_ns = int(ts_raw.astype("datetime64[ns]").astype("int64"))
+        else:  # pragma: no cover
+            # Polars -> numpy should yield datetime64[ns], but keep a hard check.
+            raise TypeError(f"Unexpected tick timestamp type: {type(ts_raw).__name__}")
 
         wick_high = max(wick_high, p)
         wick_low = min(wick_low, p)
@@ -142,31 +150,31 @@ def _build_renko_ohlc(
             if direction >= 0:
                 if p >= last_close + brick:
                     direction = 1
-                    _emit(ts=ts, close=last_close + brick)
+                    _emit(ts_ns=ts_ns, close=last_close + brick)
                     continue
                 if direction == 1 and p <= last_close - reversal_mult * brick:
                     direction = -1
-                    _emit(ts=ts, close=last_close - brick)
+                    _emit(ts_ns=ts_ns, close=last_close - brick)
                     continue
 
             if direction <= 0:
                 if p <= last_close - brick:
                     direction = -1
-                    _emit(ts=ts, close=last_close - brick)
+                    _emit(ts_ns=ts_ns, close=last_close - brick)
                     continue
                 if direction == -1 and p >= last_close + reversal_mult * brick:
                     direction = 1
-                    _emit(ts=ts, close=last_close + brick)
+                    _emit(ts_ns=ts_ns, close=last_close + brick)
                     continue
 
             break
 
-    if not out_ts:
+    if not out_ts_ns:
         raise ValueError("Renko produced 0 bricks for the selected window")
 
     df = pl.DataFrame(
         {
-            "timestamp": out_ts,
+            "timestamp_ns": out_ts_ns,
             "open": out_o,
             "high": out_h,
             "low": out_l,
@@ -176,9 +184,13 @@ def _build_renko_ohlc(
     )
 
     df = (
-        df.with_columns(pl.col("timestamp").cast(pl.Datetime(time_unit="ns"), strict=False))
+        df.with_columns(
+            pl.from_epoch(pl.col("timestamp_ns"), time_unit="ns")
+            .dt.replace_time_zone("UTC")
+            .alias("timestamp")
+        )
+        .drop("timestamp_ns")
         .sort("timestamp")
-        .with_columns(pl.col("timestamp").dt.replace_time_zone("UTC").alias("timestamp"))
     )
     return df
 

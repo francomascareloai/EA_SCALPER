@@ -35,7 +35,7 @@ import signal
 import sys
 import tempfile
 import time
-from collections.abc import Callable, Generator
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -51,9 +51,18 @@ import yaml
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.optimization.backtest_adapter import (
+    _extract_equity_series as _extract_equity_series_impl,
+)
+from src.optimization.backtest_adapter import (
+    create_backtest_fn_from_cli as create_backtest_fn,
+)
 from src.optimization.config import OptimizationConfig, ParameterSpec
 from src.optimization.optimizer import ApexOptimizer
 from src.optimization.search.base import TrialResult
+
+# Backwards-compat export for tests and legacy callers
+_extract_equity_series = _extract_equity_series_impl
 
 
 def _normalize_jsonable(v: Any) -> Any:
@@ -351,6 +360,30 @@ Modes:
         help="Number of trials (overrides config)",
     )
 
+    # Successive Halving sampler overrides (avoid editing YAML)
+    parser.add_argument(
+        "--sh-sampler",
+        type=str,
+        choices=["lhs", "levy"],
+        default=None,
+        help="Successive halving sampler override (lhs|levy)",
+    )
+
+    parser.add_argument(
+        "--sh-mutate-between-rungs",
+        type=str,
+        choices=["true", "false"],
+        default=None,
+        help="Enable Lévy mutation between rungs for SH (true|false)",
+    )
+
+    parser.add_argument(
+        "--sh-mutate-prob",
+        type=float,
+        default=None,
+        help="Mutation probability when --sh-mutate-between-rungs=true (0..1)",
+    )
+
     parser.add_argument(
         "--parallelism",
         type=int,
@@ -487,439 +520,8 @@ def estimate_grid_size(parameters: list[ParameterSpec]) -> int:
     return size
 
 
-def create_backtest_fn(
-    args: argparse.Namespace,
-    config: OptimizationConfig,
-) -> Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]]:
-    """Create a backtest function that wraps BacktestRunner.
-
-    Returns:
-        Callable that takes (params, start_date, end_date) and returns
-        (trades_df, equity_series) for WFA/validation.
-    """
-    BR = get_backtest_runner()
-
-    # Resolve feed mode
-    feed = args.feed
-    if feed is None:
-        feed = "bars" if args.quick else "ticks"
-
-    bars_file = str(args.bars_file) if args.bars_file else None
-
-    def backtest_fn(
-        params: dict[str, Any],
-        start_date: str,
-        end_date: str,
-    ) -> tuple[pd.DataFrame, pd.Series]:
-        """Run a single backtest trial with given parameters.
-
-        Args:
-            params: Strategy parameter overrides
-            start_date: Training period start (YYYY-MM-DD)
-            end_date: Training period end (YYYY-MM-DD)
-
-        Returns:
-            trades_df: DataFrame with columns [entry_time, exit_time, pnl, ...]
-            equity_series: Series indexed by time with cumulative equity
-        """
-        seed = _resolve_seed(args.seed, getattr(config.search, "seed", None), default=DEFAULT_SEED)
-        runner = BR(
-            initial_balance=args.initial_balance,
-            log_level="ERROR",  # Quiet logging during optimization
-            seed=seed,
-        )
-
-        # NOTE: `params` may be either:
-        # - nested dicts (ApexOptimizer expanded dotpaths), OR
-        # - flat dotpath keys (e.g., {"execution.use_mtf": true}).
-        # We must NOT override YAML `fixed` values with hardcoded defaults.
-        _missing = object()
-
-        def _get_value(mapping: dict[str, Any], dotted_key: str) -> object:
-            """Get a config value from either nested dicts or dotpath keys.
-
-            Precedence:
-            1) Exact key match in mapping (supports flat dotpaths)
-            2) Nested lookup by splitting on '.'
-            """
-            if dotted_key in mapping:
-                v = mapping[dotted_key]
-                return v if v is not None else _missing
-
-            cur: object = mapping
-            for part in dotted_key.split("."):
-                if not isinstance(cur, dict) or part not in cur:
-                    return _missing
-                cur = cur[part]
-            return cur if cur is not None else _missing
-
-        def _get_from_section(section: object, key: str) -> object:
-            if isinstance(section, dict) and key in section:
-                v = section[key]
-                return v if v is not None else _missing
-            return _missing
-
-        def _as_bool(v: object, default: bool) -> bool:
-            if isinstance(v, (bool, np.bool_)):
-                return bool(v)
-            if isinstance(v, (int, np.integer)):
-                return bool(int(v))
-            if isinstance(v, str):
-                s = v.strip().lower()
-                if s in ("true", "1", "yes", "y", "on"):
-                    return True
-                if s in ("false", "0", "no", "n", "off"):
-                    return False
-            return default
-
-        def _as_int(v: object, default: int) -> int:
-            if isinstance(v, (int, np.integer)):
-                return int(v)
-            if isinstance(v, float):
-                if v.is_integer():
-                    return int(v)
-                return default
-            if isinstance(v, str):
-                try:
-                    return int(v)
-                except ValueError:
-                    return default
-            # Strict typing: avoid calling int(...) on unknown objects.
-            return default
-
-        def _as_float(v: object) -> float | None:
-            if isinstance(v, (int, float, np.integer, np.floating)):
-                return float(v)
-            if isinstance(v, str):
-                try:
-                    return float(v)
-                except ValueError:
-                    return None
-            # Strict typing: avoid calling float(...) on unknown objects.
-            return None
-
-        # Hardcoded fallbacks (used ONLY when value is absent from params)
-        execution_threshold_default = 70
-        use_session_filter_default = True
-        use_regime_filter_default = True
-        use_mtf_default = False
-        use_footprint_default = True
-        prop_firm_enabled_default = True
-        use_news_filter_default = True
-
-        exec_over = params.get("execution") if isinstance(params, dict) else None
-        confluence_over = params.get("confluence") if isinstance(params, dict) else None
-        news_over = params.get("news") if isinstance(params, dict) else None
-        risk_over = params.get("risk") if isinstance(params, dict) else None
-        run_over = params.get("run") if isinstance(params, dict) else None
-
-        # execution_threshold
-        # - Prefer explicit runtime override (execution.* / run.*)
-        # - Otherwise, fall back to confluence thresholds
-        thresh_raw = _get_from_section(exec_over, "execution_threshold")
-        if thresh_raw is _missing:
-            thresh_raw = _get_from_section(run_over, "execution_threshold")
-        if thresh_raw is _missing:
-            thresh_raw = _get_value(params, "run.execution_threshold")
-        if thresh_raw is _missing:
-            thresh_raw = _get_from_section(confluence_over, "execution_threshold")
-        if thresh_raw is _missing:
-            thresh_raw = _get_from_section(confluence_over, "min_score_to_trade")
-        if thresh_raw is _missing:
-            thresh_raw = _get_value(params, "execution.execution_threshold")
-        if thresh_raw is _missing:
-            thresh_raw = _get_value(params, "confluence.execution_threshold")
-        if thresh_raw is _missing:
-            thresh_raw = _get_value(params, "confluence.min_score_to_trade")
-        execution_threshold = _as_int(thresh_raw, execution_threshold_default)
-
-        # Execution booleans
-        use_session_raw = _get_from_section(exec_over, "use_session_filter")
-        if use_session_raw is _missing:
-            use_session_raw = _get_from_section(run_over, "use_session_filter")
-        if use_session_raw is _missing:
-            use_session_raw = _get_value(params, "run.use_session_filter")
-        if use_session_raw is _missing:
-            use_session_raw = _get_value(params, "execution.use_session_filter")
-        use_session_filter = _as_bool(use_session_raw, use_session_filter_default)
-
-        use_regime_raw = _get_from_section(exec_over, "use_regime_filter")
-        if use_regime_raw is _missing:
-            use_regime_raw = _get_from_section(run_over, "use_regime_filter")
-        if use_regime_raw is _missing:
-            use_regime_raw = _get_value(params, "run.use_regime_filter")
-        if use_regime_raw is _missing:
-            use_regime_raw = _get_value(params, "execution.use_regime_filter")
-        use_regime_filter = _as_bool(use_regime_raw, use_regime_filter_default)
-
-        use_mtf_raw = _get_from_section(exec_over, "use_mtf")
-        if use_mtf_raw is _missing:
-            use_mtf_raw = _get_from_section(run_over, "use_mtf")
-        if use_mtf_raw is _missing:
-            use_mtf_raw = _get_value(params, "run.use_mtf")
-        if use_mtf_raw is _missing:
-            use_mtf_raw = _get_value(params, "execution.use_mtf")
-        use_mtf = _as_bool(use_mtf_raw, use_mtf_default)
-
-        use_footprint_raw = _get_from_section(exec_over, "use_footprint")
-        if use_footprint_raw is _missing:
-            use_footprint_raw = _get_from_section(run_over, "use_footprint")
-        if use_footprint_raw is _missing:
-            use_footprint_raw = _get_value(params, "run.use_footprint")
-        if use_footprint_raw is _missing:
-            use_footprint_raw = _get_value(params, "execution.use_footprint")
-        use_footprint = _as_bool(use_footprint_raw, use_footprint_default)
-
-        prop_firm_raw = _get_from_section(exec_over, "prop_firm_enabled")
-        if prop_firm_raw is _missing:
-            prop_firm_raw = _get_from_section(run_over, "prop_firm_enabled")
-        if prop_firm_raw is _missing:
-            prop_firm_raw = _get_value(params, "run.prop_firm_enabled")
-        if prop_firm_raw is _missing:
-            prop_firm_raw = _get_value(params, "execution.prop_firm_enabled")
-        prop_firm_enabled = _as_bool(prop_firm_raw, prop_firm_enabled_default)
-
-        # use_news_filter
-        # Prefer explicit runtime override (execution.* / run.*), otherwise use YAML `news.enabled`.
-        news_enabled_raw = _get_from_section(exec_over, "use_news_filter")
-        if news_enabled_raw is _missing:
-            news_enabled_raw = _get_from_section(run_over, "use_news_filter")
-        if news_enabled_raw is _missing:
-            news_enabled_raw = _get_value(params, "run.use_news_filter")
-        if news_enabled_raw is _missing:
-            news_enabled_raw = _get_from_section(news_over, "enabled")
-        if news_enabled_raw is _missing:
-            news_enabled_raw = _get_value(params, "news.enabled")
-        if news_enabled_raw is _missing:
-            news_enabled_raw = _get_value(params, "use_news_filter")
-        use_news_filter = _as_bool(news_enabled_raw, use_news_filter_default)
-
-        # Default ltf_minutes from CLI args, allow YAML override.
-        ltf_minutes = args.ltf_minutes
-        ltf_bar_raw = _get_from_section(exec_over, "ltf_bar_minutes")
-        if ltf_bar_raw is _missing:
-            ltf_bar_raw = _get_value(params, "execution.ltf_bar_minutes")
-        if ltf_bar_raw is not _missing:
-            ltf_minutes_candidate = _as_int(ltf_bar_raw, ltf_minutes)
-            if ltf_minutes_candidate > 0:
-                ltf_minutes = ltf_minutes_candidate
-
-        # risk_per_trade (YAML uses `risk.max_risk_per_trade`)
-        risk_per_trade: float | None = None
-        risk_val = _get_from_section(risk_over, "max_risk_per_trade")
-        if risk_val is _missing:
-            risk_val = _get_value(params, "risk.max_risk_per_trade")
-        if risk_val is not _missing:
-            risk_per_trade = _as_float(risk_val)
-
-        # CRITICAL: When prop_firm_enabled is True, Apex trailing DD / HWM semantics
-        # require QuoteTicks (bid/ask) to compute mark-to-market equity intrabar.
-        # Bar-only mode is a fast screener but is NOT valid for Apex compliance.
-        if prop_firm_enabled and feed != "ticks":
-            logger.error(
-                "CRITICAL: prop_firm_enabled=True requires feed=ticks for MTM equity/HWM enforcement. "
-                "Refusing to run optimization trial in feed=%s.",
-                feed,
-            )
-            return pd.DataFrame(), pd.Series(dtype=float, name="equity")
-
-        summary = runner.run(
-            start_date=start_date,
-            end_date=end_date,
-            ltf_minutes=ltf_minutes,
-            sample_rate=args.sample_rate,
-            use_session_filter=use_session_filter,
-            use_regime_filter=use_regime_filter,
-            use_mtf=use_mtf,
-            use_footprint=use_footprint,
-            prop_firm_enabled=prop_firm_enabled,
-            use_news_filter=use_news_filter,
-            execution_threshold=execution_threshold,
-            risk_per_trade=risk_per_trade,
-            feed=feed,
-            bars_file=bars_file,
-            reports="none",
-            return_summary=True,
-            quiet=True,
-            config_overrides=params,
-        )
-
-        # Extract trades and equity from the run
-        # The BacktestRunner stores results internally
-        trades_df = _extract_trades_df(runner)
-
-        # Ensure we can extract MTM equity: BacktestRunner always stores the last
-        # strategy instance as `runner.strategy`.
-        equity_series = _extract_equity_series(runner, args.initial_balance)
-
-        return trades_df, equity_series
-
-    return backtest_fn
-
-
-def _extract_trades_df(runner: Any) -> pd.DataFrame:
-    """Extract trades DataFrame from BacktestRunner.
-
-    We intentionally avoid using `engine.cache.*` internals because the public Cache API
-    does not expose `fills()` in the installed NautilusTrader build.
-
-    Source of truth for realized trades is `engine.trader.generate_positions_report()`,
-    which already contains realized PnL and open/close timestamps.
-
-    Returns a DataFrame which MUST include:
-    - `entry_time` (UTC datetime-like): used for WFA window assignment (decision time)
-    - `exit_time` (UTC datetime-like): used for overnight checks and realized timing
-    - `timestamp` (UTC datetime-like): legacy field (may be derived from exit_time)
-    - `pnl` (float): used for SQN/Sharpe and daily PnL aggregation
-    """
-    if runner.engine is None:
-        return pd.DataFrame()
-
-    try:
-        positions = runner.engine.trader.generate_positions_report()
-        if positions is None or len(positions) == 0:
-            return pd.DataFrame()
-
-        df = positions.copy()
-
-        # Timestamps: prefer explicit opened/closed datetime columns.
-        # (Some reports may also contain ns integer columns like ts_init.)
-        entry_time = None
-        exit_time = None
-        if "ts_opened" in df.columns:
-            entry_time = pd.to_datetime(df["ts_opened"], utc=True, errors="coerce")
-        elif "ts_init" in df.columns:
-            entry_time = pd.to_datetime(df["ts_init"], utc=True, errors="coerce", unit="ns")
-
-        if "ts_closed" in df.columns:
-            exit_time = pd.to_datetime(df["ts_closed"], utc=True, errors="coerce")
-        elif "ts_last" in df.columns:
-            exit_time = pd.to_datetime(df["ts_last"], utc=True, errors="coerce")
-
-        # Realized PnL is recorded as strings like "339.57 USD".
-        # Keep it net-of-fees as reported by the engine.
-        if "realized_pnl" in df.columns:
-            pnl = df["realized_pnl"].astype(str).str.replace("USD", "", regex=False).str.strip()
-            pnl = pd.to_numeric(pnl, errors="coerce")
-        else:
-            pnl = pd.Series([np.nan] * len(df), dtype=float)
-
-        instrument_id = df["instrument_id"].astype(str) if "instrument_id" in df.columns else None
-
-        # CRITICAL: Use entry_time for timestamp, NOT exit_time.
-        # Using exit_time causes look-ahead bias in WFA: trades opened in
-        # in-sample but closed in out-of-sample would be incorrectly attributed
-        # to OOS, inflating WFE metrics.
-        # Formula: timestamp = entry_time (decision time, not realization time)
-        trades = pd.DataFrame(
-            {
-                "instrument_id": instrument_id if instrument_id is not None else "",
-                "entry_time": entry_time,
-                "exit_time": exit_time,
-                "timestamp": entry_time,  # Always use entry_time (no look-ahead)
-                "pnl": pnl.astype(float),
-            }
-        )
-
-        # Drop rows where required fields are missing.
-        # Keep legacy `timestamp` requirement for backwards compatibility, but ensure
-        # WFA can still use `entry_time` when present.
-        trades = trades.dropna(subset=["timestamp", "pnl"]).reset_index(drop=True)
-        return trades
-
-    except Exception as e:
-        logger.warning(f"Failed to extract trades: {e}")
-        return pd.DataFrame()
-
-
-def _extract_equity_series(runner: Any, initial_balance: float) -> pd.Series:
-    """Extract equity curve from BacktestRunner.
-
-    CRITICAL: `engine.trader.generate_account_report()['total']` is *balance*, not
-    mark-to-market equity. It does not reliably include unrealized PnL and can
-    severely underestimate Apex trailing DD.
-
-    Primary source for Apex trailing DD must be mark-to-market equity using
-    conservative pricing (LONG uses BID, SHORT uses ASK). The strategy already
-    enforces this in `BaseStrategy.on_quote_tick()` by updating `DrawdownTracker`
-    with equity computed from tick prices.
-
-    Extraction:
-    1) Strategy DrawdownTracker equity curve (MTM, conservative)
-
-    If MTM equity cannot be extracted, this function returns an empty series so
-    the optimization validation can fail closed (DD=100% → apex_compliant=False).
-
-    Formula for trailing DD at any point t:
-        HWM(t) = max(equity[0:t])
-        trailing_dd_pct(t) = (HWM(t) - equity(t)) / HWM(t) * 100
-
-    Example:
-        equity = [100000, 102000, 101000, 103000, 99000]
-        HWM    = [100000, 102000, 102000, 103000, 103000]
-        DD%    = [0.0, 0.0, 0.98, 0.0, 3.88]
-    """
-    if runner.engine is None:
-        logger.warning("No engine available for equity extraction")
-        return pd.Series(dtype=float)
-
-    try:
-        # Preferred: extract mark-to-market equity from strategy DrawdownTracker history.
-        strategy = getattr(runner, "strategy", None)
-        drawdown_tracker = getattr(strategy, "_drawdown_tracker", None) if strategy else None
-        if drawdown_tracker is not None and hasattr(drawdown_tracker, "get_history"):
-            history = drawdown_tracker.get_history()
-            if history:
-                # History items are DrawdownSnapshot dataclasses.
-                # Use `timestamp` as index and `equity` as value.
-                times = [getattr(h, "timestamp", None) for h in history]
-                equities = [float(getattr(h, "equity", float("nan"))) for h in history]
-                dt_index = pd.to_datetime(times, utc=True, errors="coerce")
-
-                # Fail closed on any timestamp/equity corruption: dropping bad rows can
-                # understate DD by cherry-picking a subset of the curve.
-                invalid_ts = int(pd.isna(dt_index).sum())
-                finite_equity = bool(np.isfinite(np.asarray(equities, dtype=float)).all())
-                if invalid_ts > 0 or not finite_equity:
-                    logger.error(
-                        "CRITICAL: MTM equity history contains invalid timestamps or non-finite equity; "
-                        "failing closed (DD=100%). invalid_ts=%d finite_equity=%s total=%d",
-                        invalid_ts,
-                        str(finite_equity),
-                        int(len(equities)),
-                    )
-                    return pd.Series(dtype=float, name="equity")
-
-                equity_series = pd.Series(equities, index=dt_index, name="equity")
-
-                # Keep duplicate timestamps: dropping duplicates can understate drawdown by
-                # removing peaks/troughs. Use a stable sort to preserve original ordering
-                # for equal timestamps.
-                equity_series = (
-                    equity_series.replace([np.inf, -np.inf], np.nan)
-                    .dropna()
-                    .sort_index(kind="mergesort")
-                )
-
-                if len(equity_series) >= 2:
-                    logger.info(
-                        f"EQUITY_SOURCE=drawdown_tracker points={len(equity_series)} "
-                        f"range=[{equity_series.min():.2f},{equity_series.max():.2f}]"
-                    )
-                    return equity_series
-
-        # For Apex trailing DD validation we MUST use MTM equity.
-        # Balance-only series (account report) or reconstructed equity-from-returns can materially
-        # understate trailing DD and let unsafe candidates pass.
-        logger.error(
-            "CRITICAL: Cannot extract MTM equity curve from strategy DrawdownTracker. "
-            "Returning empty series to fail closed (DD=100%)."
-        )
-        return pd.Series(dtype=float, name="equity")
-
-    except Exception as e:
-        logger.error(f"Failed to extract equity: {type(e).__name__}: {e}")
-        return pd.Series(dtype=float, name="equity")
+# Backtest adapter helpers are imported from src.optimization.backtest_adapter
+# (single canonical implementation).
 
 
 def print_dry_run(args: argparse.Namespace, config: OptimizationConfig) -> None:
@@ -1041,6 +643,24 @@ def apply_cli_overrides(config: OptimizationConfig, args: argparse.Namespace) ->
     def _override(cli_val: Any, default: Any) -> Any:
         return cli_val if cli_val is not None else default
 
+    # Successive halving overrides
+    sh_sampler = args.sh_sampler
+
+    sh_mutate_between_rungs: bool | None = None
+    if args.sh_mutate_between_rungs is not None:
+        sh_mutate_between_rungs = args.sh_mutate_between_rungs == "true"
+
+    sh_mutate_prob = args.sh_mutate_prob
+
+    new_sh = dc_replace(
+        config.search.successive_halving,
+        sampler=_override(sh_sampler, config.search.successive_halving.sampler),
+        mutate_between_rungs=_override(
+            sh_mutate_between_rungs, config.search.successive_halving.mutate_between_rungs
+        ),
+        mutate_prob=_override(sh_mutate_prob, config.search.successive_halving.mutate_prob),
+    )
+
     # Build modified search config using replace
     new_search = dc_replace(
         config.search,
@@ -1049,6 +669,7 @@ def apply_cli_overrides(config: OptimizationConfig, args: argparse.Namespace) ->
         n_samples=_override(args.trials, config.search.n_samples),
         parallelism=_override(args.parallelism, config.search.parallelism),
         seed=_override(args.seed, config.search.seed),
+        successive_halving=new_sh,
     )
 
     # Build modified data config (flat fields)
@@ -1098,6 +719,9 @@ def run_optimization(args: argparse.Namespace) -> int:
         ("sample_rate", args.sample_rate, 0.01, 1.0) if args.sample_rate is not None else None,
         ("trials", args.trials, 1, None) if args.trials is not None else None,
         ("parallelism", args.parallelism, 1, None) if args.parallelism is not None else None,
+        ("sh_mutate_prob", args.sh_mutate_prob, 0.0, 1.0)
+        if args.sh_mutate_prob is not None
+        else None,
     ]
     for check in numeric_validations:
         if check is None:
@@ -1123,7 +747,7 @@ def run_optimization(args: argparse.Namespace) -> int:
     # Apply CLI overrides
     config = apply_cli_overrides(config, args)
 
-    # Validate bars_file mode early (fail fast)
+    # Validate CLI bars_file mode early (fail fast)
     if args.bars_file:
         resolved_feed = args.feed or ("bars" if args.quick else "ticks")
         if resolved_feed != "bars":
@@ -1134,6 +758,26 @@ def run_optimization(args: argparse.Namespace) -> int:
         if not Path(str(args.bars_file)).exists():
             logger.error("--bars-file not found: %s", args.bars_file)
             return 1
+
+    # Validate successive-halving rung bars_files (optional per-rung overrides)
+    sh = config.search.successive_halving
+    if sh.enabled:
+        for i, (fm, bf) in enumerate(zip(sh.feed_modes, sh.bars_files)):
+            if str(fm) == "bars":
+                if bf is None:
+                    logger.error(
+                        "Invalid config: search.successive_halving.bars_files[%d] is null but feed_modes[%d] is 'bars'",
+                        i,
+                        i,
+                    )
+                    return 1
+                if not Path(str(bf)).exists():
+                    logger.error(
+                        "Invalid config: search.successive_halving.bars_files[%d] not found: %s",
+                        i,
+                        bf,
+                    )
+                    return 1
 
     # Create output directory
     output_dir = Path(config.output.dir)
@@ -1152,6 +796,12 @@ def run_optimization(args: argparse.Namespace) -> int:
     print(f"\nConfiguration: {config_path}")
     print(f"Mode: {config.search.mode}")
     print(f"Trials: {config.search.trials}")
+    if config.search.mode == "successive_halving":
+        sh = config.search.successive_halving
+        print(
+            "SH: sampler=%s mutate_between_rungs=%s mutate_prob=%s"
+            % (sh.sampler, sh.mutate_between_rungs, sh.mutate_prob)
+        )
     print(f"Output: {output_dir}")
     print("=" * 70 + "\n")
 
@@ -1170,6 +820,7 @@ def run_optimization(args: argparse.Namespace) -> int:
 
     # Save config snapshot atomically
     config_snapshot = output_dir / "config_snapshot.yaml"
+    sh = config.search.successive_halving
     config_data = {
         "name": config.name,
         "mode": config.search.mode,
@@ -1180,12 +831,25 @@ def run_optimization(args: argparse.Namespace) -> int:
         "data": {
             "dataset_source": "nautilus_gold_scalper/data/config.yaml",
         },
+        "successive_halving": {
+            "eta": sh.eta,
+            "window_days": list(sh.window_days),
+            "wfa_windows": list(sh.wfa_windows),
+            "feed_modes": list(sh.feed_modes),
+            "promotion_metric": sh.promotion_metric,
+            "sampler": sh.sampler,
+            "mutate_between_rungs": sh.mutate_between_rungs,
+            "mutate_prob": sh.mutate_prob,
+        },
         "cli_args": {
             "quick": args.quick,
             "sample_rate": args.sample_rate,
             "feed": args.feed,
             "bars_file": args.bars_file,
             "initial_balance": args.initial_balance,
+            "sh_sampler": args.sh_sampler,
+            "sh_mutate_between_rungs": args.sh_mutate_between_rungs,
+            "sh_mutate_prob": args.sh_mutate_prob,
         },
     }
     _atomic_write(config_snapshot, yaml.safe_dump(config_data, default_flow_style=False))

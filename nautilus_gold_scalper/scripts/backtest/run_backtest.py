@@ -2199,6 +2199,16 @@ class BacktestRunner:
         with _time_segment("strategy_init", segments):
             strategy = GoldScalperStrategy(config=strategy_config)
 
+        # R1: Strategy has no risk_engine accessor in NautilusTrader 1.221.0.
+        # Wire the RiskEngine handle from the BacktestEngine kernel.
+        try:
+            kernel = getattr(engine, "kernel", None)
+            risk_engine = getattr(kernel, "risk_engine", None) if kernel is not None else None
+            strategy._risk_engine = risk_engine
+        except Exception:
+            # Best-effort wiring (strategy will fall back to internal latches).
+            pass
+
         # Register execution algorithms (must happen before trader is running).
         # Source: external/nautilus_trader/nautilus_trader/trading/trader.py:add_exec_algorithm
         if bool(getattr(strategy_config, "twap_enabled", False)):
