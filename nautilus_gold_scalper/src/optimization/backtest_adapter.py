@@ -25,6 +25,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 from collections.abc import Callable
@@ -47,6 +48,7 @@ if str(_project_root) not in sys.path:
 logger = logging.getLogger(__name__)
 
 # Type alias for the backtest function signature expected by ApexOptimizer
+Sample: TypeAlias = int | float
 FeedMode: TypeAlias = Literal["ticks", "bars"]
 BacktestFn: TypeAlias = Callable[..., tuple[pd.DataFrame, pd.Series]]
 
@@ -92,7 +94,7 @@ class BacktestAdapterConfig:
 
     initial_balance: float = 50000.0
     ltf_minutes: int = 1
-    sample_rate: int = 1
+    sample_rate: Sample = 1
     seed: int = 42
     feed_mode: FeedMode = "ticks"
     bars_file: str | None = None
@@ -106,12 +108,53 @@ class BacktestAdapterConfig:
     execution_threshold: int = 70
 
 
+def create_backtest_fn_from_cli(
+    args: argparse.Namespace,
+    config: object,
+) -> BacktestFn:
+    """Create a backtest function from optimize.py CLI/config objects.
+
+    This keeps `scripts/optimize.py` lightweight by delegating the adapter logic
+    to this module, while preserving the script's CLI-driven defaults.
+
+    Notes:
+    - `config` is treated as opaque; we only optionally read `config.search.seed`.
+    - The returned callable is compatible with ApexOptimizer.
+    """
+
+    # Resolve feed mode (default from CLI unless overridden per rung)
+    default_feed_raw = getattr(args, "feed", None)
+    quick = bool(getattr(args, "quick", False))
+    if default_feed_raw is None:
+        default_feed: FeedMode = "bars" if quick else "ticks"
+    else:
+        # Fail-closed to supported modes only.
+        default_feed = "bars" if str(default_feed_raw) == "bars" else "ticks"
+
+    default_bars_file = getattr(args, "bars_file", None)
+    default_bars_file_str = str(default_bars_file) if default_bars_file else None
+
+    config_seed = getattr(getattr(config, "search", None), "seed", None)
+    seed = int(getattr(args, "seed", config_seed if config_seed is not None else 42))
+
+    adapter_cfg = BacktestAdapterConfig(
+        initial_balance=float(getattr(args, "initial_balance", 50000.0)),
+        ltf_minutes=int(getattr(args, "ltf_minutes", 1)),
+        sample_rate=getattr(args, "sample_rate", getattr(args, "sample", 1)),
+        seed=seed,
+        feed_mode=default_feed,
+        bars_file=default_bars_file_str,
+    )
+
+    return create_backtest_fn(adapter_cfg)
+
+
 def create_backtest_fn(
     config: BacktestAdapterConfig | None = None,
     *,
     initial_balance: float = 50000.0,
     ltf_minutes: int = 1,
-    sample_rate: int = 1,
+    sample_rate: Sample = 1,
     seed: int = 42,
     feed_mode: FeedMode = "ticks",
     bars_file: str | None = None,
@@ -186,33 +229,106 @@ def create_backtest_fn(
             seed=cfg.seed,
         )
 
-        # Extract execution parameters from params dict
-        execution_threshold = _get_param_int(
-            params, "execution.execution_threshold", cfg.execution_threshold
+        # NOTE: `params` may be either:
+        # - nested dicts (ApexOptimizer expanded dotpaths), OR
+        # - flat dotpath keys (e.g., {"execution.use_mtf": true}).
+        #
+        # Contract: We must NOT override YAML `fixed` values merged into params by ApexOptimizer.
+        # execution_threshold
+        # - Prefer explicit runtime override (execution.* / run.*),
+        # - otherwise fall back to confluence thresholds.
+        execution_threshold = _get_param_int_alias(
+            params,
+            (
+                "execution.execution_threshold",
+                "run.execution_threshold",
+                "confluence.execution_threshold",
+                "confluence.min_score_to_trade",
+            ),
+            cfg.execution_threshold,
         )
-        use_session_filter = _get_param_bool(
-            params, "execution.use_session_filter", cfg.use_session_filter
+
+        use_session_filter = _get_param_bool_alias(
+            params,
+            (
+                "execution.use_session_filter",
+                "run.use_session_filter",
+            ),
+            cfg.use_session_filter,
         )
-        use_regime_filter = _get_param_bool(
-            params, "execution.use_regime_filter", cfg.use_regime_filter
+
+        use_regime_filter = _get_param_bool_alias(
+            params,
+            (
+                "execution.use_regime_filter",
+                "run.use_regime_filter",
+            ),
+            cfg.use_regime_filter,
         )
-        use_mtf = _get_param_bool(params, "execution.use_mtf", cfg.use_mtf)
-        use_footprint = _get_param_bool(params, "execution.use_footprint", cfg.use_footprint)
-        use_news_filter = _get_param_bool(params, "news.enabled", cfg.use_news_filter)
+
+        use_mtf = _get_param_bool_alias(
+            params,
+            (
+                "execution.use_mtf",
+                "run.use_mtf",
+            ),
+            cfg.use_mtf,
+        )
+
+        use_footprint = _get_param_bool_alias(
+            params,
+            (
+                "execution.use_footprint",
+                "run.use_footprint",
+            ),
+            cfg.use_footprint,
+        )
+
+        # use_news_filter
+        # Prefer explicit runtime override (execution.* / run.*), otherwise use YAML `news.enabled`.
+        use_news_filter = _get_param_bool_alias(
+            params,
+            (
+                "execution.use_news_filter",
+                "run.use_news_filter",
+                "news.enabled",
+                "use_news_filter",
+            ),
+            cfg.use_news_filter,
+        )
 
         # CRITICAL: Force-disable prop_firm for bars-only runs (not valid for Apex compliance)
         prop_firm_enabled = cfg.prop_firm_enabled
         if resolved_feed != "ticks":
             prop_firm_enabled = False
 
-        # Extract risk parameter if present
-        risk_per_trade = _get_param_float(params, "risk.max_risk_per_trade", None)
+        # risk_per_trade (YAML uses `risk.max_risk_per_trade`)
+        risk_per_trade = _get_param_float_alias(
+            params,
+            (
+                "risk.max_risk_per_trade",
+                "run.risk_per_trade",
+            ),
+            None,
+        )
+
+        # Default ltf_minutes from adapter config, allow YAML override.
+        ltf_minutes = _get_param_int_alias(
+            params,
+            (
+                "execution.ltf_bar_minutes",
+                "run.ltf_bar_minutes",
+            ),
+            int(cfg.ltf_minutes),
+        )
+        if ltf_minutes <= 0:
+            ltf_minutes = int(cfg.ltf_minutes)
 
         # Run the backtest
         _summary = runner.run(
             start_date=start_date,
             end_date=end_date,
-            ltf_minutes=cfg.ltf_minutes,
+            ltf_minutes=int(ltf_minutes),
             sample_rate=cfg.sample_rate,
             use_session_filter=use_session_filter,
             use_regime_filter=use_regime_filter,
@@ -245,6 +361,8 @@ def _get_value(mapping: dict[str, Any], dotted_key: str) -> object:
     Precedence:
     1) Exact key match in mapping (supports flat dotpaths)
     2) Nested lookup by splitting on '.'
+
+    NOTE: Returns `_MISSING` when key is absent OR value is explicitly None.
     """
     if dotted_key in mapping:
         v = mapping[dotted_key]
@@ -256,6 +374,52 @@ def _get_value(mapping: dict[str, Any], dotted_key: str) -> object:
             return _MISSING
         cur = cur[part]
     return cur if cur is not None else _MISSING
+
+
+def _get_from_section(section: object, key: str) -> object:
+    if isinstance(section, dict) and key in section:
+        v = section[key]
+        return v if v is not None else _MISSING
+    return _MISSING
+
+
+def _get_param_int_alias(
+    params: dict[str, Any],
+    aliases: tuple[str, ...],
+    default: int,
+) -> int:
+    for key in aliases:
+        v = _get_value(params, key)
+        if v is _MISSING:
+            continue
+        return _get_param_int({key: v}, key, default)
+    return default
+
+
+def _get_param_bool_alias(
+    params: dict[str, Any],
+    aliases: tuple[str, ...],
+    default: bool,
+) -> bool:
+    for key in aliases:
+        v = _get_value(params, key)
+        if v is _MISSING:
+            continue
+        return _get_param_bool({key: v}, key, default)
+    return default
+
+
+def _get_param_float_alias(
+    params: dict[str, Any],
+    aliases: tuple[str, ...],
+    default: float | None,
+) -> float | None:
+    for key in aliases:
+        v = _get_value(params, key)
+        if v is _MISSING:
+            continue
+        return _get_param_float({key: v}, key, default)
+    return default
 
 
 def _get_param_int(params: dict[str, Any], key: str, default: int) -> int:
@@ -371,17 +535,35 @@ def _extract_trades_df(runner: Any) -> pd.DataFrame:
 
 
 def _extract_equity_series(runner: Any, initial_balance: float) -> pd.Series:
-    """Extract mark-to-market equity curve from BacktestRunner.
+    """Extract equity curve from BacktestRunner.
 
-    CRITICAL: Uses DrawdownTracker history which has conservative MTM pricing
-    (LONG uses BID, SHORT uses ASK) for accurate Apex trailing DD calculation.
+    CRITICAL: `engine.trader.generate_account_report()['total']` is *balance*, not
+    mark-to-market equity. It does not reliably include unrealized PnL and can
+    severely underestimate Apex trailing DD.
 
-    If MTM equity cannot be extracted, returns an empty series so validation
-    can fail closed (DD=100% -> apex_compliant=False).
+    Primary source for Apex trailing DD must be mark-to-market equity using
+    conservative pricing (LONG uses BID, SHORT uses ASK). The strategy already
+    enforces this in `BaseStrategy.on_quote_tick()` by updating `DrawdownTracker`
+    with equity computed from tick prices.
+
+    Extraction:
+    1) Strategy DrawdownTracker equity curve (MTM, conservative)
+
+    If MTM equity cannot be extracted, this function returns an empty series so
+    the optimization validation can fail closed (DD=100% → apex_compliant=False).
+
+    Formula for trailing DD at any point t:
+        HWM(t) = max(equity[0:t])
+        trailing_dd_pct(t) = (HWM(t) - equity(t)) / HWM(t) * 100
+
+    Example:
+        equity = [100000, 102000, 101000, 103000, 99000]
+        HWM    = [100000, 102000, 102000, 103000, 103000]
+        DD%    = [0.0, 0.0, 0.98, 0.0, 3.88]
     """
     if runner.engine is None:
         logger.warning("No engine available for equity extraction")
-        return pd.Series(dtype=float)
+        return pd.Series(dtype=float, name="equity")
 
     try:
         # Preferred: extract mark-to-market equity from strategy DrawdownTracker history.
@@ -391,27 +573,48 @@ def _extract_equity_series(runner: Any, initial_balance: float) -> pd.Series:
             history = drawdown_tracker.get_history()
             if history:
                 # History items are DrawdownSnapshot dataclasses.
-                timestamps = [h.timestamp for h in history]
-                equities = [h.equity for h in history]
-                series = pd.Series(equities, index=pd.DatetimeIndex(timestamps, tz="UTC"))
-                return series
+                # Use `timestamp` as index and `equity` as value.
+                times = [getattr(h, "timestamp", None) for h in history]
+                equities = [float(getattr(h, "equity", float("nan"))) for h in history]
+                dt_index = pd.to_datetime(times, utc=True, errors="coerce")
 
-        # Fallback: compute equity from cumulative PnL + initial balance
-        trades_df = _extract_trades_df(runner)
-        if not trades_df.empty and "timestamp" in trades_df.columns and "pnl" in trades_df.columns:
-            sorted_trades = trades_df.sort_values("timestamp")
-            cumulative_pnl = sorted_trades["pnl"].cumsum()
-            equity = initial_balance + cumulative_pnl
-            series = pd.Series(
-                equity.values,
-                index=pd.DatetimeIndex(sorted_trades["timestamp"].values, tz="UTC"),
-            )
-            return series
+                # Fail closed on any timestamp/equity corruption: dropping bad rows can
+                # understate DD by cherry-picking a subset of the curve.
+                invalid_ts = int(pd.isna(dt_index).sum())
+                finite_equity = bool(np.isfinite(np.asarray(equities, dtype=float)).all())
+                if invalid_ts > 0 or not finite_equity:
+                    logger.error(
+                        "CRITICAL: MTM equity history contains invalid timestamps or non-finite equity; "
+                        "failing closed (DD=100%%). invalid_ts=%d finite_equity=%s total=%d",
+                        invalid_ts,
+                        str(finite_equity),
+                        int(len(equities)),
+                    )
+                    return pd.Series(dtype=float, name="equity")
 
-        # Last resort: empty series (will fail closed)
-        logger.warning("Could not extract MTM equity; returning empty series")
-        return pd.Series(dtype=float)
+                equity_series = pd.Series(equities, index=dt_index, name="equity")
+
+                # Keep duplicate timestamps: dropping duplicates can understate drawdown by
+                # removing peaks/troughs. Use a stable sort to preserve original ordering
+                # for equal timestamps.
+                equity_series = (
+                    equity_series.replace([np.inf, -np.inf], np.nan)
+                    .dropna()
+                    .sort_index(kind="mergesort")
+                )
+
+                if len(equity_series) >= 2:
+                    return equity_series
+
+        # For Apex trailing DD validation we MUST use MTM equity.
+        # Balance-only series (account report) or reconstructed equity-from-returns can materially
+        # understate trailing DD and let unsafe candidates pass.
+        logger.error(
+            "CRITICAL: Cannot extract MTM equity curve from strategy DrawdownTracker. "
+            "Returning empty series to fail closed (DD=100%%)."
+        )
+        return pd.Series(dtype=float, name="equity")
 
     except Exception as e:
-        logger.warning(f"Failed to extract equity: {e}")
-        return pd.Series(dtype=float)
+        logger.error(f"Failed to extract equity: {type(e).__name__}: {e}")
+        return pd.Series(dtype=float, name="equity")

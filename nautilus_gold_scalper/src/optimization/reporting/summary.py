@@ -264,8 +264,8 @@ class SummaryReporter:
             for r in top_n:
                 if r.overfit_warnings:
                     for w in r.overfit_warnings:
-                        warning_type = w.get("type", "")
-                        msg = w.get("message", str(w))
+                        warning_type = w.get("type") or ""
+                        msg = w.get("message") or str(w)
                         if "CLIFF" in warning_type.upper():
                             overfit_analysis["cliff"].append(msg)
                         elif "ISLAND" in warning_type.upper() or "SPARSE" in warning_type.upper():

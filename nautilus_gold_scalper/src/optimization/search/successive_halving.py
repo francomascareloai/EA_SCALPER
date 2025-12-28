@@ -139,14 +139,28 @@ class SuccessiveHalvingSearch(SearchStrategy):
 
                 trial_id += 1
 
-                # Constraints (Apex/DD) are only meaningful for tick-based runs.
-                # Bars-only rungs are ranking-only and must not be eliminated by
-                # tick-only invariants (e.g., conservative HWM requires bid/ask QuoteTicks).
-                if constraint_fn is not None and str(feed_mode) == "ticks":
-                    constraints = constraint_fn(result)
-                    if any(c > 0 for c in constraints):
-                        result.apex_compliant = False
-                        result.score = -999.0
+                # Constraints checking:
+                # - Full Apex constraints (including HWM/DD) require tick-level bid/ask for conservative marking
+                # - BUT: time gates (4:30 PM block, overnight) CAN be checked even in bars mode
+                # - See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.1: "Don't promote configs that would die in ticks"
+                if constraint_fn is not None:
+                    if str(feed_mode) == "ticks":
+                        # Full constraint checking for tick-based runs
+                        constraints = constraint_fn(result)
+                        if any(c > 0 for c in constraints):
+                            result.apex_compliant = False
+                            result.score = -999.0
+                    else:
+                        # Bars mode: check time-gate and overnight violations (timestamps available)
+                        # These are HARD constraints that don't require tick-level HWM precision
+                        has_time_violations = (
+                            result.time_gate_violations > 0 or result.overnight_positions > 0
+                        )
+                        if has_time_violations:
+                            # Penalize heavily but don't fully eliminate
+                            # (allows ranking while flagging as non-compliant)
+                            result.apex_compliant = False
+                            result.score = max(-500.0, result.score * 0.1)  # Heavy penalty
 
                 # Record all rung evaluations (streaming + RAM cap).
                 self._record_result(result)

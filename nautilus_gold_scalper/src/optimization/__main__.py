@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 # Add project root to path for imports
@@ -173,6 +174,13 @@ def parse_args() -> argparse.Namespace:
         help="Tick sample rate (1 = every tick, 10 = every 10th) (default: 1)",
     )
 
+    parser.add_argument(
+        "--bars-file",
+        type=str,
+        default=None,
+        help="Path to prebuilt bars file (required when --feed bars)",
+    )
+
     return parser.parse_args()
 
 
@@ -197,12 +205,13 @@ def main() -> int:
 
     # Apply CLI overrides to config
     # Note: OptimizationConfig is frozen, so we need to use dataclasses.replace
-    from dataclasses import replace
 
     if args.mode is not None:
         config = replace(config, search=replace(config.search, mode=args.mode))
     if args.trials is not None:
         config = replace(config, search=replace(config.search, trials=args.trials))
+    if args.parallelism is not None:
+        config = replace(config, search=replace(config.search, parallelism=args.parallelism))
     if args.seed is not None:
         config = replace(config, search=replace(config.search, seed=args.seed))
     if args.output is not None:
@@ -211,6 +220,16 @@ def main() -> int:
         config = replace(config, data=replace(config.data, train_start=args.train_start))
     if args.train_end is not None:
         config = replace(config, data=replace(config.data, train_end=args.train_end))
+
+    bars_file: str | None
+    if args.bars_file is None:
+        bars_file = None
+    else:
+        bars_file = str(Path(args.bars_file))
+
+    if args.feed == "bars" and bars_file is None:
+        logger.error("--bars-file is required when --feed bars")
+        return 2
 
     if args.dry_run:
         print("\n" + "=" * 60)
@@ -229,7 +248,7 @@ def main() -> int:
             )
         print(f"  Trials: {config.search.trials}")
         print(f"  Parallelism: {config.search.parallelism}")
-        print(f"  Seed: {config.search.seed or 42}")
+        print(f"  Seed: {config.search.seed if config.search.seed is not None else 42}")
         print("\nData:")
         print(f"  Train start: {config.data.train_start}")
         print(f"  Train end: {config.data.train_end}")
@@ -269,6 +288,7 @@ def main() -> int:
         print(f"  Feed mode: {args.feed}")
         print(f"  LTF minutes: {args.ltf_minutes}")
         print(f"  Sample rate: {args.sample_rate}")
+        print(f"  Bars file: {bars_file}")
 
         print("\n" + "=" * 60)
         print("Dry run complete. Remove --dry-run to execute optimization.")
@@ -282,12 +302,15 @@ def main() -> int:
     from src.optimization.optimizer import ApexOptimizer
 
     # Create backtest function using adapter
+    seed = config.search.seed if config.search.seed is not None else 42
+
     adapter_config = BacktestAdapterConfig(
         initial_balance=args.initial_balance,
         ltf_minutes=args.ltf_minutes,
         sample_rate=args.sample_rate,
-        seed=config.search.seed or 42,
+        seed=seed,
         feed_mode=args.feed,
+        bars_file=bars_file,
     )
     backtest_fn = create_backtest_fn(adapter_config)
 

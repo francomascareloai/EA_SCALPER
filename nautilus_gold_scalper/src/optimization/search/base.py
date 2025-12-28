@@ -50,6 +50,9 @@ class TrialResult:
     degradation_survived: list[float] | None = None
     pbo: float | None = None
 
+    # Overfitting warnings (populated in Layer 3)
+    overfit_warnings: list[dict[str, str | None]] | None = None
+
     # Metadata
     duration_seconds: float = 0.0
     output_dir: str = ""

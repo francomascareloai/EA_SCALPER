@@ -74,8 +74,7 @@ class ApexOptimizer:
     def __init__(
         self,
         config: OptimizationConfig,
-        backtest_fn: Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]]
-        | None = None,
+        backtest_fn: Callable[..., tuple[pd.DataFrame, pd.Series]] | None = None,
     ) -> None:
         self.config = config
         self._backtest_fn = backtest_fn
@@ -101,15 +100,14 @@ class ApexOptimizer:
     def from_yaml(
         cls,
         path: str | Path,
-        backtest_fn: Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]]
-        | None = None,
+        backtest_fn: Callable[..., tuple[pd.DataFrame, pd.Series]] | None = None,
     ) -> ApexOptimizer:
         config = OptimizationConfig.from_yaml(path)
         return cls(config, backtest_fn)
 
     def set_backtest_fn(
         self,
-        fn: Callable[[dict[str, Any], str, str], tuple[pd.DataFrame, pd.Series]],
+        fn: Callable[..., tuple[pd.DataFrame, pd.Series]],
     ) -> None:
         self._backtest_fn = fn
 
@@ -266,6 +264,16 @@ class ApexOptimizer:
                 start_trial_id=resume_trial_id,
                 seed_results=resume_seed_results,
             )
+        elif mode == "levy":
+            from src.optimization.search.levy_enhanced import LevyEnhancedSearch
+
+            searcher = LevyEnhancedSearch(
+                self.config,
+                on_result=on_result_effective,
+                max_results_in_ram=self.config.output.max_results_in_ram,
+                warmup_samples=20,
+                n_elite=5,
+            )
         elif mode == "successive_halving":
             from src.optimization.search.successive_halving import SuccessiveHalvingSearch
 
@@ -282,6 +290,40 @@ class ApexOptimizer:
                 start_trial_id=resume_trial_id,
                 seed_results=resume_seed_results,
             )
+        elif mode == "bohb":
+            from src.optimization.search.bohb import BOHBSearch
+
+            if resume_trial_id:
+                raise ValueError(
+                    "Resume not supported for BOHB mode (Optuna storage not configured)"
+                )
+
+            # BOHB uses Hyperband-style multi-fidelity with TPE
+            sh_cfg = self.config.search.successive_halving
+            searcher = BOHBSearch(
+                self.config,
+                on_result=on_result_effective,
+                max_results_in_ram=self.config.output.max_results_in_ram,
+                objective_fn_with_fidelity=self._objective_fn_with_fidelity,
+                min_resource=min(sh_cfg.wfa_windows) if sh_cfg.wfa_windows else 1,
+                max_resource=max(sh_cfg.wfa_windows) if sh_cfg.wfa_windows else 5,
+                reduction_factor=sh_cfg.eta,
+            )
+        elif mode == "asha":
+            from src.optimization.search.asha import ASHASearch
+
+            if resume_trial_id:
+                raise ValueError("Resume not supported for ASHA: async state not persisted")
+
+            # ASHA provides asynchronous multi-fidelity optimization
+            searcher = ASHASearch(
+                self.config,
+                on_result=on_result_effective,
+                max_results_in_ram=self.config.output.max_results_in_ram,
+                objective_fn_with_fidelity=self._objective_fn_with_fidelity,
+                n_workers=self.config.search.parallelism,
+                reduction_factor=self.config.search.successive_halving.eta,
+            )
         else:
             raise NotImplementedError(f"Search mode {mode} not yet implemented")
 
@@ -295,9 +337,9 @@ class ApexOptimizer:
         if checkpoint_mgr is not None:
             checkpoint_mgr.force_save(progress=int(study_stats.get("n_trials", 0)))
 
-        # IMPORTANT: Successive Halving already returns results ordered to prioritize
+        # IMPORTANT: Multi-fidelity modes (SH, BOHB, ASHA) return results ordered to prioritize
         # last-rung (highest fidelity) evaluations. Do not destroy that ordering.
-        if mode != "successive_halving":
+        if mode not in ("successive_halving", "bohb", "asha"):
             self._results.sort(key=lambda r: r.score, reverse=True)
 
         # Layer 3a: Stress (MC DD percentiles + degradation) for top candidates.
@@ -431,9 +473,34 @@ class ApexOptimizer:
                         float(pbo_value) <= float(self.config.constraints.anti_overfit.pbo_max)
                     )
                 except Exception:
-                    logger.exception("Candidate-set PBO computation failed; continuing without PBO")
+                    # FAIL-CLOSED: If PBO gate is enabled but fails to compute,
+                    # mark all candidates as BLOCKED to prevent false sense of security.
+                    # See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.2
+                    logger.critical(
+                        "Candidate-set PBO computation failed - BLOCKING all candidates "
+                        "(fail-closed behavior, stress gate enabled but unusable)"
+                    )
+                    for r in candidates:
+                        r.pbo = 1.0  # Worst-case PBO (100% probability of overfit)
+                        r.score = -999.0  # Block from promotion
+                        r.apex_compliant = False
             except Exception:
-                logger.exception("Layer 3 stress failed; continuing without stress metrics")
+                # FAIL-CLOSED: If Layer 3 stress gates (MC/degradation/PBO) are enabled but fail,
+                # mark all candidates as BLOCKED. Never silently proceed without safety checks.
+                # See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.2
+                logger.critical(
+                    "Layer 3 stress computation failed - BLOCKING all candidates "
+                    "(fail-closed behavior, stress tests enabled but unusable)"
+                )
+                # Mark candidates as non-compliant with worst-case metrics
+                top_n = max(1, int(self.config.stress_test.top_n))
+                apex_compliant = [x for x in self._results if x.apex_compliant]
+                candidates_to_block = list((apex_compliant or self._results)[:top_n])
+                for r in candidates_to_block:
+                    r.mc_95_dd = 100.0  # Worst-case DD
+                    r.mc_99_dd = 100.0
+                    r.score = -999.0  # Block from promotion
+                    r.apex_compliant = False
 
         reporter = SummaryReporter(self._output_dir, self.config)
         report_paths = reporter.generate_reports(self._results, study_stats)
@@ -474,7 +541,109 @@ class ApexOptimizer:
                     ghost.sims,
                 )
             except Exception:
-                logger.exception("Ghost test failed; continuing without ghost results")
+                # FAIL-CLOSED: Ghost test is a falsification gate. If enabled but fails,
+                # block the best result to prevent false confidence in edge.
+                # See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.2
+                logger.critical(
+                    "Ghost test failed - BLOCKING best candidate "
+                    "(fail-closed behavior, falsification gate enabled but unusable)"
+                )
+                if self._results:
+                    self._results[0].score = -999.0
+                    self._results[0].apex_compliant = False
+
+        # Layer 3c: Overfitting Detection (cliff/island/regime-bias)
+        overfit_summary: dict[str, int] | None = None
+        overfitting_cfg = self.config.stress_test.overfitting_detection
+        if (
+            overfitting_cfg.cliff_check
+            or overfitting_cfg.island_check
+            or overfitting_cfg.regime_bias_check
+        ) and self._results:
+            try:
+                from src.optimization.constraints.anti_overfit import (
+                    detect_cliff,
+                    detect_island,
+                    detect_regime_bias,
+                )
+
+                top_n = max(1, int(self.config.stress_test.top_n))
+                candidates = self._results[:top_n]
+
+                # Island detection runs ONCE outside the loop (checks best vs rest)
+                island_warnings = []
+                if overfitting_cfg.island_check:
+                    island_warnings = detect_island(
+                        results=self._results,
+                        top_k=min(5, len(self._results) - 1),
+                        neighbor_threshold=0.10,
+                    )
+
+                for idx, r in enumerate(candidates):
+                    all_warnings = []
+
+                    if overfitting_cfg.cliff_check:
+                        all_warnings.extend(
+                            detect_cliff(
+                                best_params=r.params,
+                                param_specs=self.config.parameters,
+                                tolerance=0.05,
+                            )
+                        )
+
+                    # Attach island warnings ONLY to best candidate (idx=0)
+                    if idx == 0 and island_warnings:
+                        all_warnings.extend(island_warnings)
+
+                    if overfitting_cfg.regime_bias_check:
+                        all_warnings.extend(
+                            detect_regime_bias(
+                                result=r,
+                                min_coverage=0.20,
+                            )
+                        )
+
+                    # Store as list of dicts for serialization
+                    if all_warnings:
+                        r.overfit_warnings = [w.to_dict() for w in all_warnings]
+
+                # Summarize for logging
+                if candidates and candidates[0].overfit_warnings:
+                    # Reconstruct warnings for summary
+                    best_warnings = candidates[0].overfit_warnings
+                    overfit_summary = {}
+                    for w in best_warnings:
+                        key = str(w.get("type", "UNKNOWN"))
+                        overfit_summary[key] = overfit_summary.get(key, 0) + 1
+
+                    logger.info(
+                        "Overfitting detection: %d warnings for best trial: %s",
+                        len(best_warnings),
+                        overfit_summary,
+                    )
+                else:
+                    logger.info("Overfitting detection: no warnings for top candidates")
+
+            except Exception:
+                # FAIL-CLOSED: Overfitting detection is a safety gate. If enabled but fails,
+                # add worst-case warning to prevent false confidence.
+                # See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.2
+                logger.critical(
+                    "Overfitting detection failed - adding UNKNOWN warning to candidates "
+                    "(fail-closed behavior, overfit gate enabled but unusable)"
+                )
+                top_n = max(1, int(self.config.stress_test.top_n))
+                candidates_to_warn = self._results[:top_n]
+                for r in candidates_to_warn:
+                    if not hasattr(r, "overfit_warnings") or r.overfit_warnings is None:
+                        r.overfit_warnings = []
+                    r.overfit_warnings.append(
+                        {
+                            "type": "DETECTION_FAILED",
+                            "severity": "CRITICAL",
+                            "message": "Overfitting detection failed - cannot verify config safety",
+                        }
+                    )
 
         if self.config.output.handoff_enabled:
             handoff_path = reporter.generate_handoff(
@@ -517,6 +686,8 @@ class ApexOptimizer:
             self.config.data.train_start,
             self.config.data.train_end,
             self.config.validation.inline_wfa.windows,
+            "ticks",
+            None,
         )
 
     def _objective_fn_with_fidelity(
@@ -525,6 +696,8 @@ class ApexOptimizer:
         train_start: str,
         train_end: str,
         wfa_windows: int,
+        feed_mode: str = "ticks",
+        bars_file: str | None = None,
     ) -> TrialResult:
         # R12-FIX: Replace assert with explicit validation (assert disabled with -O).
         if self._backtest_fn is None:
@@ -540,6 +713,8 @@ class ApexOptimizer:
                 full_params,
                 train_start,
                 train_end,
+                feed_mode=feed_mode,
+                bars_file=bars_file,
             )
         except Exception as exc:
             # Treat invalid/unrunnable parameter combinations as failed trials (fail-closed).
@@ -572,9 +747,17 @@ class ApexOptimizer:
 
         wfa_result = wfa.compute_wfa_metrics(windows, trades_df, equity_series)
 
-        apex_result = self._apex_checker.check(self._wfa_to_trial_result(wfa_result, params))
+        # Apex gating: only valid for tick-based runs (requires conservative MTM from bid/ask QuoteTicks).
+        if str(feed_mode) == "ticks":
+            apex_result = self._apex_checker.check(self._wfa_to_trial_result(wfa_result, params))
+            apex_penalty = apex_result.score_penalty
+            apex_compliant = apex_result.compliant
+        else:
+            # Bars-only prescreen is ranking-only. It must not claim compliance.
+            apex_penalty = 1.0
+            apex_compliant = False
 
-        score = self._compute_composite_score(wfa_result, apex_result.score_penalty)
+        score = self._compute_composite_score(wfa_result, apex_penalty)
 
         return TrialResult(
             trial_id=0,
@@ -596,7 +779,7 @@ class ApexOptimizer:
             daily_dd=wfa_result.daily_dd,
             time_gate_violations=wfa_result.time_gate_violations,
             overnight_positions=wfa_result.overnight_positions,
-            apex_compliant=apex_result.compliant,
+            apex_compliant=apex_compliant,
             score=score,
         )
 

@@ -15,13 +15,13 @@ from typing import Any, Literal, cast
 
 import yaml
 
-SearchMode = Literal["grid", "random", "bayesian", "successive_halving", "levy"]
+SearchMode = Literal["grid", "random", "bayesian", "successive_halving", "levy", "bohb", "asha"]
 FidelityFeedMode = Literal["ticks", "bars"]
 
 # Runtime validation constants for search modes.
 # NOTE: "lhs" is accepted as a CLI-only alias and is normalized to "random" in _from_dict().
 _VALID_SEARCH_MODES: frozenset[str] = frozenset(
-    {"grid", "random", "bayesian", "successive_halving", "lhs", "levy"}
+    {"grid", "random", "bayesian", "successive_halving", "lhs", "levy", "bohb", "asha"}
 )
 _REMOVED_SEARCH_MODES: dict[str, str] = {
     "wfo": "Removed: declared but never implemented",
