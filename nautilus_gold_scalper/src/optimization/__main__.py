@@ -4,6 +4,7 @@ CLI entry point for Apex Optimizer.
 Usage:
     python -m src.optimization --config configs/grids/smc_optimization.yaml
     python -m src.optimization --config configs/grids/smc_optimization.yaml --trials 50 --dry-run
+    python -m src.optimization --config configs/grids/smc_optimization.yaml --train-start 2020-01-01 --train-end 2020-06-30
 """
 
 from __future__ import annotations
@@ -40,6 +41,9 @@ Examples:
 
   # Dry run to see grid size
   python -m src.optimization --config configs/grids/smc.yaml --dry-run
+
+  # Run with custom date range (smoke test)
+  python -m src.optimization --config configs/grids/smc.yaml --train-start 2020-01-01 --train-end 2020-03-31
 
   # Run with custom output directory
   python -m src.optimization --config configs/grids/smc.yaml --output logs/my_run
@@ -103,6 +107,51 @@ Examples:
         help="Random seed for reproducibility",
     )
 
+    # Training date range overrides (for smoke tests without editing YAML)
+    parser.add_argument(
+        "--train-start",
+        type=str,
+        default=None,
+        help="Training period start date (YYYY-MM-DD), overrides config",
+    )
+
+    parser.add_argument(
+        "--train-end",
+        type=str,
+        default=None,
+        help="Training period end date (YYYY-MM-DD), overrides config",
+    )
+
+    # Backtest adapter configuration
+    parser.add_argument(
+        "--initial-balance",
+        type=float,
+        default=50000.0,
+        help="Initial account balance in USD (default: 50000)",
+    )
+
+    parser.add_argument(
+        "--feed",
+        type=str,
+        choices=["ticks", "bars"],
+        default="ticks",
+        help="Feed mode: 'ticks' for full fidelity, 'bars' for fast prescreen (default: ticks)",
+    )
+
+    parser.add_argument(
+        "--ltf-minutes",
+        type=int,
+        default=1,
+        help="Low timeframe bar aggregation period in minutes (default: 1)",
+    )
+
+    parser.add_argument(
+        "--sample-rate",
+        type=int,
+        default=1,
+        help="Tick sample rate (1 = every tick, 10 = every 10th) (default: 1)",
+    )
+
     return parser.parse_args()
 
 
@@ -125,9 +174,22 @@ def main() -> int:
         logger.error("Failed to load config", exc_info=True)
         return 1
 
-    # Apply CLI overrides
-    # Note: Since config is frozen dataclass, we need to create new instances
-    # For MVP, we'll just log the overrides and note they would be applied
+    # Apply CLI overrides to config
+    # Note: OptimizationConfig is frozen, so we need to use dataclasses.replace
+    from dataclasses import replace
+
+    if args.mode is not None:
+        config = replace(config, search=replace(config.search, mode=args.mode))
+    if args.trials is not None:
+        config = replace(config, search=replace(config.search, trials=args.trials))
+    if args.seed is not None:
+        config = replace(config, search=replace(config.search, seed=args.seed))
+    if args.output is not None:
+        config = replace(config, output=replace(config.output, dir=args.output))
+    if args.train_start is not None:
+        config = replace(config, data=replace(config.data, train_start=args.train_start))
+    if args.train_end is not None:
+        config = replace(config, data=replace(config.data, train_end=args.train_end))
 
     if args.dry_run:
         print("\n" + "=" * 60)
@@ -137,22 +199,19 @@ def main() -> int:
         print(f"Name: {config.name}")
         print(f"Version: {config.version}")
         print("\nSearch:")
-        mode = args.mode if args.mode is not None else config.search.mode
+        mode = config.search.mode
         print(f"  Mode: {mode}")
         if mode == "successive_halving":
             sh = config.search.successive_halving
             print(
                 f"  SuccessiveHalving: eta={sh.eta} window_days={list(sh.window_days)} wfa_windows={list(sh.wfa_windows)}"
             )
-        trials = args.trials if args.trials is not None else config.search.trials
-        parallelism = (
-            args.parallelism if args.parallelism is not None else config.search.parallelism
-        )
-        print(f"  Trials: {trials}")
-        print(f"  Parallelism: {parallelism}")
-        seed_val = args.seed if args.seed is not None else config.search.seed
-        seed = 42 if seed_val is None else int(seed_val)
-        print(f"  Seed: {seed}")
+        print(f"  Trials: {config.search.trials}")
+        print(f"  Parallelism: {config.search.parallelism}")
+        print(f"  Seed: {config.search.seed or 42}")
+        print("\nData:")
+        print(f"  Train start: {config.data.train_start}")
+        print(f"  Train end: {config.data.train_end}")
         print(f"\nParameters ({len(config.parameters)}):")
         for p in config.parameters:
             if p.range:
@@ -181,19 +240,39 @@ def main() -> int:
         print(f"  Min trades: {config.constraints.validation.min_trades}")
 
         print("\nOutput:")
-        print(f"  Directory: {args.output or config.output.dir}")
+        print(f"  Directory: {config.output.dir}")
         print(f"  Reports: {', '.join(config.output.reports)}")
+
+        print("\nBacktest adapter:")
+        print(f"  Initial balance: ${args.initial_balance:,.0f}")
+        print(f"  Feed mode: {args.feed}")
+        print(f"  LTF minutes: {args.ltf_minutes}")
+        print(f"  Sample rate: {args.sample_rate}")
 
         print("\n" + "=" * 60)
         print("Dry run complete. Remove --dry-run to execute optimization.")
         print("=" * 60 + "\n")
         return 0
 
-    # Create optimizer
+    # Run optimization
     logger.info("Initializing ApexOptimizer...")
 
-    # NOTE: This CLI is intentionally "dry-run" oriented for now.
-    # Running the full optimization requires integrating a backtest function.
+    from src.optimization.backtest_adapter import BacktestAdapterConfig, create_backtest_fn
+    from src.optimization.optimizer import ApexOptimizer
+
+    # Create backtest function using adapter
+    adapter_config = BacktestAdapterConfig(
+        initial_balance=args.initial_balance,
+        ltf_minutes=args.ltf_minutes,
+        sample_rate=args.sample_rate,
+        seed=config.search.seed or 42,
+        feed_mode=args.feed,
+    )
+    backtest_fn = create_backtest_fn(adapter_config)
+
+    # Create and run optimizer
+    optimizer = ApexOptimizer(config, backtest_fn=backtest_fn)
+
     print("\n" + "=" * 60)
     print("APEX OPTIMIZER")
     print("=" * 60)
@@ -201,21 +280,41 @@ def main() -> int:
     print(f"Name: {config.name}")
     print(f"Mode: {config.search.mode}")
     print(f"Trials: {config.search.trials}")
+    print(f"Training: {config.data.train_start} -> {config.data.train_end}")
+    print(f"Feed: {args.feed}")
     print()
-    print("NOTE: To run optimization, integrate with BacktestRunner:")
-    print()
-    print("  from src.optimization import ApexOptimizer")
-    print("  from nautilus_gold_scalper.scripts.backtest.run_backtest import BacktestRunner")
-    print()
-    print("  def backtest_fn(params, start, end):")
-    print("      runner = BacktestRunner(...)")
-    print("      result = runner.run(config_overrides=params, ...)")
-    print("      return trades_df, equity_series")
-    print()
-    print("  optimizer = ApexOptimizer.from_yaml('config.yaml')")
-    print("  optimizer.set_backtest_fn(backtest_fn)")
-    print("  results = optimizer.run()")
-    print()
+
+    try:
+        results = optimizer.run()
+    except Exception:
+        logger.error("Optimization failed", exc_info=True)
+        return 1
+
+    print("\n" + "=" * 60)
+    print("OPTIMIZATION COMPLETE")
+    print("=" * 60)
+    print(f"\nTotal trials: {len(results)}")
+    apex_compliant = sum(1 for r in results if r.apex_compliant)
+    print(f"Apex compliant: {apex_compliant}")
+
+    if results:
+        best = results[0]
+        print("\nBest result:")
+        print(f"  Score: {best.score:.4f}")
+        print(f"  SQN: {best.sqn:.2f}")
+        print(f"  WFE: {best.wfe:.2f}")
+        print(f"  Trades: {best.trades}")
+        print(f"  Win rate: {best.win_rate:.1%}")
+        print(f"  Max DD: {best.max_drawdown_pct:.2f}%")
+        print(f"  Apex compliant: {best.apex_compliant}")
+        print("\n  Best params:")
+        for k, v in best.params.items():
+            print(f"    {k}: {v}")
+
+    output_dir = optimizer.get_output_dir()
+    if output_dir:
+        print(f"\nOutput: {output_dir}")
+
     print("=" * 60 + "\n")
 
     return 0
