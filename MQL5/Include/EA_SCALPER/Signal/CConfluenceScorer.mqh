@@ -342,6 +342,8 @@ struct SFreshnessState
       else if(bars_ago <= max_bars)
       {
          // Decay from peak
+         // Guard: if max_bars == optimal_bars, no decay range exists
+         if(max_bars == optimal_bars) return 1.0;  // Avoid division by zero
          double decay = (double)(bars_ago - optimal_bars) / (max_bars - optimal_bars);
          return 1.0 - (decay * 0.6);  // Decay from 1.0 to 0.4
       }
@@ -352,10 +354,10 @@ struct SFreshnessState
    // Get overall freshness multiplier
    double GetFreshnessMultiplier()
    {
-      // Use geometric mean of relevant freshness values
-      double product = ob_freshness * fvg_freshness * sweep_freshness;
-      double avg = MathPow(product, 1.0/3.0);  // Cube root
-      
+      // v4.3: Use geometric mean of ALL relevant freshness values (added structure_freshness)
+      double product = ob_freshness * fvg_freshness * sweep_freshness * structure_freshness;
+      double avg = MathPow(product, 1.0/4.0);  // Fourth root (4 factors now)
+
       // Clamp to reasonable range
       return MathMax(0.4, MathMin(1.0, avg));
    }
@@ -704,6 +706,9 @@ private:
    // Thresholds
    int                      m_min_score;         // Minimum score to trade
    int                      m_min_confluences;   // Minimum confluences required
+
+   // Direction voting
+   int                      m_vote_margin;       // Min vote margin required to set direction
    
    // Last result cache
    SConfluenceResult        m_last_result;
@@ -737,7 +742,11 @@ private:
    ENUM_CONFLUENCE_SESSION  m_current_session;   // Current trading session
    bool                     m_use_session_weights; // Toggle session-specific weights
    bool                     m_use_adaptive_learning; // Toggle adaptive Bayesian
-   
+
+   // v4.3: VIX/Sentiment Integration (can be fed via Python bridge)
+   double                   m_vix_level;         // Current VIX level (from Python bridge)
+   bool                     m_vix_available;     // Whether VIX data is available
+
 public:
    CConfluenceScorer();
    ~CConfluenceScorer();
@@ -758,11 +767,18 @@ public:
    void SetWeights(double structure, double regime, double sweep, double amd, double ob, double fvg, double zone);
    void SetMinScore(int score) { m_min_score = score; }
    void SetMinConfluences(int count) { m_min_confluences = count; }
+   void SetVoteMargin(int margin) { m_vote_margin = MathMax(0, margin); }
    void SetProximityPips(double ob_pips, double fvg_pips);
    void SetCacheSeconds(int seconds) { m_cache_seconds = seconds; }
    void SetUseBayesian(bool use) { m_use_bayesian = use; }
    void SetBayesianParams(const SBayesianParams &params) { m_bayes = params; }
-   
+
+   // v4.3: VIX Integration (fed via Python bridge)
+   void   SetVIXLevel(double vix) { m_vix_level = vix; m_vix_available = true; }
+   double GetVIXLevel() { return m_vix_level; }
+   bool   IsVIXAvailable() { return m_vix_available; }
+   int    GetVIXScoreAdjustment(ENUM_SIGNAL_TYPE direction);  // VIX-based bias adjustment
+
    // Main scoring
    SConfluenceResult CalculateConfluence(string symbol = NULL);
    
@@ -849,25 +865,29 @@ CConfluenceScorer::CConfluenceScorer()
    m_footprint = NULL;
    m_symbol = _Symbol;
    
-   // Default weights (v3.31: 9 factors, total = 100%)
-   m_weights.w_structure = 0.18;   // 18% (was 25%)
-   m_weights.w_regime = 0.15;      // 15% (was 20%)
-   m_weights.w_sweep = 0.12;       // 12% (was 15%)
-   m_weights.w_amd = 0.10;         // 10% (was 15%)
+   // Default weights (v4.3: 9 factors, total = 100%)
+   // v4.3: Rebalanced for scalping - increased footprint, reduced structure/mtf
+   m_weights.w_structure = 0.15;   // 15% (was 18% - reduces duplicate influence with voting)
+   m_weights.w_regime = 0.15;      // 15% (unchanged)
+   m_weights.w_sweep = 0.12;       // 12% (unchanged)
+   m_weights.w_amd = 0.10;         // 10% (unchanged)
    m_weights.w_ob = 0.10;          // 10% (unchanged)
-   m_weights.w_fvg = 0.08;         // 8% (was 10%)
+   m_weights.w_fvg = 0.08;         // 8% (unchanged)
    m_weights.w_zone = 0.05;        // 5% (unchanged)
-   m_weights.w_mtf = 0.15;         // 15% (NEW - important!)
-   m_weights.w_footprint = 0.07;   // 7% (NEW)
-   // Total: 18+15+12+10+10+8+5+15+7 = 100%
+   m_weights.w_mtf = 0.12;         // 12% (was 15% - rebalanced)
+   m_weights.w_footprint = 0.13;   // 13% (was 7% - critical for scalping)
+   // Total: 15+15+12+10+10+8+5+12+13 = 100%
    
    // Bayesian parameters (calibrated defaults)
    m_bayes.SetDefaults();
-   m_use_bayesian = false;         // Disable Bayesian (causes score=0 when factors < 60)
+   m_use_bayesian = true;          // v4.3: Enable Bayesian with fallback in CalculateBayesianProbability
    
    // Thresholds
-   m_min_score = TIER_B_MIN;       // 70 minimum
+   m_min_score = 50;               // v4.2.1: lower base minimum score (was 70)
    m_min_confluences = 3;          // At least 3 factors
+
+   // Direction voting
+   m_vote_margin = 2;              // v4.2.1: default 2-vote margin (was hardcoded 3)
    
    // Cache (disabled by default in backtest to avoid stale "always valid" signals)
    m_cache_seconds = 0;
@@ -899,7 +919,11 @@ CConfluenceScorer::CConfluenceScorer()
    m_current_session = CONF_SESSION_NY_OVERLAP;
    m_use_session_weights = true;   // Enable by default (GENIUS feature)
    m_use_adaptive_learning = true; // Enable by default (self-improving!)
-   
+
+   // v4.3: VIX Integration (fed via Python bridge)
+   m_vix_level = 0.0;
+   m_vix_available = false;
+
    // Initialize last result
    ZeroMemory(m_last_result);
 }
@@ -938,11 +962,18 @@ void CConfluenceScorer::SetProximityPips(double ob_pips, double fvg_pips)
 // === MAIN SCORING ===
 SConfluenceResult CConfluenceScorer::CalculateConfluence(string symbol = NULL)
 {
+   // IMPORTANT: In MQL5, default parameters must match the declared default.
+   // The header uses `string symbol = NULL`, so inside the function we must treat
+   // empty/NULL string as "use _Symbol".
+   // Otherwise, callers that use the default (or pass "") can end up scoring with
+   // an empty symbol and return zeros.
+
    // Check cache (only if cache horizon > 0)
    if(m_cache_seconds > 0 && TimeCurrent() - m_last_calculation < m_cache_seconds && m_last_result.is_valid)
       return m_last_result;
    
-   if(symbol == NULL) symbol = _Symbol;
+   if(symbol == NULL || symbol == "") symbol = _Symbol;
+   m_symbol = symbol;
    
    SConfluenceResult result;
    ZeroMemory(result);
@@ -1096,20 +1127,48 @@ SConfluenceResult CConfluenceScorer::CalculateConfluence(string symbol = NULL)
 //+------------------------------------------------------------------+
 //| Bayesian Probability Calculation (Phase 1 Improvement)           |
 //| P(Win|Evidence) using Naive Bayes with calibrated likelihoods   |
+//| v4.3: Added fallback to weighted avg when any factor < 40       |
 //+------------------------------------------------------------------+
 double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &result)
 {
+   // v4.3 FALLBACK: If any core factor is below 40, Bayesian can collapse to 0.
+   // In that case, use weighted average instead for more stable scoring.
+   // Core factors: structure, sweep, ob (the directional ones)
+   const int WEAK_FACTOR_THRESHOLD = 40;
+   bool has_weak_core = (result.structure_score < WEAK_FACTOR_THRESHOLD) ||
+                        (result.sweep_score < WEAK_FACTOR_THRESHOLD) ||
+                        (result.ob_score < WEAK_FACTOR_THRESHOLD);
+
+   if(has_weak_core)
+   {
+      // Fallback: weighted average scoring (more stable for weak setups)
+      double weighted_sum =
+         result.structure_score * m_weights.w_structure +
+         result.regime_score * m_weights.w_regime +
+         result.sweep_score * m_weights.w_sweep +
+         result.amd_score * m_weights.w_amd +
+         result.ob_score * m_weights.w_ob +
+         result.fvg_score * m_weights.w_fvg +
+         result.premium_discount * m_weights.w_zone +
+         result.mtf_score * m_weights.w_mtf +
+         result.footprint_score * m_weights.w_footprint;
+
+      // Convert 0-100 score to 0-1 probability (scaled)
+      // Apply a conservative factor since Bayesian would likely be lower
+      return MathMax(0.0, MathMin(1.0, (weighted_sum / 100.0) * 0.85));
+   }
+
    // Naive Bayes formula:
    // P(Win|E) = P(E|Win) * P(Win) / P(E)
    // Where P(E) = P(E|Win)*P(Win) + P(E|Loss)*P(Loss)
-   
+
    double p_win = m_bayes.prior_win;
    double p_loss = 1.0 - p_win;
-   
+
    // Initialize likelihoods
    double likelihood_win = 1.0;
    double likelihood_loss = 1.0;
-   
+
    // Factor 1: Structure (if score >= 60, factor is "present")
    if(result.structure_score >= 60)
    {
@@ -1121,7 +1180,7 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_structure_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_structure_given_loss);
    }
-   
+
    // Factor 2: Regime
    if(result.regime_score >= 60)
    {
@@ -1133,7 +1192,7 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_regime_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_regime_given_loss);
    }
-   
+
    // Factor 3: Sweep
    if(result.sweep_score >= 60)
    {
@@ -1145,7 +1204,7 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_sweep_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_sweep_given_loss);
    }
-   
+
    // Factor 4: AMD
    if(result.amd_score >= 60)
    {
@@ -1157,7 +1216,7 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_amd_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_amd_given_loss);
    }
-   
+
    // Factor 5: Order Block
    if(result.ob_score >= 60)
    {
@@ -1169,7 +1228,7 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_ob_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_ob_given_loss);
    }
-   
+
    // Factor 6: FVG
    if(result.fvg_score >= 60)
    {
@@ -1181,7 +1240,7 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_fvg_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_fvg_given_loss);
    }
-   
+
    // v3.31: Factor 7: MTF Alignment (FORGE genius upgrade)
    if(result.mtf_score >= 60)
    {
@@ -1193,7 +1252,7 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_mtf_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_mtf_given_loss);
    }
-   
+
    // v3.31: Factor 8: Footprint/Order Flow (FORGE genius upgrade)
    if(result.footprint_score >= 60)
    {
@@ -1205,15 +1264,15 @@ double CConfluenceScorer::CalculateBayesianProbability(const SConfluenceResult &
       likelihood_win *= (1.0 - m_bayes.p_footprint_given_win);
       likelihood_loss *= (1.0 - m_bayes.p_footprint_given_loss);
    }
-   
+
    // Calculate posterior probability using Bayes' theorem
    double p_evidence = likelihood_win * p_win + likelihood_loss * p_loss;
-   
+
    if(p_evidence <= 0)
       return m_bayes.prior_win;  // Fallback to prior
-   
+
    double posterior = (likelihood_win * p_win) / p_evidence;
-   
+
    // Clamp to valid probability range
    return MathMax(0.0, MathMin(1.0, posterior));
 }
@@ -1287,18 +1346,79 @@ double CConfluenceScorer::ScoreRegime()
 double CConfluenceScorer::ScoreSweep()
 {
    if(m_sweep == NULL) return 50.0;
-   if(m_sweep.HasRecentSweep(8))
-      return 75.0;
-   return 55.0;
+
+   // Granular scoring: recency (bars ago) + magnitude (depth)
+   // Recency buckets:
+   //  - < 5 bars  -> 85
+   //  - < 20 bars -> 70
+   //  - stale     -> 55
+   // Magnitude bonus: up to +10 based on sweep depth (in points) relative to symbol point.
+   // Note: CLiquiditySweepDetector uses PERIOD_M15 for sweep timing.
+
+   if(!m_sweep.HasRecentSweep(20))
+      return 55.0;
+
+   double base = 70.0;
+   if(m_sweep.HasRecentSweep(5))
+      base = 85.0;
+
+   SSweepEvent sweep = m_sweep.GetMostRecentSweep();
+   if(!sweep.is_valid_sweep)
+      return MathMax(55.0, base);
+
+   double point = SymbolInfoDouble(m_symbol, SYMBOL_POINT);
+   if(point <= 0)
+      point = _Point;
+
+   double depth_points = (point > 0) ? (sweep.sweep_depth / point) : 0.0;
+   double mag_bonus = 0.0;
+   if(depth_points > 0)
+   {
+      // Saturate at 20 points depth => +10
+      mag_bonus = MathMin(10.0, (depth_points / 20.0) * 10.0);
+   }
+
+   double score = base + mag_bonus;
+   return MathMax(0, MathMin(100, score));
 }
 
 double CConfluenceScorer::ScoreAMD()
 {
    if(m_amd == NULL) return 50.0;
+
+   // Granular AMD scoring based on phase quality/duration.
+   // Targets:
+   // - Distribution phase after manipulation = 90
+   // - Manipulation with sweep               = 75
+   // - Accumulation forming                  = 60
+   // - Unknown                               = 40
+
    ENUM_AMD_PHASE phase = m_amd.GetCurrentPhase();
-   if(phase == AMD_PHASE_DISTRIBUTION) return 75.0;
-   if(phase == AMD_PHASE_MANIPULATION || phase == AMD_PHASE_ACCUMULATION) return 40.0;
-   return 55.0;
+   SAMDCycle cycle = m_amd.GetCurrentCycle();
+
+   if(phase == AMD_PHASE_DISTRIBUTION)
+   {
+      // Prefer distribution only when preceded by a valid manipulation event.
+      if(cycle.manipulation.is_valid)
+         return 90.0;
+      return 75.0;
+   }
+
+   if(phase == AMD_PHASE_MANIPULATION)
+   {
+      if(cycle.manipulation.is_valid && cycle.manipulation.sweep_depth > 0)
+         return 75.0;
+      return 40.0;
+   }
+
+   if(phase == AMD_PHASE_ACCUMULATION)
+   {
+      if(cycle.accumulation.is_valid)
+         return 60.0;
+      return 40.0;
+   }
+
+   return 40.0;
 }
 
 double CConfluenceScorer::ScoreOBProximity(double price)
@@ -1445,13 +1565,13 @@ ENUM_SIGNAL_TYPE CConfluenceScorer::DetermineDirection()
 {
    int bullish_votes = 0;
    int bearish_votes = 0;
-   
-   // 1) Structure bias (weight: 3 votes)
+
+   // 1) Structure bias (weight: 2 votes - v4.3: reduced from 3 to avoid duplicate influence with AMD)
    if(m_structure != NULL)
    {
       ENUM_MARKET_BIAS bias = m_structure.GetCurrentBias();
-      if(bias == BIAS_BULLISH) bullish_votes += 3;
-      else if(bias == BIAS_BEARISH) bearish_votes += 3;
+      if(bias == BIAS_BULLISH) bullish_votes += 2;
+      else if(bias == BIAS_BEARISH) bearish_votes += 2;
    }
    
    // 2) Liquidity sweep signal (weight: 2 votes)
@@ -1524,11 +1644,13 @@ ENUM_SIGNAL_TYPE CConfluenceScorer::DetermineDirection()
          bearish_votes += 1;
    }
    
-   // Determine direction by vote majority (minimum 3 vote margin)
-   // v3.31: Total possible votes now: 3+2+2+1+1+4+1+2+1 = 17 per side
-   if(bullish_votes >= bearish_votes + 3)
+   // Determine direction by vote majority (configurable margin)
+   // v4.3: Total possible votes now: 2+2+2+1+1+4+1+2+1 = 16 per side (structure reduced from 3 to 2)
+   // Note: margin=0 means simple majority (ties -> SIGNAL_NONE)
+   int margin = (m_vote_margin < 0) ? 0 : m_vote_margin;
+   if(bullish_votes >= bearish_votes + margin && bullish_votes > bearish_votes)
       return SIGNAL_BUY;
-   else if(bearish_votes >= bullish_votes + 3)
+   else if(bearish_votes >= bullish_votes + margin && bearish_votes > bullish_votes)
       return SIGNAL_SELL;
    
    return SIGNAL_NONE;
@@ -1539,14 +1661,19 @@ ENUM_SIGNAL_QUALITY CConfluenceScorer::ClassifyQuality(double score)
    if(score >= TIER_S_MIN) return QUALITY_ELITE;
    if(score >= TIER_A_MIN) return QUALITY_HIGH;
    if(score >= TIER_B_MIN) return QUALITY_MEDIUM;
-   if(score >= TIER_C_MIN) return QUALITY_LOW;
+
+   // v4.2: Align lowest valid tier with configured base minimum score.
+   // This prevents the "threshold < 60 but quality invalid" deadlock.
+   double low_min = (double)MathMax(50, m_min_score);
+   if(score >= low_min) return QUALITY_LOW;
+
    return QUALITY_INVALID;
 }
 
 // === TRADE SETUP ===
 void CConfluenceScorer::CalculateTradeSetup(SConfluenceResult &result, double current_price)
 {
-   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   double point = SymbolInfoDouble(m_symbol, SYMBOL_POINT);
    double atr_buffer = 200 * point; // ~20 pips default
    
    // v3.31: Use cached ATR handle for performance (FORGE optimization)
@@ -1585,7 +1712,7 @@ bool CConfluenceScorer::IsValidSetup(const SConfluenceResult &result)
    // Must have direction
    if(result.direction == SIGNAL_NONE)
       return false;
-   
+
    // v3.32 GENIUS: Session Gate - Block trades outside active sessions
    // DEAD sessions (21:00-00:00 GMT) = low liquidity, wide spreads, erratic moves
    // This is ORTHOGONAL to regime detection (Hurst/Entropy check market TYPE, not TIME)
@@ -1594,13 +1721,13 @@ bool CConfluenceScorer::IsValidSetup(const SConfluenceResult &result)
       static datetime last_session_block_log = 0;
       if(TimeCurrent() - last_session_block_log > 300) // Log once per 5 min
       {
-         Print("[Confluence v3.32] BLOCKED: Dead/Asian session (quality=", 
+         Print("[Confluence v3.32] BLOCKED: Dead/Asian session (quality=",
                DoubleToString(m_mtf.GetSessionQuality() * 100, 0), "%) - No edge");
          last_session_block_log = TimeCurrent();
       }
       return false;
    }
-   
+
    // v4.0 GENIUS: Use ADAPTIVE threshold (volatility-based)
    // Then apply regime-specific adjustments on top
    int effective_min_score = GetAdaptiveThreshold();  // v4.0: ATR-based threshold
@@ -1748,8 +1875,9 @@ int CConfluenceScorer::GetAdaptiveThreshold()
    
    int adaptive_threshold = base + adjustment;
    
-   // Clamp to reasonable range [50, 95]
-   adaptive_threshold = MathMax(50, MathMin(95, adaptive_threshold));
+   // Clamp to reasonable range [20, 95]
+   // NOTE: EA input may set lower thresholds for backtest exploration; EA still enforces its own execution threshold.
+   adaptive_threshold = MathMax(20, MathMin(95, adaptive_threshold));
    
    // Log significant adjustments (once per 5 min)
    if(adjustment != 0)
@@ -2138,20 +2266,24 @@ double CConfluenceScorer::NormalizeScore(double raw_score, double max_value)
 int CConfluenceScorer::CountConfluences(const SConfluenceResult &result)
 {
    int count = 0;
-   
-   if(result.structure_score >= 60) count++;
-   if(result.regime_score >= 60) count++;
-   if(result.sweep_score >= 60) count++;
-   if(result.amd_score >= 60) count++;
-   if(result.ob_score >= 60) count++;
-   if(result.fvg_score >= 60) count++;
-   if(result.premium_discount >= 70) count++;
-   
+
+   // v4.3: Use a presence threshold aligned with the configured base minimum score.
+   // Keeps confluence counting meaningful when min score is set below 60 for backtest exploration.
+   int present_threshold = MathMax(50, m_min_score);
+
+   if(result.structure_score >= present_threshold) count++;
+   if(result.regime_score >= present_threshold) count++;
+   if(result.sweep_score >= present_threshold) count++;
+   if(result.amd_score >= present_threshold) count++;
+   if(result.ob_score >= present_threshold) count++;
+   if(result.fvg_score >= present_threshold) count++;
+   // v4.3: Use present_threshold for zone too (was hardcoded 70 causing inconsistency)
+   if(result.premium_discount >= present_threshold) count++;
+
    // v3.31: Count new factors (FORGE genius upgrade)
-   if(result.mtf_score >= 60) count++;
-   if(result.footprint_score >= 60) count++;
-   // Max possible: 9 factors
-   
+   if(result.mtf_score >= present_threshold) count++;
+   if(result.footprint_score >= present_threshold) count++;
+
    return count;
 }
 
@@ -2322,6 +2454,57 @@ void CConfluenceScorer::RecordTradeOutcome(bool was_win)
    {
       Print("[Confluence v4.2 GENIUS] Bayesian Learning: ", m_learning.GetLearningString());
    }
+}
+
+//+------------------------------------------------------------------+
+//| v4.3: Get VIX-based Score Adjustment for Gold Trades             |
+//| VIX > 25 = risk-off = gold bullish bias (+5 to +10 for longs)   |
+//| VIX < 15 = risk-on = gold bearish bias (-5 to -10 for longs)    |
+//| VIX 15-25 = neutral zone = no adjustment                        |
+//|                                                                  |
+//| Gold as safe haven: high VIX = flight to safety = gold bullish  |
+//| Low VIX = risk appetite = gold bearish (capital flows to risk)  |
+//+------------------------------------------------------------------+
+int CConfluenceScorer::GetVIXScoreAdjustment(ENUM_SIGNAL_TYPE direction)
+{
+   // No VIX data available - return neutral
+   if(!m_vix_available || m_vix_level <= 0.0)
+      return 0;
+
+   int adjustment = 0;
+
+   // === HIGH VIX (>25): Risk-off mode = Gold bullish bias ===
+   // Formula: adjustment = (VIX - 25) * 0.5, capped at +10
+   // Example: VIX=35 -> (35-25)*0.5 = +5 for longs
+   // Example: VIX=45 -> (45-25)*0.5 = +10 for longs (capped)
+   if(m_vix_level > 25.0)
+   {
+      double raw_adj = (m_vix_level - 25.0) * 0.5;
+      int vix_bonus = (int)MathRound(MathMin(10, raw_adj));
+
+      if(direction == SIGNAL_BUY)
+         adjustment = vix_bonus;   // Bonus for gold longs
+      else if(direction == SIGNAL_SELL)
+         adjustment = -vix_bonus;  // Penalty for gold shorts
+   }
+   // === LOW VIX (<15): Risk-on mode = Gold bearish bias ===
+   // Formula: adjustment = (15 - VIX) * 0.5, capped at +10
+   // Example: VIX=10 -> (15-10)*0.5 = +2.5 for shorts
+   // Example: VIX=5 -> (15-5)*0.5 = +5 for shorts
+   else if(m_vix_level < 15.0)
+   {
+      double raw_adj = (15.0 - m_vix_level) * 0.5;
+      int vix_penalty = (int)MathRound(MathMin(10, raw_adj));
+
+      if(direction == SIGNAL_BUY)
+         adjustment = -vix_penalty; // Penalty for gold longs
+      else if(direction == SIGNAL_SELL)
+         adjustment = vix_penalty;  // Bonus for gold shorts
+   }
+   // === NEUTRAL VIX (15-25): No adjustment ===
+   // This is the normal volatility range
+
+   return adjustment;
 }
 
 //+------------------------------------------------------------------+

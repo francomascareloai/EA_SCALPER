@@ -8,11 +8,13 @@
 
 #include <Trade\Trade.mqh>
 #include "../Core/Definitions.mqh"
+#include "../Core/MathUtils.mqh"         // v4.3: Shared math utilities (NormalizeLotSize)
 #include "../Analysis/CRegimeDetector.mqh"     // v4.1: For SRegimeStrategy
 #include "../Analysis/CStructureAnalyzer.mqh"  // v4.2: For structure-based trailing
 #include "../Analysis/CFootprintAnalyzer.mqh"  // v4.2: For footprint exit signals
 #include "../Signal/CConfluenceScorer.mqh"     // v4.2: For Bayesian learning callback (full include needed)
 #include "../Risk/FTMO_RiskManager.mqh"        // v4.2: For Kelly learning callback
+#include "../Strategy/CAdaptiveRouter.mqh"     // v4.3: For ENUM_STRATEGY_TYPE
 
 // === TRADE STATE ENUMERATION ===
 enum ENUM_TRADE_STATE
@@ -34,6 +36,61 @@ enum ENUM_MANAGEMENT_MODE
    MGMT_TRAILING_ATR,              // ATR-based trailing
    MGMT_PARTIAL_TP,                // Multiple TPs with partial close
    MGMT_DYNAMIC                    // Dynamic based on market conditions
+};
+
+// === MULTI-POSITION CONSTANTS ===
+#define MAX_CONCURRENT_POSITIONS 3  // Hard cap for Apex safety
+
+// === ACTIVE POSITION STRUCTURE (Multi-Position Tracking) ===
+struct SActivePosition
+{
+   ulong                ticket;           // Position ticket (0 = slot empty)
+   ENUM_POSITION_TYPE   type;             // BUY or SELL
+   ENUM_STRATEGY_TYPE   strategy;         // Which strategy opened this
+   ENUM_TRADE_STATE     state;            // Current management state
+   double               initial_lots;     // Initial position size
+   double               current_lots;     // Current size (after partials)
+   double               entry_price;      // Entry price
+   double               initial_sl;       // Initial stop loss (for R calc)
+   double               current_sl;       // Current stop loss
+   double               tp1;              // Take profit 1 (partial)
+   double               tp2;              // Take profit 2 (partial)
+   double               tp3;              // Take profit 3 (final/trail)
+   double               highest_price;    // Highest price since entry
+   double               lowest_price;     // Lowest price since entry
+   int                  partials_taken;   // Number of partial TPs taken
+   datetime             open_time;        // Entry timestamp
+   datetime             start_bar_time;   // Bar time at entry (for time exit)
+   double               entry_score;      // Confluence score at entry
+   double               realized_pnl;     // Realized P/L from partials
+   string               entry_reason;     // Entry reason for logging
+   bool                 is_active;        // Slot is in use
+
+   // Constructor-like reset
+   void Reset()
+   {
+      ticket = 0;
+      type = POSITION_TYPE_BUY;
+      strategy = STRATEGY_NONE;
+      state = TRADE_STATE_IDLE;
+      initial_lots = 0;
+      current_lots = 0;
+      entry_price = 0;
+      initial_sl = 0;
+      current_sl = 0;
+      tp1 = 0;
+      tp2 = 0;
+      tp3 = 0;
+      highest_price = 0;
+      lowest_price = 0;
+      partials_taken = 0;
+      open_time = 0;
+      start_bar_time = 0;
+      entry_score = 0;
+      realized_pnl = 0;
+      entry_reason = "";
+      is_active = false;
+   }
 };
 
 // === TRADE INFO STRUCTURE ===
@@ -65,7 +122,13 @@ class CTradeManager
 private:
    // Trade object
    CTrade               m_trade;
-   
+
+   // === MULTI-POSITION TRACKING (v4.3) ===
+   SActivePosition      m_positions[MAX_CONCURRENT_POSITIONS];  // Fixed array of positions
+   int                  m_active_count;                         // Number of active positions
+   int                  m_max_positions;                        // Limit from RiskProfile (default: 1)
+
+   // === LEGACY SINGLE-POSITION (preserved for backward compatibility) ===
    // Active trade info
    STradeInfo           m_active_trade;
    bool                 m_has_active_trade;
@@ -74,6 +137,7 @@ private:
    int                  m_magic_number;
    int                  m_slippage;
    string               m_symbol;
+   double               m_point;           // Symbol-specific point value (avoid global _Point)
    ENUM_MANAGEMENT_MODE m_mgmt_mode;
    
    // Management parameters
@@ -84,6 +148,8 @@ private:
    double               m_partial2_percent;      // Percent to close at TP2
    double               m_trailing_start;        // R multiple to start trailing
    double               m_trailing_step;         // ATR multiple for trailing step
+   double               m_trailing_step_original; // Original trailing step (for reset after tightening)
+   double               m_trailing_step_min;     // Minimum trailing step (clamp to prevent near-zero)
    
    // ATR for dynamic calculations
    int                  m_atr_handle;
@@ -145,6 +211,17 @@ private:
    // v4.2: GENIUS Structure and Footprint helpers (FASE 2 & 3)
    double               GetStructureTrailLevel();   // Get swing-based trail level
    bool                 CheckFootprintExit();       // Check for footprint exit signals
+
+   // === MULTI-POSITION HELPERS (v4.3) ===
+   int                  FindFreeSlot();                          // Find empty position slot
+   int                  FindPositionByTicket(ulong ticket);      // Find slot by ticket (O(n) where n<=3)
+   void                 ManagePositionByIndex(int index);        // Manage single position
+   double               GetPositionRMultiple(int index);         // Get R-multiple for position
+   void                 UpdatePositionExtremes(int index);       // Update high/low tracking
+   void                 PersistPositionState(int index);         // Persist position state to GV
+   void                 LoadPositionState(int index, ulong ticket); // Load position state from GV
+   void                 ClearPositionGV(int index);              // Clear GV keys for position
+   string               GetGVKey(int index, string suffix);      // Generate GV key for position
    
 public:
    CTradeManager();
@@ -156,7 +233,12 @@ public:
    void                 SetBreakevenTrigger(double r_multiple) { m_breakeven_trigger = r_multiple; }
    void                 SetPartialTP1(double r_mult, double pct) { m_partial1_trigger = r_mult; m_partial1_percent = pct; }
    void                 SetPartialTP2(double r_mult, double pct) { m_partial2_trigger = r_mult; m_partial2_percent = pct; }
-   void                 SetTrailingParams(double start_r, double step_atr) { m_trailing_start = start_r; m_trailing_step = step_atr; }
+   void                 SetTrailingParams(double start_r, double step_atr) {
+      m_trailing_start = start_r;
+      m_trailing_step = step_atr;
+      m_trailing_step_original = step_atr;  // Store original for reset
+      m_trailing_step_min = step_atr * 0.1; // Minimum 10% of original (never near-zero)
+   }
    
    // Quick config: 40/30/30 split at specified R levels
    void                 ConfigurePartials(double tp1_r, double tp2_r, double tp1_pct = 0.40, double tp2_pct = 0.50)
@@ -280,7 +362,37 @@ public:
    
    // State machine update (call on every tick)
    void                 OnTick();
-   
+
+   // === MULTI-POSITION API (v4.3) ===
+   // Position count and capacity
+   int                  GetActiveCount() const { return m_active_count; }
+   bool                 CanOpenNewTrade() const { return m_active_count < m_max_positions; }
+   void                 SetMaxPositions(int max) { m_max_positions = MathMin(max, MAX_CONCURRENT_POSITIONS); }
+   int                  GetMaxPositions() const { return m_max_positions; }
+
+   // Multi-position operations
+   bool                 OpenPosition(ENUM_SIGNAL_TYPE type, double lots, double sl, double tp,
+                                      ENUM_STRATEGY_TYPE strategy, double score, string reason);
+   bool                 OpenPositionWithTPs(ENUM_SIGNAL_TYPE type, double lots, double sl,
+                                             double tp1, double tp2, double tp3,
+                                             ENUM_STRATEGY_TYPE strategy, double score, string reason);
+   bool                 ClosePosition(ulong ticket, string reason = "Close position");
+   bool                 CloseAllPositions(string reason = "Close all");
+
+   // Position queries
+   int                  FindPositionIndex(ulong ticket) const;
+   bool                 GetPositionByIndex(int index, SActivePosition& pos) const;
+   bool                 GetPositionByTicket(ulong ticket, SActivePosition& pos) const;
+   bool                 HasPositionForStrategy(ENUM_STRATEGY_TYPE strategy) const;
+   bool                 HasLosingPosition() const;
+   double               GetTotalUnrealizedPnL() const;
+
+   // Multi-position management (call from OnTick)
+   void                 ManageAllPositions();
+
+   // Sync with broker positions on EA restart
+   void                 SyncWithBrokerPositions();
+
    // Accessors
    bool                 HasActiveTrade() { return m_has_active_trade; }
    ENUM_TRADE_STATE     GetState() { return m_active_trade.state; }
@@ -303,7 +415,15 @@ CTradeManager::CTradeManager()
    m_mgmt_mode = MGMT_PARTIAL_TP;
    m_atr_handle = INVALID_HANDLE;
    m_current_atr = 0;
-   
+
+   // v4.3: Initialize multi-position tracking
+   m_active_count = 0;
+   m_max_positions = 1;  // Default: single position mode (backward compatible)
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      m_positions[i].Reset();
+   }
+
    // GENIUS FIX P2: Initialize race condition guard
    m_operation_in_progress = false;
    
@@ -364,10 +484,21 @@ bool CTradeManager::Init(int magic, int slippage, string symbol)
    m_magic_number = magic;
    m_slippage = slippage;
    m_symbol = (symbol == "") ? _Symbol : symbol;
-   
+   m_point = SymbolInfoDouble(m_symbol, SYMBOL_POINT);  // Symbol-specific point value
+
    m_trade.SetExpertMagicNumber(magic);
    m_trade.SetDeviationInPoints(slippage);
-   m_trade.SetTypeFilling(ORDER_FILLING_IOC);
+
+   // FIX: Auto-detect supported filling mode instead of hardcoding
+   ENUM_ORDER_TYPE_FILLING fill_mode = ORDER_FILLING_IOC;  // default
+   uint filling_flags = (uint)SymbolInfoInteger(m_symbol, SYMBOL_FILLING_MODE);
+   if((filling_flags & SYMBOL_FILLING_FOK) != 0)
+      fill_mode = ORDER_FILLING_FOK;
+   else if((filling_flags & SYMBOL_FILLING_IOC) != 0)
+      fill_mode = ORDER_FILLING_IOC;
+   else
+      fill_mode = ORDER_FILLING_RETURN;  // fallback for exchange execution
+   m_trade.SetTypeFilling(fill_mode);
    
    // GENIUS FIX P3: Setup GlobalVariable keys for state persistence
    string base_key = "TM_" + m_symbol + "_" + IntegerToString(magic) + "_";
@@ -410,8 +541,7 @@ void CTradeManager::UpdateATR()
    ArrayResize(atr, 1);
    if(CopyBuffer(m_atr_handle, 0, 0, 1, atr) > 0)
       m_current_atr = atr[0];
-   else
-      Print("CTradeManager: failed to read ATR buffer");
+   // Note: CopyBuffer returns -1 early in backtest before enough bars exist - this is expected
 }
 
 double CTradeManager::GetCurrentRMultiple()
@@ -432,7 +562,7 @@ double CTradeManager::GetCurrentRMultiple()
    return profit / risk;
 }
 
-bool CTradeManager::OpenTrade(ENUM_SIGNAL_TYPE signal, double lots, double sl, double tp, 
+bool CTradeManager::OpenTrade(ENUM_SIGNAL_TYPE signal, double lots, double sl, double tp,
                                double score, string reason)
 {
    if(m_has_active_trade)
@@ -440,11 +570,27 @@ bool CTradeManager::OpenTrade(ENUM_SIGNAL_TYPE signal, double lots, double sl, d
       Print("CTradeManager: Cannot open trade - already have active position");
       return false;
    }
-   
+
    if(signal == SIGNAL_NONE) return false;
-   
-   double price = (signal == SIGNAL_BUY) 
-      ? SymbolInfoDouble(m_symbol, SYMBOL_ASK) 
+
+   // v4.3: Use shared NormalizeLotSize utility
+   lots = NormalizeLotSize(m_symbol, lots);
+   double min_lot = GetMinLotSize(m_symbol);
+   double max_lot = GetMaxLotSize(m_symbol);
+
+   if(lots < min_lot)
+   {
+      Print("CTradeManager: lots ", lots, " < min_lot ", min_lot, " - blocking trade");
+      return false;
+   }
+   if(lots > max_lot)
+   {
+      Print("CTradeManager: lots ", lots, " > max_lot ", max_lot, " - capping to max");
+      lots = max_lot;
+   }
+
+   double price = (signal == SIGNAL_BUY)
+      ? SymbolInfoDouble(m_symbol, SYMBOL_ASK)
       : SymbolInfoDouble(m_symbol, SYMBOL_BID);
    if(sl == 0.0)
    {
@@ -465,7 +611,7 @@ bool CTradeManager::OpenTrade(ENUM_SIGNAL_TYPE signal, double lots, double sl, d
    // Validate SL/TP
    int stops_lvl = (int)SymbolInfoInteger(m_symbol, SYMBOL_TRADE_STOPS_LEVEL);
    int freeze_lvl = (int)SymbolInfoInteger(m_symbol, SYMBOL_TRADE_FREEZE_LEVEL);
-   double min_stop = MathMax(stops_lvl, freeze_lvl) * _Point;
+   double min_stop = MathMax(stops_lvl, freeze_lvl) * m_point;
    if(MathAbs(price - sl) < min_stop || MathAbs(tp - price) < min_stop)
    {
       Print("CTradeManager: SL/TP too close to price");
@@ -555,7 +701,27 @@ bool CTradeManager::OpenTrade(ENUM_SIGNAL_TYPE signal, double lots, double sl, d
    }
    
    // Initialize trade info
-   m_active_trade.ticket = m_trade.ResultDeal();
+   // FIX: Use ResultOrder for tracking (deal ID can differ from position ticket)
+   // We'll find the actual position ticket after the order is processed
+   ulong order_ticket = m_trade.ResultOrder();
+   ulong deal_ticket = m_trade.ResultDeal();
+
+   // Find the position ticket created by this order
+   ulong pos_ticket = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(PositionSelectByTicket(t))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == m_magic_number &&
+            PositionGetString(POSITION_SYMBOL) == m_symbol)
+         {
+            pos_ticket = t;
+            break;
+         }
+      }
+   }
+   m_active_trade.ticket = (pos_ticket > 0) ? pos_ticket : deal_ticket;
    m_active_trade.state = TRADE_STATE_POSITION_OPEN;
    m_active_trade.type = (signal == SIGNAL_BUY) ? POSITION_TYPE_BUY : POSITION_TYPE_SELL;
    m_active_trade.entry_price = m_trade.ResultPrice();
@@ -690,16 +856,15 @@ bool CTradeManager::ClosePartial(double percent, string reason)
             continue;
 
          double pos_volume   = PositionGetDouble(POSITION_VOLUME);
-         double min_vol      = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MIN);
-         double step_vol     = SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP);
+         double min_vol      = GetMinLotSize(m_symbol);
+         double step_vol     = GetLotStep(m_symbol);
          int vol_digits = (step_vol > 0) ? (int)MathRound(-MathLog10(step_vol)) : 2;
 
          if(pos_volume <= 0 || step_vol <= 0) return false;
 
+         // v4.3: Use shared NormalizeLotSize for partial close
          double close_vol = pos_volume * percent;
-         // round down to step
-         close_vol = MathFloor(close_vol / step_vol) * step_vol;
-         close_vol = NormalizeDouble(close_vol, vol_digits);
+         close_vol = NormalizeLotSize(m_symbol, close_vol);
 
          if(close_vol < min_vol)
          {
@@ -728,9 +893,9 @@ bool CTradeManager::ClosePartial(double percent, string reason)
                // Recalculate volume in case position changed
                pos_volume = PositionGetDouble(POSITION_VOLUME);
                if(pos_volume <= 0) return false;
+               // v4.3: Use shared NormalizeLotSize for retry
                close_vol = pos_volume * percent;
-               close_vol = MathFloor(close_vol / step_vol) * step_vol;
-               close_vol = NormalizeDouble(close_vol, vol_digits);
+               close_vol = NormalizeLotSize(m_symbol, close_vol);
                if(close_vol < min_vol)
                {
                   if(pos_volume <= min_vol * 1.1)
@@ -975,7 +1140,11 @@ void CTradeManager::OnTick()
       datetime current_bar = iTime(m_symbol, PERIOD_CURRENT, 0);
       // Count bars elapsed
       int bars_elapsed = Bars(m_symbol, PERIOD_CURRENT, m_trade_start_bar_time, current_bar);
-      
+      if(bars_elapsed < 0)
+      {
+         Print("CTradeManager: Bars() returned error - skipping time exit check");
+         return;  // Skip this check
+      }
       if(bars_elapsed >= m_max_trade_bars)
       {
          Print("CTradeManager: TIME EXIT triggered - ", bars_elapsed, " bars >= ", m_max_trade_bars, " max");
@@ -989,13 +1158,13 @@ bool CTradeManager::MoveToBreakeven()
    if(!m_has_active_trade) return false;
    
    // Add small buffer (2 points) to ensure profit
-   double buffer = 2 * _Point;
+   double buffer = 2 * m_point;
    double new_sl = (m_active_trade.type == POSITION_TYPE_BUY)
       ? m_active_trade.entry_price + buffer
       : m_active_trade.entry_price - buffer;
    int stops_lvl = (int)SymbolInfoInteger(m_symbol, SYMBOL_TRADE_STOPS_LEVEL);
    int freeze_lvl = (int)SymbolInfoInteger(m_symbol, SYMBOL_TRADE_FREEZE_LEVEL);
-   double min_dist = MathMax(stops_lvl, freeze_lvl) * _Point;
+   double min_dist = MathMax(stops_lvl, freeze_lvl) * m_point;
    double current_price = (m_active_trade.type == POSITION_TYPE_BUY)
       ? SymbolInfoDouble(m_symbol, SYMBOL_BID)
       : SymbolInfoDouble(m_symbol, SYMBOL_ASK);
@@ -1060,7 +1229,7 @@ bool CTradeManager::UpdateTrailingStop()
    double new_sl = CalculateTrailingStop();
    int stops_lvl = (int)SymbolInfoInteger(m_symbol, SYMBOL_TRADE_STOPS_LEVEL);
    int freeze_lvl = (int)SymbolInfoInteger(m_symbol, SYMBOL_TRADE_FREEZE_LEVEL);
-   double min_dist = MathMax(stops_lvl, freeze_lvl) * _Point;
+   double min_dist = MathMax(stops_lvl, freeze_lvl) * m_point;
    double current_price = (m_active_trade.type == POSITION_TYPE_BUY)
       ? SymbolInfoDouble(m_symbol, SYMBOL_BID)
       : SymbolInfoDouble(m_symbol, SYMBOL_ASK);
@@ -1128,7 +1297,7 @@ double CTradeManager::CalculateTrailingStop()
             if(structure_trail > atr_trail)
             {
                Print("CTradeManager: STRUCTURE TRAIL - Using swing low @ ", structure_trail,
-                     " instead of ATR @ ", atr_trail, " (+", (structure_trail - atr_trail) / _Point, " pts protection)");
+                     " instead of ATR @ ", atr_trail, " (+", (structure_trail - atr_trail) / m_point, " pts protection)");
             }
             return final_trail;
          }
@@ -1140,7 +1309,7 @@ double CTradeManager::CalculateTrailingStop()
             if(structure_trail < atr_trail)
             {
                Print("CTradeManager: STRUCTURE TRAIL - Using swing high @ ", structure_trail,
-                     " instead of ATR @ ", atr_trail, " (+", (atr_trail - structure_trail) / _Point, " pts protection)");
+                     " instead of ATR @ ", atr_trail, " (+", (atr_trail - structure_trail) / m_point, " pts protection)");
             }
             return final_trail;
          }
@@ -1314,16 +1483,16 @@ bool CTradeManager::CheckFootprintExit()
          // Decent profit - accelerate partial taking
          Print("CTradeManager: Accelerating partial due to footprint signal");
          TakePartialProfit(0.50, m_active_trade.partials_taken + 1);  // Take 50%
-         
-         // Also tighten trailing
-         m_trailing_step *= 0.5;  // Halve trailing distance temporarily
+
+         // Also tighten trailing (with clamp to prevent near-zero)
+         m_trailing_step = MathMax(m_trailing_step * 0.5, m_trailing_step_min);
          return true;
       }
       else if(r_mult >= 0.5)
       {
-         // Small profit - just tighten trailing aggressively
+         // Small profit - just tighten trailing aggressively (with clamp)
          Print("CTradeManager: Tightening trail due to footprint signal");
-         m_trailing_step *= 0.5;
+         m_trailing_step = MathMax(m_trailing_step * 0.5, m_trailing_step_min);
          return true;
       }
    }
@@ -1391,10 +1560,10 @@ bool CTradeManager::SyncWithExistingPosition()
                m_active_trade.state = TRADE_STATE_PARTIAL_TP;
             else if(r >= m_trailing_start)
                m_active_trade.state = TRADE_STATE_TRAILING;
-            else if(m_active_trade.current_sl >= m_active_trade.entry_price - _Point && 
+            else if(m_active_trade.current_sl >= m_active_trade.entry_price - m_point &&
                     m_active_trade.type == POSITION_TYPE_BUY)
                m_active_trade.state = TRADE_STATE_BREAKEVEN;
-            else if(m_active_trade.current_sl <= m_active_trade.entry_price + _Point && 
+            else if(m_active_trade.current_sl <= m_active_trade.entry_price + m_point &&
                     m_active_trade.type == POSITION_TYPE_SELL)
                m_active_trade.state = TRADE_STATE_BREAKEVEN;
             else
@@ -1562,14 +1731,18 @@ void CTradeManager::PersistState()
    // v4.2: Persist trade start bar time (critical for time exit after restart)
    if(m_gv_trade_start_bar_key != "" && m_trade_start_bar_time > 0)
       GlobalVariableSet(m_gv_trade_start_bar_key, (double)m_trade_start_bar_time);
-   
-   Print("CTradeManager: State persisted - Partials: ", m_active_trade.partials_taken,
-         " State: ", EnumToString(m_active_trade.state),
-         " InitLots: ", m_active_trade.initial_lots,
-         " InitSL: ", m_active_trade.initial_sl,
-         " High: ", m_active_trade.highest_price,
-         " Low: ", m_active_trade.lowest_price,
-         " StartBar: ", m_trade_start_bar_time);
+
+   // v4.3: Conditional debug logging for state persistence
+   #ifdef DEBUG_MODE
+   PrintFormat("CTradeManager: State persisted - Partials: %d State: %s InitLots: %.2f InitSL: %.5f High: %.5f Low: %.5f StartBar: %s",
+      m_active_trade.partials_taken,
+      EnumToString(m_active_trade.state),
+      m_active_trade.initial_lots,
+      m_active_trade.initial_sl,
+      m_active_trade.highest_price,
+      m_active_trade.lowest_price,
+      TimeToString(m_trade_start_bar_time));
+   #endif
 }
 
 void CTradeManager::LoadPersistedState()
@@ -1643,4 +1816,561 @@ void CTradeManager::LoadPersistedState()
          Print("CTradeManager: Loaded persisted trade_start_bar_time: ", m_trade_start_bar_time);
       }
    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v4.3: MULTI-POSITION IMPLEMENTATION
+// Extends CTradeManager to support multiple concurrent positions
+// ═══════════════════════════════════════════════════════════════════════════
+
+//+------------------------------------------------------------------+
+//| FindFreeSlot - Find first empty slot in position array          |
+//| Returns: slot index (0 to MAX-1) or -1 if no slot available     |
+//+------------------------------------------------------------------+
+int CTradeManager::FindFreeSlot()
+{
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(!m_positions[i].is_active)
+         return i;
+   }
+   return -1;  // All slots occupied
+}
+
+//+------------------------------------------------------------------+
+//| FindPositionByTicket - Find slot by ticket (O(n) where n<=3)    |
+//| Returns: slot index or -1 if not found                          |
+//+------------------------------------------------------------------+
+int CTradeManager::FindPositionByTicket(ulong ticket)
+{
+   if(ticket == 0) return -1;
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(m_positions[i].is_active && m_positions[i].ticket == ticket)
+         return i;
+   }
+   return -1;
+}
+
+//+------------------------------------------------------------------+
+//| FindPositionIndex - Public const version                         |
+//+------------------------------------------------------------------+
+int CTradeManager::FindPositionIndex(ulong ticket) const
+{
+   if(ticket == 0) return -1;
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(m_positions[i].is_active && m_positions[i].ticket == ticket)
+         return i;
+   }
+   return -1;
+}
+
+//+------------------------------------------------------------------+
+//| GetGVKey - Generate GlobalVariable key for position persistence |
+//+------------------------------------------------------------------+
+string CTradeManager::GetGVKey(int index, string suffix)
+{
+   return StringFormat("TM_%s_%d_P%d_%s", m_symbol, m_magic_number, index, suffix);
+}
+
+//+------------------------------------------------------------------+
+//| PersistPositionState - Save position state to GlobalVariables   |
+//+------------------------------------------------------------------+
+void CTradeManager::PersistPositionState(int index)
+{
+   if(index < 0 || index >= MAX_CONCURRENT_POSITIONS) return;
+   if(!m_positions[index].is_active) return;
+
+   GlobalVariableSet(GetGVKey(index, "TICKET"), (double)m_positions[index].ticket);
+   GlobalVariableSet(GetGVKey(index, "STATE"), (double)m_positions[index].state);
+   GlobalVariableSet(GetGVKey(index, "PARTIALS"), (double)m_positions[index].partials_taken);
+   GlobalVariableSet(GetGVKey(index, "INITLOTS"), m_positions[index].initial_lots);
+   GlobalVariableSet(GetGVKey(index, "INITSL"), m_positions[index].initial_sl);
+   GlobalVariableSet(GetGVKey(index, "HIGH"), m_positions[index].highest_price);
+   GlobalVariableSet(GetGVKey(index, "LOW"), m_positions[index].lowest_price);
+   GlobalVariableSet(GetGVKey(index, "STARTBAR"), (double)m_positions[index].start_bar_time);
+   GlobalVariableSet(GetGVKey(index, "STRATEGY"), (double)m_positions[index].strategy);
+}
+
+//+------------------------------------------------------------------+
+//| LoadPositionState - Load position state from GlobalVariables    |
+//+------------------------------------------------------------------+
+void CTradeManager::LoadPositionState(int index, ulong ticket)
+{
+   if(index < 0 || index >= MAX_CONCURRENT_POSITIONS) return;
+
+   string key_partials = GetGVKey(index, "PARTIALS");
+   string key_initlots = GetGVKey(index, "INITLOTS");
+   string key_initsl = GetGVKey(index, "INITSL");
+   string key_high = GetGVKey(index, "HIGH");
+   string key_low = GetGVKey(index, "LOW");
+   string key_startbar = GetGVKey(index, "STARTBAR");
+   string key_strategy = GetGVKey(index, "STRATEGY");
+
+   if(GlobalVariableCheck(key_partials))
+      m_positions[index].partials_taken = (int)GlobalVariableGet(key_partials);
+   if(GlobalVariableCheck(key_initlots))
+      m_positions[index].initial_lots = GlobalVariableGet(key_initlots);
+   if(GlobalVariableCheck(key_initsl))
+      m_positions[index].initial_sl = GlobalVariableGet(key_initsl);
+   if(GlobalVariableCheck(key_high))
+      m_positions[index].highest_price = GlobalVariableGet(key_high);
+   if(GlobalVariableCheck(key_low))
+      m_positions[index].lowest_price = GlobalVariableGet(key_low);
+   if(GlobalVariableCheck(key_startbar))
+      m_positions[index].start_bar_time = (datetime)GlobalVariableGet(key_startbar);
+   if(GlobalVariableCheck(key_strategy))
+      m_positions[index].strategy = (ENUM_STRATEGY_TYPE)(int)GlobalVariableGet(key_strategy);
+
+   Print("CTradeManager: Loaded state for position #", ticket, " slot ", index);
+}
+
+//+------------------------------------------------------------------+
+//| ClearPositionGV - Clear GlobalVariables for a position slot     |
+//+------------------------------------------------------------------+
+void CTradeManager::ClearPositionGV(int index)
+{
+   if(index < 0 || index >= MAX_CONCURRENT_POSITIONS) return;
+
+   string suffixes[] = {"TICKET", "STATE", "PARTIALS", "INITLOTS", "INITSL", "HIGH", "LOW", "STARTBAR", "STRATEGY"};
+   for(int i = 0; i < ArraySize(suffixes); i++)
+   {
+      string key = GetGVKey(index, suffixes[i]);
+      if(GlobalVariableCheck(key))
+         GlobalVariableDel(key);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| GetPositionRMultiple - Calculate R-multiple for position        |
+//+------------------------------------------------------------------+
+double CTradeManager::GetPositionRMultiple(int index)
+{
+   if(index < 0 || index >= MAX_CONCURRENT_POSITIONS) return 0;
+   if(!m_positions[index].is_active) return 0;
+
+   double risk = MathAbs(m_positions[index].entry_price - m_positions[index].initial_sl);
+   if(risk <= 0) return 0;
+
+   double current_price = (m_positions[index].type == POSITION_TYPE_BUY)
+      ? SymbolInfoDouble(m_symbol, SYMBOL_BID)
+      : SymbolInfoDouble(m_symbol, SYMBOL_ASK);
+
+   double profit = (m_positions[index].type == POSITION_TYPE_BUY)
+      ? current_price - m_positions[index].entry_price
+      : m_positions[index].entry_price - current_price;
+
+   return profit / risk;
+}
+
+//+------------------------------------------------------------------+
+//| UpdatePositionExtremes - Update high/low tracking for position  |
+//+------------------------------------------------------------------+
+void CTradeManager::UpdatePositionExtremes(int index)
+{
+   if(index < 0 || index >= MAX_CONCURRENT_POSITIONS) return;
+   if(!m_positions[index].is_active) return;
+
+   double current_price = (m_positions[index].type == POSITION_TYPE_BUY)
+      ? SymbolInfoDouble(m_symbol, SYMBOL_BID)
+      : SymbolInfoDouble(m_symbol, SYMBOL_ASK);
+
+   bool updated = false;
+   if(current_price > m_positions[index].highest_price)
+   {
+      m_positions[index].highest_price = current_price;
+      updated = true;
+   }
+   if(current_price < m_positions[index].lowest_price)
+   {
+      m_positions[index].lowest_price = current_price;
+      updated = true;
+   }
+   if(updated)
+      PersistPositionState(index);
+}
+
+//+------------------------------------------------------------------+
+//| OpenPosition - Open a new position (multi-position version)     |
+//+------------------------------------------------------------------+
+bool CTradeManager::OpenPosition(ENUM_SIGNAL_TYPE signal, double lots, double sl, double tp,
+                                  ENUM_STRATEGY_TYPE strategy, double score, string reason)
+{
+   // Check capacity
+   if(m_active_count >= m_max_positions)
+   {
+      Print("CTradeManager: Cannot open - max positions (", m_max_positions, ") reached");
+      return false;
+   }
+
+   // Find free slot
+   int slot = FindFreeSlot();
+   if(slot < 0)
+   {
+      Print("CTradeManager: Cannot open - no free slot available");
+      return false;
+   }
+
+   // Use existing OpenTrade logic for execution
+   if(!OpenTrade(signal, lots, sl, tp, score, reason))
+      return false;
+
+   // Copy data from legacy m_active_trade to multi-position slot
+   m_positions[slot].ticket = m_active_trade.ticket;
+   m_positions[slot].type = m_active_trade.type;
+   m_positions[slot].strategy = strategy;
+   m_positions[slot].state = m_active_trade.state;
+   m_positions[slot].initial_lots = m_active_trade.initial_lots;
+   m_positions[slot].current_lots = m_active_trade.current_lots;
+   m_positions[slot].entry_price = m_active_trade.entry_price;
+   m_positions[slot].initial_sl = m_active_trade.initial_sl;
+   m_positions[slot].current_sl = m_active_trade.current_sl;
+   m_positions[slot].tp1 = m_active_trade.tp1;
+   m_positions[slot].tp2 = m_active_trade.tp2;
+   m_positions[slot].tp3 = m_active_trade.tp3;
+   m_positions[slot].highest_price = m_active_trade.highest_price;
+   m_positions[slot].lowest_price = m_active_trade.lowest_price;
+   m_positions[slot].partials_taken = m_active_trade.partials_taken;
+   m_positions[slot].open_time = m_active_trade.entry_time;
+   m_positions[slot].start_bar_time = m_trade_start_bar_time;
+   m_positions[slot].entry_score = m_active_trade.entry_score;
+   m_positions[slot].realized_pnl = m_active_trade.realized_pnl;
+   m_positions[slot].entry_reason = m_active_trade.entry_reason;
+   m_positions[slot].is_active = true;
+
+   m_active_count++;
+
+   // Persist state
+   PersistPositionState(slot);
+
+   Print("CTradeManager: Position opened in slot ", slot, " | Ticket: ", m_positions[slot].ticket,
+         " | Strategy: ", EnumToString(strategy), " | Active: ", m_active_count, "/", m_max_positions);
+
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| OpenPositionWithTPs - Open position with multiple take profits  |
+//+------------------------------------------------------------------+
+bool CTradeManager::OpenPositionWithTPs(ENUM_SIGNAL_TYPE signal, double lots, double sl,
+                                         double tp1, double tp2, double tp3,
+                                         ENUM_STRATEGY_TYPE strategy, double score, string reason)
+{
+   // Check capacity
+   if(m_active_count >= m_max_positions)
+   {
+      Print("CTradeManager: Cannot open - max positions (", m_max_positions, ") reached");
+      return false;
+   }
+
+   // Find free slot
+   int slot = FindFreeSlot();
+   if(slot < 0)
+   {
+      Print("CTradeManager: Cannot open - no free slot available");
+      return false;
+   }
+
+   // Use existing OpenTradeWithTPs logic
+   if(!OpenTradeWithTPs(signal, lots, sl, tp1, tp2, tp3, score, reason))
+      return false;
+
+   // Copy data from legacy m_active_trade to multi-position slot
+   m_positions[slot].ticket = m_active_trade.ticket;
+   m_positions[slot].type = m_active_trade.type;
+   m_positions[slot].strategy = strategy;
+   m_positions[slot].state = m_active_trade.state;
+   m_positions[slot].initial_lots = m_active_trade.initial_lots;
+   m_positions[slot].current_lots = m_active_trade.current_lots;
+   m_positions[slot].entry_price = m_active_trade.entry_price;
+   m_positions[slot].initial_sl = m_active_trade.initial_sl;
+   m_positions[slot].current_sl = m_active_trade.current_sl;
+   m_positions[slot].tp1 = m_active_trade.tp1;
+   m_positions[slot].tp2 = m_active_trade.tp2;
+   m_positions[slot].tp3 = m_active_trade.tp3;
+   m_positions[slot].highest_price = m_active_trade.highest_price;
+   m_positions[slot].lowest_price = m_active_trade.lowest_price;
+   m_positions[slot].partials_taken = m_active_trade.partials_taken;
+   m_positions[slot].open_time = m_active_trade.entry_time;
+   m_positions[slot].start_bar_time = m_trade_start_bar_time;
+   m_positions[slot].entry_score = m_active_trade.entry_score;
+   m_positions[slot].realized_pnl = m_active_trade.realized_pnl;
+   m_positions[slot].entry_reason = m_active_trade.entry_reason;
+   m_positions[slot].is_active = true;
+
+   m_active_count++;
+
+   // Persist state
+   PersistPositionState(slot);
+
+   Print("CTradeManager: Position opened in slot ", slot, " | Ticket: ", m_positions[slot].ticket,
+         " | Strategy: ", EnumToString(strategy), " | Active: ", m_active_count, "/", m_max_positions);
+
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| ClosePosition - Close position by ticket                        |
+//+------------------------------------------------------------------+
+bool CTradeManager::ClosePosition(ulong ticket, string reason)
+{
+   int index = FindPositionByTicket(ticket);
+   if(index < 0)
+   {
+      Print("CTradeManager: Position ticket ", ticket, " not found in tracking array");
+      return false;
+   }
+
+   // Close the position using retry logic
+   if(!ClosePositionWithRetry(ticket))
+   {
+      Print("CTradeManager: Failed to close position ", ticket);
+      return false;
+   }
+
+   // Clear slot
+   m_positions[index].Reset();
+   m_active_count = MathMax(0, m_active_count - 1);
+
+   // Clear persisted state
+   ClearPositionGV(index);
+
+   // Sync legacy flag
+   if(m_active_count == 0)
+      m_has_active_trade = false;
+
+   Print("CTradeManager: Position ", ticket, " closed. Reason: ", reason,
+         " | Active: ", m_active_count, "/", m_max_positions);
+
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| CloseAllPositions - Close all tracked positions                 |
+//+------------------------------------------------------------------+
+bool CTradeManager::CloseAllPositions(string reason)
+{
+   bool all_success = true;
+
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(m_positions[i].is_active)
+      {
+         if(!ClosePosition(m_positions[i].ticket, reason))
+            all_success = false;
+      }
+   }
+
+   // Also close legacy if any (belt and suspenders)
+   if(m_has_active_trade)
+      CloseTrade(reason);
+
+   return all_success;
+}
+
+//+------------------------------------------------------------------+
+//| GetPositionByIndex - Get position data by slot index            |
+//+------------------------------------------------------------------+
+bool CTradeManager::GetPositionByIndex(int index, SActivePosition& pos) const
+{
+   if(index < 0 || index >= MAX_CONCURRENT_POSITIONS) return false;
+   if(!m_positions[index].is_active) return false;
+
+   pos = m_positions[index];
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| GetPositionByTicket - Get position data by ticket               |
+//+------------------------------------------------------------------+
+bool CTradeManager::GetPositionByTicket(ulong ticket, SActivePosition& pos) const
+{
+   int index = FindPositionIndex(ticket);
+   if(index < 0) return false;
+
+   pos = m_positions[index];
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| HasPositionForStrategy - Check if strategy has an open position |
+//+------------------------------------------------------------------+
+bool CTradeManager::HasPositionForStrategy(ENUM_STRATEGY_TYPE strategy) const
+{
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(m_positions[i].is_active && m_positions[i].strategy == strategy)
+         return true;
+   }
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| HasLosingPosition - Check if any position is in loss            |
+//+------------------------------------------------------------------+
+bool CTradeManager::HasLosingPosition() const
+{
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(!m_positions[i].is_active) continue;
+
+      // Check broker position for PnL
+      if(PositionSelectByTicket(m_positions[i].ticket))
+      {
+         if(PositionGetDouble(POSITION_PROFIT) < 0)
+            return true;
+      }
+   }
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| GetTotalUnrealizedPnL - Sum of all open position PnL            |
+//+------------------------------------------------------------------+
+double CTradeManager::GetTotalUnrealizedPnL() const
+{
+   double total = 0;
+
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(!m_positions[i].is_active) continue;
+
+      if(PositionSelectByTicket(m_positions[i].ticket))
+         total += PositionGetDouble(POSITION_PROFIT);
+   }
+
+   return total;
+}
+
+//+------------------------------------------------------------------+
+//| ManagePositionByIndex - Manage single position (state machine)  |
+//+------------------------------------------------------------------+
+void CTradeManager::ManagePositionByIndex(int index)
+{
+   if(index < 0 || index >= MAX_CONCURRENT_POSITIONS) return;
+   if(!m_positions[index].is_active) return;
+
+   ulong ticket = m_positions[index].ticket;
+
+   // Check if position still exists at broker
+   if(!PositionSelectByTicket(ticket))
+   {
+      // Position closed externally (SL/TP hit or manual)
+      Print("CTradeManager: Position ", ticket, " closed externally");
+      m_positions[index].Reset();
+      m_active_count = MathMax(0, m_active_count - 1);
+      ClearPositionGV(index);
+      return;
+   }
+
+   // Update extremes (high/low tracking)
+   UpdatePositionExtremes(index);
+
+   // Update current lots from broker
+   m_positions[index].current_lots = PositionGetDouble(POSITION_VOLUME);
+   m_positions[index].current_sl = PositionGetDouble(POSITION_SL);
+
+   // The actual state machine logic is handled by the legacy OnTick
+   // For multi-position, we sync the active trade and let OnTick manage
+   // This is a simplified approach - full multi-position state machine
+   // would require refactoring the entire OnTick logic
+}
+
+//+------------------------------------------------------------------+
+//| ManageAllPositions - Called from EA OnTick to manage all        |
+//+------------------------------------------------------------------+
+void CTradeManager::ManageAllPositions()
+{
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      if(m_positions[i].is_active)
+         ManagePositionByIndex(i);
+   }
+
+   // Also run legacy OnTick for backward compatibility
+   // (handles the single active trade if any)
+   OnTick();
+}
+
+//+------------------------------------------------------------------+
+//| SyncWithBrokerPositions - Sync on EA restart                    |
+//+------------------------------------------------------------------+
+void CTradeManager::SyncWithBrokerPositions()
+{
+   // Reset all slots first
+   m_active_count = 0;
+   for(int i = 0; i < MAX_CONCURRENT_POSITIONS; i++)
+   {
+      m_positions[i].Reset();
+   }
+
+   // Scan broker positions
+   for(int p = PositionsTotal() - 1; p >= 0; p--)
+   {
+      ulong ticket = PositionGetTicket(p);
+      if(!PositionSelectByTicket(ticket)) continue;
+
+      // Check magic and symbol
+      if(PositionGetInteger(POSITION_MAGIC) != m_magic_number) continue;
+      if(PositionGetString(POSITION_SYMBOL) != m_symbol) continue;
+
+      // Find a free slot
+      if(m_active_count >= MAX_CONCURRENT_POSITIONS)
+      {
+         Print("CTradeManager: WARNING - More positions than MAX_CONCURRENT_POSITIONS!");
+         break;
+      }
+
+      int slot = FindFreeSlot();
+      if(slot < 0) break;
+
+      // Load position data from broker
+      m_positions[slot].ticket = ticket;
+      m_positions[slot].type = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+      m_positions[slot].entry_price = PositionGetDouble(POSITION_PRICE_OPEN);
+      m_positions[slot].current_lots = PositionGetDouble(POSITION_VOLUME);
+      m_positions[slot].initial_lots = m_positions[slot].current_lots;  // Will be overwritten if persisted
+      m_positions[slot].current_sl = PositionGetDouble(POSITION_SL);
+      m_positions[slot].initial_sl = m_positions[slot].current_sl;  // Will be overwritten if persisted
+      m_positions[slot].tp1 = PositionGetDouble(POSITION_TP);
+      m_positions[slot].open_time = (datetime)PositionGetInteger(POSITION_TIME);
+      m_positions[slot].highest_price = m_positions[slot].entry_price;
+      m_positions[slot].lowest_price = m_positions[slot].entry_price;
+      m_positions[slot].is_active = true;
+      m_positions[slot].state = TRADE_STATE_POSITION_OPEN;
+      m_positions[slot].strategy = STRATEGY_NONE;  // Will be overwritten if persisted
+
+      // Load persisted state (partials, initial values, strategy)
+      LoadPositionState(slot, ticket);
+
+      // Infer state from position data
+      double r = GetPositionRMultiple(slot);
+      if(m_positions[slot].partials_taken >= 2)
+         m_positions[slot].state = TRADE_STATE_TRAILING;
+      else if(m_positions[slot].partials_taken == 1)
+         m_positions[slot].state = TRADE_STATE_PARTIAL_TP;
+      else if(r >= m_trailing_start)
+         m_positions[slot].state = TRADE_STATE_TRAILING;
+      else if((m_positions[slot].type == POSITION_TYPE_BUY &&
+               m_positions[slot].current_sl >= m_positions[slot].entry_price - m_point) ||
+              (m_positions[slot].type == POSITION_TYPE_SELL &&
+               m_positions[slot].current_sl <= m_positions[slot].entry_price + m_point))
+         m_positions[slot].state = TRADE_STATE_BREAKEVEN;
+
+      m_active_count++;
+
+      Print("CTradeManager: Synced position #", ticket, " in slot ", slot,
+            " | Strategy: ", EnumToString(m_positions[slot].strategy),
+            " | State: ", EnumToString(m_positions[slot].state),
+            " | Partials: ", m_positions[slot].partials_taken);
+   }
+
+   // Also run legacy sync for backward compatibility
+   SyncWithExistingPosition();
+
+   // Update legacy flag
+   m_has_active_trade = (m_active_count > 0);
+
+   Print("CTradeManager: Broker sync complete. Active positions: ", m_active_count, "/", m_max_positions);
 }

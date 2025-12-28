@@ -9,6 +9,8 @@
 
 #include "../Core/Definitions.mqh"
 #include "../Analysis/EliteOrderBlock.mqh"
+#include "../Analysis/CFootprintAnalyzer.mqh"
+#include "../Bridge/CFundamentalsBridge.mqh"
 
 //+------------------------------------------------------------------+
 //| Class: CSignalScoringModule                                      |
@@ -25,6 +27,10 @@ private:
 
    //--- Components
    CEliteOrderBlockDetector m_ob_detector;
+
+   //--- External bridges (not owned)
+   CFundamentalsBridge*     m_fundamentals_bridge;
+   CFootprintAnalyzer*      m_footprint_analyzer;
 
    //--- State
    int               m_last_score;
@@ -52,6 +58,10 @@ public:
    bool              GetBestOrderBlock(SAdvancedOrderBlock &ob) const { if(!m_has_ob) return false; ob = m_last_ob; return true; }
    CEliteOrderBlockDetector* GetOBDetector() { return &m_ob_detector; }
 
+   //--- Bridge setters (for dependency injection)
+   void              SetFundamentalsBridge(CFundamentalsBridge* bridge) { m_fundamentals_bridge = bridge; }
+   void              SetFootprintAnalyzer(CFootprintAnalyzer* analyzer) { m_footprint_analyzer = analyzer; }
+
 private:
    int               CalculateTechnicalScore();
    int               CalculateFundamentalScore(); // Placeholder for Phase 2
@@ -65,6 +75,8 @@ CSignalScoringModule::CSignalScoringModule() :
    m_weight_tech(0.6),
    m_weight_fund(0.25),
    m_weight_sent(0.15),
+   m_fundamentals_bridge(NULL),
+   m_footprint_analyzer(NULL),
    m_last_score(0),
    m_last_direction(WRONG_VALUE),
    m_last_sl(0.0),
@@ -177,9 +189,53 @@ int CSignalScoringModule::CalculateFundamentalScore()
 }
 
 //+------------------------------------------------------------------+
-//| Calculate Sentiment Score (Placeholder)                          |
+//| Calculate Sentiment Score                                        |
+//| Sources (priority order):                                        |
+//|   1. CFundamentalsBridge sentiment from Python Hub              |
+//|   2. Footprint delta as sentiment proxy (order flow bias)       |
+//|   3. Neutral fallback (50)                                       |
 //+------------------------------------------------------------------+
 int CSignalScoringModule::CalculateSentimentScore()
 {
-   return 50; // Neutral
+   // === SOURCE 1: CFundamentalsBridge (Python Hub) ===
+   // Returns sentiment_score from fundamentals API
+   // Score range: 0-100 (0=extreme bearish, 50=neutral, 100=extreme bullish)
+   if(m_fundamentals_bridge != NULL && m_fundamentals_bridge.IsConnected())
+   {
+      double sent = m_fundamentals_bridge.GetSentimentScore();
+      // Validate: sentiment_score from bridge is 0-100
+      // Formula: received_score = bridge.GetSentimentScore()
+      // Example: sent=75 -> return 75 (bullish sentiment)
+      if(sent > 0.0)
+      {
+         // Clamp to valid range
+         int score = (int)MathRound(MathMax(0, MathMin(100, sent)));
+         return score;
+      }
+   }
+
+   // === SOURCE 2: Footprint Delta as Sentiment Proxy ===
+   // Delta = Ask Volume - Bid Volume
+   // Positive delta = buyers dominating = bullish sentiment
+   // Negative delta = sellers dominating = bearish sentiment
+   // Formula: sentiment = 50 + (delta_percent * 0.5)
+   // Example: delta_percent=+40% -> sentiment = 50 + 20 = 70 (bullish)
+   // Example: delta_percent=-30% -> sentiment = 50 - 15 = 35 (bearish)
+   if(m_footprint_analyzer != NULL)
+   {
+      SFootprintSignal sig = m_footprint_analyzer.GetSignal();
+      double delta_pct = sig.deltaPercent;  // -100 to +100
+
+      // Scale delta percentage to sentiment score (0-100)
+      // delta_pct of +100 -> sentiment of 100
+      // delta_pct of -100 -> sentiment of 0
+      // delta_pct of 0 -> sentiment of 50
+      double sentiment = 50.0 + (delta_pct * 0.5);
+      int score = (int)MathRound(MathMax(0, MathMin(100, sentiment)));
+      return score;
+   }
+
+   // === SOURCE 3: Neutral fallback ===
+   // No data sources available, return neutral
+   return 50;
 }

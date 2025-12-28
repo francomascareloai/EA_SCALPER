@@ -112,24 +112,27 @@ private:
    //--- Configuration
    string            m_symbol;
    int               m_magic;
-   
+
    //--- Mode settings
    int               m_preposition_minutes;  // Enter X min before
    int               m_pullback_wait_sec;    // Wait X sec after release
    double            m_pullback_retrace_pct; // Enter at X% retracement
    double            m_straddle_distance;    // Distance from price for stops
-   
+
    //--- Risk settings
    double            m_news_risk_percent;    // Risk % for news trades
    double            m_max_spread_pips;      // Max spread during news
    int               m_max_slippage;         // Max slippage points
-   
+
    //--- R:R settings
    double            m_min_rr;               // Minimum R:R
    double            m_tp1_rr;               // TP1 R multiple
    double            m_tp2_rr;               // TP2 R multiple
    double            m_tp3_rr;               // TP3 R multiple
-   
+
+   //--- Cached indicator handle (performance optimization)
+   int               m_atr_handle_m5;        // ATR(14) on M5 for news setup calculations
+
    //--- State
    CTrade            m_trade;
    bool              m_has_pending_news;
@@ -199,33 +202,36 @@ CNewsTrader::CNewsTrader()
 {
    m_symbol = "";
    m_magic = 12345;
-   
+
    m_preposition_minutes = 5;
    m_pullback_wait_sec = 45;
    m_pullback_retrace_pct = 0.382;  // 38.2% Fib
    m_straddle_distance = 50;        // 50 points
-   
+
    m_news_risk_percent = 0.25;      // 0.25% risk for news
    m_max_spread_pips = 30;
    m_max_slippage = 50;
-   
+
    m_min_rr = 1.5;
    m_tp1_rr = 1.5;
    m_tp2_rr = 2.5;
    m_tp3_rr = 4.0;
-   
+
+   // Initialize cached handle to invalid (will be created in Init)
+   m_atr_handle_m5 = INVALID_HANDLE;
+
    m_has_pending_news = false;
    m_last_trade_time = 0;
-   
+
    m_straddle_buy_ticket = 0;
    m_straddle_sell_ticket = 0;
    m_straddle_active = false;
-   
+
    m_spike_high = 0;
    m_spike_low = DBL_MAX;
    m_spike_start_time = 0;
    m_spike_detected = false;
-   
+
    m_current_setup.Reset();
 }
 
@@ -234,6 +240,9 @@ CNewsTrader::CNewsTrader()
 //+------------------------------------------------------------------+
 CNewsTrader::~CNewsTrader()
 {
+   // Release cached indicator handle
+   if(m_atr_handle_m5 != INVALID_HANDLE)
+      IndicatorRelease(m_atr_handle_m5);
 }
 
 //+------------------------------------------------------------------+
@@ -243,17 +252,22 @@ bool CNewsTrader::Init(string symbol = "", int magic = 12345)
 {
    m_symbol = symbol == "" ? _Symbol : symbol;
    m_magic = magic;
-   
+
    m_trade.SetExpertMagicNumber(m_magic);
    m_trade.SetDeviationInPoints(m_max_slippage);
    m_trade.SetTypeFilling(ORDER_FILLING_IOC);
-   
+
+   // Create cached ATR handle for M5
+   m_atr_handle_m5 = iATR(m_symbol, PERIOD_M5, 14);
+   if(m_atr_handle_m5 == INVALID_HANDLE)
+      Print("CNewsTrader: Failed to create ATR handle for M5");
+
    Print("CNewsTrader: Initialized for ", m_symbol);
    Print("  Risk: ", m_news_risk_percent, "%");
    Print("  Pre-position: ", m_preposition_minutes, " min before");
    Print("  Pullback wait: ", m_pullback_wait_sec, " sec");
    Print("  Straddle distance: ", m_straddle_distance, " points");
-   
+
    return true;
 }
 
@@ -311,12 +325,16 @@ SNewsTradeSetup CNewsTrader::AnalyzeNewsSetup(const SNewsWindowResult &news_wind
    // Calculate entry/SL/TP based on mode
    double ask = SymbolInfoDouble(m_symbol, SYMBOL_ASK);
    double bid = SymbolInfoDouble(m_symbol, SYMBOL_BID);
-   double atr = iATR(m_symbol, PERIOD_M5, 14);
-   double atr_value = 0;
-   
-   if(CopyBuffer(atr, 0, 0, 1, &atr_value) <= 0)
-      atr_value = 30 * _Point;  // Default
-   
+   double atr_value = 30 * _Point;  // Default fallback
+
+   // Get ATR value from cached handle (FIX: iATR returns handle, not value)
+   if(m_atr_handle_m5 != INVALID_HANDLE)
+   {
+      double buf[1];
+      if(CopyBuffer(m_atr_handle_m5, 0, 0, 1, buf) > 0)
+         atr_value = buf[0];
+   }
+
    switch(setup.mode)
    {
       case NEWS_MODE_PREPOSITION:
@@ -540,17 +558,148 @@ SNewsTradeResult CNewsTrader::ExecutePreposition(const SNewsTradeSetup &setup)
 
 //+------------------------------------------------------------------+
 //| Execute pullback trade                                            |
+//|                                                                   |
+//| PULLBACK STRATEGY (v4.1 Implementation):                         |
+//| 1. Wait for initial spike (price moved > 2*ATR in < 5 bars)      |
+//| 2. Wait for 38.2% Fibonacci retracement                          |
+//| 3. Enter in spike direction with tight stop                      |
 //+------------------------------------------------------------------+
 SNewsTradeResult CNewsTrader::ExecutePullback(const SNewsTradeSetup &setup)
 {
    SNewsTradeResult result;
    result.success = false;
    result.ticket = 0;
-   result.message = "Pullback not implemented yet";
-   
-   // TODO: Implement pullback entry logic
-   // Wait for spike, then enter on retracement
-   
+   result.ticket_2 = 0;
+   result.slippage = 0;
+
+   if(!setup.is_valid || setup.mode != NEWS_MODE_PULLBACK)
+   {
+      result.message = "Invalid setup for pullback";
+      return result;
+   }
+
+   // Check if spike has been detected
+   if(!m_spike_detected)
+   {
+      result.message = "No spike detected yet - continue tracking";
+      return result;
+   }
+
+   double range = m_spike_high - m_spike_low;
+
+   // Validate spike size: must be > 50 points (meaningful move)
+   if(range < 50 * _Point)
+   {
+      result.message = "Spike range too small";
+      return result;
+   }
+
+   // Get current price
+   double ask = SymbolInfoDouble(m_symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(m_symbol, SYMBOL_BID);
+   double current_price = (ask + bid) / 2;
+
+   // Determine spike direction
+   // For bullish spike: current price closer to spike_high than spike_low at peak
+   // For bearish spike: current price closer to spike_low than spike_high at peak
+   double mid_level = (m_spike_high + m_spike_low) / 2;
+   bool bullish_spike = (current_price > mid_level);
+   bool bearish_spike = !bullish_spike;
+
+   // Calculate 38.2% retracement level
+   double retrace_382;
+   double entry_price, sl_price, tp_price;
+
+   if(bullish_spike)
+   {
+      // Bullish spike: price spiked UP, wait for pullback DOWN to 38.2%
+      retrace_382 = m_spike_high - range * m_pullback_retrace_pct;
+
+      // Check if price has pulled back to entry zone (within 10 points of 38.2%)
+      if(current_price > retrace_382 + 10 * _Point || current_price < m_spike_low)
+      {
+         result.message = "Not in pullback entry zone yet";
+         return result;
+      }
+
+      entry_price = ask;  // Buy at ask
+      sl_price = m_spike_low - 20 * _Point;  // SL below spike low + buffer
+      tp_price = m_spike_high + range * 0.5; // TP: 50% extension beyond spike high
+   }
+   else
+   {
+      // Bearish spike: price spiked DOWN, wait for pullback UP to 38.2%
+      retrace_382 = m_spike_low + range * m_pullback_retrace_pct;
+
+      // Check if price has pulled back to entry zone (within 10 points of 38.2%)
+      if(current_price < retrace_382 - 10 * _Point || current_price > m_spike_high)
+      {
+         result.message = "Not in pullback entry zone yet";
+         return result;
+      }
+
+      entry_price = bid;  // Sell at bid
+      sl_price = m_spike_high + 20 * _Point;  // SL above spike high + buffer
+      tp_price = m_spike_low - range * 0.5;   // TP: 50% extension beyond spike low
+   }
+
+   // Check spread
+   if(!IsSpreadAcceptable())
+   {
+      result.message = "Spread too high for pullback entry";
+      return result;
+   }
+
+   // Calculate lot size
+   double sl_points = MathAbs(entry_price - sl_price) / _Point;
+   double lot_size = CalculateLotSize(sl_points);
+
+   if(lot_size <= 0)
+   {
+      result.message = "Invalid lot size calculated";
+      return result;
+   }
+
+   // Execute the trade
+   string comment = "NEWS_PB_" + setup.event_name;
+   bool success = false;
+
+   if(bullish_spike)
+   {
+      success = m_trade.Buy(lot_size, m_symbol, 0, sl_price, tp_price, comment);
+   }
+   else
+   {
+      success = m_trade.Sell(lot_size, m_symbol, 0, sl_price, tp_price, comment);
+   }
+
+   if(success)
+   {
+      result.success = true;
+      result.ticket = m_trade.ResultOrder();
+      result.actual_entry = m_trade.ResultPrice();
+      result.slippage = MathAbs(result.actual_entry - entry_price) / _Point;
+      result.message = "Pullback entry executed";
+
+      m_last_trade_time = TimeGMT();
+      m_current_setup = setup;
+
+      // Reset spike tracking for next opportunity
+      m_spike_detected = false;
+      m_spike_high = 0;
+      m_spike_low = DBL_MAX;
+      m_spike_start_time = 0;
+
+      Print("CNewsTrader: Pullback ", (bullish_spike ? "BUY" : "SELL"),
+            " @ ", result.actual_entry,
+            " SL: ", sl_price, " TP: ", tp_price,
+            " (spike range: ", DoubleToString(range / _Point, 0), " pts)");
+   }
+   else
+   {
+      result.message = "Pullback order failed: " + IntegerToString(GetLastError());
+   }
+
    return result;
 }
 

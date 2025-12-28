@@ -9,6 +9,7 @@
 
 #include <Trade/Trade.mqh>
 #include "../Core/Definitions.mqh"
+#include "../Core/MathUtils.mqh"  // v4.3: Shared math utilities (NormalizeLotSize)
 
 //+------------------------------------------------------------------+
 //| Class: CTradeExecutor                                            |
@@ -80,10 +81,20 @@ void CTradeExecutor::Init(int magic, int slippage, string comment)
    m_magic_number = magic;
    m_slippage = slippage;
    m_comment = comment;
-   
+
    m_trade.SetExpertMagicNumber(m_magic_number);
    m_trade.SetDeviationInPoints(m_slippage);
-   m_trade.SetTypeFilling(ORDER_FILLING_FOK); // Or IOC depending on broker
+
+   // FIX: Auto-detect supported filling mode instead of hardcoding
+   ENUM_ORDER_TYPE_FILLING fill_mode = ORDER_FILLING_FOK;  // default
+   uint filling_flags = (uint)SymbolInfoInteger(_Symbol, SYMBOL_FILLING_MODE);
+   if((filling_flags & SYMBOL_FILLING_FOK) != 0)
+      fill_mode = ORDER_FILLING_FOK;
+   else if((filling_flags & SYMBOL_FILLING_IOC) != 0)
+      fill_mode = ORDER_FILLING_IOC;
+   else
+      fill_mode = ORDER_FILLING_RETURN;  // fallback for exchange execution
+   m_trade.SetTypeFilling(fill_mode);
    m_trade.SetAsyncMode(false); // Sync for Phase 1
 }
 
@@ -191,7 +202,7 @@ void CTradeExecutor::ApplyBreakEven(ulong ticket)
 {
    if(!PositionSelectByTicket(ticket)) return;
    if(m_breakeven_trigger <= 0) return;
-   
+
    double open_price = PositionGetDouble(POSITION_PRICE_OPEN);
    double current_sl = PositionGetDouble(POSITION_SL);
    double current_price = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
@@ -199,7 +210,7 @@ void CTradeExecutor::ApplyBreakEven(ulong ticket)
    int stops_lvl = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
    int freeze_lvl = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL);
    double min_dist = MathMax(stops_lvl, freeze_lvl) * point;
-   
+
    if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
    {
       // Check if price moved enough
@@ -211,7 +222,11 @@ void CTradeExecutor::ApplyBreakEven(ulong ticket)
          if(current_sl < new_sl || current_sl == 0)
          {
             if(!m_trade.PositionModify(ticket, new_sl, PositionGetDouble(POSITION_TP)))
-               Print("TradeExecutor: BE modify failed - ", m_trade.ResultRetcodeDescription(), " (retcode ", m_trade.ResultRetcode(), ")");
+            {
+               #ifdef DEBUG_MODE
+               PrintFormat("TradeExecutor: BE modify failed - %s (retcode %u)", m_trade.ResultRetcodeDescription(), m_trade.ResultRetcode());
+               #endif
+            }
          }
       }
    }
@@ -224,7 +239,11 @@ void CTradeExecutor::ApplyBreakEven(ulong ticket)
          if(current_sl > new_sl || current_sl == 0)
          {
             if(!m_trade.PositionModify(ticket, new_sl, PositionGetDouble(POSITION_TP)))
-               Print("TradeExecutor: BE modify failed - ", m_trade.ResultRetcodeDescription(), " (retcode ", m_trade.ResultRetcode(), ")");
+            {
+               #ifdef DEBUG_MODE
+               PrintFormat("TradeExecutor: BE modify failed - %s (retcode %u)", m_trade.ResultRetcodeDescription(), m_trade.ResultRetcode());
+               #endif
+            }
          }
       }
    }
@@ -237,38 +256,51 @@ void CTradeExecutor::ApplyTrailingStop(ulong ticket)
 {
    if(!PositionSelectByTicket(ticket)) return;
    if(m_trailing_start <= 0 || m_trailing_step <= 0) return;
-   
+
    double current_sl = PositionGetDouble(POSITION_SL);
    double current_price = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
    int stops_lvl = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
    int freeze_lvl = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL);
    double min_dist = MathMax(stops_lvl, freeze_lvl) * point;
-   
+
    if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
    {
+      // Check that price is in profit before trailing
+      double open_price = PositionGetDouble(POSITION_PRICE_OPEN);
+      if(current_price < open_price + m_trailing_start * point) return;  // Not in profit enough
+
       double new_sl = current_price - m_trailing_start * point;
-      
+
       if(new_sl > current_sl)
       {
          // Only update if step is met
          if(new_sl - current_sl >= m_trailing_step * point && (current_price - new_sl) >= min_dist)
          {
             if(!m_trade.PositionModify(ticket, new_sl, PositionGetDouble(POSITION_TP)))
-               Print("TradeExecutor: trail update failed - ", m_trade.ResultRetcodeDescription(), " (retcode ", m_trade.ResultRetcode(), ")");
+            {
+               #ifdef DEBUG_MODE
+               PrintFormat("TradeExecutor: trail update failed - %s (retcode %u)", m_trade.ResultRetcodeDescription(), m_trade.ResultRetcode());
+               #endif
+            }
          }
       }
    }
    else // SELL
    {
       double new_sl = current_price + m_trailing_start * point;
-      
+      if(new_sl <= 0) return;  // Invalid SL price
+
       if(new_sl < current_sl || current_sl == 0)
       {
          if((current_sl == 0 || current_sl - new_sl >= m_trailing_step * point) && (new_sl - current_price) >= min_dist)
          {
             if(!m_trade.PositionModify(ticket, new_sl, PositionGetDouble(POSITION_TP)))
-               Print("TradeExecutor: trail update failed - ", m_trade.ResultRetcodeDescription(), " (retcode ", m_trade.ResultRetcode(), ")");
+            {
+               #ifdef DEBUG_MODE
+               PrintFormat("TradeExecutor: trail update failed - %s (retcode %u)", m_trade.ResultRetcodeDescription(), m_trade.ResultRetcode());
+               #endif
+            }
          }
       }
    }
