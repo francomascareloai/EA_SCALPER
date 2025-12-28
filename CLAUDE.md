@@ -2,10 +2,10 @@
 <!-- CORE v3.9.2: Bootstrap-only (small). Delegate details to subagents/docs. -->
 <metadata>
   <title>EA_SCALPER_XAUUSD - Claude CORE</title>
-  <version>3.10.27</version>
+  <version>3.10.28</version>
   <last_updated>2025-12-27</last_updated>
-  <changelog>v3.10.27: Add mql5_build section with WSL→MT5 workflow scripts and paths.</changelog>
-  <previous_changes>v3.10.26: Add FORGE-MQL5 v1.0 agent. | v3.10.25: Fix model_policy to reflect actual CLIProxy config. | v3.10.24: Add git_safety rule. | v3.10.20: Add ARGUS research gate.</previous_changes>
+  <changelog>v3.10.28: Add performance_first_protocol - mandatory performance mindset for all agents.</changelog>
+  <previous_changes>v3.10.27: Add mql5_build section. | v3.10.26: Add FORGE-MQL5 v1.0. | v3.10.25: Fix model_policy. | v3.10.24: Add git_safety rule.</previous_changes>
 
   <!-- CRITICAL: Version Control for CLAUDE.md -->
   <version_control_rule priority="MANDATORY">
@@ -268,6 +268,46 @@
   </validation_gate>
 
   <performance_limits>OnTick less than 50ms (block deploy if exceeded) | ONNX less than 5ms | Python Hub less than 400ms</performance_limits>
+
+  <performance_first_protocol priority="CRITICAL">
+    <purpose>Write fast code from the start. Backtest went 110s → 27s after fixing avoidable sins.</purpose>
+    <philosophy>Every line runs 100,000 times in a backtest. Think "per-tick cost" BEFORE writing.</philosophy>
+
+    <cardinal_sins note="NEVER do these - cause massive slowdowns">
+      <sin id="1">Inline imports inside methods (import overhead on every call)</sin>
+      <sin id="2">datetime.now() in hot paths (timezone lookup + syscall per tick)</sin>
+      <sin id="3">List + slicing for sliding windows (O(n) copy per append)</sin>
+      <sin id="4">Object creation in loops (GC pressure, allocation overhead)</sin>
+      <sin id="5">Repeated attribute lookups (self.x.y.z resolved every time)</sin>
+      <sin id="6">String formatting in hot paths (f-strings allocate strings)</sin>
+      <sin id="7">Full timezone conversion when epoch-minute suffices</sin>
+    </cardinal_sins>
+
+    <hot_path_classification>
+      <hot>on_quote_tick | on_bar | on_data | check_dd | update_hwm | validate_time_gate | calculate_position_size</hot>
+      <cold>on_start | on_stop | __init__ | configure | reset | error handlers</cold>
+      <rule>Code in HOT methods MUST pass performance checklist</rule>
+    </hot_path_classification>
+
+    <mandatory_patterns>
+      <pattern name="imports">ALL imports at module top - ZERO inside methods</pattern>
+      <pattern name="timestamps">Use tick.ts_event, cache epoch-minute for time checks</pattern>
+      <pattern name="sliding_windows">Use collections.deque(maxlen=N) - NEVER list+slice</pattern>
+      <pattern name="locals">Cache self.x.y.z in local variable before loops</pattern>
+      <pattern name="time_caching">Cache timezone conversions by epoch-minute (only changes every 60s)</pattern>
+      <pattern name="logging">Only WARN/ERROR in hot paths; use lazy: logger.debug("x=%s", x)</pattern>
+    </mandatory_patterns>
+
+    <review_gate>
+      <rule>Before reporting hot-path code done: mental benchmark "100k iterations cost?"</rule>
+      <rule>Count violations: inline imports=0, datetime.now=0, list slicing=0, object creation in loops=0</rule>
+      <rule>If ANY violation found → FIX BEFORE DONE</rule>
+    </review_gate>
+
+    <detailed_patterns ref=".claude/agents/forge-nautilus.md">
+      Full copy-paste patterns in FORGE spec: PERFORMANCE-FIRST PROTOCOL section
+    </detailed_patterns>
+  </performance_first_protocol>
 
   <ml_validation>
     <trade_gate>P(direction) greater than 0.65</trade_gate>
