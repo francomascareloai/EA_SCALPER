@@ -1,3 +1,5 @@
+#ifndef FTMO_RISKMANAGER_MQH
+#define FTMO_RISKMANAGER_MQH
 //+------------------------------------------------------------------+
 //|                                             FTMO_RiskManager.mqh |
 //|                                                           Franco |
@@ -8,6 +10,8 @@
 #property strict
 
 #include "../Core/Definitions.mqh"
+#include "../Core/CDSTHelper.mqh"  // Shared DST calculation utility
+#include "../Core/MathUtils.mqh"   // Shared math utilities (NormalizeLotSize)
 #include <Trade/Trade.mqh>
 
 //+------------------------------------------------------------------+
@@ -41,6 +45,8 @@ private:
    
    //--- Configuration
    int               m_slippage_points;        // Configurable slippage for CloseAllPositions
+   string            m_symbol;                 // Symbol filter for CloseAllPositions
+   long              m_magic;                  // Magic number filter for CloseAllPositions
    
    //--- GENIUS v1.0: Adaptive Capital Curve
    bool              m_use_genius_sizing;      // Toggle 6-factor adaptive sizing
@@ -79,7 +85,7 @@ public:
                     ~CFTMO_RiskManager();
 
    //--- Initialization
-   bool              Init(double risk_per_trade, double max_daily_loss, double max_total_loss, int max_trades, double soft_stop, double regime_multiplier = 1.0, int et_offset_hours = -5);
+   bool              Init(double risk_per_trade, double max_daily_loss, double max_total_loss, int max_trades, double soft_stop, double regime_multiplier = 1.0, int et_offset_hours = -5, string symbol = "", long magic = 0);
 
    //--- Core Logic
    void              OnTick();
@@ -193,7 +199,7 @@ CFTMO_RiskManager::~CFTMO_RiskManager()
 //+------------------------------------------------------------------+
 //| Initialization                                                   |
 //+------------------------------------------------------------------+
-bool CFTMO_RiskManager::Init(double risk_per_trade, double max_daily_loss, double max_total_loss, int max_trades, double soft_stop, double regime_multiplier/*=1.0*/, int et_offset_hours/*=-5*/)
+bool CFTMO_RiskManager::Init(double risk_per_trade, double max_daily_loss, double max_total_loss, int max_trades, double soft_stop, double regime_multiplier/*=1.0*/, int et_offset_hours/*=-5*/, string symbol/*=""*/, long magic/*=0*/)
 {
    m_risk_per_trade_percent = risk_per_trade;
    m_max_daily_loss_percent = max_daily_loss;
@@ -202,6 +208,10 @@ bool CFTMO_RiskManager::Init(double risk_per_trade, double max_daily_loss, doubl
    m_soft_stop_percent = soft_stop;
    m_regime_multiplier = MathMin(MathMax(regime_multiplier, 0.0), 3.0); // allow 0 to block trades, cap 3x
    m_et_offset_hours = et_offset_hours;
+
+   // Store symbol/magic for filtered flatten operations
+   m_symbol = (symbol == "") ? _Symbol : symbol;
+   m_magic = magic;
 
    m_initial_equity = AccountInfoDouble(ACCOUNT_EQUITY);
    if(m_initial_equity <= 0)
@@ -274,12 +284,14 @@ void CFTMO_RiskManager::OnNewDay()
 }
 
 //+------------------------------------------------------------------+
-//| Helper: current ET time                                          |
+//| Helper: current ET time with DST-safe calculation                |
+//| Uses shared CDSTHelper for consistent DST handling               |
 //+------------------------------------------------------------------+
 datetime CFTMO_RiskManager::GetETNow() const
 {
-   // Use GMT to avoid broker offset drift; ET offset configurable for DST
-   return TimeGMT() + m_et_offset_hours * 3600;
+   // Use CDSTHelper for DST-safe ET calculation
+   datetime gmt = TimeGMT();
+   return CDSTHelper::UTCtoET(gmt);
 }
 
 int CFTMO_RiskManager::GetETDayOfYear() const
@@ -533,28 +545,45 @@ double CFTMO_RiskManager::CalculateLotSize(double sl_points, double regime_multi
    
    double tick_value = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
    double tick_size = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-   
-   if(tick_size == 0 || tick_value == 0) return 0.0;
+
+   // Division-by-zero guard: tick_size and tick_value must be valid
+   if(MathAbs(tick_size) < 0.00001 || MathAbs(tick_value) < 0.00001)
+   {
+      Print("FTMO_RiskManager: tick_size or tick_value is zero - cannot calculate lot size");
+      return 0.0;
+   }
 
    // Lot = Risk / (SL_Points * TickValue_Per_Point)
    // SL is in points. TickValue is per Tick.
    // Value per point = TickValue * (Point / TickSize)
-   
+
    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
    double value_per_point = tick_value * (point / tick_size);
-   if(value_per_point <= 0.0) return 0.0;
-   
+
+   // Division-by-zero guard: value_per_point must be valid
+   if(MathAbs(value_per_point) < 0.00001)
+   {
+      Print("FTMO_RiskManager: value_per_point is zero - cannot calculate lot size");
+      return 0.0;
+   }
+
    double lot_size = risk_amount / (sl_points * value_per_point);
-   
+
    // Apply regime multiplier (0.5 for noisy, 1.0 for prime, 0 blocks trade)
    lot_size *= effective_regime;
-   
+
    // Normalize Lot Size
    double min_lot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    double max_lot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
    double step_lot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-   if(step_lot <= 0) return 0.0;
-   
+
+   // Division-by-zero guard: step_lot must be valid
+   if(MathAbs(step_lot) < 0.00001)
+   {
+      Print("FTMO_RiskManager: step_lot is zero - cannot normalize lot size");
+      return 0.0;
+   }
+
    lot_size = MathFloor(lot_size / step_lot) * step_lot;
    
    // Enforce risk ceiling when min lot exceeds desired risk
@@ -579,36 +608,68 @@ double CFTMO_RiskManager::CalculateLotSize(double sl_points, double regime_multi
 double CFTMO_RiskManager::CalculateLotSizeWithRisk(double sl_points, double custom_risk_percent)
 {
    if(sl_points <= 0 || custom_risk_percent <= 0) return 0.0;
-   
+
    // Use equity to incorporate floating P/L in live risk
    double account_equity = AccountInfoDouble(ACCOUNT_EQUITY);
    double risk_amount = account_equity * (custom_risk_percent / 100.0);
-   
+
    double tick_value = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
    double tick_size = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-   
-   if(tick_size == 0 || tick_value == 0) return 0.0;
-   
+
+   // Division-by-zero guard: tick_size and tick_value must be valid
+   if(MathAbs(tick_size) < 0.00001 || MathAbs(tick_value) < 0.00001)
+   {
+      Print("FTMO_RiskManager: tick_size or tick_value is zero - cannot calculate lot size");
+      return 0.0;
+   }
+
    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
    double value_per_point = tick_value * (point / tick_size);
-   if(value_per_point <= 0.0) return 0.0;
-   
+
+   // Division-by-zero guard: value_per_point must be valid
+   if(MathAbs(value_per_point) < 0.00001)
+   {
+      Print("FTMO_RiskManager: value_per_point is zero - cannot calculate lot size");
+      return 0.0;
+   }
+
    double lot_size = risk_amount / (sl_points * value_per_point);
-   
+
    // Normalize Lot Size
    double min_lot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    double max_lot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
    double step_lot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-   if(step_lot <= 0) return 0.0;
-   
+
+   // Division-by-zero guard: step_lot must be valid
+   if(MathAbs(step_lot) < 0.00001)
+   {
+      Print("FTMO_RiskManager: step_lot is zero - cannot normalize lot size");
+      return 0.0;
+   }
+
    lot_size = MathFloor(lot_size / step_lot) * step_lot;
-   
+
    // Enforce minimum lot
+   // CRITICAL FIX: If min_lot exceeds computed lot, the trade would violate risk cap
+   // Return 0 to reject trade rather than force min_lot and breach risk
    if(lot_size < min_lot)
-      lot_size = min_lot;
-   
+   {
+      // Division-by-zero guard for account_equity
+      if(MathAbs(account_equity) < 0.01)
+      {
+         Print("FTMO_RiskManager: account_equity is zero - cannot calculate risk percent");
+         return 0.0;
+      }
+      double min_lot_risk_amount = min_lot * sl_points * value_per_point;
+      double min_lot_risk_percent = (min_lot_risk_amount / account_equity) * 100.0;
+      Print("RiskManager: min_lot=", DoubleToString(min_lot, 2), " would impose ",
+            DoubleToString(min_lot_risk_percent, 2), "% risk, exceeds target ",
+            DoubleToString(custom_risk_percent, 2), "% - REJECTING trade");
+      return 0.0;  // Block trade to preserve risk cap
+   }
+
    // Enforce maximum lot
-   if(lot_size > max_lot) 
+   if(lot_size > max_lot)
       lot_size = max_lot;
    
    return lot_size;
@@ -889,20 +950,26 @@ void CFTMO_RiskManager::UpdateDailyProfit()
 //+------------------------------------------------------------------+
 void CFTMO_RiskManager::CloseAllPositions()
 {
-   static CTrade tradeCloser;
+   CTrade tradeCloser;  // Non-static - create fresh each call to avoid state leak
    tradeCloser.SetDeviationInPoints(m_slippage_points);  // Configurable slippage
    tradeCloser.SetTypeFilling(ORDER_FILLING_IOC);
 
    const int MAX_RETRIES = 3;
    const int RETRY_DELAY_MS = 100;
 
-   // Flatten everything on this symbol to guarantee compliance
+   // Flatten only positions matching this EA's symbol and magic
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong ticket = PositionGetTicket(i);
       if(!PositionSelectByTicket(ticket))
          continue;
-      
+
+      // CRITICAL FIX: Filter by symbol and magic to avoid closing unrelated positions
+      if(PositionGetString(POSITION_SYMBOL) != m_symbol)
+         continue;
+      if(m_magic != 0 && PositionGetInteger(POSITION_MAGIC) != m_magic)
+         continue;
+
       // Retry loop for robustness
       bool closed = false;
       for(int attempt = 1; attempt <= MAX_RETRIES && !closed; attempt++)
@@ -915,10 +982,10 @@ void CFTMO_RiskManager::CloseAllPositions()
          else
          {
             uint retcode = tradeCloser.ResultRetcode();
-            Print("RiskManager: close attempt ", attempt, "/", MAX_RETRIES, 
-                  " failed for #", ticket, " retcode: ", retcode, 
+            Print("RiskManager: close attempt ", attempt, "/", MAX_RETRIES,
+                  " failed for #", ticket, " retcode: ", retcode,
                   " desc: ", tradeCloser.ResultRetcodeDescription());
-            
+
             // Retry on requote/price changed
             if(retcode == TRADE_RETCODE_REQUOTE || retcode == TRADE_RETCODE_PRICE_CHANGED)
             {
@@ -929,7 +996,7 @@ void CFTMO_RiskManager::CloseAllPositions()
                break;  // Don't retry on other errors
          }
       }
-      
+
       if(!closed)
          Print("RiskManager: CRITICAL - failed to close position #", ticket, " after ", MAX_RETRIES, " attempts!");
    }
@@ -943,3 +1010,5 @@ void CFTMO_RiskManager::PersistHaltState()
    GlobalVariableSet(m_gv_halt_key, m_trading_halted ? 1.0 : 0.0);
    GlobalVariableSet(m_gv_hard_breach_key, m_total_hard_breached ? 1.0 : 0.0);
 }
+
+#endif // FTMO_RISKMANAGER_MQH

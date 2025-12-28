@@ -176,7 +176,7 @@ CGapCooldown::~CGapCooldown()
 //+------------------------------------------------------------------+
 //| Initialize the gap cooldown system                                |
 //+------------------------------------------------------------------+
-bool CGapCooldown::Init(int gap_threshold_min = 30, int cooldown_min = 15, bool verbose = true)
+bool CGapCooldown::Init(int gap_threshold_min, int cooldown_min, bool verbose)
 {
     // Validate inputs
     // Formula: gap_threshold_min must be positive (minimum gap to trigger cooldown)
@@ -482,7 +482,7 @@ void CGapCooldown::Reset(void)
 //+------------------------------------------------------------------+
 //| Force a cooldown period (for manual or external triggers)         |
 //+------------------------------------------------------------------+
-void CGapCooldown::ForceCooldown(int minutes, string reason = "manual")
+void CGapCooldown::ForceCooldown(int minutes, string reason)
 {
     if(minutes <= 0)
     {

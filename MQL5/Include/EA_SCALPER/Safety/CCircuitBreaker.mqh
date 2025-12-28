@@ -70,8 +70,8 @@ struct SCircuitStatus
       initial_balance = 0;
       daily_dd_percent = 0;
       total_dd_percent = 0;
-      daily_dd_limit = 4.0;
-      total_dd_limit = 8.0;
+      daily_dd_limit = 2.5;       // APEX: 3% max, trigger at 2.5%
+      total_dd_limit = 4.0;       // APEX: 5% max, trigger at 4%
       consecutive_losses = 0;
       max_consecutive_losses = 5;
       trigger_time = 0;
@@ -86,9 +86,9 @@ struct SCircuitStatus
 //| Class: CCircuitBreaker                                            |
 //| Purpose: Protect account from catastrophic losses                 |
 //|                                                                   |
-//| FTMO Rules Implemented:                                           |
-//| - Max Daily Loss: 5% (we trigger at 4% for safety buffer)         |
-//| - Max Total Loss: 10% (we trigger at 8% for safety buffer)        |
+//| APEX Rules Implemented:                                           |
+//| - Max Trailing DD: 5% from HWM (we trigger at 4% for safety)      |
+//| - Max Daily DD: 3% (we trigger at 2.5% for safety buffer)         |
 //+------------------------------------------------------------------+
 class CCircuitBreaker
 {
@@ -121,8 +121,8 @@ public:
                      CCircuitBreaker();
                     ~CCircuitBreaker();
    
-   //--- Initialization
-   bool              Init(double daily_dd = 4.0, double total_dd = 8.0, 
+   //--- Initialization (APEX-aligned defaults)
+   bool              Init(double daily_dd = 2.5, double total_dd = 4.0,
                           int max_consecutive = 5, int cooldown_min = 120);
    void              SetLimits(double daily_dd, double total_dd);
    void              SetConsecutiveLossLimit(int max_losses) { m_max_consecutive = max_losses; }
@@ -172,9 +172,12 @@ private:
 //+------------------------------------------------------------------+
 CCircuitBreaker::CCircuitBreaker()
 {
-   m_daily_dd_limit = 4.0;
-   m_total_dd_limit = 8.0;
-   m_warning_threshold = 0.75;  // Warn at 75% of limit
+   //--- APEX limits (with safety buffer):
+   //--- Apex Max Trailing DD = 5% -> trigger at 4%
+   //--- Apex Max Daily DD = 3% -> trigger at 2.5%
+   m_daily_dd_limit = 2.5;       // Daily DD limit (APEX: 3% max)
+   m_total_dd_limit = 4.0;       // Trailing DD limit (APEX: 5% max)
+   m_warning_threshold = 0.75;   // Warn at 75% of limit
    m_max_consecutive = 5;
    m_cooldown_minutes = 120;
    
@@ -202,8 +205,10 @@ CCircuitBreaker::~CCircuitBreaker()
 
 //+------------------------------------------------------------------+
 //| Initialize                                                        |
+//| @param daily_dd:  Daily DD limit % (APEX: 3% max, trigger at 2.5)|
+//| @param total_dd:  Trailing DD limit % (APEX: 5% max, trigger at 4)|
 //+------------------------------------------------------------------+
-bool CCircuitBreaker::Init(double daily_dd = 4.0, double total_dd = 8.0, 
+bool CCircuitBreaker::Init(double daily_dd = 2.5, double total_dd = 4.0,
                             int max_consecutive = 5, int cooldown_min = 120)
 {
    m_daily_dd_limit = daily_dd;

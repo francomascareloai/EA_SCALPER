@@ -46,6 +46,9 @@
 #define APEX_DAILY_REDUCE   2.5    // Daily reduce (50% position)
 #define APEX_DAILY_HALT     3.0    // Daily HALT
 
+//--- GlobalVariable key for HWM persistence (survives EA restarts)
+#define GV_APEX_HWM_KEY     "EA_APEX_HWM_"
+
 //+------------------------------------------------------------------+
 //| Drawdown Analysis Structure                                       |
 //+------------------------------------------------------------------+
@@ -109,6 +112,9 @@ private:
     double            m_hwm;                 // High Water Mark - NEVER decreases
     double            m_session_start_equity;
     datetime          m_session_start_time;
+
+    //--- HWM persistence (GlobalVariable)
+    string            m_hwm_key;             // GlobalVariable key for HWM persistence
 
     //--- Cached analysis
     SApexDDAnalysis   m_analysis;
@@ -190,7 +196,7 @@ CApexDDTracker::~CApexDDTracker()
 //+------------------------------------------------------------------+
 //| Initialize tracker                                                |
 //+------------------------------------------------------------------+
-bool CApexDDTracker::Init(double initial_equity = 0)
+bool CApexDDTracker::Init(double initial_equity)
 {
     //--- Get initial equity
     //--- CRITIC FIX #1: AccountEquity() already includes floating P/L
@@ -206,11 +212,26 @@ bool CApexDDTracker::Init(double initial_equity = 0)
         return false;
     }
 
+    //--- Initialize HWM persistence key (symbol-specific)
+    m_hwm_key = GV_APEX_HWM_KEY + _Symbol;
+
     //--- Initialize all anchors
     m_hwm = m_current_equity;
     m_session_start_equity = m_current_equity;
     m_session_start_time = TimeCurrent();
     m_last_update = TimeCurrent();
+
+    //--- Restore HWM from GlobalVariable if exists (survives EA restart)
+    if(GlobalVariableCheck(m_hwm_key))
+    {
+        double saved_hwm = GlobalVariableGet(m_hwm_key);
+        // Only use saved HWM if it's higher (HWM never decreases)
+        if(saved_hwm > m_hwm)
+        {
+            m_hwm = saved_hwm;
+            Print("CApexDDTracker: Restored HWM from GlobalVariable: ", DoubleToString(m_hwm, 2));
+        }
+    }
 
     //--- Reset analysis
     m_analysis.Reset();
@@ -225,6 +246,7 @@ bool CApexDDTracker::Init(double initial_equity = 0)
     Print("CApexDDTracker: Initialized");
     Print("  Initial Equity: ", DoubleToString(m_current_equity, 2));
     Print("  HWM: ", DoubleToString(m_hwm, 2));
+    Print("  HWM Key: ", m_hwm_key);
     Print("  Session Start: ", TimeToString(m_session_start_time));
 
     return true;
@@ -300,6 +322,8 @@ void CApexDDTracker::UpdateInternal()
     if(m_current_equity > m_hwm)
     {
         m_hwm = m_current_equity;
+        //--- Persist HWM to GlobalVariable (survives EA restart)
+        GlobalVariableSet(m_hwm_key, m_hwm);
     }
 
     //--- Calculate Trailing DD (from HWM) - THE APEX KILLER

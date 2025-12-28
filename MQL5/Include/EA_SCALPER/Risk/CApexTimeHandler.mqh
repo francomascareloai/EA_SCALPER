@@ -29,6 +29,7 @@
 #property strict
 
 #include "../Core/Definitions.mqh"
+#include "../Core/CDSTHelper.mqh"  // Shared DST calculation utility
 
 // === APEX TIME THRESHOLDS (in minutes from midnight ET) ===
 #define APEX_TIME_BLOCK_NEW_MIN     990   // 4:30 PM ET = 16*60 + 30 = 990
@@ -36,19 +37,16 @@
 #define APEX_TIME_HALTED_MIN        1019  // 4:59 PM ET = 16*60 + 59 = 1019
 #define APEX_MARKET_CLOSE_MIN       1020  // 5:00 PM ET = 17*60 = 1020
 
-// === DST CONSTANTS (US Daylight Saving Time Rules) ===
-// DST starts: 2nd Sunday of March at 2:00 AM local (EST->EDT)
-// DST ends:   1st Sunday of November at 2:00 AM local (EDT->EST)
-#define DST_START_MONTH             3     // March
-#define DST_START_NTH_SUNDAY        2     // 2nd Sunday
-#define DST_END_MONTH               11    // November
-#define DST_END_NTH_SUNDAY          1     // 1st Sunday
-#define DST_TRANSITION_HOUR_UTC     7     // 2:00 AM EST = 7:00 UTC (spring forward)
-#define DST_TRANSITION_END_HOUR_UTC 6     // 2:00 AM EDT = 6:00 UTC (fall back)
+// === ROLLOVER PROTECTION (5 PM ET +/- buffer) ===
+// Forex rollover occurs at 5 PM ET - block trades during this window
+// to avoid swap charges and potential spread widening
+#define APEX_ROLLOVER_CENTER_MIN    1020  // 5:00 PM ET = 17*60 = 1020
+#define APEX_ROLLOVER_BUFFER_MIN    5     // 5 minute buffer before/after
+// Rollover window: 4:55 PM - 5:05 PM ET (1015-1025 minutes)
 
-// === ET OFFSET FROM UTC ===
-#define EST_OFFSET_HOURS            (-5)  // Eastern Standard Time: UTC-5
-#define EDT_OFFSET_HOURS            (-4)  // Eastern Daylight Time: UTC-4
+// === DST CONSTANTS - Now defined in CDSTHelper.mqh ===
+// Kept here for backward compatibility - values imported from CDSTHelper
+// #define DST_START_MONTH, DST_START_NTH_SUNDAY, etc. are in CDSTHelper.mqh
 
 //+------------------------------------------------------------------+
 //| CApexTimeHandler - DST-Safe Eastern Time Handler                 |
@@ -60,6 +58,9 @@ private:
     // Current ET offset (recalculated on each call)
     int               m_et_offset_hours;
 
+    // Broker GMT offset for backtest correction
+    int               m_broker_gmt_offset;  // e.g., +2 for FTMO (EET), +3 for FTMO DST
+
     // Cached state
     ENUM_TIME_STATE   m_current_state;
     datetime          m_last_check_utc;
@@ -70,9 +71,7 @@ private:
     datetime          m_session_start_utc;
     int               m_dst_checks_count;
 
-    // Internal methods
-    int               GetNthSundayOfMonth(int year, int month, int nth);
-    bool              CalculateIsDST(datetime utc_time);
+    // Internal methods - DST now delegated to CDSTHelper
     int               GetMinutesFromMidnightET(datetime utc_time);
 
 public:
@@ -80,7 +79,7 @@ public:
     ~CApexTimeHandler() {}
 
     // Initialization
-    bool              Init();
+    bool              Init(int broker_gmt_offset = 2);  // Default: FTMO uses GMT+2 (EET)
     void              Reset();
 
     // Core time methods - CRITIC FIX #2: All use TimeGMT() internally
@@ -101,6 +100,7 @@ public:
     bool              IsEmergencyClose();                 // TIME_EMERGENCY (4:55 PM+)
     bool              IsHalted();                         // TIME_HALTED (4:59 PM+)
     bool              CanOpenNewTrade();                  // Convenience method
+    bool              IsInRolloverWindow();               // 5 PM ET +/- buffer (swap time)
 
     // Diagnostic info
     string            GetTimeStateString();
@@ -115,6 +115,7 @@ public:
 CApexTimeHandler::CApexTimeHandler()
 {
     m_et_offset_hours = EST_OFFSET_HOURS;  // Default to EST
+    m_broker_gmt_offset = 2;               // Default: FTMO uses GMT+2 (EET)
     m_current_state = TIME_NORMAL;
     m_last_check_utc = 0;
     m_last_minutes_from_midnight = 0;
@@ -126,14 +127,17 @@ CApexTimeHandler::CApexTimeHandler()
 //+------------------------------------------------------------------+
 //| Initialize the time handler                                       |
 //+------------------------------------------------------------------+
-bool CApexTimeHandler::Init()
+bool CApexTimeHandler::Init(int broker_gmt_offset)
 {
+    // Store broker GMT offset for backtest timezone correction
+    m_broker_gmt_offset = broker_gmt_offset;
+
     // CRITIC FIX #2: Use TimeGMT() as base
     datetime utc_now = TimeGMT();
 
-    // Calculate initial DST state
-    m_is_dst = CalculateIsDST(utc_now);
-    m_et_offset_hours = m_is_dst ? EDT_OFFSET_HOURS : EST_OFFSET_HOURS;
+    // Calculate initial DST state using shared CDSTHelper
+    m_is_dst = CDSTHelper::IsDST(utc_now);
+    m_et_offset_hours = CDSTHelper::GetETOffsetHours(utc_now);
 
     // Record session start
     m_session_start_utc = utc_now;
@@ -161,117 +165,30 @@ void CApexTimeHandler::Reset()
     m_dst_checks_count = 0;
 }
 
-//+------------------------------------------------------------------+
-//| CRITIC FIX #3: Get the nth Sunday of a given month               |
-//| Deterministic algorithm using Zeller-like day-of-week calculation|
-//+------------------------------------------------------------------+
-int CApexTimeHandler::GetNthSundayOfMonth(int year, int month, int nth)
-{
-    // Create MqlDateTime for the 1st of the month
-    MqlDateTime mdt;
-    ZeroMemory(mdt);
-    mdt.year = year;
-    mdt.mon = month;
-    mdt.day = 1;
-    mdt.hour = 12;  // Noon to avoid DST edge issues
-
-    // Convert to datetime and back to get day_of_week
-    datetime first_of_month = StructToTime(mdt);
-    TimeToStruct(first_of_month, mdt);
-
-    // day_of_week: 0=Sunday, 1=Monday, ..., 6=Saturday
-    int first_dow = mdt.day_of_week;
-
-    // Calculate days until first Sunday
-    // If first_dow is 0 (Sunday), days_to_first_sunday = 0
-    // If first_dow is 1 (Monday), days_to_first_sunday = 6
-    // Formula: (7 - first_dow) % 7
-    int days_to_first_sunday = (7 - first_dow) % 7;
-
-    // Calculate the day of the nth Sunday
-    // 1st Sunday = 1 + days_to_first_sunday
-    // nth Sunday = 1 + days_to_first_sunday + (nth - 1) * 7
-    int day = 1 + days_to_first_sunday + (nth - 1) * 7;
-
-    // Validate result (should be between 1-31)
-    if(day < 1 || day > 31)
-    {
-        Print("CApexTimeHandler: ERROR - GetNthSundayOfMonth returned invalid day: ", day);
-        return 1;  // Fallback to 1st
-    }
-
-    return day;
-}
+// NOTE: GetNthSundayOfMonth and CalculateIsDST have been moved to CDSTHelper.mqh
+// See Core/CDSTHelper.mqh for the shared DST calculation utilities
 
 //+------------------------------------------------------------------+
-//| CRITIC FIX #3: Deterministic DST calculation                      |
-//| US DST: 2nd Sunday March 2:00 AM -> 1st Sunday November 2:00 AM  |
-//+------------------------------------------------------------------+
-bool CApexTimeHandler::CalculateIsDST(datetime utc_time)
-{
-    m_dst_checks_count++;
-
-    MqlDateTime mdt;
-    TimeToStruct(utc_time, mdt);
-
-    int year = mdt.year;
-    int month = mdt.mon;
-    int day = mdt.day;
-    int hour_utc = mdt.hour;
-
-    // Calculate DST boundaries for this year
-    int dst_start_day = GetNthSundayOfMonth(year, DST_START_MONTH, DST_START_NTH_SUNDAY);
-    int dst_end_day = GetNthSundayOfMonth(year, DST_END_MONTH, DST_END_NTH_SUNDAY);
-
-    // Before March: No DST
-    if(month < DST_START_MONTH)
-        return false;
-
-    // After November: No DST
-    if(month > DST_END_MONTH)
-        return false;
-
-    // Between April and October: DST is active
-    if(month > DST_START_MONTH && month < DST_END_MONTH)
-        return true;
-
-    // March: Check if we're past the transition
-    if(month == DST_START_MONTH)
-    {
-        if(day < dst_start_day)
-            return false;
-        if(day > dst_start_day)
-            return true;
-        // On the transition day: DST starts at 7:00 UTC (2:00 AM EST -> 3:00 AM EDT)
-        // At 6:59 UTC = 1:59 AM EST (no DST)
-        // At 7:00 UTC = 3:00 AM EDT (DST active)
-        return (hour_utc >= DST_TRANSITION_HOUR_UTC);
-    }
-
-    // November: Check if we're before the transition
-    if(month == DST_END_MONTH)
-    {
-        if(day < dst_end_day)
-            return true;
-        if(day > dst_end_day)
-            return false;
-        // On the transition day: DST ends at 6:00 UTC (2:00 AM EDT -> 1:00 AM EST)
-        // At 5:59 UTC = 1:59 AM EDT (DST active)
-        // At 6:00 UTC = 1:00 AM EST (no DST)
-        return (hour_utc < DST_TRANSITION_END_HOUR_UTC);
-    }
-
-    // Should not reach here
-    return false;
-}
-
-//+------------------------------------------------------------------+
-//| Get current UTC time - CRITIC FIX #2: Use TimeGMT() ONLY         |
+//| Get current UTC time - CRITIC FIX #2: Use TimeGMT() ONLY (LIVE)  |
+//| BACKTEST FIX: Convert broker server time to UTC                  |
 //+------------------------------------------------------------------+
 datetime CApexTimeHandler::GetCurrentUTC()
 {
-    // CRITIC FIX #2: TimeGMT() is the ONLY time source
-    // DO NOT use TimeCurrent() - it returns broker server time which
+    // In Strategy Tester: use simulated time (TimeCurrent) and convert to UTC
+    // In Live: use wall-clock time (TimeGMT)
+    if(MQLInfoInteger(MQL_TESTER))
+    {
+        // In backtest, TimeCurrent() returns broker server time (e.g., GMT+2 for FTMO)
+        // Convert to UTC by subtracting the broker's GMT offset
+        // Formula: UTC = BrokerTime - BrokerGMTOffset
+        // Example: BrokerTime 03:24 GMT+2 → UTC = 03:24 - 2h = 01:24 UTC
+        datetime broker_time = TimeCurrent();
+        datetime utc_time = broker_time - m_broker_gmt_offset * 3600;
+        return utc_time;
+    }
+
+    // CRITIC FIX #2: TimeGMT() is the ONLY time source for LIVE
+    // DO NOT use TimeCurrent() in live - it returns broker server time which
     // may have unknown offset from UTC/ET
     return TimeGMT();
 }
@@ -283,14 +200,13 @@ datetime CApexTimeHandler::GetCurrentET()
 {
     datetime utc_now = GetCurrentUTC();
 
-    // Recalculate DST state (may have changed during session)
-    m_is_dst = CalculateIsDST(utc_now);
-    m_et_offset_hours = m_is_dst ? EDT_OFFSET_HOURS : EST_OFFSET_HOURS;
+    // Recalculate DST state using shared CDSTHelper (may have changed during session)
+    m_is_dst = CDSTHelper::IsDST(utc_now);
+    m_et_offset_hours = CDSTHelper::GetETOffsetHours(utc_now);
+    m_dst_checks_count++;
 
-    // Formula: ET = UTC + offset_hours * 3600
-    // Note: offset is negative (-5 or -4), so this subtracts from UTC
-    // Example: 21:00 UTC + (-5 * 3600) = 16:00 EST = 4:00 PM ET
-    return utc_now + m_et_offset_hours * 3600;
+    // Use CDSTHelper for conversion
+    return CDSTHelper::UTCtoET(utc_now);
 }
 
 //+------------------------------------------------------------------+
@@ -298,10 +214,10 @@ datetime CApexTimeHandler::GetCurrentET()
 //+------------------------------------------------------------------+
 int CApexTimeHandler::GetETOffsetHours()
 {
-    // Ensure we have fresh DST calculation
+    // Ensure we have fresh DST calculation using CDSTHelper
     datetime utc_now = GetCurrentUTC();
-    m_is_dst = CalculateIsDST(utc_now);
-    m_et_offset_hours = m_is_dst ? EDT_OFFSET_HOURS : EST_OFFSET_HOURS;
+    m_is_dst = CDSTHelper::IsDST(utc_now);
+    m_et_offset_hours = CDSTHelper::GetETOffsetHours(utc_now);
 
     return m_et_offset_hours;
 }
@@ -312,7 +228,7 @@ int CApexTimeHandler::GetETOffsetHours()
 bool CApexTimeHandler::IsDST()
 {
     datetime utc_now = GetCurrentUTC();
-    m_is_dst = CalculateIsDST(utc_now);
+    m_is_dst = CDSTHelper::IsDST(utc_now);
     return m_is_dst;
 }
 
@@ -321,10 +237,8 @@ bool CApexTimeHandler::IsDST()
 //+------------------------------------------------------------------+
 int CApexTimeHandler::GetMinutesFromMidnightET(datetime utc_time)
 {
-    // Calculate ET from UTC
-    bool is_dst = CalculateIsDST(utc_time);
-    int offset = is_dst ? EDT_OFFSET_HOURS : EST_OFFSET_HOURS;
-    datetime et_time = utc_time + offset * 3600;
+    // Use CDSTHelper for ET conversion
+    datetime et_time = CDSTHelper::UTCtoET(utc_time);
 
     MqlDateTime mdt;
     TimeToStruct(et_time, mdt);
@@ -444,6 +358,30 @@ bool CApexTimeHandler::IsHalted()
 bool CApexTimeHandler::CanOpenNewTrade()
 {
     return IsNormalTrading();
+}
+
+//+------------------------------------------------------------------+
+//| IsInRolloverWindow - Check if in 5 PM ET rollover window         |
+//|                                                                   |
+//| Forex rollover occurs daily at 5 PM ET. During this window:      |
+//| - Spreads may widen significantly                                 |
+//| - Swaps are charged/credited                                      |
+//| - Liquidity may be reduced                                        |
+//|                                                                   |
+//| Block new trades 5 minutes before and after 5 PM ET.             |
+//| Window: 4:55 PM - 5:05 PM ET (1015-1025 minutes from midnight)   |
+//+------------------------------------------------------------------+
+bool CApexTimeHandler::IsInRolloverWindow()
+{
+    int minutes = GetMinutesFromMidnight();
+
+    // Rollover window: 5 PM ET +/- 5 minutes (1015-1025 minutes)
+    // 4:55 PM ET = 1015 minutes
+    // 5:05 PM ET = 1025 minutes
+    int window_start = APEX_ROLLOVER_CENTER_MIN - APEX_ROLLOVER_BUFFER_MIN;  // 1015
+    int window_end   = APEX_ROLLOVER_CENTER_MIN + APEX_ROLLOVER_BUFFER_MIN;  // 1025
+
+    return (minutes >= window_start && minutes <= window_end);
 }
 
 //+------------------------------------------------------------------+

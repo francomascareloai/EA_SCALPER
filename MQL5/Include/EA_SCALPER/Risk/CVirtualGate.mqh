@@ -97,6 +97,12 @@ private:
     SVirtualGateResult m_last_result;            // Last evaluation result
     bool              m_initialized;
 
+    //--- Self-update state (for OnTick auto-evaluation)
+    string            m_symbol;                  // Symbol to monitor
+    ENUM_TIMEFRAMES   m_timeframe;               // Timeframe for bar data
+    datetime          m_last_bar_time;           // Last bar time we processed
+    bool              m_self_update_enabled;     // If true, OnTick will auto-update
+
     //--- Internal methods
     double            CalculateMedian(const double& ranges[]);
     double            ClampScore(double value);
@@ -111,6 +117,10 @@ public:
                           double cluster_spike_mult = VGATE_DEFAULT_CLUSTER_MULTIPLIER,
                           double cluster_max_frac = VGATE_DEFAULT_CLUSTER_MAX_FRACTION,
                           bool fail_open = false);
+
+    //--- Enable self-updating mode: OnTick will auto-refresh median and evaluate
+    //--- Call this after Init() to enable auto-evaluation
+    void              EnableSelfUpdate(string symbol = NULL, ENUM_TIMEFRAMES tf = PERIOD_M5);
 
     //--- Core evaluation
     //--- CRITIC FIX: bar_index MUST be >= 1 (completed bars only!)
@@ -144,7 +154,7 @@ public:
     virtual bool              IsBlocked(void)     { return m_last_reason != VGATE_OK; }
     virtual ENUM_GATE_REASON  GetReason(void)     { return m_last_reason != VGATE_OK ? GATE_VIRTUAL : GATE_OK; }
     virtual string            GetReasonText(void);
-    virtual void              OnTick(void)        { /* No tick-level update needed */ }
+    virtual void              OnTick(void);  // Self-updating on new bar
     virtual void              Reset(void);
     virtual string            GetGateName(void)   { return "VirtualGate"; }
 
@@ -167,6 +177,12 @@ CVirtualGate::CVirtualGate()
     m_last_reason = VGATE_INSUFFICIENT_HISTORY;
     m_last_result.Reset();
     m_initialized = false;
+
+    //--- Self-update state
+    m_symbol = "";
+    m_timeframe = PERIOD_M5;
+    m_last_bar_time = 0;
+    m_self_update_enabled = false;
 }
 
 //+------------------------------------------------------------------+
@@ -179,11 +195,11 @@ CVirtualGate::~CVirtualGate()
 //+------------------------------------------------------------------+
 //| Initialize with configuration                                      |
 //+------------------------------------------------------------------+
-bool CVirtualGate::Init(int lookback_bars = VGATE_DEFAULT_LOOKBACK,
-                        double range_spike_mult = VGATE_DEFAULT_SPIKE_MULTIPLIER,
-                        double cluster_spike_mult = VGATE_DEFAULT_CLUSTER_MULTIPLIER,
-                        double cluster_max_frac = VGATE_DEFAULT_CLUSTER_MAX_FRACTION,
-                        bool fail_open = false)
+bool CVirtualGate::Init(int lookback_bars,
+                        double range_spike_mult,
+                        double cluster_spike_mult,
+                        double cluster_max_frac,
+                        bool fail_open)
 {
     //--- Validate parameters
     if(lookback_bars <= 1)
@@ -234,6 +250,27 @@ bool CVirtualGate::Init(int lookback_bars = VGATE_DEFAULT_LOOKBACK,
     Print("  Fail open: ", m_fail_open_on_insufficient);
 
     return true;
+}
+
+//+------------------------------------------------------------------+
+//| Enable self-updating mode                                          |
+//|                                                                    |
+//| When enabled, OnTick() will:                                       |
+//| 1. Detect new completed bars                                       |
+//| 2. Update median range from bar[1..lookback]                       |
+//| 3. Evaluate bar[1] to update gate status                           |
+//+------------------------------------------------------------------+
+void CVirtualGate::EnableSelfUpdate(string symbol = NULL, ENUM_TIMEFRAMES tf = PERIOD_M5)
+{
+    m_symbol = (symbol == NULL || symbol == "") ? Symbol() : symbol;
+    m_timeframe = tf;
+    m_last_bar_time = 0;
+    m_self_update_enabled = true;
+
+    Print("CVirtualGate: Self-update enabled for ", m_symbol, " ", EnumToString(m_timeframe));
+
+    //--- Force immediate update on enable
+    OnTick();
 }
 
 //+------------------------------------------------------------------+
@@ -654,6 +691,76 @@ double CVirtualGate::ClampScore(double value)
     if(value <= 0.0) return 0.0;
     if(value >= 1.0) return 1.0;
     return value;
+}
+
+//+------------------------------------------------------------------+
+//| OnTick - self-updating gate evaluation                             |
+//|                                                                    |
+//| If self-update is enabled:                                         |
+//| 1. Detects new completed bars                                      |
+//| 2. Updates median range from completed bars                        |
+//| 3. Evaluates bar[1] to update gate status                          |
+//+------------------------------------------------------------------+
+void CVirtualGate::OnTick(void)
+{
+    if(!m_self_update_enabled || !m_initialized)
+        return;
+
+    //--- Get current bar time (bar[0] open time)
+    datetime bar0_time = iTime(m_symbol, m_timeframe, 0);
+    if(bar0_time == 0)
+        return;  // Data not ready
+
+    //--- Check if we have a new completed bar
+    if(bar0_time == m_last_bar_time)
+        return;  // Same bar, no update needed
+
+    m_last_bar_time = bar0_time;
+
+    //--- Get number of available bars
+    int bars_available = Bars(m_symbol, m_timeframe);
+    if(bars_available < m_lookback_bars + 1)
+    {
+        //--- Not enough history yet
+        if(!m_fail_open_on_insufficient)
+        {
+            m_last_reason = VGATE_INSUFFICIENT_HISTORY;
+            m_last_result.gate_ok = false;
+            m_last_result.reason = VGATE_INSUFFICIENT_HISTORY;
+            m_last_result.gate_score = 0.0;
+        }
+        return;
+    }
+
+    //--- Fetch completed bar ranges (bar[1] to bar[lookback])
+    //--- bar[0] is the forming bar - we NEVER use it
+    double ranges[];
+    ArrayResize(ranges, m_lookback_bars);
+
+    MqlRates rates[];
+    int copied = CopyRates(m_symbol, m_timeframe, 1, m_lookback_bars, rates);
+    if(copied < m_lookback_bars)
+    {
+        //--- CopyRates failed - keep previous state or fail-open
+        return;
+    }
+
+    //--- Extract ranges from completed bars
+    for(int i = 0; i < m_lookback_bars; i++)
+    {
+        ranges[i] = rates[i].high - rates[i].low;
+    }
+
+    //--- Update cached median range
+    UpdateMedianRange(ranges);
+
+    //--- Now evaluate bar[1] (most recent completed bar)
+    datetime bar1_ts = rates[m_lookback_bars - 1].time;  // Most recent in the array
+    double bar1_range = rates[m_lookback_bars - 1].high - rates[m_lookback_bars - 1].low;
+    datetime now = TimeCurrent();
+
+    //--- Call Evaluate to update m_last_reason and m_last_result
+    Evaluate(1, bar1_ts, now, bar1_range);
 }
 
 //+------------------------------------------------------------------+

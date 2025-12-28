@@ -31,6 +31,7 @@
 #include "../Safety/CSpreadMonitor.mqh"
 #include "CVirtualGate.mqh"
 #include "CGapCooldown.mqh"
+#include "../Analysis/CNewsCalendarNative.mqh"  // v4.1: News gate integration
 
 //--- Maximum number of reasons in fixed array (CRITIC FIX #5)
 #define MAX_RISK_REASONS 8
@@ -130,11 +131,13 @@ private:
     CSpreadMonitor*     m_spread_monitor;
     CVirtualGate*       m_virtual_gate;     // Forward declared - may be NULL
     CGapCooldown*       m_gap_cooldown;     // Forward declared - may be NULL
+    CNewsCalendarNative* m_news_filter;     // v4.1: News gate - may be NULL
 
     //--- State
     bool                m_initialized;
     RiskDecision        m_last_decision;    // Cache last decision for status
     datetime            m_last_eval_time;
+    bool                m_disable_time_gates; // BACKTEST: Skip all time-based checks
 
     //--- Internal gate evaluation methods (order matters!)
     void                EvaluateTimeGate(RiskDecision &decision);
@@ -142,6 +145,7 @@ private:
     void                EvaluateSpreadGate(RiskDecision &decision);
     void                EvaluateVirtualGate(RiskDecision &decision);
     void                EvaluateGapCooldown(RiskDecision &decision);
+    void                EvaluateNewsGate(RiskDecision &decision);  // v4.1: News gate
 
 public:
                         CUnifiedRiskPolicy();
@@ -182,7 +186,14 @@ public:
                                                     m_last_decision.HasReason(GATE_DD_DAILY); }
     bool                IsBlockedBySpread(){ return m_last_decision.HasReason(GATE_SPREAD); }
     bool                IsBlockedByVirtual(){ return m_last_decision.HasReason(GATE_VIRTUAL); }
+
+    //--- BACKTEST: Disable time gates
+    void                SetDisableTimeGates(bool disable) { m_disable_time_gates = disable; }
     bool                IsBlockedByGap()   { return m_last_decision.HasReason(GATE_GAP_COOLDOWN); }
+    bool                IsBlockedByNews()  { return m_last_decision.HasReason(GATE_NEWS); }  // v4.1
+
+    //--- v4.1: News filter setter
+    void                SetNewsFilter(CNewsCalendarNative* filter) { m_news_filter = filter; }
 
     //--- Diagnostic
     void                PrintStatus();
@@ -200,9 +211,11 @@ CUnifiedRiskPolicy::CUnifiedRiskPolicy()
     m_spread_monitor = NULL;
     m_virtual_gate = NULL;
     m_gap_cooldown = NULL;
+    m_news_filter = NULL;  // v4.1: News gate
 
     m_initialized = false;
     m_last_eval_time = 0;
+    m_disable_time_gates = false;  // Default: time gates enabled
 
     m_last_decision.Reset();
 }
@@ -220,6 +233,7 @@ CUnifiedRiskPolicy::~CUnifiedRiskPolicy()
     m_spread_monitor = NULL;
     m_virtual_gate = NULL;
     m_gap_cooldown = NULL;
+    m_news_filter = NULL;  // v4.1: News gate
 }
 
 //+------------------------------------------------------------------+
@@ -285,6 +299,7 @@ bool CUnifiedRiskPolicy::Init(CApexDDTracker*     dd_tracker,
     Print("  Spread Monitor: ", m_spread_monitor != NULL ? "OK" : "MISSING");
     Print("  Virtual Gate:   ", m_virtual_gate != NULL ? "OK" : "Not attached");
     Print("  Gap Cooldown:   ", m_gap_cooldown != NULL ? "OK" : "Not attached");
+    Print("  News Filter:    ", m_news_filter != NULL ? "OK" : "Not attached (use SetNewsFilter)");
 
     return true;
 }
@@ -311,7 +326,7 @@ RiskDecision CUnifiedRiskPolicy::EvaluateEntry(int direction)
     {
         decision.can_open_new = false;
         decision.size_factor = 0.0;
-        decision.AddReason(GATE_OK, "Not initialized");
+        // No specific gate reason - general error state (blocked via can_open_new=false)
         return decision;
     }
 
@@ -338,6 +353,10 @@ RiskDecision CUnifiedRiskPolicy::EvaluateEntry(int direction)
     //--- 5. GAP COOLDOWN
     //--- Check if in post-gap cooldown period (forward declared)
     EvaluateGapCooldown(decision);
+
+    //--- 6. NEWS GATE (v4.1)
+    //--- Check if in high-impact news window
+    EvaluateNewsGate(decision);
 
     //--- Store for status queries
     m_last_decision = decision;
@@ -390,8 +409,18 @@ RiskDecision CUnifiedRiskPolicy::EvaluateExit()
 //+------------------------------------------------------------------+
 void CUnifiedRiskPolicy::EvaluateTimeGate(RiskDecision &decision)
 {
-    if(m_time_handler == NULL)
+    // BACKTEST: Skip time gates if disabled
+    if(m_disable_time_gates)
         return;
+
+    //--- FAIL-CLOSED: NULL component = BLOCKED (safety-first)
+    if(m_time_handler == NULL)
+    {
+        decision.can_open_new = false;
+        decision.must_flatten = true;  // Conservative - assume near market close
+        decision.AddReason(GATE_TIME, "Time handler unavailable - BLOCKED");
+        return;
+    }
 
     ENUM_TIME_STATE time_state = m_time_handler.GetTimeState();
 
@@ -452,8 +481,14 @@ void CUnifiedRiskPolicy::EvaluateTimeGate(RiskDecision &decision)
 //+------------------------------------------------------------------+
 void CUnifiedRiskPolicy::EvaluateDDGate(RiskDecision &decision)
 {
+    //--- FAIL-CLOSED: NULL component = BLOCKED (safety-first)
     if(m_dd_tracker == NULL)
+    {
+        decision.can_open_new = false;
+        decision.size_factor = 0.0;
+        decision.AddReason(GATE_DD_TRAILING, "DD tracker unavailable - BLOCKED");
         return;
+    }
 
     //--- Get current DD analysis
     SApexDDAnalysis dd = m_dd_tracker.GetAnalysis();
@@ -546,8 +581,17 @@ void CUnifiedRiskPolicy::EvaluateDDGate(RiskDecision &decision)
 //+------------------------------------------------------------------+
 void CUnifiedRiskPolicy::EvaluateSpreadGate(RiskDecision &decision)
 {
-    if(m_spread_monitor == NULL)
+    // v4.1: Skip spread gate if time gates are disabled (backtest mode)
+    if(m_disable_time_gates)
         return;
+
+    //--- FAIL-CLOSED: NULL component = BLOCKED (safety-first)
+    if(m_spread_monitor == NULL)
+    {
+        decision.can_open_new = false;
+        decision.AddReason(GATE_SPREAD, "Spread monitor unavailable - BLOCKED");
+        return;
+    }
 
     //--- Check if spread is blocking
     if(m_spread_monitor.IsBlocked())
@@ -592,6 +636,10 @@ void CUnifiedRiskPolicy::EvaluateSpreadGate(RiskDecision &decision)
 //+------------------------------------------------------------------+
 void CUnifiedRiskPolicy::EvaluateVirtualGate(RiskDecision &decision)
 {
+    // v4.1: Skip virtual gate if time gates are disabled (backtest mode)
+    if(m_disable_time_gates)
+        return;
+
     if(m_virtual_gate == NULL)
         return;  // Not attached
 
@@ -633,6 +681,10 @@ void CUnifiedRiskPolicy::EvaluateVirtualGate(RiskDecision &decision)
 //+------------------------------------------------------------------+
 void CUnifiedRiskPolicy::EvaluateGapCooldown(RiskDecision &decision)
 {
+    // v4.1: Skip gap cooldown if time gates are disabled (backtest mode)
+    if(m_disable_time_gates)
+        return;
+
     if(m_gap_cooldown == NULL)
         return;  // Not attached
 
@@ -642,6 +694,48 @@ void CUnifiedRiskPolicy::EvaluateGapCooldown(RiskDecision &decision)
         decision.can_open_new = false;
         decision.size_factor = MathMin(decision.size_factor, 0.0);
         decision.AddReason(GATE_GAP_COOLDOWN, m_gap_cooldown.GetReasonText());
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Evaluate News Gate (Gate #6) - v4.1                               |
+//|                                                                   |
+//| News-based blocking during high-impact economic releases.         |
+//| Uses CNewsCalendarNative for real-time MQL5 calendar data.       |
+//|                                                                   |
+//| Block conditions:                                                 |
+//| - NEWS_ACTION_BLOCK: Too close to news, no trading allowed       |
+//| - Reduce size_factor based on news proximity                     |
+//+------------------------------------------------------------------+
+void CUnifiedRiskPolicy::EvaluateNewsGate(RiskDecision &decision)
+{
+    // v4.1: Skip news gate if time gates are disabled (backtest mode)
+    if(m_disable_time_gates)
+        return;
+
+    if(m_news_filter == NULL)
+        return;  // Not attached
+
+    //--- Check news window
+    SNewsWindowNative news = m_news_filter.CheckNewsWindow();
+
+    //--- Block if in blocking window (critical/high impact events)
+    if(news.action == NEWS_ACTION_BLOCK)
+    {
+        decision.can_open_new = false;
+        decision.size_factor = MathMin(decision.size_factor, 0.0);
+        decision.AddReason(GATE_NEWS, news.reason);
+    }
+    //--- Apply size reduction for caution/pre-position windows
+    else if(news.size_multiplier < 1.0)
+    {
+        decision.size_factor = MathMin(decision.size_factor, news.size_multiplier);
+
+        // Only add reason if news is affecting trading significantly
+        if(news.size_multiplier <= 0.5 || news.in_window)
+        {
+            decision.AddReason(GATE_NEWS, news.reason);
+        }
     }
 }
 
@@ -781,6 +875,8 @@ void CUnifiedRiskPolicy::PrintStatus()
           (m_virtual_gate.IsBlocked() ? "BLOCKED" : "OK") : "Not attached");
     Print("  Gap Cooldown: ", m_gap_cooldown != NULL ?
           (m_gap_cooldown.IsBlocked() ? "COOLING" : "OK") : "Not attached");
+    Print("  News Filter:  ", m_news_filter != NULL ?
+          (m_news_filter.ShouldBlockTrading() ? "BLOCKED" : "OK") : "Not attached");
 
     Print("--- Summary ---");
     Print("  ", GetStatusSummary());
