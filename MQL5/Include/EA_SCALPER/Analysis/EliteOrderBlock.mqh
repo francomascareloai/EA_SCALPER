@@ -18,11 +18,14 @@ private:
     bool                m_require_structure_break;  // Structure break confirmation
     bool                m_use_liquidity_confirmation; // Liquidity confirmation
     bool                m_use_volume_confirmation;  // Volume confirmation
-    
+
     // Multi-timeframe analysis
     int                 m_analysis_timeframes[4];   // Analysis timeframes (ENUM_TIMEFRAME)
     int                 m_timeframe_count;          // Number of timeframes
-    
+
+    // Cached indicator handles (performance optimization)
+    int                 m_atr_handle_h1;            // ATR(14) on H1 for confluence/proximity
+
     // Data Storage
     SAdvancedOrderBlock m_order_blocks[50];
     int                 m_ob_count;
@@ -99,20 +102,28 @@ CEliteOrderBlockDetector::CEliteOrderBlockDetector()
     m_require_structure_break = true;           // Require structure break
     m_use_liquidity_confirmation = true;        // Use liquidity confirmation
     m_use_volume_confirmation = true;           // Use volume confirmation
-    
+
     // Set analysis timeframes (MTF v3.20: M15 is primary for structure)
     m_analysis_timeframes[0] = PERIOD_H1;       // HTF - Direction
     m_analysis_timeframes[1] = PERIOD_M15;      // MTF - Primary Structure (OBs)
     m_analysis_timeframes[2] = PERIOD_M5;       // LTF - Entry confirmation
     m_analysis_timeframes[3] = PERIOD_M1;       // Micro - Precision entry
     m_timeframe_count = 4;
-    
+
     m_ob_count = 0;
+
+    // Create cached indicator handle for ATR on H1
+    m_atr_handle_h1 = iATR(_Symbol, PERIOD_H1, 14);
+    if(m_atr_handle_h1 == INVALID_HANDLE)
+        Print("CEliteOrderBlockDetector: Failed to create ATR handle for H1");
 }
 
 // Destructor
 CEliteOrderBlockDetector::~CEliteOrderBlockDetector()
 {
+    // Release cached indicator handle
+    if(m_atr_handle_h1 != INVALID_HANDLE)
+        IndicatorRelease(m_atr_handle_h1);
 }
 
 // Main detection method for elite order blocks
@@ -415,7 +426,58 @@ bool CEliteOrderBlockDetector::IsInstitutionalOrderBlock(const SAdvancedOrderBlo
 
 bool CEliteOrderBlockDetector::CheckFVGConfluence(const SAdvancedOrderBlock& ob)
 {
-    return false; // Placeholder
+    // Check if OB zone overlaps with any FVG zone within 0.5 * ATR tolerance
+    // Uses completed bars only (index >= 1) to avoid look-ahead bias
+
+    // Use cached ATR handle for tolerance calculation
+    if(m_atr_handle_h1 == INVALID_HANDLE) return false;
+
+    double atr_buf[];
+    ArrayResize(atr_buf, 1);
+    if(CopyBuffer(m_atr_handle_h1, 0, 1, 1, atr_buf) <= 0)  // Use bar 1 (completed)
+        return false;
+
+    double atr = atr_buf[0];
+    double tolerance = 0.5 * atr;
+
+    // Get market data on M15 timeframe for FVG detection (use completed bars)
+    MqlRates rates[];
+    ArraySetAsSeries(rates, true);
+    if(CopyRates(_Symbol, PERIOD_M15, 0, 100, rates) < 10)
+        return false;
+
+    // Scan for FVGs in recent history (bars 2-50, completed bars only)
+    // FVG requires 3 consecutive candles: index+1 (oldest), index (middle), index-1 (newest)
+    for(int i = 2; i < 50; i++)
+    {
+        if(i < 1 || i >= ArraySize(rates) - 1) continue;
+
+        // Check for Bullish FVG: gap between candle 1 high and candle 3 low
+        double fvg_upper_bull = rates[i-1].low;   // Candle 3 (newest) low
+        double fvg_lower_bull = rates[i+1].high;  // Candle 1 (oldest) high
+        if(fvg_upper_bull > fvg_lower_bull)  // Valid bullish FVG exists
+        {
+            // Check if OB zone overlaps with FVG zone (with tolerance)
+            double ob_top = ob.high_price + tolerance;
+            double ob_bottom = ob.low_price - tolerance;
+            if(ob_bottom <= fvg_upper_bull && ob_top >= fvg_lower_bull)
+                return true;
+        }
+
+        // Check for Bearish FVG: gap between candle 3 high and candle 1 low
+        double fvg_upper_bear = rates[i+1].low;   // Candle 1 (oldest) low
+        double fvg_lower_bear = rates[i-1].high;  // Candle 3 (newest) high
+        if(fvg_upper_bear > fvg_lower_bear)  // Valid bearish FVG exists
+        {
+            // Check if OB zone overlaps with FVG zone (with tolerance)
+            double ob_top = ob.high_price + tolerance;
+            double ob_bottom = ob.low_price - tolerance;
+            if(ob_bottom <= fvg_upper_bear && ob_top >= fvg_lower_bear)
+                return true;
+        }
+    }
+
+    return false;
 }
 
 bool CEliteOrderBlockDetector::CheckLiquidityConfluence(const SAdvancedOrderBlock& ob)
@@ -591,19 +653,15 @@ double CEliteOrderBlockDetector::GetProximityScore(ENUM_ORDER_BLOCK_TYPE type)
 {
    SAdvancedOrderBlock ob;
    if(!GetNearestOB(type, ob)) return 0;
-   
+
    double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
    double atr[];
    ArrayResize(atr, 1);
-   
-   int atr_handle = iATR(_Symbol, PERIOD_H1, 14);
-   if(atr_handle == INVALID_HANDLE) return 0;
-   if(CopyBuffer(atr_handle, 0, 0, 1, atr) <= 0) 
-   {
-      IndicatorRelease(atr_handle);
+
+   // Use cached ATR handle instead of creating new one each call
+   if(m_atr_handle_h1 == INVALID_HANDLE) return 0;
+   if(CopyBuffer(m_atr_handle_h1, 0, 0, 1, atr) <= 0)
       return 0;
-   }
-   IndicatorRelease(atr_handle);
    
    // Calculate how close price is to OB zone
    double ob_mid = (ob.high_price + ob.low_price) / 2.0;

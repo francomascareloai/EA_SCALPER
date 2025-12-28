@@ -8,6 +8,17 @@
 
 #include "../Core/Definitions.mqh"
 
+// === ONNX CONFIGURATION CONSTANTS ===
+// These replace magic numbers throughout the file for maintainability
+#define ONNX_CACHE_SECONDS           60     // Cache predictions for 60 seconds
+#define ONNX_DIRECTION_EXTRA_BARS    100    // Extra bars needed for rolling calculations
+#define ONNX_ATR_HISTORY_LOOKBACK    500    // ATR percentile calculation lookback
+#define ONNX_MIN_HURST_WINDOW        20     // Minimum window for Hurst calculation
+#define ONNX_ENTROPY_DEFAULT_BINS    10     // Default bins for Shannon entropy
+#define ONNX_RETURNS_ARRAY_SIZE      99     // Size of returns array for entropy calc
+#define ONNX_HURST_WINDOW_SIZE       100    // Window size for Hurst exponent
+#define ONNX_MIN_ENTROPY_SAMPLES     10     // Minimum samples for entropy calculation
+
 // === MODEL CONFIGURATION ===
 // Primary direction model + scaler (files should live in MQL5/Files/Models/ for sandboxed MT5 access)
 #define DIRECTION_MODEL_PATH    "Models\\direction_v2.onnx"
@@ -191,7 +202,7 @@ COnnxBrain::COnnxBrain()
    m_fakeout_loaded = false;
    
    m_norm_params.is_loaded = false;
-   m_cache_seconds = 60; // Cache predictions for 60 seconds
+   m_cache_seconds = ONNX_CACHE_SECONDS; // Use named constant
    m_last_update = 0;
    
    // Initialize indicator handles
@@ -426,21 +437,21 @@ bool COnnxBrain::CollectDirectionFeatures(float &features[])
 {
    // Get price data (need extra bars for ATR rolling window)
    MqlRates rates[];
-   int bars_needed = DIRECTION_SEQ_LEN + 100; // Extra for rolling calculations
-   if(CopyRates(_Symbol, PERIOD_M15, 0, bars_needed, rates) < DIRECTION_SEQ_LEN + 20)
+   int bars_needed = DIRECTION_SEQ_LEN + ONNX_DIRECTION_EXTRA_BARS; // Extra for rolling calculations
+   if(CopyRates(_Symbol, PERIOD_M15, 0, bars_needed, rates) < DIRECTION_SEQ_LEN + ONNX_MIN_HURST_WINDOW)
       return false;
    ArraySetAsSeries(rates, true);
-   
+
    // Get indicator values
    double rsi[], atr[], ma[];
    double bb_upper[], bb_mid[], bb_lower[];
-   
-   if(CopyBuffer(m_rsi_handle_m15, 0, 0, DIRECTION_SEQ_LEN + 20, rsi) <= 0) return false;
-   if(CopyBuffer(m_atr_handle, 0, 0, DIRECTION_SEQ_LEN + 500, atr) <= 0) return false;
-   if(CopyBuffer(m_ma_handle, 0, 0, DIRECTION_SEQ_LEN + 20, ma) <= 0) return false;
-   if(CopyBuffer(m_bb_upper_handle, 1, 0, DIRECTION_SEQ_LEN + 20, bb_upper) <= 0) return false;
-   if(CopyBuffer(m_bb_upper_handle, 0, 0, DIRECTION_SEQ_LEN + 20, bb_mid) <= 0) return false;
-   if(CopyBuffer(m_bb_upper_handle, 2, 0, DIRECTION_SEQ_LEN + 20, bb_lower) <= 0) return false;
+
+   if(CopyBuffer(m_rsi_handle_m15, 0, 0, DIRECTION_SEQ_LEN + ONNX_MIN_HURST_WINDOW, rsi) <= 0) return false;
+   if(CopyBuffer(m_atr_handle, 0, 0, DIRECTION_SEQ_LEN + ONNX_ATR_HISTORY_LOOKBACK, atr) <= 0) return false;
+   if(CopyBuffer(m_ma_handle, 0, 0, DIRECTION_SEQ_LEN + ONNX_MIN_HURST_WINDOW, ma) <= 0) return false;
+   if(CopyBuffer(m_bb_upper_handle, 1, 0, DIRECTION_SEQ_LEN + ONNX_MIN_HURST_WINDOW, bb_upper) <= 0) return false;
+   if(CopyBuffer(m_bb_upper_handle, 0, 0, DIRECTION_SEQ_LEN + ONNX_MIN_HURST_WINDOW, bb_mid) <= 0) return false;
+   if(CopyBuffer(m_bb_upper_handle, 2, 0, DIRECTION_SEQ_LEN + ONNX_MIN_HURST_WINDOW, bb_lower) <= 0) return false;
    
    ArraySetAsSeries(rsi, true);
    ArraySetAsSeries(atr, true);
@@ -449,28 +460,28 @@ bool COnnxBrain::CollectDirectionFeatures(float &features[])
    ArraySetAsSeries(bb_mid, true);
    ArraySetAsSeries(bb_lower, true);
    
-   // Calculate Hurst Exponent (using last 100 prices)
+   // Calculate Hurst Exponent (using last ONNX_HURST_WINDOW_SIZE prices)
    double prices[];
-   ArrayResize(prices, 100);
-   for(int i = 0; i < 100; i++)
+   ArrayResize(prices, ONNX_HURST_WINDOW_SIZE);
+   for(int i = 0; i < ONNX_HURST_WINDOW_SIZE; i++)
       prices[i] = rates[i].close;
-   double hurst = CalculateHurstExponent(prices, 100);
-   
-   // Calculate Shannon Entropy (using last 100 returns)
+   double hurst = CalculateHurstExponent(prices, ONNX_HURST_WINDOW_SIZE);
+
+   // Calculate Shannon Entropy (using last ONNX_RETURNS_ARRAY_SIZE returns)
    double rets_arr[];
-   ArrayResize(rets_arr, 99);
-   for(int i = 0; i < 99; i++)
+   ArrayResize(rets_arr, ONNX_RETURNS_ARRAY_SIZE);
+   for(int i = 0; i < ONNX_RETURNS_ARRAY_SIZE; i++)
    {
       if(rates[i+1].close > 0)
          rets_arr[i] = (rates[i].close - rates[i+1].close) / rates[i+1].close;
       else
          rets_arr[i] = 0;
    }
-   double entropy = CalculateShannonEntropy(rets_arr, 10);
-   
-   // Calculate volatility regime (ATR percentile over last 500 bars)
+   double entropy = CalculateShannonEntropy(rets_arr, ONNX_ENTROPY_DEFAULT_BINS);
+
+   // Calculate volatility regime (ATR percentile over last ONNX_ATR_HISTORY_LOOKBACK bars)
    double atr_min = atr[0], atr_max = atr[0];
-   int atr_count = MathMin(500, ArraySize(atr));
+   int atr_count = MathMin(ONNX_ATR_HISTORY_LOOKBACK, ArraySize(atr));
    for(int i = 1; i < atr_count; i++)
    {
       if(atr[i] < atr_min) atr_min = atr[i];
@@ -671,7 +682,7 @@ bool COnnxBrain::IsFakeoutLikely(bool is_bullish_breakout, double threshold)
 
 double COnnxBrain::CalculateHurstExponent(const double &prices[], int window)
 {
-   if(window < 20) return 0.5;
+   if(window < ONNX_MIN_HURST_WINDOW) return 0.5;
    
    // Simplified R/S analysis
    double returns[];
@@ -726,7 +737,7 @@ double COnnxBrain::CalculateHurstExponent(const double &prices[], int window)
 double COnnxBrain::CalculateShannonEntropy(const double &returns[], int bins)
 {
    int n = ArraySize(returns);
-   if(n < 10) return 0;
+   if(n < ONNX_MIN_ENTROPY_SAMPLES) return 0;
    
    // Find min/max for binning
    double min_ret = returns[0], max_ret = returns[0];

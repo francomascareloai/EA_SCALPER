@@ -120,7 +120,10 @@ private:
    
    // State
    SOptimalEntry     m_current_entry;
-   
+
+   // Timeframe storage (v4.1: avoid hardcoded PERIOD_M15)
+   ENUM_TIMEFRAMES   m_timeframe;
+
    // Indicator handles
    int               m_atr_handle;
    
@@ -199,13 +202,14 @@ CEntryOptimizer::CEntryOptimizer()
    m_sl_buffer_atr = 0.2;          // 0.2 ATR buffer for SL
    
    // XAUUSD SCALPING LIMITS - CRITICAL FOR PROP FIRMS
-   // Valores são em points (1 point = _Point). Para XAUUSD (_Point=0.01),
+   // Valores sao em points (1 point = _Point). Para XAUUSD (_Point=0.01),
    // 5000 points = $50, 1500 = $15, 3000 = $30.
    m_max_sl_points = 5000.0;       // Max ~$50
    m_min_sl_points = 1500.0;       // Min ~$15
-   m_default_sl_points = 3000.0;   // Default ~$30 se não houver estrutura
-   
+   m_default_sl_points = 3000.0;   // Default ~$30 se nao houver estrutura
+
    m_atr_handle = INVALID_HANDLE;
+   m_timeframe = PERIOD_M5;        // v4.1: Default to M5, store in Initialize()
    m_current_entry.Reset();
 }
 
@@ -215,7 +219,10 @@ CEntryOptimizer::CEntryOptimizer()
 bool CEntryOptimizer::Initialize(string symbol, ENUM_TIMEFRAMES tf)
 {
    if(symbol == NULL) symbol = _Symbol;
-   
+
+   // v4.1: Store timeframe for later use (avoids hardcoded PERIOD_M15)
+   m_timeframe = tf;
+
    // Use M5 for ATR to get tighter, more precise SL calculations
    m_atr_handle = iATR(symbol, tf, 14);
    if(m_atr_handle == INVALID_HANDLE)
@@ -223,7 +230,7 @@ bool CEntryOptimizer::Initialize(string symbol, ENUM_TIMEFRAMES tf)
       Print("CEntryOptimizer: Failed to create ATR handle");
       return false;
    }
-   
+
    Print("CEntryOptimizer: Initialized with target R:R = ", m_target_rr_ratio);
    Print("CEntryOptimizer: Using M5 timeframe for precision entries (MTF v3.20)");
    return true;
@@ -252,10 +259,14 @@ SOptimalEntry CEntryOptimizer::CalculateOptimalEntry(
    double current_price)
 {
    m_current_entry.Reset();
-   
+
    if(direction == SIGNAL_NONE)
       return m_current_entry;
-   
+
+   // v4.1: Validate ATR handle before use
+   if(m_atr_handle == INVALID_HANDLE)
+      return m_current_entry;
+
    // Get ATR
    double atr_buf[];
    if(CopyBuffer(m_atr_handle, 0, 0, 1, atr_buf) <= 0)
@@ -385,8 +396,9 @@ SOptimalEntry CEntryOptimizer::OptimizeForBuy(double fvg_low, double fvg_high,
    }
    
    entry.max_wait_bars = m_max_wait_bars;
-   entry.valid_until = TimeCurrent() + m_max_wait_bars * PeriodSeconds(PERIOD_M15);
-   
+   // v4.1: Use stored timeframe instead of hardcoded PERIOD_M15
+   entry.valid_until = TimeCurrent() + m_max_wait_bars * PeriodSeconds(m_timeframe);
+
    return entry;
 }
 
@@ -503,8 +515,9 @@ SOptimalEntry CEntryOptimizer::OptimizeForSell(double fvg_low, double fvg_high,
    }
    
    entry.max_wait_bars = m_max_wait_bars;
-   entry.valid_until = TimeCurrent() + m_max_wait_bars * PeriodSeconds(PERIOD_M15);
-   
+   // v4.1: Use stored timeframe instead of hardcoded PERIOD_M15
+   entry.valid_until = TimeCurrent() + m_max_wait_bars * PeriodSeconds(m_timeframe);
+
    return entry;
 }
 

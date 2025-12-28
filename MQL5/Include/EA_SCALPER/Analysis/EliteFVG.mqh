@@ -18,15 +18,18 @@ private:
     bool                m_require_structure_break;  // Structure break confirmation
     double              m_min_gap_size;            // Minimum gap size in points
     double              m_max_gap_size;            // Maximum gap size in points
-    
+
     // Quality assessment parameters
     double              m_institutional_threshold;  // Threshold for institutional FVG
     double              m_confluence_weight;        // Weight for confluence scoring
-    
+
     // Multi-timeframe analysis
     ENUM_TIMEFRAMES     m_analysis_timeframes[4];   // Analysis timeframes
     int                 m_timeframe_count;          // Number of timeframes
-    
+
+    // Cached indicator handles (performance optimization)
+    int                 m_atr_handle_h1;            // ATR(14) on H1 for confluence/proximity
+
     // Data Storage
     SEliteFairValueGap  m_fvgs[50];
     int                 m_fvg_count;
@@ -99,9 +102,19 @@ CEliteFVGDetector::CEliteFVGDetector()
     m_timeframe_count         = 1;
     m_analysis_timeframes[0]  = PERIOD_M15;
     m_fvg_count               = 0;
+
+    // Create cached indicator handle for ATR on H1
+    m_atr_handle_h1 = iATR(_Symbol, PERIOD_H1, 14);
+    if(m_atr_handle_h1 == INVALID_HANDLE)
+        Print("CEliteFVGDetector: Failed to create ATR handle for H1");
 }
 
-CEliteFVGDetector::~CEliteFVGDetector() {}
+CEliteFVGDetector::~CEliteFVGDetector()
+{
+    // Release cached indicator handle
+    if(m_atr_handle_h1 != INVALID_HANDLE)
+        IndicatorRelease(m_atr_handle_h1);
+}
 
 // Main detection method for elite FVGs
 bool CEliteFVGDetector::DetectEliteFairValueGaps()
@@ -414,7 +427,63 @@ bool CEliteFVGDetector::CheckOrderBlockConfluence(const SEliteFairValueGap& fvg)
 
 bool CEliteFVGDetector::CheckLiquidityConfluence(const SEliteFairValueGap& fvg)
 {
-    // Placeholder: no liquidity map available in this context
+    // Check if FVG is near recent swing high/low (potential liquidity pool)
+    // Uses completed bars only (index >= 1) to avoid look-ahead bias
+
+    // Use cached ATR handle for proximity threshold
+    if(m_atr_handle_h1 == INVALID_HANDLE) return false;
+
+    double atr_buf[];
+    ArrayResize(atr_buf, 1);
+    if(CopyBuffer(m_atr_handle_h1, 0, 1, 1, atr_buf) <= 0)  // Use bar 1 (completed)
+        return false;
+
+    double atr = atr_buf[0];
+    double proximity_threshold = 1.5 * atr;
+
+    // Get market data on H1 timeframe for swing detection (use completed bars)
+    MqlRates rates[];
+    ArraySetAsSeries(rates, true);
+    if(CopyRates(_Symbol, PERIOD_H1, 0, 100, rates) < 20)
+        return false;
+
+    // Find recent swing highs and lows (use 5-bar pattern, completed bars only)
+    // Swing high: bar where high is higher than 2 bars before and 2 bars after
+    // Swing low: bar where low is lower than 2 bars before and 2 bars after
+    double fvg_mid = (fvg.upper_level + fvg.lower_level) / 2.0;
+
+    // Scan bars 3 to 50 (completed bars, need 2 bars on each side for swing detection)
+    for(int i = 3; i < 50; i++)
+    {
+        if(i < 2 || i >= ArraySize(rates) - 2) continue;
+
+        // Check for swing high (potential BSL - Buy Side Liquidity)
+        bool is_swing_high = rates[i].high > rates[i-1].high &&
+                             rates[i].high > rates[i-2].high &&
+                             rates[i].high > rates[i+1].high &&
+                             rates[i].high > rates[i+2].high;
+
+        if(is_swing_high)
+        {
+            double distance = MathAbs(fvg_mid - rates[i].high);
+            if(distance <= proximity_threshold)
+                return true;  // FVG near swing high liquidity
+        }
+
+        // Check for swing low (potential SSL - Sell Side Liquidity)
+        bool is_swing_low = rates[i].low < rates[i-1].low &&
+                            rates[i].low < rates[i-2].low &&
+                            rates[i].low < rates[i+1].low &&
+                            rates[i].low < rates[i+2].low;
+
+        if(is_swing_low)
+        {
+            double distance = MathAbs(fvg_mid - rates[i].low);
+            if(distance <= proximity_threshold)
+                return true;  // FVG near swing low liquidity
+        }
+    }
+
     return false;
 }
 
@@ -562,7 +631,43 @@ bool CEliteFVGDetector::DetectInstitutionalFVG() { return false; }
 bool CEliteFVGDetector::ValidateWithDisplacement(SEliteFairValueGap& fvg) { return true; }
 double CEliteFVGDetector::CalculateOptimalFillLevel(const SEliteFairValueGap& fvg) { return fvg.mid_level; }
 bool CEliteFVGDetector::IsHighProbabilityFVG(const SEliteFairValueGap& fvg) { return fvg.quality_score > 80.0; }
-bool CEliteFVGDetector::IsInPremiumZone(double price) { return false; }
+bool CEliteFVGDetector::IsInPremiumZone(double price)
+{
+    // Calculate swing range from recent H1 data (completed bars only)
+    // Premium zone = price > midpoint + 0.236 * range (upper 23.6%)
+    // Discount zone = price < midpoint - 0.236 * range (lower 23.6%)
+
+    MqlRates rates[];
+    ArraySetAsSeries(rates, true);
+    if(CopyRates(_Symbol, PERIOD_H1, 0, 100, rates) < 20)
+        return false;
+
+    // Find swing high and swing low from completed bars (start from index 1)
+    double swing_high = rates[1].high;
+    double swing_low = rates[1].low;
+
+    for(int i = 1; i < 100; i++)  // Start from 1 to use completed bars only
+    {
+        if(rates[i].high > swing_high) swing_high = rates[i].high;
+        if(rates[i].low < swing_low) swing_low = rates[i].low;
+    }
+
+    // Calculate range and zones
+    // Formula: range = swing_high - swing_low
+    // Example: swing_high=2050, swing_low=2000 -> range=50
+    //          midpoint = 2025, premium_threshold = 2025 + 0.236*50 = 2036.8
+    double range = swing_high - swing_low;
+    if(range <= 0) return false;
+
+    double midpoint = swing_low + range * 0.5;
+    double premium_threshold = midpoint + 0.236 * range;  // Upper 23.6% is premium
+
+    // Assertion: premium_threshold should be between midpoint and swing_high
+    if(premium_threshold > swing_high || premium_threshold < midpoint)
+        return false;  // Sanity check
+
+    return price > premium_threshold;
+}
 
 // === PROXIMITY METHODS FOR CONFLUENCE SCORING ===
 
@@ -626,19 +731,15 @@ double CEliteFVGDetector::GetProximityScore(ENUM_FVG_TYPE type)
 {
    SEliteFairValueGap fvg;
    if(!GetNearestFVG(type, fvg)) return 0;
-   
+
    double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
    double atr[];
    ArrayResize(atr, 1);
-   
-   int atr_handle = iATR(_Symbol, PERIOD_H1, 14);
-   if(atr_handle == INVALID_HANDLE) return 0;
-   if(CopyBuffer(atr_handle, 0, 0, 1, atr) <= 0) 
-   {
-      IndicatorRelease(atr_handle);
+
+   // Use cached ATR handle instead of creating new one each call
+   if(m_atr_handle_h1 == INVALID_HANDLE) return 0;
+   if(CopyBuffer(m_atr_handle_h1, 0, 0, 1, atr) <= 0)
       return 0;
-   }
-   IndicatorRelease(atr_handle);
    
    // Calculate how close price is to FVG zone
    double fvg_mid = (fvg.upper_level + fvg.lower_level) / 2.0;

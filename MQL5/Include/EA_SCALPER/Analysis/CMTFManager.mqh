@@ -358,9 +358,10 @@ CMTFManager::CMTFManager()
    m_htf_last_bar = 0;
    m_mtf_last_bar = 0;
    m_ltf_last_bar = 0;
-   
-   m_min_trend_strength = 30.0;
-   m_min_confluence = 60.0;
+
+   // v4.0: Relaxed defaults for backtest - lower thresholds for more trades
+   m_min_trend_strength = 20.0;   // Was 30.0 - too strict
+   m_min_confluence = 45.0;       // Was 60.0 - too strict
    m_lookback_bars = 100;
    m_gmt_offset = 0;  // v3.2 GENIUS: Default 0 (assume broker is GMT)
 }
@@ -379,23 +380,23 @@ CMTFManager::~CMTFManager()
 bool CMTFManager::Init(string symbol)
 {
    m_symbol = symbol;
-   
+
    // Create H1 indicators
    m_htf_ma20_handle = iMA(m_symbol, MTF_HTF, 20, 0, MODE_EMA, PRICE_CLOSE);
    m_htf_ma50_handle = iMA(m_symbol, MTF_HTF, 50, 0, MODE_EMA, PRICE_CLOSE);
    m_htf_atr_handle = iATR(m_symbol, MTF_HTF, 14);
    m_htf_rsi_handle = iRSI(m_symbol, MTF_HTF, 14, PRICE_CLOSE);
-   
+
    // Create M15 indicators
    m_mtf_atr_handle = iATR(m_symbol, MTF_MTF, 14);
    m_mtf_rsi_handle = iRSI(m_symbol, MTF_MTF, 14, PRICE_CLOSE);  // v3.2 GENIUS: M15 RSI for divergence
-   
+
    // Create M5 indicators
    m_ltf_rsi_handle = iRSI(m_symbol, MTF_LTF, 14, PRICE_CLOSE);
    m_ltf_atr_handle = iATR(m_symbol, MTF_LTF, 14);
-   
+
    // Validate handles
-   if(m_htf_ma20_handle == INVALID_HANDLE || 
+   if(m_htf_ma20_handle == INVALID_HANDLE ||
       m_htf_ma50_handle == INVALID_HANDLE ||
       m_htf_atr_handle == INVALID_HANDLE ||
       m_htf_rsi_handle == INVALID_HANDLE ||
@@ -407,7 +408,47 @@ bool CMTFManager::Init(string symbol)
       Print("[MTF] Failed to create indicator handles");
       return false;
    }
-   
+
+   // Wait for indicator data to be ready (critical for backtest)
+   int max_wait = 10;  // Max iterations to wait
+   for(int i = 0; i < max_wait; i++)
+   {
+      int htf_bars = BarsCalculated(m_htf_ma20_handle);
+      int mtf_bars = BarsCalculated(m_mtf_atr_handle);
+      int ltf_bars = BarsCalculated(m_ltf_rsi_handle);
+
+      if(htf_bars >= 50 && mtf_bars >= 20 && ltf_bars >= 20)
+      {
+         Print("[MTF] Indicator data ready: HTF=", htf_bars, " MTF=", mtf_bars, " LTF=", ltf_bars);
+         break;
+      }
+
+      if(i == max_wait - 1)
+      {
+         Print("[MTF] WARNING: Indicator data may not be fully ready. HTF=", htf_bars,
+               " MTF=", mtf_bars, " LTF=", ltf_bars);
+      }
+
+      Sleep(100);  // Small delay to let indicators calculate
+   }
+
+   // Force initial analysis immediately (don't wait for bar change)
+   m_htf_last_bar = 0;  // Reset to force first analysis
+   m_mtf_last_bar = 0;
+   m_ltf_last_bar = 0;
+
+   // Run initial analysis
+   AnalyzeHTF();
+   AnalyzeMTF();
+   AnalyzeLTF();
+
+   // Log initial state
+   string trend_str = (m_htf.trend == MTF_TREND_BULLISH) ? "BULLISH" :
+                      (m_htf.trend == MTF_TREND_BEARISH) ? "BEARISH" :
+                      (m_htf.trend == MTF_TREND_RANGING) ? "RANGING" : "NEUTRAL";
+   Print("[MTF] Initial H1 trend: ", trend_str, " | Strength: ", DoubleToString(m_htf.trend_strength, 1),
+         " | Trending: ", m_htf.is_trending ? "YES" : "NO");
+
    Print("[MTF] Manager v3.2 GENIUS initialized for ", m_symbol);
    Print("[MTF] HTF=H1, MTF=M15, LTF=M5 | Session Quality + Momentum Divergence enabled");
    return true;
@@ -508,11 +549,26 @@ void CMTFManager::AnalyzeHTF()
    ArraySetAsSeries(ma50, true);
    ArraySetAsSeries(atr, true);
    ArraySetAsSeries(rsi, true);
-   
-   if(CopyBuffer(m_htf_ma20_handle, 0, 0, 3, ma20) < 3) return;
-   if(CopyBuffer(m_htf_ma50_handle, 0, 0, 3, ma50) < 3) return;
-   if(CopyBuffer(m_htf_atr_handle, 0, 0, 3, atr) < 3) return;
-   if(CopyBuffer(m_htf_rsi_handle, 0, 0, 3, rsi) < 3) return;
+
+   // CopyBuffer with diagnostic logging for backtest debugging
+   int copied_ma20 = CopyBuffer(m_htf_ma20_handle, 0, 0, 3, ma20);
+   int copied_ma50 = CopyBuffer(m_htf_ma50_handle, 0, 0, 3, ma50);
+   int copied_atr = CopyBuffer(m_htf_atr_handle, 0, 0, 3, atr);
+   int copied_rsi = CopyBuffer(m_htf_rsi_handle, 0, 0, 3, rsi);
+
+   if(copied_ma20 < 3 || copied_ma50 < 3 || copied_atr < 3 || copied_rsi < 3)
+   {
+      // Log diagnostics only once per session (avoid spam)
+      static datetime last_warn = 0;
+      datetime now = TimeCurrent();
+      if(now - last_warn > 300)  // Every 5 minutes max
+      {
+         Print("[MTF] HTF CopyBuffer issue: MA20=", copied_ma20, " MA50=", copied_ma50,
+               " ATR=", copied_atr, " RSI=", copied_rsi, " (need 3 each)");
+         last_warn = now;
+      }
+      return;
+   }
    
    double close = iClose(m_symbol, MTF_HTF, 0);
    double atr_val = atr[0];
@@ -544,8 +600,13 @@ void CMTFManager::AnalyzeHTF()
    m_htf.hurst = CalculateHurstExponent(MTF_HTF, 50);
    
    // Is trending? (Hurst > 0.55 = persistent/trending, combined with MA separation)
+   // v4.0: Relaxed for backtest - require less strict conditions
    double ma_separation = MathAbs(ma20[0] - ma50[0]) / atr_val;
-   m_htf.is_trending = (m_htf.hurst > 0.55 && ma_separation > 0.5) || (ma_separation > 1.5);
+   // Original was: (hurst > 0.55 && ma_sep > 0.5) || (ma_sep > 1.5)
+   // Relaxed: (hurst > 0.52 && ma_sep > 0.3) || (ma_sep > 1.0) || (trend != NEUTRAL && strength > 25)
+   m_htf.is_trending = (m_htf.hurst > 0.52 && ma_separation > 0.3) ||
+                       (ma_separation > 1.0) ||
+                       (m_htf.trend != MTF_TREND_NEUTRAL && m_htf.trend != MTF_TREND_RANGING && m_htf.trend_strength > 25.0);
    
    // Find swing points
    FindSwingPoints(MTF_HTF, m_htf.swing_high, m_htf.swing_low);
@@ -671,7 +732,8 @@ void CMTFManager::AnalyzeLTF()
    if(CopyClose(m_symbol, MTF_LTF, 0, 6, closes5) < 6)
       return;
    double close_5 = closes5[5];
-   if(close_5 != 0)
+   // v4.1: Use epsilon check to avoid division by zero/near-zero
+   if(MathAbs(close_5) > 1e-10)
       m_ltf.momentum = (close1 - close_5) / close_5 * 100;
    else
       m_ltf.momentum = 0;
@@ -744,8 +806,13 @@ double CMTFManager::CalculateTrendStrength(ENUM_TIMEFRAMES tf)
    double dir_score = MathAbs(up_count - down_count) / 19.0 * 50;
    
    // Component 2: Price movement relative to range (0-50 points)
-   double highest = closes[ArrayMaximum(closes)];
-   double lowest = closes[ArrayMinimum(closes)];
+   // v4.1: Validate array before calling ArrayMaximum/ArrayMinimum
+   if(ArraySize(closes) == 0) return 0;
+   int maxIdx = ArrayMaximum(closes);
+   int minIdx = ArrayMinimum(closes);
+   if(maxIdx < 0 || minIdx < 0) return 0;
+   double highest = closes[maxIdx];
+   double lowest = closes[minIdx];
    double range = highest - lowest;
    double net_move = MathAbs(closes[0] - closes[19]);
    double move_score = 0;

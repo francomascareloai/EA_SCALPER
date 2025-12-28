@@ -142,13 +142,18 @@ private:
    double              m_break_buffer;        // Buffer for valid break (pips)
    int                 m_lookback_bars;       // Bars to analyze
    int                 m_min_swing_distance;  // Min bars between swings
-   
+
    // MTF Support (NEW v3.20)
    ENUM_TIMEFRAMES     m_current_tf;          // Current analysis timeframe
    SStructureState     m_htf_state;           // H1 structure state
    SStructureState     m_mtf_state;           // M15 structure state
    SStructureState     m_ltf_state;           // M5 structure state
-   
+
+   // Cached indicator handles (performance optimization)
+   int                 m_atr_handle_m30;      // ATR(14) on M30 for consolidation detection
+   int                 m_rsi_handle_m30;      // RSI(14) on M30 for bounce signals
+   int                 m_bb_handle_m30;       // Bollinger Bands(20,2) on M30 for bounce signals
+
    // Data storage
    SSwingPoint         m_swing_highs[];
    SSwingPoint         m_swing_lows[];
@@ -158,7 +163,7 @@ private:
    int                 m_break_count;
    int                 m_max_swings;
    int                 m_max_breaks;
-   
+
    // Current state
    SStructureState     m_state;
    
@@ -249,21 +254,21 @@ CStructureAnalyzer::CStructureAnalyzer()
    m_break_buffer = 2.0;           // 2 pips buffer for break
    m_lookback_bars = 100;
    m_min_swing_distance = 5;       // Min 5 bars between swings
-   
+
    // MTF default timeframe
    m_current_tf = PERIOD_M15;
-   
+
    // Array limits
    m_max_swings = 50;
    m_max_breaks = 20;
    m_high_count = 0;
    m_low_count = 0;
    m_break_count = 0;
-   
+
    ArrayResize(m_swing_highs, m_max_swings);
    ArrayResize(m_swing_lows, m_max_swings);
    ArrayResize(m_breaks, m_max_breaks);
-   
+
    // Initialize state
    ZeroMemory(m_state);
    ZeroMemory(m_htf_state);
@@ -273,6 +278,18 @@ CStructureAnalyzer::CStructureAnalyzer()
    m_htf_state.bias = BIAS_RANGING;
    m_mtf_state.bias = BIAS_RANGING;
    m_ltf_state.bias = BIAS_RANGING;
+
+   // Create cached indicator handles for M30 (consolidation detection)
+   m_atr_handle_m30 = iATR(_Symbol, PERIOD_M30, 14);
+   m_rsi_handle_m30 = iRSI(_Symbol, PERIOD_M30, 14, PRICE_CLOSE);
+   m_bb_handle_m30 = iBands(_Symbol, PERIOD_M30, 20, 0, 2.0, PRICE_CLOSE);
+
+   if(m_atr_handle_m30 == INVALID_HANDLE)
+      Print("CStructureAnalyzer: Failed to create ATR handle for M30");
+   if(m_rsi_handle_m30 == INVALID_HANDLE)
+      Print("CStructureAnalyzer: Failed to create RSI handle for M30");
+   if(m_bb_handle_m30 == INVALID_HANDLE)
+      Print("CStructureAnalyzer: Failed to create Bollinger Bands handle for M30");
 }
 
 CStructureAnalyzer::~CStructureAnalyzer()
@@ -280,6 +297,14 @@ CStructureAnalyzer::~CStructureAnalyzer()
    ArrayFree(m_swing_highs);
    ArrayFree(m_swing_lows);
    ArrayFree(m_breaks);
+
+   // Release cached indicator handles
+   if(m_atr_handle_m30 != INVALID_HANDLE)
+      IndicatorRelease(m_atr_handle_m30);
+   if(m_rsi_handle_m30 != INVALID_HANDLE)
+      IndicatorRelease(m_rsi_handle_m30);
+   if(m_bb_handle_m30 != INVALID_HANDLE)
+      IndicatorRelease(m_bb_handle_m30);
 }
 
 // === MAIN ANALYSIS ===
@@ -932,44 +957,53 @@ SConsolidation CStructureAnalyzer::DetectConsolidation(string symbol, ENUM_TIMEF
    SConsolidation cons;
    ZeroMemory(cons);
    cons.is_valid = false;
-   
+
    if(symbol == NULL) symbol = _Symbol;
-   
+
    // Get price data
    MqlRates rates[];
    ArraySetAsSeries(rates, true);
    int copied = CopyRates(symbol, tf, 0, lookback + 10, rates);
    if(copied < lookback) return cons;
-   
+
    // Calculate range (excluding current bar)
    double highest = rates[1].high;
    double lowest = rates[1].low;
-   
+
    for(int i = 1; i <= lookback; i++)
    {
       if(rates[i].high > highest) highest = rates[i].high;
       if(rates[i].low < lowest) lowest = rates[i].low;
    }
-   
+
    cons.high = highest;
    cons.low = lowest;
    cons.mid = (highest + lowest) / 2.0;
    cons.range_size = highest - lowest;
-   
-   // Get ATR for comparison
-   int atr_handle = iATR(symbol, tf, 14);
-   if(atr_handle == INVALID_HANDLE) return cons;
-   
+
+   // Get ATR for comparison - use cached handle for M30, create temporary otherwise
    double atr_buffer[];
    ArraySetAsSeries(atr_buffer, true);
-   if(CopyBuffer(atr_handle, 0, 0, 1, atr_buffer) < 1)
+   double atr = 0;
+
+   if(tf == PERIOD_M30 && m_atr_handle_m30 != INVALID_HANDLE)
    {
-      IndicatorRelease(atr_handle);
-      return cons;
+      // Use cached handle
+      if(CopyBuffer(m_atr_handle_m30, 0, 0, 1, atr_buffer) >= 1)
+         atr = atr_buffer[0];
    }
-   double atr = atr_buffer[0];
-   IndicatorRelease(atr_handle);
-   
+   else
+   {
+      // Create temporary handle for non-M30 timeframe
+      int temp_atr_handle = iATR(symbol, tf, 14);
+      if(temp_atr_handle != INVALID_HANDLE)
+      {
+         if(CopyBuffer(temp_atr_handle, 0, 0, 1, atr_buffer) >= 1)
+            atr = atr_buffer[0];
+         IndicatorRelease(temp_atr_handle);
+      }
+   }
+
    if(atr <= 0) return cons;
    
    // Calculate ATR ratio
@@ -1036,49 +1070,75 @@ SConsolidationSignal CStructureAnalyzer::GetConsolidationBounceSignal(string sym
    ZeroMemory(sig);
    sig.type = CONS_SIGNAL_NONE;
    sig.is_valid = false;
-   
+
    if(symbol == NULL) symbol = _Symbol;
-   
+
    // First, detect consolidation
    SConsolidation cons = DetectConsolidation(symbol, tf, 20);
    if(!cons.is_valid) return sig;
-   
+
    // Get current price
    double bid = SymbolInfoDouble(symbol, SYMBOL_BID);
    double ask = SymbolInfoDouble(symbol, SYMBOL_ASK);
    double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
-   
-   // Get RSI for confirmation
-   int rsi_handle = iRSI(symbol, tf, 14, PRICE_CLOSE);
-   if(rsi_handle == INVALID_HANDLE) return sig;
-   
+
+   // Get RSI for confirmation - use cached handle for M30, create temporary otherwise
    double rsi_buffer[];
    ArraySetAsSeries(rsi_buffer, true);
-   if(CopyBuffer(rsi_handle, 0, 0, 1, rsi_buffer) < 1)
+   double rsi = 50;  // Default neutral
+
+   if(tf == PERIOD_M30 && m_rsi_handle_m30 != INVALID_HANDLE)
    {
-      IndicatorRelease(rsi_handle);
-      return sig;
+      // Use cached handle
+      if(CopyBuffer(m_rsi_handle_m30, 0, 0, 1, rsi_buffer) >= 1)
+         rsi = rsi_buffer[0];
    }
-   double rsi = rsi_buffer[0];
-   IndicatorRelease(rsi_handle);
-   
-   // Get Bollinger Bands for additional confirmation
-   int bb_handle = iBands(symbol, tf, 20, 0, 2.0, PRICE_CLOSE);
-   if(bb_handle == INVALID_HANDLE) return sig;
-   
+   else
+   {
+      // Create temporary handle for non-M30 timeframe
+      int temp_rsi_handle = iRSI(symbol, tf, 14, PRICE_CLOSE);
+      if(temp_rsi_handle != INVALID_HANDLE)
+      {
+         if(CopyBuffer(temp_rsi_handle, 0, 0, 1, rsi_buffer) >= 1)
+            rsi = rsi_buffer[0];
+         IndicatorRelease(temp_rsi_handle);
+      }
+   }
+
+   // Get Bollinger Bands for additional confirmation - use cached handle for M30
    double bb_upper[], bb_lower[], bb_mid[];
    ArraySetAsSeries(bb_upper, true);
    ArraySetAsSeries(bb_lower, true);
    ArraySetAsSeries(bb_mid, true);
-   
-   if(CopyBuffer(bb_handle, 1, 0, 1, bb_upper) < 1 ||
-      CopyBuffer(bb_handle, 2, 0, 1, bb_lower) < 1 ||
-      CopyBuffer(bb_handle, 0, 0, 1, bb_mid) < 1)
+   bool bb_valid = false;
+
+   if(tf == PERIOD_M30 && m_bb_handle_m30 != INVALID_HANDLE)
    {
-      IndicatorRelease(bb_handle);
-      return sig;
+      // Use cached handle
+      if(CopyBuffer(m_bb_handle_m30, 1, 0, 1, bb_upper) >= 1 &&
+         CopyBuffer(m_bb_handle_m30, 2, 0, 1, bb_lower) >= 1 &&
+         CopyBuffer(m_bb_handle_m30, 0, 0, 1, bb_mid) >= 1)
+      {
+         bb_valid = true;
+      }
    }
-   IndicatorRelease(bb_handle);
+   else
+   {
+      // Create temporary handle for non-M30 timeframe
+      int temp_bb_handle = iBands(symbol, tf, 20, 0, 2.0, PRICE_CLOSE);
+      if(temp_bb_handle != INVALID_HANDLE)
+      {
+         if(CopyBuffer(temp_bb_handle, 1, 0, 1, bb_upper) >= 1 &&
+            CopyBuffer(temp_bb_handle, 2, 0, 1, bb_lower) >= 1 &&
+            CopyBuffer(temp_bb_handle, 0, 0, 1, bb_mid) >= 1)
+         {
+            bb_valid = true;
+         }
+         IndicatorRelease(temp_bb_handle);
+      }
+   }
+
+   if(!bb_valid) return sig;
    
    // Define zones (10% of range from extremes)
    double zone_buffer = cons.range_size * 0.10;

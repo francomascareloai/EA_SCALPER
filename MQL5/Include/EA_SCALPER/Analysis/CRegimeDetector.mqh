@@ -172,6 +172,7 @@ private:
    double              m_kalman_R;
    double              m_kalman_velocity_threshold;
    SKalmanState        m_kalman_state;
+   bool                m_kalman_initialized;  // v4.1: Track initialization state
    
    // Cache
    SRegimeAnalysis     m_last_analysis;
@@ -235,7 +236,7 @@ public:
    bool IsTradingAllowed();
    string RegimeToString(ENUM_MARKET_REGIME regime);
    string BuildDiagnosis(const SRegimeAnalysis &analysis);
-   void ResetKalman() { m_kalman_state.x = 0; m_kalman_state.P = 1.0; m_kalman_state.velocity = 0; }
+   void ResetKalman() { m_kalman_state.x = 0; m_kalman_state.P = 1.0; m_kalman_state.velocity = 0; m_kalman_initialized = false; }
    
 private:
    bool LoadPriceData(string symbol, int tf, int count);
@@ -271,6 +272,7 @@ CRegimeDetector::CRegimeDetector()
    m_kalman_state.x = 0;
    m_kalman_state.P = 1.0;
    m_kalman_state.velocity = 0;
+   m_kalman_initialized = false;  // v4.1: Track Kalman initialization
    
    // Cache
    m_cache_seconds = 60;
@@ -429,37 +431,41 @@ double CRegimeDetector::CalculateHurst(const double &prices[], int window)
    // R/S analysis with multiple window sizes
    int min_k = 10;
    int max_k = MathMin(50, (use_size - 1) / 2);
-   
+
    if(max_k <= min_k) { ArrayFree(log_returns); return -1.0; }
-   
-   double log_n[], log_rs[];
-   ArrayResize(log_n, 0);
-   ArrayResize(log_rs, 0);
-   
+
+   // Pre-allocate arrays for performance (v4.1: optimization)
+   int array_size = max_k - min_k + 1;
+   double log_n[];
+   double log_rs[];
+   ArrayResize(log_n, array_size);
+   ArrayResize(log_rs, array_size);
+   int valid_idx = 0;
+
    // Pre-allocate subseries outside loop (v4.0: optimization)
    double subseries[];
    ArrayResize(subseries, max_k);
-   
+
    for(int n = min_k; n <= max_k; n++)
    {
       int num_subseries = ArraySize(log_returns) / n;
       if(num_subseries < 1) continue;
-      
+
       double rs_sum = 0;
       int valid_count = 0;
-      
+
       for(int i = 0; i < num_subseries; i++)
       {
          // Extract subseries
          for(int j = 0; j < n; j++)
             subseries[j] = log_returns[i * n + j];
-         
+
          // Calculate mean
          double mean = 0;
          for(int j = 0; j < n; j++)
             mean += subseries[j];
          mean /= n;
-         
+
          // Calculate cumulative deviation and R
          double cumdev = 0;
          double max_cumdev = -DBL_MAX;
@@ -471,37 +477,37 @@ double CRegimeDetector::CalculateHurst(const double &prices[], int window)
             if(cumdev < min_cumdev) min_cumdev = cumdev;
          }
          double R = max_cumdev - min_cumdev;
-         
+
          // Calculate S (standard deviation)
          double variance = 0;
          for(int j = 0; j < n; j++)
             variance += MathPow(subseries[j] - mean, 2);
          variance /= (n - 1);
          double S = MathSqrt(variance);
-         
+
          if(S > 1e-10)
          {
             rs_sum += (R / S);
             valid_count++;
          }
       }
-      
+
       if(valid_count > 0)
       {
          double rs_mean = rs_sum / valid_count;
-         int idx = ArraySize(log_n);
-         ArrayResize(log_n, idx + 1);
-         ArrayResize(log_rs, idx + 1);
-         log_n[idx] = MathLog((double)n);
-         log_rs[idx] = MathLog(rs_mean);
+         // v4.1: Prevent log of zero or negative value
+         if(rs_mean <= 0) { ArrayFree(log_n); ArrayFree(log_rs); return -1.0; }
+         log_n[valid_idx] = MathLog((double)n);
+         log_rs[valid_idx] = MathLog(rs_mean);
+         valid_idx++;
       }
    }
-   
+
    ArrayFree(log_returns);
    ArrayFree(subseries);
-   
+
    // Linear regression to get Hurst exponent
-   int count = ArraySize(log_n);
+   int count = valid_idx;  // Use actual count of valid entries
    if(count < 3) { ArrayFree(log_n); ArrayFree(log_rs); return -1.0; }
    
    double sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
@@ -785,24 +791,27 @@ double CRegimeDetector::CalculateEnhancedConfidence(const SRegimeAnalysis &analy
 // === KALMAN FILTER ===
 SKalmanState CRegimeDetector::UpdateKalman(double measurement)
 {
-   if(m_kalman_state.x == 0)
+   // v4.1: Use flag instead of exact zero comparison
+   if(!m_kalman_initialized)
    {
       m_kalman_state.x = measurement;
       m_kalman_state.P = 1.0;
       m_kalman_state.velocity = 0;
+      m_kalman_initialized = true;  // v4.1: Mark as initialized
       return m_kalman_state;
    }
-   
+
    double x_pred = m_kalman_state.x;
    double P_pred = m_kalman_state.P + m_kalman_Q;
-   
+
    double K = P_pred / (P_pred + m_kalman_R);
    m_kalman_state.x = x_pred + K * (measurement - x_pred);
    m_kalman_state.P = (1 - K) * P_pred;
-   
-   if(x_pred > 0)
+
+   // v4.1: Use epsilon check to avoid division by zero/near-zero
+   if(MathAbs(x_pred) > 1e-10)
       m_kalman_state.velocity = (measurement - x_pred) / x_pred * 100.0;
-   
+
    return m_kalman_state;
 }
 
@@ -1189,15 +1198,24 @@ SRegimeStrategy CRegimeDetector::GetOptimalStrategy(ENUM_MARKET_REGIME regime)
          s.max_bars = 10;
          s.philosophy = "SURVIVAL MODE - WAIT FOR CLARITY";
          break;
-      
-      // === RANDOM WALK / UNKNOWN: No trading ===
+
+      // === RANDOM WALK / UNKNOWN: Ultra-conservative but allow trading ===
+      // v4.2: Changed from DISABLED to CONFIRMATION - let other filters decide
       case REGIME_RANDOM_WALK:
       case REGIME_UNKNOWN:
       default:
-         s.entry_mode = ENTRY_MODE_DISABLED;
-         s.min_confluence = 100;          // Block all trades
-         s.risk_percent = 0;
-         s.philosophy = "NO EDGE - DO NOT TRADE";
+         s.entry_mode = ENTRY_MODE_CONFIRMATION;  // Allow but require extra confirmation
+         s.min_confluence = 85;           // Very high bar
+         s.risk_percent = 0.25;           // Minimal risk
+         s.sl_atr_mult = 2.0;
+         s.tp1_r = 1.0;
+         s.tp2_r = 0;
+         s.partial1_pct = 1.0;
+         s.trailing_start_r = 0;
+         s.trailing_step_atr = 0;
+         s.use_time_exit = true;
+         s.max_bars = 6;                  // Very short hold time
+         s.philosophy = "UNCLEAR REGIME - ULTRA CONSERVATIVE";
          break;
    }
    

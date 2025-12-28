@@ -9,6 +9,31 @@
 #property copyright "EA_SCALPER_XAUUSD - Apex Compliant Trading System"
 #property strict
 
+// === DEBUG MODE CONTROL ===
+// Uncomment DEBUG_MODE to enable verbose logging in hot paths
+// In production, keep this commented out for performance
+// #define DEBUG_MODE
+
+// === LOGGING MACROS ===
+// These macros respect DEBUG_MODE for conditional logging
+// NOTE: MQL5 does not support variadic macros (.../__VA_ARGS__)
+// Use DEBUG_PRINT(msg) for simple messages
+#ifdef DEBUG_MODE
+   #define DEBUG_PRINT(msg)     Print(msg)
+#else
+   #define DEBUG_PRINT(msg)     /* disabled */
+#endif
+
+// === RISK PROFILE ENUMERATION ===
+//--- Configurable risk profiles for different trading aggressiveness levels
+//--- All profiles remain Apex-compliant with safety caps enforced
+enum ENUM_RISK_PROFILE
+{
+   RISK_SAFE = 0,       // Conservative: 1 position, 0.25% risk, strict filters
+   RISK_BALANCED = 1,   // Default: 1-2 positions, 0.5% risk, standard filters
+   RISK_AGGRESSIVE = 2  // Growth: 2-3 positions, 0.75% risk, relaxed filters
+};
+
 // === APEX COMPLIANCE ENUMERATIONS ===
 
 //--- 6-level DD Severity (CLAUDE.md authoritative taxonomy)
@@ -147,6 +172,10 @@ enum ENUM_SESSION_TYPE_LEGACY
    SESSION_TYPE_NY = 2,
    SESSION_TYPE_OVERLAP = 3
 };
+
+// NOTE: ENUM_STRATEGY_TYPE is defined in CAdaptiveRouter.mqh
+// (STRATEGY_SMC, STRATEGY_TREND_FOLLOW, STRATEGY_MEAN_REVERT, STRATEGY_SAFE_MODE, STRATEGY_NONE)
+// Do NOT duplicate it here to avoid redefinition errors.
 
 // === STRUCTURE DEFINITIONS ===
 struct SAdvancedOrderBlock

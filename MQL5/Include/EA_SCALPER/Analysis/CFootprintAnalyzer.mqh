@@ -721,7 +721,10 @@ bool CFootprintAnalyzer::ProcessBarTicks(int barIndex = 0) {
                                barTime * 1000, barEnd * 1000);
    
    if(copied <= 0) {
-      Print("CFootprintAnalyzer: No ticks for bar ", barIndex);
+      // In Strategy Tester without "real ticks" mode, tick data is not available
+      // Only log warning in live mode to avoid spam
+      if(!MQLInfoInteger(MQL_TESTER))
+         Print("CFootprintAnalyzer: No ticks for bar ", barIndex);
       return false;
    }
    

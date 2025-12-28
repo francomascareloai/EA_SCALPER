@@ -8,7 +8,8 @@
 #property version   "1.00"
 #property strict
 
-#include <WinINet.mqh>
+// Note: Uses native MQL5 WebRequest() - no external dependencies
+// Ensure Python Hub URL is added to Tools -> Options -> Expert Advisors -> Allow WebRequest
 
 //+------------------------------------------------------------------+
 //| Estrutura para sinal de fundamentals                              |
@@ -264,31 +265,39 @@ double CFundamentalsBridge::GetSentimentScore()
 bool CFundamentalsBridge::SendRequest(string endpoint, string& response)
 {
    string url = m_base_url + endpoint;
-   
+
+   char post_data[];
+   char result_data[];
+   string result_headers;
+
+   // MQL5 WebRequest signature:
+   // int WebRequest(string method, string url, string headers, int timeout,
+   //                char &data[], char &result[], string &result_headers)
    int res = WebRequest(
       "GET",              // Method
       url,                // URL
-      "",                 // Headers
-      NULL,               // Body
+      "",                 // Headers (empty for GET)
       m_timeout_ms,       // Timeout
-      NULL,               // No body
-      0,                  // Body size
-      response,           // Response
-      NULL                // Response headers
+      post_data,          // POST data (empty for GET)
+      result_data,        // Response data
+      result_headers      // Response headers
    );
-   
+
    // WebRequest returns -1 on error
    if(res == -1)
    {
       int error = GetLastError();
       Print("CFundamentalsBridge: WebRequest error ", error);
-      
+
       if(error == 4014)
          Print("Add ", m_base_url, " to Tools -> Options -> Expert Advisors -> Allow WebRequest");
-      
+
       return false;
    }
-   
+
+   // Convert result to string
+   response = CharArrayToString(result_data, 0, WHOLE_ARRAY, CP_UTF8);
+
    return (res >= 200 && res < 300);
 }
 
