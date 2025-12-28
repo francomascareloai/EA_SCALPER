@@ -116,6 +116,32 @@ def test_load_bars_csv_respects_timestamp_basis_open_vs_close(tmp_path) -> None:
     assert df_open.index[0] == pd.Timestamp("2025-01-01 10:05:00+00:00")
 
 
+def test_load_bars_csv_skip_step_validation_for_renko_like_irregular_bars(tmp_path) -> None:
+    """Renko bricks have irregular time deltas; step validation must be skippable."""
+
+    from nautilus_gold_scalper.scripts.backtest.run_backtest import load_bars_csv
+
+    csv_path = tmp_path / "renko_like.csv"
+    csv_path.write_text(
+        "timestamp,open,high,low,close,volume\n"
+        "2025-01-01T10:00:01Z,100,100,100,100,1\n"
+        "2025-01-01T10:03:17Z,101,101,101,101,1\n"
+        "2025-01-01T10:08:04Z,102,102,102,102,1\n",
+        encoding="utf-8",
+    )
+
+    df = load_bars_csv(
+        csv_path,
+        start_date="2025-01-01",
+        end_date="2025-01-01",
+        ltf_minutes=5,
+        timestamp_basis="close",
+        validate_step=False,
+    )
+    assert len(df) == 3
+    assert df.index[0] == pd.Timestamp("2025-01-01 10:00:01+00:00")
+
+
 def test_build_strategy_config_maps_new_execution_fields() -> None:
     """Ensure runner maps new execution config keys into GoldScalperConfig."""
 
@@ -133,7 +159,14 @@ def test_build_strategy_config_maps_new_execution_fields() -> None:
     )
 
     cfg = {
+        "risk": {
+            "sizing_engine": "nautilus_fixed",
+        },
         "execution": {
+            "bars_timestamp_basis": "open",
+            "twap_enabled": True,
+            "twap_horizon_secs": 30.0,
+            "twap_interval_secs": 3.0,
             "trade_partial_tp_r": 1.25,
             "trade_partial_tp_percent": 0.33,
             "trade_trailing_start_r": 1.70,
@@ -167,12 +200,13 @@ def test_build_strategy_config_maps_new_execution_fields() -> None:
             "mtf_bar_minutes": 15,
             "htf_bar_minutes": 60,
             "management_bar_minutes": 60,
-        }
+        },
     }
 
     sc = build_strategy_config(cfg, bar_type, InstrumentId.from_str("XAU/USD.SIM"), ltf_minutes=5)
 
     assert sc.trade_partial_tp_r == 1.25
+    assert sc.bars_timestamp_basis == "open"
     assert sc.trade_partial_tp_percent == 0.33
     assert sc.trade_trailing_start_r == 1.70
     assert sc.trend_target_rr_ratio == 3.30
@@ -188,6 +222,13 @@ def test_build_strategy_config_maps_new_execution_fields() -> None:
     assert sc.mean_revert_er_smoothing == 3
     assert sc.mean_revert_er_max == 0.20
     assert sc.force_mean_revert is True
+
+    assert sc.sizing_engine == "nautilus_fixed"
+    assert float(sc.max_risk_per_trade) == 0.01
+
+    assert sc.twap_enabled is True
+    assert float(sc.twap_horizon_secs) == 30.0
+    assert float(sc.twap_interval_secs) == 3.0
 
     # Phase 11 safety layer mappings
     assert sc.max_concurrent_positions == 2

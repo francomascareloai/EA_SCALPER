@@ -5,8 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
-
-from scripts.optimize import _extract_equity_series
+from nautilus_gold_scalper.src.optimization.backtest_adapter import _extract_equity_series
 
 
 @dataclass(frozen=True)

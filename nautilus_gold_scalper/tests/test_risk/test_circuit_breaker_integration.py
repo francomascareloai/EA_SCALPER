@@ -2,6 +2,7 @@
 Integration tests for CircuitBreaker in real strategy context.
 Validates P1 critical item: CircuitBreaker blocks trades and reduces size.
 """
+
 import pytest
 
 from src.risk.circuit_breaker import CircuitBreaker, CircuitBreakerLevel
@@ -25,13 +26,13 @@ class TestCircuitBreakerIntegration:
 
         state = cb.get_state()
 
-        # Should be at Level 1 CAUTION
-        assert state.level >= CircuitBreakerLevel.LEVEL_1_CAUTION, \
+        # Should be at Level 1 CAUTION and blocked (in cooldown)
+        assert state.level >= CircuitBreakerLevel.LEVEL_1_CAUTION, (
             "Circuit breaker should trigger Level 1 after 3 losses"
+        )
         assert state.consecutive_losses == 3
+        assert cb.can_trade() is False
 
-        # May or may not block immediately (depends on cooldown)
-        # But level should be elevated
         print(f"[OK] Level 1 triggered: level={state.level.name}, can_trade={state.can_trade}")
 
     def test_circuit_breaker_level_2_triggers(self):
@@ -48,18 +49,23 @@ class TestCircuitBreakerIntegration:
 
         state = cb.get_state()
 
-        # Should be at Level 2 WARNING
-        assert state.level >= CircuitBreakerLevel.LEVEL_2_WARNING, \
+        # Should be at Level 2 WARNING and blocked (in cooldown)
+        assert state.level >= CircuitBreakerLevel.LEVEL_2_WARNING, (
             "Circuit breaker should trigger Level 2 after 5 losses"
+        )
         assert state.consecutive_losses == 5
+        assert cb.can_trade() is False
 
         # Size multiplier should be reduced
-        assert state.size_multiplier < 1.0, \
+        assert state.size_multiplier < 1.0, (
             f"Size multiplier should be <1.0 at Level 2, got {state.size_multiplier}"
+        )
 
-        print(f"[OK] Level 2 triggered: level={state.level.name}, "
-              f"size_mult={state.size_multiplier:.2f}, "
-              f"consecutive_losses={state.consecutive_losses}")
+        print(
+            f"[OK] Level 2 triggered: level={state.level.name}, "
+            f"size_mult={state.size_multiplier:.2f}, "
+            f"consecutive_losses={state.consecutive_losses}"
+        )
 
     def test_circuit_breaker_dd_based_trigger(self):
         """Test that drawdown-based levels trigger correctly."""
@@ -76,20 +82,27 @@ class TestCircuitBreakerIntegration:
 
         state = cb.get_state()
 
-        # Should be at Level 3 ELEVATED (DD > 3%)
-        assert state.level >= CircuitBreakerLevel.LEVEL_3_ELEVATED, \
+        # Should be at Level 3 ELEVATED (DD > 3%) and blocked (in cooldown)
+        assert state.level >= CircuitBreakerLevel.LEVEL_3_ELEVATED, (
             f"Circuit breaker should trigger Level 3 at 3.5% DD, got level={state.level.name}"
+        )
 
-        assert state.daily_dd_percent >= 3.0, \
+        assert state.daily_dd_percent >= 3.0, (
             f"Daily DD should be >= 3%, got {state.daily_dd_percent:.2f}%"
+        )
+
+        assert cb.can_trade() is False
 
         # Size should be further reduced
-        assert state.size_multiplier < 0.75, \
+        assert state.size_multiplier < 0.75, (
             f"Size multiplier should be <0.75 at Level 3, got {state.size_multiplier}"
+        )
 
-        print(f"[OK] Level 3 triggered: level={state.level.name}, "
-              f"dd={state.total_dd_percent:.2f}%, "
-              f"size_mult={state.size_multiplier:.2f}")
+        print(
+            f"[OK] Level 3 triggered: level={state.level.name}, "
+            f"dd={state.total_dd_percent:.2f}%, "
+            f"size_mult={state.size_multiplier:.2f}"
+        )
 
     def test_circuit_breaker_recovery(self):
         """Test that circuit breaker recovers after winning trades."""
@@ -119,10 +132,18 @@ class TestCircuitBreakerIntegration:
         assert state.consecutive_losses == 0, "Consecutive losses should reset after wins"
         assert state.consecutive_wins == 3, "Should track consecutive wins"
 
-        # May still be at elevated level due to cooldown, but losses should reset
-        print(f"[OK] Recovery: level={state.level.name}, "
-              f"consec_wins={state.consecutive_wins}, "
-              f"consec_losses={state.consecutive_losses}")
+        # With intelligent recovery, L1/L2 may de-escalate back to NORMAL once losses clear.
+        assert state.level in (
+            CircuitBreakerLevel.LEVEL_0_NORMAL,
+            CircuitBreakerLevel.LEVEL_1_CAUTION,
+            CircuitBreakerLevel.LEVEL_2_WARNING,
+        )
+
+        print(
+            f"[OK] Recovery: level={state.level.name}, "
+            f"consec_wins={state.consecutive_wins}, "
+            f"consec_losses={state.consecutive_losses}"
+        )
 
     def test_circuit_breaker_daily_reset(self):
         """Test that circuit breaker resets daily metrics."""
@@ -144,22 +165,27 @@ class TestCircuitBreakerIntegration:
         state_after = cb.get_state()
 
         # Daily PnL should reset (primary purpose of reset_daily)
-        assert state_after.daily_pnl == 0.0, \
-            "Daily PnL should reset to 0"
+        assert state_after.daily_pnl == 0.0, "Daily PnL should reset to 0"
 
         # Daily start equity should be updated to current equity
-        assert state_after.daily_start_equity == state_after.current_equity, \
+        assert state_after.daily_start_equity == state_after.current_equity, (
             "Daily start equity should update to current equity"
+        )
 
         # Current equity should persist (not changed by reset)
-        assert state_after.current_equity == state_before.current_equity, \
+        assert state_after.current_equity == state_before.current_equity, (
             "Current equity should not change on daily reset"
+        )
 
-        # Note: daily_dd_percent may persist (depends on calculation vs initial_balance or daily_start)
-        # The key is that daily_pnl resets to 0, which is the primary guard
+        # Probe mode state must be cleared daily
+        assert state_after.probe_trades_remaining == 0
+        assert state_after.probe_until is None
+        assert state_after.cooldown_backoff == 0
 
-        print(f"[OK] Daily reset: daily_dd before={daily_dd_before:.2f}%, "
-              f"after={state_after.daily_dd_percent:.2f}%")
+        print(
+            f"[OK] Daily reset: daily_dd before={daily_dd_before:.2f}%, "
+            f"after={state_after.daily_dd_percent:.2f}%"
+        )
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ Tests:
 6. Telemetry-based DD validation (validate_apex_compliance script)
 """
 
+import inspect
 import json
 import sys
 import tempfile
@@ -827,39 +828,21 @@ class TestDailyResetDDTelemetry:
     """Test that daily reset properly resets DD telemetry max trackers."""
 
     def test_daily_reset_resets_daily_dd_max_only(self) -> None:
-        """Test that daily reset resets _telemetry_max_daily_dd_pct but not total.
+        """Guard: daily max resets, session max does not.
 
-        This test verifies the BaseGoldStrategy.on_new_day behavior by
-        directly inspecting the on_new_day method code to confirm the
-        reset logic is correct. We can't easily instantiate the full
-        Strategy hierarchy without a backtest engine, so we verify the
-        source code contains the expected logic.
+        This stays as a source-level check because spinning up a full Nautilus
+        engine just to hit `on_new_day` is disproportionate for Phase 0.
         """
-        import inspect
-
         from src.strategies.base_strategy import BaseGoldStrategy
 
-        # Get the source code of on_new_day method
         source = inspect.getsource(BaseGoldStrategy.on_new_day)
 
-        # Parse the source to verify the expected behavior
-        # 1. Check that _telemetry_max_daily_dd_pct is set to 0.0
-        assert "_telemetry_max_daily_dd_pct = 0.0" in source, (
-            "on_new_day should reset _telemetry_max_daily_dd_pct to 0.0"
-        )
+        assert "_telemetry_max_daily_dd_pct = 0.0" in source
+        assert "Do NOT reset" in source and "_telemetry_max_total_dd_pct" in source
 
-        # 2. Check that there's a comment about NOT resetting total max
-        assert "Do NOT reset" in source and "_telemetry_max_total_dd_pct" in source, (
-            "on_new_day should have a comment about NOT resetting total max"
-        )
-
-        # 3. Verify the order: equity update before reset_daily
-        # The circuit_breaker.update_equity should be called before reset_daily
         update_idx = source.find("update_equity")
         reset_idx = source.find("reset_daily(now=tick_dt)")
-        assert update_idx < reset_idx, (
-            "update_equity should be called before reset_daily to anchor daily_start_equity"
-        )
+        assert update_idx < reset_idx
 
 
 if __name__ == "__main__":

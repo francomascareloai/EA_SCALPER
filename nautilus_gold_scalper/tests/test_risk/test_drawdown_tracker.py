@@ -224,3 +224,50 @@ class TestDrawdownTracker:
         # 2025-01-01 05:01 UTC is 00:01 ET -> new ET day, daily DD should reset.
         dt.update(98_000, now=datetime(2025, 1, 1, 5, 1, tzinfo=timezone.utc))
         assert dt.get_daily_drawdown_pct() == 0.0
+
+    def test_hwm_is_monotonic_and_total_dd_is_from_hwm(self) -> None:
+        dt = DrawdownTracker(initial_equity=50_000, strict_now=True)
+
+        dt.update(52_000, now=self._t(1))
+        dt.update(50_000, now=self._t(2))
+
+        # Formula: trailing_dd_pct = (hwm - equity) / hwm * 100
+        # Example: hwm=52000, equity=50000 -> (52000-50000)/52000*100 = 3.846153...
+        expected_pct = (52_000 - 50_000) / 52_000 * 100.0
+        assert 0.0 <= expected_pct <= 100.0
+        assert dt.get_total_drawdown_pct() == pytest.approx(expected_pct, rel=1e-12)
+
+        dt.update(51_000, now=self._t(3))
+        expected_pct_2 = (52_000 - 51_000) / 52_000 * 100.0
+        assert 0.0 <= expected_pct_2 <= 100.0
+        assert dt.get_total_drawdown_pct() == pytest.approx(expected_pct_2, rel=1e-12)
+
+        dt.update(53_000, now=self._t(4))
+        assert dt.get_total_drawdown_pct() == 0.0
+
+        hwm_marks = [s.high_water_mark for s in dt.get_history()]
+        assert hwm_marks == sorted(hwm_marks)
+
+    def test_total_dd_does_not_reset_on_new_et_day(self) -> None:
+        dt = DrawdownTracker(
+            initial_equity=100_000,
+            day_boundary_tz="America/New_York",
+            strict_now=True,
+        )
+
+        dt.update(105_000, now=datetime(2025, 1, 1, 21, 0, tzinfo=timezone.utc))  # 16:00 ET
+        dt.update(100_000, now=datetime(2025, 1, 2, 4, 59, tzinfo=timezone.utc))  # 23:59 ET
+
+        before_total_pct = dt.get_total_drawdown_pct()
+        assert before_total_pct > 0.0
+
+        # 2025-01-02 05:01 UTC is 00:01 ET -> new ET day.
+        dt.update(100_000, now=datetime(2025, 1, 2, 5, 1, tzinfo=timezone.utc))
+
+        after_total_pct = dt.get_total_drawdown_pct()
+        assert after_total_pct == pytest.approx(before_total_pct, rel=1e-12)
+        assert dt.get_daily_drawdown_pct() == 0.0
+
+        last = dt.get_history()[-1]
+        assert last.high_water_mark == 105_000
+        assert last.daily_start == 100_000

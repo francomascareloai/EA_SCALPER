@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from nautilus_gold_scalper.src.risk.time_constraint_manager import TimeConstraintManager
+from nautilus_trader.model.enums import OrderStatus
 
 
-@dataclass(frozen=True)
+@dataclass
 class _Order:
-    client_order_id: str
+    client_order_id: object
+    status: object | None = None
 
 
 class DummyCache:
@@ -23,7 +25,10 @@ class DummyCache:
     def orders(self, _instrument_id: object) -> list[object]:
         return list(self._orders)
 
-    def order(self, _order_id: object) -> object | None:
+    def order(self, order_id: object) -> object | None:
+        for order in self._orders:
+            if getattr(order, "client_order_id", None) == order_id:
+                return order
         return None
 
 
@@ -35,6 +40,7 @@ class DummyStrategy:
         self._is_trading_allowed = True
         self.config = type("Cfg", (), {"instrument_id": None})
         self._trading_blocked_today = False
+        self._forcing_flatten = False
         self._close_calls = 0
         self._cache = DummyCache()
 
@@ -56,9 +62,16 @@ class DummyStrategy:
         self.canceled = True
 
     def close_all_positions(self, *_args: object, **_kwargs: object) -> None:
+        from nautilus_trader.model.identifiers import ClientOrderId
+
         self.closed = True
         self._close_calls += 1
-        self._cache._orders.append(_Order(client_order_id=f"CLOSE-{self._close_calls}"))
+        self._cache._orders.append(
+            _Order(
+                client_order_id=ClientOrderId(f"CLOSE-{self._close_calls}"),
+                status=OrderStatus.SUBMITTED,
+            )
+        )
 
     @property
     def cache(self) -> DummyCache:
@@ -107,6 +120,58 @@ def test_time_manager_flattens_in_emergency_window() -> None:
     assert s._is_trading_allowed is False
     assert s._trading_blocked_today is True
     assert mgr._close_order_ids
+
+
+def test_time_manager_retries_when_close_orders_rejected(monkeypatch: Any) -> None:
+    s = DummyStrategy()
+    s.cache._positions = [object()]
+    mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
+
+    # First call submits close orders and records their IDs.
+    assert mgr.check(ts_at(16, 55)) is False
+    assert mgr._close_order_ids
+    assert s.closed is True
+
+    # Mark the submitted close order(s) as REJECTED so the manager retries.
+    for order in s.cache._orders:
+        oid = getattr(order, "client_order_id", None)
+        if oid is not None and oid in mgr._close_order_ids:
+            order.status = OrderStatus.REJECTED
+
+    # Force the internal rejection check to observe those statuses.
+    assert mgr.check(ts_at(16, 55)) is False
+
+    assert mgr._close_retry_count == 1
+    # Retry path resets tracking and triggers IOC escalation (individual close).
+    assert s._forcing_flatten is True
+
+
+def test_time_manager_escalates_to_individual_close_on_retry(monkeypatch: Any) -> None:
+    class TrackingStrategy(DummyStrategy):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_position_calls = 0
+
+        def close_position(self, *_args: object, **_kwargs: object) -> None:
+            self.close_position_calls += 1
+
+    s = TrackingStrategy()
+    s.cache._positions = [object(), object()]
+    mgr = TimeConstraintManager(strategy=s, allow_overnight=False)
+
+    # First call submits close orders (batch).
+    assert mgr.check(ts_at(16, 55)) is False
+
+    # Mark prior close orders as rejected.
+    for order in s.cache._orders:
+        oid = getattr(order, "client_order_id", None)
+        if oid is not None and oid in mgr._close_order_ids:
+            order.status = OrderStatus.REJECTED
+
+    # Second call triggers retry and should attempt individual close.
+    assert mgr.check(ts_at(16, 55)) is False
+    assert mgr._close_retry_count == 1
+    assert s.close_position_calls == 2
 
 
 def test_time_manager_cutoff_clamps_emergency_gate() -> None:
