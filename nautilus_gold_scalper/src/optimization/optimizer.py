@@ -158,8 +158,25 @@ class ApexOptimizer:
                     )
                 else:
                     if ckpt.config_fingerprint != config_fp:
-                        raise ValueError(
-                            "Checkpoint config fingerprint mismatch; refusing to resume with different config"
+                        logger.warning(
+                            "Checkpoint config fingerprint mismatch; quarantining %s and starting fresh",
+                            resume_path,
+                        )
+                        quarantine_corrupt_checkpoint(resume_path)
+                    else:
+                        if ckpt.mode and ckpt.mode != mode:
+                            raise ValueError(
+                                f"Checkpoint mode mismatch: {ckpt.mode} vs current {mode}; refusing to resume"
+                            )
+                        resume_trial_id = int(ckpt.resume_from_trial_id)
+                        # Resume seeds only the (bounded) top-N results from the checkpoint.
+                        # Deterministic trial skipping avoids re-running already completed trials.
+                        resume_seed_results = [trial_result_from_dict(r) for r in ckpt.top_results]
+
+                        logger.info(
+                            "Resuming from checkpoint %s at trial_id=%d",
+                            resume_path,
+                            resume_trial_id,
                         )
                     if ckpt.mode and ckpt.mode != mode:
                         raise ValueError(
@@ -380,7 +397,7 @@ class ApexOptimizer:
                     if self.config.stress_test.monte_carlo.enabled:
                         start_equity = (
                             float(equity_series.iloc[0])
-                            if equity_series is not None and len(equity_series) > 0
+                            if equity_series is not None and not equity_series.empty
                             else float("nan")
                         )
                         seed = int(self.config.search.seed) + int(r.trial_id) + 10_000
@@ -400,7 +417,7 @@ class ApexOptimizer:
                     if self.config.stress_test.degradation.enabled:
                         start_equity = (
                             float(equity_series.iloc[0])
-                            if equity_series is not None and len(equity_series) > 0
+                            if equity_series is not None and not equity_series.empty
                             else float("nan")
                         )
                         r.degradation_survived = compute_degradation_survived(
@@ -472,25 +489,31 @@ class ApexOptimizer:
                     study_stats["pbo_pass"] = bool(
                         float(pbo_value) <= float(self.config.constraints.anti_overfit.pbo_max)
                     )
-                except Exception:
+                except Exception as exc:
                     # FAIL-CLOSED: If PBO gate is enabled but fails to compute,
                     # mark all candidates as BLOCKED to prevent false sense of security.
                     # See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.2
                     logger.critical(
-                        "Candidate-set PBO computation failed - BLOCKING all candidates "
-                        "(fail-closed behavior, stress gate enabled but unusable)"
+                        "Candidate-set PBO computation failed (%s: %s) - BLOCKING all candidates "
+                        "(fail-closed behavior, stress gate enabled but unusable)",
+                        type(exc).__name__,
+                        str(exc),
+                        exc_info=True,
                     )
                     for r in candidates:
                         r.pbo = 1.0  # Worst-case PBO (100% probability of overfit)
                         r.score = -999.0  # Block from promotion
                         r.apex_compliant = False
-            except Exception:
+            except Exception as exc:
                 # FAIL-CLOSED: If Layer 3 stress gates (MC/degradation/PBO) are enabled but fail,
                 # mark all candidates as BLOCKED. Never silently proceed without safety checks.
                 # See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.2
                 logger.critical(
-                    "Layer 3 stress computation failed - BLOCKING all candidates "
-                    "(fail-closed behavior, stress tests enabled but unusable)"
+                    "Layer 3 stress computation failed (%s: %s) - BLOCKING all candidates "
+                    "(fail-closed behavior, stress tests enabled but unusable)",
+                    type(exc).__name__,
+                    str(exc),
+                    exc_info=True,
                 )
                 # Mark candidates as non-compliant with worst-case metrics
                 top_n = max(1, int(self.config.stress_test.top_n))
@@ -540,13 +563,16 @@ class ApexOptimizer:
                     ghost.p_value,
                     ghost.sims,
                 )
-            except Exception:
+            except Exception as exc:
                 # FAIL-CLOSED: Ghost test is a falsification gate. If enabled but fails,
                 # block the best result to prevent false confidence in edge.
                 # See 12-11-OPTIMIZATION-ROADMAP.md TIER 1.2
                 logger.critical(
-                    "Ghost test failed - BLOCKING best candidate "
-                    "(fail-closed behavior, falsification gate enabled but unusable)"
+                    "Ghost test failed (%s: %s) - BLOCKING best candidate "
+                    "(fail-closed behavior, falsification gate enabled but unusable)",
+                    type(exc).__name__,
+                    str(exc),
+                    exc_info=True,
                 )
                 if self._results:
                     self._results[0].score = -999.0
