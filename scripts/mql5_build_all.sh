@@ -67,16 +67,16 @@ TOTAL=0
 
 # 1. Main EA
 echo "Building Main EA..."
-((TOTAL++))
-compile_file "Experts" "EA_SCALPER_XAUUSD" || ((FAILED++))
+((++TOTAL))
+compile_file "Experts" "EA_SCALPER_XAUUSD" || ((++FAILED))
 echo ""
 
 # 2. Indicators
 echo "Building Indicators..."
 for ind in "SMC_Visual" "TradingDashboard"; do
     if [[ -f "${MT5_ROOT}/Indicators/${ind}.mq5" ]]; then
-        ((TOTAL++))
-        compile_file "Indicators" "$ind" || ((FAILED++))
+        ((++TOTAL))
+        compile_file "Indicators" "$ind" || ((++FAILED))
     fi
 done
 echo ""
@@ -88,13 +88,8 @@ for script in "Tests/Test_DDTracker" "Tests/Test_TimeHandler" "Tests/Test_WallCl
     SCRIPT_DIR_PATH=$(dirname "$script")
 
     if [[ -f "${MT5_ROOT}/Scripts/${script}.mq5" ]]; then
-        ((TOTAL++))
-        if [[ "$SCRIPT_DIR_PATH" == "Tests" ]]; then
-            WIN_SUBPATH="Scripts\\Tests\\${SCRIPT_NAME}"
-        else
-            WIN_SUBPATH="Scripts\\${SCRIPT_NAME}"
-        fi
-        compile_file "Scripts" "${script}" || ((FAILED++))
+        ((++TOTAL))
+        compile_file "Scripts" "${script}" || ((++FAILED))
     fi
 done
 echo ""
