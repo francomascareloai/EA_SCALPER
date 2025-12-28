@@ -229,3 +229,65 @@ class BaseExecutionAdapter:
 
     def list_orders(self) -> list[dict[str, object]]:
         return [{**{"id": oid}, **info} for oid, info in self._orders.items()]
+
+    def get_time_gate_status(
+        self,
+        *,
+        ts_utc: datetime | None = None,
+    ) -> tuple[bool, bool, str | None]:
+        """Return Apex time gate status at adapter boundary.
+
+        Returns:
+            (new_trades_allowed, force_close_required, reason)
+        """
+        now_utc = ts_utc or datetime.now(timezone.utc)
+        if now_utc.tzinfo is None:
+            now_utc = now_utc.replace(tzinfo=timezone.utc)
+
+        if _ET_TZ is None:
+            return False, True, "apex_timezone_unavailable_fail_closed"
+
+        dt_et = now_utc.astimezone(_ET_TZ)
+        now_time = dt_et.time()
+
+        cutoff = time(16, 59)
+        emergency = time(16, 55)
+        urgent = time(16, 30)
+
+        if now_time >= cutoff:
+            return False, True, "apex_cutoff_4:59PM"
+        if now_time >= emergency:
+            return False, True, "apex_force_close_4:55PM"
+        if now_time >= urgent:
+            return False, False, "apex_new_trade_block_4:30PM"
+
+        return True, False, None
+
+    def enforce_time_gates(
+        self,
+        *,
+        ts_utc: datetime | None = None,
+    ) -> tuple[bool, bool, str | None]:
+        """Apply emergency close semantics (cancel orders + request flatten)."""
+        new_trades_allowed, force_close_required, reason = self.get_time_gate_status(ts_utc=ts_utc)
+        if force_close_required:
+            self.cancel_all_orders()
+            self.close_all_positions(ts_utc=ts_utc)
+        return new_trades_allowed, force_close_required, reason
+
+    def cancel_all_orders(self) -> int:
+        cancelled = 0
+        for oid, info in self._orders.items():
+            if info.get("status") != "NEW":
+                continue
+            order_type = str(info.get("type", "market")).lower().strip()
+            is_reduce_only = order_type in {"close", "flatten", "reduce", "reduce_only"}
+            if is_reduce_only:
+                continue
+            info["status"] = "CANCELLED"
+            cancelled += 1
+        return cancelled
+
+    def close_all_positions(self, *, ts_utc: datetime | None = None) -> None:
+        _ = ts_utc
+        return None
