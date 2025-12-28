@@ -12,7 +12,7 @@ metadata:
 search:
   mode: successive_halving
   trials: 64  # Must be power of eta for clean halving (64 -> 16 -> final)
-  sampler: lhs  # Latin Hypercube Sampling for better coverage
+  sampler: sobol  # Sobol sequences: ~3.5x better convergence than LHS
   parallelism: 4
   timeout_per_trial: 300
   seed: 42
@@ -27,6 +27,7 @@ search:
     window_days: [30, 0]
     wfa_windows: [1, 5]
     promotion_metric: score
+    sampler: sobol  # Options: lhs, sobol (recommended), levy
 
   early_stop:
     enabled: true

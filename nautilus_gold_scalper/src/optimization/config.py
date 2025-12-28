@@ -15,12 +15,13 @@ from typing import Any, Literal, cast
 
 import yaml
 
-SearchMode = Literal["grid", "random", "bayesian", "successive_halving"]
+SearchMode = Literal["grid", "random", "bayesian", "successive_halving", "levy"]
+FidelityFeedMode = Literal["ticks", "bars"]
 
 # Runtime validation constants for search modes.
 # NOTE: "lhs" is accepted as a CLI-only alias and is normalized to "random" in _from_dict().
 _VALID_SEARCH_MODES: frozenset[str] = frozenset(
-    {"grid", "random", "bayesian", "successive_halving", "lhs"}
+    {"grid", "random", "bayesian", "successive_halving", "lhs", "levy"}
 )
 _REMOVED_SEARCH_MODES: dict[str, str] = {
     "wfo": "Removed: declared but never implemented",
@@ -116,6 +117,10 @@ class SuccessiveHalvingConfig:
         Use 0 to mean "full" (train_start..train_end).
     - wfa_windows: list of InlineWFA.windows per rung.
         Must match window_days length.
+    - feed_modes: per-rung feed mode.
+        "bars" rungs are *ranking-only* and are not Apex-valid.
+        "ticks" rungs are Apex-valid (conservative HWM uses bid/ask QuoteTicks).
+    - bars_files: optional per-rung bars file path (required when feed_modes[rung] == "bars").
     - eta: reduction factor (keep top ceil(n/eta) each rung).
     """
 
@@ -123,7 +128,15 @@ class SuccessiveHalvingConfig:
     eta: int = 3
     window_days: Sequence[int] = (90, 365, 0)
     wfa_windows: Sequence[int] = (1, 3, 5)
+    feed_modes: Sequence[FidelityFeedMode] = ()
+    bars_files: Sequence[str | None] = ()
     promotion_metric: str = "score"  # score | wfe | sqn
+    sampler: str = "lhs"  # lhs | levy
+
+    # Optional: evolutionary refinement between rungs (keeps SH outer loop).
+    # If enabled and sampler == "levy", mutate promoted params before next rung.
+    mutate_between_rungs: bool = False
+    mutate_prob: float = 0.75
 
     def __post_init__(self) -> None:
         if self.eta < 1:
@@ -133,10 +146,51 @@ class SuccessiveHalvingConfig:
                 f"window_days and wfa_windows must have same length: "
                 f"{len(self.window_days)} != {len(self.wfa_windows)}"
             )
+        # Default feed schedule: ticks for all rungs.
+        feed_modes = self.feed_modes
+        bars_files = self.bars_files
+        if len(feed_modes) == 0:
+            feed_modes = tuple("ticks" for _ in self.window_days)
+        if len(bars_files) == 0:
+            bars_files = tuple(None for _ in self.window_days)
+
+        if len(self.window_days) != len(feed_modes):
+            raise ValueError(
+                f"window_days and feed_modes must have same length: "
+                f"{len(self.window_days)} != {len(feed_modes)}"
+            )
+        if len(self.window_days) != len(bars_files):
+            raise ValueError(
+                f"window_days and bars_files must have same length: "
+                f"{len(self.window_days)} != {len(bars_files)}"
+            )
         if any(d < 0 for d in self.window_days):
             raise ValueError(f"window_days must be >= 0, got {list(self.window_days)}")
         if any(w < 1 for w in self.wfa_windows):
             raise ValueError(f"wfa_windows must be >= 1, got {list(self.wfa_windows)}")
+
+        allowed_feeds: set[str] = {"ticks", "bars"}
+        for i, feed in enumerate(feed_modes):
+            if feed not in allowed_feeds:
+                raise ValueError(
+                    f"feed_modes[{i}] must be one of {sorted(allowed_feeds)}, got {feed!r}"
+                )
+            if feed == "bars" and bars_files[i] is None:
+                raise ValueError(f"bars_files[{i}] is required when feed_modes[{i}] == 'bars'")
+
+        # Validate sampler
+        allowed_samplers: set[str] = {"lhs", "sobol", "levy"}
+        if self.sampler not in allowed_samplers:
+            raise ValueError(
+                f"sampler must be one of {sorted(allowed_samplers)}, got {self.sampler!r}"
+            )
+
+        if not (0.0 <= float(self.mutate_prob) <= 1.0):
+            raise ValueError(f"mutate_prob must be in [0, 1], got {self.mutate_prob}")
+
+        # Normalize stored values so downstream users don't need fallback logic.
+        object.__setattr__(self, "feed_modes", feed_modes)
+        object.__setattr__(self, "bars_files", bars_files)
 
 
 @dataclass(frozen=True, slots=True)
@@ -496,12 +550,38 @@ class OptimizationConfig:
 
         # Parse successive halving
         sh_raw = search_raw.get("successive_halving", {})
+
+        feed_modes_raw = sh_raw.get("feed_modes")
+        if feed_modes_raw is None:
+            feed_modes = ()
+        elif isinstance(feed_modes_raw, (list, tuple)):
+            feed_modes = tuple(feed_modes_raw)
+        else:
+            raise ValueError(
+                "search.successive_halving.feed_modes must be a sequence of 'ticks'/'bars'"
+            )
+
+        bars_files_raw = sh_raw.get("bars_files")
+        if bars_files_raw is None:
+            bars_files = ()
+        elif isinstance(bars_files_raw, (list, tuple)):
+            bars_files = tuple(bars_files_raw)
+        else:
+            raise ValueError(
+                "search.successive_halving.bars_files must be a sequence (nulls allowed)"
+            )
+
         successive_halving = SuccessiveHalvingConfig(
             enabled=sh_raw.get("enabled", True),
             eta=sh_raw.get("eta", 3),
             window_days=tuple(sh_raw.get("window_days", (90, 365, 0))),
             wfa_windows=tuple(sh_raw.get("wfa_windows", (1, 3, 5))),
+            feed_modes=feed_modes,
+            bars_files=bars_files,
             promotion_metric=sh_raw.get("promotion_metric", "score"),
+            sampler=sh_raw.get("sampler", "lhs"),  # lhs | levy
+            mutate_between_rungs=bool(sh_raw.get("mutate_between_rungs", False)),
+            mutate_prob=float(sh_raw.get("mutate_prob", 0.75)),
         )
 
         # Parse and validate search mode

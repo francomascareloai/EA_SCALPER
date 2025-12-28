@@ -2,7 +2,9 @@
 
 from src.optimization.streaming.generator import (
     StreamingLHSGenerator,
+    StreamingSobolGenerator,
     streaming_lhs_samples,
+    streaming_sobol_samples,
 )
 from src.optimization.streaming.persistence import (
     ParquetResultSink,
@@ -11,7 +13,9 @@ from src.optimization.streaming.persistence import (
 
 __all__ = [
     "StreamingLHSGenerator",
+    "StreamingSobolGenerator",
     "streaming_lhs_samples",
+    "streaming_sobol_samples",
     "ParquetResultSink",
     "ResultStreamer",
 ]

@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterator
 from datetime import timedelta
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from src.optimization.config import OptimizationConfig
@@ -26,7 +27,9 @@ from src.optimization.search.base import (
     SearchStrategy,
     TrialResult,
 )
-from src.optimization.streaming.generator import StreamingLHSGenerator
+from src.optimization.streaming.generator import (
+    StreamingLHSGenerator,
+)
 
 
 class SuccessiveHalvingSearch(SearchStrategy):
@@ -38,8 +41,9 @@ class SuccessiveHalvingSearch(SearchStrategy):
         *,
         on_result: Callable[[TrialResult], None] | None = None,
         max_results_in_ram: int | None = None,
-        objective_fn_with_fidelity: Callable[[dict[str, Any], str, str, int], TrialResult]
-        | None = None,
+        objective_fn_with_fidelity: (
+            Callable[[dict[str, Any], str, str, int, str, str | None], TrialResult] | None
+        ) = None,
         start_trial_id: int = 0,
         seed_results: list[TrialResult] | None = None,
         batch_size: int = 128,
@@ -81,10 +85,17 @@ class SuccessiveHalvingSearch(SearchStrategy):
 
         window_days = list(sh.window_days)
         wfa_windows = list(sh.wfa_windows)
+        feed_modes = list(sh.feed_modes)
+        bars_files = list(sh.bars_files)
+
         if len(window_days) == 0:
             raise ValueError("successive_halving.window_days must be non-empty")
         if len(window_days) != len(wfa_windows):
             raise ValueError("successive_halving.window_days and wfa_windows must have same length")
+        if len(window_days) != len(feed_modes):
+            raise ValueError("successive_halving.window_days and feed_modes must have same length")
+        if len(window_days) != len(bars_files):
+            raise ValueError("successive_halving.window_days and bars_files must have same length")
 
         # Candidate pool size: reuse trials for this mode.
         n0 = int(self.config.search.trials)
@@ -102,7 +113,9 @@ class SuccessiveHalvingSearch(SearchStrategy):
         # This works because candidate generation + rung iteration are deterministic
         # given (seed, trials, successive_halving config).
 
-        for rung_idx, (days, wfa_n) in enumerate(zip(window_days, wfa_windows)):
+        for rung_idx, (days, wfa_n, feed_mode, bars_file) in enumerate(
+            zip(window_days, wfa_windows, feed_modes, bars_files)
+        ):
             start_date, end_date = self._resolve_rung_dates(days)
 
             rung_results: list[TrialResult] = []
@@ -111,7 +124,14 @@ class SuccessiveHalvingSearch(SearchStrategy):
                     trial_id += 1
                     continue
 
-                result = self._objective_fidelity(params, start_date, end_date, int(wfa_n))
+                result = self._objective_fidelity(
+                    params,
+                    start_date,
+                    end_date,
+                    int(wfa_n),
+                    str(feed_mode),
+                    bars_file,
+                )
                 result.trial_id = trial_id
 
                 if rung_idx == len(window_days) - 1:
@@ -119,7 +139,10 @@ class SuccessiveHalvingSearch(SearchStrategy):
 
                 trial_id += 1
 
-                if constraint_fn is not None:
+                # Constraints (Apex/DD) are only meaningful for tick-based runs.
+                # Bars-only rungs are ranking-only and must not be eliminated by
+                # tick-only invariants (e.g., conservative HWM requires bid/ask QuoteTicks).
+                if constraint_fn is not None and str(feed_mode) == "ticks":
                     constraints = constraint_fn(result)
                     if any(c > 0 for c in constraints):
                         result.apex_compliant = False
@@ -136,6 +159,20 @@ class SuccessiveHalvingSearch(SearchStrategy):
                 promoted = rung_results[:k]
                 candidates = [r.params for r in promoted]
 
+                # Optional evolutionary refinement: mutate survivors before next rung.
+                # This keeps SH as the outer loop (resource allocation) while using Lévy
+                # steps to explore neighborhoods of promising configs.
+                if sh.mutate_between_rungs and sh.sampler == "levy":
+                    mut_rng = np.random.default_rng(self.config.search.seed + rung_idx + 1)
+                    candidates = [
+                        self._mutate_params_levy(
+                            c,
+                            rng=mut_rng,
+                            mutate_prob=float(sh.mutate_prob),
+                        )
+                        for c in candidates
+                    ]
+
         # Ensure best params come from the last rung AND are Apex-compliant.
         # CRITICAL: apex_compliant must be part of sort key to prevent returning
         # a non-compliant config as "best" (would terminate live account).
@@ -151,13 +188,260 @@ class SuccessiveHalvingSearch(SearchStrategy):
         return self._results
 
     def _iter_candidates(self, n: int) -> Iterator[dict[str, Any]]:
-        generator = StreamingLHSGenerator(
-            self.config.parameters,
-            seed=self.config.search.seed,
-            n_samples=n,
-            batch_size=self._batch_size,
-        )
-        yield from generator
+        sampler = self.config.search.successive_halving.sampler
+        if sampler == "levy":
+            # Lévy-flight sampling (non-adaptive) for heavy-tailed exploration.
+            yield from self._iter_levy_candidates(n)
+        elif sampler == "sobol":
+            # Sobol quasi-random sequences: ~3.5x better convergence than LHS.
+            from src.optimization.streaming.generator import StreamingSobolGenerator
+
+            sobol_gen = StreamingSobolGenerator(
+                self.config.parameters,
+                seed=self.config.search.seed,
+                n_samples=n,
+            )
+            yield from sobol_gen
+        else:
+            # Default: use LHS (Latin Hypercube Sampling)
+            lhs_gen = StreamingLHSGenerator(
+                self.config.parameters,
+                seed=self.config.search.seed,
+                n_samples=n,
+                batch_size=self._batch_size,
+            )
+            yield from lhs_gen
+
+    def _iter_levy_candidates(self, n: int) -> Iterator[dict[str, Any]]:
+        """Generate candidates using Lévy-flight mutations (non-adaptive).
+
+        Successive halving generates candidates up-front, so this sampler is
+        intentionally *static* (no gradient memory / bad-region feedback loop).
+
+        Key safeguards (Argus):
+        - Reflection boundary handling (avoid boundary-mass collapse from clipping)
+        - Log-space sampling when `spec.log_scale` is set
+        - Stochastic rounding for integers
+        """
+
+        rng = np.random.default_rng(self.config.search.seed)
+
+        # Lévy step parameters: kept consistent with LevyEnhancedSearch.
+        levy_alpha = 1.5
+        sigma_levy = 0.6
+        step_scale = 0.20  # fraction of range width applied to Lévy step
+
+        def levy_step() -> float:
+            # Mantegna's algorithm (with epsilon guard).
+            u = float(rng.normal(0.0, sigma_levy))
+            v = float(rng.normal(0.0, 1.0))
+            v_safe = max(abs(v), 1e-10)
+            return float(u / (v_safe ** (1.0 / levy_alpha)))
+
+        def reflect_to_bounds(value: float, low: float, high: float) -> float:
+            width = high - low
+            if width <= 0:
+                return low
+            x = (value - low) % (2.0 * width)
+            if x > width:
+                x = 2.0 * width - x
+            return low + x
+
+        def stochastic_round(value: float) -> int:
+            lo = math.floor(value)
+            hi = lo + 1
+            p_hi = value - float(lo)
+            return int(hi if rng.random() < p_hi else lo)
+
+        def random_params() -> dict[str, Any]:
+            params: dict[str, Any] = {}
+            for spec in self.config.parameters:
+                if spec.param_type == "categorical":
+                    if spec.choices is None or len(spec.choices) == 0:
+                        raise ValueError(f"Parameter {spec.name}: choices required")
+                    params[spec.name] = rng.choice(spec.choices)
+                elif spec.param_type == "int":
+                    if spec.range is None:
+                        if spec.choices is None or len(spec.choices) == 0:
+                            raise ValueError(f"Parameter {spec.name}: range or choices required")
+                        params[spec.name] = int(rng.choice(spec.choices))
+                    else:
+                        low_f, high_f = spec.range
+                        low_i, high_i = int(low_f), int(high_f)
+                        params[spec.name] = int(rng.integers(low_i, high_i + 1))
+                else:
+                    # float
+                    if spec.range is None:
+                        if spec.choices is None or len(spec.choices) == 0:
+                            raise ValueError(f"Parameter {spec.name}: range or choices required")
+                        params[spec.name] = float(rng.choice(spec.choices))
+                    else:
+                        low_f, high_f = spec.range
+                        if spec.log_scale:
+                            if low_f <= 0 or high_f <= 0:
+                                raise ValueError(
+                                    f"Parameter {spec.name}: log_scale requires positive range, got ({low_f}, {high_f})"
+                                )
+                            log_low = math.log10(low_f)
+                            log_high = math.log10(high_f)
+                            u01 = float(rng.uniform(0.0, 1.0))
+                            params[spec.name] = float(10 ** (log_low + (log_high - log_low) * u01))
+                        else:
+                            params[spec.name] = float(rng.uniform(low_f, high_f))
+            return params
+
+        def mutate_from_anchor(anchor: dict[str, Any]) -> dict[str, Any]:
+            params: dict[str, Any] = {}
+            for spec in self.config.parameters:
+                if spec.param_type == "categorical":
+                    # Keep categorical stable most of the time; occasionally resample.
+                    if rng.random() < 0.10:
+                        if spec.choices is None or len(spec.choices) == 0:
+                            raise ValueError(f"Parameter {spec.name}: choices required")
+                        params[spec.name] = rng.choice(spec.choices)
+                    else:
+                        params[spec.name] = anchor[spec.name]
+                    continue
+
+                if spec.range is None:
+                    # Discrete domain via choices.
+                    if spec.choices is None or len(spec.choices) == 0:
+                        raise ValueError(f"Parameter {spec.name}: range or choices required")
+                    params[spec.name] = anchor.get(spec.name, spec.choices[0])
+                    continue
+
+                low_f, high_f = spec.range
+                width = high_f - low_f
+                if width <= 0:
+                    params[spec.name] = anchor.get(spec.name, low_f)
+                    continue
+
+                base = float(anchor.get(spec.name, (low_f + high_f) / 2.0))
+
+                if spec.log_scale:
+                    if low_f <= 0 or high_f <= 0:
+                        raise ValueError(
+                            f"Parameter {spec.name}: log_scale requires positive range, got ({low_f}, {high_f})"
+                        )
+                    base_log = math.log10(max(base, 1e-12))
+                    low_log = math.log10(low_f)
+                    high_log = math.log10(high_f)
+                    new_log = base_log + levy_step() * (high_log - low_log) * step_scale
+                    new_log = reflect_to_bounds(new_log, low_log, high_log)
+                    new_value_f = float(10**new_log)
+                else:
+                    new_value_f = base + levy_step() * width * step_scale
+                    new_value_f = reflect_to_bounds(new_value_f, low_f, high_f)
+
+                if spec.step is not None and spec.param_type == "float":
+                    step = float(spec.step)
+                    if step > 0:
+                        new_value_f = low_f + round((new_value_f - low_f) / step) * step
+                        new_value_f = reflect_to_bounds(new_value_f, low_f, high_f)
+
+                if spec.param_type == "int":
+                    new_int = stochastic_round(new_value_f)
+                    new_int = int(max(int(low_f), min(int(high_f), new_int)))
+                    params[spec.name] = new_int
+                else:
+                    params[spec.name] = float(new_value_f)
+
+            return params
+
+        # Use a small number of anchors, then Lévy-mutate around them.
+        n_anchors = max(1, min(5, int(math.sqrt(max(1, n)))))
+        anchors = [random_params() for _ in range(n_anchors)]
+
+        for i in range(n):
+            if i < n_anchors:
+                yield anchors[i]
+            else:
+                anchor = anchors[int(rng.integers(0, n_anchors))]
+                yield mutate_from_anchor(anchor)
+
+    def _mutate_params_levy(
+        self,
+        params: dict[str, Any],
+        *,
+        rng: np.random.Generator,
+        mutate_prob: float,
+    ) -> dict[str, Any]:
+        """Apply Lévy-flight mutation to a params dict (for between-rung refinement)."""
+
+        def reflect_to_bounds(value: float, low: float, high: float) -> float:
+            width = high - low
+            if width <= 0:
+                return low
+            x = (value - low) % (2.0 * width)
+            if x > width:
+                x = 2.0 * width - x
+            return low + x
+
+        def stochastic_round(value: float) -> int:
+            lo = math.floor(value)
+            hi = lo + 1
+            p_hi = value - float(lo)
+            return int(hi if rng.random() < p_hi else lo)
+
+        levy_alpha = 1.5
+        sigma_levy = 0.6
+        step_scale = 0.10
+
+        def levy_step() -> float:
+            u = float(rng.normal(0.0, sigma_levy))
+            v = float(rng.normal(0.0, 1.0))
+            v_safe = max(abs(v), 1e-10)
+            return float(u / (v_safe ** (1.0 / levy_alpha)))
+
+        out: dict[str, Any] = dict(params)
+        for spec in self.config.parameters:
+            if rng.random() >= mutate_prob:
+                continue
+
+            name = spec.name
+            if spec.param_type == "categorical":
+                if spec.choices is None or len(spec.choices) == 0:
+                    continue
+                # mutate categorical with small chance
+                if rng.random() < 0.10:
+                    out[name] = rng.choice(spec.choices)
+                continue
+
+            if spec.range is None:
+                continue
+
+            low_f, high_f = spec.range
+            width = high_f - low_f
+            if width <= 0:
+                continue
+
+            base = float(out.get(name, (low_f + high_f) / 2.0))
+            if spec.log_scale:
+                if low_f <= 0 or high_f <= 0:
+                    continue
+                base_log = math.log10(max(base, 1e-12))
+                low_log = math.log10(low_f)
+                high_log = math.log10(high_f)
+                new_log = base_log + levy_step() * (high_log - low_log) * step_scale
+                new_log = reflect_to_bounds(new_log, low_log, high_log)
+                new_value = float(10**new_log)
+            else:
+                new_value = reflect_to_bounds(
+                    base + levy_step() * width * step_scale, low_f, high_f
+                )
+
+            if spec.param_type == "int":
+                new_int = stochastic_round(new_value)
+                out[name] = int(max(int(low_f), min(int(high_f), new_int)))
+            else:
+                if spec.step is not None:
+                    step = float(spec.step)
+                    if step > 0:
+                        new_value = low_f + round((new_value - low_f) / step) * step
+                        new_value = reflect_to_bounds(new_value, low_f, high_f)
+                out[name] = float(new_value)
+
+        return out
 
     def _resolve_rung_dates(self, window_days: int) -> tuple[str, str]:
         # Rung window ends at train_end (inclusive).
