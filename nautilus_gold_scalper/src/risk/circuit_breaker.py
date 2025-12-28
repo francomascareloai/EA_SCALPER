@@ -43,6 +43,11 @@ class CircuitBreakerState:
     can_trade: bool = True
     size_multiplier: float = 1.0
 
+    # Intelligent recovery (probe mode)
+    probe_trades_remaining: int = 0
+    probe_until: datetime | None = None
+    cooldown_backoff: int = 0
+
     # Equity tracking
     current_equity: float = 0.0
     daily_start_equity: float = 0.0
@@ -118,6 +123,14 @@ class CircuitBreaker:
     LEVEL_3_COOLDOWN = 30
     LEVEL_4_COOLDOWN = 1440  # Until next day
 
+    # Intelligent recovery: probe mode after cooldown expiry (L1/L2 only)
+    PROBE_TRADES = 1
+    PROBE_WINDOW_MINUTES = 10
+    PROBE_SIZE_MULT_L1 = 0.50
+    PROBE_SIZE_MULT_L2 = 0.25
+    COOLDOWN_BACKOFF_FACTOR = 2
+    COOLDOWN_BACKOFF_MAX = 3
+
     # Size multipliers
     LEVEL_2_SIZE_MULT = 0.75  # -25%
     LEVEL_3_SIZE_MULT = 0.50  # -50%
@@ -155,8 +168,7 @@ class CircuitBreaker:
         return now if now is not None else datetime.now(timezone.utc)
 
     def register_trade_result(self, pnl: float, is_win: bool, now: datetime | None = None) -> None:
-        """
-        Register a trade result.
+        """Register a trade result.
 
         Args:
             pnl: Profit/loss amount (negative for loss)
@@ -165,6 +177,13 @@ class CircuitBreaker:
         """
         with self._lock:
             now_dt = self._resolve_now(now)
+
+            # Probe bookkeeping: if we're in probe mode, this trade consumes the probe.
+            in_probe = bool(
+                self._state.probe_trades_remaining > 0
+                and self._state.probe_until is not None
+                and now_dt <= self._state.probe_until
+            )
 
             # Update P&L tracking
             self._state.last_trade_pnl = pnl
@@ -191,8 +210,29 @@ class CircuitBreaker:
                     f"Daily P&L: ${self._state.daily_pnl:.2f}"
                 )
 
-            # Check if we need to escalate level
+            if in_probe:
+                self._state.probe_trades_remaining = max(
+                    0, int(self._state.probe_trades_remaining) - 1
+                )
+                # Loss on probe should immediately re-enter cooldown with backoff.
+                if not is_win and self._state.level in (
+                    CircuitBreakerLevel.LEVEL_1_CAUTION,
+                    CircuitBreakerLevel.LEVEL_2_WARNING,
+                ):
+                    self._state.cooldown_backoff = min(
+                        int(self._state.cooldown_backoff) + 1,
+                        int(self.COOLDOWN_BACKOFF_MAX),
+                    )
+                    self._enter_cooldown(now_dt, reason="probe_loss")
+                # Win on probe clears the backoff.
+                if is_win:
+                    self._state.cooldown_backoff = 0
+
+            # Check if we need to escalate level (escalation only)
             self._check_and_escalate(now_dt)
+
+            # Optional de-escalation: if the loss streak is cleared and DD is safe, go back to normal.
+            self._maybe_deescalate(now_dt)
 
     def update_equity(self, current_equity: float, now: datetime | None = None) -> None:
         """
@@ -247,15 +287,94 @@ class CircuitBreaker:
             # Check if drawdown triggers escalation
             self._check_and_escalate(now_dt)
 
-    def can_trade(self, now: datetime | None = None) -> bool:
-        """
-        Check if trading is currently allowed.
+    def update_equity_and_get_level_and_drawdown(
+        self, current_equity: float, now: datetime | None = None
+    ) -> tuple[CircuitBreakerLevel, float, float, float, float]:
+        """Update equity and return a hot-path snapshot under a single lock.
 
         Returns:
-            True if trading is allowed, False otherwise
+            (level, daily_dd_percent, total_dd_percent, peak_equity, daily_start_equity)
         """
         with self._lock:
             now_dt = self._resolve_now(now)
+
+            if not math.isfinite(float(current_equity)):
+                # Fail closed: invalid equity makes DD comparisons unreliable.
+                self._state.current_equity = float("nan")
+                self._state.daily_dd_percent = float("inf")
+                self._state.total_dd_percent = float("inf")
+                self._state.last_update = now_dt
+                self._state.level = CircuitBreakerLevel.LEVEL_5_LOCKDOWN
+                self._state.can_trade = False
+                self._state.alert_message = "Non-finite equity detected"
+                s = self._state
+                return (
+                    s.level,
+                    float(s.daily_dd_percent),
+                    float(s.total_dd_percent),
+                    float(s.peak_equity),
+                    float(s.daily_start_equity),
+                )
+
+            self._state.current_equity = float(current_equity)
+
+            # Initialize tracking values on first update
+            if self._state.initial_balance is None:
+                self._state.initial_balance = current_equity
+                self._state.daily_start_equity = current_equity
+                self._state.peak_equity = current_equity
+                logger.info(f"Initial equity set: ${current_equity:.2f}")
+
+            # Update peak equity (high water mark)
+            if current_equity > self._state.peak_equity:
+                self._state.peak_equity = current_equity
+
+            # Calculate drawdowns
+            if self._state.daily_start_equity > 0:
+                self._state.daily_dd_percent = (
+                    (self._state.daily_start_equity - current_equity)
+                    / self._state.daily_start_equity
+                    * 100
+                )
+
+            if self._state.peak_equity > 0:
+                self._state.total_dd_percent = (
+                    (self._state.peak_equity - current_equity) / self._state.peak_equity * 100
+                )
+
+            self._state.last_update = now_dt
+
+            # Check if drawdown triggers escalation
+            self._check_and_escalate(now_dt)
+
+            s = self._state
+            return (
+                s.level,
+                float(s.daily_dd_percent),
+                float(s.total_dd_percent),
+                float(s.peak_equity),
+                float(s.daily_start_equity),
+            )
+
+    def can_trade(self, now: datetime | None = None) -> bool:
+        """Check if trading is currently allowed."""
+        with self._lock:
+            now_dt = self._resolve_now(now)
+
+            # Probe mode: allow limited trading after cooldown expiry.
+            if self._state.probe_trades_remaining > 0 and self._state.probe_until is not None:
+                if now_dt <= self._state.probe_until:
+                    self._state.can_trade = True
+                    return True
+                # Probe window expired - revoke probe and re-enter cooldown if still in L1/L2.
+                self._state.probe_trades_remaining = 0
+                self._state.probe_until = None
+                if self._state.level in (
+                    CircuitBreakerLevel.LEVEL_1_CAUTION,
+                    CircuitBreakerLevel.LEVEL_2_WARNING,
+                ):
+                    self._enter_cooldown(now_dt, reason="probe_expired")
+
             # Check if in cooldown
             if self._state.cooldown_until is not None:
                 if now_dt < self._state.cooldown_until:
@@ -268,7 +387,7 @@ class CircuitBreaker:
                     self._enable_auto_recovery
                     and self._state.level < CircuitBreakerLevel.LEVEL_5_LOCKDOWN
                 ):
-                    self._recover_from_cooldown()
+                    self._recover_from_cooldown(now_dt)
 
             return self._state.can_trade
 
@@ -287,25 +406,37 @@ class CircuitBreaker:
         with self._lock:
             return self._state.size_multiplier
 
-    def get_state(self) -> CircuitBreakerState:
-        """
-        Get current state (copy).
+    def get_level_and_drawdown(self) -> tuple[CircuitBreakerLevel, float, float, float, float]:
+        """Fast-path snapshot for hot tick loops.
 
         Returns:
-            Copy of current state
+            (level, daily_dd_percent, total_dd_percent, peak_equity, daily_start_equity)
         """
+        with self._lock:
+            s = self._state
+            return (
+                s.level,
+                float(s.daily_dd_percent),
+                float(s.total_dd_percent),
+                float(s.peak_equity),
+                float(s.daily_start_equity),
+            )
+
+    def get_state(self) -> CircuitBreakerState:
+        """Get current state (copy)."""
         with self._lock:
             # Return a copy to prevent external modification
             return CircuitBreakerState(
                 level=self._state.level,
                 can_trade=self._state.can_trade,
                 size_multiplier=self._state.size_multiplier,
+                probe_trades_remaining=self._state.probe_trades_remaining,
+                probe_until=self._state.probe_until,
+                cooldown_backoff=self._state.cooldown_backoff,
                 current_equity=self._state.current_equity,
                 daily_start_equity=self._state.daily_start_equity,
                 peak_equity=self._state.peak_equity,
-                initial_balance=(
-                    0.0 if self._state.initial_balance is None else self._state.initial_balance
-                ),
+                initial_balance=self._state.initial_balance,
                 daily_dd_percent=self._state.daily_dd_percent,
                 total_dd_percent=self._state.total_dd_percent,
                 consecutive_losses=self._state.consecutive_losses,
@@ -338,6 +469,11 @@ class CircuitBreaker:
             self._state.daily_pnl = 0.0
             self._state.session_pnl = 0.0
             self._state.daily_reset_time = now_dt
+
+            # Probe/cooldown recovery state should not carry across days.
+            self._state.probe_trades_remaining = 0
+            self._state.probe_until = None
+            self._state.cooldown_backoff = 0
 
             # Don't reset consecutive losses - they carry over
 
@@ -379,12 +515,7 @@ class CircuitBreaker:
             logger.info("Circuit breaker manually reset to NORMAL")
 
     def force_lockdown(self, reason: str) -> None:
-        """
-        Force immediate lockdown (Level 5).
-
-        Args:
-            reason: Reason for emergency lockdown
-        """
+        """Force immediate lockdown (Level 5)."""
         with self._lock:
             logger.critical(f"EMERGENCY LOCKDOWN: {reason}")
 
@@ -469,17 +600,15 @@ class CircuitBreaker:
             self._state.cooldown_reason = ""
 
         elif level == CircuitBreakerLevel.LEVEL_1_CAUTION:
-            self._state.can_trade = False
+            self._state.level = level
             self._state.size_multiplier = 1.0
-            self._state.cooldown_until = now + timedelta(minutes=self.LEVEL_1_COOLDOWN)
-            self._state.cooldown_reason = reason
+            self._enter_cooldown(now, reason=reason)
             logger.warning(f"LEVEL 1 CAUTION: {reason} | Cooldown: {self.LEVEL_1_COOLDOWN} min")
 
         elif level == CircuitBreakerLevel.LEVEL_2_WARNING:
-            self._state.can_trade = False
+            self._state.level = level
             self._state.size_multiplier = self.LEVEL_2_SIZE_MULT
-            self._state.cooldown_until = now + timedelta(minutes=self.LEVEL_2_COOLDOWN)
-            self._state.cooldown_reason = reason
+            self._enter_cooldown(now, reason=reason)
             logger.warning(
                 f"LEVEL 2 WARNING: {reason} | "
                 f"Cooldown: {self.LEVEL_2_COOLDOWN} min | "
@@ -487,10 +616,9 @@ class CircuitBreaker:
             )
 
         elif level == CircuitBreakerLevel.LEVEL_3_ELEVATED:
-            self._state.can_trade = False
+            self._state.level = level
             self._state.size_multiplier = self.LEVEL_3_SIZE_MULT
-            self._state.cooldown_until = now + timedelta(minutes=self.LEVEL_3_COOLDOWN)
-            self._state.cooldown_reason = reason
+            self._enter_cooldown(now, reason=reason)
             logger.error(
                 f"LEVEL 3 ELEVATED: {reason} | "
                 f"Cooldown: {self.LEVEL_3_COOLDOWN} min | "
@@ -500,6 +628,8 @@ class CircuitBreaker:
         elif level == CircuitBreakerLevel.LEVEL_4_CRITICAL:
             self._state.can_trade = False
             self._state.size_multiplier = 0.0
+            self._state.probe_trades_remaining = 0
+            self._state.probe_until = None
             # Cooldown until next day (roughly)
             next_day = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
             self._state.cooldown_until = next_day
@@ -509,6 +639,8 @@ class CircuitBreaker:
         elif level == CircuitBreakerLevel.LEVEL_5_LOCKDOWN:
             self._state.can_trade = False
             self._state.size_multiplier = 0.0
+            self._state.probe_trades_remaining = 0
+            self._state.probe_until = None
             self._state.cooldown_until = None  # Indefinite - manual reset required
             self._state.cooldown_reason = reason
             logger.critical(f"LEVEL 5 LOCKDOWN: {reason} | MANUAL RESET REQUIRED")
@@ -517,33 +649,110 @@ class CircuitBreaker:
         if old_level != level:
             logger.warning(f"Circuit breaker escalation: {old_level.name} → {level.name}")
 
-    def _recover_from_cooldown(self) -> None:
+    def _enter_cooldown(self, now: datetime, *, reason: str) -> None:
+        """Enter a cooldown window for the current level (must hold lock)."""
+        base_minutes: int
+        if self._state.level == CircuitBreakerLevel.LEVEL_1_CAUTION:
+            base_minutes = int(self.LEVEL_1_COOLDOWN)
+        elif self._state.level == CircuitBreakerLevel.LEVEL_2_WARNING:
+            base_minutes = int(self.LEVEL_2_COOLDOWN)
+        elif self._state.level == CircuitBreakerLevel.LEVEL_3_ELEVATED:
+            base_minutes = int(self.LEVEL_3_COOLDOWN)
+        elif self._state.level == CircuitBreakerLevel.LEVEL_4_CRITICAL:
+            base_minutes = int(self.LEVEL_4_COOLDOWN)
+        else:
+            base_minutes = int(self.LEVEL_1_COOLDOWN)
+
+        backoff = max(0, int(self._state.cooldown_backoff))
+        factor = int(self.COOLDOWN_BACKOFF_FACTOR) ** backoff
+        minutes = int(base_minutes) * int(factor)
+
+        self._state.can_trade = False
+        self._state.probe_trades_remaining = 0
+        self._state.probe_until = None
+        self._state.cooldown_until = now + timedelta(minutes=minutes)
+        self._state.cooldown_reason = reason
+
+    def _maybe_deescalate(self, now: datetime) -> None:
+        """De-escalate to NORMAL when safe (must hold lock)."""
+        if self._state.level in (
+            CircuitBreakerLevel.LEVEL_4_CRITICAL,
+            CircuitBreakerLevel.LEVEL_5_LOCKDOWN,
+        ):
+            return
+
+        # Never de-escalate while DD triggers are still present.
+        if self._state.total_dd_percent >= self.LEVEL_4_DD:
+            return
+        if self._state.daily_dd_percent >= self.LEVEL_3_DD:
+            return
+
+        # If we're only in L1/L2 due to loss streak, clear once streak is cleared.
+        if self._state.consecutive_losses == 0 and self._state.level in (
+            CircuitBreakerLevel.LEVEL_1_CAUTION,
+            CircuitBreakerLevel.LEVEL_2_WARNING,
+        ):
+            self._state.level = CircuitBreakerLevel.LEVEL_0_NORMAL
+            self._state.can_trade = True
+            self._state.size_multiplier = 1.0
+            self._state.cooldown_until = None
+            self._state.cooldown_reason = ""
+            self._state.probe_trades_remaining = 0
+            self._state.probe_until = None
+            self._state.cooldown_backoff = 0
+
+    def _recover_from_cooldown(self, now: datetime) -> None:
         """Recover from cooldown period (must hold lock)."""
         old_level = self._state.level
 
-        # Recover to lower level based on current conditions
+        # Clear cooldown marker first.
+        self._state.cooldown_until = None
+
+        # If DD-based levels are active, do not probe-recover.
+        if self._state.level in (
+            CircuitBreakerLevel.LEVEL_3_ELEVATED,
+            CircuitBreakerLevel.LEVEL_4_CRITICAL,
+            CircuitBreakerLevel.LEVEL_5_LOCKDOWN,
+        ):
+            self._state.can_trade = False
+            return
+
+        # Recover target based on current conditions.
         if self._state.consecutive_losses >= self.LEVEL_2_LOSSES:
-            # Still have many losses - stay at Level 2
             target_level = CircuitBreakerLevel.LEVEL_2_WARNING
         elif self._state.consecutive_losses >= self.LEVEL_1_LOSSES:
-            # Some losses - go to Level 1
             target_level = CircuitBreakerLevel.LEVEL_1_CAUTION
         else:
-            # Losses cleared - back to normal
             target_level = CircuitBreakerLevel.LEVEL_0_NORMAL
 
         if target_level == CircuitBreakerLevel.LEVEL_0_NORMAL:
             self._state.level = target_level
             self._state.can_trade = True
             self._state.size_multiplier = 1.0
-            self._state.cooldown_until = None
             self._state.cooldown_reason = ""
+            self._state.probe_trades_remaining = 0
+            self._state.probe_until = None
+            self._state.cooldown_backoff = 0
             logger.info(f"Recovered from cooldown: {old_level.name} → NORMAL")
+            return
+
+        # Intelligent recovery: allow a limited probe trade instead of getting stuck in infinite cooldown.
+        self._state.level = target_level
+        self._state.can_trade = True
+        self._state.cooldown_reason = "probe_recovery"
+        self._state.probe_trades_remaining = int(self.PROBE_TRADES)
+        self._state.probe_until = now + timedelta(minutes=int(self.PROBE_WINDOW_MINUTES))
+
+        if target_level == CircuitBreakerLevel.LEVEL_1_CAUTION:
+            self._state.size_multiplier = min(
+                float(self._state.size_multiplier), float(self.PROBE_SIZE_MULT_L1)
+            )
         else:
-            # Re-enter cooldown at lower level
-            self._state.level = target_level
-            logger.info(f"Recovered from cooldown: {old_level.name} → {target_level.name}")
-            # Will re-trigger cooldown on next check
+            self._state.size_multiplier = min(
+                float(self._state.size_multiplier), float(self.PROBE_SIZE_MULT_L2)
+            )
+
+        logger.info(f"Recovered from cooldown: {old_level.name} → {target_level.name} (probe mode)")
 
 
 # ✓ FORGE v4.0: 7/7 checks

@@ -70,6 +70,7 @@ class TimeConstraintManager:
         # to prevent spamming on every tick after cutoff
         self._close_orders_submitted: bool = False
         self._close_submitted_ts_ns: int | None = None
+        self._flatten_complete: bool = False
 
         # CRITICAL FIX: Track order IDs for rejection detection and retry
         self._close_order_ids: list[ClientOrderId] = []
@@ -169,9 +170,8 @@ class TimeConstraintManager:
 
         # Cutoff window: force-close on every call until flat.
         if now_time >= self.cutoff:
-            # PERF: if we've already issued the flatten sequence and have no positions,
-            # avoid re-running force-close logic on every tick.
-            if self._close_orders_submitted and not list(self.strategy.cache.positions_open()):
+            # PERF: once we are definitively flat + blocked, avoid any further work.
+            if self._flatten_complete:
                 return False
             self._force_close_all(dt_et, trigger="cutoff", gate_time=self.cutoff)
             self._issued.add("cutoff")
@@ -179,8 +179,8 @@ class TimeConstraintManager:
 
         # Emergency window: force-close on every call until flat.
         if now_time >= self.warnings["emergency"]:
-            # PERF: same as cutoff; keep trading blocked but skip redundant work.
-            if self._close_orders_submitted and not list(self.strategy.cache.positions_open()):
+            # PERF: once we are definitively flat + blocked, avoid any further work.
+            if self._flatten_complete:
                 return False
             self._force_close_all(dt_et, trigger="emergency", gate_time=self.warnings["emergency"])
             return False
@@ -236,6 +236,7 @@ class TimeConstraintManager:
         # BUG-13 FIX: Reset close order tracking for new day
         self._close_orders_submitted = False
         self._close_submitted_ts_ns = None
+        self._flatten_complete = False
         # CRITICAL FIX: Reset retry tracking for new day
         self._close_order_ids.clear()
         self._close_retry_count = 0
@@ -288,16 +289,20 @@ class TimeConstraintManager:
 
         # SUCCESS: No positions remaining - all done
         if not remaining:
-            # PERF: After we have already submitted the "close" sequence once, avoid
-            # re-calling close_all_positions() on every tick in the emergency window.
-            if self._close_orders_submitted:
+            # PERF: once we're flat, mark completion and avoid doing any more work
+            # on subsequent ticks in the emergency/cutoff windows.
+            if self._flatten_complete:
                 return
+
             try:
                 self.strategy._forcing_flatten = False
             except Exception:
                 pass
+
             # Mark as submitted even with no positions to prevent re-entry
             self._close_orders_submitted = True
+            self._flatten_complete = True
+
             # Call close_all_positions even with no positions for compatibility
             try:
                 self.strategy.close_all_positions(

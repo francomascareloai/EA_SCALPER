@@ -103,6 +103,21 @@ class DrawdownTracker:
         if self._day_boundary_tz.upper() == "ET":
             self._day_boundary_tz = "America/New_York"
 
+        # PERF: Cache ZoneInfo object to avoid repeated construction in hot path.
+        self._cached_zoneinfo: timezone | None = None
+        if self._day_boundary_tz.upper() == "UTC":
+            self._cached_zoneinfo = timezone.utc
+        elif ZoneInfo is not None:
+            try:
+                self._cached_zoneinfo = ZoneInfo(self._day_boundary_tz)  # type: ignore[assignment]
+            except Exception:
+                self._cached_zoneinfo = timezone.utc
+
+        # PERF: Cache date boundary to avoid repeated timezone conversions.
+        # Only recompute when epoch-minute changes.
+        self._cached_date_boundary: date | None = None
+        self._cached_date_boundary_epoch_min: int = -1
+
         self._current_equity = initial_equity
         self._daily_start_equity = initial_equity
         self._high_water_mark = initial_equity
@@ -416,16 +431,29 @@ class DrawdownTracker:
         )
 
     def _date_in_boundary_tz(self, dt: datetime) -> date:
-        tz_name = self._day_boundary_tz
-        if tz_name.upper() == "UTC":
-            return dt.astimezone(timezone.utc).date()
-        if ZoneInfo is None:
-            # Degraded mode: cannot convert; be conservative and treat as UTC.
-            return dt.astimezone(timezone.utc).date()
-        try:
-            return dt.astimezone(ZoneInfo(tz_name)).date()
-        except Exception:
-            return dt.astimezone(timezone.utc).date()
+        # PERF: Use cached ZoneInfo to avoid repeated construction.
+        if self._cached_zoneinfo is not None:
+            return dt.astimezone(self._cached_zoneinfo).date()
+        # Fallback: conservative UTC if cache failed
+        return dt.astimezone(timezone.utc).date()
+
+    def _date_in_boundary_tz_cached(self, dt: datetime) -> date:
+        """PERF: Cache date by epoch-minute to avoid repeated conversions.
+
+        Date boundaries only change once per minute at most, so we can
+        cache the result and only recompute when the epoch-minute changes.
+        """
+        epoch_min = int(dt.timestamp()) // 60
+        if (
+            epoch_min == self._cached_date_boundary_epoch_min
+            and self._cached_date_boundary is not None
+        ):
+            return self._cached_date_boundary
+        # Recompute
+        result = self._date_in_boundary_tz(dt)
+        self._cached_date_boundary = result
+        self._cached_date_boundary_epoch_min = epoch_min
+        return result
 
     def _check_new_day(self, now: datetime | None = None) -> None:
         """Check if new trading day and reset if needed.
@@ -446,9 +474,9 @@ class DrawdownTracker:
             self._last_day_check = now
             return
 
-        if self._last_day_check is not None and self._date_in_boundary_tz(
+        if self._last_day_check is not None and self._date_in_boundary_tz_cached(
             now
-        ) != self._date_in_boundary_tz(self._last_day_check):
+        ) != self._date_in_boundary_tz_cached(self._last_day_check):
             self.reset_daily()
 
         # Update check timestamp to provided time for backtest accuracy
