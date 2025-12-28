@@ -449,14 +449,13 @@
 
     <complex triggers="trading|risk|sizing|drawdown|apex|architecture|debug|validate|design|strategy|multi-file">
       MANDATORY: Use sequential-thinking MCP tool (8-15 thoughts minimum).
-      Structure: problem → options → 1st/2nd/3rd order consequences → pre-mortem → Apex check → decision → validation plan.
+      Structure: problem → options → 1st/2nd/3rd order consequences → pre-mortem → Apex check → temporal correctness (no look-ahead) → performance budgets → decision → validation plan.
       Output: DECISION + RATIONALE + RISKS + MITIGATIONS + VALIDATION + NEXT.
     </complex>
 
-    <heavy triggers="find all X|understand how Y works|scan codebase|large refactor|analyze results|search pattern across files|read >500 lines">
+    <heavy triggers="find all X|understand how Y works|scan codebase|large refactor|analyze results|search pattern across files|read >500 lines|review logs|compare configs|scan data/catalog">
       MANDATORY: Delegate to Explorer sub-agent (Task tool with subagent_type=Explore).
-      Explorer does the heavy lifting and returns structured summary.
-      Orchestrator acts on summary, preserving main context clean.
+      Explorer returns: FINDINGS + RELEVANT_FILES + SUMMARY (≤500 words). Main context stays clean.
     </heavy>
   </task_classification>
 
@@ -466,52 +465,12 @@
     <exhaustive thoughts="15+">Go-live decisions, critical bugs, Apex compliance, money at risk</exhaustive>
   </thinking_depth>
 
-  <sequential_thinking_structure>
-    1. State problem/decision clearly
-    2. List 2-3 options
-    3. Analyze 1st order consequences (immediate)
-    4. Analyze 2nd order consequences (downstream)
-    5. Analyze 3rd order consequences (systemic)
-    6. Pre-mortem: what could go wrong?
-    7. Check Apex compliance (DD, time gates, consistency)
-    8. Check temporal correctness (no look-ahead)
-    9. Check performance budgets
-    10. Make decision with clear rationale
-    11. Verify decision against all constraints
-    12. Define validation steps
-  </sequential_thinking_structure>
-
-  <explorer_delegation>
-    <when>Task requires scanning/reading large portions of codebase</when>
-    <how>Spawn Task with subagent_type=Explore, clear objective, expected output format</how>
-    <output_contract>Explorer returns: FINDINGS (structured) + RELEVANT_FILES + SUMMARY (≤500 words)</output_contract>
-    <benefit>Main context stays clean; Explorer absorbs the noise</benefit>
-  </explorer_delegation>
-
   <mandatory_delegation>
     <purpose>Prevent context overflow by FORCING delegation for large read operations</purpose>
     <rule>NEVER read backtest results, logs, or data files (>100 lines) directly into main context</rule>
     <rule>NEVER glob/grep and then read multiple large files in sequence</rule>
     <rule>ALWAYS spawn Explorer (haiku) first to get: file list + sizes + key metrics summary</rule>
     <rule>ONLY after Explorer summary: decide which specific small section to read directly (if needed)</rule>
-
-    <triggers_for_mandatory_explorer>
-      <trigger>Analyze backtest results</trigger>
-      <trigger>Review multiple log files</trigger>
-      <trigger>Scan data/ or catalog/ directories</trigger>
-      <trigger>Understand codebase structure</trigger>
-      <trigger>Find all files matching pattern</trigger>
-      <trigger>Compare multiple configurations</trigger>
-    </triggers_for_mandatory_explorer>
-
-    <workflow>
-      1. Receive task that matches triggers above
-      2. DO NOT read files directly
-      3. Spawn Explorer (model: haiku) with specific objective
-      4. Wait for Explorer summary (≤500 words)
-      5. Based on summary, create plan OR spawn focused follow-up
-      6. Only read specific small sections if absolutely necessary
-    </workflow>
   </mandatory_delegation>
 
   <context_hygiene>
@@ -522,26 +481,9 @@
   </context_hygiene>
 
   <orchestration_flexibility>
-    <purpose>Allow plans to override default orchestration limits when user has resources</purpose>
-
-    <default_mode>
-      <rule>Use 2-3 sub-agents per round to prevent context overflow</rule>
-      <rule>Sequential execution for dependent tasks</rule>
-      <rule>Apply when no explicit plan exists</rule>
-    </default_mode>
-
-    <plan_override_mode>
-      <when>Active plan exists in .planning/ directory</when>
-      <rule>Follow the plan's orchestration spec (sub-agent count, parallelism, sequence)</rule>
-      <rule>Plan can specify unlimited parallel sub-agents if user confirmed resources</rule>
-      <rule>Plan defines which agents to spawn and in what order</rule>
-      <example>Plan says "spawn CRITIC + ORACLE + SENTINEL in parallel" → do exactly that</example>
-    </plan_override_mode>
-
-    <user_override>
-      <when>User explicitly says "spawn X agents in parallel" or "use unlimited"</when>
-      <action>Follow user instruction, ignore default limits</action>
-    </user_override>
+    <default_mode>2-3 sub-agents per round; sequential for dependent tasks; apply when no explicit plan exists</default_mode>
+    <plan_override>If active plan in .planning/: follow its orchestration spec (parallelism, sequence, agent count)</plan_override>
+    <user_override>If user says "spawn X in parallel" or "use unlimited": follow user instruction</user_override>
   </orchestration_flexibility>
 
   <critic_gate spec=".claude/agents/critic-adversarial.md">
