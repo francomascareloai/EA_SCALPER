@@ -1,5 +1,37 @@
 # CHANGELOG - BIBLIOTECA TRADING
 
+## [2025-12-28] - RiskEngine TradingState wiring (R1)
+- **CRITICAL FIX**: Backtest strategy now wires `RiskEngine` into TradingState calls (prevents "log-only" state changes).
+  - `nautilus_gold_scalper/scripts/backtest/run_backtest.py`: inject `engine.kernel.risk_engine` into `strategy._risk_engine`
+  - `nautilus_gold_scalper/src/strategies/base_strategy.py`: `_set_trading_state()` / `_get_trading_state()` prefer injected handle; never set `HALTED` while in-position (use `REDUCING` to keep exits possible)
+  - `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_trading_state_gating.py`: verifies `TradingState.HALTED` denies submits
+- **Validation**: `.venv/bin/python -m pytest -q` PASS; `.venv/bin/mypy --strict ...` PASS
+
+## [2025-12-28] - Optimization TIER 1 Critical Fixes (12-11-OPTIMIZATION-ROADMAP)
+- **CRITICAL FIX 1.2**: Stress gates now FAIL-CLOSED instead of fail-open
+  - `optimizer.py:475-486`: PBO computation failure → blocks all candidates
+  - `optimizer.py:487-503`: Layer 3 stress failure → blocks candidates with worst-case metrics
+  - `optimizer.py:543-553`: Ghost test failure → blocks best candidate
+  - `optimizer.py:627-646`: Overfitting detection failure → adds CRITICAL warning
+  - Previously: exceptions silently continued "without" safety checks (false sense of security)
+- **CRITICAL FIX 1.1**: Apex-aware promotion in bars mode
+  - `successive_halving.py:142-164`: Time-gate/overnight violations now penalized in bars mode
+  - `asha.py:287-306`: Same fix for ASHA multi-fidelity
+  - Previously: bars rungs ignored ALL constraints, could promote configs that die in ticks
+- **CRITICAL FIX 1.3**: Rank correlation validation for multi-fidelity
+  - `adaptive_fidelity.py:386-501`: New `validate_fidelity_correlation()` function
+  - Measures Spearman correlation between low-fidelity and high-fidelity ranks
+  - If correlation < 0.3, multi-fidelity is INVALID for pruning (fail-closed)
+  - Added warning when using ASSUMED correlation values (0.5-1.0)
+  - Previously: correlation was assumed, never measured → could prune good configs
+
+## [2025-12-27] - Nautilus backtest performance (deterministic)
+- **PERF**: Otimizações no hot path do `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py` (cache de timestamps/ET tz + VirtualGate sem alocações repetidas).
+- **Validação**: determinismo confirmado por `trade_signature_v2.json` (hash estável) e perfis `profile.json` em `_artifacts/`.
+- **Métricas (exemplos):**
+  - 2024-01-02 (1 dia): `engine_run` ~16.24s (stride1) → ~1.28s (stride20).
+  - 2025-06 (1 mês): `engine_run` ~468.88s (stride1, reports none) e ~635.63s (stride1, reports full).
+
 ## [2025-12-22] - Backtest Script Critical Fixes
 - **CRITICAL FIX**: DD limit conversion bug causing "Invalid max_daily: 5.0" crash
   - `run_backtest.py:541-544`: Fixed default value mismatch in ternary expression

@@ -180,6 +180,34 @@ export CLIPROXY_ANTIGRAVITY_ALLOW_THINKING_WITH_TOOL_USE=1
 
 **Fix**: Respect `Retry-After` header, reduce concurrency, or add more accounts.
 
+### 5. Context Size Exceeded (Prompt is too long)
+
+**Symptom**: `400 Prompt is too long. This model's maximum context length is X tokens. Your prompt has Y tokens.`
+
+**Root cause**: Conversation with heavy orchestration (sub-agents, large tool outputs, backtests) accumulated too many tokens, exceeding the model's context limit.
+
+**Default Behavior**: CLIProxyAPI now validates context size **before** sending to the API. When the context reaches 90% of the model limit, it returns a friendly error asking you to use `/compact`.
+
+**Error Message**: `Context too large: X tokens (Y% of Z limit). Please use /compact to reduce conversation size before sending more messages.`
+
+**Model Limits**:
+| Model Family | Context Limit |
+|--------------|---------------|
+| Claude Opus/Sonnet 4.5 | 200,000 tokens |
+| Claude 3.7 Sonnet | 128,000 tokens |
+| Gemini 2.5/3 | 1,048,576 tokens |
+| GPT-5.x | 256,000 tokens |
+
+**Toggle** (disable protection if needed):
+```bash
+export CLIPROXY_DISABLE_CONTEXT_GUARD=1
+```
+
+**Override max tokens**:
+```bash
+export CLIPROXY_CONTEXT_GUARD_MAX_TOKENS=500000
+```
+
 ---
 
 ## Configuration Reference
