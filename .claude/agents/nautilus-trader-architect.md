@@ -123,12 +123,32 @@ def is_emergency_close(utc_now: datetime) -> bool:
 | Actor-published | Dedicated TimeGateActor publishes events (cleaner separation) |
 | Scheduler-based | Use NautilusTrader's internal scheduler for callbacks (preferred for live) |
 
-### Performance
-| Handler | Budget |
-|---------|--------|
-| on_bar | <1ms |
-| on_quote_tick | <100µs |
-| BacktestNode | efficient batch processing |
+### Performance-First Architecture (CRITICAL)
+
+> **A fast backtest enables more iterations. More iterations = better architecture.**
+
+| Handler | Budget | Rationale |
+|---------|--------|-----------|
+| on_quote_tick | <50µs | 100k+ ticks/day in XAUUSD |
+| on_bar | <1ms | Still frequent in M1 timeframes |
+| ONNX inference | <5ms | ML must not block event loop |
+| BacktestNode | efficient batch | Minimize wall-clock for iteration |
+
+#### Cardinal Sins (REJECT in architecture designs)
+Architecture MUST NOT include patterns that cause these in hot paths:
+- `datetime.now()` calls → use `event.ts_event` or cached epoch-minute
+- File I/O per event → batch writes, keep handles open
+- Inline imports → ALL imports at module top
+- `ZoneInfo()` per tick → cache timezone objects at `__init__`
+- Object allocation in loops → preallocate buffers, reuse objects
+- List+slice for sliding windows → specify `deque(maxlen=N)` in design
+
+#### Architecture Review Gate
+Before handing off to FORGE, verify:
+1. Hot-path methods identified and budget-constrained
+2. No cardinal sins in proposed patterns
+3. Caching strategy specified (what to cache, where, invalidation)
+4. Mental benchmark: "100k iterations × pattern cost = acceptable?"
 
 ## Pattern Selection Guide
 

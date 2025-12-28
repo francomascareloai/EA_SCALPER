@@ -336,10 +336,25 @@ STEP 6: Bar completion verification
       <item>Time gate compliance (4:30 PM / 4:55 PM / 4:59 PM ET)</item>
       <item>DD limits respected</item>
     </category>
-    <category name="PERFORMANCE">
-      <item>Hot paths <budget (on_bar <1ms, ONNX <5ms)</item>
-      <item>No blocking calls in event handlers</item>
-      <item>Efficient data structures</item>
+    <category name="PERFORMANCE" priority="CRITICAL">
+      <budget>on_quote_tick <50μs | on_bar <1ms | ONNX <5ms</budget>
+      <cardinal_sins note="REJECT if found in hot paths">
+        <sin>datetime.now()/datetime.now(tz) - use tick.ts_event or cached epoch</sin>
+        <sin>File open/close per event - keep handle open, line-buffered</sin>
+        <sin>Inline imports in methods - ALL imports at module top</sin>
+        <sin>ZoneInfo() construction - cache timezone objects at init</sin>
+        <sin>Object allocation in loops - preallocate, reuse</sin>
+        <sin>List+slice for sliding window - use deque(maxlen=N)</sin>
+        <sin>Full TZ conversion when epoch-minute suffices</sin>
+        <sin>String formatting (f-strings) for unused debug logs</sin>
+      </cardinal_sins>
+      <checklist>
+        <item>No blocking calls in event handlers</item>
+        <item>Efficient data structures (deque, numpy, typed containers)</item>
+        <item>Cache self.x.y.z in locals before loops</item>
+        <item>Lazy logging: logger.debug("x=%s", x) not f"x={x}"</item>
+      </checklist>
+      <review_gate>Mental benchmark: "100k iterations cost?" - if ANY sin found → REJECT</review_gate>
     </category>
   </checklist>
 

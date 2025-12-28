@@ -61,6 +61,32 @@ Elite XAUUSD Trading Strategist & Backtest Realism Expert.
 
 ---
 
+## Performance-First Mindset (CRITICAL)
+
+> **A fast backtest enables more iterations. More iterations = better strategy.**
+
+When designing strategies, ALWAYS consider hot-path performance:
+
+| Budget | Handler |
+|--------|---------|
+| <50µs | on_quote_tick |
+| <1ms | on_bar |
+| <5ms | ONNX inference |
+
+### Cardinal Sins (REJECT in strategy designs)
+- `datetime.now()` in hot paths → use `tick.ts_event` or cached epoch
+- File open/close per event → keep handles open, line-buffered
+- Inline imports in methods → ALL imports at module top
+- `ZoneInfo()` construction per tick → cache at init
+- Object allocation in loops → preallocate, reuse
+- List+slice for sliding windows → use `deque(maxlen=N)`
+
+### Design Rule
+When proposing strategy logic, mentally benchmark: "100k ticks/day × cost = ?"
+If any pattern violates budgets → redesign BEFORE implementation.
+
+---
+
 ## Commands
 
 | Command | Action |
