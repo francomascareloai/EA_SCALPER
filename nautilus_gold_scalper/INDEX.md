@@ -1,12 +1,13 @@
 # Nautilus Gold Scalper – Project Index
 
-**Owner:** FORGE  
-**Scope:** Python/NautilusTrader migration of EA_SCALPER_XAUUSD  
-**Last update:** 2025-12-25
+**Owner:** FORGE
+**Scope:** Python/NautilusTrader migration of EA_SCALPER_XAUUSD
+**Last update:** 2025-12-28
 ## Directory Map (high level)
 - `configs/` – central strategy config (`strategy_config.yaml`)
 - `configs/strategy_config_apex_mgc.yaml` – Apex/MGC profile (TrendFollow + router enabled; commented)
-- `scripts/` – runners (`run_backtest.py`, future batch/optuna hooks)
+- `configs/grids/` – optimization config templates (YAML)
+- `scripts/` – runners (`run_backtest.py`, `optimize.py`, workflows)
 - `src/core/` – enums, constants, datatypes, exceptions
 - `src/indicators/` – regime, structure, footprint, OB/FVG, sweeps, AMD (includes deprecated shims)
 - `src/signals/` – confluence (GENIUS v4.2), news calendar/gating, entry optimizer, MTF manager (canonical), TrendFollow candidates
@@ -14,6 +15,7 @@
 - `src/strategies/` – base & gold strategy, selector, adaptive router
 - `src/ml/` – entry filter runtime (ONNX), training/export, and feature contracts
 - `src/execution/` – trade manager (needs test fix), adapters archive
+- `src/optimization/` – **Apex Optimizer** (Phase 10): search algorithms, WFA, stress testing, overfit detection
 - `tests/` – unit coverage per module family
 - `reports/backtests/` - output/logs (telemetry CSV from runners)
 
@@ -30,7 +32,7 @@
 ## Documentation (root level)
 - `INDEX.md` – This file: structural overview + current state
 - `docs/INDEX.md` – Operational documentation (canonical)
-- `docs/reference/SCRIPTS.md` – Commands + **Readiness gate** (1-command pytest+mypy+smoke-matrix)
+- `docs/reference/SCRIPTS.md` – Commands + **Readiness gate** (1-command pytest+mypy+smoke-matrix) + sizing A/B (`--sizing-engine`)
 - `docs/configuration/CONFIGURATION_GUIDE.md` – Detailed configuration reference (YAML + backtest CLI + optimizer dotpaths)
 - `CHANGELOG.md` – Detailed log of COMPLETED work units (features, bugfixes, improvements)
 - `BUGFIX_LOG.md` – Quick reference for bugs discovered + fixes (debugging focus)
@@ -83,6 +85,11 @@
 - Risk: intrabar mark-to-market + `DrawdownTracker` enforcing daily/total DD; auto-halt + flatten on breach; daily reset wired.
 - News-aware: `GoldScalperStrategy` gates signals with `NewsCalendar` (blocking CRITICAL/HIGH windows, score penalty, size multiplier).
 - Telemetry: JSONL sink (`logs/telemetry.jsonl`) captures spread/circuit/cutoff/partial-fill and (optionally) execution-cost estimates for audits.
+
+## Performance Notes (backtest optimization)
+- Hot path optimizations were applied to reduce tick-run wall time without changing trade decisions (determinism verified via `trade_signature_v2.json`).
+- Key idea: avoid repeated allocations/conversions in per-bar logic.
+- Runner profiling artifacts live under `nautilus_gold_scalper/_artifacts/` (example: `profile.json` + `trade_signature_v2.json`).
 
 ## Open Issues (next)
 

@@ -765,9 +765,92 @@ class PortfolioHeatManager:
 
 | Date | Change |
 |------|--------|
+| 2025-12-28 | **NEW** - Added PHASE 0: Optimization Infrastructure Roadmap (ARGUS+CRITIC findings) |
 | 2025-12-24 | **NEW** - Added Setup Quality Filter (P1, conditional on Ghost Test) from Phase 00-C |
 | 2025-12-08 | **TEMPLATE FIX** - Reformatted to match DOCS/02_IMPLEMENTATION/FUTURE_IMPROVEMENTS.md structure |
 | 2025-12-08 | Initial creation with 12 ideas organized by priority (P1-P4) |
+
+---
+
+## PHASE 0: OPTIMIZATION INFRASTRUCTURE ROADMAP (P0-P1) 🔥 NEW
+
+> **Source:** ARGUS Research + CRITIC Adversarial Review (2025-12-28)
+> **Full Document:** `.planning/phases/12-multi-fidelity-optimization/12-11-OPTIMIZATION-ROADMAP.md`
+> **Status:** 📋 PLANNED (awaiting review before implementation)
+
+### TIER 1: CRITICAL FIXES (P0 - BLOCKERS)
+
+These are **bugs that could cause real losses**. Must fix before any new optimization runs.
+
+| Fix | Problem | Impact | Effort |
+|-----|---------|--------|--------|
+| **Apex-aware promotion in bars** | Bars rungs don't apply Apex constraints → promotes configs that die in ticks | 🔴 CRITICAL | 4-6h |
+| **Stress gates fail-closed** | PBO/MC95DD exceptions → "continue without" (fail-open) | 🔴 CRITICAL | 2-4h |
+| **Rank correlation validation** | Trust multi-fidelity without measuring if correlation is valid | 🔴 CRITICAL | 4-6h |
+
+### TIER 2: HIGH IMPACT (P1)
+
+| Improvement | Description | Impact | Effort |
+|-------------|-------------|--------|--------|
+| **Constraint-first scoring** | PSR + CVaR/Omega only for feasible set (passed PBO/MC95DD/Apex) | ⭐⭐⭐⭐⭐ 9/10 | 1-2d |
+| **CMA-ES refinement** | Use CMA-ES after ASHA/SH for local polish of elites (already imported!) | ⭐⭐⭐⭐ 8/10 | 4-6h |
+| **Random signal baseline** | Ghost test v2: random entry with same filters → test signal value | ⭐⭐⭐⭐ 8/10 | 1-2d |
+| **HEBO sampler** | Heteroscedastic BO (won NeurIPS 2020) via OptunaHub | ⭐⭐⭐ 7/10 | 4-6h |
+
+### Advanced Scoring Formulas (from ARGUS)
+
+**Probabilistic Sharpe Ratio (PSR):**
+```
+PSR(SR*) = Φ((SR_obs - SR*) / σ(SR))
+σ(SR) = √((1 + γ₃·SR/2 + (γ₄-3)·SR²/4) / n)
+```
+- Probability true Sharpe > threshold
+- Penalizes negative skewness + excess kurtosis
+
+**Conditional Value at Risk (CVaR):**
+```
+CVaR_α = E[Loss | Loss > VaR_α]
+```
+- Mean of worst α% losses
+- Directly optimizes tail risk (Apex survival)
+
+**Omega Ratio:**
+```
+Omega(τ) = gains above τ / losses below τ
+```
+- Captures ALL moments (not just mean/variance)
+- Better for fat-tailed distributions
+
+### CRITIC Falsification Tests
+
+1. **Fidelity validity:** Measure Spearman(rung0, rungN) - fail if < 0.3
+2. **Apex HWM trap:** Run top-10 with conservative marking - fail if DD ≥ 4%
+3. **Edge attribution:** Random signal baseline - fail if p ≥ 0.05
+4. **Sampler placebo:** Sobol vs random - fail if no improvement
+5. **Execution hostility:** 2-3x spread stress - fail if MC95DD ≥ 4%
+
+### Implementation Order
+
+```
+Week 1: CRITICAL FIXES (P0)
+├── Apex-aware promotion
+├── Stress gates fail-closed
+└── Rank correlation validation
+
+Week 2-3: HIGH IMPACT (P1)
+├── Constraint-first scoring (PSR/CVaR)
+├── CMA-ES refinement
+└── Random signal baseline
+
+Week 4+: ENHANCEMENTS (P2-P3)
+├── HEBO sampler
+├── TuRBO (high-dim)
+└── RGPE meta-learning
+```
+
+---
+
+*\"The best optimizer is the one that knows when NOT to trade.\"* — CRITIC
 
 ---
 

@@ -63,6 +63,135 @@
 
 ## Log Entries
 
+## 2025-12-28 20:21 [GPT-5.2] - BUG-RISK-STATE-001: TradingState gating was effectively a no-op in backtests
+
+**Module:** `nautilus_gold_scalper/src/strategies/base_strategy.py`, `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+**Severity:** CRITICAL (Account survival - Apex compliance gating)
+**Bug:** TradingState enforcement attempted to access `self.trader.risk_engine`, which is not available on the Strategy in NautilusTrader 1.221.0 backtests.
+**Impact:** DD/time-gate TradingState transitions were logged but not enforced at the engine level; new entries could still be submitted when the strategy believed trading was HALTED/REDUCING.
+
+**Root Cause (5 Whys):**
+1. Why? `BaseGoldStrategy._set_trading_state()` looked for `self.trader.risk_engine`.
+2. Why? Assumed Strategy had a direct risk engine accessor via `trader`.
+3. Why? No API verification against installed NautilusTrader (risk engine lives on engine/kernel, not Strategy).
+4. Why? No integration test validating TradingState actually denies submits.
+5. Why? Missing contract test around backtest wiring for engine-layer components.
+
+**Fix:** Inject RiskEngine from `engine.kernel.risk_engine` into the Strategy (`strategy._risk_engine`) at runner construction; update `_set_trading_state()` / `_get_trading_state()` to prefer the injected handle.
+
+**Prevention:**
+- ✅ Added test: `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_trading_state_gating.py` (HALTED denies SubmitOrder)
+- ✅ Mypy strict gate: enforced by CI/local command (PASS)
+
+**Files:**
+- `nautilus_gold_scalper/src/strategies/base_strategy.py`
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+- `nautilus_gold_scalper/tests/test_backtest/test_risk_engine_trading_state_gating.py`
+
+**Validation:** `.venv/bin/python -m pytest -q` PASS; `.venv/bin/mypy --strict ...` PASS
+**Commit:** Pending
+
+---
+
+## 2025-12-28 20:21 [FORGE-NAUTILUS] - BUG-OPT-CLI-001: CLI overrides for parallelism/seed/bars feed
+
+**Bug:** `nautilus_gold_scalper/src/optimization/__main__.py` ignored `--parallelism`, treated `seed=0` as falsy and defaulted to 42, and had no `--bars-file` for `--feed bars`.
+**Impact:** CLI users could not control worker parallelism; reproducibility broke for seed 0; bars-feed screening could not be configured from CLI (runtime misconfiguration).
+**Root Cause:** Missing `dataclasses.replace()` override wiring for `parallelism`; used `config.search.seed or 42` which conflates `0` with `None`; missing argument/plumbing for bars file path into `BacktestAdapterConfig.bars_file`.
+**Fix:** Apply `--parallelism` via `replace(config, search=replace(config.search, parallelism=...))`; use `seed if seed is not None else 42`; add `--bars-file` argument, validate it is provided for `--feed bars`, and pass through to `BacktestAdapterConfig(bars_file=...)`.
+**Files:** `/home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/src/optimization/__main__.py`, `/home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/BUGFIX_LOG.md`
+**Validation:** `/home/franco/projetos/EA_SCALPER_XAUUSD/.venv/bin/pytest -q /home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/tests/test_optimization/ -x` PASS; `/home/franco/projetos/EA_SCALPER_XAUUSD/.venv/bin/mypy --strict /home/franco/projetos/EA_SCALPER_XAUUSD/nautilus_gold_scalper/src/optimization/__main__.py` PASS
+**Commit:** Pending
+
+## 2025-12-28 [GPT-5.2] - BUG-RUN-016: Renko screening + dataclass import regression
+
+**Module:** `nautilus_gold_scalper/scripts/backtest/run_backtest.py`, `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+**Severity:** HIGH (runner stability + ability to run Renko screening)
+
+**Bug(s):**
+1) Running `run_backtest.py --help` crashed with `NameError: name 'dataclass' is not defined` due to a missing `from dataclasses import dataclass` import.
+2) Initial Renko wiring attempted to use `BarAggregation.RENKO` as the engine `BarType`, but Nautilus backtest matching calls `BarSpecification.timedelta` which raises `ValueError: Aggregation not time based, was RENKO`.
+3) Renko bars feed needed to skip time-step validation and ensure the runner actually propagates `bars_agg=renko` into the merged YAML config (so `load_bars_csv(..., validate_step=False)` can be applied).
+
+**Impact:**
+- Renko backtests could not run (hard crash).
+- Runner CLI could not display help (blocks usability/debugging).
+
+**Root Cause:**
+- Import regression during recent edits added a `@dataclass` usage without importing it.
+- Misassumption that Nautilus engine can match orders on non-time-based bar specs in bars-feed mode.
+- Step-validation bypass was keyed off a YAML field that was never set during CLI Renko mode.
+
+**Fix:**
+- Added missing `from dataclasses import dataclass` import.
+- Treat Renko as an *offline OHLCV transform* only: keep the engine `BarType` time-based, feed irregularly-timestamped OHLCV bars as external bars.
+- Ensure `execution.bars_agg` is set to `renko` via `config_overrides` when `--bars-agg=renko` is selected.
+
+**Files:**
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+
+**Validation:** `.venv/bin/python -m pytest -q` PASS; `.venv/bin/mypy --strict ...` PASS; 3-day Renko run produced 0 fills (expected under current configuration).
+**Commit:** Pending
+
+---
+
+## 2025-12-28 [GPT-5.2] - BUG-RUN-015: Tick backtest sorting crash + sizing-engine override wiring
+
+**Module:** `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+**Severity:** HIGH (backtest runner stability + controlled experiments)
+
+**Bug(s):**
+1) Tick backtests could crash with `TypeError: '<' not supported between instances of QuoteTick` when calling `BacktestEngine.sort_data()`.
+2) CLI sizing override wiring was broken due to duplicated `sizing_engine=...` kwarg (syntax/type error), blocking `custom` vs `nautilus_fixed` comparisons.
+
+**Impact:**
+- Backtests may fail mid-run depending on Nautilus build behavior.
+- Could not run controlled A/B tests of sizing engines without editing YAML.
+
+**Root Cause:**
+- Some NautilusTrader builds implement `BacktestEngine.sort_data()` via in-place list sort without a key, and `QuoteTick` is not orderable.
+- Manual patching introduced duplicated keyword argument at runner call sites.
+
+**Fix:**
+- Use `engine.add_data(..., sort=True)` for both ticks and bars; stop calling `engine.sort_data()`.
+- Add/repair `--sizing-engine {custom,nautilus_fixed}` CLI plumbing into `BacktestRunner.run(..., sizing_engine=...)`.
+- Persist deterministic comparison artifacts (`trade_signature.json`, `trade_signature_v2.json`) in `--out-dir` for run-to-run drift checking.
+
+**Files:**
+- `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
+
+**Validation:** `.venv/bin/mypy --strict ...` PASS; `.venv/bin/python -m pytest -q` PASS; short A/B tick backtests produced artifacts under `nautilus_gold_scalper/_artifacts/backtests/sizing_compare/`.
+**Commit:** Pending
+
+---
+
+## 2025-12-27 [GPT-5.2] - PERF-OPT-001: Backtest hot-path optimization (deterministic)
+
+**Module:** `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+**Severity:** LOW (performance-only, no behavior change)
+
+**Bug:** Backtest runtime dominated by repeated allocations/conversions in strategy hot paths (per-bar signal path + VirtualGate). Not a correctness bug, but a throughput bottleneck impacting iteration speed.
+
+**Impact:** Slower research/validation loops; month-scale backtests significantly more expensive.
+
+**Root Cause:** Repeated Bar→Price object access/allocation patterns and Python loops over bars, plus repeated timestamp/timezone conversions in `_check_for_signal()`.
+
+**Fix:**
+- Cache per-invocation `bar_ts_event_ns` and derived `bar_time` once.
+- Cache ET timezone object in strategy instance (avoid repeated `ZoneInfo(...)` construction).
+- Add/extend LTF numpy caches (including `ts_event` as int64 ns) to feed VirtualGate using array slices + `.tolist()` instead of per-bar loops.
+- Minor perf cleanup: prefer `Quantity.from_int(0)` over string parsing on hot paths.
+
+**Files:**
+- `nautilus_gold_scalper/src/strategies/gold_scalper_strategy.py`
+- `nautilus_gold_scalper/src/strategies/base_strategy.py`
+
+**Validation:** Determinism verified via `trade_signature_v2.json` hashes; profiling via `profile.json`.
+**Commit:** Pending
+
+---
+
 ## 2025-12-26 17:40 [FORGE] - BUG-RUN-014: MTF/HTF timeframe inference could collide or select unsupported minutes
 
 **Module:** `nautilus_gold_scalper/scripts/backtest/run_backtest.py`
@@ -3937,3 +4066,73 @@ Uses `std * 1.5` instead of proper ATR calculation.
 Combined with Rodada 10: **38 new bugs documented in Rodadas 10-11**
 
 ---
+
+#### BUG-RUN-017: CircuitBreaker auto-recovery stays blocked forever
+
+**Module:** `nautilus_gold_scalper/src/risk/circuit_breaker.py`
+**Severity:** HIGH (Safety system becomes permanent trading halt)
+
+**Bug Description:**
+After cooldown expiration, `CircuitBreaker.can_trade()` calls `_recover_from_cooldown()`. When losses are still ≥ `LEVEL_1_LOSSES` (or ≥ `LEVEL_2_LOSSES`), `_recover_from_cooldown()` sets `level` but **does not set `cooldown_until` or `can_trade`**, leaving the state in a perpetual blocked condition with an expired/cleared cooldown.
+
+**Fix:**
+- `_recover_from_cooldown(now)` now re-schedules `cooldown_until` and keeps `can_trade=False` when remaining in Level 1/2.
+- `can_trade()` now passes `now_dt` into `_recover_from_cooldown(now_dt)`.
+
+**Repro Evidence:**
+Renko bars-feed backtests show `signal_reject: circuit_breaker` dominating telemetry after 3 consecutive losses.
+
+**Status:** FIXED
+
+---
+
+## 2025-12-28: _params_are_close categorical-only bug
+
+**File**: `src/optimization/constraints/anti_overfit.py`
+**Function**: `_params_are_close`
+
+**Bug**: When ALL params were categorical (string values), the function skipped all 
+comparisons in the loop but still returned `True` at the end. This falsely claimed 
+params were "close" when no actual numeric comparison happened, causing island 
+detection to miss isolated optima with categorical-only configs.
+
+**Fix**: Track whether any numeric comparison actually happened (`numeric_compared` flag).
+Return `numeric_compared` instead of `True` - fail-closed semantics. Now when no 
+numeric params exist, returns `False` which correctly triggers ISLAND warning.
+
+**Regression Test**: Added `test_categorical_only_triggers_island` in 
+`tests/test_optimization/test_anti_overfit.py` (now 22 tests, all pass).
+
+**Validation**: mypy --strict + pytest pass.
+
+## 2025-12-28: Mypy fixes in summary.py and asha.py
+
+**Files**: `src/optimization/reporting/summary.py`, `src/optimization/search/asha.py`
+
+**Bugs**:
+1. `summary.py`: `.get("type", "")` returns `str | None`, not `str`. Calling `.upper()` 
+   on it caused mypy error. Same for `msg` being appended to `list[str]`.
+2. `asha.py`: Variable `gen` was assigned to `StreamingSobolGenerator` in one branch and 
+   `StreamingLHSGenerator` in another, causing type incompatibility.
+
+**Fixes**:
+1. Used `w.get("type") or ""` pattern instead of `w.get("type", "")` to ensure string type.
+2. Renamed `gen` to `lhs_gen` in the LHS branch to avoid type shadowing.
+
+**Validation**: mypy --strict passes on all 32 optimization source files.
+
+## 2025-12-28: Adapter-level Apex time gate enforcement
+
+**File**: `src/execution/base_adapter.py`
+
+**Issue**: Adapter boundary enforced only the 4:30 PM ET *new entry block* (urgent gate). There was no adapter-level signal/primitive for the 4:55 PM ET emergency close window nor the 4:59 PM ET cutoff, meaning execution adapters had no standardized way to cancel pending entry orders and request flattening as a last line of defense.
+
+**Fix**:
+- Added `get_time_gate_status(ts_utc=...) -> (new_trades_allowed, force_close_required, reason)`.
+- Added `enforce_time_gates(ts_utc=...)` which cancels non-reduce-only NEW orders and calls `close_all_positions()` (no-op in base class; real adapters override).
+- Added `cancel_all_orders()` helper (keeps reduce-only orders intact).
+
+**Tests**: `tests/test_execution/test_base_adapter_time_gates.py`
+
+**Notes**:
+- Fail-closed if `America/New_York` timezone is unavailable: blocks new entries and requires force close.
