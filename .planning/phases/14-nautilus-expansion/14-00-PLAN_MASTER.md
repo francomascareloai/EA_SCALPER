@@ -1,14 +1,14 @@
 # Phase 14 — Nautilus Expansion (MASTER PLAN)
 
 Created: 2025-12-27
-Last updated: 2025-12-28
+Last updated: 2024-12-28
 Status: ACTIVE (triaged with CRITIC/NAUTILUS/FORGE value review)
 
 This plan is intentionally exhaustive. It preserves the full scope discovered in NautilusTrader docs/examples and turns it into an implementation program that avoids retrabalho.
 
 ## Scope sources (full annexes, durable)
 
-These files are the durable “scope dump” from subagents and are authoritative for scope:
+These files are the durable "scope dump" from subagents and are authoritative for scope:
 
 - `/.planning/phases/14-nautilus-expansion/orchestration/EXECUTION_ALGOS_AND_ORDERS.md`
 - `/.planning/phases/14-nautilus-expansion/orchestration/RISK_ENGINE_AND_SIZING.md`
@@ -16,6 +16,7 @@ These files are the durable “scope dump” from subagents and are authoritativ
 - `/.planning/phases/14-nautilus-expansion/orchestration/NATIVE_INDICATORS.md`
 - `/.planning/phases/14-nautilus-expansion/orchestration/STRATEGY_PATTERNS_AND_ACTORS.md`
 - `/.planning/phases/14-nautilus-expansion/orchestration/PORTFOLIO_AND_ACCOUNT.md`
+- **NEW** `/.planning/phases/14-nautilus-expansion/GAPS_DISCOVERED_2024-12-28.md` (44 gaps from 4 explorers)
 
 ## Review artifacts (durable)
 
@@ -24,6 +25,43 @@ These contain the review outputs which drove the changes below:
 - `/.planning/phases/14-nautilus-expansion/orchestration/CRITIC_REVIEW.md`
 - `/.planning/phases/14-nautilus-expansion/orchestration/FORGE_REVIEW.md`
 - `/.planning/phases/14-nautilus-expansion/orchestration/CRUCIBLE_REVIEW.md`
+
+---
+
+# Implementation Status Summary (2024-12-28)
+
+## COMPLETED
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| Phase B: RiskEngineConfig hardening | ✅ DONE | max_order_submit_rate, max_order_modify_rate wired |
+| max_notional_per_order parsing | ✅ DONE | Wired but disabled ({}) - tests prove enforcement |
+| TWAP execution algorithm | ✅ DONE | Available, disabled by default (twap_enabled: false) |
+| Order modification (SL updates) | ✅ DONE | Used in _update_stop_loss_order |
+| Parquet deprecation | ✅ DONE | Catalog-only for tick data (2024-12-28) |
+| TelemetrySink v2 optimization | ✅ DONE | 3.42x faster (reuse file handle) |
+
+## IN PROGRESS / NEXT
+
+| Item | Priority | Effort | Gap ID |
+|------|----------|--------|--------|
+| Bracket Orders (atomic entry+SL) | CRITICAL | MEDIUM | E1 |
+| TradingState REDUCING/HALTED | CRITICAL | LOW | R1 |
+| Portfolio.net_exposure() | CRITICAL | LOW | R2 |
+| Clock Timers for time gates | CRITICAL | LOW | S1 |
+| Built-in ATR indicator | HIGH | MEDIUM | D1 |
+| register_indicator_for_bars() | HIGH | LOW | D2 |
+| State persistence on_save/on_load | HIGH | MEDIUM | S5 |
+| Trailing Stops | HIGH | LOW | E2 |
+
+## DEFERRED / FUTURE
+
+| Item | Priority | Reason |
+|------|----------|--------|
+| Controller orchestration | LOW | Await safety proof |
+| Advanced Bar Types (IMBALANCE) | LOW | HIGH effort |
+| External Message Bus (Redis) | LOW | Production-only |
+| OUO Contingency | LOW | HIGH effort |
 
 ---
 
@@ -539,3 +577,62 @@ UNCERTAINTY (must verify before implementing):
 
 Resolution method:
 - Verify in installed site-packages Nautilus source and add a unit test asserting the integration actually works.
+
+---
+
+# NEW: Gaps Discovered (2024-12-28 Explorer Analysis)
+
+**Source**: `GAPS_DISCOVERED_2024-12-28.md` (4 explorers analyzed NautilusTrader docs)
+
+**Total gaps found**: 44 (4 CRITICAL, 14 HIGH, 16 MEDIUM, 10 LOW)
+
+## Tier 1: CRITICAL (Apex Safety) - Implement ASAP
+
+| ID | Gap | Area | Effort | Why Critical |
+|----|-----|------|--------|--------------|
+| E1 | Bracket Orders (OTO+OCO) | Execution | MEDIUM | Eliminates window between entry and SL where position has NO protection |
+| R1 | TradingState REDUCING/HALTED | Risk | LOW | Engine-level order blocking at DD 4.0%/4.5% |
+| R2 | Portfolio.net_exposure() | Risk | LOW | Real-time notional exposure monitoring prevents oversizing |
+| S1 | Clock Timers | Strategy | LOW | Performance: stop checking time gates on every tick |
+
+## Tier 2: HIGH (Performance/Quality) - Next Phase
+
+| ID | Gap | Area | Effort | Impact |
+|----|-----|------|--------|--------|
+| D1 | Built-in ATR | Data | MEDIUM | Replace manual _get_current_atr() with Cython |
+| D2 | register_indicator_for_bars() | Data | LOW | Auto-update indicators, eliminate boilerplate |
+| D3 | Built-in EMA/SMA | Data | MEDIUM | Cython performance for trend MAs |
+| R4 | Portfolio.unrealized_pnls() | Risk | MEDIUM | Cache HWM/DD instead of recalculating each tick |
+| S5 | State persistence on_save/on_load | Strategy | MEDIUM | Crash recovery critical for live trading |
+| E2 | Trailing Stops | Execution | LOW | Auto-lock profits without modify_order spam |
+| S2 | Signal Publishing | Strategy | LOW | Decouple regime/DD alerts from strategy |
+
+## Tier 3: MEDIUM (Incremental) - Later
+
+| ID | Gap | Area | Effort | Impact |
+|----|-----|------|--------|--------|
+| E3 | Emulated Orders | Execution | LOW | Portability across venues |
+| S3 | Custom Data Classes | Strategy | MEDIUM | Persist metrics to catalog |
+| R7 | Order Denial Events | Risk | MEDIUM | Log when RiskEngine blocks orders |
+| S9 | on_historical_data() | Strategy | LOW | Clean warmup separation |
+| D5 | BollingerBands/Keltner | Data | MEDIUM | Built-in volatility bands |
+| S6 | Separate Monitor Actor | Strategy | MEDIUM | TelemetrySink as independent Actor |
+| D4 | EfficiencyRatio | Data | LOW | Built-in ER indicator |
+
+## Tier 4: LOW/FUTURE - Defer
+
+| ID | Gap | Area | Effort | Notes |
+|----|-----|------|--------|-------|
+| E6 | OUO Contingency | Execution | HIGH | Ladder exits |
+| D7 | Advanced Bar Types | Data | HIGH | IMBALANCE bars |
+| S12 | External Message Bus | Strategy | HIGH | Multi-node deployment |
+| D15 | Cache Database | Data | MEDIUM | Redis/PostgreSQL persistence |
+
+## Full Details
+
+See `GAPS_DISCOVERED_2024-12-28.md` for complete documentation of all 44 gaps including:
+- Detailed descriptions
+- Source file references
+- Code examples
+- Integration effort estimates
+- Priority justification

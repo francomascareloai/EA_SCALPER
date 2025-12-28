@@ -78,18 +78,11 @@ Compatibility wrapper:
 
 `--source` controls how ticks/bars are loaded:
 
-### Telemetry gate (Apex compliance)
+**IMPORTANT (2024-12-28)**: Parquet tick loading is deprecated. Use catalog for all tick backtests.
 
-The backtest runner defaults to **requiring telemetry artifacts** so Apex compliance checks are auditable.
-
-- Default behavior: `--require-telemetry` is enabled.
-- If you don’t pass `--telemetry-path` or `--out-dir`, the runner exits with an error.
-- `--smoke-matrix` auto-creates an output directory and writes `telemetry.jsonl` inside it.
-- Disable only for quick local iteration (not recommended for Apex validation): `--no-require-telemetry`.
-
-- `--source auto` (default): product=xauusd + ticks + start>=2020 auto-selects native stride20 catalog; otherwise uses Parquet (`active_dataset.path`).
-- `--source parquet`: always uses Parquet (`active_dataset.path`).
-- `--source catalog`: uses Nautilus native catalog (via `active_dataset.native_catalog_path` or `--catalog-path/--catalog-paths`).
+- `--source auto` (default): for product=xauusd + ticks + start>=2020, auto-selects native stride20 catalog.
+- `--source catalog`: uses Nautilus native catalog (via `--catalog-stride` or `--catalog-path/--catalog-paths`).
+- For bars: use `--feed bars` with `--bars-file` or `--bars-agg renko`.
 
 Convenience selector for native 2020+ catalogs:
 
@@ -99,7 +92,14 @@ Important realism/memory note:
 - For tick backtests, prefer catalog stride20/10/5 for screening and stride1 for final verification.
 - The runner uses streaming ingestion for catalog ticks to stay memory-safe.
 
-Implementation: `nautilus_gold_scalper/scripts/backtest/run_backtest.py:1514`.
+### Telemetry gate (Apex compliance)
+
+The backtest runner defaults to **requiring telemetry artifacts** so Apex compliance checks are auditable.
+
+- Default behavior: `--require-telemetry` is enabled.
+- If you don't pass `--telemetry-path` or `--out-dir`, the runner exits with an error.
+- `--smoke-matrix` auto-creates an output directory and writes `telemetry.jsonl` inside it.
+- Disable only for quick local iteration (not recommended for Apex validation): `--no-require-telemetry`.
 
 ### Timeframes (LTF/MTF/HTF)
 

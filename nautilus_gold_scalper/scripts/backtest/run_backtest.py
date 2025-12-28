@@ -77,7 +77,7 @@ from src.utils.metrics import MetricsCalculator
 
 Sample = int | float
 FeedMode = Literal["ticks", "bars"]
-DataSource = Literal["auto", "parquet", "catalog"]
+DataSource = Literal["auto", "catalog"]  # parquet deprecated 2024-12-28
 
 
 class TickSourceMismatchError(RuntimeError):
@@ -1942,11 +1942,10 @@ class BacktestRunner:
         use_catalog = False
         if data_source == "catalog":
             use_catalog = True
-        elif data_source == "parquet":
-            use_catalog = False
         else:
             # auto: for XAUUSD tick backtests (2020+ workflow), prefer the native stride20 catalog
             # for speed and to avoid loading large DataFrames.
+            # NOTE: parquet is DEPRECATED (2024-12-28) - auto now always selects catalog.
             use_catalog = False
 
             if feed == "ticks" and resolved_product == "xauusd":
@@ -1976,7 +1975,7 @@ class BacktestRunner:
             )
         if feed == "bars" and use_catalog and bars_override is None:
             raise ValueError(
-                "bars feed requires parquet source or explicit bars_override (catalog->bars not enabled here)"
+                "bars feed requires --bars-file or --bars-agg renko (catalog→bars not enabled here)"
             )
 
         ltf_minutes_int = max(1, int(ltf_minutes))
@@ -2139,19 +2138,12 @@ class BacktestRunner:
 
             quote_ticks = []  # streaming mode; do not materialize
             _p(f"[CATALOG] Streaming quote ticks from native catalog(s): {len(catalogs)}")
-        elif feed == "ticks" or (feed == "bars" and bars_override is None and bars_df is None):
-            if not tick_path.exists():
-                raise FileNotFoundError(
-                    f"Tick data not found at {tick_path}. Check data/config.yaml!"
-                )
-
-            with _time_segment("parquet_load_tick_df", segments):
-                df = load_tick_data(str(tick_path), start_date, end_date, sample_rate)
-            if feed == "ticks":
-                with _time_segment("tick_wrangler_build", segments):
-                    quote_ticks = build_ticks_with_wrangler(
-                        df=df, instrument=self.instrument, latency_ms=self.latency_ms
-                    )
+        elif feed == "ticks":
+            # parquet fallback is DEPRECATED (2024-12-28) - require catalog for tick data
+            raise ValueError(
+                "Tick feed requires catalog source. Use --source catalog with --catalog-stride 1/5/10/20. "
+                "Parquet tick loading is deprecated. For bars, use --feed bars with --bars-file or --bars-agg renko."
+            )
 
         # Create bar type for internal aggregation from ticks (or for external bars wrangling).
         agg_source = AggregationSource.INTERNAL if feed == "ticks" else AggregationSource.EXTERNAL
@@ -2187,26 +2179,12 @@ class BacktestRunner:
             elif bars_df is not None:
                 bars = build_bars_with_wrangler(bars_df, bar_type=bar_type, instrument=instrument)
             else:
-                # resample ticks into bars (slower than bars_file, still faster than full tick engine)
-                assert df is not None
-                assert not use_catalog
-                bars_df2 = aggregate_tick_df_to_ohlcv(df, interval_minutes=ltf_minutes_int)
-                if resolved_product == "mgc":
-                    tick = float(instrument.price_increment.as_double())
-                    bars_df2 = bars_df2.copy()
-                    bars_df2["open"] = _quantize_to_tick(
-                        bars_df2["open"].astype(float).values, tick=tick, mode="nearest"
-                    )
-                    bars_df2["close"] = _quantize_to_tick(
-                        bars_df2["close"].astype(float).values, tick=tick, mode="nearest"
-                    )
-                    bars_df2["high"] = _quantize_to_tick(
-                        bars_df2["high"].astype(float).values, tick=tick, mode="ceil"
-                    )
-                    bars_df2["low"] = _quantize_to_tick(
-                        bars_df2["low"].astype(float).values, tick=tick, mode="floor"
-                    )
-                bars = build_bars_with_wrangler(bars_df2, bar_type=bar_type, instrument=instrument)
+                # parquet tick-to-bar resampling is DEPRECATED (2024-12-28)
+                raise ValueError(
+                    "Bars feed requires --bars-file or --bars-agg renko. "
+                    "Tick-to-bar resampling from parquet is deprecated. "
+                    "Use --feed ticks with --source catalog for tick backtests."
+                )
             with _time_segment("engine_add_bars", segments):
                 # Keep sorting behavior consistent with tick path.
                 engine.add_data(bars, sort=True)
@@ -2732,11 +2710,12 @@ def main() -> None:
     parser.add_argument("--feed", choices=["ticks", "bars"], default="ticks", help="Data feed mode")
     parser.add_argument(
         "--source",
-        choices=["auto", "parquet", "catalog"],
+        choices=["auto", "catalog"],
         default="auto",
         help=(
-            "Data source selection. NOTE: for product=xauusd, feed=ticks, and start>=2020-01-01, "
-            "source=auto defaults to the native stride20 catalog for speed."
+            "Data source selection. NOTE: 'parquet' is DEPRECATED (2024-12-28). "
+            "Use 'catalog' for tick data (--catalog-stride 1/5/10/20). "
+            "For bars, use --feed bars with --bars-file or --bars-agg renko."
         ),
     )
     parser.add_argument("--profile", action="store_true", help="Print coarse timing JSON")
@@ -2958,8 +2937,8 @@ def main() -> None:
         "--fidelity-stride1",
         action="store_true",
         help=(
-            "Run a stride20 vs stride1 fidelity check on the SAME time window. "
-            "Requires tick feed; runs parquet stride20 and catalog stride1, then compares key metrics."
+            "Run a catalog stride20 vs catalog stride1 fidelity check on the SAME time window. "
+            "Requires tick feed; compares key metrics between screening and full-fidelity catalogs."
         ),
     )
     parser.add_argument(
@@ -3892,8 +3871,30 @@ def main() -> None:
                 "MGC uses a different data source and cannot be compared tick-for-tick."
             )
 
+        # Resolve catalog paths for stride20 and stride1
+        data_config = _load_data_config()
+        datasets = data_config.get("datasets", {})
+
+        ds20 = datasets.get("stride20_catalog_2020") if isinstance(datasets, dict) else None
+        if not isinstance(ds20, dict) or not ds20.get("path"):
+            raise FileNotFoundError(
+                "data/config.yaml missing datasets.stride20_catalog_2020.path for --fidelity-stride1"
+            )
+        cat20_path = (repo_root / str(ds20["path"])).resolve()
+        if not cat20_path.exists():
+            raise FileNotFoundError(f"Stride20 catalog not found: {cat20_path}")
+
+        ds1 = datasets.get("stride1_catalog_2020") if isinstance(datasets, dict) else None
+        if not isinstance(ds1, dict) or not ds1.get("path"):
+            raise FileNotFoundError(
+                "data/config.yaml missing datasets.stride1_catalog_2020.path for --fidelity-stride1"
+            )
+        cat1_path = (repo_root / str(ds1["path"])).resolve()
+        if not cat1_path.exists():
+            raise FileNotFoundError(f"Stride1 catalog not found: {cat1_path}")
+
         # Keep this run deterministic and comparable: force same strategy config + same window,
-        # but different tick sources.
+        # but different catalog strides.
         base_kwargs = dict(
             start_date=args.start,
             end_date=args.end,
@@ -3952,22 +3953,22 @@ def main() -> None:
 
         summary_stride20 = runner_stride20.run(
             **base_kwargs,
-            data_source="parquet",
+            data_source="catalog",
             catalog_path=None,
-            catalog_paths=None,
+            catalog_paths=[str(cat20_path)],
         )
         summary_stride1 = runner_stride1.run(
             **base_kwargs,
             data_source="catalog",
-            catalog_path=args.catalog_path,
-            catalog_paths=catalog_paths,
+            catalog_path=None,
+            catalog_paths=[str(cat1_path)],
         )
 
         if summary_stride20 is None or summary_stride1 is None:
             raise RuntimeError("Fidelity run returned no summary")
 
         print("\n" + "=" * 60)
-        print("FIDELITY CHECK: stride20(parquet) vs stride1(catalog)")
+        print("FIDELITY CHECK: catalog stride20 vs catalog stride1")
         print("=" * 60)
         print(f"Window: {args.start} -> {args.end}")
         print("Metric\tstride20\tstride1\tΔ")
@@ -3989,8 +3990,8 @@ def main() -> None:
         summary_stride1_repeat = runner_stride1.run(
             **base_kwargs,
             data_source="catalog",
-            catalog_path=args.catalog_path,
-            catalog_paths=catalog_paths,
+            catalog_path=None,
+            catalog_paths=[str(cat1_path)],
         )
         if summary_stride1_repeat is None:
             raise RuntimeError("Fidelity repeat returned no summary")

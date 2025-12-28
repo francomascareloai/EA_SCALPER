@@ -28,6 +28,43 @@
 
 ---
 
+## Multi-Fidelity Suite: BOHB + ASHA + Warm-start + Adaptive Fidelity - 2025-12-28 (Claude)
+
+### ✨ FEATURE: Complete multi-fidelity optimization suite
+
+**What:**
+- Added `BOHBSearch` - Bayesian Optimization + Hyperband (3-10x faster than standard BO)
+- Added `ASHASearch` - Asynchronous Successive Halving (no sync barriers, better parallelism)
+- Added `WarmStartProvider` - Reuse results from previous optimization runs
+- Added `AdaptiveFidelitySelector` - Dynamic fidelity selection per configuration
+
+**Why:**
+- BOHB: Combines TPE intelligence with Hyperband's early stopping for efficient exploration
+- ASHA: Enables async parallel evaluation without waiting for slowest trial
+- Warm-start: Transfer knowledge between runs, skip already-evaluated configs
+- Adaptive fidelity: Cost-aware evaluation decisions using bandit-like approach
+
+**Impact:**
+- New search modes: "bohb", "asha" (in addition to existing modes)
+- SearchMode type updated with new options
+- optimizer.py handles both BOHB and ASHA modes
+- 14 new tests in test_bohb_asha.py (all passing)
+- Phase 12 MASTER doc updated to v2.2
+
+**Files:**
+- src/optimization/search/bohb.py (NEW)
+- src/optimization/search/asha.py (NEW)
+- src/optimization/warmstart.py (NEW)
+- src/optimization/adaptive_fidelity.py (NEW)
+- src/optimization/search/__init__.py (MODIFIED)
+- src/optimization/config.py (MODIFIED)
+- src/optimization/optimizer.py (MODIFIED)
+- tests/test_optimization/test_bohb_asha.py (NEW)
+
+**Validation:** All 40 optimization tests pass, mypy clean on new files (except expected subclass errors)
+
+---
+
 ## Sobol Sequences for Multi-Fidelity Optimization - 2025-12-28 (Claude)
 
 ### ✨ FEATURE: Add Sobol sampler (~3.5x better convergence than LHS)
