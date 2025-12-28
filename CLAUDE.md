@@ -394,7 +394,7 @@
 
   <anti_hallucination_protocol priority="CRITICAL">
     <purpose>Prevent invented APIs, wrong calculations, and false confidence when using Claude Opus 4.5</purpose>
-    <context>Opus is superior for complex reasoning but may be more "creative" than deterministic models. These rules enforce verification.</context>
+    <context>Opus may be more "creative" than deterministic models; these rules enforce verification.</context>
 
     <api_citation_rule>
       <when>Using ANY library API (NautilusTrader, pandas, numpy, onnxruntime, pytz, requests, etc.)</when>
@@ -403,8 +403,6 @@
       <must>Include file:line reference when citing from local source</must>
       <forbidden>NEVER invent method names, parameters, return types, or class hierarchies</forbidden>
       <forbidden>NEVER assume API behavior from similar libraries</forbidden>
-      <example_bad>strategy.submit_order(order) # assumed API</example_bad>
-      <example_good>strategy.submit_order_list(...) # verified: nautilus_trader/trading/strategy.pyx:892</example_good>
       <nautilus_priority>For NautilusTrader: ALWAYS search external/nautilus_trader/examples/ first</nautilus_priority>
     </api_citation_rule>
 
