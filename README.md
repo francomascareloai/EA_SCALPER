@@ -2,6 +2,15 @@
 
 This repository is kept **unarchived** as a **legacy snapshot** of the original project to preserve history, stars, forks, and references.
 
+## Origin (short)
+
+This started as a hands-on effort: studying and testing many approaches to separate what is real from what is noise in live markets.
+
+Over time, the main system grew into a much larger production stack (validation workflows, safety constraints, operational tooling). At that point, keeping everything public no longer made sense, so the project moved to an **open-core split**:
+
+- **CORE** stays public as a minimal demo for learning.
+- **PREMIUM** stays private as the production codebase.
+
 ## Where to go now (Open-Core split)
 
 - **Public demo CORE (study/demo only):** `aurum-core`
@@ -52,4 +61,3 @@ This repo is intentionally not positioned as “runnable” for trading.
 ## Disclaimer
 
 This project is shared for educational purposes only. Trading involves substantial risk of loss and is not suitable for all investors.
-
