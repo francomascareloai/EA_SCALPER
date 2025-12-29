@@ -42,6 +42,11 @@ If you cloned this repo previously:
 
 This repo is intentionally not positioned as “runnable” for trading.
 
+## What was removed from `main`
+
+- The Python/Nautilus implementation (`nautilus_gold_scalper/`) was removed from `main` to keep the legacy repo focused and reduce duplication with the private `aurum-pro`.
+- If you need the production-grade Python system, it lives in `aurum-pro` (private).
+
 ---
 
 ## Disclaimer
