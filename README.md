@@ -1,18 +1,32 @@
-# EA_SCALPER_XAUUSD v3.30
+# Aurum (Legacy Snapshot)
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![MQL5](https://img.shields.io/badge/MQL5-MetaTrader%205-orange.svg)](https://www.mql5.com)
 [![NautilusTrader](https://img.shields.io/badge/NautilusTrader-Migration-green.svg)](https://nautilustrader.io)
-[![License](https://img.shields.io/badge/License-Personal%20Project-lightgrey.svg)]()
-[![Status](https://img.shields.io/badge/Status-In%20Development-red.svg)]()
+[![Status](https://img.shields.io/badge/Status-Legacy%20Snapshot-lightgrey.svg)]()
 
-**Automated Gold Trading System for Prop Firms (Apex Trader Funding & FTMO)**
+This repository is a **legacy snapshot** of the original project.
 
-**Dataset ativo para backtests:** `data/raw/full_parquet/xauusd_2003_2025_stride20_full.parquet` (32.7M ticks, 2003-05-05 → 2025-11-28, stride 20). Todas as execuções devem usar este arquivo.
+## Where to go now (Open-Core split)
 
-> After many requests and messages, I've made this repository public again. This is a personal project that I've been developing to automate gold (XAUUSD) trading with a focus on prop firm challenges (Apex Trader Funding, FTMO, and others).
+- **Public demo CORE (study/demo only):** `aurum-core`
+  - GitHub: https://github.com/francomascareloai/aurum-core
+- **Private PREMIUM (production / edge):** `aurum-pro`
+  - GitHub (private): https://github.com/francomascareloai/aurum-pro
 
----
+### Important
+
+- This legacy repository is **not** the place for new development.
+- No market dataset is redistributed in the public CORE.
+- The public CORE is licensed for **non-commercial** use and explicitly forbids **live/funded/broker-connected paper** usage.
+
+### What's New (Recent Work)
+
+- Dual implementation: **MQL5 (MT5)** and **Python (NautilusTrader/Apex)**.
+- Prop-firm compliance hardening: HWM-aware trailing DD, time gates, fail-closed safety.
+- Multi-fidelity optimization: ASHA/BOHB/Successive Halving with warm-start + anti-overfit constraints.
+- Performance-first backtesting: hot-path fixes to reduce per-tick overhead.
+- Order flow / footprint confirmation layer (MQL5).
 
 ## 🚨 NOT READY FOR PRODUCTION
 
