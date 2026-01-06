@@ -42,6 +42,10 @@ Over time, the main system grew into a much larger production stack (validation 
   - https://github.com/francomascareloai/aurum-core/issues
 - For PREMIUM support (private), use the private channels you already have with Franco.
 
+## Contact
+
+- Telegram: @francomascareloai
+
 ## Migration notes (for developers)
 
 If you cloned this repo previously:
