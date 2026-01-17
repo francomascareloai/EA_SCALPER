@@ -1,64 +1,70 @@
-# Aurum (Legacy Snapshot)
+# EA_SCALPER_XAUUSD (MQL5 Snapshot)
 
-This repository is kept **unarchived** as a **legacy snapshot** of the original project to preserve history, stars, forks, and references.
+This repository is now the public **MQL5 snapshot** of the original project.
 
-## Origin (short)
+It is kept public for **study, analysis, and engineering collaboration** (PR scope is limited — see below).
 
-This started as a hands-on effort: studying and testing many approaches to separate what is real from what is noise in live markets.
+## What this is
 
-Over time, the main system grew into a much larger production stack (validation workflows, safety constraints, operational tooling). At that point, keeping everything public no longer made sense, so the project moved to an **open-core split**:
+- A public MQL5 snapshot (larger than the minimal CORE demo).
+- A reference codebase to learn from, discuss architecture, and contribute improvements in **docs/infra/quality**.
 
-- **CORE** stays public as a minimal demo for learning.
-- **PREMIUM** stays private as the production codebase.
+## What this is NOT
+
+- Not a promise of profitability.
+- Not financial advice.
+- Not allowed for live/funded trading or broker-connected paper/demo execution.
+
+## Important: Trading restrictions
+
+This repository is published for **study and demonstration only**.
+
+- See `TRADING_RESTRICTIONS.md`
+- See `LICENSE`
 
 ## Where to go now (Open-Core split)
 
-- **Public demo CORE (study/demo only):** `aurum-core`
-  - GitHub: https://github.com/francomascareloai/aurum-core
-  - What it is: a **simplified MQL5 demo EA** intended for study and demonstration.
-  - What it is NOT: production code.
+- **Public minimal CORE (study/demo only):** `aurum-core`
+  - https://github.com/francomascareloai/aurum-core
+  - Minimal, auditable demo EA + educational indicators.
 
 - **Private PREMIUM (production / edge):** `aurum-pro`
-  - GitHub (private): https://github.com/francomascareloai/aurum-pro
-  - What it is: the private production codebase (strategies, optimization, infra, etc.).
+  - https://github.com/francomascareloai/aurum-pro (private)
+  - Python/Nautilus production system + operational tooling.
 
-## Important (read first)
+## PREMIUM teaser (Python system — high level)
 
-- This legacy repository is **not** the place for new development.
-- **No market dataset is redistributed** in the public CORE.
-- The public CORE is licensed for **non-commercial** use and explicitly forbids **live/funded** trading and **broker-connected paper/demo** usage.
-  - Source of truth for restrictions: `TRADING_RESTRICTIONS.md` in `aurum-core`.
+The private PREMIUM system (`aurum-pro`) is a production-grade Python stack focused on:
 
-## What changes here going forward
+- Strategy layer (multiple variants, routing/selection)
+- Execution layer (adapters, cost/latency modeling, ops wiring)
+- Risk & compliance (drawdown tracking, safety gates, time windows)
+- Backtesting & optimization (walk-forward validation, stress tests)
+- Observability and runbooks
 
-- This repo remains online for reference and historical context.
-- Updates here should be limited to:
-  - Documentation pointing people to `aurum-core` / `aurum-pro`
-  - Clarifications, security notices, and migration notes
+This public snapshot does not include proprietary rules, parameters, or operational “go-live” wiring.
 
-## Support / Issues
+## Support development (PC/infra goal: US$ 3,000)
 
-- For anything related to the **public demo CORE**, open issues in `aurum-core`:
-  - https://github.com/francomascareloai/aurum-core/issues
-- For PREMIUM support (private), use the private channels you already have with Franco.
+If you want to support development (new PC/infra + dedicated time), you can:
+
+- GitHub Sponsors: https://github.com/sponsors/francomascareloai
+- Telegram (private automation / partnerships): @francomascareloai
+
+Support tiers are intended for educational content and engineering Q&A — not signals, not performance claims.
+
+## Contributing (PR scope)
+
+This repository accepts PRs with a **limited scope**:
+
+- ✅ Accepted: docs, CI/build, tooling, refactors for clarity, and non-edge bugfixes.
+- ❌ Not accepted: strategy/edge changes, entry/exit rules, or anything that bypasses `TRADING_RESTRICTIONS.md`.
+
+A lightweight CLA is required before merging contributions (details in `CONTRIBUTING.md`).
 
 ## Contact
 
 - Telegram: @francomascareloai
-
-## Migration notes (for developers)
-
-If you cloned this repo previously:
-
-- If you want the **public demo / study** version: move to `aurum-core`.
-- If you are a collaborator on the private repo: use `aurum-pro`.
-
-This repo is intentionally not positioned as “runnable” for trading.
-
-## What was removed from `main`
-
-- The Python/Nautilus implementation (`nautilus_gold_scalper/`) was removed from `main` to keep the legacy repo focused and reduce duplication with the private `aurum-pro`.
-- If you need the production-grade Python system, it lives in `aurum-pro` (private).
 
 ---
 
