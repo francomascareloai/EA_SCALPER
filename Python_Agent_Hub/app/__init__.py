@@ -1,1 +1,0 @@
-# EA_SCALPER_XAUUSD Agent Hub App

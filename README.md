@@ -51,16 +51,29 @@ None of the proprietary rules, parameters, or "go-live" wiring are included in t
 This repository accepts PRs with a **limited scope**:
 
 - ✅ Accepted: docs, CI/build, tooling, refactors for clarity, and non-edge bugfixes.
-- ❌ Not accepted: strategy/edge changes, entry/exit rules, or anything that bypasses `TRADING_RESTRICTIONS.md`.
+- ❌ Not accepted: strategy changes, entry/exit rules, or anything that bypasses `TRADING_RESTRICTIONS.md`.
 
 A lightweight CLA is required before merging contributions (see `CONTRIBUTING.md`).
+
+## For serious engineers — let's build together
+
+If you're a serious, dedicated engineer (quant, Python/Nautilus, MQL5, ML, infra) and you genuinely want to help move this project forward, there's an open door. This isn't a "leave a drive-by PR" ask — it's an invitation to real collaboration.
+
+The deal is simple and two-way:
+
+- You contribute real engineering to the project.
+- In return, I help you back — mentorship, deep technical Q&A, and working through hard problems together.
+
+If that's you, reach out on Telegram (**@francomascareloai**) with a bit about your background and what you'd like to work on. Strong contributors can earn access to deeper parts of the project beyond this public snapshot.
+
+What I'm *not* looking for: signal-seekers, copy-paste contributors, or anyone trying to extract the edge. This is for people who like the engineering.
 
 ## Support development (optional)
 
 If the project is useful to you and you want to support the engineering work:
 
 - GitHub Sponsors: https://github.com/sponsors/francomascareloai
-- Telegram (engineering Q&A / partnerships): @francomascareloai
+- Telegram (engineering Q&A): @francomascareloai
 
 Support is for educational content and engineering Q&A — **not signals, not performance claims.**
 
